@@ -8,7 +8,7 @@ using Kora.Core.Presentation;
 namespace Kora.Application.UnitTests.Presentation;
 
 [Collection("Host tracing")]
-public sealed class DetailViewerTests
+public sealed partial class DetailViewerTests
 {
     [Fact]
     public void GenuineAssistantAnswerRemainsSeparateFromOriginalSourceHostFindAndClipboardAndIsClearedOnRevocation()
@@ -32,13 +32,29 @@ public sealed class DetailViewerTests
         state.AssistantText.Should().Be("genuine ASSISTANT only");
         state.HostText.Should().Contain("Succeeded").And.NotContain("genuine ASSISTANT only");
         state.TryGetCopySource(true, true, out _).Should().BeFalse();
+        state.Find("only", SnapshotFindDirection.First).Should().BeTrue();
+        state.MatchCount.Should().Be(1, "only the original USER body is counted, not the separately visible ASSISTANT");
+        state.Find("ASSISTANT", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0, "neither the assistant body nor the title enters USER Find");
         state.SetFindHost(true);
+        state.MatchCount.Should().BeNull();
         state.FindText.Should().NotContain("genuine ASSISTANT only");
+        state.Find("only", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0);
+        state.Find("Succeeded", SnapshotFindDirection.First).Should().BeTrue();
+        state.MatchCount.Should().Be(2, "the typed HOST observation includes outcome and task status");
+        state.MatchOrdinal.Should().Be(1);
+        state.SetFindHost(false);
+        state.MatchCount.Should().BeNull();
+        state.Find("Succeeded", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0);
         live = false;
         state.AssistantText.Should().BeEmpty();
         state.ActiveText.Should().BeEmpty();
         state.HostText.Should().BeEmpty();
         state.Content.Should().BeNull();
+        state.MatchCount.Should().BeNull();
+        state.MatchOrdinal.Should().BeNull();
     }
 
     [Fact]

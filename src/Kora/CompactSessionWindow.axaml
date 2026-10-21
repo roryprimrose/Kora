@@ -101,6 +101,8 @@
           Height="110" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
           PlaceholderText="Original body: at most 4096 UTF-16 characters / 16384 UTF-8 bytes; rejected, never truncated"
           AutomationProperties.Name="Shared exact-session memory draft, not question input or approval" />
+      <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
+          AutomationProperties.Name="Current editable shared conversation draft size and shape" />
       <WrapPanel>
         <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
         <Button x:Name="RecoverConversationDraft" Content="Review latest saved baseline; retain shared buffer" IsEnabled="{Binding CanRecoverConversationDraft}"

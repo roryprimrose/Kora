@@ -12,13 +12,13 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed class SessionsWindowController(
+internal sealed partial class SessionsWindowController(
     MainViewModel main, SessionWorkspaceService service, DurableEvidenceQuery evidence,
     ISessionWorkspaceAccess access, ILogger<SessionsViewModel> logger, LocalEventBroker? localEvents = null,
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
-    SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter
+    SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter, ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -45,6 +45,7 @@ internal sealed class SessionsWindowController(
     {
         main.SessionsRequested += OnOpen;
         main.BindSessionDispositionReview(this);
+        main.BindQueueCancellationReview(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -242,6 +243,7 @@ internal sealed class SessionsWindowController(
         OpenNewRequest = null;
         ReviewOriginalMessageReuse = null;
         main.BindSessionDispositionReview(null);
+        main.BindQueueCancellationReview(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

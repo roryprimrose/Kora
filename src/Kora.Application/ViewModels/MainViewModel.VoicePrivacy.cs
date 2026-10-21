@@ -21,6 +21,7 @@ public sealed partial class MainViewModel
     private readonly ListeningStopAction listeningStop;
     private int listeningStopRequests;
     private readonly BoundedMicrophoneCatalog microphoneCatalog;
+    private readonly Lock microphoneRefreshGate = new();
     private CancellationTokenSource? microphoneRefreshCancellation;
     private long catalogPrivacyRevision;
     private bool microphoneCatalogCurrent = true;
@@ -298,7 +299,7 @@ public sealed partial class MainViewModel
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
-        microphoneRefreshCancellation?.Cancel();
+        RetireMicrophoneRefresh();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
         if (clipboardExplanation is not null)
         {
@@ -1002,30 +1003,59 @@ public sealed partial class MainViewModel
 
     private Task RefreshInputMetadataAsync(CancellationToken cancellationToken)
     {
-        if (disposed) { return Task.CompletedTask; }
-        if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
-        return microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellationToken);
+        Task refresh;
+        TaskCompletionSource start;
+        lock (microphoneRefreshGate)
+        {
+            if (disposed) { return Task.CompletedTask; }
+            if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
+            start = new TaskCompletionSource();
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var token = cancellation.Token;
+            microphoneRefreshCancellation = cancellation;
+            isRefreshingMicrophones = true;
+            refresh = microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellation, start.Task, token);
+        }
+        // Publish the task before synchronous completion can admit a replacement through a UI callback.
+        start.SetResult();
+        return refresh;
     }
 
-    private async Task RefreshMicrophonesCoreAsync(CancellationToken cancellationToken)
+    private void RetireMicrophoneRefresh()
     {
+        CancellationTokenSource? cancellation;
+        lock (microphoneRefreshGate)
+        {
+            cancellation = microphoneRefreshCancellation;
+            microphoneRefreshCancellation = null;
+        }
+        if (cancellation is null) { return; }
+        // Detachment transfers disposal to this caller, including while cancellation callbacks are running.
+        try { cancellation.Cancel(); }
+        finally { cancellation.Dispose(); }
+    }
+
+    private async Task RefreshMicrophonesCoreAsync(CancellationTokenSource cancellation,
+        Task start, CancellationToken cancellationToken)
+    {
+#pragma warning disable VSTHRD003 // The synchronous owner releases this task-publication barrier before returning.
+        await start;
+#pragma warning restore VSTHRD003
         using var activity = HostActivity.Current is not null
             ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Recovery)
             : HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
                 HostActivityLayer.Application, HostOperation.Recovery);
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        microphoneRefreshCancellation = cancellation;
         var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
-        isRefreshingMicrophones = true;
-        microphoneCatalogCurrent = false;
-        Interlocked.Increment(ref microphoneTopologyRevision);
-        OnPropertyChanged(nameof(IsRefreshingMicrophones));
-        OnPropertyChanged(nameof(MicrophoneTopologyRevision));
-        NotifyVoiceEnablementChanged();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            microphoneCatalogCurrent = false;
+            Interlocked.Increment(ref microphoneTopologyRevision);
+            OnPropertyChanged(nameof(IsRefreshingMicrophones));
+            OnPropertyChanged(nameof(MicrophoneTopologyRevision));
+            NotifyVoiceEnablementChanged();
             var previousMicrophone = selectedMicrophone;
-            var snapshot = await microphoneCatalog.RefreshAsync(cancellation.Token);
+            var snapshot = await microphoneCatalog.RefreshAsync(cancellationToken);
             if (disposed || recoveryRevision != Interlocked.Read(ref voiceRecoveryRevision))
             {
                 activity.Complete(HostOperationOutcome.Failed);
@@ -1072,7 +1102,7 @@ public sealed partial class MainViewModel
             NotifyVoiceEnablementChanged();
             activity.Complete(HostOperationOutcome.Completed);
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             if (!disposed)
             {
@@ -1093,8 +1123,14 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            microphoneRefreshCancellation = null;
-            isRefreshingMicrophones = false;
+            bool ownsCancellation;
+            lock (microphoneRefreshGate)
+            {
+                ownsCancellation = ReferenceEquals(microphoneRefreshCancellation, cancellation);
+                if (ownsCancellation) { microphoneRefreshCancellation = null; }
+                isRefreshingMicrophones = false;
+            }
+            if (ownsCancellation) { cancellation.Dispose(); }
             if (!disposed)
             {
                 OnPropertyChanged(nameof(IsMicrophoneCatalogCurrent));

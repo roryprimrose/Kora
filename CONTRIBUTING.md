@@ -93,6 +93,20 @@ checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
 
+### Microphone metadata refresh ownership
+
+The host publishes the owned refresh task before callbacks can complete it or
+start a replacement. Refresh admission and CTS detachment share one lifetime
+gate: normal completion detaches and disposes its source, or host disposal
+detaches and owns both cancellation and disposal until callbacks finish.
+Completion must not dispose a source transferred to host teardown, clear a
+replacement source, or leave a disposed source referenced by the host.
+Native enumeration may still finish after its bounded wait is retired; the
+catalog retains worker ownership, and late metadata cannot restore a disposed
+host or grant capture readiness. The [deterministic ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs)
+cover cancellation/completion, private retirement and reentrant replacement
+with fake completion barriers, not sleeps or installed-device assumptions.
+
 ### Documentation ownership
 
 Use the [design topic index](Design/README.md#topic-owners) to find the canonical

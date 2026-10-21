@@ -55,6 +55,8 @@ public sealed class DetailLiteralFindWindowTests
                 Required<TextBox>(window, "ContentReader").Bounds.Height.Should().BeGreaterThan(0);
                 state.MatchStart.Should().Be(0);
                 state.MatchLength.Should().Be(256);
+                state.MatchCount.Should().Be(1);
+                state.MatchOrdinal.Should().Be(1);
             }
             finally { window.ClearAndClose(); }
         });
@@ -113,8 +115,14 @@ public sealed class DetailLiteralFindWindowTests
         {
             var query = Required<TextBox>(window, "SearchInput");
             var span = Required<NamedTextBlock>(window, "FindSpan");
+            var summary = Required<NamedTextBlock>(window, "FindSummary");
+            var summaryPeer = ControlAutomationPeer.CreatePeerForElement(summary)!;
+            AutomationProperties.GetLiveSetting(summary).Should().Be(AutomationLiveSetting.Off);
+            summaryPeer.GetName().Should().Contain("Count unavailable");
             query.Text = "alpha";
+            summaryPeer.GetName().Should().Contain("Count unavailable");
             Click(window, "FirstMatch");
+            summaryPeer.GetName().Should().Contain("Match 1 of 2").And.Contain("current admitted text only");
             span.Text.Should().Be("alpha");
             span.IsFocused.Should().BeTrue();
             state.MatchStart.Should().Be(6);
@@ -123,13 +131,16 @@ public sealed class DetailLiteralFindWindowTests
             peer.GetName().Should().Contain("Exact inert admitted detail literal match").And.Contain("alpha");
             Click(window, "NextMatch");
             state.MatchStart.Should().Be(12);
+            summary.Text.Should().Be("Match 2 of 2 in this exact admitted text.");
             Click(window, "NextMatch");
             state.Status.Should().Contain("End of forward direction").And.Contain("no wrap");
             span.IsVisible.Should().BeFalse();
+            summary.Text.Should().Be("Match 2 of 2 in this exact admitted text.");
             Click(window, "PreviousMatch");
             state.MatchStart.Should().Be(6);
             Click(window, "PreviousMatch");
             state.Status.Should().Contain("End of backward direction");
+            summary.Text.Should().Be("Match 1 of 2 in this exact admitted text.");
             query.Text = "ALPHA";
             Required<Button>(window, "NextMatch").IsEnabled.Should().BeFalse();
             Click(window, "FirstMatch");
@@ -137,16 +148,20 @@ public sealed class DetailLiteralFindWindowTests
             query.Text = "missing";
             Click(window, "FirstMatch");
             state.Status.Should().Contain("No literal match");
+            summaryPeer.GetName().Should().Contain("0 matches");
             Required<CheckBox>(window, "FindHostToggle").IsChecked = true;
+            summary.Text.Should().Contain("Count unavailable");
             query.Text = "HOST";
             Click(window, "FirstMatch");
             span.Text.Should().Be("HOST");
+            summaryPeer.GetName().Should().Contain("Match 1 of 1");
             Required<TextBox>(window, "ContentReader").Text.Should().Be(admitted.Source);
             Required<TextBlock>(window, "ConversationHostLabel").Text.Should().Be(state.HostText);
             Click(window, "CancelFind");
             query.Text.Should().Be("HOST");
             query.IsFocused.Should().BeTrue();
             span.Text.Should().BeNull();
+            summary.Text.Should().Contain("Count unavailable");
             Click(window, "ClearFind");
             query.Text.Should().BeEmpty();
             Required<Button>(window, "CopySource").IsEnabled.Should().BeFalse();
@@ -184,6 +199,9 @@ public sealed class DetailLiteralFindWindowTests
             state.SearchQuery.Should().Be(query);
             state.Status.Should().Contain("rejected").And.Contain("nothing was truncated");
             Required<NamedTextBlock>(window, "FindSpan").IsVisible.Should().BeFalse();
+            state.MatchCount.Should().BeNull();
+            state.MatchOrdinal.Should().BeNull();
+            Required<NamedTextBlock>(window, "FindSummary").Text.Should().Contain("Count unavailable");
         }
         finally { window.ClearAndClose(); }
     });
@@ -217,9 +235,34 @@ public sealed class DetailLiteralFindWindowTests
         Required<TextBox>(window, "ContentReader").Text.Should().BeEmpty();
         Required<TextBlock>(window, "ConversationHostLabel").Text.Should().BeEmpty();
         Required<NamedTextBlock>(window, "FindSpan").Text.Should().BeNull();
+        Required<NamedTextBlock>(window, "FindSummary").Text.Should().BeEmpty();
+        state.MatchCount.Should().BeNull();
+        state.MatchOrdinal.Should().BeNull();
         Click(window, "FirstMatch");
         state.MatchStart.Should().Be(-1);
         window.ClearAndClose();
+    });
+
+    [Fact]
+    public Task FailedNativeFocusRetiresCountAndOrdinalRatherThanClaimingAMatch() => HeadlessSession.RunAsync(() =>
+    {
+        var content = Content();
+        var state = new DetailViewerState(content);
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
+        var window = new DetailWindow(state, result, (_, _, _) => throw new InvalidOperationException("No clipboard authority."));
+        window.Show();
+        try
+        {
+            Required<NamedTextBlock>(window, "FindSpan").Focusable = false;
+            Required<TextBox>(window, "SearchInput").Text = "alpha";
+            Click(window, "FirstMatch");
+            state.Status.Should().Contain("focus unavailable");
+            state.MatchCount.Should().BeNull();
+            state.MatchOrdinal.Should().BeNull();
+            Required<NamedTextBlock>(window, "FindSummary").Text.Should().Contain("Count unavailable");
+            Required<NamedTextBlock>(window, "FindSpan").IsVisible.Should().BeFalse();
+        }
+        finally { window.ClearAndClose(); }
     });
 
     private static AdmittedDetailContent Content(string body = "ALPHA alpha alpha\r\nexact USER")

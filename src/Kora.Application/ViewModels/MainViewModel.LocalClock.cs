@@ -45,13 +45,14 @@ public sealed partial class MainViewModel
             Transcript = "Local clock unavailable: the host clock workflow is not bound.";
             return;
         }
-        var result = localClock.Execute(command.Operation, Eligible, CancellationToken.None);
+        var result = localClock.Execute(command.Operation, Eligible, CancellationToken.None, command.Zone);
         if (result.Outcome != LocalClockOutcome.Succeeded || !Eligible())
         {
             Transcript = "Local clock unavailable or retired: " + result.Outcome + ". Retry with fresh original input.";
             return;
         }
-        PresentLocalClockResponse("Host-local date and time.", result.Answer!.Text);
+        PresentLocalClockResponse(command.Zone == LocalClockZone.Utc ? "Host UTC date and time." : "Host-local date and time.",
+            result.Answer!.Text);
     }
 
     private void PresentLocalClockResponse(string title, string body)

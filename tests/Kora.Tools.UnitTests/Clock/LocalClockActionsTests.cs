@@ -8,6 +8,28 @@ namespace Kora.Tools.UnitTests.Clock;
 public sealed class LocalClockActionsTests
 {
     [Fact]
+    public void ExplicitUtcActionsStillSampleOneHostInstantAndContextWithoutUsingLocalOffset()
+    {
+        var time = new AdvancingClock();
+        var context = new Context();
+        var service = new LocalClockService(time, context);
+        var answers = new[]
+        {
+            new LocalClockGetTime(service).Execute(LocalClockZone.Utc),
+            new LocalClockGetDate(service).Execute(LocalClockZone.Utc),
+            new LocalClockGetDateAndTime(service).Execute(LocalClockZone.Utc),
+        };
+        time.Reads.Should().Be(3);
+        context.Reads.Should().Be(3);
+        answers[0].Text.Should().StartWith("UTC time:");
+        answers[1].Text.Should().StartWith("UTC date:");
+        answers[2].Text.Should().StartWith("UTC date and time:");
+        answers.Select(answer => answer.Instant).Should().OnlyHaveUniqueItems();
+        answers.Should().OnlyContain(answer => answer.LocalTime.Offset == TimeSpan.Zero
+            && answer.LocalTime.Year == 2025 && answer.TimeZoneId == "UTC");
+    }
+
+    [Fact]
     public void EveryActionUsesTheSharedClockAndSamplesExactlyOneInstantAndContext()
     {
         var time = new AdvancingClock();

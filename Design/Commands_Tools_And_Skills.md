@@ -46,6 +46,9 @@ enabled.
 
 ## Bounded host-local clock answers
 
+The same exact original-input route also accepts the explicit `in UTC` suffix for each of the three answer phrases. [The typed zone](../src/Kora.Core/Clock/LocalClockZone.cs) defaults to HostLocal and admits UTC only by request; unknown values are rejected rather than interpreted as a fallback. The [shared formatter](../src/Kora.Core/Clock/LocalClockAnswer.cs) fixes UTC answers to the UTC calendar, offset and ID while retaining host culture, including when local time is on another date or in a DST transition.
+The existing [three actions](../src/Kora.Tools/Clock) and [workflow](../src/Kora.Application/Clock/LocalClockWorkflow.cs) carry that explicit zone; they still sample one instant and one context. UTC does not rescue unavailable host context, change preferences, query other zones or expand model/voice authority. The [native route](../src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs) retains the same pending-interaction, privacy, owner, call, activation and visual-only policy.
+
 The [exact clock grammar](../docs/commands.md#host-local-date-and-time) is an
 original typed/current-name activated route before ordinary question/approval
 supersession. [LocalClockCommand](../src/Kora.Core/Commands/LocalClockCommand.cs)
@@ -69,7 +72,7 @@ requires live host correlation, original local/activated origin, fresh admission
 before and after observation and cancellation checks. Typed outcomes and
 source-generated content-free logs terminate the Application tool activity
 truthfully. No clock answer is authority, audit evidence, persisted preference
-or a consequential operation. Missing context fails explicitly; there is no
+or a consequential operation. Missing context fails explicitly; requested UTC is a distinct answer, never a
 UTC/default-zone, model or network fallback.
 
 [Presentation admission](../src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs)

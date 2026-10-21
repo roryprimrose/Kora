@@ -7,6 +7,20 @@ namespace Kora.Core.UnitTests.Commands;
 public sealed class LocalClockCommandTests
 {
     [Theory]
+    [InlineData("what time is it in utc", LocalClockOperation.Time)]
+    [InlineData("what is today's date in utc", LocalClockOperation.Date)]
+    [InlineData("what is the date and time in utc", LocalClockOperation.DateAndTime)]
+    public void ExplicitUtcSuffixUsesTheSameBoundedGrammarAndCurrentNameActivation(string phrase, LocalClockOperation operation)
+    {
+        LocalClockCommand.FixedPhrases.Should().Contain(phrase);
+        LocalClockCommand.Parse(phrase, "Nova")!.Should().Be(new LocalClockCommand(operation, false, LocalClockZone.Utc));
+        LocalClockCommand.Parse(" Nova, " + phrase.ToUpperInvariant() + "? ", "Nova")!
+            .Should().Be(new LocalClockCommand(operation, true, LocalClockZone.Utc));
+        LocalClockCommand.Parse("Kora, " + phrase, "Nova").Should().BeNull();
+        LocalClockCommand.Parse(phrase.Replace(" in utc", "", StringComparison.Ordinal), "Nova")!.Zone.Should().Be(LocalClockZone.HostLocal);
+    }
+
+    [Theory]
     [InlineData("what time is it", LocalClockOperation.Time)]
     [InlineData("what is today's date", LocalClockOperation.Date)]
     [InlineData("what is the date and time", LocalClockOperation.DateAndTime)]
@@ -32,6 +46,10 @@ public sealed class LocalClockCommandTests
     [InlineData("help local clock please")]
     [InlineData("what\ttime is it")]
     [InlineData("what time is it\n")]
+    [InlineData("what time is it in utc tomorrow")]
+    [InlineData("what time is it in utc+10")]
+    [InlineData("what is today's date in GMT")]
+    [InlineData("what is the date and time in utc and restart")]
     public void OnlyBoundedReservedFamiliesClarifyInsteadOfFallingThrough(string text)
     {
         LocalClockCommand.Parse(text, "Nova")!.Operation.Should().Be(LocalClockOperation.Invalid);

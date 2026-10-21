@@ -36,6 +36,8 @@ do not depend on hosted management, and speech preferences do not qualify wake.
 
 ### Bounded host-local clock answers
 
+Explicit UTC date/time/date-and-time answers now share the [exact clock grammar and actions](Commands_Tools_And_Skills.md#bounded-host-local-clock-answers). They preserve host-local defaults and the same admission/visual-only boundaries, using host culture with an explicit UTC calendar, zero offset and timezone ID. [Deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.LocalClock.cs) cover typed/current-name voice, pending interactions and private/owner/call failures; this consumes the existing clock I subset without enabling a provider, scheduler, location lookup or E/Q profile.
+
 The [clock contract](Commands_Tools_And_Skills.md#bounded-host-local-clock-answers)
 adds three original-input date/time answers and help using one `TimeProvider`
 instant with host-local culture, timezone and explicit UTC offset. Core

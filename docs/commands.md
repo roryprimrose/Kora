@@ -32,6 +32,9 @@ refuses calculation. This native-only command adds no model descriptor.
 
 ## Host-local date and time
 
+For an explicit UTC answer, append **in UTC**: `what time is it in UTC`, `what is today's date in UTC`, or `what is the date and time in UTC`. Activated voice still requires the current assistant name. UTC uses the same sampled host instant and host culture, but always the UTC calendar date/time, `+00:00` offset and `UTC` timezone ID; it is not independently verified time ([grammar](../src/Kora.Core/Commands/LocalClockCommand.cs), [formatting](../src/Kora.Core/Clock/LocalClockAnswer.cs)).
+Omitting the suffix preserves the host-local answer. Other zones, offsets, extra words and partial UTC requests are not supported. There is no timezone preference change, location lookup or silent UTC fallback when host context fails ([clock service](../src/Kora.Tools/Clock/LocalClockService.cs), [workflow](../src/Kora.Application/Clock/LocalClockWorkflow.cs)).
+
 Type `what time is it`, `what is today's date`, `what is the date and time`,
 or `help local clock`. Activated voice requires the current assistant name,
 for example `Kora, what time is it?`; renaming replaces that prefix.
@@ -40,7 +43,7 @@ Control characters and commands over 256 characters are refused.
 Only the reserved normalized families `what time`, `what is today s date`,
 `what is the date and time` and `help local clock` (whole words plus optional
 suffix words) clarify malformed requests instead of sending them to a model.
-For example, `what time is it in Paris` is not a timezone query.
+For example, `what time is it in Paris` is not a timezone query; only the exact UTC suffix above is supported.
 No other fuzzy date/time grammar is introduced.
 
 Each answer samples one host clock instant and converts it using the host's

@@ -27,10 +27,13 @@ public sealed class LocalClockWorkflowTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Theory]
-    [InlineData(LocalClockOperation.Time)]
-    [InlineData(LocalClockOperation.Date)]
-    [InlineData(LocalClockOperation.DateAndTime)]
-    public void AdmittedActionsRetainHostCorrelationAndEndTheirChildTrace(LocalClockOperation operation)
+    [InlineData(LocalClockOperation.Time, LocalClockZone.HostLocal)]
+    [InlineData(LocalClockOperation.Date, LocalClockZone.HostLocal)]
+    [InlineData(LocalClockOperation.DateAndTime, LocalClockZone.HostLocal)]
+    [InlineData(LocalClockOperation.Time, LocalClockZone.Utc)]
+    [InlineData(LocalClockOperation.Date, LocalClockZone.Utc)]
+    [InlineData(LocalClockOperation.DateAndTime, LocalClockZone.Utc)]
+    public void AdmittedActionsRetainHostCorrelationAndEndTheirChildTrace(LocalClockOperation operation, LocalClockZone zone)
     {
         var clock = new ClockTestHost();
         var workflow = clock.CreateWorkflow();
@@ -40,9 +43,10 @@ public sealed class LocalClockWorkflowTests : IDisposable
         {
             using var parent = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
             clock.BeforeRead = () => HostActivity.RequireCurrent().Request.Should().BeSameAs(request);
-            var result = workflow.Execute(operation, static () => true, CancellationToken.None);
+            var result = workflow.Execute(operation, static () => true, CancellationToken.None, zone);
             result.Outcome.Should().Be(LocalClockOutcome.Succeeded);
             result.Answer!.Instant.Should().Be(clock.Instant);
+            result.Answer.LocalTime.Offset.Should().Be(zone == LocalClockZone.Utc ? TimeSpan.Zero : TimeSpan.FromHours(14));
             var child = stopped.Last();
             child.TraceId.Should().Be(parent.Activity!.TraceId).And.NotBe(hostile.TraceId);
             child.ParentSpanId.Should().Be(parent.Activity.SpanId);

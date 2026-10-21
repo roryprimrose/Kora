@@ -13,6 +13,39 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("what time is it in utc", "UTC time: 10:00:00", false)]
+    [InlineData("what is today's date in utc", "UTC date: 2025-12-31", false)]
+    [InlineData("what is the date and time in utc", "UTC date and time: 2025-12-31, 10:00:00", false)]
+    [InlineData("what time is it in utc", "UTC time: 10:00:00", true)]
+    [InlineData("what is today's date in utc", "UTC date: 2025-12-31", true)]
+    [InlineData("what is the date and time in utc", "UTC date and time: 2025-12-31, 10:00:00", true)]
+    public async Task ExplicitUtcTypedAndCurrentNameVoiceAnswersNeverBecomeLocalDateModelOrAutomaticSpeech(
+        string phrase, string expected, bool voice)
+    {
+        var clock = new ClockTestHost();
+        var f = new Fixture(localClock: clock.CreateWorkflow());
+        await f.ViewModel.InitializeAsync();
+        if (voice) { await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser); }
+        f.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        await f.ViewModel.PreferenceUpdate;
+        f.TextToSpeech.ClearSpokenResponse();
+        var outputs = f.TextToSpeech.OutputEnumerationCalls;
+        if (voice)
+        {
+            await f.RaiseActivatedTranscriptAsync("Nova, " + phrase + "?", 1);
+            f.Voice.StartedPhrases.Should().Contain("Nova " + phrase);
+        }
+        else { await f.RunAsync(phrase); }
+        clock.Reads.Should().Be(1);
+        f.ViewModel.ResponseTitle.Should().Be("Host UTC date and time.");
+        f.ViewModel.ResponseBody.Should().Be(expected + " (UTC+00:00; UTC).");
+        f.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.TextToSpeech.OutputEnumerationCalls.Should().Be(outputs);
+    }
+
     [Fact]
     public async Task ClockTypedAnswersAndHelpUseOneHostInstantWithoutModelsSpeechOrDeviceEnumeration()
     {
@@ -132,11 +165,14 @@ public sealed partial class MainViewModelTests
             case "name": f.NamePreferences.Name = "\0"; await f.ViewModel.InitializeAsync(); break;
         }
         var body = f.ViewModel.ResponseBody;
-        if (string.Equals(loss, "external", StringComparison.Ordinal))
+        foreach (var phrase in new[] { "what time is it", "what time is it in utc" })
         {
-            await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, () => f.RunAsync("what time is it"));
+            if (string.Equals(loss, "external", StringComparison.Ordinal))
+            {
+                await HostRequestRunner.RunAsync(RequestOrigin.HostSystem, () => f.RunAsync(phrase));
+            }
+            else { await f.RunAsync(phrase); }
         }
-        else { await f.RunAsync("what time is it"); }
         clock.Reads.Should().Be(0);
         f.ViewModel.ResponseBody.Should().Be(body);
         f.ViewModel.Transcript.Should().StartWith("Local clock unavailable:");

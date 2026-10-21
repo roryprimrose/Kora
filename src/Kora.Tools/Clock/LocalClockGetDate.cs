@@ -4,5 +4,5 @@ namespace Kora.Tools.Clock;
 
 public sealed class LocalClockGetDate(LocalClockService clock)
 {
-    internal LocalClockAnswer Execute() => clock.Read(LocalClockOperation.Date);
+    internal LocalClockAnswer Execute(LocalClockZone zone = LocalClockZone.HostLocal) => clock.Read(LocalClockOperation.Date, zone);
 }

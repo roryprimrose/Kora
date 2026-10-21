@@ -4147,7 +4147,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var dateCommand = Kora.Application.Calendar.DateArithmeticCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && dateCommand is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
@@ -4179,7 +4181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
             return;
         }
-        if (Kora.Application.Calendar.DateArithmeticCommand.Parse(spokenText, AssistantName) is { } dateCommand)
+        if (dateCommand is not null)
         {
             ExecuteDateArithmetic(dateCommand, spokenText, initiator, manualInput);
             return;

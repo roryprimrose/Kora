@@ -20,8 +20,8 @@
         <Button x:Name="Sessions" Content="_Sessions / explicit selection" />
         <Button x:Name="NewRequest" Content="_New request (fresh target)" />
       </WrapPanel>
-      <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
-          AutomationProperties.Name="Shared exact selected ID, name, generation, metadata revision and private control epoch" />
+      <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
+          AutomationProperties.Name="Conversation name and exact session identity for this message" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />

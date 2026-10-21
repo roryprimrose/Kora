@@ -50,12 +50,9 @@ internal sealed partial class SessionsViewModel
     }
     public string ConversationStatus => conversationStatus;
     public string ComposerTarget => selected is { } target
-        ? "Message exact session " + target.Authority.SessionId.Value.ToString("D")
-            + " | name: " + (target.Metadata?.Name.Value ?? "Unnamed")
-            + " | generation " + target.Authority.Generation.Value.ToString(CultureInfo.InvariantCulture)
-            + " | metadata revision " + (target.Metadata?.Revision.Value ?? 0).ToString(CultureInfo.InvariantCulture)
-            + " | private control epoch " + access.ControlRevision.ToString(CultureInfo.InvariantCulture)
-        : "Select an exact session; no global or question-reply target.";
+        ? "Conversation: " + (target.Metadata?.Name.Value ?? "Unnamed conversation")
+            + "\nSession: " + target.Authority.SessionId.Value.ToString("D")
+        : "Select an exact session to write a message.";
     public IReadOnlyList<ConversationMessage> ConversationMessages => conversationPage is { } page ? page.Messages
         : completedConversationMessage is { } completed ? [completed] : [];
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;

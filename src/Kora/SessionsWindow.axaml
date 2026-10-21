@@ -38,8 +38,8 @@
     <StackPanel Spacing="6">
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
-        <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
-            AutomationProperties.Name="Composer exact target ID, name, generation, metadata revision and private control epoch" />
+        <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
+            AutomationProperties.Name="Conversation name and exact session identity for this message" />
         <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
         <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no silent redaction. Unsent input stays separately in memory per session while switching topics. No draft saves or autosave." TextWrapping="Wrap" />
         <WrapPanel>

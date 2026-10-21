@@ -46,7 +46,6 @@ public sealed partial class App : Avalonia.Application
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
     private AttachmentCatalogueWindowController? attachmentCatalogue;
-    private SavedDraftCatalogueWindowController? savedDraftCatalogue;
     private MaintenanceWindowController? maintenanceWindow;
     private MainViewModel? viewModel;
     private ILogger<App>? logger;
@@ -190,7 +189,6 @@ public sealed partial class App : Avalonia.Application
                 () => questionWindow.ReturnToCurrentQuestionAsync(GetPresenceOwner()),
                 () => attachmentCatalogue?.Open(),
                 () => instructionEditor.Open(),
-                () => savedDraftCatalogue?.Open(),
                 () => newRequestWindow?.Open(),
                 () => sessionsWindow?.OpenCompact());
             evidenceWindow = new EvidenceWindowController(viewModel,
@@ -228,11 +226,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow);
             newRequestWindow.Bind();
+            viewModel.BindConversationShutdown(async () =>
+                await newRequestWindow.PrepareShutdown() && await sessionsWindow.PrepareShutdown());
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
-            savedDraftCatalogue = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(), sessionsWindow,
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                Services.GetRequiredService<ILogger<SavedDraftCatalogueViewModel>>());
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
@@ -241,7 +238,7 @@ public sealed partial class App : Avalonia.Application
             sessionsWindow.OpenAllWork = allWorkWindow.Open;
             workspaceSurfaceCommands = new(viewModel,
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
-                allWorkWindow, savedDraftCatalogue, sessionsWindow);
+                allWorkWindow, sessionsWindow);
             workspaceSurfaceCommands.Bind();
             var localEvents = Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>();
             Services.GetRequiredService<SessionWorkspaceService>().BindLocalEvents(localEvents);
@@ -390,8 +387,6 @@ public sealed partial class App : Avalonia.Application
         newRequestWindow = null;
         attachmentCatalogue?.Dispose();
         attachmentCatalogue = null;
-        savedDraftCatalogue?.Dispose();
-        savedDraftCatalogue = null;
         attachmentWindow?.Dispose();
         attachmentWindow = null;
         clipboardWindow?.Dispose();

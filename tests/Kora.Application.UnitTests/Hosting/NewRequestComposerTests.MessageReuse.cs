@@ -62,7 +62,6 @@ public sealed partial class NewRequestComposerTests
             f.Composer.Creation.Should().BeNull();
             f.Composer.Target.Should().BeNull();
             f.Composer.Submission.Should().BeNull();
-            f.Composer.CanSave.Should().BeFalse();
             f.Composer.CanSubmit.Should().BeFalse();
             f.Composer.Status.Should().Contain("memory only").And.Contain("No task replay");
             f.Entry.Should().Be(source);

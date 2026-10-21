@@ -15,8 +15,8 @@ public sealed class ComposerDraftSizeFeedbackTests
     public void FeedbackContainsOnlyMetricsAndTruthfulShape(string body, string save, string submit)
     {
         var result = ComposerDraftSizeFeedback.Format(ConversationText.Measure(body));
-        result.Should().Contain("Save shape: " + save).And.Contain("Submit shape: " + submit)
-            .And.Contain("16384 UTF-8 bytes / 4096 UTF-16 code units each")
+        result.Should().Contain("Input shape: " + save).And.Contain("Submit shape: " + submit)
+            .And.Contain("16384 UTF-8 bytes / 4096 UTF-16 code units")
             .And.Contain("no scalar limit").And.Contain("credential checks");
         result.Should().NotContain("PRIVATE_MARKER");
     }
@@ -26,9 +26,9 @@ public sealed class ComposerDraftSizeFeedbackTests
     {
         ComposerDraftSizeFeedback.Format(ConversationText.Measure("\ud800")).Should()
             .Contain("Malformed Unicode").And.Contain("count unavailable")
-            .And.Contain("Save shape: ill-formed Unicode; Submit shape: ill-formed Unicode");
+            .And.Contain("Input shape: ill-formed Unicode; Submit shape: ill-formed Unicode");
         ComposerDraftSizeFeedback.Format(ConversationText.Measure(new string('a', 4097))).Should()
-            .Contain("4097 UTF-8 bytes; 4097 Unicode scalars").And.Contain("Save shape: over limit; Submit shape: over limit");
+            .Contain("4097 UTF-8 bytes; 4097 Unicode scalars").And.Contain("Input shape: over limit; Submit shape: over limit");
         ComposerDraftSizeFeedback.Format(null).Should().Contain("metrics unavailable").And.NotContain("0 UTF");
     }
 }

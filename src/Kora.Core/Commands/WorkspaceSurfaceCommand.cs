@@ -7,7 +7,6 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target)
     private static readonly (string Phrase, WorkspaceSurfaceTarget Target)[] Routes =
     [
         ("open all work", WorkspaceSurfaceTarget.AllWork),
-        ("open saved conversation drafts", WorkspaceSurfaceTarget.SavedConversationDrafts),
         ("open compact conversation", WorkspaceSurfaceTarget.CompactConversation),
     ];
 

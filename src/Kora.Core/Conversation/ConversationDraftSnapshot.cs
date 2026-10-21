@@ -5,6 +5,6 @@ namespace Kora.Core.Conversation;
 
 public sealed record ConversationDraftSnapshot(WorkSessionAuthorization Session, SavedConversationDraft Draft)
 {
-    /// <summary>Optional exact native target reviewed for this write, checked in the draft transaction.</summary>
+    /// <summary>Optional exact native target bound to a legacy compatibility read or write.</summary>
     public SessionWorkspaceEntry? ExpectedTarget { get; init; }
 }

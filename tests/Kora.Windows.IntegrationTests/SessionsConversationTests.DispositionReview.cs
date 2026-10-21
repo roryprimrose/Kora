@@ -22,8 +22,8 @@ public sealed partial class SessionsConversationTests
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
         await model.ReadConversationAsync();
-        model.ComposerBody = "explicitly saved private draft";
-        await model.SaveConversationDraftAsync();
+        await WindowsSqliteConversationTests.Save(f,
+            await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "explicitly saved private draft");
         var subject = model.SelectedSessionRecord!;
         var before = f.Count("host_tasks");
         var audits = f.Count("security_audit_events");
@@ -111,9 +111,9 @@ public sealed partial class SessionsConversationTests
             : Task.FromResult(choice is "discard" ? ComposerDraftDecision.Discard : ComposerDraftDecision.Cancel);
         var shown = await model.ReviewDispositionAsync(new(target.Authority.SessionId.Value, 1, 0),
             RequestOrigin.ActivatedVoice, () => true, () => true, f.Token);
-        shown.Should().Be(choice is "discard");
+        shown.Should().BeTrue();
         model.SelectedSessionRecord.Should().Be(target);
-        model.ComposerBody.Should().Be(choice is "discard" ? "" : "private original unsaved buffer");
+        model.ComposerBody.Should().Be("private original unsaved buffer");
         (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Revision.Should().Be(0);
         f.Count("conversation_messages").Should().Be(0);
         f.Count("host_tasks").Should().Be(1);
@@ -162,39 +162,4 @@ public sealed partial class SessionsConversationTests
         f.Count("host_tasks").Should().Be(1);
     }
 
-    [Fact]
-    public async Task DispositionCommandCannotStealAPendingPrivateDraftRecoveryReview()
-    {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        await using var composed = new Composition(f);
-        var model = composed.Model;
-        await model.RefreshAsync();
-        await model.SelectAsync(model.Sessions.Single());
-        await model.ReadConversationAsync();
-        model.ComposerBody = "original unsaved buffer";
-        model.CanRecoverConversationDraft.Should().BeTrue();
-        var opened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
-        var review = model.ReviewConversationDraftRecoveryAsync((_, _) =>
-        {
-            opened.SetResult();
-            return decision.Task;
-        }, () => true);
-        (await Task.WhenAny(opened.Task, review)).Should().Be(opened.Task);
-        await opened.Task;
-        model.CanRefreshWork.Should().BeFalse("passive native refresh cannot retire an ongoing private recovery decision");
-        var launch = () => model.ReviewDispositionAsync(new(f.Request.SessionId.Value, 1, 0),
-            RequestOrigin.ActivatedVoice, () => true, () => true, f.Token);
-        await launch.Should().ThrowAsync<InvalidOperationException>().WithMessage("*saved draft*");
-        review.IsCompleted.Should().BeFalse();
-        model.ComposerBody.Should().Be("original unsaved buffer");
-        decision.SetResult(false);
-        await review;
-        model.ComposerBody.Should().Be("original unsaved buffer");
-        model.CanConfirmDisposition.Should().BeFalse();
-        model.CanRefreshWork.Should().BeTrue();
-        f.Count("host_tasks").Should().Be(1);
-    }
 }

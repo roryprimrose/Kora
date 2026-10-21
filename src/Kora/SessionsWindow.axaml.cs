@@ -49,22 +49,8 @@ internal sealed partial class SessionsWindow : Window
                 }
             };
         }
-        CompareComposer.Click += (_, _) =>
-        {
-            model.CancelConversationDraftRecovery();
-            if (IsVisible && model.CompareComposer() is { } comparison)
-            {
-                var dialog = new ConversationDraftComparisonWindow(this, model, comparison);
-                dialog.Open(this);
-            }
-        };
-        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
-        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = ConversationDraftRecoveryWindow.RecoverAsync(this, model));
-        Closed += (_, _) => model.CancelConversationDraftRecovery();
-        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
-        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
-        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
-        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
+        DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         PropertyChanged += (_, args) =>
         {

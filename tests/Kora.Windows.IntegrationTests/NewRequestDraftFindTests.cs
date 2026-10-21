@@ -62,7 +62,7 @@ public sealed class NewRequestDraftFindTests
         f.Composer.Target.Should().BeNull();
         f.Composer.Creation.Should().BeNull();
         f.Composer.Submission.Should().BeNull();
-        f.Composer.SavedRevision.Should().Be(0);
+        f.Composer.Dirty.Should().BeTrue();
         f.Composer.AssistantResponse.Should().BeNull();
         f.Window.Operation.IsCompletedSuccessfully.Should().BeTrue();
         changes.Should().Be(0, "Find never enters the composer operation or editing paths");

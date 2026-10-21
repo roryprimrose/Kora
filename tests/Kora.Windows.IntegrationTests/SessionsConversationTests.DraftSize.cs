@@ -18,7 +18,7 @@ public sealed partial class SessionsConversationTests
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
-            var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync);
+            var reader = new SearchReader(f.Store.ReadConversationPageAsync, f.Store.ReadConversationDraftAsync, f.Store.ReadMetadataAsync);
             await using var composed = new Composition(f, conversationReader: reader);
             var model = composed.Model;
             var owner = new SessionsPresentationOwner(model);
@@ -43,7 +43,7 @@ public sealed partial class SessionsConversationTests
                 source.Text = "e\u0301\ud83d\ude42\r\n";
                 AssertShared("9 UTF-8 bytes; 5 Unicode scalars", 6);
                 source.Text = new string('x', 4097);
-                AssertShared("Save shape: over limit", 4097);
+                AssertShared("Input shape: over limit", 4097);
                 model.ComposerBody.Should().HaveLength(4097);
                 source.Text = "\ud800";
                 AssertShared("Malformed Unicode", 1);
@@ -64,21 +64,24 @@ public sealed partial class SessionsConversationTests
                 reader.Reads.Should().Be(reads);
                 reader.DraftReads.Should().Be(draftReads);
                 reader.DenyReads = false;
-                model.DiscardComposerBuffer();
+                model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
+                await model.DiscardComposerBufferAsync();
                 AssertShared("0 UTF-8 bytes; 0 Unicode scalars", 0);
                 await WindowsSqliteConversationTests.Save(f,
                     await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "saved");
                 model.ComposerBody = "different";
                 AssertShared("9 UTF-8 bytes", 9);
                 model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
-                await model.ReloadConversationDraftAsync();
+                await model.DiscardComposerBufferAsync();
+                await model.ReadConversationAsync();
+                await model.RecoverLegacyUnsentAsync();
                 AssertShared("5 UTF-8 bytes", 5);
                 composed.Access.ControlRevision++;
                 model.ComposerDraftSizeFeedback.Should().Contain("5 UTF-8 bytes");
                 reader.DenyReads = true;
                 await model.ReadConversationAsync();
                 AssertShared("0 UTF-8 bytes", 0);
-                model.DiscardComposerBuffer();
+                await model.DiscardComposerBufferAsync();
                 await model.SelectAsync(null);
                 AssertShared("0 UTF-8 bytes", 0);
                 composed.Access.CanInspect = false;

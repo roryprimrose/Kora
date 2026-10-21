@@ -24,15 +24,6 @@ internal sealed partial class NewRequestViewModel : ObservableObject, IDisposabl
     public bool CanCreate => Composer.CanCreate;
     public bool CanReview => Composer.CanReview;
     public bool CanSubmit => Composer.CanSubmit;
-    public bool CanReviewSave => Composer.CanReviewSave;
-    public bool CanSave => Composer.CanSave;
-    public string SavedBodyReview => Composer.SavedBodyReview;
-    public string ProposedSavedBody => Composer.ProposedSavedBody;
-    public string BaselineBody => Composer.BaselineBody;
-    public string SaveLabel => "Saved revision " + Composer.SavedRevision.ToString(CultureInfo.InvariantCulture)
-        + (Composer.SavedRevision == 0 ? " (no saved body observed)" : " (exact observed/acknowledged snapshot)")
-        + " | current buffer " + (Composer.Dirty ? "differs from confirmed baseline" : "matches confirmed baseline")
-        + ". Save review and Submit review are separate one-shot operations.";
     public bool CanInspect => Composer.CanInspectAttempt;
     public string TargetLabel => Composer.Target is { } target
         ? "Exact created / observed target: " + target.Authority.SessionId.Value.ToString("D")
@@ -57,8 +48,7 @@ internal sealed partial class NewRequestViewModel : ObservableObject, IDisposabl
             return;
         }
         foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(AssistantAnswer), nameof(CanEdit),
-            nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspect), nameof(TargetLabel), nameof(AttemptLabel),
-            nameof(CanReviewSave), nameof(CanSave), nameof(SavedBodyReview), nameof(ProposedSavedBody), nameof(BaselineBody), nameof(SaveLabel) })
+            nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspect), nameof(TargetLabel), nameof(AttemptLabel) })
         { OnPropertyChanged(name); }
     }
 

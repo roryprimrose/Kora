@@ -68,8 +68,10 @@ public sealed partial class NewRequestControllerTests
             named.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
             window.FindControl<Button>("OpenNewRequestSession")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;
-            named.SelectedSessionRecord!.Authority.SessionId.Should().Be(original.Authority.SessionId);
-            named.ComposerBody.Should().Be("dirty named-session memory");
+            named.SelectedSessionRecord!.Authority.SessionId.Should().Be(exact);
+            named.ComposerBody.Should().BeEmpty();
+            await sessions.NavigateAsync(original.Authority.SessionId, () => true, fixture.Token);
+            named.ComposerBody.Should().Be("dirty named-session memory", "navigation preserves the original topic buffer without asking to discard");
             named.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
             window.FindControl<Button>("OpenNewRequestSession")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;

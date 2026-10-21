@@ -45,7 +45,7 @@ public sealed partial class SessionWorkspaceServiceTests
         var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
         var operation = paused ? SessionCommandOperation.QueuePause : SessionCommandOperation.QueueResume;
         var command = f.QueueCommand(operation) with { QueueRunId = f.QueueRun };
-        var result = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
+        var result = await queue.ExecuteCommandAsync(command, origin, () => true, f.Token);
         result.Outcome.Should().Be("committed");
         result.Queue!.DispatchControl!.Paused.Should().Be(paused);
         result.Queue.DispatchControl.ControlRevision.Should().Be(f.ControlRevision);
@@ -387,7 +387,7 @@ public sealed partial class SessionWorkspaceServiceTests
         await using var queue = fixture.QueueService();
         var workspace = new SessionWorkspaceService(fixture, new(fixture), fixture, fixture.Logger, queue);
         var command = fixture.QueueCommand(SessionCommandOperation.QueueEnqueue);
-        var accepted = await workspace.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
+        var accepted = await queue.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
         accepted.Queue!.Entries.Should().ContainSingle().Which.Request.TaskId.Value.Should().Be(command.TaskId!.Value);
         accepted.Queue.Revision.Should().Be(1);
         var listed = await workspace.ExecuteCommandAsync(fixture.QueueCommand(SessionCommandOperation.QueueList),
@@ -404,7 +404,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.ActionRequests.Should().ContainSingle().Which.TaskId.Value.Should().Be(command.TaskId.Value);
         fixture.ActionLinks.Should().ContainSingle().Which.Should().BeGreaterThan(0);
         var unsupported = () => fixture.Service.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
-        await unsupported.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+        await unsupported.Should().ThrowAsync<InvalidOperationException>().WithMessage("*retired*");
     }
 
     [Theory]
@@ -804,8 +804,7 @@ public sealed partial class SessionWorkspaceServiceTests
                         ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
                 PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target));
             var snapshot = QueueSnapshot(control.SessionId);
-            AfterDiagnosticsEnqueueCommit?.Invoke();
-            return DiagnosticsEnqueueProjection?.Invoke(snapshot) ?? snapshot;
+            return snapshot;
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
             long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,

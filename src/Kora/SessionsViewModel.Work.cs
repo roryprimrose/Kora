@@ -28,9 +28,6 @@ internal sealed partial class SessionsViewModel
                     + " | paused " + control.Paused + " | held " + control.Held + " | " + control.Reason
                 : "control source unavailable; refresh before changing pause")
             + "\nObserved " + snapshot.ObservedAt.ToString("O", CultureInfo.InvariantCulture)
-            + " | pending capacity " + snapshot.PendingCount.ToString(CultureInfo.InvariantCulture) + "/"
-            + snapshot.PendingCapacity.ToString(CultureInfo.InvariantCulture)
-            + " (expired entries still occupy capacity) | global slots " + snapshot.ExecutionSlots.ToString(CultureInfo.InvariantCulture)
             + "\nGaps: " + snapshot.OmittedTasks.ToString(CultureInfo.InvariantCulture) + " other task records, "
             + snapshot.OmittedQuestions.ToString(CultureInfo.InvariantCulture)
             + " pending questions, " + snapshot.OmittedQueueRecords.ToString(CultureInfo.InvariantCulture)
@@ -38,14 +35,11 @@ internal sealed partial class SessionsViewModel
             + SessionWorkSnapshot.RecentQueueRecords.ToString(CultureInfo.InvariantCulture)
             + ". Use exact history/task status for other retained records. Eligibility is observed, never permission."
         : "Live work unavailable/not yet read; never interpreted as an empty queue. Refresh selected work.";
-    public bool CanRefreshWork => (CanRead || dispatchingQueue && !closed && access.CanInspect)
-        && selected is not null;
+    public bool CanRefreshWork => CanRead && selected is not null;
     public bool CanInspectWork => CanRead && selectedWork is not null;
     public bool CanCancelWork => CanCancelQueueEntry || CanCancelTask;
     public bool CanRemoveQueueEntry => CanCancelQueueEntry;
     public bool CanClearQueue => CanControlQueue && queueSnapshot!.Entries.Any(entry => entry.State is SessionQueueState.Pending or SessionQueueState.Expired);
-    public bool CanEnqueueVersion => CanControlQueue && HasQueuePrerequisiteDecision
-        && workSnapshot is { } snapshot && snapshot.PendingCount < snapshot.PendingCapacity;
 
     public void SelectWorkRecord(SessionWorkRow? row)
     {
@@ -67,13 +61,11 @@ internal sealed partial class SessionsViewModel
     private async Task RefreshSelectedWorkAsync(bool concurrent = false)
     {
         ClearLocalEvents();
-        InvalidateQueuePrerequisite(clearSource: true);
-        NotifyQueuePrerequisite();
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var observedAdmission = access.ControlRevision;
         var snapshot = await service.ReadWorkAsync(target.Authority.SessionId, lifetime.Token);
-        if (concurrent && (busy && !dispatchingQueue || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
+        if (concurrent && (busy || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
         if (selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)
         {
             throw new OperationCanceledException("The selected session changed during observation.");
@@ -100,7 +92,6 @@ internal sealed partial class SessionsViewModel
             || queueSnapshot.DispatchControl != snapshot.Queue.DispatchControl
             || !queueSnapshot.Entries.SequenceEqual(snapshot.Queue.Entries);
         queueSnapshot = snapshot.Queue;
-        ObserveQueuePrerequisites(snapshot, observedAdmission);
         if (cancellationSnapshotChanged)
         {
             pendingCancellationSelection = [];
@@ -158,7 +149,6 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(CanCancelWork));
             OnPropertyChanged(nameof(CanRemoveQueueEntry));
             OnPropertyChanged(nameof(CanClearQueue));
-            OnPropertyChanged(nameof(CanEnqueueVersion));
         }
         finally { presentingWork = false; }
     }

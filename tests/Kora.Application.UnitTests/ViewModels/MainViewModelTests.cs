@@ -4544,7 +4544,6 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
-            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
@@ -8727,7 +8726,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
                 AuditConfiguration, RateConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
-                SessionRetentionConfiguration, QueueConfiguration,
+                SessionRetentionConfiguration,
                 enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
                 preapprovedUriList ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null),
                 preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),

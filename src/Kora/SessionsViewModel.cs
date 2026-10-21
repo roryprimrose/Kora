@@ -107,7 +107,6 @@ internal sealed partial class SessionsViewModel(
     internal void RevokeSessionList()
     {
         ClearLocalEvents();
-        InvalidateQueuePrerequisite(clearSource: true);
         InvalidateListSearch();
         sessions = null;
         status = "Session metadata source/lifecycle changed. Rows and search continuation revoked; Refresh or Search requires fresh private admission.";
@@ -587,10 +586,10 @@ internal sealed partial class SessionsViewModel(
 
     private async Task RunAsync(Func<Task> operation, bool passive = false,
         HostId<SessionIdentity>? activitySession = null, bool routineNoticeControl = false,
-        bool dispatchControl = false, bool queueDispatch = false, RequestOrigin origin = RequestOrigin.LocalUi,
+        bool dispatchControl = false, RequestOrigin origin = RequestOrigin.LocalUi,
         IEnumerable<ActivityLink>? activityLinks = null)
     {
-        if (busy && !(passive && dispatchingQueue) && !(dispatchControl && dispatchingQueue) || closed || passive && refreshingWork
+        if (busy || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
@@ -600,7 +599,7 @@ internal sealed partial class SessionsViewModel(
         if (dispatchControl) { changingQueueControl = true; NotifyQueue(); }
         else if (routineNoticeControl) { changingRoutineQuiet = true; NotifyLocalEvents(); }
         else if (passive) { refreshingWork = true; }
-        else { busy = true; dispatchingQueue = queueDispatch; Notify(); }
+        else { busy = true; Notify(); }
         try
         {
             if (!access.CanInspect) { throw new InvalidOperationException("Private desktop ownership is unavailable."); }
@@ -700,7 +699,7 @@ internal sealed partial class SessionsViewModel(
                 OnPropertyChanged(nameof(Detail));
                 NotifyHistory();
             }
-            else { busy = false; dispatchingQueue = false; Notify(); }
+            else { busy = false; Notify(); }
             if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
         }
     }
@@ -708,7 +707,6 @@ internal sealed partial class SessionsViewModel(
     private void ClearSelection()
     {
         ClearConversation();
-        InvalidateQueuePrerequisite(clearSource: true);
         ClearProviderReview();
         attachments?.Close();
         if (selected is { } previous) { memories?.ClearSessionDrafts(previous.Authority.SessionId); }
@@ -723,8 +721,6 @@ internal sealed partial class SessionsViewModel(
         selectedWork = null;
         queueSnapshot = null;
         selectedQueueEntry = null;
-        queueMoveReview = null;
-        queueRequeueReview = null;
         queueCancelReview = null;
         queueCancellationAdmission = static () => true;
         pendingCancellationSelection = [];

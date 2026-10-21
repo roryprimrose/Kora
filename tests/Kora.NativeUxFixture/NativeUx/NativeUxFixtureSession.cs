@@ -46,6 +46,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private MainViewModel? main;
     private AssistantNameConfigurationService? assistantNameConfiguration;
     private SessionQueueService? queue;
+    internal SessionQueueService Queue => queue ?? throw new InvalidOperationException("The fixture queue is not initialized.");
     private SessionWorkspaceService? sessions;
     private readonly EvidenceLoggerProvider? evidenceProvider;
     private readonly Serilog.Core.Logger? dailyEvidenceLogger;

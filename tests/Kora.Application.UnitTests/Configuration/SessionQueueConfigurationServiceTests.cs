@@ -11,6 +11,71 @@ namespace Kora.Application.UnitTests.Configuration;
 [Collection("Host tracing")]
 public sealed class SessionQueueConfigurationServiceTests
 {
+    [Fact]
+    public async Task InternalObservationFailureRetainsAnExplicitUnavailableStateWithoutDefaulting()
+    {
+        await using var f = new SessionQueueConfigurationTestFixture();
+        var changes = 0;
+        f.Service.Changed += (_, _) => changes++;
+        f.PreferencesStore.ReadFailure = new InvalidDataException("Invalid internal queue preference.");
+        ((Action)(() => f.Service.Observe())).Should().Throw<InvalidDataException>();
+        f.Service.Get().Available.Should().BeFalse();
+        f.Service.Get().Recovery.Should().NotBeNullOrEmpty();
+        changes.Should().Be(1);
+        f.PreferencesStore.ReadFailure = null;
+        f.Service.Observe();
+        f.Service.Get().Available.Should().BeTrue();
+        changes.Should().Be(2);
+        f.PreferencesStore.Writes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("unrefreshed")]
+    [InlineData("revision")]
+    [InlineData("revoked")]
+    [InlineData("unavailable")]
+    [InlineData("missing-original")]
+    [InlineData("disposed")]
+    public async Task InternalProposalsRequireTheCompleteCurrentHostReview(string boundary)
+    {
+        await using var f = new SessionQueueConfigurationTestFixture();
+        if (boundary is not "unrefreshed") { await f.Refresh(); }
+        if (boundary is "revoked") { f.Eligible = false; }
+        if (boundary is "unavailable") { f.Service.HoldUnavailable(); }
+        if (boundary is "missing-original")
+        {
+            typeof(SessionQueueConfigurationService).GetField("eligible",
+                System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!.SetValue(f.Service, null);
+        }
+        if (boundary is "disposed") { await f.Service.DisposeAsync(); }
+        var attempt = () => f.Service.Propose(SessionQueueOption.PendingPerSession, "1",
+            f.Service.Get().Revision + (boundary is "revision" ? 1 : 0), f.Policy.Current.Revision);
+        if (boundary is "disposed") { attempt.Should().Throw<ObjectDisposedException>(); }
+        else { attempt.Should().Throw<InvalidOperationException>(); }
+        f.PreferencesStore.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task InternalPublicationAndApplicationCannotReenterProposalAdmission()
+    {
+        await using var f = new SessionQueueConfigurationTestFixture();
+        var published = 0;
+        f.Service.Changed += (_, _) =>
+        {
+            published++;
+            ((Action)(() => f.Propose("2"))).Should().Throw<InvalidOperationException>();
+        };
+        await f.Refresh();
+        var applying = 0;
+        f.PreferencesStore.AfterWrite = () =>
+        {
+            applying++;
+            ((Action)(() => f.Propose("2"))).Should().Throw<InvalidOperationException>();
+        };
+        (await f.Set("1")).Should().BeTrue();
+        applying.Should().Be(1);
+        published.Should().BeGreaterThan(0);
+    }
     [Theory]
     [InlineData(1)]
     [InlineData(5)]

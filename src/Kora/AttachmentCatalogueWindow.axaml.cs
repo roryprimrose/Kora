@@ -51,14 +51,8 @@ internal sealed partial class AttachmentCatalogueWindow : Window
         Closed += (_, _) => model.Dispose();
         KeyDown += (_, args) =>
         {
-            if (args.Key == Key.Enter && (AttachmentQueryText.IsFocused || AttachmentMetadataText.IsFocused
-                || AttachmentMinimumBytes.IsFocused || AttachmentMaximumBytes.IsFocused || AttachmentDigest.IsFocused
-                || AttachmentObservationSource.IsFocused || AttachmentDeviceProfile.IsFocused
-                || AttachmentFileSourceId.IsFocused || AttachmentFileRevisionId.IsFocused || AttachmentFileItemId.IsFocused
-                || AttachmentMinimumSessionGeneration.IsFocused || AttachmentMaximumSessionGeneration.IsFocused
-                || AttachmentMinimumCapturedGeneration.IsFocused || AttachmentMaximumCapturedGeneration.IsFocused
-                || AttachmentMinimumStorageRevision.IsFocused || AttachmentMaximumStorageRevision.IsFocused
-                || AttachmentCapturedFrom.IsFocused || AttachmentCapturedUntil.IsFocused) && model.CanSearch)
+            if (args.Key == Key.Enter && (AttachmentQueryText.IsFocused
+                || AttachmentMinimumBytes.IsFocused || AttachmentMaximumBytes.IsFocused) && model.CanSearch)
             {
                 Operation = model.Refresh();
                 args.Handled = true;

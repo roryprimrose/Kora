@@ -3,7 +3,6 @@ using System.Text;
 
 using Kora.Core.Artifacts;
 using Kora.Core.Context;
-using Kora.Core.Storage;
 
 namespace Kora.Application.Definitions;
 
@@ -49,20 +48,11 @@ public sealed class OwnedDefinitionInventory
         }
     }
 
-    public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0, string digest = "",
-        string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
+    public OwnedDefinitionInventoryPage Page(string query, OwnedDefinitionUseFilter filter, int offset = 0,
         OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal,
         OwnedDefinitionInventoryOrder order = OwnedDefinitionInventoryOrder.FileNameAscending)
     {
         ValidateQuery(query, mode);
-        ArgumentNullException.ThrowIfNull(digest);
-        if (digest.Length != 0) { ArtifactDigest.Validate(digest); }
-        ArgumentNullException.ThrowIfNull(revision);
-        if (revision.Length != 0) { OwnedInstructionRevision.Validate(revision); }
-        var from = OptionalCanonicalUtc.Parse(observedFromUtc);
-        var until = OptionalCanonicalUtc.Parse(observedUntilUtc);
-        if (from > until)
-        { throw new InvalidDataException("Observed UTC From must not be after Until."); }
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (!Enum.IsDefined(order)) { throw new ArgumentOutOfRangeException(nameof(order)); }
         var validated = Rows.Select(row =>
@@ -79,11 +69,7 @@ public sealed class OwnedDefinitionInventory
             OwnedDefinitionUseFilter.UseEnabled => item.Row.ObservedUseEnabled is true,
             OwnedDefinitionUseFilter.ReviewRequired => item.Row.ObservedUseEnabled is false,
             _ => item.Row.ObservedUseEnabled is null,
-        }) && (digest.Length == 0 || string.Equals(item.Row.Digest, digest, StringComparison.Ordinal))
-            && (revision.Length == 0 || string.Equals(item.Row.NativeRevision, revision, StringComparison.Ordinal))
-            && (from is null || item.Row.ObservedUtc >= from)
-            && (until is null || item.Row.ObservedUtc <= until)
-            && (mode switch
+        }) && (mode switch
             {
                 OwnedDefinitionInventoryQueryMode.ExactOwnedId => string.Equals(item.Row.Name, query, StringComparison.Ordinal),
                 OwnedDefinitionInventoryQueryMode.ExactArtifactId => item.Row.NativeRevision is not null
@@ -112,23 +98,19 @@ public sealed class OwnedDefinitionInventory
             bytes += item.Size;
         }
         return new(Array.AsReadOnly(visible.ToArray()), offset, matching.Length, bytes)
-        { Inventory = this, Query = query, Mode = mode, Order = order, Filter = filter, Digest = digest, Revision = revision,
-            ObservedFromUtc = observedFromUtc, ObservedUntilUtc = observedUntilUtc };
+        { Inventory = this, Query = query, Mode = mode, Order = order, Filter = filter };
     }
 
     public OwnedDefinitionInventoryPage Continue(OwnedDefinitionInventoryPage page, string query,
-        OwnedDefinitionUseFilter filter, string digest = "", string revision = "", string observedFromUtc = "", string observedUntilUtc = "",
+        OwnedDefinitionUseFilter filter,
         OwnedDefinitionInventoryQueryMode mode = OwnedDefinitionInventoryQueryMode.Literal,
         OwnedDefinitionInventoryOrder order = OwnedDefinitionInventoryOrder.FileNameAscending)
     {
         ArgumentNullException.ThrowIfNull(page);
         if (!ReferenceEquals(page.Inventory, this) || !string.Equals(page.Query, query, StringComparison.Ordinal)
-            || page.Mode != mode || page.Order != order || page.Filter != filter || !string.Equals(page.Digest, digest, StringComparison.Ordinal)
-            || !string.Equals(page.Revision, revision, StringComparison.Ordinal)
-            || !string.Equals(page.ObservedFromUtc, observedFromUtc, StringComparison.Ordinal)
-            || !string.Equals(page.ObservedUntilUtc, observedUntilUtc, StringComparison.Ordinal)
+            || page.Mode != mode || page.Order != order || page.Filter != filter
             || page.NextOffset is not { } next)
         { throw new InvalidOperationException("The inventory or complete filter changed, or no next page exists. Restart from the first page."); }
-        return Page(query, filter, next, digest, revision, observedFromUtc, observedUntilUtc, mode, order);
+        return Page(query, filter, next, mode, order);
     }
 }

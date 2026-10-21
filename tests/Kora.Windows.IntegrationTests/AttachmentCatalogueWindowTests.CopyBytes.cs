@@ -73,14 +73,13 @@ public sealed partial class AttachmentCatalogueWindowTests
                 model.Filter = SessionAttachmentFilter.Active;
                 model.IncludeRemoved = true;
                 model.MediaType = "text/plain";
-                model.MetadataText = "text/";
                 minimum.Text = "0001";
                 maximum.Text = "1";
                 seen.Should().HaveCount(1);
                 minimum.Focus();
                 minimum.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
                 await window.Operation;
-                seen.Last().Should().Be(new SessionAttachmentQuery(true, model.QueryText, model.Filter, "text/", "text/plain",
+                seen.Last().Should().Be(new SessionAttachmentQuery(true, model.QueryText, model.Filter, "text/plain",
                     AttachmentCopyStatus.Confirmed, 1, 1));
                 model.Records.Should().ContainSingle();
                 model.Select(summary);

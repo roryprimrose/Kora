@@ -17,7 +17,8 @@ internal sealed partial class SessionsViewModel
     public IReadOnlyList<SessionQueueEntry> PendingCancellationEntries => queueSnapshot is { DispatchControl: { } control } snapshot
         ? snapshot.Entries.Where(entry => entry.RunId == control.RunId && entry.Generation == snapshot.Generation
             && entry.State is SessionQueueState.Pending or SessionQueueState.Expired).ToArray() : [];
-    public bool CanSelectPendingCancellation => CanChangeQueuePause;
+    public bool CanSelectPendingCancellation => CanControlQueue && !changingQueueControl
+        && queueSnapshot?.Generation == selected?.Authority.Generation && queueSnapshot?.DispatchControl is not null;
     public bool CanReviewPendingCancellation => CanSelectPendingCancellation && !pendingCancellationSelection.IsDefaultOrEmpty;
     public bool CanConfirmPendingCancellation => CanReviewPendingCancellation && queueCancelReview is { } review
         && queueCancellationAdmission()
@@ -26,6 +27,11 @@ internal sealed partial class SessionsViewModel
         && review.Queue.Revision == queueSnapshot?.Revision && review.Queue.DispatchControl == queueSnapshot.DispatchControl
         && review.Entries.Select(entry => new SessionQueueSelection(entry.Request.TaskId, entry.Revision)).SequenceEqual(pendingCancellationSelection);
     public bool CanDiscardPendingCancellation => queueCancelReview is not null;
+    private static string Describe(SessionQueueEntry entry) => SessionQueueReadProfiles.Describe(entry.ReadProfile, entry.Target)
+        + " task " + entry.Request.TaskId.Value.ToString("D") + " revision " + entry.Revision.Value.ToString(CultureInfo.InvariantCulture)
+        + " original arrival " + entry.Position.ToString(CultureInfo.InvariantCulture)
+        + " enqueued " + entry.EnqueuedAt.ToString("O", CultureInfo.InvariantCulture)
+        + " expires " + entry.ExpiresAt.ToString("O", CultureInfo.InvariantCulture);
     public string PendingCancellationStatus => queueCancelReview is { } review
         ? (CanConfirmPendingCancellation ? "Review complete selected pending subset: " : "Stale review; refresh and review the complete subset again: ")
             + review.Entries.Length.ToString(CultureInfo.InvariantCulture) + "\n"

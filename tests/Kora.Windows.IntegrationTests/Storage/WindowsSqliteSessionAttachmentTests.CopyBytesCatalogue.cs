@@ -87,7 +87,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await Attach(fixture, Encoding.UTF8.GetBytes("retained source"));
         fixture.Mutate(mutation);
         var query = new SessionAttachmentQuery(true, Guid.NewGuid().ToString("D"), SessionAttachmentFilter.Removed,
-            "never matches", "text/plain", AttachmentCopyStatus.Unavailable, 0, 0);
+            "text/plain", AttachmentCopyStatus.Unavailable, 0, 0);
         var read = () => fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token).AsTask();
         await read.Should().ThrowAsync<InvalidDataException>();
     }

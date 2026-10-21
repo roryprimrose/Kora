@@ -69,12 +69,6 @@ internal static class SettingsText
         ? $"Windows voice speed: {rate.Value}. {Source(state.Source)}"
         : Unavailable(state.Recovery);
 
-    public static string Describe(SessionQueueConfigurationState state) => state.Effective is { } limits
-        ? $"Up to {limits.PendingPerSession} waiting tasks per session and {limits.ExecutionSlots} running at once. "
-            + $"Waiting time limit: {limits.PendingLifetimeMinutes} minutes. Running time limit: {limits.ActiveBudgetMinutes} minutes. "
-            + Source(state.Source)
-        : Unavailable(state.Recovery);
-
     public static string Describe(OutputDeviceCommandResult state) =>
         (state.Available ? "Speaker ready. " : state.Muted
             ? "The speaker is muted; responses appear on screen. " : "Speaker unavailable. ")

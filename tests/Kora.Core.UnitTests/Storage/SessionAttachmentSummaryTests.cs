@@ -10,6 +10,24 @@ namespace Kora.Core.UnitTests.Storage;
 
 public sealed class SessionAttachmentSummaryTests
 {
+    [Fact]
+    public void RetainedMetadataIsRedactedBeforeValidationForEveryLifecycleAndCopyState()
+    {
+        foreach (var state in Enum.GetValues<AttachmentSessionState>())
+        foreach (var copy in Enum.GetValues<AttachmentCopyStatus>())
+        {
+            var row = Summary() with { SessionState = state, CopyStatus = copy };
+            var retained = state is AttachmentSessionState.Active or AttachmentSessionState.Done
+                && copy is AttachmentCopyStatus.Confirmed or AttachmentCopyStatus.Held;
+            row.RetainedObservationSource.Should().Be(retained ? row.ObservationSource : null);
+            row.RetainedProfile.Should().Be(retained ? row.Profile : null);
+            row.RetainedCapturedAt.Should().Be(retained ? row.CapturedAt : null);
+            row.RetainedSessionGeneration.Should().Be(retained ? row.SessionGeneration : null);
+            row.RetainedCapturedGeneration.Should().Be(retained ? row.CapturedGeneration : null);
+            row.RetainedStorageRevision.Should().Be(retained ? row.StorageRevision : null);
+            row.RetainedDigest.Should().Be(retained ? row.File.Digest : null);
+        }
+    }
     [Theory]
     [InlineData("source")]
     [InlineData("profile")]

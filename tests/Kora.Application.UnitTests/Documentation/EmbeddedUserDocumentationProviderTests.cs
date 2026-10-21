@@ -76,19 +76,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
-    public void Embedded_all_work_guide_explains_inclusive_ranges_and_unavailable_omission_boundaries()
+    public void EmbeddedAllWorkGuideRetiresEngineeringQueriesAndPreservesUnavailableBoundaries()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
-        guide.Should().Contain("Optional inclusive observed work metadata ranges")
-            .And.Contain("authority revision, queue revision, pending count/capacity")
-            .And.Contain("execution slots, observed current fixed reads")
-            .And.Contain("omitted queue-receipt/task/pending-question counts")
-            .And.Contain("minimum must not exceed maximum")
-            .And.Contain("queue revision and counts may be zero")
-            .And.Contain("Source changed, Read unavailable and Output bound never do")
-            .And.Contain("proves no absence, completeness, success or authority")
-            .And.Contain("Clear work metadata ranges");
+        guide.Should().Contain("Authority/queue/count ranges and retained task/request-ID query machinery are retired")
+            .And.Contain("unavailable observations remain explicit rather than an empty success")
+            .And.Contain("preserving complete-record byte limits, omissions and continuation")
+            .And.Contain("Order affects only the loaded page")
+            .And.Contain("Neither grants navigation or execution authority")
+            .And.NotContain("Optional inclusive observed work metadata ranges");
     }
 
     [Fact]
@@ -152,7 +149,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("### Read-only integration skill");
         page.Markdown.Should().Contain("## 14. Persistent sessions, history, and shared questions");
         page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
-        page.Markdown.Should().Contain("two independently executing sessions");
+        page.Markdown.Should().Contain("General concurrent workers/provider scheduling remain unqualified");
         page.Markdown.Should().Contain("combined script-set hash");
         page.Markdown.Should().Contain("Ignore reusable grants during calls");
     }

@@ -16,50 +16,6 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsViewModelTests
 {
     [Theory]
-    [InlineData(true)]
-    [InlineData(false)]
-    public async Task EditingEitherScalarLengthBoundAfterPublicationDoesNotReadOrRetainRowsOrContinuation(bool minimum)
-    {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        var held = new HeldStore();
-        var access = new WindowsSqliteSessionWorkspaceTests.Access { CanControl = false };
-        var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
-        var sink = new WindowsSqliteEvidenceSink(f.Paths);
-        sink.Initialize();
-        var model = new SessionsViewModel(service,
-            new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
-            access, NullLogger<SessionsViewModel>.Instance);
-        try
-        {
-            model.ListSearchKind = SessionListSearchKind.Browse;
-            model.ListMinimumNameLength = "1";
-            model.ListMaximumNameLength = "6";
-            var search = model.SearchListAsync();
-            var entry = new SessionWorkspaceEntry(new(f.Request.SessionId, new(1), true),
-                new(f.Request.SessionId, new(1), new("needle")));
-            held.Completion.SetResult(new([entry], entry.Authority.SessionId.Value));
-            await search;
-            model.Sessions.Should().Equal(entry);
-            model.CanNextListSearch.Should().BeTrue();
-            if (minimum) { model.ListMinimumNameLength = "0"; }
-            else { model.ListMaximumNameLength = "0"; }
-            held.Reads.Should().Be(1);
-            model.Sessions.Should().BeEmpty();
-            model.CanNextListSearch.Should().BeFalse();
-            model.CanSearchList.Should().BeFalse();
-            model.SelectedSessionRecord.Should().BeNull();
-            model.Detail.Should().BeEmpty();
-            model.ClearListSearch();
-            model.ListMinimumNameLength.Should().BeEmpty();
-            model.ListMaximumNameLength.Should().BeEmpty();
-            held.Reads.Should().Be(1);
-            held.ControlCalls.Should().Be(0);
-        }
-        finally { model.Close(); }
-    }
-
-    [Theory]
     [InlineData(SessionListSearchKind.NameSubstring)]
     [InlineData(SessionListSearchKind.ExactName)]
     public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence(SessionListSearchKind kind)
@@ -116,11 +72,8 @@ public sealed partial class SessionsViewModelTests
         foreach (var name in new[] { "ListMinimumGeneration", "ListMaximumGeneration",
             "ListMinimumMetadataRevision", "ListMaximumMetadataRevision", "ListMinimumNameLength", "ListMaximumNameLength" })
         {
-            var range = document.Descendants().Single(element => string.Equals(
-                element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value, name, StringComparison.Ordinal));
-            range.Attribute("Text")!.Value.Should().Be("{Binding " + name + ", Mode=TwoWay}");
-            range.Attribute("MaxLength").Should().BeNull();
-            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanEditListSearch}");
+            document.Descendants().Should().NotContain(element => string.Equals(
+                (string?)element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml")), name, StringComparison.Ordinal));
         }
     }
 
@@ -133,14 +86,6 @@ public sealed partial class SessionsViewModelTests
     [InlineData("close")]
     [InlineData("privacy")]
     [InlineData("revision")]
-    [InlineData("minimum-generation")]
-    [InlineData("maximum-generation")]
-    [InlineData("minimum-name-revision")]
-    [InlineData("maximum-name-revision")]
-    [InlineData("minimum-name-length")]
-    [InlineData("maximum-name-length")]
-    [InlineData("browse-minimum-name-length")]
-    [InlineData("browse-maximum-name-length")]
     [InlineData("availability")]
     [InlineData("browse")]
     [InlineData("browse-cancel")]
@@ -159,12 +104,6 @@ public sealed partial class SessionsViewModelTests
     [InlineData("exact-privacy")]
     [InlineData("exact-revision")]
     [InlineData("exact-availability")]
-    [InlineData("exact-minimum-generation")]
-    [InlineData("exact-maximum-generation")]
-    [InlineData("exact-minimum-name-revision")]
-    [InlineData("exact-maximum-name-revision")]
-    [InlineData("exact-minimum-name-length")]
-    [InlineData("exact-maximum-name-length")]
     public async Task MetadataSearchSuppressesLateResultsAfterQuerySelectionSourcePrivacyOrClosureChanges(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -183,12 +122,6 @@ public sealed partial class SessionsViewModelTests
             : exact ? SessionListSearchKind.ExactName : SessionListSearchKind.NameSubstring;
         if (exact) { mode = mode["exact-".Length..]; }
         model.ListQuery = browse ? "" : "needle";
-        model.ListMinimumGeneration = "1";
-        model.ListMaximumGeneration = "1";
-        model.ListMinimumMetadataRevision = "1";
-        model.ListMaximumMetadataRevision = "1";
-        model.ListMinimumNameLength = "1";
-        model.ListMaximumNameLength = "6";
         model.CanSearchList.Should().BeTrue();
         var search = model.SearchListAsync();
         model.CanCancelListSearch.Should().BeTrue();
@@ -198,12 +131,6 @@ public sealed partial class SessionsViewModelTests
         if (mode is "kind") { model.ListSearchKind = SessionListSearchKind.ExactId; }
         if (mode is "browse") { model.ListSearchKind = SessionListSearchKind.Browse; }
         if (mode is "availability" or "browse-availability") { model.ListNameAvailability = SessionNameAvailability.Unnamed; }
-        if (mode is "minimum-generation") { model.ListMinimumGeneration = "2"; }
-        if (mode is "maximum-generation") { model.ListMaximumGeneration = "2"; }
-        if (mode is "minimum-name-revision") { model.ListMinimumMetadataRevision = "2"; }
-        if (mode is "maximum-name-revision") { model.ListMaximumMetadataRevision = "2"; }
-        if (mode is "minimum-name-length" or "browse-minimum-name-length") { model.ListMinimumNameLength = "2"; }
-        if (mode is "maximum-name-length" or "browse-maximum-name-length") { model.ListMaximumNameLength = "5"; }
         if (mode is "selection" or "browse-selection") { await model.SelectAsync(new(new(new(Guid.NewGuid()), new(1), true), null)); }
         if (mode is "source" or "browse-source") { model.RevokeSessionList(); }
         if (mode is "cancel" or "browse-cancel") { model.CancelListSearch(); }
@@ -227,12 +154,6 @@ public sealed partial class SessionsViewModelTests
         model.Close();
         model.ListQuery.Should().BeEmpty();
         model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
-        model.ListMinimumGeneration.Should().BeEmpty();
-        model.ListMaximumGeneration.Should().BeEmpty();
-        model.ListMinimumMetadataRevision.Should().BeEmpty();
-        model.ListMaximumMetadataRevision.Should().BeEmpty();
-        model.ListMinimumNameLength.Should().BeEmpty();
-        model.ListMaximumNameLength.Should().BeEmpty();
     }
 
     private sealed class LateListAdmission : ISessionWorkspaceAccess, IEvidenceQueryAccess

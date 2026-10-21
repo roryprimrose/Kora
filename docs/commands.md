@@ -358,218 +358,38 @@ an unexpired explicit deferral under its original deadline.
 
 ## Deterministic local-version queue
 
-Native **Sessions** queue controls and exact typed/current-name activated input
-share one host service. No model, network or audio is required for management
-or the fixed read. Voice commands still require normal activation/consent;
-the queue cannot open a microphone or speak a response.
+Diagnostic-only queue productisation is retired.
+Normal Sessions, Settings and command input cannot enqueue or dispatch the fixed metadata reads, reorder records, configure capacity/deadlines, attach prerequisites or create expired replacements.
+The six direct read-only capability observations remain available; internal scheduler/store/domain contracts are not general task qualification ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
-In native **Sessions**, use **Optional prerequisite**: keep initial **None**, or explicitly select an exact same-session task from at most 50 nonqueue plus 50 already-observed queued metadata rows (pending/running/recent terminal). Rows show task/session IDs, observed generation, actual host task state/revision and UTC host source; queue-entry revision is never substituted. No task body or history is read. Work/question selection never supplies a prerequisite.
+Existing records retain exact IDs, state, receipts and original deadlines. They are not dropped, replayed, automatically dispatched or reinterpreted as success. Shared actual task lifecycle/cancellation controls remain separate ([queue service](../src/Kora.Application/Hosting/SessionQueueService.cs), [task controls](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
 
-Each of the six **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
-After enqueue, explicitly choose **None** or select a task again. Refresh/session/private/source changes revoke a choice; stale/missing task revisions require refresh/reselection, never silent None fallback.
-Queued task metadata is optional on the work wire and comes from the same atomic private SQLite read, without changing stored payloads/digests. Missing/conflicting/over-bound metadata makes exact selection unavailable; explicit None uses the original route. The full result still fails explicitly above 64 KiB, without trimming source rows.
-
-Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
-
-| Exact syntax | Result |
+| Retained exact syntax | Result |
 |---|---|
-| `queue help` | Bounded syntax and unavailable scope |
-| `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
-| `queue status <session-id> <task-id>` | Exact retained work receipt and successful fixed-page snapshot; passive, never reruns the read |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.list [after <task-id>]` | Add the fixed capability-metadata first-page read |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> readiness.get [after <task-id>]` | Add the first page of already-recorded dependency observations, not a fresh check |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.list [after <task-id>]` | Add the first page of recorded runtime metadata; no probe, inference or setup |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.get <exact-current-descriptor-id> [after <task-id>]` | Add exactly one current catalogue descriptor read; exact case-sensitive ID required, no arbitrary JSON |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.get_status [after <task-id>]` | Add fixed recorded `local.inference` status; no runtime-ID input, probe, inference or setup |
-| `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
-| `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
-| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
-| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready fixed reads fairly across eligible sessions |
-| `queue pause-status <session-id>` | Passive exact-session current-run pause/hold receipt, reason and work eligibility; no effects |
-| `queue pause <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Block new admissions for this exact session in the current host run; committed reads drain normally |
-| `queue resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Withdraw only this exact run's explicit pause after current private authority revalidation; never dispatch |
-| `queue move-up\|move-down <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision>` | Review exactly one displayed adjacent pending pair; no mutation yet |
-| `queue move-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> <review-id> confirm` | Separately confirm that exact current review through the audited atomic queue service |
-| `queue move-cancel <session-id> <review-id>` | Revoke only the exact review; order and draft unchanged |
-| `queue requeue-expired-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision>` | Review removal of one exact expired current-run pending source and a separately host-issued fresh same-profile tail decision |
-| `queue requeue-expired-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <fresh-request-id> <fresh-task-id> <review-id> confirm` | Confirm all and only the complete host-held proposal atomically; fresh IDs must match the review |
-| `queue requeue-expired-discard <session-id> <review-id>` | Revoke the review and unadmitted fresh IDs without queue mutation |
-| `queue cancel-selected-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,<task-id>:<entry-revision>...]` | Review the complete exact pending subset, in displayed dispatch order |
-| `queue cancel-selected-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,...] <review-id> confirm` | Cancel all and only that host-reviewed exact pending subset atomically |
-| `queue cancel-selected-discard <session-id> <review-id>` | Revoke review without writes; pending selection and draft unchanged |
+| `queue help` | Current bounded inspection/cancellation syntax |
+| `queue list <session-id>` | Passive bounded exact-session observation |
+| `queue status <session-id> <task-id>` | Inspect an existing retained queue receipt; never rerun it |
+| `queue pause-status <session-id>` | Inspect current pause/hold metadata; no change |
+| `queue cancel` / `queue remove` | Operate only on an exact eligible pending record with displayed generation, queue and entry revisions |
+| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly clear only that exact pending snapshot, retaining history |
 
-**Review selected pending cancellation** uses a separate pending-only multi-selection, never the current work/question selection. Select one to ten current-run pending entries explicitly; no hidden/default select-all. Review shows every ID/revision/profile in current dispatch order with original deadlines and full count; **Cancel these pending entries only** is the separate confirmation.
+Use `queue help` for the complete exact syntax and existing selected-subset review/confirm/discard operations. IDs and conflict tokens are still validated, not inferred from names or the selected window ([grammar](../src/Kora.Core/Commands/SessionCommand.Queue.cs)).
 
-For preparation without copying revisions, use
-`session queue cancellation review <session-id> <task-id>[,<task-id>...]`,
-or `session queue cancellation help` for explicit help. Typed input and the
-current assistant-name activated voice route open this same private native
-selector/review. IDs must be nonempty lowercase canonical D GUIDs; specify
-one to the existing maximum ten unique task IDs, comma-separated without
-spaces. Input order is resolved to current dispatch order. Names, substrings,
-`latest`, `current`, omitted targets, duplicates and default/all selection are
-not accepted.
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]` prepares the existing private native review of an explicit bounded pending subset.
+It does not commit cancellation; inspect the complete original records and separately confirm **Cancel these pending entries only**.
+Missing, stale, previous-run or otherwise ineligible records refuse the whole request without selecting replacements ([preparation](../src/Kora.Application/Hosting/SessionWorkspaceService.QueueCancellationPreparation.cs), [native cancellation](../src/Kora/SessionsViewModel.QueueCancellation.cs)).
 
-Preparation freezes the original exact session, queue, run, pause and member
-revisions. Native opening preserves the original session's unsent input in memory
-without saving or a discard decision ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)). The exact
-queue is observed again before the complete review displays every original
-ID/revision/deadline/prerequisite, count and queue/run/pause state. Missing,
-replaced, nonpending, previous-run or otherwise ineligible entries refuse the
-whole request; changed sources are unavailable, never silently reduced,
-retargeted or retried. Expired pending rows remain cancellable only under the
-existing cancellation policy, without renewing dispatch eligibility.
-
-This command cannot confirm or commit cancellation. Use the separate one-shot
-native **Cancel these pending entries only** action after reviewing the complete
-subset, or discard the review to retain the native selection and drafts.
-Preparation never enqueues, dispatches, pauses/resumes, probes, invokes a model,
-renews deadlines/activity, changes running work or removes history. Existing
-question/approval decisions remain separate. The full revisioned commands above
-retain their existing behavior.
-
-New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
-Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
-
-Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All six fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
-
-Only selected rows/tasks become retained Cancelled history. Unselected relative dispatch order and original metadata/results remain unchanged. Dependents are retained and block if their prerequisite was cancelled; no descendant scan/cascade is claimed. Pause/hold, slots and current callbacks remain unchanged; no automatic dispatch/resume, worker/effect termination or deletion authority is added.
-
-Required requested/terminal typed audit, exact member receipt and readback precede successful confirmation under the existing short physical commit fence. Audit/storage/cancellation/commit uncertainty holds admission for recovery; known commit is not undone by failed delivery. Closure/selection changes revoke proposals. Previous-run/Unknown/nonpending entries refuse, with no restart replay.
-
-Use canonical nonempty D GUIDs and the exact displayed positive session/entry
-revisions. Queue revision is the displayed committed snapshot revision; zero
-is valid only before the first queue mutation. For typed enqueue, supply fresh
-request/task GUIDs; the six explicit native **Enqueue** buttons generate them. Duplicate
-IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
-fail closed. The selected session's ID is visible and never inferred from a
-name, model response or window title.
-
-Only these six closed profiles are accepted. The original four inputs remain host-owned `{}`,
-first page/default count six. `capabilities.get` requires one exact current catalogue descriptor ID;
-native selection has no implicit target and resets after success/stale selection. `runtime.get_status`
-always selects recorded `local.inference`; supplying any runtime ID is invalid. No arbitrary JSON,
-parameters, count/offset or refresh controls are accepted. Each result is limited to six records and 4096 serialized
-UTF-8 bytes. **Inspect selected work** or exact `queue status` shows a retained
-successful page snapshot, not current health. Large manual batches may omit page
-data with `resultAvailableByExactStatus: true`; inspect that exact task instead.
-Work/All work remain metadata-only. Failures, denial, cancellation, stale private
-admission or expired active budgets never deliver successful data. The two targeted reads return only one exact matching descriptor or local recorded runtime, never live qualification. Requeue preserves that exact target with fresh IDs, not replay or retargeting.
-
-Enqueue does not start work. Selecting an exact session passively reads work;
-**Refresh selected work** refreshes that observation. Choose **Inspect selected
-work ID**, **Cancel selected eligible work**, **Remove pending ID** or
-**Confirm clear displayed pending queue** only for displayed exact revisions.
-The native controls call the same exact command workflows. Stale controls refuse
-instead of following another selection or revision. Only the separate genuine
-pre-dispatch local-version question wait can use exact task cancellation;
-admitted/effect work is not cancellable in this delivered slice.
-All/Active/Done filtering affects only the current bounded session page.
-Five-second passive work refresh never dispatches, reprioritizes, extends
-meaningful activity, moves focus or retargets voice/questions/approvals.
-Dispatch is manual, arrival FIFO unless explicitly reordered within a session, and fair across ready sessions;
-the invoking session gains no priority. Default capacity is ten pending entries
-per session and one admitted task per session. The shipped host uses one
-global slot; only the fixed local-read implementation permits a host
-limit of one or two.
-
-**Pause this session's new dispatch** and **Resume this session's dispatch eligibility** use the displayed exact generation, queue revision, run ID and pause revision from **Refresh selected work**/`queue list`/`queue pause-status`.
-Pause does not suspend/cancel active work, mark Done, clear entries, consume grants, change FIFO/fairness or deadlines, or renew meaningful activity/retention. It is not a saved preference; fresh runs start unpaused.
-Pause can be acknowledged while an admitted read is still running: no later admission from that session can commit after acknowledgement, while unrelated eligible sessions remain fair candidates. Resume does not start a batch; use a separate manual dispatch decision.
-Unknown/unconfirmed audit, storage, cancellation or private-epoch state holds admission with an explicit recovery reason, not a claimed rollback/unpause. A private epoch change cannot restore old queued eligibility; inspect/remove/requeue explicitly. Previous-run pending work remains Interrupted, never revived by resume.
-Quiet routine notices and queue pause are independent. General workers/providers, autoscheduling and current-task cancellation remain unavailable; a pause receipt is not a physical-stop receipt.
-
-**Review Move up/down** selects only the displayed previous/next pending neighbor in this exact session. The first/last entry has no move in that direction, with an explicit reason. Review shows both profiles, immutable IDs/revisions, current/proposed order and original deadlines.
-**Confirm exact adjacent move** is separate; **Cancel move review** leaves order and draft unchanged. Typed/activated confirmation must repeat every exact binding plus the returned review ID and `confirm`. A fresh review replaces the prior volatile review, never accumulates replayable authority.
-
-Concurrent admission/removal/enqueue/reorder, changed session/run/private control, selection or closed authority makes confirmation stale: refresh and review again. No name-based retargeting, cross-session shuffle, arbitrary position or automatic reprioritization is accepted.
-Pending prerequisite inversion and expired/private-retired/previous-run/nonpending pairs refuse; remove/requeue requires a separate decision. Unmet cross-session dependencies still block the chosen head.
-
-Only pending dispatch order changes. Original arrival, enqueue/expiry, active deadlines, results, history and fairness remain intact; new enqueue follows the current pending order. No pause/resume/dispatch or activity renewal follows a move.
-Running callbacks remain independent; previous-run Interrupted/Unknown work never replays. Audit/storage/delivery uncertainty holds admission with explicit recovery, never an optimistic success-shaped list.
-Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
+Native cancellation-review opening preserves the original session's unsent input in memory, without saving or a discard decision ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 ## Prepare an exact local diagnostics plan
 
-Use typed input, or the current assistant-name prefix for activated voice:
-
-```text
-session diagnostics plan <session-id> <profiles>
-session diagnostics plan help
-Kora, session diagnostics plan 12345678-1234-1234-abcd-123456789012 version,readiness
-```
-
-The session ID must be a nonempty lowercase canonical D GUID. Profiles are an
-explicit nonempty comma-separated subset of `version,capabilities,readiness,runtimes`
-in that canonical order. Do not put spaces inside the list. Duplicates, empty
-elements, unknown or targeted profiles, reordered lists, names, `selected`,
-`current`, `all`, inferred defaults and extra confirmation words are rejected.
-Malformed reserved diagnostics input never becomes a model question or approval answer.
-
-This opens only the existing exact private **Sessions** target, prepares the
-chosen profiles and displays its complete diagnostics review: capacity, original
-deadlines, limits, run/private control, explicit None prerequisites and the
-sequential, possibly partial enqueue disclosure. It runs no diagnostic probes,
-model or network request, enqueues nothing and never dispatches, resumes,
-reorders or renews work. **Enqueue reviewed diagnostics plan** remains a separate
-one-shot native confirmation using the existing authoritative single-item enqueues.
-
-An existing dirty composer still requires **Save / Discard / Cancel** before
-navigation. Cancel or an unconfirmed save keeps the original buffer and target.
-Pending questions and approvals must be resolved explicitly. Changed original
-input, host/private/call admission, native navigation source, session generation,
-queue/control or confirmed limits makes the route unavailable; request a fresh
-exact plan. There is no latest, selected-session, name or model fallback.
+This workflow is retired. `session diagnostics plan` is rejected as reserved session input, not sent to a model, and opens no native plan. Use direct version, capability, readiness or runtime status queries instead ([command parser](../src/Kora.Core/Commands/SessionCommand.cs), [retirement tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.DiagnosticRetirement.cs)).
 
 ## Fixed queue settings
 
-Expired replacement is available in native Sessions as **Review expired removal and NEW tail task**, followed by separate exact confirmation or cancellation. The review shows original IDs/profile/dependency/deadlines and fresh host-issued IDs, captured pending lifetime and deadline. No arguments, name inference, automatic dispatch or probes are accepted.
-
-Only expired stored Pending entries with no dispatch order in this active session/current run and unchanged original private admission qualify. Stale queue/order/pause/settings/source/entry/session revisions reject the whole proposal. One replacement frees one slot atomically, never evicts, and cannot exceed lowered capacity. Original history/deadlines remain; old task is Cancelled with Removed queue outcome, new task is IntentRecorded/Pending at tail.
-
-Prerequisite IDs are preserved and revalidated; dependents on the removed task remain blocked, without cascade or retarget. Cancel admits nothing. Unknown commit/delivery holds admission and requires exact inspection, not retry. Restart never replays either entry; new active budget is captured only at normal later manual dispatch. See [bounded replacement contract](../Design/Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12).
-
-Native Settings > Sessions and exact typed/current-name activated input share
-these future-only controls:
-
-| Option | Range | Default/reset | Takes effect |
-|---|---|---|---|
-| `queue.pending-per-session` | Canonical integer 1-10 | 10 | Future enqueues; no eviction |
-| `queue.execution-slots` | Canonical integer 1-2 | 1 | Future fixed synchronous read admissions; no cancellation |
-| `queue.pending-lifetime-minutes` | Canonical integer 1-120 minutes | 30 | New enqueues only; existing deadlines unchanged |
-| `queue.active-budget-minutes` | Canonical integer 1-60 minutes | 5 | Future admissions, including old pending entries; existing active deadlines unchanged |
-
-Use `list queue settings`, `get <id>`, `status <id>`,
-`set <id> to <integer>` or `reset <id>`. List reports schema 3 and all four
-descriptors. No signs, leading zeros, fractions, extra words or apply-now.
-Native Refresh is required before each unchanged visible draft Save/Reset.
-
-The same [parser and original-input action](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs) also admit these whole-utterance natural aliases, optionally prefixed by the current assistant name:
-
-| Inspect | Set | Independent reset |
-|---|---|---|
-| `show fixed read queue settings` | Lists all four options; no change | No whole-queue reset |
-| `show fixed read pending capacity` | `set fixed read pending capacity to <integer>` | `reset fixed read pending capacity` |
-| `show fixed read execution slots` | `set fixed read execution slots to <integer>` | `reset fixed read execution slots` |
-| `show fixed read pending lifetime` | `set fixed read pending lifetime to <integer> minutes` | `reset fixed read pending lifetime` |
-| `show fixed read active budget` | `set fixed read active budget to <integer> minutes` | `reset fixed read active budget` |
-
-Natural values use the same ranges above and [canonical domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs). Duration setters require the exact token `minutes`, including for `1 minutes`; singular/other units, word numerals, fractions, signs, overflow, extra clauses and apply-now clarify without mutation or model fallthrough.
-Case-insensitive matching, outer whitespace and old exact option-ID commands remain unchanged. `run two tasks`, generic queue controls, pause-all and current-task extensions are not aliases ([parser tests](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationCommandTests.cs)).
-Each reset preserves the other three saved overrides; malformed/unknown saved companions remain unavailable, not defaulted ([consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
-
-Protected/Unknown original-voice writes and stale/held preferences refuse.
-Inspect/repair receipts before fresh Refresh; it cannot clear unconfirmed writes.
-See [queue settings and recovery](settings.md#sessions-fixed-read-only-local-version-queue).
-
-The [queue workflow](#deterministic-local-version-queue) remains manual.
-Expired heads block later work until removed; a failed batch needs a fresh
-dispatch decision. At/equal-to active deadlines, late results cannot be success.
-Pre-dispatch questions consume neither slot nor active budget. Privacy/call/
-ownership retirement requires inspect/remove/requeue; restart yields
-Interrupted/Unknown status, never replay. General workers/effects/resource
-leases and real two-slot provider/hardware qualification remain unavailable.
+Diagnostic-only capacity, slots and deadline settings are no longer normal Settings or command controls.
+Former fixed-read settings phrases report retirement without changing saved preferences, queued records or captured deadlines.
+Internal configuration parsing and scheduler policy remain fail-closed ([input boundary](../src/Kora.Application/ViewModels/MainViewModel.cs), [internal configuration](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
 ## In-call feedback override
 

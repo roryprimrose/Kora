@@ -19,7 +19,7 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
-    ISessionQueueCancellationReviewPresenter, ISessionDiagnosticsPlanPresenter
+    ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
     private CompactSessionWindow? compact;
@@ -48,7 +48,6 @@ internal sealed partial class SessionsWindowController(
         main.SessionsRequested += OnOpen;
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
-        main.BindSessionDiagnosticsPlan(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
@@ -204,42 +203,6 @@ internal sealed partial class SessionsWindowController(
         return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
     }
 
-    public async Task<bool> PrepareDiagnosticsPlanAsync(SessionDiagnosticsPlanCommand command, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token)
-    {
-        var source = CaptureCompactNavigationEligibility();
-        var originalInput = model?.CaptureDiagnosticsNavigationEligibility() ?? (static () => true);
-        var revision = access.ControlRevision;
-        bool Eligible() => !disposed && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation
-            && access.ControlRevision == revision && admitted() && !token.IsCancellationRequested;
-        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-            || command.Error is not null || command.IsHelp || !Eligible())
-        { throw new OperationCanceledException("Private native diagnostics preparation is unavailable."); }
-        var preparation = await service.PrepareDiagnosticsPlanAsync(new(command.SessionId), command.Profiles, Eligible, token);
-        var prepared = false;
-        try
-        {
-            await Dispatcher.UIThread.InvokeAsync(async () =>
-            {
-                if (!Eligible() || !source() || !originalInput())
-                { throw new OperationCanceledException("Original diagnostics navigation source changed."); }
-                Open();
-                var owner = window ?? throw new InvalidOperationException("The native Sessions window is unavailable.");
-                var state = model ?? throw new InvalidOperationException("The native Sessions presentation is unavailable.");
-                var ownerEpoch = Volatile.Read(ref dispositionOwnerEpoch);
-                bool NativeAdmission() => Eligible() && ReferenceEquals(window, owner)
-                    && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
-                    && ReferenceEquals(model, state);
-                prepared = await state.PrepareDiagnosticsPlanAsync(preparation, Eligible, NativeAdmission, token, originalInput);
-            });
-            return prepared;
-        }
-        finally
-        {
-            if (!prepared) { service.RetireDiagnosticsPlan(preparation.Review); }
-        }
-    }
-
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -273,7 +236,6 @@ internal sealed partial class SessionsWindowController(
         ReviewOriginalMessageReuse = null;
         main.BindSessionDispositionReview(null);
         main.BindQueueCancellationReview(null);
-        main.BindSessionDiagnosticsPlan(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         service.SessionLifecycleChanged -= RevokeSession;

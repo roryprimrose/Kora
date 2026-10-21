@@ -55,7 +55,7 @@ public sealed class SessionQueueTargetedReadTests
 
     [Theory]
     [MemberData(nameof(Targets))]
-    public void ExactCurrentTargetsShareCatalogueGrammarTypedInputAndSingleDescriptorResult(string id)
+    public void ExactCurrentTargetsRetainInternalIntegrityButCannotBeNewlyQueuedThroughTypedInput(string id)
     {
         var target = new SessionQueueCapabilityTarget(id);
         target.Descriptor.Should().BeSameAs(ReadOnlyCapabilityCatalog.FindExact(id));
@@ -72,10 +72,7 @@ public sealed class SessionQueueTargetedReadTests
             foreach (var suffix in new[] { "", $" after {Guid.NewGuid():D}" })
             {
                 var command = SessionCommand.Parse(activation + prefix + suffix, "Luna")!;
-                command.Operation.Should().Be(SessionCommandOperation.QueueEnqueue);
-                command.QueueProfile.Should().Be(SessionQueueReadProfile.Capability);
-                command.QueueTarget.Should().Be(target);
-                command.DependencyTaskId.HasValue.Should().Be(suffix.Length != 0);
+                command.Operation.Should().Be(SessionCommandOperation.Invalid);
             }
         }
         var pending = Pending(SessionQueueReadProfile.Capability, target);
@@ -133,8 +130,8 @@ public sealed class SessionQueueTargetedReadTests
         var prefix = $"queue enqueue {Guid.NewGuid():D} 1 0 {Guid.NewGuid():D} {Guid.NewGuid():D} ";
         foreach (var activation in new[] { "", "Luna, " })
         {
-            SessionCommand.Parse(activation + prefix + "runtime.get_status", "Luna")!.Operation.Should().Be(SessionCommandOperation.QueueEnqueue);
-            SessionCommand.Parse(activation + prefix + $"runtime.get_status after {Guid.NewGuid():D}", "Luna")!.QueueTarget.Should().BeNull();
+            SessionCommand.Parse(activation + prefix + "runtime.get_status", "Luna")!.Operation.Should().Be(SessionCommandOperation.Invalid);
+            SessionCommand.Parse(activation + prefix + $"runtime.get_status after {Guid.NewGuid():D}", "Luna")!.Operation.Should().Be(SessionCommandOperation.Invalid);
             foreach (var injection in new[] { " local.inference", " other", " {}", " id local.inference", " count 1", " offset 1", " after invalid", " after", " after x extra" })
             {
                 SessionCommand.Parse(activation + prefix + "runtime.get_status" + injection, "Luna")!.Operation.Should().Be(SessionCommandOperation.Invalid);

@@ -16,6 +16,15 @@ public sealed partial class SessionWorkspaceService
         {
             throw new InvalidOperationException(command.Error);
         }
+        if (command.Operation is SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueDispatch
+            or SessionCommandOperation.QueuePause or SessionCommandOperation.QueueResume
+            or SessionCommandOperation.QueueMoveUp or SessionCommandOperation.QueueMoveDown
+            or SessionCommandOperation.QueueMoveConfirm or SessionCommandOperation.QueueMoveCancel
+            or SessionCommandOperation.QueueRequeueExpiredReview or SessionCommandOperation.QueueRequeueExpiredConfirm
+            or SessionCommandOperation.QueueRequeueExpiredDiscard)
+        {
+            throw new InvalidOperationException("Diagnostic-only queue admission and scheduling controls are retired. Existing records remain inspectable and cancellable; use direct status queries instead.");
+        }
         if (command.Operation is SessionCommandOperation.QueueList or SessionCommandOperation.QueueStatus
             or SessionCommandOperation.QueueEnqueue or SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove
             or SessionCommandOperation.QueueClear or SessionCommandOperation.QueueDispatch

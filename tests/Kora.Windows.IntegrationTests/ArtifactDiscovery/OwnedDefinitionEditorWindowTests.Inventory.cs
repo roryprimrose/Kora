@@ -95,21 +95,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.Source.Text.Should().BeNullOrEmpty();
             native.QueryInput.Focus();
             native.QueryInput.IsFocused.Should().BeTrue();
-            native.DigestInput.Focus();
-            native.DigestInput.IsFocused.Should().BeTrue();
-            AutomationProperties.GetName(native.DigestInput).Should().Contain("Exact artifact SHA-256").And.Contain("Any");
             var clearSearch = native.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Clear search"));
-            foreach (var field in new[] { native.RevisionInput, native.ObservedFromInput, native.ObservedUntilInput })
-            {
-                native.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
-                field.IsFocused.Should().BeTrue();
-                AutomationProperties.GetName(field).Should().Contain("Any").And.Contain("metadata");
-            }
-            native.KeyPress(Key.Tab, RawInputModifiers.None, PhysicalKey.Tab, null);
-            clearSearch.IsFocused.Should().BeTrue();
-            AutomationProperties.GetName(clearSearch).Should().Contain("all owned metadata predicates");
-            native.KeyPress(Key.Tab, RawInputModifiers.Shift, PhysicalKey.Tab, null);
-            native.ObservedUntilInput.IsFocused.Should().BeTrue();
+            AutomationProperties.GetName(clearSearch).Should().Contain("Clear owned name query");
             var store = kind == ArtifactKind.Instruction ? instructionStore : promptStore;
             var reads = store.Reads;
             var lists = store.Lists;
@@ -154,70 +141,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             store.Reads.Should().Be(reads);
             store.Lists.Should().Be(lists);
             store.Writes.Should().Be(writes);
-            native.DigestInput.Text = saved[0].Document.Definition.Digest;
-            Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
-            native.DigestInput.Text = saved[1].Document.Definition.Digest;
-            Rows().Should().ContainSingle().Which.Name.Should().Be("held");
-            native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.UseEnabled;
-            Rows().Should().BeEmpty();
-            native.UseStateInput.SelectedItem = OwnedDefinitionUseFilter.All;
-            foreach (var invalid in new[] { saved[1].Document.Definition.Digest.ToUpperInvariant(),
-                new string('a', 63), new string('a', 65), new string('g', 64), " " + saved[1].Document.Definition.Digest,
-                saved[1].Document.Definition.Digest + " ", "\t", "\n" })
-            {
-                native.DigestInput.Text = invalid;
-                native.Files.ItemsSource.Should().BeNull();
-                native.Files.SelectedItem.Should().BeNull();
-                native.NextPage.IsEnabled.Should().BeFalse();
-                Status().Should().Contain("No truncation or partial match");
-            }
-            native.DigestInput.Text = new string('f', 64);
-            Rows().Should().BeEmpty();
-            Status().Should().Contain("0 visible of 0 matches");
-            native.DigestInput.Text = string.Empty;
-            var observed = Rows()[0].ObservedUtc;
-            string Utc(DateTimeOffset value) => value.ToString("O", CultureInfo.InvariantCulture);
-            native.RevisionInput.Text = saved[0].Revision;
-            Rows().Should().ContainSingle().Which.Name.Should().Be("enabled");
-            native.DigestInput.Text = saved[1].Document.Definition.Digest;
-            Rows().Should().BeEmpty();
-            native.DigestInput.Text = string.Empty;
-            native.ObservedFromInput.Text = Utc(observed);
-            native.ObservedUntilInput.Text = Utc(observed);
-            Rows().Should().ContainSingle();
-            native.ObservedFromInput.Text = Utc(observed.AddTicks(1));
-            native.Files.ItemsSource.Should().BeNull();
-            Status().Should().Contain("From must not be after Until");
-            native.ObservedUntilInput.Text = string.Empty;
-            Rows().Should().BeEmpty();
-            native.ObservedFromInput.Text = string.Empty;
-            native.ObservedUntilInput.Text = Utc(observed.AddTicks(-1));
-            Rows().Should().BeEmpty();
-            foreach (var (field, invalid) in new[]
-            {
-                (native.RevisionInput, saved[0].Revision.ToUpperInvariant()),
-                (native.RevisionInput, saved[0].Revision[..^1]),
-                (native.RevisionInput, " " + saved[0].Revision),
-                (native.RevisionInput, saved[0].Document.Definition.Digest),
-                (native.ObservedFromInput, "2026-10-12T00:00:00Z"),
-                (native.ObservedFromInput, "2026-10-12T01:00:00.0000000+01:00"),
-                (native.ObservedUntilInput, "2026-10-12T00:00:00.0000000+00:00 "),
-            })
-            {
-                field.Text = invalid;
-                native.Files.ItemsSource.Should().BeNull();
-                native.Files.SelectedItem.Should().BeNull();
-                native.NextPage.IsEnabled.Should().BeFalse();
-                Status().Should().Contain("No truncation or partial match");
-                field.Text = string.Empty;
-            }
-            native.RevisionInput.Text = saved[0].Revision;
-            native.ObservedFromInput.Text = Utc(observed);
-            native.ObservedUntilInput.Text = Utc(observed);
             clearSearch.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            native.RevisionInput.Text.Should().BeEmpty();
-            native.ObservedFromInput.Text.Should().BeEmpty();
-            native.ObservedUntilInput.Text.Should().BeEmpty();
             Rows().Should().HaveCount(3);
             store.Reads.Should().Be(reads);
             store.Lists.Should().Be(lists);
@@ -283,48 +207,6 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 native.ClearSearch();
                 await Run("list");
             }
-            foreach (var (field, value) in new[]
-            {
-                (native.DigestInput, saved[0].Document.Definition.Digest),
-                (native.RevisionInput, saved[0].Revision),
-                (native.ObservedFromInput, Utc(observed)),
-                (native.ObservedUntilInput, Utc(observed)),
-            })
-            {
-                native.Files.SelectedItem = Rows()[1];
-                store.ReadEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                store.ReleaseRead = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                var pendingInspect = Run("inspect " + Rows()[1].Name);
-                await store.ReadEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
-                reads = store.Reads;
-                lists = store.Lists;
-                field.Text = value;
-                native.Files.SelectedItem.Should().BeNull();
-                native.ReviewUse.IsEnabled.Should().BeFalse();
-                native.DisableReviewedUse.IsEnabled.Should().BeFalse();
-                store.Reads.Should().Be(reads);
-                store.Lists.Should().Be(lists);
-                store.ReleaseRead.TrySetResult();
-                await pendingInspect;
-                native.Source.Text.Should().Be(original, "every metadata edit retires pending inspection without loading its late result");
-                store.ReleaseRead = null;
-                field.Text = string.Empty;
-                var catalogueIdentity = catalogue.Candidates;
-                store.ListEntered = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                store.ReleaseList = new(TaskCreationOptions.RunContinuationsAsynchronously);
-                var pendingRefresh = Run("list");
-                await store.ListEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
-                field.Text = value;
-                native.Files.ItemsSource.Should().BeNull();
-                store.ReleaseList.TrySetResult();
-                await pendingRefresh;
-                native.Files.ItemsSource.Should().BeNull("a refresh begun under retired filter state cannot publish or reconcile after editing");
-                catalogue.Candidates.Should().BeSameAs(catalogueIdentity);
-                native.Source.Text.Should().Be(original);
-                store.ReleaseList = null;
-                field.Text = string.Empty;
-                await Run("list");
-            }
             native.NameInput.Text = saved[0].Name;
             native.Source.Text += "\nUnsaved private draft.";
             var draft = native.Source.Text;
@@ -353,21 +235,6 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             store.Reads.Should().Be(reads);
             store.Lists.Should().Be(lists);
             store.Writes.Should().Be(writes);
-            foreach (var (field, value) in new[]
-            {
-                (native.RevisionInput, saved[0].Revision),
-                (native.ObservedFromInput, Utc(observed)),
-                (native.ObservedUntilInput, Utc(DateTimeOffset.MaxValue)),
-            })
-            {
-                native.Files.SelectedItem = Rows()[0];
-                field.Text = value;
-                native.Files.SelectedItem.Should().BeNull();
-                native.Source.Text.Should().Be(draft);
-                native.ReviewUse.IsEnabled.Should().BeFalse();
-                native.DisableReviewedUse.IsEnabled.Should().BeFalse();
-                field.Text = string.Empty;
-            }
             var statePath = Path.Combine(f.LocalRoot, "Preferences", kind == ArtifactKind.Instruction ? "instruction-revisions.json" : "prompt-revisions.json");
             var revisionState = File.ReadAllBytes(statePath);
             var sourcePath = Path.Combine(f.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind), saved[0].CanonicalFileName);
@@ -411,20 +278,12 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.Source.Text.Should().Be(draft);
             native.QueryInput.Text = "private query";
             native.QueryModeInput.SelectedItem = OwnedDefinitionInventoryQueryMode.ExactArtifactId;
-            native.DigestInput.Text = saved[0].Document.Definition.Digest;
-            native.RevisionInput.Text = saved[0].Revision;
-            native.ObservedFromInput.Text = Utc(observed);
-            native.ObservedUntilInput.Text = Utc(DateTimeOffset.MaxValue);
             ownership++;
             owned = false;
             await Run("list");
             native.IsVisible.Should().BeFalse();
             native.QueryInput.Text.Should().BeEmpty();
             native.QueryModeInput.SelectedItem.Should().Be(OwnedDefinitionInventoryQueryMode.Literal);
-            native.DigestInput.Text.Should().BeEmpty();
-            native.RevisionInput.Text.Should().BeEmpty();
-            native.ObservedFromInput.Text.Should().BeEmpty();
-            native.ObservedUntilInput.Text.Should().BeEmpty();
             native.Source.Text.Should().BeEmpty();
             native.Files.ItemsSource.Should().BeNull();
             catalogue.Publish(catalogue.Candidates);
@@ -459,11 +318,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 window.ShowInventory(snapshot.Page("", OwnedDefinitionUseFilter.All, first.NextOffset!.Value));
                 window.Files.SelectedItem.Should().BeNull();
                 window.QueryInput.Text = "private query";
-                window.DigestInput.Text = new string('a', 64);
                 window.Source.Text = "private draft";
                 window.ClearPrivateText();
                 window.QueryInput.Text.Should().BeEmpty();
-                window.DigestInput.Text.Should().BeEmpty();
                 window.Source.Text.Should().BeEmpty();
                 window.Files.ItemsSource.Should().BeNull();
                 window.NextPage.IsEnabled.Should().BeFalse();
@@ -574,15 +431,16 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             native.OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
             Rows().Should().Equal(first);
             native.Files.SelectedItem = Rows()[0];
-            native.DigestInput.Text = first[0].Digest;
+            native.QueryInput.Text = first[0].ArtifactId;
             Rows().Should().ContainSingle().Which.Should().BeSameAs(first[0]);
             native.Files.SelectedItem.Should().BeNull();
             native.NextPage.IsEnabled.Should().BeFalse();
-            native.DigestInput.Text = string.Empty;
+            native.ClearSearch();
             Rows().Should().Equal(first);
             native.NextPage.IsEnabled.Should().BeTrue();
             native.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Clear search"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            native.ClearSearch();
             Rows().Should().Equal(first);
             native.NextPage.IsEnabled.Should().BeTrue();
             var statusBlock = ((DockPanel)native.Content!).Children.OfType<TextBlock>().Last();

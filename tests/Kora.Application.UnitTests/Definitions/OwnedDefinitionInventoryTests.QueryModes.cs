@@ -28,15 +28,17 @@ public sealed partial class OwnedDefinitionInventoryTests
             };
             foreach (var use in Enum.GetValues<OwnedDefinitionUseFilter>())
             {
-                var page = inventory.Page(query, use, digest: expected.Digest!, revision: NativeRevision,
-                    observedFromUtc: Utc(Observed), observedUntilUtc: Utc(Observed), mode: mode);
-                page.Rows.Should().Equal(use is OwnedDefinitionUseFilter.All or OwnedDefinitionUseFilter.UseEnabled
-                    ? [expected] : Array.Empty<OwnedDefinitionInventoryRow>());
+                var page = inventory.Page(query, use, mode: mode);
+                var upper = inventory.Rows.Single(row => string.Equals(row.Name, "Alpha", StringComparison.Ordinal));
+                OwnedDefinitionInventoryRow[] matching = (mode, use) switch
+                {
+                    (OwnedDefinitionInventoryQueryMode.Literal, OwnedDefinitionUseFilter.All) => [upper, expected],
+                    (OwnedDefinitionInventoryQueryMode.Literal, OwnedDefinitionUseFilter.UnavailableOrUnknown) => [upper],
+                    (_, OwnedDefinitionUseFilter.All or OwnedDefinitionUseFilter.UseEnabled) => [expected],
+                    _ => [],
+                };
+                page.Rows.Should().Equal(matching);
             }
-            inventory.Page(query, OwnedDefinitionUseFilter.All, digest: new string('b', 64), mode: mode).Rows.Should().BeEmpty();
-            inventory.Page(query, OwnedDefinitionUseFilter.All, revision: NativeRevision.Replace('b', 'e'), mode: mode).Rows.Should().BeEmpty();
-            inventory.Page(query, OwnedDefinitionUseFilter.All, observedFromUtc: Utc(Observed.AddTicks(1)), mode: mode).Rows.Should().BeEmpty();
-            inventory.Page(query, OwnedDefinitionUseFilter.All, observedUntilUtc: Utc(Observed.AddTicks(-1)), mode: mode).Rows.Should().BeEmpty();
         }
         inventory.Page("alpha", OwnedDefinitionUseFilter.All).Rows.Select(row => row.Name).Should().Equal("Alpha", "alpha", "alpha-more");
         inventory.Page("alpha", OwnedDefinitionUseFilter.All, mode: OwnedDefinitionInventoryQueryMode.ExactOwnedId)
@@ -106,8 +108,7 @@ public sealed partial class OwnedDefinitionInventoryTests
             foreach (var invalid in new[] { new string('a', 64 * 1024), "\ud800", "invalid-revision" })
             {
                 var inventory = Inventory(kind, ["alpha"], Candidate(kind, "alpha") with { OwnedInstructionRevision = invalid });
-                Action invalidPage = () => inventory.Page("missing", OwnedDefinitionUseFilter.UseEnabled, 1, new string('f', 64),
-                    NativeRevision, Utc(Observed.AddTicks(1)), Utc(Observed.AddTicks(2)), mode);
+                Action invalidPage = () => inventory.Page("missing", OwnedDefinitionUseFilter.UseEnabled, 1, mode);
                 if (invalid is "\ud800") { invalidPage.Should().Throw<EncoderFallbackException>(); }
                 else { invalidPage.Should().Throw<InvalidDataException>(); }
             }

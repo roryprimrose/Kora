@@ -1310,6 +1310,29 @@ rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#windows-native-speech-rate) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
 
+### Inspect or change Kora's response-window visibility preferences
+
+- **list response window settings**
+- **get response-window.always-show** / **status response window always show**
+- **get response-window.topmost** / **status response window topmost**
+- **set response-window.always-show to true** / **set response-window.always-show to false**
+- **set response-window.topmost to true** / **set response-window.topmost to false**
+- **reset response-window.always-show** / **reset response-window.topmost**
+- **keep responses visible** / **allow responses to hide**
+- **keep response window on top** / **stop keeping response window on top**
+
+These are complete exact utterances, optionally prefixed with the current assistant name: **"Kora, keep responses visible"**. Canonical targets also accept the exact spoken names **response window always show** and **response window topmost**.
+Boolean set accepts only **true** or **false**, not relative/fuzzy targets, implicit selected windows or compound instructions ([grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs)).
+
+Results appear in the transcript without speech, reopening a response, replacing a pending question/approval or sending text to a model. Malformed reserved commands clarify before question/approval/model routing.
+Changes require the owning unlocked host and no pending question/approval or competing preference write ([dispatcher](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+Only Kora's device-local addressed Boolean changes. Reset restores **AlwaysShow=false** or **Topmost=true**, preserving the other Boolean, saved position and response timeout. AlwaysShow prevents inactivity hiding of an already admitted response; it cannot reveal dismissed, private, revoked or retired content.
+Topmost is not a Windows-wide setting or foreground/activation authority ([native window](../src/Kora/ResponseWindow.axaml.cs), [defaults](../src/Kora.Core/Configuration/ResponseWindowSettings.cs)).
+
+Missing preference files use declared defaults without claiming a save. Malformed, externally changed or uncertain saved evidence is explicitly unavailable: inspect the saved state and audit receipts before repair/restart and initiate a fresh request.
+No automatic rewrite, default-save, rollback or retry is claimed ([confirmation and commands](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [audited writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
 ### Inspect or change the device-default response mode
 
 - **list response settings**

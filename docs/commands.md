@@ -30,6 +30,34 @@ Original private host, instance ownership, current-name voice activation and
 call/privacy admission must remain valid; protected or unknown call state
 refuses calculation. This native-only command adds no model descriptor.
 
+## Host-local date and time
+
+Type `what time is it`, `what is today's date`, `what is the date and time`,
+or `help local clock`. Activated voice requires the current assistant name,
+for example `Kora, what time is it?`; renaming replaces that prefix.
+These phrases use the ordinary built-in case/punctuation normalization.
+Control characters and commands over 256 characters are refused.
+Only the reserved normalized families `what time`, `what is today s date`,
+`what is the date and time` and `help local clock` (whole words plus optional
+suffix words) clarify malformed requests instead of sending them to a model.
+For example, `what time is it in Paris` is not a timezone query.
+No other fuzzy date/time grammar is introduced.
+
+Each answer samples one host clock instant and converts it using the host's
+local timezone and culture. The displayed date is the date in that timezone,
+not the UTC date. Every answer includes its UTC offset and timezone ID,
+including at daylight-saving transitions. It reports the host clock, not
+independently verified time.
+
+Answers and help are visual, even in Voice only mode, without automatic
+speech or audio/device discovery. A separate **Read current response aloud**
+request remains subject to the existing speech policy. The clock route never
+uses a model, network, geolocation, calendar, reminder or scheduling service.
+Original private owning-host input and clear call admission must remain current;
+stale/denied/unavailable requests report recovery in status. Pending questions,
+approvals, power proposals, grant editors and native security reviews stay
+unchanged, including for malformed clock commands.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).

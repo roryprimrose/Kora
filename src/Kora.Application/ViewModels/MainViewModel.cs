@@ -4148,7 +4148,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
-        if (sessionCommand is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
+        if (sessionCommand is null && newRequestCommand is null
+            && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
@@ -4175,7 +4177,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteWorkspaceSurfaceCommand(surfaceCommand, spokenText, initiator, manualInput);
             return;
         }
-        var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");

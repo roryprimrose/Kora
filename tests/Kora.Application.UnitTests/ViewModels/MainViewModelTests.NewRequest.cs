@@ -72,11 +72,13 @@ public sealed partial class MainViewModelTests
         HostActivity.Current.Should().BeNull();
     }
 
-    [Fact]
-    public async Task NewRequestExactTypedAndCurrentNameVoiceOnlyRequestNativeNavigation()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task NewRequestExactTypedAndCurrentNameVoiceOnlyRequestNativeNavigation(string name)
     {
         var f = await Fixture.CreateInitializedAsync();
-        await f.ViewModel.SetAssistantNameAsync("Nova");
+        await f.ViewModel.SetAssistantNameAsync(name);
         var origins = new List<RequestOrigin>();
         string? voiceBody = null;
         f.ViewModel.NewRequestOpeningRequested += admitted =>
@@ -91,13 +93,13 @@ public sealed partial class MainViewModelTests
         var starts = f.Voice.StartCalls;
         var body = f.ViewModel.ResponseBody;
         await f.RunAsync("open new request");
-        await f.RunAsync("Nova, open new request");
+        await f.RunAsync(name + ", open new request");
         f.ViewModel.ResponseBody.Should().Be(body);
         f.Voice.StartCalls.Should().Be(starts);
         f.Audit.Events.Should().HaveCount(audit);
-        await f.RaiseActivatedTranscriptAsync("Nova, open new request", 1);
+        await f.RaiseActivatedTranscriptAsync(name + ", open new request", 1);
         origins.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
-        f.Voice.StartedPhrases.Should().Contain("open new request").And.Contain("Nova open new request")
+        f.Voice.StartedPhrases.Should().Contain("open new request").And.Contain(name + " open new request")
             .And.NotContain("Kora open new request");
         f.ViewModel.Transcript.Should().Contain("activated only");
         f.ViewModel.ResponseBody.Should().Be(voiceBody);

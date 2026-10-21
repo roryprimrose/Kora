@@ -87,6 +87,28 @@ Dirty means the current body differs exactly from its last confirmed saved memor
 **Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
 **Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
 
+#### Find in the current memory draft
+
+In New request, **Ctrl+F** focuses **Find in current memory DRAFT BODY only**.
+Enter a case-sensitive one-line literal, then **Find first in draft** (Enter).
+**Find next** (F3) and **Find previous** (Shift+F3) follow the complete forward
+nonoverlapping sequence without wrapping. Total and ordinal describe only this
+exact current editable buffer, including dirty or invalid drafts. A match selects
+and focuses its exact UTF-16 span in the native editable source; unavailable
+focus is reported explicitly.
+
+The whole query must fit 256 UTF-16 characters / 512 UTF-8 bytes and be
+well-formed, nonempty one-line text without unsafe controls. Spaces and Unicode
+are not normalized or truncated. This does not search reviewed text, the
+assistant answer, saved drafts, Sessions buffers or hidden sources.
+
+**Clear draft Find**, query edits, body edits (including any future dictation
+insertion), reset, review/target/source changes, host input/control changes and
+closure retire navigation/count. Private closure clears the volatile query.
+Retirement never restores or collapses a potentially user-owned selection.
+Find does not edit, save/reload, create, review, submit, capture, invoke a model,
+copy or grant new clipboard authority. Existing native editing/copy/paste is unchanged.
+
 ### Search one exact retained conversation
 
 Select an exact session in **Sessions**, then use **Search this conversation** in its conversation pane or **Compact selected-session conversation**. Both views share one private query, result page, continuation and cancellation state; edits and actions in either are reflected in the other ([shared search state](../src/Kora/SessionsViewModel.ConversationSearch.cs), [compact controls](../src/Kora/CompactSessionWindow.axaml)). Search matches whole lexical words in original retained **USER** messages or separate typed **HOST** outcome/reason/task-state fields.

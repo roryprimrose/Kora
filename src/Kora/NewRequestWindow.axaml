@@ -10,6 +10,7 @@
     <StackPanel Margin="24" Spacing="12">
       <TextBlock Text="New request" FontSize="22" FontWeight="SemiBold" />
       <TextBlock Text="Relatedness inference is unavailable. Create a fresh New conversation explicitly; never continue the selected, named, recent or Done session. This is native text, not a question answer or approval. Production generation is unavailable." TextWrapping="Wrap" />
+      <StackPanel x:Name="DraftFindPanel" Spacing="4" />
       <TextBox x:Name="NewRequestBody" Text="{Binding Body, Mode=TwoWay}" AcceptsReturn="True"
           Height="150" TextWrapping="Wrap" IsEnabled="{Binding CanEdit}"
           PlaceholderText="Memory only: 4096 UTF-16 / 16384 UTF-8 body bounds. No autosave or automatic transfer."

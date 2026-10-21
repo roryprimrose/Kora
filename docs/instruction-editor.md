@@ -34,6 +34,29 @@ example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
 
+## Live source-buffer size
+
+Both owned kinds show passive live **Current displayed source buffer** counts:
+actual strict UTF-8 bytes, UTF-16 code units, and Unicode scalars (not grapheme
+clusters). Combining marks count separately; an astral character uses two UTF-16
+units but one scalar. Metadata, spaces, displayed BOM characters and exact line
+endings count. A separately retained file BOM is not in the displayed buffer.
+These are not persisted-file bytes, expanded prompt/body-only counts or a
+resource-package budget.
+
+The existing whole-source file ceiling is 65,536 bytes, including any retained
+file BOM. It is shown as a ceiling, not an assurance that the current draft can
+be saved. There is no added whole-source UTF-16 or scalar limit. An unpaired
+surrogate explicitly makes byte and scalar counts unavailable; its UTF-16 units
+remain countable. Oversized, malformed and schema-invalid drafts remain editable
+without truncation, normalization or repair.
+
+Counts update with displayed-source changes and retire on private clearing or
+close. They do not parse, validate, read files, refresh discovery, change reviews
+or use state, write, send content, announce through speech or renew activity.
+**Validate** remains a separate full structural/schema check; counts grant no
+save, trust, approval or execution authority. Read-only sources stay read-only.
+
 ## Search observed owned metadata
 
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.

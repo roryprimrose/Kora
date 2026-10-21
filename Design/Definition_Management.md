@@ -37,6 +37,16 @@ file reads, secret substitution, or implicit network access.
 
 ## Source and Format Matrix
 
+The native owned Instruction/Prompt editor's [live source-buffer size feedback](../docs/instruction-editor.md#live-source-buffer-size)
+measures only the exact displayed buffer through the source document's strict
+UTF-8 encoder, without parsing or I/O. The existing `ArtifactFileDocument.Parse`
+whole-source bound is `ArtifactDefinition.MaximumContentLength` bytes, including
+the retained file BOM; the displayed buffer excludes that separately retained
+BOM. UTF-16 and scalar counts have no invented whole-source limits. Malformed
+Unicode has unavailable byte/scalar values, never replacement encoding.
+This passive observation neither retires reviews nor changes drafts or
+admission. Full Validate and exact save/use reviews remain independent.
+
 | Source | Skills | Prompts | Instructions | Agent profiles | Mutation boundary |
 |---|---|---|---|---|---|
 | Bundled `Kora.Definitions` resources | Explicit embedded packages | Actual embedded templates when introduced | Actual embedded scoped guidance when introduced | Actual embedded profiles when qualified | Immutable; inspect and create a distinct declarative adaptation, never overwrite or extract writable executable content. |
@@ -335,6 +345,25 @@ Production adapters/catalogues remain unqualified/unavailable; Ollama 0.35.1/qwe
 Fields and expanded preview buffers exist only for this view lifetime: Cancel/close/private closure clears controls and references immediately, with no autofill/preferences/source autosave/logging/audit text/clipboard export/speech readback. Only separate explicit conversation confirmation retains the approved expansion; Preview and Use write no form body.
 Source checks consume view cancellation, and handoff/exit joins pending work before releasing owned resources. A new accepted typed/activated request retires the original preparation even when typed text is unchanged; original input is captured before awaited native source validation.
 Already captured immutable requests are not mutated by later source edits; ordinary source/privacy/approval boundaries still apply.
+
+**Native displayed owned-buffer Find** is separate from catalogue metadata navigation and passive Compare.
+The [native toolbar](../src/Kora/OwnedInstructionEditorWindow.Find.cs) searches only the exact currently displayed
+owned Instruction/Prompt text, including dirty or structurally invalid drafts, without disk reads or source discovery.
+It reuses [SnapshotLiteralFind.FindCounted](../src/Kora.Core/Context/SnapshotLiteralFind.cs) for bounded,
+well-formed one-line, case-sensitive ordinal literals, complete nonoverlapping counts/ordinals and First/Next/Previous without wrap.
+Only the exact UTF-16 occurrence in the existing source control is selected; an edge clears Find's selection
+but retains the cursor for reverse navigation. Query/source edits retire match/count/navigation; independent native
+user selection is not Find-owned. Native focus/selection failure reports unavailable, never a successful match.
+The [controller binding](../src/Kora/OwnedInstructionEditorController.Find.cs) captures the exact owned kind/ID,
+inspected source identity (or explicit new draft), raw buffer revision, current private host eligibility and ownership lifetime.
+Loading, chosen kind/ID/file changes, hide/close/private/control retirement and reentrant callbacks fence all publication/focus;
+callbacks cannot select an undisplayed file or retarget a replacement editor. Dirty drafts and existing discard reviews survive.
+No body mutation, inventory selection, Save/Reload/Validate/Rebase, use enablement, execution, dictation,
+clipboard/export, transcript, speech or content logging is added; existing source editing/undo/accessibility remains native.
+Profile/bundled sources acquire no edit/use authority. This consumes only the existing editor and literal-policy I subset;
+no provider, hardware, installed-native, experiment or E/Q evidence is an implementation prerequisite.
+See the [user workflow](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer) and
+[headless lifetime tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.BufferFindLifetime.cs).
 
 **Passive owned baseline/draft Compare** is an explicit native and exact `instructions compare` / `prompts compare` memory-only observation of the currently open same-kind inspected baseline or created draft. Complete inert source panes preserve raw metadata/attribution/whitespace; BOM/digests and shared changed-field rules disclose byte truth. Prepared Save validation is separately labelled, never substituted for raw text.
 Independent [pane-local literal Find](../src/Kora/SnapshotComparisonFindPane.cs) reuses the authoritative [Core snapshot policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs): bounded private queries, ordinal case-sensitive First/Next/Previous without wrap, exact UTF-16 locations and explicit invalid/no-match outcomes. Missing baselines are labelled absences, never searchable fabricated source.

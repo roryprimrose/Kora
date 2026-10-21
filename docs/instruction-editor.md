@@ -34,6 +34,29 @@ example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
 
+## Live source-buffer size
+
+Both owned kinds show passive live **Current displayed source buffer** counts:
+actual strict UTF-8 bytes, UTF-16 code units, and Unicode scalars (not grapheme
+clusters). Combining marks count separately; an astral character uses two UTF-16
+units but one scalar. Metadata, spaces, displayed BOM characters and exact line
+endings count. A separately retained file BOM is not in the displayed buffer.
+These are not persisted-file bytes, expanded prompt/body-only counts or a
+resource-package budget.
+
+The existing whole-source file ceiling is 65,536 bytes, including any retained
+file BOM. It is shown as a ceiling, not an assurance that the current draft can
+be saved. There is no added whole-source UTF-16 or scalar limit. An unpaired
+surrogate explicitly makes byte and scalar counts unavailable; its UTF-16 units
+remain countable. Oversized, malformed and schema-invalid drafts remain editable
+without truncation, normalization or repair.
+
+Counts update with displayed-source changes and retire on private clearing or
+close. They do not parse, validate, read files, refresh discovery, change reviews
+or use state, write, send content, announce through speech or renew activity.
+**Validate** remains a separate full structural/schema check; counts grant no
+save, trust, approval or execution authority. Read-only sources stay read-only.
+
 ## Search observed owned metadata
 
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
@@ -79,6 +102,43 @@ Changing mode or order follows the same retirement path without List/Refresh/Ins
 An open Compare retires, but a separately requested **Compare** can still show the admitted frozen historical baseline and exact unsaved raw draft; it does not establish current source state ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
 Catalogue/use/source/call changes invalidate choices. Failed refresh clears availability and labels historical observations unavailable; it does not offer a last-good inventory as current. Privacy/ownership/closure clears query, rows, selection and private editor text, and late callbacks cannot repopulate it.
 Typed/current-name activated `list` focuses this same native filter route; no typed search grammar or voice-only approval is advertised. Filtering creates no index, persistence, model/network call, watcher restart, source write or activation. Predicate input remains private ephemeral metadata/correlation only: no logging, audit payload, activity renewal, speech, clipboard or export; it never grants use authority, admits a revision, overrides content identity or proves current disk integrity.
+
+## Find in the displayed owned buffer
+
+The separate **Displayed owned buffer Find** toolbar searches only the complete source text
+currently displayed in this editor, including unsaved changes. It does not search the
+metadata inventory, disk, other files, profile sources or bundled definitions.
+Explicitly **Inspect** or **Create** an owned Instruction or Prompt first; Find never opens
+or chooses a source for you.
+
+- **Ctrl+F** focuses the native query without copying the selection into it.
+- **Find first**, or **Enter** in that query, selects the first exact occurrence in the source editor.
+- **Find next** / **F3** and **Find previous** / **Shift+F3** follow the same nonoverlapping sequence.
+  The outcome gives the complete count, current ordinal and exact UTF-16 range. At either
+  edge nothing is selected and **no wrap** occurs; the last cursor remains for reverse navigation.
+- **Clear Find** clears the private query, count, cursor and Find-owned selection.
+  **Escape** in the Find controls also returns focus to the source, without closing the editor.
+  A selection you made independently is not cleared or acquired by Find.
+
+Matching is **case-sensitive ordinal literal**, not regex, wildcard or whole-word matching.
+Spaces and punctuation are exact; Unicode is not normalized. Queries must be nonempty,
+well-formed, one-line Unicode without control/format characters, at most **256 UTF-16 units /
+512 UTF-8 bytes**. Invalid input is reported without trimming, repair or truncation.
+`aa` in `aaaaa` counts two complete nonoverlapping matches, not four overlapping alternatives.
+
+Query or source edits retire the old match, count and navigation; use **Find first** again.
+Loading, chosen kind/ID/file changes, closing/hiding, control retirement or loss of private
+host ownership also retire pending Find callbacks. A changed choice never retargets Find
+to an undisplayed file. Dirty draft text stays intact; deliberate discard/save/reload
+reviews retain their existing semantics. If native focus/selection is unavailable, no match
+or count is claimed; use Tab to reach the source and retry Find first.
+
+Find never changes source bytes, inventory selection, read-only status, saved preferences,
+validation, baseline, applicability or reviewed use. It does not save, reload, refresh,
+rebase, enable, execute, dictate or submit a request. Source editing, undo and accessibility
+remain native. The Find query has no clipboard/context transfer or new copy/export action;
+queries and body text are not logged, transcribed or spoken. Shared-profile and bundled
+read-only sources gain no edit or use authority.
 
 ## Edit, review and save
 

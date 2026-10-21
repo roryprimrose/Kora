@@ -191,6 +191,24 @@ audit payload, model context, speech, clipboard/export or activity renewal.
 Typed HOST chrome and original bodies remain unchanged; no generated output,
 receipt-history search, schema/index/cache or provider/runtime authority is added.
 
+### Exact-address original-user conversation search commands - 2026-10-20
+
+Typed/current-name activated `conversation search <session-id> -- <verbatim query>` consumes the delivered lexical search above through the same `SessionConversationService.SearchAsync` used by native search.
+The [grammar](../src/Kora.Core/Commands/SessionCommand.ConversationSearch.cs) requires one canonical lowercase nonempty D GUID and preserves every query character after the explicit boundary; canonical query validation refuses empty/invalid content before body reads. Receipt `session search` syntax is unchanged.
+
+The [command action](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs) owns orchestration outside the view model. It validates original-user channel/private control admission and the exact retained session/lifecycle/generation/metadata before and after the canonical read.
+Existing page validation, 25-result/100-scan/64-KiB complete output bounds and chronological USER/typed HOST provenance remain authoritative; no body/index/storage/model representation is added.
+
+Explicit `conversation search next <session-id>` consumes only a host-held cursor with its original query, channel, source admission and exact snapshot. Expiry is 60 seconds from first publication, never extended by Next. No caller cursor/JSON is accepted.
+Exact `cancel` or source retirement cancels an in-flight read and clears memory-only continuation. Privacy, control/call revision, name/voice readiness, lifecycle, generation, metadata, retention or snapshot loss fails closed; later source restoration does not grant new authority.
+
+The presenter checks its current source again before visual-only inert JSON publication and tracks the exact session for lifecycle/retention revocation. It does not open or select Sessions, so dirty composers never auto-save/discard, and question/approval/voice targets are unchanged.
+Query/body content never reaches transcript chrome, speech/captions, model context, audit/log/tag content or activity renewal. No model descriptor or change to the six read-only model capabilities is introduced.
+
+Evidence: [strict grammar/Unicode/limits](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [canonical source/expiry/cancellation tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).
+Also see [original-source presentation and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer proof](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
+This is minimum-I delivery; E/Q hardware/provider/wake/acoustic/installed/experiment trials remain outside scope.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Saved conversation draft catalogue — 2026-10-13
@@ -284,6 +302,19 @@ Malformed Unicode, binary/control content, oversized bodies and empty
 submissions are explicit failures, never normalization or truncation. With
 valid Unicode the character bound can be reached before the byte bound;
 neither is a whole-database size guarantee.
+
+Native New request and both shared conversation composer surfaces expose passive,
+accessible current-buffer size/shape feedback. `ConversationText.Measure` shares
+the strict UTF-8 and unsupported-content parsing with admission; its typed result
+contains counts/flags only, never source content. It reports Unicode scalars
+without inventing a scalar limit (the policy uses UTF-16 units), the existing
+byte/unit maxima, malformed Unicode without replacement totals, and empty/white
+Save-versus-Submit semantics. This projection excludes credential screening and
+grants no admission authority. Getter-only projections use existing buffer
+notifications, do not retire reviews or trigger I/O, telemetry, activity renewal
+or model/capture/device work, and return unavailable after privacy/close
+retirement. Existing edit, reuse, reload, reset and future insertion paths remain
+authoritative; no TextBox length constraint or repair is introduced.
 
 The first native composer applies one local deterministic **best-effort,
 reject-only** Core screening rule before draft/message writes or model
@@ -816,6 +847,22 @@ Exact missing/Removed IDs and unavailable/corrupt/ownership-denied/cancelled rea
 
 The [native surface](UI_Workspace_And_Windows.md#delivered-passive-session-list-metadata-navigation---2026-10-10) distinguishes metadata search from history and Evidence. Typing in ordinary list mode preserves selected work; unchanged exact visible results retain work/history/memory presentation without renewing inspected cancellation authority.
 Invalidated/changed selections clear their targets. Query/selection/source/privacy epochs, cancellation and close fence late content.
+The native **Order this loaded session page** control uses the pure
+[bounded page projection](../src/Kora.Core/Storage/SessionListPageOrdering.cs)
+only on already-admitted paged metadata search results (including Browse).
+Source is the exact unchanged default. Names ascend/descend with ordinal
+case-sensitive comparison and unnamed last in both directions; positive admitted
+authority generations ascend/descend. Every equal key uses canonical session ID
+ascending. Full-page validation precedes publication; no corrupt last row is
+excluded or repaired. The original raw page and semantic signed Next are
+unchanged, as are storage, query, scan/result budgets and ordinary Refresh.
+Ordering/Clear order are read-free, nonpersistent and not selection/navigation:
+row objects, selected subject, dirty shared composer/name editor, original
+questions and exact review fences are retained. Native rebinding suppresses
+selection callbacks during publication; pending navigation revalidates the exact
+candidate and source epoch after composer review. Sorting cannot mint admission,
+renew activity or resurrect retired rows. There is no all-session/global order
+or completeness claim and no change to gated physical/provider capabilities.
 The two accessible [native scalar-length fields](../src/Kora/SessionsWindow.axaml) share Enter/Search, Clear/Escape and no-read edit retirement of prior search rows, detail, exact selection, actions and cursor; private closure clears their input.
 No unset-bound consumer or serialized result shape changes ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs), [no-I/O and late-result tests](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs)).
 

@@ -89,7 +89,9 @@ internal sealed partial class SessionsViewModel(
             Notify();
         }
     }
-    public IReadOnlyList<SessionWorkspaceEntry> Sessions => sessions is null ? []
+    public IReadOnlyList<SessionWorkspaceEntry> Sessions => listSearchMode && listSearch is not null
+        && sessions?.Records == listSearch.Records ? orderedListPage
+        : sessions is null ? []
         : [.. sessions.Records.Where(record => sessionFilter == SessionListFilter.All
             || record.Authority.IsActive == (sessionFilter == SessionListFilter.Active))];
     public SessionWorkspaceEntry? SelectedSessionRecord => selected;
@@ -407,12 +409,17 @@ internal sealed partial class SessionsViewModel(
         }
         return RunAsync(async () =>
         {
-            if (record is not null && !Sessions.Contains(record))
-            {
-                throw new InvalidOperationException("Select an existing record from this page.");
-            }
+            var candidate = record is null ? null : Sessions.FirstOrDefault(row => row == record)
+                ?? throw new InvalidOperationException("Select an existing record from this page.");
+            var source = sessions;
+            var sourceEpoch = listSearchEpoch;
+            var admission = access.ControlRevision;
             if (!await ProtectComposerAsync()) { return; }
-            await ReadSelectedAsync(record);
+            if (closed || !access.CanInspect || admission != access.ControlRevision
+                || sourceEpoch != listSearchEpoch || !ReferenceEquals(source, sessions)
+                || candidate is not null && !Sessions.Any(row => ReferenceEquals(row, candidate)))
+            { throw new OperationCanceledException("The exact session row or source changed during navigation review."); }
+            await ReadSelectedAsync(candidate);
         });
     }
 
@@ -719,6 +726,7 @@ internal sealed partial class SessionsViewModel(
         queueMoveReview = null;
         queueRequeueReview = null;
         queueCancelReview = null;
+        queueCancellationAdmission = static () => true;
         pendingCancellationSelection = [];
         pendingCancellationEpoch++;
         OnPropertyChanged(nameof(PendingCancellationEntries));

@@ -6,7 +6,7 @@ using Kora.Application.Infrastructure;
 
 namespace Kora;
 
-internal sealed class NewRequestViewModel : ObservableObject, IDisposable
+internal sealed partial class NewRequestViewModel : ObservableObject, IDisposable
 {
     internal NewRequestComposer Composer { get; }
 
@@ -51,6 +51,11 @@ internal sealed class NewRequestViewModel : ObservableObject, IDisposable
 
     private void Changed(object? sender, PropertyChangedEventArgs args)
     {
+        if (string.Equals(args.PropertyName, nameof(NewRequestComposer.DraftMeasurement), StringComparison.Ordinal))
+        {
+            OnPropertyChanged(nameof(DraftSizeFeedback));
+            return;
+        }
         foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(AssistantAnswer), nameof(CanEdit),
             nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspect), nameof(TargetLabel), nameof(AttemptLabel),
             nameof(CanReviewSave), nameof(CanSave), nameof(SavedBodyReview), nameof(ProposedSavedBody), nameof(BaselineBody), nameof(SaveLabel) })

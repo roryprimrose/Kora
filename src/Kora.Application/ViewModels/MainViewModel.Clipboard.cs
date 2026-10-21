@@ -12,6 +12,7 @@ public sealed partial class MainViewModel
     private readonly ClipboardReuse clipboardReuse;
     private readonly ClipboardRevoke clipboardRevoke;
     private readonly ClipboardExplain clipboardExplain;
+    private readonly ClipboardValidateJson clipboardValidateJson;
     private readonly Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation;
     private Func<bool> clipboardOwnershipEligible = static () => false;
     public ClipboardSnapshot? ClipboardPreview => clipboardPreview.Current;
@@ -35,6 +36,32 @@ public sealed partial class MainViewModel
 
     public Task ReuseClipboardAsync(Guid snapshotId) => RunClipboardUiAsync("reuse clipboard snapshot " + snapshotId.ToString("D"));
     public Task RevokeClipboardAsync() => RunClipboardUiAsync("revoke clipboard snapshot");
+
+    public Func<bool> CaptureClipboardJsonEligibility(ClipboardSnapshot source)
+    {
+        var input = CaptureManualCallInput(RequestOrigin.LocalUi, CallPolicyRevision);
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var ownership = clipboardOwnershipEligible;
+        var ownerBinding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        return clipboardValidateJson.CaptureEligibility(source, () => input.Origin == RequestOrigin.LocalUi
+            && input.Eligible() && IsClipboardEligible(RequestOrigin.LocalUi, input.Revision)
+            && privacyObservation.Current.TopologyRevision == privacy
+            && ReferenceEquals(ownership, clipboardOwnershipEligible)
+            && ownerBinding == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && input.NavigationOwnerRevision == auditImpactOwnerRevision()
+            && ReferenceEquals(ClipboardPreview, source));
+    }
+
+    public ClipboardJsonSyntaxResult ValidateClipboardJson(ClipboardSnapshot source, Func<bool> eligible, CancellationToken token)
+    {
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Presentation);
+        var result = clipboardValidateJson.Execute(source, eligible, token);
+        activity.Complete(result.Outcome == ClipboardJsonSyntaxOutcome.Failed ? HostOperationOutcome.Failed
+            : result.Outcome is ClipboardJsonSyntaxOutcome.Cancelled or ClipboardJsonSyntaxOutcome.Unavailable
+                ? HostOperationOutcome.Cancelled : HostOperationOutcome.Completed);
+        return result;
+    }
 
     public Task ExplainClipboardAsync(Guid snapshotId) => Kora.Application.Hosting.HostRequestRunner.RunAsync(
         HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, async () =>

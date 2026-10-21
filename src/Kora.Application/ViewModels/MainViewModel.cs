@@ -252,6 +252,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardReuse clipboardReuse,
         Kora.Tools.Clipboard.ClipboardRevoke clipboardRevoke,
         Kora.Tools.Clipboard.ClipboardExplain clipboardExplain,
+        Kora.Tools.Clipboard.ClipboardValidateJson clipboardValidateJson,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
@@ -448,6 +449,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.clipboardReuse = clipboardReuse;
         this.clipboardRevoke = clipboardRevoke;
         this.clipboardExplain = clipboardExplain;
+        this.clipboardValidateJson = clipboardValidateJson;
         this.clipboardExplanation = clipboardExplanation;
         if (clipboardExplanation is not null) { clipboardExplanation.Changed += OnClipboardPreviewChanged; }
         clipboardPreview.Changed += OnClipboardPreviewChanged;
@@ -1729,7 +1731,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
-        IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
+        !conversationSearchPresentation
+        && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
         && !voiceRecognition.IsListening
         && EffectiveResponseMode != ResponseOutputMode.VisualOnly
@@ -1880,6 +1883,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             RetireCurrentResponseSpeech();
             Interlocked.Increment(ref webResponseRevision);
+            conversationSearchPresentation = false;
             sessionPresentationSources.Clear();
             if (SetProperty(ref responseBody, value)) { RetireSpeechCaptionSource(); RetireWebResultDetails(retireControl: false); }
         }
@@ -4090,7 +4094,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         ResponseReadInput? responseReadInput = null,
         Func<bool>? reviewEligibility = null)
     {
+        if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
+        {
+            await ExecuteClipboardSnapshotStatusCommandAsync(snapshotStatusCommand, initiator,
+                manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision));
+            return;
+        }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
+        if (Kora.Core.Calculations.CalculateCommand.Parse(spokenText, AssistantName) is { } calculateCommand)
+        {
+            ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -4305,10 +4320,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
+        if (SessionQueueCancellationReviewCommand.Parse(spokenText, AssistantName) is { } cancellationPreparation)
+        {
+            await ExecuteQueueCancellationPreparationAsync(cancellationPreparation, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
         if (SessionCommand.Parse(spokenText, AssistantName) is { } sessionCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && (sessionCommand.IsRetentionCommand
+                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
                 && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
             {
@@ -5608,6 +5629,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “session help” for bounded exact-ID session observations and explicit lifecycle controls. "
                     + "Use “show fixed read queue settings” for exact inspect/set/independent-reset phrases for future-only fixed read queue limits; manual dispatch remains unchanged. "
                     + "Use “" + SessionDispositionReviewCommand.Syntax + "” for preview only in private native Sessions; confirmation is a separate native action. "
+                    + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary + " "
                     + $"Use “{AssistantName}, list assistant settings” for the display/PTT command-prefix name. "
                     + NaturalAppearanceCommand.Syntax + " "
                     + "Natural name commands: “what is your name”, “call yourself <name>”, “change your name to <name>”, or “reset your name”. "
@@ -5616,6 +5638,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     + "Use “show spoken summary limits” to inspect future ordinary-speech sentence/word budgets; “list speech settings” lists exact set/reset syntax. "
                     + "Use “open skill packages” or “open shared skill sources” for native review only; neither enables or runs skills. "
                     + PreparedLocalSearchCommand.Syntax + " "
+                    + Kora.Core.Calculations.CalculateCommand.Syntax + " "
                     + (LocalModelsEnabled && Dependencies.Any(status =>
                         string.Equals(status.Id, "local.inference", StringComparison.Ordinal)
                         && status.Readiness == DependencyReadiness.Ready)
@@ -6070,8 +6093,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
             .Concat(ClipboardCommand.FixedPhrases)
+            .Concat(ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(LocalFileCommand.FixedPhrases)
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
+            .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)

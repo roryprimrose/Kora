@@ -555,6 +555,40 @@ Production sensitivity/source-use admission and model qualification remain unava
 This is a bounded production-path implementation, not a shipped functional file-answer capability: the missing production contract must classify/detect secrets and sensitive content for the exact immutable revision, question and selected excerpts before use.
 Preview consent, narrow credential screening, a fake allow, local-only disclosure and generic durable admission do not fulfill that source-use detection contract. No permissive detector or automatic fallback is composed.
 
+## Native admitted-source soft wrapping
+
+The native **Wrap admitted text** checkbox is presentation-only for the existing
+complete original source control shared by single-file, captured-folder item and
+already admitted retained-attachment views. All three retain their actual default
+`NoWrap` / horizontal `Auto` scrolling. Checked selects `Wrap` / horizontal
+`Disabled` scrolling so the source measures against the current viewport, including
+resize and reader scale; vertical scrolling stays unchanged. No text-length
+restriction or source transformation is introduced.
+
+[One current-source policy](../src/Kora/LocalFilePreviewWindow.Wrapping.cs) resets
+the volatile choice on source replacement, folder selection (including returning
+to a previous item), review, private revocation and close. No per-source cache,
+preference, saved/global setting or new authority exists. Retired handlers detach
+and cannot affect a replacement, including identical content. Metadata review has
+no checkbox. Retained source admission and its original read channel are unchanged:
+toggling performs no read, revalidation, capture, consent, activity renewal or I/O.
+
+Only `TextWrapping` and source horizontal scrollbar behavior change. Original
+bytes/digest, decoded text, Unicode, tabs, newlines, literal query/case/count/ordinal/
+UTF-16 matches, ranked results and exact citation coordinates remain untouched.
+Visual rows must never be described as logical lines or citation locations.
+Wrapping does not rerun Find/search, reset its cursor or change the span/notices.
+Native layout/BringIntoView continuations also require the same current source,
+span and layout generation before focus; wrapping cannot complete stale focus.
+
+[Headless tests](../tests/Kora.Windows.IntegrationTests/LocalFileWrappingWindowTests.cs)
+cover actual profile defaults, both directions, long-line viewport measurement,
+resize/scale, accessibility/keyboard and source/focus revocation. This consumes only
+the existing admitted-source/native presentation I subset. Portable production is
+unchanged; its existing raw 100% line and branch gate remains required with no new
+exclusions. Installed accessibility, provider, hardware and unrelated E/Q evidence
+are not implementation prerequisites or newly claimed qualifications.
+
 ## Delivered Native Current-Source Literal Find - 2026-10-12
 
 **Find first / Find next / Find previous / Clear literal Find** navigate only the currently displayed exact immutable text file: volatile single-file preview, the current captured-folder selector item, or an exact retained Session attachment. This native presentation control is separate from ranked lexical/Markdown retrieval and citations. Typing does not scan, change files or move focus.

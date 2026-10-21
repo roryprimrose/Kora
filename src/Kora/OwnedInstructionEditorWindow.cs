@@ -150,10 +150,16 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         };
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
+        BindSourceSize();
+        DockPanel.SetDock(SourceSizeStatus, Dock.Bottom);
+        panel.Children.Add(SourceSizeStatus);
         DockPanel.SetDock(validationStatus, Dock.Bottom);
         panel.Children.Add(validationStatus);
         DockPanel.SetDock(status, Dock.Bottom);
         panel.Children.Add(status);
+        var bufferFind = CreateBufferFind();
+        DockPanel.SetDock(bufferFind, Dock.Top);
+        panel.Children.Add(bufferFind);
         panel.Children.Add(Source);
         Content = panel;
     }
@@ -201,12 +207,14 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
     internal void ClearPrivateText()
     {
+        RetireBufferFind(clearQuery: true);
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();
+        SourceSizeStatus.Text = string.Empty;
     }
 
     internal void ShowComparison(OwnedDraftComparison comparison, Func<bool> current)

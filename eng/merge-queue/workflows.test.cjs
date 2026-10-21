@@ -110,6 +110,15 @@ test('required aggregate skips only an explicitly waiting admission or an alread
   }
 });
 
+test('controller wakes on both priority label additions and removals without trusting event labels', () => {
+  const events = controller.match(/pull_request_target:\n    branches: \[main\]\n    types: \[([^\]]+)\]/);
+  assert.ok(events);
+  const types = events[1].split(',').map(value => value.trim());
+  assert.ok(types.includes('labeled'));
+  assert.ok(types.includes('unlabeled'));
+  assert.doesNotMatch(controller, /github\.event\.label|context\.payload\.label/);
+});
+
 test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {
   assert.match(controller, /environment: merge-queue/);
   assert.match(controller, /ref: refs\/heads\/main/);
@@ -143,7 +152,8 @@ function coverageFixture(overrides = {}) {
     paginate: async (method, args, transform) => {
       assert.equal(method, 'listChecks');
       calls.push(['checks', args]);
-      return transform({ data: { check_runs: [{ app: { id: 42 }, external_id: ticket }] } });
+      const data = [{ app: { id: 42 }, external_id: ticket }];
+      return transform ? transform({ data }) : data;
     },
   };
   return { outputs, calls, github, run, execute: () => execute({ env: { QUEUE_APP_ID: '42' } },

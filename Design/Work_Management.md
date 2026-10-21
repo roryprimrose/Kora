@@ -16,6 +16,35 @@ The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-ex
 
 Search, Next, Cancel and Clear issue no control intent, renew no meaningful activity, run no cleanup and change no queue/task/approval/provider/retention authority. Done remains readable without Resume. Query edits and result closure leave memory composer/dirty-draft decisions and current foreground question/voice target independent.
 
+### All Work selected metadata literal Find
+
+The native [All Work guide](../docs/windows-and-tray.md#all-work--attention-overview)
+provides Ctrl+F / First / Next / Previous / Clear over exactly the immutable
+displayed selected-row details projection. The explicit row admission captures
+that string and its existing selection/page/control epoch; binding getters are
+cached and do not construct Find state, scan or perform I/O. Existing selection
+retirement hooks also retire Find, including future ordering/query controls that
+retire selection. It does not depend on outstanding ordering or query-preparation
+implementations.
+
+The shared `AdmittedMetadataFindState` opts into the authoritative
+`SnapshotLiteralFind.FindCounted` nonoverlapping policy. Counts and selected
+ordinal are complete only within that exact captured metadata string; boundary
+navigation does not wrap or claim a displayed match. Native focus must be
+acknowledged and remain admitted; failure clears the match and navigation.
+Unavailable rows admit only their displayed safe projection, never former
+observed metadata. No additional fields, bodies, source paths or other rows are
+retrieved. Query edits/Clear are read-free; source/private/control/page/selection
+retirement and close erase query, capture, match, counts and navigation.
+
+Find is native-only presentation, not current task/session selection, identity,
+ownership, permission, execution or clipboard authority. No query/capture/count
+or match is sent to Main response, transcript, speech, logs, activities or baggage.
+The consumed implementation contracts are the existing bounded row admission,
+selection retirement, shared literal validation/scanner and native focus controls;
+unrelated provider, installed/hardware or retired experiment qualification is
+not a prerequisite.
+
 ## Delivered deterministic local-version queue
 
 ### Bounded fixed local diagnostics queue plan - 2026-10-19
@@ -135,6 +164,32 @@ No experiment is edited or retired. These deterministic consumer checks do not r
 Native Sessions has an independent current-run pending-only multi-selection, not the existing task/question selection. Review lists the complete count and exact dispatch-ordered IDs/revisions, profiles and original deadlines. Separate **Cancel these pending entries only** confirms all and only those entries; cancel review keeps the selection and draft without writes.
 
 Exact typed/current-name activated `cancel-selected-review`, `cancel-selected-confirm` and `cancel-selected-discard` share the same host-issued review and audited service/store path. One to the shared maximum ten unique IDs/revisions is allowed, even after configured capacity falls. Input remains 1024 UTF-8 bytes; complete review/receipt projection remains 64 KiB, never silently truncated.
+
+The ergonomic preparation route is
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`,
+with `session queue cancellation help`. It accepts only explicit nonempty
+lowercase canonical D GUIDs and one to the shared maximum pending subset,
+without duplicates or target inference. It resolves every member against one
+exact current-run work observation, freezes revisions in dispatch order, then
+uses the existing native pending selector/review and separate one-shot
+confirmation. No model descriptor or new cancellation service is introduced.
+
+Original host/private/input/call/control and native navigation/buffer lifetimes
+fence deferred reads and opening. Dirty composer Save/Discard/Cancel admission
+must complete before changing the native target; cancellation or unconfirmed
+save preserves the buffer and refuses preparation. A fresh exact work
+observation must still match the original session/queue/run/pause and all
+members. Unknown, missing, replaced, nonpending, previous-run or changed sources
+refuse the complete preparation, without partial selection, retry or a
+latest-source fallback. Disclosure retains complete IDs, revisions, deadlines,
+prerequisites, count and queue/run/pause state. Existing work/question selection
+is independent of the pending subset.
+
+Preparation is read/review only: no cancellation commit, enqueue, confirmation,
+dispatch, pause/resume, model/probe, renewal, running-work effects or history
+removal. Existing revisioned command and native discard/review semantics remain
+authoritative. This consumes the delivered pending cancellation implementation
+only; unrelated enablement/qualification evidence is not a prerequisite.
 
 The short existing private SQLite mutation/admission fence validates the entire set, queue revision, exact session generation, current run, pause receipt and private/source admission again at physical commit. One stale/missing/nonpending member or intervening enqueue/admission/removal/reorder refuses all, requiring fresh review; no loop of independently committed single cancels.
 

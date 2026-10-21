@@ -47,5 +47,6 @@ internal sealed partial class AllWorkWindow : Window
         {
             if (args.Key == Key.Escape) { Close(); args.Handled = true; }
         };
+        InitializeFind(model);
     }
 }

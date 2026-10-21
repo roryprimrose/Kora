@@ -115,6 +115,8 @@
             Height="90" TextWrapping="Wrap" IsEnabled="{Binding CanCompose}"
             PlaceholderText="Original message: up to 4096 UTF-16 characters and 16384 UTF-8 bytes; invalid or oversized text is rejected, not truncated"
             AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
+        <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
+            AutomationProperties.Name="Current editable shared conversation draft size and shape" />
         <WrapPanel>
           <Button x:Name="CompareComposer" Content="Compare observed saved draft / memory buffer" IsEnabled="{Binding CanCompareComposer}"
               AutomationProperties.Name="Explicit passive comparison of historical observed saved revision and exact raw composer memory; no read, save or submit" />
@@ -252,6 +254,18 @@
       <Button x:Name="CancelListSearch" Content="Cancel metadata search" IsEnabled="{Binding CanCancelListSearch}" />
       <Button x:Name="ClearListSearch" Content="Clear metadata search" IsEnabled="{Binding CanEditListSearch}" />
     </WrapPanel>
+    <StackPanel Spacing="4">
+      <TextBlock Text="Order this loaded session page" />
+      <TextBlock Text="{Binding ListPageOrderScope}" TextWrapping="Wrap" />
+      <WrapPanel>
+        <ComboBox x:Name="ListPageOrder" ItemsSource="{Binding ListPageOrders}"
+                  SelectedItem="{Binding ListPageOrder, Mode=TwoWay}" IsEnabled="{Binding CanOrderListPage}"
+                  AutomationProperties.Name="Order this loaded session page only: Source, NameAscending, NameDescending, GenerationAscending, GenerationDescending; never global session ordering" />
+        <Button x:Name="ClearListPageOrder" Content="Clear page order to Source"
+                IsEnabled="{Binding CanOrderListPage}"
+                AutomationProperties.Name="Clear loaded session page order to original Source order without reading or changing selection" />
+      </WrapPanel>
+    </StackPanel>
     <WrapPanel>
       <TextBox Text="{Binding HistorySessionId, Mode=TwoWay}" Width="320" IsEnabled="{Binding CanRead}"
                AutomationProperties.Name="Exact immutable session ID for passive history; names do not select sessions" />

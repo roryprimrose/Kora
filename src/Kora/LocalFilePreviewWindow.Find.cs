@@ -23,6 +23,7 @@ internal sealed partial class LocalFilePreviewWindow
 
     private void SetFindSource(LocalFileRevision? file)
     {
+        SetWrappingSource(file);
         ClearFind(clearQuery: true);
         findSource = file;
     }
@@ -160,15 +161,19 @@ internal sealed partial class LocalFilePreviewWindow
                 + $"UTF-16 [{match.Start}, {match.Start + match.Length})");
             literalSpanVisible = true;
             exactSpanPanel!.IsVisible = true;
+            var span = citedSpan;
+            var layoutGeneration = sourceLayoutGeneration;
             UpdateLayout();
             if (!Current())
             {
                 MarkStale();
                 return;
             }
-            citedSpan.BringIntoView();
+            if (!IsSourceLayoutCurrent(layoutGeneration, span, file, Current)) { return; }
+            span.BringIntoView();
             if (!Current()) { MarkStale(); return; }
-            if (!citedSpan.Focus()) { throw new InvalidOperationException("Literal source match focus is unavailable."); }
+            if (!IsSourceLayoutCurrent(layoutGeneration, span, file, Current)) { return; }
+            if (!span.Focus()) { throw new InvalidOperationException("Literal source match focus is unavailable."); }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception) when (cancellation.IsCancellationRequested || !Current()) { MarkStale(); }

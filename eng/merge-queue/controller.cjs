@@ -1,7 +1,15 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, invariant, validateState, ready, matchingRuns, successfulJobs } = require('./policy.cjs');
+const { CHECKS, GATE, invariant, validateState, ready, priority, matchingRuns, successfulJobs } = require('./policy.cjs');
 
-async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) {
+const MAX_CANDIDATES = 10;
+
+async function reconcile(api, options = {}) {
+  const result = await reconcileOnce(api, options);
+  if (['blocked', 'continuing', 'merged', 'already-merged', 'retired'].includes(result)) await api.wake();
+  return result;
+}
+
+async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
   await api.verifyProtection();
   const state = validateState(await api.load());
   const base = await api.main();
@@ -39,31 +47,39 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     await api.dispatch(active);
     return 'dispatched';
   }
+  async function quiescent(active, runs) {
+    for (const run of runs.filter(run => run.status !== 'completed')) await api.cancel(run.id);
+    if (runs.some(run => run.status !== 'completed')) return false;
+    // An eventually consistent run listing cannot prove a recorded dispatch is quiescent.
+    if (runs.length === 0 && active.dispatchRecorded) {
+      if (now - Date.parse(active.created) >= 10 * 60_000)
+        api.notice('Candidate dispatch has no observable run. The lane remains held pending cancellation or reviewed state repair.');
+      return false;
+    }
+    return true;
+  }
 
   if (state.active) {
     const active = state.active;
     const pr = await api.pull(active.number);
+    const runs = matchingRuns(await api.runs(active), active);
     if (pr.merged === true) {
+      active.phase = 'retiring';
+      await persist();
+      if (!(await quiescent(active, runs))) return 'retiring';
       state.active = null;
       await persist();
       return 'already-merged';
     }
-    const runs = matchingRuns(await api.runs(active), active);
     const current = ready(pr, api.repository) && active.base === base
       && await api.enrollment(active.number) === active.enrollment
       && (active.phase === 'updating' || pr.head.sha === active.head);
     if (!current || active.phase === 'retiring') {
       active.phase = 'retiring';
       await persist();
-      for (const run of runs.filter(run => run.status !== 'completed')) await api.cancel(run.id);
+      const terminal = await quiescent(active, runs);
       await complete(active, 'cancelled', 'Candidate head, base or queue intent changed. Validation is not merge evidence.');
-      if (runs.some(run => run.status !== 'completed')) return 'retiring';
-      // Absence from an eventually consistent run listing cannot prove a recorded dispatch is quiescent.
-      if (runs.length === 0 && active.dispatchRecorded) {
-        if (now - Date.parse(active.created) >= 10 * 60_000)
-          api.notice('Candidate dispatch has no observable run. The lane remains held pending cancellation or reviewed state repair.');
-        return 'retiring';
-      }
+      if (!terminal) return 'retiring';
       state.active = null;
       await persist();
       return 'retired';
@@ -132,7 +148,17 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     return 'merged';
   }
 
-  for (const candidate of eligible.sort((left, right) => left.number - right.number)) {
+  function candidatePriority(pr) {
+    const rank = priority(pr);
+    if (rank === null)
+      api.notice(`PR #${pr.number} has invalid or conflicting queue priority labels; use at most one supported priority label.`);
+    return rank;
+  }
+  const candidates = eligible.map(pr => ({ pr, rank: candidatePriority(pr) }))
+    .filter(candidate => candidate.rank !== null)
+    .sort((left, right) => left.rank - right.rank || left.pr.number - right.pr.number);
+  let selected = 0;
+  for (const { pr: candidate, rank } of candidates) {
     const enrollment = await api.enrollment(candidate.number);
     if (!enrollment) continue;
     const blocked = state.blocked.find(item => item.number === candidate.number && item.head === candidate.head.sha);
@@ -140,11 +166,23 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     state.blocked = state.blocked.filter(item => item.number !== candidate.number);
     const pr = await api.pull(candidate.number);
     if (!ready(pr, api.repository) || typeof pr.mergeable !== 'boolean' || !(await api.reviewReady(pr.number))) continue;
-    const active = { number: pr.number, head: pr.head.sha, base, ticket,
+    const currentRank = candidatePriority(pr);
+    if (currentRank === null) continue;
+    if (currentRank !== rank) {
+      await persist();
+      api.notice(`PR #${pr.number} priority changed during selection; refreshing queue order.`);
+      return 'continuing';
+    }
+    if (selected === MAX_CANDIDATES) {
+      await persist();
+      return 'continuing';
+    }
+    selected++;
+    const active = { number: pr.number, head: pr.head.sha, base, ticket: ticket ?? randomUUID(),
       enrollment, created: now.toISOString(), phase: 'reserved', dispatchRecorded: false, checks: {} };
     state.active = active;
     await persist();
-    if (pr.mergeable === false) { await block(active, 'Selected PR conflicts with main.'); return 'blocked'; }
+    if (pr.mergeable === false) { await block(active, 'Selected PR conflicts with main.'); continue; }
     if (!(await api.containsBase(base, active.head))) {
       active.phase = 'updating';
       await persist();
@@ -154,7 +192,7 @@ async function reconcile(api, { now = new Date(), ticket = randomUUID() } = {}) 
     return dispatch(active);
   }
   await persist();
-  return 'idle';
+  return selected > 0 ? 'blocked' : 'idle';
 }
 
 module.exports = { reconcile };

@@ -23,8 +23,10 @@ public sealed partial class MainViewModelTests
         }
     }
 
-    [Fact]
-    public async Task UuidCommandsShareActionsWithoutIdentityRegistrationOrModelFallback()
+    [Theory]
+    [InlineData("Nova")]
+    [InlineData("What Time")]
+    public async Task UuidCommandsShareActionsWithoutIdentityRegistrationOrModelFallback(string assistantName)
     {
         var generator = new UuidGenerator();
         var f = new Fixture(uuidGenerator: generator);
@@ -43,8 +45,8 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
         f.Audit.Events.Should().NotContain(item => item.TargetId == UuidGenerator.Value);
         f.Session.LockCalls.Should().Be(0);
-        await f.RunAsync("set assistant name to Nova");
-        await f.RaiseActivatedTranscriptAsync("Nova, uuid generate", 1);
+        await f.RunAsync("set assistant name to " + assistantName);
+        await f.RaiseActivatedTranscriptAsync(assistantName + ", uuid generate", 1);
         generator.Calls.Should().Be(2);
         f.Voice.StartedPhrases.Should().Contain("uuid generate");
         await f.RaiseActivatedTranscriptAsync("uuid generate", 1);

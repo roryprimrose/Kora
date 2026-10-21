@@ -14,6 +14,13 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Product scope realignment - 2026-10-21
+
+The product owner approved the [core outcomes, feature-admission rules, retirement scope and delivery order](MVP_Scope.md#product-admission-and-realignment). That section is the authoritative disposition; this register does not duplicate its inventory.
+Record a new product decision before materially expanding scope or reopening retired work. Technical readiness, qualification and historical implementation do not establish product suitability.
+
+Existing security, provider, storage and qualification decisions below remain in force. Removing unnecessary product surfaces does not waive their consumed controls or authorize deleting retained data/audit evidence.
+
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
 | D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |

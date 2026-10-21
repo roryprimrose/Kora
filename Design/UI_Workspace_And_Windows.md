@@ -8,6 +8,12 @@ below; full generated conversations and general concurrent execution remain prop
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 
+## Product-facing workspace boundary
+
+Apply the [approved realignment](MVP_Scope.md#approved-retirement-and-simplification): normal workspace surfaces serve conversation, useful work and readable results, not engineering metadata exploration. Prefer names, lifecycle/state, ordinary search and proportionate ordering over generation, authority, digest or revision-range query widgets.
+
+Technical provenance and internal identity/revision validation remain authoritative. Explicit audit/Evidence surfaces keep their diagnostic purpose. The current saved-draft and fixed diagnostic-queue controls described below are retirement targets; unsent text follows the [conversation input contract](Interaction_And_Sessions.md#conversation-input-realignment), not a document-management lifecycle.
+
 ## Delivered selected-conversation lexical search — 2026-10-13
 
 The shared USER/HOST row additionally exposes explicit [exact retained conversation Details](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14), including compact projections of that row. A separate passive native viewer displays the complete original USER body and separately typed HOST chrome; opening the surface or selecting metadata does not read or open Details. Existing private/source/selection revocation and Done semantics apply; no clipboard authority or installed qualification is added.

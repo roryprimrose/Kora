@@ -20,6 +20,9 @@ license. Do not market or provide a fork as a practical substitute for Kora.
 
 ## Extending Kora
 
+Start with [product admission](Design/MVP_Scope.md#feature-admission): identify the approved outcome, concrete user scenario and host-versus-extension rationale before choosing a code layout.
+New material scope and retired-work revival require an explicit product decision; repairs and proportionate usability within approved outcomes do not. Tests and implementation readiness cannot substitute for this decision.
+
 Read [Extending Kora](EXTENDING-KORA.md) for the tool/skill/prompt/instruction/agent
 decision guide, layer boundaries and delivered versus gated functionality.
 Use the [Tools guide](src/Kora.Tools/README.md) for action classes and gateway/DI

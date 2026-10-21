@@ -10,7 +10,7 @@ disable-model-invocation: true
 
 Own two independent flows:
 
-1. **Implementation:** keep up to ten isolated feature peer workstreams actively implementing, debugging, repairing, or locally validating dependency-safe production features.
+1. **Implementation:** run up to ten isolated peer workstreams implementing, debugging, repairing, or validating product-admitted production work. Capacity is a ceiling, never a feature-generation target.
 2. **Integration:** when the hosted queue is disabled, admit exactly one feature from final rebase through push, PR, required CI/review repair, protected squash auto-merge, and independently verified merge. When enabled, admit ready features for publication and let GitHub serialize candidate updating, validation and merge.
 
 Keep implementation progressing while integration waits for CI. Locally completed features enter a READY queue without pushing or opening PRs until coordinator admission. Enabled mode permits multiple ready, authorized PRs to wait in GitHub; multiple active implementations never authorize speculative feature PRs.
@@ -29,7 +29,7 @@ When asked to start or resume feature delivery, reconcile first, then launch dep
 2. Fetch canonical main and inspect current open PRs, recent merges, roadmap gaps and consumed source contracts. Previously unmerged features may now be merged, updated by the queue, conflicting or still owned; do not recreate them.
 3. Establish native peer creation, isolation, exact-chat addressing, completion delivery and remaining orchestration capacity. Plan both active slots and the lifetime launch/message budget.
 4. Verify live merge mode, protection/check publishers, queue health and the caller's publication/merge authority. Record whether delivery is PR-only or includes protected squash Auto-merge; do not infer new merge authority from historical enrollments.
-5. Persist bounded feature reservations and launch as many useful, non-conflicting features as the caller's limit and verified capacity allow. Refill on actual implementation completion without waiting for CI, merge or cleanup.
+5. Persist bounded feature reservations only for [product-admitted outcomes](../../Design/MVP_Scope.md#product-admission-and-realignment), then launch within the caller's limit and verified capacity. Refill from approved work on actual implementation completion; no approved candidate means report a shortage, not invent a variant.
 
 Prefer cohesive roadmap behavior over a succession of minor variants merely to keep ten slots occupied. Report a concrete shortage of safe candidates or supported runtime capacity instead of inventing filler work.
 
@@ -146,15 +146,22 @@ Report active implementations, READY queue, dependency-blocked queue, integratio
 
 ## Dependency-Safe Feature Selection
 
+Product admission precedes dependency readiness. Apply the [authoritative scope and retirement decision](../../Design/MVP_Scope.md#product-admission-and-realignment); an implemented seam, deterministic test suite or qualification gap is not a feature justification.
+
 Select cohesive useful production behavior with complete consumer wiring, failure/lifecycle behavior, deterministic tests, and directly related documentation.
 
 For each candidate:
 
-1. Inspect actual source, contracts, tests, and active file/domain ownership.
-2. Identify the minimum consumed **Implementation (I)** prerequisites and verify they are implemented and merged.
-3. State the complete consumer behavior and bounded scope.
-4. Record exact prerequisite/source evidence and sibling/external conflict boundaries.
-5. Defer materially conflicting UI, domain, persistence, or authority work rather than racing its owner.
+1. Name the approved outcome/product decision, user scenario and why Kora rather than a governed extension owns the behavior. Material expansion requires an explicit product-owner decision; proportionate repairs/usability within an approved outcome do not.
+2. Inspect actual source, contracts, tests, and active file/domain ownership.
+3. Identify the minimum consumed **Implementation (I)** prerequisites and verify they are implemented and merged.
+4. State the complete intended interaction and useful bounded increment. Opening a surface or preparing a field is not completion of the requested operation; preserve required shared voice/UI review and authentication/privacy exceptions.
+5. Record exact prerequisite/source evidence and sibling/external conflict boundaries.
+6. Defer materially conflicting UI, domain, persistence, or authority work rather than racing its owner.
+
+Do not recreate retired utilities, saved-draft document management, engineering-only normal browsing filters or diagnostic-queue variants. Stop abandoned owners, withdraw their remote admission and record the scope decision; a freed slot is not permission to launch a replacement. Preserve branches/worktrees and unrelated work until separately authorized cleanup.
+
+Prefer progress toward approved conversation/model turns, settings proposals, governed execution and voice/session/result workflows. Keep technical identifiers and safety checks inside the host instead of requiring ordinary users to speak revision protocols. Explicit diagnostic/audit tooling retains its distinct purpose.
 
 Apply the [three-tier delivery policy](../../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy). Enablement (E) and RC qualification (Q) do not block deterministic implementation of a bounded fail-closed feature unless its exact owning contract makes them applicable to the changed capability.
 
@@ -169,6 +176,7 @@ Preserve both sides of additive documentation and roadmap entries during eventua
 Persist a unique feature ID and launch nonce BEFORE creating the session. Give the initial prompt:
 
 - Bounded objective and complete consumer behavior.
+- Approved user outcome/product-decision reference, host-versus-extension rationale and explicit exclusions/retirement boundaries.
 - Canonical main SHA, source/contracts/tests, and actual prerequisites.
 - Exact sibling/external ownership and conflict boundaries.
 - Requirement to fetch/rebase its OWN fresh branch before implementation.

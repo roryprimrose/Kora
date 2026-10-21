@@ -30,6 +30,34 @@ Original private host, instance ownership, current-name voice activation and
 call/privacy admission must remain valid; protected or unknown call state
 refuses calculation. This native-only command adds no model descriptor.
 
+## Host-local date and time
+
+Type `what time is it`, `what is today's date`, `what is the date and time`,
+or `help local clock`. Activated voice requires the current assistant name,
+for example `Kora, what time is it?`; renaming replaces that prefix.
+These phrases use the ordinary built-in case/punctuation normalization.
+Control characters and commands over 256 characters are refused.
+Only the reserved normalized families `what time`, `what is today s date`,
+`what is the date and time` and `help local clock` (whole words plus optional
+suffix words) clarify malformed requests instead of sending them to a model.
+For example, `what time is it in Paris` is not a timezone query.
+No other fuzzy date/time grammar is introduced.
+
+Each answer samples one host clock instant and converts it using the host's
+local timezone and culture. The displayed date is the date in that timezone,
+not the UTC date. Every answer includes its UTC offset and timezone ID,
+including at daylight-saving transitions. It reports the host clock, not
+independently verified time.
+
+Answers and help are visual, even in Voice only mode, without automatic
+speech or audio/device discovery. A separate **Read current response aloud**
+request remains subject to the existing speech policy. The clock route never
+uses a model, network, geolocation, calendar, reminder or scheduling service.
+Original private owning-host input and clear call admission must remain current;
+stale/denied/unavailable requests report recovery in status. Pending questions,
+approvals, power proposals, grant editors and native security reviews stay
+unchanged, including for malformed clock commands.
+
 ## Open an exact Settings tab
 
 Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
@@ -95,6 +123,16 @@ are observed provenance only, not current authority, permission, body integrity,
 device ownership or navigation authority. Editing any of these fields performs
 no read and retires rows, exact selection and Next; Clear/revocation clears them.
 Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
+
+**Order this loaded page** offers **Source order (default)**, **Session name
+ascending/descending** and **Saved revision ascending/descending**. It only reorders
+the complete metadata already admitted on the current page, with no read or refresh.
+Names use ordinal case-sensitive ordering, with unnamed sessions last in both
+directions; all ties use canonical session ID ascending. This is not global ordering,
+completeness or a total. Next uses the original source continuation, not the last
+displayed row. Order edits retire exact selection/details and pending navigation;
+select explicitly again. They never load a draft, change the Sessions target or
+discard the composer. Clear restores Source order without reading.
 
 Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
 **Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).

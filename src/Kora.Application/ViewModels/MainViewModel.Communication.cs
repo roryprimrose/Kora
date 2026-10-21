@@ -31,6 +31,9 @@ public sealed partial class MainViewModel
     {
         internal long NavigationOwnerRevision { get; init; }
         internal bool NavigationInitiallyAdmitted { get; init; }
+        internal long AssistantNameRevision { get; init; }
+        internal long OwnershipBindingRevision { get; init; }
+        internal long InputRevision { get; init; }
     }
 
     public string ManualCallConfigurationStatus => ManualCallCommandResult.Serialize(
@@ -60,6 +63,9 @@ public sealed partial class MainViewModel
         {
             NavigationOwnerRevision = auditImpactOwnerRevision(),
             NavigationInitiallyAdmitted = IsCallMutationHostEligible && !IsProtectedCall,
+            AssistantNameRevision = assistantNameConfiguration.Get().Revision,
+            OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
+            InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
         };
     }
 

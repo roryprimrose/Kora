@@ -26,66 +26,6 @@ For capability-specific limits, use [configuration](User_Configuration.md),
 [security](Security_Data_Flows.md), rather than repeating their delivery
 narratives here.
 
-## Deterministic local arithmetic
-
-The exact [calculator command](../docs/commands.md#local-decimal-calculator) is an
-original typed/current-name activated, native-only route. Core
-`CalculateCommand` reserves raw requests before question/approval/model routing;
-`DecimalCalculator` owns the bounded pure decimal grammar and typed failure
-outcomes. The Application route delegates arithmetic to the single host-owned
-`Kora.Tools.Calculations.Calculate` action. That action requires live host
-context, original native/activated origin, no model invocation and current host
-admission, and creates a correlated tool activity with a truthful terminal
-outcome. Diagnostics include only the outcome, never expression or result.
-
-This route performs no consequential effect, persistence, source read, egress or
-grant mutation, so it creates no security-audit event. It preserves pending
-questions and approvals and reports only in the private native transcript,
-without automatic speech or response-source replacement. The existing private,
-ownership, consent, call and original voice-generation gates remain required.
-No speculative model descriptor, execution lane or provider qualification is
-enabled.
-
-## Bounded host-local clock answers
-
-The [exact clock grammar](../docs/commands.md#host-local-date-and-time) is an
-original typed/current-name activated route before ordinary question/approval
-supersession. [LocalClockCommand](../src/Kora.Core/Commands/LocalClockCommand.cs)
-owns the finite phrases, normalized whole-word reserved malformed families,
-control-character refusal and 256-character bound; it is not fuzzy NLP.
-
-[LocalClockAnswer](../src/Kora.Core/Clock/LocalClockAnswer.cs) owns portable
-instant-to-local conversion and culture-specific formatting, always including
-UTC offset and timezone ID. [LocalClockService](../src/Kora.Tools/Clock/LocalClockService.cs)
-samples `TimeProvider.GetUtcNow()` exactly once and captures one injected
-host-local context per answer. The three action classes in
-[Clock](../src/Kora.Tools/Clock) are `LocalClockGetTime`, `LocalClockGetDate`
-and `LocalClockGetDateAndTime`; all admitted routes converge on these actions.
-The desktop [context provider](../src/Kora/HostLocalClockContextProvider.cs)
-supplies `TimeZoneInfo.Local` and `CultureInfo.CurrentCulture`, with an immutable
-culture snapshot. No native timezone mechanism or Windows dependency enters
-portable layers.
-
-The injected [Application workflow](../src/Kora.Application/Clock/LocalClockWorkflow.cs)
-requires live host correlation, original local/activated origin, fresh admission
-before and after observation and cancellation checks. Typed outcomes and
-source-generated content-free logs terminate the Application tool activity
-truthfully. No clock answer is authority, audit evidence, persisted preference
-or a consequential operation. Missing context fails explicitly; there is no
-UTC/default-zone, model or network fallback.
-
-[Presentation admission](../src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs)
-retains original privacy, owner/binding, name, input, voice generation/recovery
-and call revisions. Protected calls refuse the route. Questions, approvals,
-power proposals, grant editors and native security review remain intact.
-The answer/help is an ordinary visual response without automatic output
-enumeration or forced speech; a separate existing read-once request retains its
-own speech policy and admission. No model registry descriptor or model action
-enum entry is added. The consumed I subset is portable clock formatting,
-existing host input admission and deterministic presentation; provider,
-hardware, installed, retired experiment and E/Q qualification are not
-prerequisites. No unrelated calendar/reminder/scheduling behavior is delivered.
-
 ## Delivered Artifact Invocation
 
 Kora has one source-qualified artifact invocation route for bundled skills and

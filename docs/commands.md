@@ -2,64 +2,6 @@
 
 **Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
-## Local decimal calculator
-
-Type `calculate <expression>`, or use the current assistant-name prefix with
-activated voice, for example `Kora, calculate (1.25 + 2.75) * -3`.
-Use `calculate help` for the exact grammar. The result appears in the transcript
-only; it does not replace the response, automatically speak, or create retained
-conversation content.
-
-Supported syntax is invariant decimal literals (`12`, `0.25`), ASCII spaces,
-`+`, `-`, `*`, `/`, parentheses and unary signs. Multiplication/division precede
-addition/subtraction; binary operators associate left to right. A decimal point
-requires digits on both sides. No exponents, functions, units, evaluation engine,
-scripts, shell, model or network are used.
-
-Limits are 512 expression characters, 128 tokens and 16 nested parentheses/unary
-signs combined. Literals must be exactly representable as .NET decimal (up to 28
-fractional places after trailing zeros are removed). Checked decimal arithmetic
-uses .NET's decimal rounding, including division and underflow; for example
-`calculate 1/3` returns `0.3333333333333333333333333333`. Results are invariant,
-non-exponential, at most 31 characters, with insignificant trailing zeros removed.
-Invalid syntax, limit failures, overflow and division by zero are explicit
-outcomes with no value or default answer.
-
-Malformed reserved `calculate` requests never answer a pending question, grant
-an approval or reach a model. Calculator requests leave pending questions,
-approvals and grant reviews unchanged and report unavailable until resolved.
-Original private host, instance ownership, current-name voice activation and
-call/privacy admission must remain valid; protected or unknown call state
-refuses calculation. This native-only command adds no model descriptor.
-
-## Host-local date and time
-
-Type `what time is it`, `what is today's date`, `what is the date and time`,
-or `help local clock`. Activated voice requires the current assistant name,
-for example `Kora, what time is it?`; renaming replaces that prefix.
-These phrases use the ordinary built-in case/punctuation normalization.
-Control characters and commands over 256 characters are refused.
-Only the reserved normalized families `what time`, `what is today s date`,
-`what is the date and time` and `help local clock` (whole words plus optional
-suffix words) clarify malformed requests instead of sending them to a model.
-For example, `what time is it in Paris` is not a timezone query.
-No other fuzzy date/time grammar is introduced.
-
-Each answer samples one host clock instant and converts it using the host's
-local timezone and culture. The displayed date is the date in that timezone,
-not the UTC date. Every answer includes its UTC offset and timezone ID,
-including at daylight-saving transitions. It reports the host clock, not
-independently verified time.
-
-Answers and help are visual, even in Voice only mode, without automatic
-speech or audio/device discovery. A separate **Read current response aloud**
-request remains subject to the existing speech policy. The clock route never
-uses a model, network, geolocation, calendar, reminder or scheduling service.
-Original private owning-host input and clear call admission must remain current;
-stale/denied/unavailable requests report recovery in status. Pending questions,
-approvals, power proposals, grant editors and native security reviews stay
-unchanged, including for malformed clock commands.
-
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
@@ -1015,18 +957,6 @@ or suppress it. A new capture replaces the prior selection with a new ID.
 
 **Literal Find is native-only**, not a typed/voice command or model tool. Use **Find first / Find next / Find previous / Clear literal Find** in the already captured preview; no clipboard reread, reuse/revoke action or activity renewal occurs.
 Exact case/spaces, one-line strict Unicode, 256 UTF-16 / 512 UTF-8 limits and visible invalid-input rejection apply. See [native clipboard Find](windows-and-tray.md#local-clipboard-preview) and its [contract](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07).
-
-**Validate this snapshot as XML** is a separate explicit native button, not a
-typed/voice command or model tool. It checks the entire unchanged snapshot in
-memory as one XML document, without rereading the clipboard. DTDs are prohibited,
-external resources are never loaded, and element depth is limited to 64.
-The volatile result is WellFormedXML, Invalid or PolicyRefused with a bounded
-reason and line/column, never a source excerpt. Closing or retiring the preview
-clears it. Encoding declarations are text metadata, not proof of the original
-clipboard encoding. XML well-formedness does **not** establish schema validity,
-safety, trust, uniqueness, absence of secrets, egress approval or permission to
-send the text to a model. Explanation remains unavailable under its source-use
-policy; XML checking does not bypass it.
 
 The whole text must fit 256 KiB UTF-8, with valid paired Unicode surrogates.
 Empty, unsupported, oversize, busy, denied, changed-version and malformed

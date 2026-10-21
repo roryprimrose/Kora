@@ -13,7 +13,7 @@ trials. Update those owners rather than copying status narratives between them.
 ## Product Realignment and Delivery Priority
 
 Apply the [product owner's approved scope](MVP_Scope.md#product-admission-and-realignment) before selecting work from this inventory. Dated delivery entries record what was implemented, not approval to keep extending it.
-The calculator/clock utilities, clipboard-analysis buttons, saved-draft management, engineering-only normal browsing filters and diagnostic-only queue product surfaces are retirement/simplification targets until their removal PRs land.
+The calculator/clock utilities and clipboard-analysis buttons are removed ([guide regressions](../tests/Kora.Application.UnitTests/Documentation/EmbeddedUserDocumentationProviderTests.cs)). Saved-draft management, engineering-only normal browsing filters and diagnostic-only queue product surfaces remain retirement/simplification targets until their removal PRs land.
 
 Prioritize the approved removals and compatibility safeguards, then complete useful conversation/model turns, shared setting proposals, governed tool/result and MCP/skill/agent workflows, voice interaction, coordinated sessions and readable results. Choose a bounded increment toward one of those outcomes, not an unrelated convenience feature because a dependency is available.
 
@@ -42,17 +42,6 @@ Clipboard preview does not depend on model explanation, deterministic queues
 do not depend on hosted management, and speech preferences do not qualify wake.
 
 ## Current Delivery
-
-### Bounded host-local clock answers
-
-The [clock contract](Commands_Tools_And_Skills.md#bounded-host-local-clock-answers)
-adds three original-input date/time answers and help using one `TimeProvider`
-instant with host-local culture, timezone and explicit UTC offset. Core
-formatting, Tools actions, injected Application admission/workflow and desktop
-context composition form the consumed I subset. Existing model catalogue,
-calendar, scheduling, speech/provider and hardware enablement are unchanged;
-no E/Q or experiment evidence is consumed. Answers remain visual without
-automatic speech or device discovery and preserve pending security interactions.
 
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 

@@ -2063,7 +2063,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseBody.Should()
             .Contain("Nova Prime, open documentation")
             .And.Contain("choose Commands")
-            .And.NotContain("catalogue on the right");
+            .And.NotContain("catalogue on the right")
+            .And.NotContain("calculate")
+            .And.NotContain("local clock")
+            .And.NotContain("what time is it");
     }
 
     [Fact]
@@ -4530,8 +4533,6 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Context.ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
             .Concat(Kora.Core.Context.PreparedLocalSearchCommand.DiscoveryPhrases)
-            .Concat(Kora.Core.Calculations.CalculateCommand.DiscoveryPhrases)
-            .Concat(LocalClockCommand.FixedPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
@@ -4566,6 +4567,12 @@ public sealed partial class MainViewModelTests : IDisposable
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
                 .Distinct(StringComparer.OrdinalIgnoreCase));
+        fixture.Voice.StartedPhrases.Should().NotContain(
+            phrase => phrase.Contains("calculate", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("local clock", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("what time", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("today s date", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("date and time", StringComparison.OrdinalIgnoreCase));
         fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.ViewModel.State.Should().Be(AssistantState.Listening);
         fixture.ViewModel.ListeningButtonText.Should().Be("Disable listening");
@@ -4751,6 +4758,23 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
         fixture.ViewModel.ResponseTitle.Should().Be("Text-to-speech is unavailable.");
+    }
+
+    [Theory]
+    [InlineData("calculate 1+1")]
+    [InlineData("calculate help")]
+    [InlineData("Kora, what time is it")]
+    [InlineData("what is today's date")]
+    [InlineData("what is the date and time")]
+    [InlineData("help local clock")]
+    public async Task RetiredUtilityRequestsHaveNoDeterministicAnswer(string input)
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync(input);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("That isn't a supported built-in command.");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
     }
 
     [Fact]
@@ -8535,8 +8559,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
-            Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
-            Kora.Application.Clock.LocalClockWorkflow? localClock = null)
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8697,8 +8720,6 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 clipboardAction,
-                new Kora.Tools.Clipboard.ClipboardValidateJson(clipboard, TimeProvider.System,
-                    Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Tools.Clipboard.ClipboardValidateJson>.Instance),
                 new AuditedPreferenceWriter(Audit), outputCatalog,
                 microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
@@ -8720,7 +8741,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
-                clipboardExplanation: clipboardWorkflow, localClock: localClock);
+                clipboardExplanation: clipboardWorkflow);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

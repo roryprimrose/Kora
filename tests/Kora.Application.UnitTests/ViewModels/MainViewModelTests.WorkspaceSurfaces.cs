@@ -27,7 +27,7 @@ public sealed partial class MainViewModelTests
             return Task.CompletedTask;
         };
         await f.RunAsync("open all work");
-        await f.RunAsync("open saved conversation drafts");
+        await f.RunAsync("open compact conversation");
         scopes.Should().HaveCount(2).And.OnlyContain(scope => scope.Outcome == Kora.Core.Diagnostics.HostOperationOutcome.Completed);
         scopes[0].Request.Should().NotBe(scopes[1].Request);
         System.Diagnostics.Activity.Current.Should().BeSameAs(hostile);
@@ -35,7 +35,6 @@ public sealed partial class MainViewModelTests
 
     [Theory]
     [InlineData("open all work", WorkspaceSurfaceTarget.AllWork)]
-    [InlineData("open saved conversation drafts", WorkspaceSurfaceTarget.SavedConversationDrafts)]
     [InlineData("open compact conversation", WorkspaceSurfaceTarget.CompactConversation)]
     public async Task WorkspaceNavigationUsesTypedAndCurrentNameVoiceWithoutReasoning(string phrase, WorkspaceSurfaceTarget target)
     {
@@ -119,7 +118,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CommandText.Should().Be("unfinished answer");
         await f.ViewModel.CancelModelQuestionAsync();
         await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
-        await f.RunAsync("open saved conversation drafts");
+        await f.RunAsync("open compact conversation");
         f.ViewModel.IsGrantChangePending.Should().BeTrue();
         await f.ViewModel.RejectPendingGrantChangeAsync();
         f.Reasoner.Question = null;

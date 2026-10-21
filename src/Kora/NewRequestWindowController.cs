@@ -14,6 +14,17 @@ internal sealed partial class NewRequestWindowController(
     private NewRequestWindow? window;
     private NewRequestComposer? composer;
     private bool disposed;
+    internal async Task<bool> PrepareShutdown()
+    {
+        var original = window;
+        if (original is null) { return true; }
+        try { return await original.PrepareShutdown(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            main.ReportHostInteractionFailure("New request closing failed; unsent input remains open. Failure type: " + exception.GetType().Name);
+            return false;
+        }
+    }
 
     internal void Bind()
     {

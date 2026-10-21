@@ -39,11 +39,11 @@
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock Text="{Binding ComposerTarget}" TextWrapping="Wrap"
-            AutomationProperties.Name="Composer exact target ID, name, generation, metadata and saved draft revisions, private control epoch" />
+            AutomationProperties.Name="Composer exact target ID, name, generation, metadata revision and private control epoch" />
         <Button x:Name="CompactConversation" Content="Open / activate compact selected conversation" HorizontalAlignment="Left" />
-        <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no Save anyway or silent redaction. Drafts are memory-only unless explicitly saved." TextWrapping="Wrap" />
+        <TextBlock Text="Submit retains accepted USER text exactly. A separately qualified local host turn may use admitted read-only tools and retain a genuine ASSISTANT answer. Unqualified production runtime remains explicitly unavailable, with no fallback, history assembly, hosted egress or side effects. Best-effort structural credential checks cannot guarantee secret-free text; no silent redaction. Unsent input stays separately in memory per session while switching topics. No draft saves or autosave." TextWrapping="Wrap" />
         <WrapPanel>
-          <Button x:Name="ReadConversation" Content="Read exact conversation / saved revision" IsEnabled="{Binding CanReadConversation}" />
+          <Button x:Name="ReadConversation" Content="Read exact conversation / legacy availability" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
         </WrapPanel>
         <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
@@ -121,21 +121,13 @@
             AutomationProperties.Name="Wrap draft text"
             ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
         <WrapPanel>
-          <Button x:Name="CompareComposer" Content="Compare observed saved draft / memory buffer" IsEnabled="{Binding CanCompareComposer}"
-              AutomationProperties.Name="Explicit passive comparison of historical observed saved revision and exact raw composer memory; no read, save or submit" />
-          <Button x:Name="SaveConversationDraft" Content="Explicitly Save draft" IsEnabled="{Binding CanSaveConversationDraft}" />
-          <Button x:Name="RecoverConversationDraft" Content="Review latest saved baseline; retain buffer" IsEnabled="{Binding CanRecoverConversationDraft}"
-              AutomationProperties.Name="Explicit saved conversation draft recovery review; old, latest and raw; no Save or Submit" />
-          <Button x:Name="ReloadConversationDraft" Content="Reload saved draft" IsEnabled="{Binding CanReloadConversationDraft}" />
-          <Button x:Name="DiscardComposer" Content="Discard memory buffer only" IsEnabled="{Binding CanReadConversation}" />
-          <Button x:Name="ReviewClearConversationDraft" Content="Review Clear saved draft" IsEnabled="{Binding CanReviewClearConversationDraft}" />
-          <Button x:Name="ClearConversationDraft" Content="Confirm exact saved draft Clear" IsEnabled="{Binding CanClearConversationDraft}" />
+          <Button x:Name="RecoverConversationDraft" Content="Recover existing legacy text into empty input" IsEnabled="{Binding CanRecoverConversationDraft}"
+              AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
+          <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
         </WrapPanel>
-        <TextBlock Text="{Binding SavedConversationDraftReview}" TextWrapping="Wrap"
-            AutomationProperties.Name="Complete exact saved draft body under clear review; content is inert and not current instructions" />
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
-            AutomationProperties.Name="Conversation actual save, submission, unavailable or recovery status" />
+            AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
       </StackPanel>
     </Expander>
     <WrapPanel>

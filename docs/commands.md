@@ -60,7 +60,6 @@ Missing/revoked/disposed presenters and stale original host, privacy, ownership 
 | Exact typed phrase | Existing native surface |
 |---|---|
 | `open all work` | Bounded All work / attention overview |
-| `open saved conversation drafts` | Saved conversation draft metadata catalogue |
 | `open compact conversation` | Compact projection of the current Sessions selection and shared memory composer |
 
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
@@ -73,46 +72,13 @@ Native composition and original/current private ownership, input, call/privacy e
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
-## Native saved conversation draft catalogue
+## Unsent conversation input and legacy recovery
 
-**Tray > Saved conversation drafts (metadata only)** or `open saved conversation drafts` opens the same native catalogue; it has no typed/voice/model body query. Opening reads nothing.
-Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
-Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
-Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
-Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,
-**Minimum Unicode scalars** and **Maximum Unicode scalars**
-compose with every mode and All/Active/Done. Empty fields mean Any; revision must
-be a positive integer; byte bounds are inclusive 0-16384 and Unicode scalar bounds
-are inclusive 0-4096, each with minimum <= maximum. Scalars are validated saved
-metadata, not UTF-16 code units or a new body read.
-Use decimal digits only: signs, whitespace, separators and overflow visibly refuse
-Search/Refresh, without repair or body reads.
-Optional **Minimum/Maximum session generation**, **Minimum/Maximum name metadata
-revision**, **Minimum/Maximum control revision** and **Minimum/Maximum authority
-ceiling** fields add inclusive ranges. Empty means Any; generation/name revision/
-ceiling are positive Int64 and control revision is nonnegative Int64, each with
-minimum <= maximum and the same decimal-only admission. Either name-revision
-bound excludes unnamed rows; unnamed is not revision zero.
-Optional exact observation-source/device-profile GUIDs use complete nonempty
-canonical lowercase D format (or empty Any), without trimming or repair.
-All predicates AND together. Generation, control revision, ceiling and digest
-are observed provenance only, not current authority, permission, body integrity,
-device ownership or navigation authority. Editing any of these fields performs
-no read and retires rows, exact selection and Next; Clear/revocation clears them.
-Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
+Sessions are ongoing topic conversations with Active/Done lifecycle. Unsent input stays separately in memory for each exact session while switching topics; Sessions and compact views share the same buffer. There is no ordinary draft Save/Reload/Clear, catalogue, search or saved-buffer comparison workflow ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
-**Order this loaded page** offers **Source order (default)**, **Session name
-ascending/descending** and **Saved revision ascending/descending**. It only reorders
-the complete metadata already admitted on the current page, with no read or refresh.
-Names use ordinal case-sensitive ordering, with unnamed sessions last in both
-directions; all ties use canonical session ID ascending. This is not global ordering,
-completeness or a total. Next uses the original source continuation, not the last
-displayed row. Order edits retire exact selection/details and pending navigation;
-select explicitly again. They never load a draft, change the Sessions target or
-discard the composer. Clear restores Source order without reading.
+After explicitly reading an exact session, **Recover existing legacy text into empty input** reads only that session's existing saved text. It cannot overwrite nonempty unsent input, write or remove legacy data, submit, renew activity or grant authority. Legacy data remains under existing private storage, retention and exact disposition; no silent migration or purge occurs ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
-Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
-**Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Explicit discard and closing the last view/application protect nonempty unsent input with Discard/Cancel, not Save-as-document. Switching topics preserves text without prompting. Privacy/ownership/session retirement clears affected volatile text without saving ([owner](../src/Kora/SessionsPresentationOwner.cs)).
 
 Voice and typed input use the same exact built-in phrases, which always take
 precedence. Voice input may use the configured assistant name as a prefix.
@@ -444,8 +410,8 @@ spaces. Input order is resolved to current dispatch order. Names, substrings,
 not accepted.
 
 Preparation freezes the original exact session, queue, run, pause and member
-revisions. Native opening uses the original dirty-composer Save/Discard/Cancel
-decision; Cancel or an unconfirmed save never prepares cancellation. The exact
+revisions. Native opening preserves the original session's unsent input in memory
+without saving or a discard decision ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)). The exact
 queue is observed again before the complete review displays every original
 ID/revision/deadline/prerequisite, count and queue/run/pause state. Missing,
 replaced, nonpending, previous-run or otherwise ineligible entries refuse the
@@ -1025,7 +991,7 @@ The complete native preview displays the exact ID, label, generation, metadata r
 
 Nothing is removed by the command. **Confirm logical disposition** remains a separate deliberate native action with a fresh native request. `confirm session disposition ...` explains this boundary and never confirms; `session delete` and model deletion tools remain unavailable ([native-only one-shot confirmation](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs)).
 
-Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Dirty composer Save/Discard/Cancel remains a separate native decision; the command never saves, submits or discards implicitly ([native launch](../src/Kora/SessionsWindowController.cs), [deterministic tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
+Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Review navigation preserves unsent input; the command never saves, submits or discards it ([native launch](../src/Kora/SessionsWindowController.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
 
 ### Bounded exact-ID session commands
 
@@ -1113,7 +1079,7 @@ Each page returns at most 25 messages, scans at most the existing 100-message se
 Zero matches do not imply Browse or unavailable content. Changed source, snapshot, origin, privacy, call revision, voice/name readiness or expiry requires a fresh search. Cancel clears the exact host-held search and cancels its in-flight read.
 
 Search results are visual-only, including in Voice Only mode. No query/body is spoken, captioned, logged, persisted, sent to a model or added to transcript chrome.
-No session navigation occurs: dirty composer buffers and Save/Discard/Cancel decisions, saved drafts, question/approval/voice targets and retention activity remain unchanged.
+No session navigation occurs: unsent buffers, existing legacy saved text, question/approval/voice targets and retention activity remain unchanged ([conversation search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
 There is no draft/history/all-session body search, model descriptor, submission, replay or automatic resume.
 
 Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [source-bound continuation/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).

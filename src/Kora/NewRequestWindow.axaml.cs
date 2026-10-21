@@ -1,6 +1,5 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Input;
-using Avalonia.Data;
 
 namespace Kora;
 
@@ -13,7 +12,6 @@ internal sealed partial class NewRequestWindow : Window
     private Window? discardDialog;
     internal Task Operation { get; private set; } = Task.CompletedTask;
     internal Func<Task<ComposerDraftDecision>>? DecideDraft { get; set; }
-    internal Func<Task<bool>>? ConfirmDraftSave { get; set; }
 
     internal NewRequestWindow(NewRequestViewModel model, Func<Task> navigate, Action<Exception> navigationFailure,
         Func<Func<bool>>? captureDraftSource = null)
@@ -24,12 +22,9 @@ internal sealed partial class NewRequestWindow : Window
         _ = new NativeDraftWrapping(this, NewRequestBody, WrapDraftText, model,
             captureDraftSource ?? (() => () => model.CanEdit));
         DecideDraft = ChooseDraft;
-        ConfirmDraftSave = ConfirmSave;
         CreateTarget.Click += async (_, _) => await (Operation = model.Composer.Create());
         ReviewNewRequest.Click += (_, _) => model.Composer.Review();
         SubmitNewRequest.Click += async (_, _) => await (Operation = model.Composer.Submit());
-        ReviewSaveNewRequest.Click += async (_, _) => await (Operation = model.Composer.ReviewSave());
-        SaveNewRequest.Click += async (_, _) => await (Operation = model.Composer.Save());
         InspectNewRequest.Click += async (_, _) => await (Operation = model.Composer.Inspect());
         CancelNewRequest.Click += (_, _) => model.Composer.Cancel();
         OpenNewRequestSession.Click += async (_, _) =>
@@ -58,7 +53,6 @@ internal sealed partial class NewRequestWindow : Window
             DisposeDraftFind();
             model.Dispose();
             DecideDraft = null;
-            ConfirmDraftSave = null;
             discardDialog?.Close();
             DataContext = null;
         };
@@ -77,6 +71,18 @@ internal sealed partial class NewRequestWindow : Window
         if (!openingPrivate) { Close(); }
     }
 
+    internal async Task<bool> PrepareShutdown()
+    {
+        if (privateClose || !IsVisible) { return true; }
+        if (choosing || model.Composer.Busy)
+        { throw new InvalidOperationException("Finish the pending New request operation before closing."); }
+        if (!model.Composer.Dirty) { Close(); return !IsVisible; }
+        model.Composer.Cancel();
+        choosing = true;
+        try { await ProtectClose(); return !IsVisible; }
+        finally { choosing = false; }
+    }
+
     internal void OpenPrivate()
     {
         openingPrivate = true;
@@ -89,15 +95,7 @@ internal sealed partial class NewRequestWindow : Window
     {
         var decision = DecideDraft is null ? ComposerDraftDecision.Cancel : await DecideDraft();
         if (!IsVisible) { return; }
-        if (decision == ComposerDraftDecision.Save)
-        {
-            if (!model.Composer.CanReviewSave) { return; }
-            await model.Composer.ReviewSave();
-            if (!model.Composer.CanSave || ConfirmDraftSave is null || !await ConfirmDraftSave())
-            { model.Composer.Cancel(); return; }
-            if (!await model.Composer.Save() || !model.Composer.CanCloseSaved) { return; }
-        }
-        else if (decision != ComposerDraftDecision.Discard) { return; }
+        if (decision != ComposerDraftDecision.Discard) { return; }
         if (IsVisible) { privateClose = true; Close(); }
     }
 
@@ -107,17 +105,10 @@ internal sealed partial class NewRequestWindow : Window
         var content = new StackPanel { Margin = new(18), Spacing = 16 };
         content.Children.Add(new TextBlock
         {
-            Text = "Save requires a separate frozen revision/body confirmation for the same confirmed fresh target. Otherwise Discard memory edits or Cancel closing. Existing session, saved draft and retained request remain; closing is not rollback.\n" + model.TargetLabel + "\n" + model.AttemptLabel,
+            Text = "Unsent text is memory-only. Discard it and close, or Cancel to keep editing. Existing session and retained history remain; closing is not rollback.\n" + model.TargetLabel + "\n" + model.AttemptLabel,
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12 };
-        if (model.Composer.CanReviewSave)
-        {
-            var save = new Button { Name = "ReviewSaveBeforeClose", Content = "Review Save before closing" };
-            save.Bind(IsEnabledProperty, new Binding(nameof(model.CanReviewSave)));
-            save.Click += (_, _) => dialog.Close(ComposerDraftDecision.Save);
-            buttons.Children.Add(save);
-        }
         var discard = new Button { Name = "DiscardBeforeClose", Content = "Discard memory draft and close" };
         var cancel = new Button { Name = "CancelClose", Content = "Cancel closing" };
         discard.Click += (_, _) => dialog.Close(ComposerDraftDecision.Discard);
@@ -131,34 +122,4 @@ internal sealed partial class NewRequestWindow : Window
         finally { content.Children.Clear(); dialog.DataContext = null; discardDialog = null; }
     }
 
-    private async Task<bool> ConfirmSave()
-    {
-        var dialog = new Window { Title = "Confirm exact reviewed draft Save only", Width = 740, Height = 620, DataContext = model };
-        var content = new StackPanel { Margin = new(18), Spacing = 12 };
-        foreach (var property in new[] { nameof(model.TargetLabel), nameof(model.AttemptLabel), nameof(model.SaveLabel), nameof(model.BaselineBody) })
-        {
-            var text = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-            text.Bind(TextBlock.TextProperty, new Binding(property));
-            content.Children.Add(text);
-        }
-        content.Children.Add(new TextBlock { Text = "Complete frozen OLD saved body:" });
-        var old = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        old.Bind(TextBlock.TextProperty, new Binding(nameof(model.SavedBodyReview)));
-        content.Children.Add(old);
-        content.Children.Add(new TextBlock { Text = "Complete frozen NEW proposed saved body:" });
-        var proposed = new TextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-        proposed.Bind(TextBlock.TextProperty, new Binding(nameof(model.ProposedSavedBody)));
-        content.Children.Add(proposed);
-        var confirm = new Button { Name = "ConfirmSaveBeforeClose", Content = "Confirm Save draft only and close after exact receipt" };
-        confirm.Bind(IsEnabledProperty, new Binding(nameof(model.CanSave)));
-        confirm.Click += (_, _) => dialog.Close(true);
-        var cancel = new Button { Name = "CancelSaveBeforeClose", Content = "Cancel; retain memory edits and window" };
-        cancel.Click += (_, _) => dialog.Close(false);
-        content.Children.Add(confirm);
-        content.Children.Add(cancel);
-        dialog.Content = new ScrollViewer { Content = content };
-        discardDialog = dialog;
-        try { return await dialog.ShowDialog<bool>(this); }
-        finally { content.Children.Clear(); dialog.DataContext = null; discardDialog = null; }
-    }
 }

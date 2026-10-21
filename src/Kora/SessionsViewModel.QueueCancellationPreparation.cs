@@ -12,7 +12,6 @@ internal sealed partial class SessionsViewModel
     internal Func<bool> CaptureQueueCancellationInputEligibility(bool requireIdle = true)
     {
         var body = composerBody;
-        var baseline = composerBaseline;
         var queue = queueSnapshot;
         var subset = pendingCancellationEpoch;
         var selection = selectionEpoch;
@@ -26,14 +25,13 @@ internal sealed partial class SessionsViewModel
             && ReferenceEquals(queueCancelReview, review) && ReferenceEquals(sessions, page)
             && savedConversationDraft == draft
             && Interlocked.Read(ref composerBufferRevision) == buffer
-            && string.Equals(composerBody, body, StringComparison.Ordinal)
-            && string.Equals(composerBaseline, baseline, StringComparison.Ordinal);
+            && string.Equals(composerBody, body, StringComparison.Ordinal);
     }
 
     internal async Task<bool> PrepareQueueCancellationAsync(SessionQueueCancellationPreparation preparation,
         Func<bool> admitted, CancellationToken token)
     {
-        if (!CanRead || changingQueueControl || refreshingWork || conversationBusy || draftRecoveryCancellation is not null)
+        if (!CanRead || changingQueueControl || refreshingWork || conversationBusy)
         { throw new InvalidOperationException("Finish the original native operation before preparing cancellation."); }
         var prepared = false;
         var originalSelection = selectionEpoch;
@@ -52,7 +50,7 @@ internal sealed partial class SessionsViewModel
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 ReportComposerCloseFailure(exception);
-                status = "Queue cancellation review unavailable: original composer save/decision is unconfirmed. Reconcile the exact saved draft before retrying.";
+                status = "Queue cancellation review unavailable: original input admission changed. Unsent messages remain held; inspect the exact source before retrying.";
                 return;
             }
             if (!protectedComposer)
@@ -85,13 +83,11 @@ internal sealed partial class SessionsViewModel
                 original => original.Request.TaskId == entry.Request.TaskId)).ToArray());
             var selection = selectionEpoch;
             var body = composerBody;
-            var baseline = composerBaseline;
             var buffer = Interlocked.Read(ref composerBufferRevision);
             queueCancellationAdmission = () => admitted() && !closed && selectionEpoch == selection
                 && access.ControlRevision == preparation.ControlRevision
                 && Interlocked.Read(ref composerBufferRevision) == buffer
-                && string.Equals(composerBody, body, StringComparison.Ordinal)
-                && string.Equals(composerBaseline, baseline, StringComparison.Ordinal);
+                && string.Equals(composerBody, body, StringComparison.Ordinal);
             await ReviewPendingCancellationCoreAsync(cancellation.Token);
             prepared = true;
         }, activitySession: preparation.Work.Session.Authority.SessionId, dispatchControl: true, activityLinks: links);

@@ -85,8 +85,8 @@ internal sealed partial class SessionsViewModel
     internal async Task OpenRetentionReviewAsync(SessionRetentionReview review, Func<bool> admitted, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (!CanRead || ComposerDirty || !admitted())
-        { throw new InvalidOperationException("Native retention review requires an idle private surface without unsaved composer changes."); }
+        if (!CanRead || !admitted())
+        { throw new InvalidOperationException("Native retention review requires an idle admitted private surface."); }
         await RunAsync(async () =>
         {
             ClearSelection();

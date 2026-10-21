@@ -24,32 +24,11 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ### Workspace surface navigation
 
-Type `open all work`, `open saved conversation drafts` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. The legacy `open sessions` route is unchanged. No model window-focus route is available.
+Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. The legacy `open sessions` route is unchanged. No model window-focus route is available.
 
-Opening the overview or saved draft catalogue reads nothing. Opening compact retains the exact existing Sessions selection and memory buffer; it does not reload saved content or create a session when no target is selected. Dirty drafts and pending questions/approvals remain with their original target. There is no search, submit, resume, dispatch, implicit selection or all-clear claim.
+Opening the overview reads nothing. Opening compact retains the exact existing Sessions selection and memory buffer; it does not reload saved content or create a session when no target is selected. Dirty drafts and pending questions/approvals remain with their original target. There is no search, submit, resume, dispatch, implicit selection or all-clear claim.
 
 Missing native composition or changed original/current ownership, private/call/input epochs or compact source refuses late opening/focus; issue a fresh command after recovery. See [exact syntax](commands.md#open-existing-workspace-surfaces) and [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
-
-### Find in selected saved-draft metadata
-
-In **Tray > Saved conversation drafts (metadata only)**, explicitly refresh and
-select a row. **Ctrl+F** focuses its private metadata Find query; Enter / **Find
-first**, **Next** / F3 and **Previous** / Shift+F3 search only the complete
-currently displayed selected metadata details. Matching is exact, case-sensitive,
-nonoverlapping and does not wrap. The count and ordinal cover this one string,
-never a page, all saved drafts, hidden metadata or saved/composer/conversation bodies.
-
-Queries are nonempty well-formed one-line literals, at most 256 UTF-16 characters
-and 512 UTF-8 bytes, without unsafe controls/format characters. No trimming,
-normalization, regex or wildcard expansion occurs. Editing performs no I/O and
-clears the old match/count. **Clear Find** or Escape inside Find clears its query
-without closing the catalogue. The exact inert match is focused separately from
-the row. If focus fails, no match/focus is claimed; use Ctrl+F or Find first again.
-
-Selection, page/query/filter/source/private/control/lifetime changes retire Find.
-It never refreshes, changes the Sessions target or dirty composer, loads/saves/
-submits a body, opens a session, or grants copy, speech, transcript or model access.
-See the [catalogue contract](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
 
 ### Compact selected-session conversation
 
@@ -57,12 +36,12 @@ Open **Tray > Compact selected-session conversation** or **Sessions > Compact co
 Reopening activates the same compact window. It shares the exact selected session and memory composer with the workspace, not a copied buffer or an inferred recent target ([native surface](../src/Kora/CompactSessionWindow.axaml)).
 
 With no selected target, open **Sessions / explicit selection**. Selecting metadata does not automatically read conversation bodies or reload a saved draft.
-Use **Read exact conversation / saved revision**, bounded Next, and **Refresh observed work** explicitly. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
+Use **Read exact conversation / legacy availability**, bounded Next, and **Refresh observed work** explicitly. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/CompactSessionWindow.axaml.cs)).
 
-Save, explicit Reload, reviewed Clear and Submit use the existing exact-session services. Both windows display edits to the same buffer.
+Unsent text is memory-only and separately retained per session while switching topics. Both windows display edits to the same buffer; only explicit Submit retains a new message ([buffer ownership](../src/Kora/SessionsViewModel.Unsent.cs)).
 New request remains a separate fresh-target workflow; opening it never transfers the shared text ([shared controller](../src/Kora/SessionsWindowController.cs)).
 
-Closing one view leaves the other view and draft intact. Closing the last dirty view offers Save/Discard/Cancel; failed or stale Save keeps the recoverable original target open.
+Closing one view leaves the other view and unsent text intact. Closing the last view protects nonempty input across all topics with Discard/Cancel, even if the selected input is empty. Application exit uses the same protection. No Save-as-document is offered.
 Privacy, ownership or session retirement revokes both views without saving or stopping unrelated work ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
 Questions, approvals, voice focus and legacy response presentation remain in their existing surfaces. Explicit Submit uses the same qualified local host execution as Sessions, not legacy inference. No relatedness, voice routing, history assembly, clipboard or export authority is added.
@@ -120,15 +99,9 @@ Open **Tray > New request (fresh session only)** or **Sessions > New request (fr
 
 Submit uses the same body bounds, best-effort credential rejection, exact USER retention and admitted execution as the [named-session composer](#exact-session-conversation-and-composer). A separately qualified local host turn may use admitted read-only tools and retain its genuine bounded ASSISTANT answer, displayed separately from HOST/task status. Production profiles remain unqualified and explicitly unavailable; no provider setup, hosted egress, fallback or implicit routing is performed. Cancellation or uncertain commit/readback holds the original attempt without retry; no answer is inferred from admission alone.
 
-To retain a draft instead, choose **Review exact saved revision and new body** after confirmed creation. Inspect the saved revision, confirmed memory baseline and complete old/new bodies, then separately **Confirm Save reviewed draft only**. Saving leaves the body in memory; it does not submit, run a model, renew activity or grant approval. Submit always needs its own fresh review and leaves saved data independent.
+Unsent input is memory-only. Creation and Submit remain separate operations; Cancel or close does not roll back the disclosed session or mark it Done. Nonempty close and application exit offer Discard/Cancel. There is no ordinary draft Save/Reload, autosave, catalogue or automatic transfer ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [native close](../src/Kora/NewRequestWindow.axaml.cs)).
 
-Save is only available for that same confirmed created Active target under its original generation, metadata and private control epoch. A concurrent saved change fails stale; Kora never silently follows/overwrites it. Failed/uncertain saving retains the buffer with inspection guidance, not retry. The saved-draft catalogue can discover it; **Reload saved draft** remains an explicit Sessions gesture.
-
-Creation, Save and Submit are separate durable operations, not an atomic transaction. Cancel or close leaves the disclosed session and saved data; no automatic Done/delete. Eligible dirty close offers Save/Discard/Cancel and a separate exact Save review. Save closes only after a confirmed receipt with no newer edits/revocation. Before confirmed creation or while held, only Discard/Cancel is offered.
-
-Dirty means the current body differs exactly from its last confirmed saved memory baseline, including an empty replacement for a nonempty saved body. Edits, even same-byte reassignment, retire reviews. Privacy closure clears the buffer without saving. This window has no autosave/Reload or automatic transfer to named buffers.
-
-**Open this exact session** is explicit navigation only and protects an unsaved named composer with its existing Save/Discard/Cancel decision. It does not transfer this New request body.
+**Open this exact session** is explicit navigation only. Other sessions' unsent buffers are preserved without a Save/Discard decision, and this New request body is not transferred.
 **Inspect exact attempt (no retry)** reads the disclosed original session/request/task identity without renewing activity. Storage/audit/admission uncertainty keeps the recoverable draft and exact hold; do not blindly create another target or resubmit.
 
 #### Find in the current memory draft
@@ -209,17 +182,13 @@ Reading retained Done never resumes or renews activity, creates task authority, 
 
 Open **Sessions**, select the exact session and use **Exact-session conversation
 and composer**. Its header names the immutable ID, name label, generation,
-metadata/saved-draft revision and private control epoch. Read/Next show bounded
+metadata revision and private control epoch. Read/Next show bounded
 chronological **USER** messages and separate **HOST** statuses; no model answer
 is invented. Done history stays readable, but new work requires explicit Resume.
 
-Typing writes nothing. **Read exact conversation / saved revision** observes
-the stored revision. **Explicitly Save draft** retains one draft for this
-session; **Reload saved draft** restores only data. **Review Clear saved draft**
-shows the exact saved body/revision; its separate confirmation removes that
-copy only. **Discard memory buffer only** leaves saved draft/messages unchanged.
-Switching/closing unsaved text offers Save/Discard/Cancel. Lock/privacy/owner
-closure clears private text and callbacks without silently saving.
+Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. There is no ordinary Save/Reload/Clear or saved-draft management. **Recover existing legacy text into empty input** is a read-only compatibility action after reading the exact session: it refuses nonempty input and changed source/revision, and never saves, deletes or submits. Existing private data remains under retention/disposition; no migration or purge occurs ([buffer and recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+**Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
 **Submit exact message — unavailable provider** retains your original exact
 text and fresh request/task receipt privately. Today the configured production
@@ -240,19 +209,19 @@ not a total database-size or unlimited physical-disk promise.
 
 **Current draft size and shape** updates beside the editable buffer in New
 request, Sessions and the expanded conversation window. It shows actual UTF-8
-bytes, Unicode scalars and UTF-16 code units, with the same Save/Submit bounds
+bytes, Unicode scalars and UTF-16 code units, with the same submission bounds
 above. There is no separate scalar-count maximum: an astral character counts as
-one scalar but two UTF-16 units. Empty/whitespace drafts may be saved, but cannot
+one scalar but two UTF-16 units. Empty/whitespace input cannot
 be submitted. Malformed Unicode has no byte/scalar total; the display reports it
 explicitly rather than counting replacement characters. Unsupported control
 content and over-limit drafts remain editable, never shortened or repaired.
 This is size/Unicode feedback only, not credential clearance, model readiness
-or permission to Save/Submit. It measures only the current buffer, not saved or
+or permission to submit. It measures only the current buffer, not saved or
 reviewed bodies, questions, approvals or assistant answers. Reading it does not
 save, submit, renew activity, log content or start any model/device/network work.
 Private presentation revocation removes the metrics along with private content.
 
-Save/Submit also perform bounded **local best-effort credential-like checks**:
+Submit also performs bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
 password/client_secret/api_key assignments, declared GitHub token shapes and
 JWT-like strings. No model/network/credential verification occurs. Clear
@@ -396,7 +365,7 @@ In **Sessions**, choose **Browse**, **NameSubstring**, **ExactId** or **ExactNam
   signs, whitespace, separators, zero, overflow or reversed ranges are invalid.
   Generation can match named or unnamed rows. Either name-revision bound
   excludes unnamed rows: unnamed is never revision zero. These native
-  session-list controls do not extend All Work or the saved-draft catalogue.
+  session-list controls do not extend All Work.
 - **Next metadata search** continues even after zero matches. Each click scans at most 50 rows plus one bounded lookahead, displays at most 25 matches and retains complete records within 64 KiB. Counts and output/scan limits are explicit; deferred matches are not silently skipped.
 - Optional **Name scalar minimum/maximum** count Unicode scalars, not UTF-16 units or displayed grapheme clusters. Empty means Any; enter positive ASCII decimal values within the authoritative `SessionName.MaximumScalars` limit (currently 120) ([name policy](../src/Kora.Core/Hosting/SessionName.cs)).
   Both ends are inclusive; zero, signs, whitespace, separators, overflow, values beyond the name limit and reversed ranges are invalid ([query validation](../src/Kora.Core/Storage/SessionListSearch.cs)).
@@ -1036,7 +1005,7 @@ voice, typed `session delete`, model, name-based or automatic deletion route.
 
 Original typed/current-name activated voice may open this **same preview only** with `review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>`. It never follows newer observed revisions or infers a selected ID. Command confirmation is unavailable; the private native owner and existing separate native confirmation remain required ([command contract](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [native presenter](../src/Kora/SessionsWindowController.cs)).
 
-Both launch paths show questions, scoped grants, observations, waits, durable attachments, provider overrides, submitted conversation messages and saved conversation drafts, plus the complete retained-data/exclusion disclosure. The shared composer protection remains Save/Discard/Cancel, with no implicit submission or save ([shared presentation](../src/Kora/SessionsViewModel.cs), [inventory/scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)).
+Both launch paths show questions, scoped grants, observations, waits, durable attachments, provider overrides, submitted conversation messages and legacy saved conversation drafts, plus retained-data/exclusion disclosure. Opening the review preserves unsent input without a Save decision; only confirmed disposition retires affected memory ([presentation](../src/Kora/SessionsViewModel.cs), [scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs)).
 
 Confirmation removes only this session's live name/metadata, questions
 (including drafts/answers), host observations, admitted wait bindings and

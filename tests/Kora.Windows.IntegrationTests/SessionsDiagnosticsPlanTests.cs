@@ -80,14 +80,17 @@ public sealed class SessionsDiagnosticsPlanTests
             {
                 "discard" => ComposerDraftDecision.Discard,
                 "cancel" => ComposerDraftDecision.Cancel,
-                _ => ComposerDraftDecision.Save,
+                _ => ComposerDraftDecision.Cancel,
             });
             var preparation = await service.PrepareDiagnosticsPlanAsync(f.Request.SessionId,
                 [SessionQueueReadProfile.Readiness], () => true, f.Token);
             (await viewer.PrepareDiagnosticsPlanAsync(preparation, () => true, () => true, f.Token))
-                .Should().Be(decision is "discard");
-            viewer.SelectedSessionRecord!.Authority.SessionId.Should().Be(decision is "discard" ? f.Request.SessionId : original);
-            viewer.ComposerBody.Should().Be(decision is "discard" ? "" : "original dirty private buffer");
+                .Should().BeTrue();
+            viewer.SelectedSessionRecord!.Authority.SessionId.Should().Be(f.Request.SessionId);
+            viewer.ComposerBody.Should().BeEmpty();
+            await viewer.RefreshAsync();
+            await viewer.SelectAsync(viewer.Sessions.Single(row => row.Authority.SessionId == original));
+            viewer.ComposerBody.Should().Be("original dirty private buffer");
             (await f.Store.ReadQueueAsync(f.Request.SessionId, f.Token)).Entries.Should().BeEmpty();
         }
         finally { viewer.Close(); }

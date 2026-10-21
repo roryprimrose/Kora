@@ -14,7 +14,7 @@
       <TextBox x:Name="NewRequestBody" Text="{Binding Body, Mode=TwoWay}" AcceptsReturn="True"
           Height="150" TextWrapping="Wrap" IsEnabled="{Binding CanEdit}"
           PlaceholderText="Memory only: 4096 UTF-16 / 16384 UTF-8 body bounds. No autosave or automatic transfer."
-          AutomationProperties.Name="Isolated native New request buffer; saving requires its confirmed fresh target and separate revision review, never question reply, approval or voice input" />
+          AutomationProperties.Name="Memory-only native New request input, never question reply, approval or voice input" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding DraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable New request draft size and shape" />
       <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanEdit}"
@@ -35,17 +35,6 @@
       <TextBlock Text="{Binding ReviewedBody}" TextWrapping="Wrap"
           AutomationProperties.Name="Frozen original native body; editing or cancelling retires this review permanently" />
       <WrapPanel>
-        <Button x:Name="ReviewSaveNewRequest" Content="Review exact saved revision and new body" IsEnabled="{Binding CanReviewSave}" />
-        <Button x:Name="SaveNewRequest" Content="Confirm Save reviewed draft only" IsEnabled="{Binding CanSave}" />
-      </WrapPanel>
-      <TextBlock Text="{Binding SaveLabel}" TextWrapping="Wrap" />
-      <TextBlock Text="Confirmed memory baseline (complete body)" />
-      <TextBlock Text="{Binding BaselineBody}" TextWrapping="Wrap" />
-      <TextBlock Text="Frozen saved body to replace (complete body; empty may mean no saved body)" />
-      <TextBlock x:Name="SavedBodyReview" Text="{Binding SavedBodyReview}" TextWrapping="Wrap" />
-      <TextBlock Text="Frozen proposed saved body (complete body)" />
-      <TextBlock x:Name="ProposedSavedBody" Text="{Binding ProposedSavedBody}" TextWrapping="Wrap" />
-      <WrapPanel>
         <Button x:Name="InspectNewRequest" Content="Inspect exact attempt (no retry)" IsEnabled="{Binding CanInspect}" />
         <Button x:Name="OpenNewRequestSession" Content="Open this exact session" IsEnabled="{Binding CanInspect}"
             AutomationProperties.Name="Explicit exact-ID navigation only; never transfers this body and protects dirty named-session buffers" />
@@ -54,7 +43,7 @@
       <TextBlock Text="ASSISTANT - only a genuine finalized admitted answer, when available" />
       <TextBlock Text="{Binding AssistantAnswer}" TextWrapping="Wrap"
           AutomationProperties.Name="Complete read-only ASSISTANT answer, separate from original USER request and typed HOST status" />
-      <TextBlock Text="Creation, reviewed Save and reviewed Submit are separate durable operations, not an atomic transaction. Save does not submit, run a model or renew meaningful activity. Eligible dirty close offers reviewed Save/Discard/Cancel; before confirmed creation or while held, only Discard/Cancel. No implicit Save, Reload, autosave or transfer. Cancel or close leaves the disclosed session and saved data; no automatic Done/delete." TextWrapping="Wrap" />
+      <TextBlock Text="Creation and reviewed Submit are separate operations, not an atomic transaction. Unsent text is memory-only, with no Save, Reload or autosave. Closing nonempty input requires Discard or Cancel. Closing leaves the disclosed session and retained history; no automatic Done/delete or submission." TextWrapping="Wrap" />
     </StackPanel>
   </ScrollViewer>
 </Window>

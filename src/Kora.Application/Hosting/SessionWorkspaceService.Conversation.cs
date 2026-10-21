@@ -36,7 +36,10 @@ public sealed partial class SessionWorkspaceService
             var after = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             RequireCurrent();
             if (after != target) { throw new InvalidOperationException("The draft recovery session generation or metadata changed."); }
-            Kora.Application.Presentation.ConversationDraftRecoveryReview.RequireObservation(target, draft);
+            draft.Draft.Validate();
+            if (draft.Session != target.Authority || draft.Draft.SessionId != target.Authority.SessionId
+                || draft.ExpectedTarget is { } expected && expected != target)
+            { throw new InvalidDataException("Legacy recovery requires the exact session generation and saved source."); }
             return draft with { ExpectedTarget = target };
         }, token);
 
@@ -74,12 +77,4 @@ public sealed partial class SessionWorkspaceService
             return content;
         }, token);
 
-    internal Task<ConversationDraftSnapshot> CommitConversationDraftAsync(ConversationDraftSnapshot expected,
-        string? body, Func<bool> admitted, CancellationToken token)
-    {
-        InvalidateWorkOverview(expected.Session.SessionId);
-        return ControlAsync(expected.Session.SessionId, RequestOrigin.LocalUi,
-            (request, live) => Conversations.CommitConversationDraftAsync(request, expected, body, live, token),
-            token, admitted, existingSubject: true, resolveTerminalReceipt: true);
-    }
 }

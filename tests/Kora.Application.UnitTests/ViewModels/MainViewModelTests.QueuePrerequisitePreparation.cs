@@ -16,16 +16,20 @@ public sealed partial class MainViewModelTests
         Guid.Parse("12345678-1234-1234-abcd-123456789012"), null);
 
     [Theory]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    [InlineData(false, false)]
-    public async Task PrerequisitePreparationUsesOnlyTheNativeConsumer(bool voice, bool displayed)
+    [InlineData(false, true, "Kora")]
+    [InlineData(true, true, "Kora")]
+    [InlineData(false, false, "Kora")]
+    [InlineData(false, true, "What Time")]
+    [InlineData(true, true, "What Time")]
+    public async Task PrerequisitePreparationUsesOnlyTheNativeConsumer(bool voice, bool displayed, string assistantName)
     {
         var f = await Fixture.CreateInitializedAsync();
+        await f.RunAsync("set assistant name to " + assistantName);
         var presenter = new PrerequisitePresenter { Displayed = displayed };
         f.ViewModel.BindQueuePrerequisitePreparation(presenter);
-        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + PrerequisiteInput, 1); }
-        else { await f.RunAsync(PrerequisiteInput); }
+        if (voice) { await f.RaiseActivatedTranscriptAsync(assistantName + ", " + PrerequisiteInput, 1); }
+        else { await f.RunAsync(string.Equals(assistantName, "What Time", StringComparison.Ordinal)
+            ? assistantName + ", " + PrerequisiteInput : PrerequisiteInput); }
         presenter.Commands.Should().ContainSingle().Which.Should().Be(PrerequisiteCommand);
         presenter.Origins.Should().ContainSingle().Which.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
         presenter.LastAdmission.Should().BeTrue();

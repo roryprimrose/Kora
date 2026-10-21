@@ -4134,7 +4134,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ExecuteCalculateCommand(calculateCommand, initiator, manualInput);
             return;
         }
-        if (LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
+        var prerequisitePreparation = SessionQueuePrerequisitePrepareCommand.Parse(spokenText, AssistantName);
+        if (prerequisitePreparation is null && LocalClockCommand.Parse(spokenText, AssistantName) is { } clockCommand)
         {
             ExecuteLocalClockCommand(clockCommand, initiator, manualInput);
             return;
@@ -4363,7 +4364,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
-        if (SessionQueuePrerequisitePrepareCommand.Parse(spokenText, AssistantName) is { } prerequisiteCommand)
+        if (prerequisitePreparation is { } prerequisiteCommand)
         {
             await ExecuteQueuePrerequisitePreparationAsync(prerequisiteCommand, initiator,
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName),

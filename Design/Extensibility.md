@@ -10,8 +10,12 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 
 ## Placement Rule
 
+Apply [product admission](MVP_Scope.md#feature-admission) before choosing an implementation mechanism. A typed action, native command or reusable parser is not evidence that a new user-facing capability belongs in Kora.
+
 Build into Kora anything that establishes consent, controls the task lifecycle, owns OS capture, or must work consistently across providers.
 Use extension points for replaceable engines, external systems, specialised interpretation, and repeatable workflows.
+
+Do not grow native calculation, conversion, timer, format-inspection or text-statistics toolboxes from available host seams. A separately approved domain capability may use a tool, MCP service or skill; retirement does not commission a replacement. Internal parsing, timekeeping, identifiers and safety validation remain host mechanisms where consumed by approved behavior.
 
 "Built in" describes product responsibility, not a requirement to write every algorithm from scratch.
 A built-in service can wrap a maintained library or use a bundled first-party adapter.

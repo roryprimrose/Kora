@@ -178,9 +178,7 @@ public sealed class ClipboardTests
         public Func<Task>? SavedReuse { get; private set; }
         public Func<Task>? Revoke { get; private set; }
         public Action? DuringShow { get; init; }
-        public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null,
-            Func<CancellationToken, ClipboardJsonSyntaxResult>? validateJson = null, Func<bool>? isJsonCurrent = null,
-            Func<ClipboardSnapshot, Func<bool>, CancellationToken, ClipboardXmlValidationResult>? validateXml = null)
+        public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
         {
             Snapshot = snapshot;
             Reuse = SavedReuse = reuse;
@@ -189,7 +187,6 @@ public sealed class ClipboardTests
         }
         public void UserClose() => Closed?.Invoke(this, EventArgs.Empty);
         public void SetExplanation(string? text) { }
-        public void ClearJsonValidation() { }
         public void ClearAndClose()
         {
             Snapshot = null;

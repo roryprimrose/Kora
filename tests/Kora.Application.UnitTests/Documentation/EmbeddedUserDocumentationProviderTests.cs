@@ -12,6 +12,24 @@ namespace Kora.Application.UnitTests.Documentation;
 
 public sealed class EmbeddedUserDocumentationProviderTests
 {
+    [Theory]
+    [InlineData("commands")]
+    [InlineData("windows-and-tray")]
+    [InlineData("tools-and-built-in-skills")]
+    public void EmbeddedGuideDoesNotAdvertiseRetiredUtilities(string pageId)
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, pageId, StringComparison.Ordinal)).Markdown;
+
+        guide.Should().NotContain("calculate <expression>")
+            .And.NotContain("calculate help")
+            .And.NotContain("what time is it")
+            .And.NotContain("help local clock")
+            .And.NotContain("host-local-date-and-time")
+            .And.NotContain("Validate this snapshot as JSON")
+            .And.NotContain("Validate this snapshot as XML");
+    }
+
     [Fact]
     public void Embedded_owned_editor_guide_distinguishes_private_displayed_buffer_find_from_metadata_and_mutations()
     {

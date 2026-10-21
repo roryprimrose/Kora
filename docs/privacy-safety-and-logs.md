@@ -550,6 +550,27 @@ Missing journals, corrupt/unsupported data, permissive permissions or unavailabl
 ownership/access stop admission explicitly, without file replacement or ACL
 repair. Process-interruption tests do not guarantee physical power-loss recovery.
 There is still no durable conversation/history UI or general task executor.
+### Read-only Evidence inspection
+
+Use `prepare evidence trace <trace-id>` to open/focus this same native inspector
+and prepare only its exact **Trace correlation filter**; activated voice requires
+the current assistant-name prefix. The value is exactly 32 lowercase ASCII hex
+characters, nonzero, without trimming or repair; no GUID, span/header, URI or
+inferred trace is accepted. `evidence trace help` is constant, with no current
+trace/source/metadata read ([command details](commands.md#prepare-an-exact-evidence-trace-filter)).
+
+**Every other filter and the selected source remain unchanged and AND-composed.**
+Preparation retires the old page, selection/details, Find, actions and continuation
+and cancels pending pages. It does not read, scan, count or run maintenance.
+Exact native value/focus acknowledgment is required; stale/unavailable admission
+does not fall back to another source or an unfiltered/latest query.
+Choose **Search / refresh** separately to run the existing bounded retained reader.
+Trace text is untrusted correlation only: it is never session selection or
+identity/ownership/permission/approval/authority, cannot set activity context or
+baggage, and cannot promote ordinary logs to the dedicated AuthorityAudit path.
+No source capture, model/provider/network, copy/export/persistence or session
+activity renewal is added.
+
 The tray's **Evidence (read-only)** opens a native inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
 **DailyLog** additionally inspects existing daily diagnostic JSON independently;

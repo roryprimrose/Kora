@@ -1,5 +1,7 @@
 # All settings
 
+**Product realignment:** fixed diagnostic-read queue settings are approved for retirement from ordinary product workflows. Their descriptions below remain current until code removal; useful model/settings interaction and existing safety/retention controls remain in scope. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 Open Settings by:
 
 - right-clicking the tray icon and selecting **Kora Settings**;

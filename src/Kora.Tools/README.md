@@ -20,8 +20,6 @@ helpers and brokers are not separately advertised actions.
 | Folder / namespace suffix | Action classes | Shared collaborators |
 |---|---|---|
 | [Application](Application) | [ApplicationGetVersion](Application/ApplicationGetVersion.cs) | Core `IApplicationVersion`; running-assembly implementation in Application. |
-| [Calculations](Calculations) | [Calculate](Calculations/Calculate.cs) | Core `CalculateCommand` and `DecimalCalculator` own the exact bounded grammar; native Application routing calls the same internal action. No model descriptor. |
-| [Clock](Clock) | [LocalClockGetTime](Clock/LocalClockGetTime.cs), [LocalClockGetDate](Clock/LocalClockGetDate.cs), [LocalClockGetDateAndTime](Clock/LocalClockGetDateAndTime.cs) | [LocalClockService](Clock/LocalClockService.cs) samples one injected `TimeProvider` instant and one host-owned Core `ILocalClockContextProvider` context. Original-command only; no model descriptor. |
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
@@ -71,13 +69,6 @@ owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
 No clipboard write or model submission is delivered; preview is not transmission
 consent. Do not create separate provider or view-model implementations.
 
-The native-only [ClipboardValidateXml](Clipboard/ClipboardValidateXml.cs) action
-checks the exact retained object through the same broker eligibility. Its
-[Core policy](../Kora.Core/Context/ClipboardXmlPolicy.cs) checks one complete XML
-document in memory, prohibits DTDs/external resources, and limits element depth
-to 64. It grants no model source-use or schema/safety authority. See the
-[owning contract](../../Design/Security_Data_Flows.md#native-clipboard-xml-well-formedness).
-
 ### Preapproved network addresses
 
 The Network actions converge settings-window, typed-command and activated-voice
@@ -122,6 +113,8 @@ session/task/privacy/generation/cancellation boundary. See
 [the exact delivered slice](../../Design/File_And_Folder_Ingestion.md#delivered-selected-revision-lexical-retrieval).
 
 ## Contribute a new tool
+
+Apply [product admission](../../Design/MVP_Scope.md#feature-admission) first: name the approved user outcome and why the host owns this capability rather than an extension. This implementation checklist does not approve new native utilities or require exposing helper methods as tools.
 
 1. Consult the [canonical tool inventory](../../Design/Internal_Model_Tools.md)
    and [roadmap](../../Design/Implementation_Roadmap.md). Define an explicit

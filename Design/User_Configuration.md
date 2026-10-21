@@ -10,6 +10,9 @@ and mandatory secure workflows.
 
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
+The [product-admission decision](MVP_Scope.md#product-admission-and-realignment) prioritizes model reasoning over registered settings through the same typed validation/proposal/approval path as native and exact commands.
+Do not substitute ever more static aliases for completing that shared operation, or expand fixed diagnostic-queue settings approved for retirement. The implementation descriptions below remain current until their corresponding code changes merge.
+
 ## Fixed Reviewed Session Memory Management Boundary
 
 The [reviewed selected-subset memory workflow](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19)

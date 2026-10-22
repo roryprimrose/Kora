@@ -72,6 +72,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("source")]
     [InlineData("cancel-before")]
     [InlineData("metadata")]
+    [InlineData("live-during-metadata")]
     public async Task InstructionHookCannotCaptureBeforeExactAdmissionSourceSessionAndCancellationChecks(string fault)
     {
         using var f = new Fixture();
@@ -83,15 +84,17 @@ public sealed partial class ModelTurnHostTests
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
         var validations = 0;
         var captures = 0;
+        var live = true;
         await f.ConversationService(admission, execution: f.PolicyHost).Invoking(service =>
             service.SubmitReviewedContextAsync(new(f.Session, null), "Request", ReviewedInstructionEnvelope,
-                static () => true, _ =>
+                () => live, _ =>
                 {
                     if (++validations == 4)
                     {
                         if (fault is "source") { throw new InvalidOperationException("Source revoked"); }
                         if (fault is "cancel-before") { cancellation.Cancel(); }
                         if (fault is "metadata") { f.Metadata = new(f.Session.SessionId, new(1), new("Changed")); }
+                        if (fault is "live-during-metadata") { f.OnRead = () => live = false; }
                     }
                     return Task.CompletedTask;
                 }, null, RequestOrigin.LocalUi, cancellation.Token, _ => captures++))

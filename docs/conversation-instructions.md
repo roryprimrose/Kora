@@ -1,4 +1,4 @@
-## Use an owned instruction for one conversation request
+# Use an owned instruction for one conversation request
 
 In **Sessions**, select an Active conversation and write the original request. Expand **Use one enabled owned instruction for one local request**, refresh the available choices, select one, then choose **Review complete instruction and request**.
 

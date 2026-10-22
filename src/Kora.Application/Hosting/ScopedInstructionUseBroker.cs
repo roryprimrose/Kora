@@ -179,15 +179,11 @@ public sealed class ScopedInstructionUseBroker(
 
         internal void BeginExecution(ModelTurnProvenance provenance)
         {
+            // The canonical host calls this only after exact admission checks. The current enabled
+            // epoch check is capture's linearization point; a later use-disable may preserve this turn.
             if (Volatile.Read(ref prepared) != 1 || provenance.Request != preparedRequest || !IsCurrent()
                 || Interlocked.CompareExchange(ref captured, 1, 0) != 0)
             { throw new InvalidOperationException("The pending instruction use was revoked before host admission."); }
-            // A disable racing the transition must not turn an unadmitted review into captured permission.
-            if (owner.revisions.CaptureReviewEpoch(snapshot) != epoch)
-            {
-                Retire();
-                throw new InvalidOperationException("The exact instruction use changed during host admission.");
-            }
         }
 
         internal ModelContextEnvelope BuildContext(HostRequest request, DateTimeOffset now) =>

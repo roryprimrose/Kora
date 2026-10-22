@@ -42,6 +42,75 @@ public sealed partial class AppearanceConfigurationServiceTests
     private static HostActivity BeginSuggestionInput(HostRequest request) =>
         HostActivity.BeginRoot(request, HostActivityLayer.Desktop, HostOperation.Request);
 
+    [Fact]
+    public async Task SuggestionReviewShowsSavedCurrentValueWithoutWriting()
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        fixture.Store.Text["appearance-theme.txt"] = "Light";
+        var message = Suggestion();
+        using var input = BeginSuggestionInput(SuggestionInput(message.Request));
+        using var review = await AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
+            () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+        review.Description.Should().Contain("current light (saved); proposed dark mode");
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SuggestionReviewRechecksEligibilityAndExactIssuingRequestAfterSourceRead(bool replaceRequest)
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        var message = Suggestion();
+        var read = false;
+        HostActivity? replacement = null;
+        ExecutionContext? replacementContext = null;
+        bool Eligible()
+        {
+            if (!read) { return true; }
+            if (!replaceRequest) { return false; }
+            replacement = BeginSuggestionInput(SuggestionInput(message.Request));
+            replacementContext = ExecutionContext.Capture();
+            return true;
+        }
+        using var input = BeginSuggestionInput(SuggestionInput(message.Request));
+        try
+        {
+            await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
+                Eligible, _ => { read = true; return Task.CompletedTask; }, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>()
+                .WithMessage("The original appearance review input changed.");
+            fixture.Store.Writes.Should().Be(0);
+            fixture.Audit.Events.Should().BeEmpty();
+        }
+        finally
+        {
+            // Retire the hostile callback's scope in the exact execution context that created it.
+            if (replacementContext is not null)
+            {
+                ExecutionContext.Run(replacementContext, _ => replacement!.Dispose(), null);
+            }
+        }
+    }
+
+    [Fact]
+    public async Task SuggestionReviewRejectsInvocationScopedInputEvenInOriginalSession()
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        var message = Suggestion();
+        using var input = BeginSuggestionInput(new(new(Guid.NewGuid()), message.Request.SessionId,
+            new(Guid.NewGuid()), RequestOrigin.LocalUi, new(Guid.NewGuid())));
+        await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
+            () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("set appearance.theme to dark", "current system (default); proposed dark mode", "appearance-theme.txt", "Dark")]
     [InlineData("set appearance.reader-text-scale to 125", "current 100 (default); proposed 125 percent", "reader-text-scale-percent.txt", "125")]

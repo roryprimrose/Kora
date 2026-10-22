@@ -40,6 +40,7 @@ Select **Instruction**, enter a fresh **new-copy-owned-id**, and choose **Create
 
 This bounded operation supports immediate canonical `*.instructions.md` files in the current user's roaming `Code\User\prompts`, `Code - Insiders\User\prompts`, or `User\profiles\<profile>\prompts` beneath either editor.
 It does not scan a profile, workspace or repository, register a root, or reuse skill registration consent. Other personal locations remain explicitly unavailable ([source admission](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs)).
+The exact host-resolved roaming ancestry may be Hidden (such as AppData); hidden descendants/files and System or linked/reparse sources remain unavailable. Ordinary file preview keeps its separate stricter policy ([verified reader](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs)).
 
 **Allow bounded local source read** discloses the exact source and byte length before reading its body. Memory-held consent covers one capture and at most five bounded freshness checks during this copy, including at publication;
 no storage, activation, model use or other read authority is granted ([read disclosure](../src/Kora/NativeProfileInstructionCopyReview.cs)).
@@ -274,7 +275,8 @@ No assistant answer, generation, model/network/authentication/tool execution or 
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
 has its own destructive exact-original review; source removal is not deletion.
-No rename, restore, profile fork, script, agent-execution or generic file-editor controls are offered.
+No rename, restore, profile-original write, script, agent-execution or generic file-editor controls are offered.
+The separately consented [native v1 profile-instruction copy](#create-a-disabled-kora-copy-of-a-personal-instruction) creates only a distinct disabled owned file.
 
 ## Validate the open draft without saving
 

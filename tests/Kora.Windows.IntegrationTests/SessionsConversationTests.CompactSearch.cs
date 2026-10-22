@@ -137,6 +137,9 @@ public sealed partial class SessionsConversationTests
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 model.ConversationQuery = "marker";
+                model.ConversationSubmittedFrom = f.Time.Now.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+                model.ConversationSubmittedThrough = model.ConversationSubmittedFrom;
+                model.ConversationTaskStateChoice = model.ConversationTaskStates.Single(option => option.Value == HostTaskState.Unavailable);
                 await model.SearchConversationAsync();
                 model.ConversationSearchMessages.Should().ContainSingle();
                 switch (revoke)
@@ -152,6 +155,9 @@ public sealed partial class SessionsConversationTests
                 }
                 await model.RefreshWorkAsync();
                 model.ConversationQuery.Should().BeEmpty(model.Status);
+                model.ConversationSubmittedFrom.Should().BeEmpty();
+                model.ConversationSubmittedThrough.Should().BeEmpty();
+                model.ConversationTaskStateChoice.Value.Should().BeNull();
                 model.ConversationSearchMessages.Should().BeEmpty();
                 workspace.FindControl<TextBox>("ConversationQuery")!.Text.Should().BeNullOrEmpty();
                 compact.FindControl<TextBox>("ConversationQuery")!.Text.Should().BeNullOrEmpty();
@@ -167,6 +173,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("escape")]
     [InlineData("edit")]
     [InlineData("role")]
+    [InlineData("from")]
+    [InlineData("through")]
+    [InlineData("task-state")]
     [InlineData("private")]
     [InlineData("control")]
     [InlineData("owner")]
@@ -220,6 +229,10 @@ public sealed partial class SessionsConversationTests
                         new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape }); break;
                     case "edit": workspace.FindControl<TextBox>("ConversationQuery")!.Text = "new query"; break;
                     case "role": workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem = ConversationSearchRole.HOST; break;
+                    case "from": workspace.FindControl<TextBox>("ConversationSubmittedFrom")!.Text = "2026-10-01T00:00:00.0000000+00:00"; break;
+                    case "through": compact.FindControl<TextBox>("ConversationSubmittedThrough")!.Text = "2026-10-31T00:00:00.0000000+00:00"; break;
+                    case "task-state": workspace.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem =
+                        model.ConversationTaskStates.Single(option => option.Value == HostTaskState.Unavailable); break;
                     case "private": composed.Access.CanInspect = false; break;
                     case "control": composed.Access.ControlRevision++; break;
                     case "owner": owner.Revoke(); break;
@@ -232,7 +245,7 @@ public sealed partial class SessionsConversationTests
                         await model.RefreshWorkAsync();
                         break;
                 }
-                if (revoke is "cancel" or "escape" or "edit" or "role" or "owner" or "selection" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "from" or "through" or "task-state" or "owner" or "selection" or "lifecycle")
                 { observed.IsCancellationRequested.Should().BeTrue(); }
                 reader.Reads.Should().Be(1, "query/filter edits must never schedule another read");
                 release.SetResult(snapshot);
@@ -240,13 +253,14 @@ public sealed partial class SessionsConversationTests
                 model.ConversationSearchMessages.Should().BeEmpty();
                 model.CanNextConversationSearch.Should().BeFalse();
                 model.CanCancelConversationSearch.Should().BeFalse();
-                model.ConversationQuery.Should().Be(revoke switch { "edit" => "new query", "role" => "marker", _ => string.Empty });
+                model.ConversationQuery.Should().Be(revoke switch
+                { "edit" => "new query", "role" or "from" or "through" or "task-state" => "marker", _ => string.Empty });
                 model.ConversationRole.Should().Be(revoke is "role" ? ConversationSearchRole.HOST : ConversationSearchRole.All);
                 workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
                 compact.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
                 workspace.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
                 compact.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
-                if (revoke is "cancel" or "escape" or "edit" or "role" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "from" or "through" or "task-state" or "lifecycle")
                 { model.ComposerBody.Should().Be("dirty independent"); }
             }
             finally { owner.Revoke(); }

@@ -263,6 +263,79 @@ public sealed partial class WindowsProfileInstructionReaderTests : IDisposable
         File.WriteAllBytes(Source, Bytes);
     }
 
+    [Fact]
+    public async Task PersonalInstructionUnderHiddenKnownRoamingAncestorCanBeCapturedWithoutBroadeningOrdinaryFileReads()
+    {
+        var appData = Path.Combine(root, "profile", "AppData");
+        var roaming = Path.Combine(appData, "Roaming");
+        var source = Path.Combine(roaming, "Code", "User", "prompts", "example.instructions.md");
+        Directory.CreateDirectory(Path.GetDirectoryName(source)!);
+        File.WriteAllBytes(source, Bytes);
+        File.SetAttributes(appData, File.GetAttributes(appData) | FileAttributes.Hidden);
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
+        var inspector = new WindowsLocalFileInspector(new Paths(root));
+        var ordinary = () => inspector.InspectAsync(source, TestContext.Current.CancellationToken);
+        await ordinary.Should().ThrowAsync<InvalidDataException>();
+        var reader = new WindowsProfileInstructionReader(inspector, roaming);
+        using var selection = await reader.OpenSelection(source, TestContext.Current.CancellationToken);
+        (await selection.Read(TestContext.Current.CancellationToken)).Should().Equal(Bytes);
+        var snapshot = ProfileInstructionSnapshot.Parse(selection.Id, selection.Metadata, Bytes);
+        var result = await selection.WithCurrent(snapshot, () => true, current =>
+        {
+            current().Should().BeTrue();
+            return Task.FromResult(new InstructionWriteResult(false, false, false, null));
+        }, TestContext.Current.CancellationToken);
+        result.Published.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("editor", FileAttributes.Hidden)]
+    [InlineData("file", FileAttributes.Hidden)]
+    [InlineData("roaming", FileAttributes.System)]
+    public async Task ProfileAncestorExceptionNeverAdmitsHiddenDescendantsOrSystemDirectories(string target, FileAttributes attributes)
+    {
+        CreateSource();
+        var path = target switch
+        {
+            "editor" => Path.Combine(Roaming, "Code"),
+            "file" => Source,
+            _ => Roaming,
+        };
+        var before = File.GetAttributes(path);
+        File.SetAttributes(path, before | attributes);
+        try
+        {
+            using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
+            var operation = () => Reader.OpenSelection(Source, TestContext.Current.CancellationToken);
+            await operation.Should().ThrowAsync<InvalidDataException>();
+        }
+        finally { File.SetAttributes(path, before); }
+        File.WriteAllBytes(Source, Bytes);
+    }
+
+    [Fact]
+    public async Task NewHiddenDescendantAfterReadConsentFailsFinalRevalidationAndReleasesLease()
+    {
+        CreateSource();
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
+        var directory = Path.GetDirectoryName(Source)!;
+        var before = File.GetAttributes(directory);
+        using (var selection = await Reader.OpenSelection(Source, TestContext.Current.CancellationToken))
+        {
+            var snapshot = ProfileInstructionSnapshot.Parse(selection.Id, selection.Metadata,
+                await selection.Read(TestContext.Current.CancellationToken));
+            File.SetAttributes(directory, before | FileAttributes.Hidden);
+            try
+            {
+                var operation = () => selection.WithCurrent(snapshot, () => true,
+                    _ => throw new InvalidOperationException("Publication must not run"), TestContext.Current.CancellationToken);
+                await operation.Should().ThrowAsync<InvalidDataException>();
+            }
+            finally { File.SetAttributes(directory, before); }
+        }
+        File.WriteAllBytes(Source, Bytes);
+    }
+
     public void Dispose()
     {
         listener.Dispose();

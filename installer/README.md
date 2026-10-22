@@ -369,6 +369,28 @@ shortcut behavior, prerequisite failures, and actual installed ACL/token and
 worker boundaries still need approved disposable-Windows acceptance. Automated
 tests cover the managed lifecycle using a fake engine, not Windows installation.
 
+### Planned additional local speech components
+
+The approved [speech-input design](../Design/Speech_Input.md#optional-installation-and-runtime-lifecycle)
+requires future qualified wake/VAD/ASR and optional verifier assets to follow
+the existing optional-component pattern: unchecked actionable preparation at
+install time, or later installation/verification through Kora Settings.
+This is not implemented by the current PowerShell/Ollama/Kokoro selections.
+Do not offer an experimental profile merely because model files are available.
+
+Use the [shared setup catalogue and lifecycle](../Design/Environment_Setup.md#optional-local-speech-component-lifecycle)
+for source/digest/licence, supported hardware/backend, download/disk/resource
+costs, user scope, readiness, cancellation and removal ownership. MSI owns
+application/native adapter code; Burn must not create a second model manifest
+or imply that declining model data removes shared/bundled launch requirements.
+Optional preparation remains non-elevated and does not select the runtime
+profile, open capture, grant learning/enrollment consent or clear recovery holds.
+Repair/upgrade/uninstall and Settings removal must preserve other consumers,
+user-owned assets and retained preferences under the existing policy.
+Installer-specific implementation needs deterministic preflight/selection/
+cancel/retry coverage and its own applicable payload/native/installed evidence;
+this documentation does not require installing models to merge the design.
+
 ## Versioning and GitHub Actions
 
 Application binaries and installer packaging use the same

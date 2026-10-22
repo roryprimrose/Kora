@@ -51,6 +51,7 @@ Start with these documents, then follow the topic you need:
 | Providers, memory and knowledge | [Provider and memory contract](Model_Providers_Memory_And_Knowledge.md) |
 | File/folder ingestion and retrieval | [Ingestion contract](File_And_Folder_Ingestion.md) |
 | Calls and proactive behavior | [Call-aware speech](Call_Aware_Speech.md); [proactive interaction](Proactive_Interaction.md) |
+| Local speech input and personalization | [Speech-input pipeline, providers and resource profiles](Speech_Input.md); privacy and measurement remain owned by Security and Acceptance Criteria |
 | Voice names and phrase design | [Activation name](Activation_Name.md); [proposed phrase catalogue](OOTB_Phrases.md) |
 | Instance ownership and build handoff | [Instance coordination](Instance_Coordination.md) |
 | Delivery, startup and maintenance | [Distribution and updates](Distribution_And_Updates.md); [installer implementation](../installer/README.md) |

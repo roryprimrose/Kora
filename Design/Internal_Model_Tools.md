@@ -99,13 +99,13 @@ this engine. Unknown/unqualified runtime/profile stays explicitly unavailable.
 No clipboard, files, URI, settings, shell, network, grants, skill/agent executor
 or additional catalogue capability is introduced.
 
-All six actions also have [closed queued Native reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12), not model autoexecution. The original four retain `{}`/default first pages. Queued `capabilities.get` requires one exact current descriptor ID; queued `runtime.get_status` supplies only host-fixed recorded `local.inference`.
+The six actions retain their direct read-only routes and internal scheduler test seam. Public diagnostic enqueue/dispatch/reorder/requeue is [retired](Work_Management.md#delivered-deterministic-local-version-queue), not model autoexecution. Existing retained records remain inspectable/cancellable without replay.
 Catalogue Available is registry metadata, not live provider/worker/tool-loop qualification or authorization.
 
-The exact original-user navigation commands `open all work`, `open saved conversation drafts` and `open compact conversation` are **native navigation only**.
-The `AllWork`, `SavedConversationDrafts` and `CompactConversation` targets have no model bootstrap action or model-tool descriptor; the model route is unavailable because no qualified host-origin/window-focus contract is composed.
+The exact original-user navigation commands `open all work` and `open compact conversation` are **native navigation only**. The saved-draft catalogue and its route have been removed.
+The `AllWork` and `CompactConversation` targets have no model bootstrap action or model-tool descriptor; the model route is unavailable because no qualified host-origin/window-focus contract is composed.
 Do not interpret model text as a navigation event or extend the six read-only descriptors with window-focus effects.
-The [native adapter](../src/Kora/WorkspaceSurfaceCommandController.cs) instead invokes the same tray/UI controllers under original/current private and source admission. Opening imports no session content, saved draft body, search or execution authority. See [exact command availability](../docs/commands.md#open-existing-workspace-surfaces).
+The [native adapter](../src/Kora/WorkspaceSurfaceCommandController.cs) invokes the same tray/UI controllers under original/current private and source admission. Opening imports no session content, search or execution authority. See [exact command availability](../docs/commands.md#open-existing-workspace-surfaces).
 
 R26 selected-source lexical search is **host/native-only**. The six-ID schema
 has no unavailable model-only content-operation descriptor or admitted

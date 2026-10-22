@@ -39,6 +39,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var profile = Path.Combine(parent, "pf-" + Guid.NewGuid().ToString("N")[..8]);
             var sourcePath = Path.Combine(profile, "Code", "User", "prompts", "example.instructions.md");
             Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
+            if (condition is "confirmed") { File.SetAttributes(profile, File.GetAttributes(profile) | FileAttributes.Hidden); }
             var sourceBytes = Document(ArtifactKind.Instruction, "Exact personal original").CopyBytes();
             File.WriteAllBytes(sourcePath, sourceBytes);
             try

@@ -5,6 +5,7 @@ using System.Security.Principal;
 using Kora.Core.Artifacts;
 using Kora.Core.Context;
 using Kora.Windows.Coordination;
+using Kora.Windows.Context;
 using Kora.Windows.Storage;
 
 using Microsoft.Win32.SafeHandles;
@@ -13,13 +14,13 @@ namespace Kora.Windows.Artifacts;
 
 public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
 {
-    private readonly ILocalFileInspector inspector;
+    private readonly WindowsLocalFileInspector inspector;
     private readonly string roaming;
 
-    public WindowsProfileInstructionReader(ILocalFileInspector inspector)
+    public WindowsProfileInstructionReader(WindowsLocalFileInspector inspector)
         : this(inspector, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)) { }
 
-    internal WindowsProfileInstructionReader(ILocalFileInspector inspector, string profileRoamingRoot)
+    internal WindowsProfileInstructionReader(WindowsLocalFileInspector inspector, string profileRoamingRoot)
     {
         this.inspector = inspector;
         LocalFilePolicy.ValidateFolderPath(profileRoamingRoot);
@@ -31,7 +32,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
         LocalFilePolicy.ValidatePath(selectedPath);
         if (!selectedPath.EndsWith(".instructions.md", StringComparison.Ordinal) || !SupportedLocation(selectedPath))
         { throw new InvalidDataException("Select one canonical .instructions.md file from the personal Code or Code - Insiders User prompts/profile prompts locations. Other roots and formats are unavailable."); }
-        var selected = await inspector.InspectAsync(selectedPath, token).ConfigureAwait(false);
+        var selected = await inspector.InspectProfileInstruction(selectedPath, roaming, token).ConfigureAwait(false);
         try
         {
             if (!string.Equals(selected.Metadata.CanonicalPath, selectedPath, StringComparison.Ordinal)
@@ -40,7 +41,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
             using var handle = File.OpenHandle(selectedPath, FileMode.Open, FileAccess.Read, FileShare.Read);
             RequireExactIdentity(handle, selected.Metadata);
             RequireOwner(selectedPath);
-            return new Selection(inspector, selected);
+            return new Selection(inspector, roaming, selected);
         }
         catch { selected.Dispose(); throw; }
     }
@@ -76,7 +77,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
         { throw new InvalidDataException("The selected personal instruction is not the exact canonical native source identity and size."); }
     }
 
-    private sealed class Selection(ILocalFileInspector inspector, ILocalFileSelection original) : IProfileInstructionSelection
+    private sealed class Selection(WindowsLocalFileInspector inspector, string knownRoamingRoot, ILocalFileSelection original) : IProfileInstructionSelection
     {
         private int disposed;
         public Guid Id { get; } = Guid.NewGuid();
@@ -99,7 +100,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
                 { throw new InvalidOperationException("The exact profile source read consent or lease expired."); }
             }
             RequireCurrent();
-            using var observed = await inspector.InspectAsync(Metadata.CanonicalPath, token).ConfigureAwait(false);
+            using var observed = await inspector.InspectProfileInstruction(Metadata.CanonicalPath, knownRoamingRoot, token).ConfigureAwait(false);
             RequireCurrent();
             if (observed.Metadata != Metadata)
             { throw new InvalidDataException("The admitted profile instruction was replaced or changed; select and consent again."); }

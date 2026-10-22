@@ -23,7 +23,7 @@ A clarification answer is not approval. See
 select source-qualified instructions for a local-model request. Compatible
 disk instructions remain untrusted. Shared-profile skills use separate native
 registration/inspection, not startup model exposure. See
-[artifact commands](commands.md#run-skills-and-future-artifacts).
+[artifact commands](commands.md#run-skills-and-artifacts).
 
 ## 1. Application and help
 

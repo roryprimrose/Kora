@@ -9,6 +9,26 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RenameIntentNotifiesExactMetadataConsumersBeforeChangingEitherNativeOrCommandSource(bool command)
+    {
+        using var fixture = new Fixture();
+        HostId<SessionIdentity>? changing = null;
+        fixture.Service.SessionMetadataChanging += session => changing = session;
+        if (command)
+        {
+            var parsed = SessionCommand.Parse("session rename " + fixture.Request.SessionId.Value.ToString("D") + " 1 0 \"Renamed\"", "Kora")!;
+            await fixture.Service.ExecuteCommandAsync(parsed, RequestOrigin.LocalUi, static () => true, fixture.Token);
+        }
+        else
+        {
+            await fixture.Service.RenameAsync(fixture.Request.SessionId, new(1), 0, new("Renamed"), RequestOrigin.LocalUi, fixture.Token);
+        }
+        changing.Should().Be(fixture.Request.SessionId);
+    }
+
+    [Theory]
     [InlineData("help")]
     [InlineData("list")]
     [InlineData("status")]

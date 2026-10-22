@@ -226,6 +226,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 () => Services.GetRequiredService<NewRequestComposer>(), sessionsWindow,
                 Services.GetRequiredService<IUiDispatcher>());
+            newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
             ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;

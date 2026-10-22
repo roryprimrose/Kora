@@ -14,12 +14,26 @@
       <TextBox x:Name="NewRequestBody" Text="{Binding Body, Mode=TwoWay}" AcceptsReturn="True"
           Height="150" TextWrapping="Wrap" IsEnabled="{Binding CanEdit}"
           PlaceholderText="Memory only: 4096 UTF-16 / 16384 UTF-8 body bounds. No autosave or automatic transfer."
-          AutomationProperties.Name="Memory-only native New request input, never question reply, approval or voice input" />
+          AutomationProperties.Name="Memory-only New request input; literal dictation requires this exact explicitly armed buffer, never a question reply or approval" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding DraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable New request draft size and shape" />
       <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanEdit}"
           AutomationProperties.Name="Wrap draft text"
           ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view only, until closed." />
+      <Button x:Name="DictateNewRequest" Content="Hold to dictate literal draft text" IsEnabled="{Binding CanEdit}"
+          AutomationProperties.Name="Hold with left mouse button, Space or Enter to dictate literal text into this exact memory buffer only; release to finish, Escape or Cancel to discard" />
+      <TextBlock Text="{Binding DictationStatus}" TextWrapping="Wrap" />
+      <StackPanel IsVisible="{Binding HasDictationReview}" Spacing="8">
+        <TextBlock Text="Original memory body (unchanged)" />
+        <TextBlock Text="{Binding DictationOriginal}" TextWrapping="Wrap" />
+        <TextBlock Text="Complete literal transcription (not instructions)" />
+        <TextBlock Text="{Binding DictationLiteral}" TextWrapping="Wrap" />
+        <WrapPanel>
+          <Button x:Name="AppendDictation" Content="Append exact text (no separator added)" />
+          <Button x:Name="ReplaceDictation" Content="Replace memory body with exact text" />
+        </WrapPanel>
+      </StackPanel>
+      <Button x:Name="CancelDictation" Content="Cancel dictation / discard transcription" />
       <TextBlock Text="Best-effort structural credential checks reject detected material before body retention; they cannot identify arbitrary passwords or guarantee secret-free text. No save-anyway, redaction, provider setup or fallback." TextWrapping="Wrap" />
       <Button x:Name="CreateTarget" Content="_Create new empty target" IsEnabled="{Binding CanCreate}"
           AutomationProperties.Name="Explicitly commit one fresh empty New conversation; separate from body submission" />

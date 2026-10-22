@@ -1546,6 +1546,46 @@ Unknown creation, retention, terminal or receipt outcomes hold the exact attempt
 
 Private SQLite and headless native tests are implementation evidence, not installed accessibility, hardware, provider/inference, profile-original, physical-storage or full R12/R14 qualification. Those gates and the storage/profile deferrals remain unchanged.
 
+### Explicit literal New request dictation
+
+The existing native New request memory buffer has an explicit hold gesture,
+not a command or navigation route. [ComposerDictationService](../src/Kora.Application/Voice/ComposerDictationService.cs)
+owns the cohesive volatile capture/review lifetime. View models expose state
+and delegate; the native owner supplies an exact, user-armed generation,
+observed through lifecycle events rather than focused-window inference.
+There is no latest-target fallback or shared global dictation destination.
+
+The smallest consumed I subset is the existing consented PTT admission,
+activated capture generation/acknowledgement/quiescence seam, private workspace
+control revision, and NewRequestComposer's revisioned memory publication.
+Input/call/recovery/topology/ownership epochs and exact native/buffer identity
+are checked before capture, acknowledgement, result acceptance, release,
+dispatch and publication. Edits, Cancel, native-arm withdrawal, target rename,
+privacy or source lifecycle revocation invalidate late work. Publication rolls
+back after synchronous binding revocation without overwriting newer edits.
+Close, Stop, cancellation and disposal retain and await native release receipts;
+an unconfirmed release remains a sticky unavailable state.
+
+One admitted utterance is literal private memory, never routed to commands,
+models, questions, approvals or tools. Even reserved stop/approval words remain
+inert; native Cancel and Disable listening still revoke capture. Before an
+empty-buffer insert, native release must be confirmed. Every nonempty buffer,
+not just one differing from its saved baseline, requires complete old/literal
+review and explicit Append/Replace/Cancel. Append concatenates exact bytes with
+no inferred separator. No Create, Save, Submit, attachment, activity renewal
+or execution is implicit; separate ordinary retention screening is unchanged.
+The existing New request window has one buffer; no expanded editor or
+navigation behavior is added by dictation.
+
+`IActivatedVoiceRecognitionService.IsLiteralDictationAvailable` defaults false.
+Production Windows capture retains this explicit unqualified state: installed
+recognizer presence does not enable literal dictation. The gesture cannot
+enable listening, grant consent, select devices or perform provider setup.
+Deterministic seam fakes qualify only their test instances and cover the full
+path without real hardware/provider/experiment execution. E/Q, installed,
+hardware, acoustic and provider evidence remains separate and unclaimed;
+portable Release checks and raw 100% line/branch coverage remain merge gates.
+
 ### Explicit retained original USER text reuse — 2026-10-19
 
 An actual currently admitted immutable conversation row in Sessions or compact conversation offers **Review reuse of this original USER text in a New request**. This is content reuse, **never task replay/resumption** or promotion of HOST/model output. Reconstructed/value-equal rows, hidden/private/omitted/revoked records, question answers and generated content are not reuse sources.

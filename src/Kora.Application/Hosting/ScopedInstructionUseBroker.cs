@@ -101,6 +101,7 @@ public sealed class ScopedInstructionUseBroker(
         private int prepared;
         private int captured;
         private int retired;
+        private HostRequest? preparedRequest;
         private readonly HostId<EvidenceIdentity> evidence = new(Guid.NewGuid());
 
         internal InstructionContextReview(ScopedInstructionUseBroker owner, SessionWorkspaceEntry target,
@@ -172,12 +173,13 @@ public sealed class ScopedInstructionUseBroker(
             context.RequireCompleteInputLimit();
             if (Interlocked.CompareExchange(ref prepared, 1, 0) != 0)
             { throw new InvalidOperationException("The pinned instruction context was already captured."); }
+            preparedRequest = request;
             return context;
         }
 
-        internal void BeginExecution()
+        internal void BeginExecution(ModelTurnProvenance provenance)
         {
-            if (Volatile.Read(ref prepared) != 1 || !IsCurrent()
+            if (Volatile.Read(ref prepared) != 1 || provenance.Request != preparedRequest || !IsCurrent()
                 || Interlocked.CompareExchange(ref captured, 1, 0) != 0)
             { throw new InvalidOperationException("The pending instruction use was revoked before host admission."); }
             // A disable racing the transition must not turn an unadmitted review into captured permission.

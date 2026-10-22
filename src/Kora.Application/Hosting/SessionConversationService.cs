@@ -44,10 +44,12 @@ public sealed partial class SessionConversationService(
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi) =>
         SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null, ModelTurnChoice.Default, token);
 
+    /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
         Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
-        RequestOrigin origin, CancellationToken token, Action? onAdmitted = null)
+        RequestOrigin origin, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null)
     {
         ArgumentNullException.ThrowIfNull(createContext);
         ArgumentNullException.ThrowIfNull(validateSource);
@@ -60,14 +62,16 @@ public sealed partial class SessionConversationService(
             { throw new InvalidDataException("Reviewed conversation context requires exact original input, local-only evidence and no tools."); }
             return context;
         }
-        return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local, token, onAdmitted);
+        return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local,
+            token, onAdmitted, resolveResponse);
     }
 
     private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task>? beforeRetain,
         IEnumerable<ActivityLink>? links, RequestOrigin origin,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope>? createContext,
-        ModelTurnChoice choice, CancellationToken token, Action? onAdmitted = null)
+        ModelTurnChoice choice, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null)
     {
         RequireOriginalSource(origin);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
@@ -118,8 +122,8 @@ public sealed partial class SessionConversationService(
                     var admission = await turns.AdmitAsync(choice, context, null, token).ConfigureAwait(false);
                     if (admission.Turn is not null)
                     {
-                        onAdmitted?.Invoke();
-                        receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain, token).ConfigureAwait(false);
+                        receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
+                            token, resolveResponse, onAdmitted).ConfigureAwait(false);
                         await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, token).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled

@@ -146,7 +146,7 @@ public sealed partial class MainViewModelTests
                     var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
                         "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
                     newerInput = (Task)routing.Invoke(f.ViewModel,
-                        ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null])!;
+                        ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null, null])!;
                     break;
             }
         };
@@ -235,7 +235,7 @@ public sealed partial class MainViewModelTests
                 var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
                     "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
                 consentChange = (Task)routing.Invoke(f.ViewModel,
-                    ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null])!;
+                    ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null, null])!;
             };
         }
         await f.Voice.RaiseTranscriptAsync((loss is "unprefixed" ? "" : "Kora, ") + PrepareCatalogue, 1);
@@ -288,7 +288,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture();
         var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
             "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, [PrepareCatalogue, 1f, initiator, null, null, null])!;
+        await (Task)routing.Invoke(f.ViewModel, [PrepareCatalogue, 1f, initiator, null, null, null, null])!;
         f.ViewModel.Transcript.Should().Contain("unavailable");
     }
 

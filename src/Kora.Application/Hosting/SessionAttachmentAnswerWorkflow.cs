@@ -67,7 +67,7 @@ public sealed partial class SessionAttachmentAnswerWorkflow(SessionWorkspaceServ
     }
 
     internal async Task<ConversationSubmissionReceipt> Submit(SessionAttachmentAnswerReview review,
-        Func<ModelContextEnvelope, Func<bool>, Func<CancellationToken, Task>, Func<ModelTurnResult, ModelTurnResult>,
+        Func<Func<HostRequest, DateTimeOffset, ModelContextEnvelope>, Func<bool>, Func<CancellationToken, Task>, Func<ModelTurnResult, ModelTurnResult>,
             CancellationToken, Task<ConversationSubmissionReceipt>> submit,
         HostRequest request, Func<bool> admitted, CancellationToken token)
     {
@@ -104,11 +104,20 @@ public sealed partial class SessionAttachmentAnswerWorkflow(SessionWorkspaceServ
             {
                 audit.Write(requested);
                 await Validate(token).ConfigureAwait(false);
-                var binding = Bind(source, review.Target, search, review.Question, request, time.GetUtcNow());
-                binding.Envelope.RequireCompleteInputLimit();
+                LocalFileAnswerContext? binding = null;
+                ModelContextEnvelope CreateContext(HostRequest original, DateTimeOffset now)
+                {
+                    if (binding is not null)
+                    { throw new InvalidOperationException("The reviewed attachment context is single-use."); }
+                    binding = Bind(source, review.Target, search, review.Question, original, now);
+                    binding.Envelope.RequireCompleteInputLimit();
+                    return binding.Envelope;
+                }
                 submissionEntered = true;
-                var receipt = await submit(binding.Envelope, Live, Validate,
-                    result => SessionAttachmentAnswerResponse.Resolve(source, binding, search, result), token).ConfigureAwait(false);
+                var receipt = await submit(CreateContext, Live, Validate,
+                    result => SessionAttachmentAnswerResponse.Resolve(source,
+                        binding ?? throw new InvalidOperationException("The original reviewed attachment context was not constructed."),
+                        search, result), token).ConfigureAwait(false);
                 var outcome = receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? SecurityAuditOutcome.Succeeded
                     : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? SecurityAuditOutcome.Cancelled
                     : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Failed;

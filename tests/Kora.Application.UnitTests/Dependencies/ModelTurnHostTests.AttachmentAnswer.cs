@@ -32,6 +32,9 @@ public sealed partial class ModelTurnHostTests
             using var wire = JsonDocument.Parse(f.Adapter.Wire!);
             wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(1);
+            wire.RootElement.GetProperty("Evidence")[0].GetProperty("Request")
+                .GetProperty("RequestId").GetProperty("Value").GetGuid()
+                .Should().Be(f.Adapter.Provenance!.Request.RequestId.Value);
             var id = wire.RootElement.GetProperty("Evidence")[0].GetProperty("Id").GetProperty("Value").GetGuid();
             f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
                 new(JsonSerializer.Serialize(new
@@ -103,8 +106,9 @@ public sealed partial class ModelTurnHostTests
         }
         else
         {
-            await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+            var failure = await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
                 .Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+            failure.Which.Request.Should().Be(f.Retained!.Request);
         }
         f.Adapter.Calls.Should().Be(1);
         f.Retained!.AssistantResponse.Should().BeNull();
@@ -332,7 +336,7 @@ public sealed partial class ModelTurnHostTests
         internal SessionConversationService AttachmentConversationService(SessionAttachmentAnswerWorkflow workflow,
             Kora.Application.Dependencies.ModelTurnHost host) =>
             new(this, this, new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance),
-                this, host, Time, this, host, workflow);
+                this, host, Time, this, host, attachmentAnswers: workflow);
         internal SessionFileAttachment? Attachment { get; set; }
         internal string AttachmentFault { get; set; } = string.Empty;
         internal void SetAttachment(string text)

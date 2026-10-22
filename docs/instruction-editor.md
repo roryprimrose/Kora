@@ -92,6 +92,35 @@ remain outside this owned-editor workflow.
 
 ## Search observed owned metadata
 
+### Find within selected displayed metadata details
+
+After explicitly selecting a current inventory row, **Find in selected metadata**
+focuses a separate private query. It searches only the exact displayed details
+string for that selected owned Instruction or Prompt row. It never searches the
+source editor, unsaved draft, other rows, hidden paths, descriptions,
+declarations, resource bodies or another kind. It does not open or inspect a file.
+
+Enter a case- and space-sensitive one-line literal, at most 256 UTF-16 units
+and 512 UTF-8 bytes. Invalid Unicode, control/format characters and oversized
+queries are rejected without trimming or truncation. **First** (or Enter in
+this query), **Next match** (F3) and **Previous match** (Shift+F3) navigate the
+complete nonoverlapping sequence without wrapping. Count and ordinal describe
+only these selected displayed metadata details, not the inventory or files.
+An exact inert match receives native focus; focus failure explicitly clears
+the match/count and offers First to retry. Matches cannot copy, save, select
+files, enable use or grant read, execution, permission, freshness or integrity
+authority.
+
+**Clear Find**, Escape in these Find controls, or editing this query clears
+its match/navigation state without changing the inventory search or draft.
+Selection, inventory page/filter/kind/source/control changes, review retirement,
+privacy/ownership loss and editor closure retire the private Find state; reselect
+a current row explicitly. Find is local and ephemeral: query, match and count
+are not logged, persisted, copied, sent to a model or spoken. Ctrl+F is not
+assigned by metadata Find; its keyboard handling is confined to these controls.
+
+### Search and filter the observed inventory
+
 **List** / **Refresh** explicitly enumerates the selected kind's existing bounded owned directory and runs the existing source-reconciliation pipeline. That refresh can read source files and reconcile revision preferences; typing a search or changing a use-state filter cannot.
 The inventory contains at most 128 filenames for the explicit Instruction or Prompt kind, defaulting to ordinal filename order. Its source is fixed to Kora-owned roaming data. No profile, bundled, skill, agent or additional-directory inventory is added.
 

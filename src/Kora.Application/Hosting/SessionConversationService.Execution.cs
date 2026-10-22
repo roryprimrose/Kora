@@ -10,7 +10,8 @@ public sealed partial class SessionConversationService
 {
     private async Task<ConversationSubmissionReceipt> ExecuteRetainedAsync(SessionWorkspaceEntry target,
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
-        Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token)
+        Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -45,6 +46,14 @@ public sealed partial class SessionConversationService
             || !Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
             || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
         { throw new InvalidDataException("Only the owning admitted host's exact terminal result may complete this request."); }
+        if (resolveResponse is not null && result.Outcome == ModelTurnOutcome.Succeeded)
+        {
+            result = resolveResponse(result);
+            if (result.Provenance != turn.Provenance
+                || result.Outcome is not (ModelTurnOutcome.Succeeded or ModelTurnOutcome.Unknown)
+                || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
+            { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
+        }
         ConversationResponse? answer = null;
         if (result.Outcome == ModelTurnOutcome.Succeeded)
         {

@@ -262,10 +262,11 @@ public sealed partial class ModelTurnHostTests
         private SavedConversationDraft? conversationDraft;
 
         internal SessionConversationService ConversationService(Kora.Application.Dependencies.IModelTurnAdmission host,
-            bool enabledLogger = true, Kora.Application.Dependencies.IModelTurnExecution? execution = null)
+            bool enabledLogger = true, Kora.Application.Dependencies.IModelTurnExecution? execution = null, bool cancellationAuditAvailable = true)
         {
             var workspace = new SessionWorkspaceService(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
-            return new(this, this, workspace, this, host, Time, enabledLogger ? this : NullLogger<SessionConversationService>.Instance, execution);
+            return new(this, this, workspace, this, host, Time, enabledLogger ? this : NullLogger<SessionConversationService>.Instance,
+                execution, cancellationAuditAvailable ? CancelAudit : null);
         }
         public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
             ValueTask.FromResult(new ConversationDraftSnapshot(Session, conversationDraft ?? new(session, 0, null)));

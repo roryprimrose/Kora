@@ -78,6 +78,9 @@
             AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
         <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
         <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+        <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
+          IsEnabled="{Binding CanSubmitConversationWithClarification}"
+          AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Actual shared conversation submission, unavailable or legacy recovery outcome" />

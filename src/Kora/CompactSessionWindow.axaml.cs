@@ -43,6 +43,8 @@ internal sealed partial class CompactSessionWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        SubmitConversationWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         CloseView.Click += (_, _) => Close();
         KeyDown += (_, args) =>
         {

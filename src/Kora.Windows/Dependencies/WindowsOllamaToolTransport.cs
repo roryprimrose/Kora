@@ -32,6 +32,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     private DateTimeOffset deadline;
     private int inputBytes;
     private int outputBytes;
+    private ModelClarificationQuestion? issuedQuestion;
 
     public WindowsOllamaToolTransport()
         : this(static _ => null, TimeProvider.System, NullLogger<WindowsOllamaToolTransport>.Instance) { }
@@ -68,6 +69,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
                 original = null;
                 binding = null;
                 inputBytes = outputBytes = 0;
+                issuedQuestion = null;
                 closed = false;
             }
             if (closed)
@@ -109,7 +111,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     {
         // Reuse the producer's complete history, provenance, catalogue and byte policy.
         ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages,
-            request.Round, request.Budget);
+            request.Round, request.Budget, request.ClarificationAllowed);
         if (request.Profile is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (original is null)
         {
@@ -126,6 +128,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         var selected = binding;
         if (selected is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (!Current(request)) { return Finish(request, ModelTurnOutcome.Denied); }
+        if (issuedQuestion is not null && (request.Messages.Length != 2 || !ReferenceEquals(request.Messages[0], issuedQuestion)))
+        { return Finish(request, ModelTurnOutcome.Denied); }
         if (request.Messages.Length < admittedHistory.Length
             || admittedHistory.Where((wire, index) => !wire.AsSpan()
                 .SequenceEqual(ModelToolProtocol.SerializeMessage(request.Messages[index]))).Any())
@@ -166,7 +170,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             var status = Status(response, message);
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
             var wire = await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false);
-            var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round);
+            var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round, request.ClarificationAllowed);
             var outputCharge = Math.Max(wire.Length, ModelToolProtocol.SerializeMessage(parsed.Message).Length);
             if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
             outputBytes += outputCharge;
@@ -184,6 +188,12 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
                     || calls.Calls.Any(call => previousIds.Contains(call.CallId)))
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 exchanges.Add(new(calls, parsed.NativeMessage));
+            }
+            else if (parsed.Message is ModelClarificationQuestion question)
+            {
+                if (!request.ClarificationAllowed || issuedQuestion is not null)
+                { return Finish(request, ModelTurnOutcome.Denied); }
+                issuedQuestion = question;
             }
             else { CloseConversation(request.Provenance); }
             TransportCompleted(logger, ModelTurnOutcome.Succeeded);
@@ -203,7 +213,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         && request.Provenance == original.Provenance && request.Provenance == binding.Provenance
         && request.Profile is not null && request.Profile == binding.Profile && request.Profile == original.Profile
         && request.Context.Wire.AsSpan().SequenceEqual(original.Context.Wire.AsSpan())
-        && request.Round == exchanges.Count + 1 && binding.IsAdmitted()
+        && request.ClarificationAllowed == original.ClarificationAllowed
+        && request.Round == exchanges.Count + (issuedQuestion is not null ? 1 : 0) + 1 && binding.IsAdmitted()
         && HostActivity.Current is { Outcome: HostOperationOutcome.Unknown } host && !host.Activity!.IsStopped
         && ReferenceEquals(host.Request, request.Provenance.Request);
 

@@ -10,7 +10,8 @@ public sealed partial class SessionConversationService
 {
     private async Task<ConversationSubmissionReceipt> ExecuteRetainedAsync(SessionWorkspaceEntry target,
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
-        Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token)
+        Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -25,6 +26,11 @@ public sealed partial class SessionConversationService
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
         if (!Current() || !turns.IsQuiescent || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
         { throw new InvalidOperationException("The original source or exact session changed before model execution."); }
+        token.ThrowIfCancellationRequested();
+        if (!Current()) { throw new InvalidOperationException("Original source admission changed before host capture."); }
+        onAdmitted?.Invoke(turn.Provenance);
+        token.ThrowIfCancellationRequested();
+        if (!Current()) { throw new InvalidOperationException("Original source admission changed during host capture."); }
         var dispatched = await conversations.BeginConversationExecutionAsync(request, turn.Provenance,
             target.Metadata?.Revision.Value ?? 0, Current, token).ConfigureAwait(false);
         dispatched.Message.Validate();
@@ -59,6 +65,15 @@ public sealed partial class SessionConversationService
             if (!token.IsCancellationRequested)
             { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
             await running.JoinCancellationAsync().ConfigureAwait(false);
+            if (resolveResponse is not null && result.Outcome == ModelTurnOutcome.Succeeded)
+            {
+                result = resolveResponse(result);
+                if (result is null || result.Provenance != turn.Provenance
+                    || !Enum.IsDefined(result.Reason)
+                    || result.Outcome is not (ModelTurnOutcome.Succeeded or ModelTurnOutcome.Unknown)
+                    || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
+                { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
+            }
             ConversationResponse? answer = null;
             if (result.Outcome == ModelTurnOutcome.Succeeded)
             {

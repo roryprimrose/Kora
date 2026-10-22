@@ -51,7 +51,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, f.Access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             var owner = new Window();
             owner.Show();
@@ -115,7 +116,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, f.Access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             var owner = new Window();
             owner.Show();
@@ -185,7 +187,8 @@ public sealed partial class NewRequestControllerTests
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             NewRequestComposer? state = null;
             using var controller = new NewRequestWindowController(f.Main, f.Sessions, f.Access,
-                () => state = new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => state = new(f.Sessions, conversation, f.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             controller.DecideOriginalReuse = (_, _) => Task.FromResult(true);
             var owner = new Window();

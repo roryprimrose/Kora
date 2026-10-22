@@ -1553,6 +1553,16 @@ Diagnostics remain content-minimising and separate from intentional session hist
 **Tray > New request (fresh session only)** and **Sessions > New request (fresh target)** activate one native memory-only composer. Relatedness inference remains unavailable: this bounded route offers only an explicit fresh **New conversation**, never the selected, named, recent or Done session.
 The generic host label is not inferred from the candidate body, model or background content.
 
+Typed **open new request**, optionally addressed to the current assistant name, and activated voice **Kora, open new request** (using the configured name) navigate to this singleton. The [parser](../src/Kora.Core/Commands/NewRequestOpenCommand.cs) accepts no body, target or trailing argument; malformed reserved input never becomes a model request or question answer.
+
+The [navigation admission](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs) preserves pending questions/approvals and refuses opening until resolved. Input generation, privacy, ownership, name revision and call activation restrictions fence asynchronous dispatch. Conflicting names (such as **New Request**) require explicit renaming; ambiguous aliases are not dispatched.
+
+The [native controller](../src/Kora/NewRequestWindowController.cs) shares tray/workspace singleton activation and fences source/private/window closure and disposal before late opening or focus. Opening preserves unsent, reviewed, held and busy memory without reset, resume, target creation, persistence, activity renewal, queue, provider or approval effects.
+
+Create and Submit retain their own native gesture and admission; navigation conveys neither authority and adds no saved-draft operation ([controller regression tests](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.Commands.cs)).
+
+The [portable tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NewRequest.cs) cover bounded navigation only. Model-facing navigation is unavailable: the event is not a registered model capability; the six read-only tools and 25-action bootstrap are unchanged. Hardware/acoustic/provider/installed accessibility qualification is not claimed.
+
 **Create new empty target** owns one exact original native creation attempt and commits through the audited workspace creation seam. Acknowledge the actual ID/name/generation/metadata revision before separate **Review frozen body** and **Submit reviewed exact body**.
 Creation and body retention are separate authority operations, not atomic or rollback-capable; cancellation after creation leaves the disclosed empty session Active.
 

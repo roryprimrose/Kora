@@ -195,10 +195,8 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         var native = new PendingNavigationFake();
         f.ViewModel.BindPendingQuestionNavigation(native);
-        var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
-            "HandleTranscriptAsync", System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!;
         using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
-        await (Task)routing.Invoke(f.ViewModel, [PendingNavigation, 1f, initiator, null, null, null, null])!;
+        await InvokeTranscriptForTest(f.ViewModel, PendingNavigation, initiator);
         native.Captures.Should().Be(0);
         f.ViewModel.PendingQuestionNavigationStatus.Should().StartWith("Pending question navigation unavailable.");
     }

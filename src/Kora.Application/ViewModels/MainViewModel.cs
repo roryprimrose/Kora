@@ -609,6 +609,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
         PreviewVoiceCommand = CreateCommand(
@@ -4006,8 +4007,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
+            var newRequestEligibility = CaptureNewRequestOpeningEligibility(manualInput);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility, questionTarget));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
+                    newRequestEligibility, questionTarget));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4051,7 +4054,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
-        Func<bool> reviewEligibility, PendingQuestionCapture questionTarget)
+        Func<bool> reviewEligibility, Func<bool> newRequestEligibility, PendingQuestionCapture questionTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4107,7 +4110,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput, reviewEligibility);
+            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, questionTarget);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4116,7 +4119,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
         ResponseReadInput? responseReadInput = null,
-        Func<bool>? reviewEligibility = null, PendingQuestionCapture? questionTarget = null)
+        Func<bool>? reviewEligibility = null,
+        Func<bool>? newRequestEligibility = null, PendingQuestionCapture? questionTarget = null)
     {
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
@@ -4127,6 +4131,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref evidenceTraceInputRevision);
         var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
         var evidenceTraceCommand = EvidenceTraceCommand.Parse(spokenText, AssistantName);
@@ -4165,6 +4170,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Rejected command input outside the active unlocked host");
+            return;
+        }
+        if (newRequestCommand is not null)
+        {
+            await ExecuteNewRequestOpenCommand(newRequestCommand, initiator, newRequestEligibility);
             return;
         }
         if (IsListeningStopCommand(spokenText))
@@ -6166,6 +6176,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])
+            .Concat(NewRequestOpenCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

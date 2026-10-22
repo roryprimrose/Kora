@@ -156,11 +156,61 @@ public sealed partial class ModelTurnHostTests
             if (value.ActionId is "session.attachment.answer.local" && value.Outcome != SecurityAuditOutcome.Requested)
             { throw new IOException("Terminal audit unavailable"); }
         };
-        await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+        var failure = await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
             .Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+        failure.Which.Request.Should().Be(f.Retained!.Request);
         f.RetainCalls.Should().Be(1);
         f.Adapter.Calls.Should().Be(0);
         f.Retained!.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        f.Retained.AssistantResponse.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task AttachmentCanonicalPreRetainSourceRefusalDoesNotBecomePreviewRequestUncertainty(int refusedCall)
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha marker");
+        var policy = new AttachmentPolicy();
+        var audit = new AttachmentAudit();
+        var workflow = f.AttachmentWorkflow(policy, audit);
+        var service = f.AttachmentConversationService(workflow, f.ConfiguredProfiles(production: true));
+        using var review = await service.PrepareAttachmentAnswerAsync(new(f.Session, null), f.Attachment!, "alpha", static () => true, Token);
+        policy.OnAdmit = () =>
+        {
+            if (policy.Calls == refusedCall) { policy.Decision = LocalFileModelUseDecision.Denied; }
+        };
+        await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+            .Should().ThrowAsync<SessionAttachmentAnswerUnavailableException>();
+        policy.Calls.Should().Be(refusedCall);
+        f.RetainCalls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+        audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task AttachmentFailureReportingCannotReplaceCanonicalUncertainRequestWithPreviewIdentity()
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha marker");
+        var audit = new AttachmentAudit();
+        var workflow = f.AttachmentWorkflow(new(), audit);
+        var service = f.AttachmentConversationService(workflow, f.QualifiedAttachmentHost());
+        using var review = await service.PrepareAttachmentAnswerAsync(new(f.Session, null), f.Attachment!, "alpha", static () => true, Token);
+        f.AfterExecutionStart = () => f.Attachment = null;
+        audit.OnWrite = value =>
+        {
+            if (value.ActionId is "session.attachment.answer.local" && value.Outcome != SecurityAuditOutcome.Requested)
+            { throw new IOException("Failure audit unavailable"); }
+        };
+        var failure = await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+            .Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+        failure.Which.Request.Should().Be(f.Retained!.Request);
+        failure.Which.InnerException.Should().BeOfType<AggregateException>();
+        f.RetainCalls.Should().Be(1);
+        f.Adapter.Calls.Should().Be(0);
         f.Retained.AssistantResponse.Should().BeNull();
     }
 

@@ -87,7 +87,7 @@ public sealed partial class SessionAttachmentAnswerWorkflow(SessionWorkspaceServ
                 review.Cause == default ? [] : [new(review.Cause)]);
             var requested = Audit(request, "session.attachment.answer.local");
             using var auditActivity = HostActivity.BeginAudit(request, requested);
-            var submissionEntered = false;
+            ConversationSubmissionReceipt? completed = null;
             bool Live() => !review.IsRevoked && time.GetUtcNow() < review.ExpiresAt
                 && access.CanControl && access.CanInspect && access.ControlRevision == review.ControlRevision
                 && review.Admitted() && admitted() && !token.IsCancellationRequested;
@@ -113,11 +113,11 @@ public sealed partial class SessionAttachmentAnswerWorkflow(SessionWorkspaceServ
                     binding.Envelope.RequireCompleteInputLimit();
                     return binding.Envelope;
                 }
-                submissionEntered = true;
                 var receipt = await submit(CreateContext, Live, Validate,
                     result => SessionAttachmentAnswerResponse.Resolve(source,
                         binding ?? throw new InvalidOperationException("The original reviewed attachment context was not constructed."),
                         search, result), token).ConfigureAwait(false);
+                completed = receipt;
                 var outcome = receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? SecurityAuditOutcome.Succeeded
                     : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? SecurityAuditOutcome.Cancelled
                     : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Failed;
@@ -137,12 +137,26 @@ public sealed partial class SessionAttachmentAnswerWorkflow(SessionWorkspaceServ
                 activity.Complete(HostOperationOutcome.Cancelled);
                 throw;
             }
+            catch (ConversationSubmissionUnconfirmedException exception)
+            {
+                Failure(logger, exception.GetType().Name);
+                auditActivity.Complete(HostOperationOutcome.Unknown);
+                activity.Complete(HostOperationOutcome.Unknown);
+                try { audit.Write(requested.WithOutcome(SecurityAuditOutcome.Unknown)); }
+                catch (Exception auditException) when (auditException is not OutOfMemoryException)
+                {
+                    Failure(logger, auditException.GetType().Name);
+                    throw new ConversationSubmissionUnconfirmedException(exception.Request,
+                        new AggregateException(exception, auditException));
+                }
+                throw;
+            }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 Failure(logger, exception.GetType().Name);
-                audit.Write(requested.WithOutcome(submissionEntered ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Failed));
-                auditActivity.Complete(submissionEntered ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
-                activity.Complete(submissionEntered ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
+                audit.Write(requested.WithOutcome(completed is not null ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Failed));
+                auditActivity.Complete(completed is not null ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
+                activity.Complete(completed is not null ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
                 throw;
             }
         }

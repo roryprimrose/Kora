@@ -22,26 +22,23 @@ public sealed partial class SessionConversationService
             ?? throw new InvalidOperationException("Retained attachment answering is unavailable.");
         var request = new HostRequest(new(Guid.NewGuid()), review.Target.Authority.SessionId,
             new(Guid.NewGuid()), review.Origin);
-        var submissionEntered = false;
+        ConversationSubmissionReceipt? completed = null;
         try
         {
             return await workflow.Submit(review,
-                (createContext, live, validate, resolve, cancellation) =>
+                async (createContext, live, validate, resolve, cancellation) =>
                 {
                     ActivityLink[] links = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
-                    submissionEntered = true;
-                    return SubmitReviewedContextAsync(review.Target, review.Question, (original, now) =>
-                    {
-                        request = original;
-                        return createContext(original, now);
-                    }, live, validate, links, review.Origin, cancellation, resolveResponse: resolve);
+                    completed = await SubmitReviewedContextAsync(review.Target, review.Question, createContext,
+                        live, validate, links, review.Origin, cancellation, onAdmitted: null,
+                        resolveResponse: resolve).ConfigureAwait(false);
+                    return completed;
                 }, request, admitted, token).ConfigureAwait(false);
         }
-        catch (Exception exception) when (submissionEntered
-            && exception is not (OutOfMemoryException or ConversationSubmissionUnconfirmedException or ConversationCapacityException))
+        catch (Exception exception) when (completed is not null
+            && exception is not (OutOfMemoryException or ConversationSubmissionUnconfirmedException))
         {
-            throw new ConversationSubmissionUnconfirmedException(request, exception);
+            throw new ConversationSubmissionUnconfirmedException(completed.Message.Request, exception);
         }
     }
-
 }

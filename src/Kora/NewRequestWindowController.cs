@@ -42,6 +42,10 @@ internal sealed partial class NewRequestWindowController(
             return false;
         }
     }
+    private Kora.Application.Voice.ComposerDictationService? dictation;
+
+    internal void BindDictation(Microsoft.Extensions.Logging.ILogger<Kora.Application.Voice.ComposerDictationService> logger) =>
+        dictation = main.BindComposerDictation(logger);
 
     internal void Bind()
     {
@@ -49,6 +53,7 @@ internal sealed partial class NewRequestWindowController(
         main.PrivacyClosureRequested += PrivacyClosed;
         workspace.SessionLifecycleChanged += RevokeSession;
         workspace.SessionRetired += RevokeSession;
+        workspace.SessionMetadataChanging += RevokeDictationReview;
     }
 
     internal void Open()
@@ -93,7 +98,7 @@ internal sealed partial class NewRequestWindowController(
                 if (seedTarget is null) { state.Dispose(); }
                 return false;
             }
-            var opened = new NewRequestWindow(new(state), () => Navigate(state),
+            var opened = new NewRequestWindow(new(state, dictation), () => Navigate(state),
                 exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name),
                 () =>
                 {
@@ -162,6 +167,16 @@ internal sealed partial class NewRequestWindowController(
         window?.ClosePrivate();
     }
 
+    private void RevokeDictationReview(HostId<SessionIdentity> session)
+    {
+        if (!Dispatcher.UIThread.CheckAccess())
+        {
+            Dispatcher.UIThread.Invoke(() => RevokeDictationReview(session));
+            return;
+        }
+        if (composer?.Creation?.Request.SessionId == session) { composer.Cancel(); }
+    }
+
     public void Dispose()
     {
         if (disposed) { return; }
@@ -172,6 +187,7 @@ internal sealed partial class NewRequestWindowController(
         main.PrivacyClosureRequested -= PrivacyClosed;
         workspace.SessionLifecycleChanged -= RevokeSession;
         workspace.SessionRetired -= RevokeSession;
+        workspace.SessionMetadataChanging -= RevokeDictationReview;
         window?.ClosePrivate();
         window = null;
         composer = null;

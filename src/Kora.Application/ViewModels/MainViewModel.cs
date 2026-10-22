@@ -3800,6 +3800,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning restore VSTHRD003
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
+            if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
             IsSpeaking = false;
@@ -4134,6 +4135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         CurrentResponseInput? currentResponseInput = null,
         PendingQuestionCapture? questionTarget = null)
     {
+        RetireComposerDictation();
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
             await ExecuteClipboardSnapshotStatusCommandAsync(snapshotStatusCommand, initiator,

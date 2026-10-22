@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
@@ -56,6 +56,7 @@ public sealed class InstructionRevisionCatalogue
     {
         lock (gate)
         {
+            if (unavailable) { SuspendReviewedUse(); }
             var before = Load();
             var initial = before is null;
             var state = before ?? new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -243,9 +244,13 @@ public sealed class InstructionRevisionCatalogue
         }
     }
 
+    /// <summary>Checks current catalogue authority for an already admitted exact owned revision and capture epoch.
+    /// The owning turn must establish capture separately; this does not admit queued use.</summary>
     public bool IsCapturedUseAllowed(OwnedInstructionSnapshot snapshot, Guid epoch)
     {
         RequireKind(snapshot);
+        if (snapshot.Document.Definition.Source is not "kora-profile")
+        { throw new InvalidDataException("Captured use requires an admitted Kora-owned source snapshot."); }
         lock (gate)
         {
             if (unavailable) { return false; }

@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Definitions;
 using Kora.Application.Configuration;
@@ -74,6 +74,236 @@ public sealed class InstructionRevisionCatalogueTests
                 kind, "kora-profile", "example"));
     private static ArtifactDefinition Candidate(OwnedInstructionSnapshot snapshot) =>
         snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision };
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void CapturedUseRequiresExactEnabledOrAuthoritativeExplicitHoldRatherThanSnapshotFlags(ArtifactKind kind)
+    {
+        var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store(), kind);
+        var snapshot = Snapshot(kind: kind);
+        var advertised = Candidate(snapshot) with { IsUseEnabled = true, PreservesCapturedUse = true };
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([advertised]));
+        var epoch = registry.CaptureReviewEpoch(snapshot);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        var prepared = registry.PrepareActivation(snapshot);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        registry.CompleteActivation(snapshot, prepared, catalogue);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue();
+        registry.IsCapturedUseAllowed(snapshot, Guid.NewGuid()).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, Guid.Empty).Should().BeFalse();
+        registry.DisableExact(snapshot, catalogue).Should().BeTrue();
+        registry.IsEnabled(snapshot).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue();
+        registry.IsCapturedUseAllowed(snapshot, registry.CaptureReviewEpoch(snapshot)).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot with { FileIdentity = new string('c', 48) }, epoch).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot with { DirectoryIdentity = new string('d', 48) }, epoch).Should().BeFalse();
+        registry.IsCapturedUseAllowed(Snapshot(body: "Changed", kind: kind), epoch).Should().BeFalse();
+        catalogue.Publish([advertised with { IsUseEnabled = false, PreservesCapturedUse = false }]);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue();
+        registry.Hold(snapshot.Name, existingOnly: true);
+        catalogue.Publish([advertised]);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("changed")]
+    [InlineData("replaced")]
+    [InlineData("deleted")]
+    [InlineData("suspend")]
+    [InlineData("prepare")]
+    [InlineData("hold")]
+    [InlineData("unavailable")]
+    public void CapturedUseIsRetiredBySourceOrAuthorityChangesAndCannotReviveFromStaleFlags(string change)
+    {
+        var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store());
+        var snapshot = Snapshot();
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot), catalogue);
+        var epoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue);
+        var stale = catalogue.Candidates.Single();
+        stale.PreservesCapturedUse.Should().BeTrue();
+        registry.Reconcile([stale]).Single().PreservesCapturedUse.Should().BeTrue();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue();
+        switch (change)
+        {
+            case "changed": registry.Reconcile([Candidate(Snapshot(body: "Changed"))]); break;
+            case "replaced": registry.Reconcile([Candidate(snapshot with { FileIdentity = new string('c', 48) })]); break;
+            case "deleted": registry.Reconcile([]); break;
+            case "suspend": registry.SuspendReviewedUse(); break;
+            case "prepare": registry.PrepareActivation(snapshot); break;
+            case "hold": registry.Hold(snapshot.Name); break;
+            case "unavailable": registry.MarkUnavailable(); break;
+        }
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        registry.Reconcile([stale]).Single().PreservesCapturedUse.Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("hold")]
+    [InlineData("disable")]
+    [InlineData("unavailable")]
+    [InlineData("reload")]
+    [InlineData("readback")]
+    public void FailedAuthorityMutationsDenyCapturedUseEvenWhenOldSnapshotPreservesIt(string operation)
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store);
+        var snapshot = Snapshot();
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot), catalogue);
+        var epoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue);
+        var stale = catalogue.Candidates.Single();
+        store.FailWrite = operation is not "readback";
+        var saved = store.Text;
+        if (operation is "readback") { store.AfterWrite = () => store.Text = "{\"Version\":1,\"Revisions\":{}}"; }
+        Action fail = operation switch
+        {
+            "hold" => () => registry.Hold(snapshot.Name),
+            "disable" => () => registry.DisableExact(snapshot, catalogue),
+            "unavailable" => registry.MarkUnavailable,
+            _ => () => registry.Reconcile([stale]),
+        };
+        fail.Should().Throw<IOException>();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        store.FailWrite = false;
+        store.AfterWrite = null;
+        if (operation is "readback") { store.Text = saved; }
+        registry.Reconcile([stale]).Single().PreservesCapturedUse.Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("read")]
+    [InlineData("malformed")]
+    [InlineData("missing")]
+    public void CapturedUsePreferenceFailureIsExplicitAndCannotFallBackToAnInMemoryHold(string failure)
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store);
+        var snapshot = Snapshot();
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        var epoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue);
+        if (failure is "read") { store.FailRead = true; }
+        if (failure is "malformed") { store.Text = "malformed"; }
+        if (failure is "missing") { store.Text = null; }
+        ((Action)(() => registry.IsCapturedUseAllowed(snapshot, epoch))).Should().Throw<Exception>();
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CapturedUseRejectsWrongKindAndExternalSourceWithoutGrantingNewAuthority()
+    {
+        var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store());
+        var epoch = Guid.NewGuid();
+        ((Action)(() => registry.IsCapturedUseAllowed(Snapshot(kind: ArtifactKind.Prompt), epoch))).Should().Throw<InvalidDataException>();
+        var source = ArtifactFileDocument.Parse(Snapshot().Document.CopyBytes(), ArtifactKind.Instruction, "profile-instruction", "example");
+        ((Action)(() => registry.IsCapturedUseAllowed(Snapshot() with { Document = source }, epoch))).Should().Throw<InvalidDataException>();
+        var legacy = Snapshot(native: false);
+        registry.Reconcile([Candidate(legacy)]);
+        epoch = registry.CaptureReviewEpoch(legacy);
+        registry.IsCapturedUseAllowed(legacy, epoch).Should().BeTrue();
+        registry.Hold(legacy.Name, existingOnly: true);
+        registry.IsCapturedUseAllowed(legacy, epoch).Should().BeFalse();
+    }
+
+    [Fact]
+    public void CapturedHoldDoesNotSurviveRestartOrAuthorizeQueuedUseAndUnavailableRecoveryRetiresReviewEpoch()
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store);
+        var snapshot = Snapshot();
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot), catalogue);
+        var epoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue);
+        var reviewEpoch = registry.CaptureReviewEpoch(snapshot);
+        registry.IsEnabled(snapshot).Should().BeFalse("queued use still requires new-use authority");
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue("only an independently captured consumer may use this predicate");
+        new InstructionRevisionCatalogue(store).IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        store.FailWrite = true;
+        ((Action)(() => registry.Reconcile(catalogue.Candidates))).Should().Throw<IOException>();
+        store.FailWrite = false;
+        registry.Reconcile(catalogue.Candidates);
+        registry.IsCapturedUseAllowed(snapshot, epoch).Should().BeFalse();
+        ((Action)(() => registry.PrepareActivation(snapshot, reviewEpoch))).Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void RepeatedDisablePreservesOnlyOriginalCapturedEpochUntilFreshActivation(ArtifactKind kind)
+    {
+        var registry = new InstructionRevisionCatalogue(new LocalSharedSkillPreferencesTests.Store(), kind);
+        var snapshot = Snapshot(kind: kind);
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot), catalogue);
+        var capturedEpoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue).Should().BeTrue();
+        var afterFirstDisable = registry.CaptureReviewEpoch(snapshot);
+        afterFirstDisable.Should().NotBe(capturedEpoch);
+        registry.PublishReconciled(catalogue.Candidates, catalogue.Publish);
+        registry.DisableExact(snapshot, catalogue).Should().BeFalse();
+        var afterSecondDisable = registry.CaptureReviewEpoch(snapshot);
+        afterSecondDisable.Should().NotBe(afterFirstDisable);
+        registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeTrue();
+        registry.IsCapturedUseAllowed(snapshot, afterFirstDisable).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, afterSecondDisable).Should().BeFalse();
+        registry.IsEnabled(snapshot).Should().BeFalse();
+        var activation = registry.PrepareActivation(snapshot, afterSecondDisable);
+        registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeFalse();
+        registry.CompleteActivation(snapshot, activation, catalogue);
+        registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, afterFirstDisable).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, afterSecondDisable).Should().BeTrue();
+        registry.DisableExact(snapshot, catalogue).Should().BeTrue();
+        registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, afterSecondDisable).Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("hold")]
+    [InlineData("hold-existing")]
+    [InlineData("unavailable")]
+    [InlineData("failed-reload")]
+    [InlineData("failed-disable")]
+    public void LaterDisableCannotRecreateRevokedCapturedEpochFromRestoredIdenticalBytes(string revocation)
+    {
+        var store = new LocalSharedSkillPreferencesTests.Store();
+        var registry = new InstructionRevisionCatalogue(store);
+        var snapshot = Snapshot();
+        var catalogue = new ArtifactCatalogue(registry.Reconcile([Candidate(snapshot)]));
+        registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot), catalogue);
+        var capturedEpoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue);
+        var stale = catalogue.Candidates.Single();
+        switch (revocation)
+        {
+            case "hold": registry.Hold(snapshot.Name); break;
+            case "hold-existing": registry.Hold(snapshot.Name, existingOnly: true); break;
+            case "unavailable": registry.MarkUnavailable(); break;
+            default:
+                store.FailWrite = true;
+                Action failure = revocation is "failed-reload"
+                    ? () => registry.Reconcile([stale])
+                    : () => registry.DisableExact(snapshot, catalogue);
+                failure.Should().Throw<IOException>();
+                registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeFalse();
+                store.FailWrite = false;
+                break;
+        }
+        registry.PublishReconciled([stale], catalogue.Publish);
+        var recoveryEpoch = registry.CaptureReviewEpoch(snapshot);
+        registry.DisableExact(snapshot, catalogue).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, capturedEpoch).Should().BeFalse();
+        registry.IsEnabled(snapshot).Should().BeFalse();
+        registry.IsCapturedUseAllowed(snapshot, recoveryEpoch).Should().BeTrue(
+            "the predicate does not attest capture; the consumer must still refuse queued or unadmitted requests");
+    }
 
     [Theory]
     [InlineData(ArtifactKind.Instruction)]

@@ -23,7 +23,7 @@ internal sealed partial class CompactSessionWindow : Window
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
         CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
         ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
-        foreach (var field in new[] { ConversationQuery })
+        foreach (var field in new[] { ConversationQuery, ConversationSubmittedFrom, ConversationSubmittedThrough })
         {
             field.KeyDown += async (_, args) =>
             {

@@ -104,6 +104,22 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void EmbeddedWorkspaceSearchGuideKeepsOrdinaryDatesAndReceiptStatesWithoutEngineeringPredicates()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("submitted-date bounds, observed task state")
+            .And.Contain("UTC bounds are inclusive; empty means Any")
+            .And.Contain("USER-only with a state yields zero")
+            .And.Contain("receipt kind, task state, decision, question status and answer-channel choices")
+            .And.Contain("Engineering receipt/task/request/source-ID predicates and revision/generation/sequence ranges remain retired")
+            .And.NotContain("generation/revision/sequence/time");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("inclusive submitted-date bounds and an observed task-state choice with explicit Any")
+            .And.Contain("typed/voice syntax is unchanged");
+    }
+
+    [Fact]
     public void Embedded_sessions_guide_distinguishes_bounded_native_metadata_from_unadmitted_routing_and_history()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

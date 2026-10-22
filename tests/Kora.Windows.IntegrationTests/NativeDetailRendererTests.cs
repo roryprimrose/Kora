@@ -116,6 +116,28 @@ public sealed class NativeDetailRendererTests
         MarkdownDocumentRenderer.CreateControls(result).Should().ContainSingle();
     });
 
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [InlineData(-1, false)]
+    [InlineData(-1, true)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(int.MaxValue, true)]
+    public void RendererRejectsUnadmittedContentKindsBeforeParsing(int kind, bool tables)
+    {
+        const string source = "<h1>Exact source</h1>\r\n\n| Header |\n| --- |\n| value |";
+        var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance, pipeTablesAvailable: true);
+        var result = renderer.Render(source, (DetailContentKind)kind,
+            format: tables ? NativeDetailFormat.PipeTablesV2 : NativeDetailFormat.TextV1);
+        result.IsFallback.Should().BeTrue();
+        result.Status.Should().Be("Unsupported content kind; exact source fallback.");
+        result.Source.Should().Be(source);
+        result.SemanticText.Should().Be(source);
+        result.Sections.Should().BeEmpty();
+        result.BlockCount.Should().Be(0);
+        result.NodeCount.Should().Be(0);
+    }
+
     [Fact]
     public void SemanticProjectionIsUtf8BoundedAndEmptyRenderingIsNotReportedAsSuccess()
     {

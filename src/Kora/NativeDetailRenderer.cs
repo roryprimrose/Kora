@@ -82,7 +82,7 @@ internal sealed partial class NativeDetailRenderer(
         {
             return Fallback(source, "Unavailable", "Renderer unavailable; exact source fallback.", reference);
         }
-        if (!Enum.IsDefined(kind) || !Enum.IsDefined(format))
+        if (kind is not (DetailContentKind.PlainText or DetailContentKind.Markdown) || !Enum.IsDefined(format))
         {
             return Fallback(source, "UnsupportedKind", "Unsupported content kind; exact source fallback.", reference);
         }

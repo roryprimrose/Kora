@@ -55,6 +55,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("private")]
     [InlineData("target")]
     [InlineData("inactive")]
+    [InlineData("initial-private")]
     public async Task RunningInspectionRefusesLatePrivateMetadataAndLifecycleChanges(string fault)
     {
         using var f = new Fixture();
@@ -66,6 +67,7 @@ public sealed partial class ModelTurnHostTests
             if (fault is "target") { f.Metadata = new(f.Session.SessionId, new(1), new("changed")); }
         };
         if (fault is "inactive") { f.Session = f.Session with { IsActive = false }; target = new(f.Session, null); }
+        if (fault is "initial-private") { f.CanControl = false; }
         await service.Invoking(value => value.ReadRunningConversationAsync(target, static () => true, Token))
             .Should().ThrowAsync<InvalidOperationException>();
     }
@@ -124,5 +126,7 @@ public sealed partial class ModelTurnHostTests
         lease.CanContinue.Should().BeFalse();
         live = true;
         lease.CanContinue.Should().BeTrue();
+        await lease.RequestCancellationAsync(() => { });
+        lease.CanContinue.Should().BeFalse();
     }
 }

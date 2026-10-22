@@ -51,6 +51,7 @@ public sealed class ConversationHistoryContextTests
     [InlineData("count")]
     [InlineData("duplicate")]
     [InlineData("foreign")]
+    [InlineData("valid-foreign")]
     [InlineData("pending")]
     [InlineData("missing-answer")]
     [InlineData("role")]
@@ -67,6 +68,7 @@ public sealed class ConversationHistoryContextTests
         if (fault is "count") { selected = Enumerable.Range(1, 17).Select(index => new ConversationHistorySelection(Message(index), ConversationHistoryRole.User)).ToArray(); }
         if (fault is "duplicate") { selected = [selected[0], selected[0]]; }
         if (fault is "foreign") { selected = [new(message with { Request = HostRequest.Create(RequestOrigin.LocalUi) }, ConversationHistoryRole.User)]; }
+        if (fault is "valid-foreign") { selected = [new(Message(1, answer: null) with { Request = HostRequest.Create(RequestOrigin.LocalUi) }, ConversationHistoryRole.User)]; }
         if (fault is "pending") { selected = [new(Message(1, answer: null) with { Revision = 1, Outcome = null, Reason = null }, ConversationHistoryRole.User)]; }
         if (fault is "missing-answer") { selected = [new(Message(1, answer: null), ConversationHistoryRole.Assistant)]; }
         if (fault is "role") { selected = [new(message, (ConversationHistoryRole)99)]; }

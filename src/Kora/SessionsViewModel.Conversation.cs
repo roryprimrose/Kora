@@ -244,6 +244,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        CancelAppearanceSuggestion(reportCancellation: false);
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -258,6 +259,10 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        if (appearanceReview is { Available: false }) { CancelAppearanceSuggestion(reportCancellation: false); }
+        OnPropertyChanged(nameof(AppearanceSuggestionDescription));
+        OnPropertyChanged(nameof(CanConfirmAppearanceSuggestion));
+        OnPropertyChanged(nameof(CanReviewAppearanceSuggestion));
         RestoreUnsent();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),

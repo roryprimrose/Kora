@@ -146,7 +146,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
         Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
-        Kora.Core.Communication.ICallStateService? callState = null)
+        Kora.Core.Communication.ICallStateService? callState = null,
+        IUiDispatcher? dispatcher = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -200,7 +201,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
             new LocalCallAwarePreferences(this, NullLogger<LocalCallAwarePreferences>.Instance),
             callState ?? new FixtureCallState(SilentSpeech is null ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
-            Access, execution, new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
+            Access, execution, dispatcher ?? new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
             NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),

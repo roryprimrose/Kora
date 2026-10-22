@@ -24,6 +24,12 @@ device or additional authority is admitted
 ([test lifecycle](../Kora.Windows.IntegrationTests/PendingQuestionNavigationTests.cs)).
 Presentation readiness waits for the original operation or its terminal failure,
 not a fixed hosted-runner latency threshold. Test cancellation still applies.
+Definition-editor privacy tests separately await `PrivacyClosureTask` before
+asserting native text erasure or deleting scratch storage. The synchronous
+authority hold and dispatched native closure have distinct completion receipts;
+the delayed-dispatch regression preserves immediate rejection and eventual
+complete clearing without assuming editor admission waits for UI delivery
+([privacy receipt regression](../Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
 
 The pending proof is the **screen-reader/text-scale/physical-display slice of
 R05/R12/R14/A4**, not a repeat of the already recorded

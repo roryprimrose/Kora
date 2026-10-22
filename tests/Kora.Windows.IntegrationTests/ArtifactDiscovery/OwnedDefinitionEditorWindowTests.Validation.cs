@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application;
 using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Application.Hosting;
@@ -232,12 +233,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             controller.Bind();
         }
 
-        internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft)
+        internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft,
+            IUiDispatcher? dispatcher = null)
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
             var session = new NativeUxFixtureSession(parent);
-            await session.InitializeAsync();
+            await session.InitializeAsync(null, dispatcher: dispatcher);
             var fixture = new DraftValidationFixture(session, kind);
             if (newDraft) { await fixture.Run(fixture.Prefix + " create example"); }
             else
@@ -257,7 +259,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         { Session.Main.CommandText = command; await Session.Main.RunTypedCommand.ExecuteAsync(); }
         internal void DisposeController() => controller.Dispose();
         public async ValueTask DisposeAsync()
-        { controller.Dispose(); opened.Dispose(); reload.Dispose(); await Admission.DisposeAsync(); Session.Dispose(); }
+        {
+            controller.Dispose();
+            opened.Dispose();
+            reload.Dispose();
+            await Admission.DisposeAsync();
+            await Session.Main.PrivacyClosureTask;
+            Session.Dispose();
+        }
     }
 
     private sealed class ValidationSessionFence(IInstructionControlSessionStore inner) : IInstructionControlSessionStore

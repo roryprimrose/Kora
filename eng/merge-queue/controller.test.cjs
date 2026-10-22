@@ -1,7 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { CHECKS, GATE, JOBS, mode, validateState, ready, priority, title, successfulJobs } = require('./policy.cjs');
+const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS,
+  mode, validateState, ready, priority, title, successfulJobs } = require('./policy.cjs');
 
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
@@ -617,17 +618,14 @@ test('re-enrolment during terminal validation invalidates the old ticket even on
   assert.equal(count(api, 'merge'), 0);
 });
 
-test('review changes and protected merge refusal fail explicitly', async () => {
-  for (const condition of ['review', 'merge']) {
-    const api = new Fake();
-    api.state.active = active();
-    api.workflowRuns = [run()];
-    if (condition === 'review') api.approved = false;
-    else api.merge = async () => ({ merged: false });
-    assert.equal(await step(api), 'blocked');
-    assert.equal(api.state.active, null);
-    assert.equal(api.calls.filter(call => call[0] === 'finish').at(-1)[2], 'failure');
-  }
+test('review changes fail explicitly before attestation', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  api.approved = false;
+  assert.equal(await step(api), 'blocked');
+  assert.equal(api.state.active, null);
+  assert.equal(api.calls.filter(call => call[0] === 'finish').at(-1)[2], 'failure');
 });
 
 test('recovery recognises native auto-merge without overwriting successful evidence', async () => {
@@ -703,6 +701,216 @@ test('a native auto-merge racing the final API response is recognised as an actu
   assert.equal(await step(api), 'merged');
   assert.equal(api.state.active, null);
   assert.deepEqual(api.state.blocked, []);
+});
+
+test('merge reconciliation validates persisted attempt identity and dispatch state', () => {
+  for (const phase of MERGE_PHASES) {
+    assert.equal(validateState({ version: 1, blocked: [],
+      active: active({ phase, mergeStarted: NOW.toISOString() }) }).active.phase, phase);
+    for (const changes of [{ mergeStarted: undefined }, { mergeStarted: null }, { mergeStarted: 'invalid' },
+      { mergeStarted: '2026-01-01' }, { mergeStarted: '2026-01-01T12:00:00+00:00' },
+      { mergeStarted: '2026-01-01T11:59:59Z' }, { dispatchRecorded: false }, { checks: {} }]) {
+      assert.throws(() => validateState({ version: 1, blocked: [],
+        active: active({ phase, mergeStarted: NOW.toISOString(), ...changes }) }), /Invalid/);
+    }
+  }
+  assert.throws(() => validateState({ version: 1, blocked: [],
+    active: active({ mergeStarted: NOW.toISOString() }) }), /Invalid merge reconciliation/);
+  assert.equal(validateState({ version: 1, blocked: [],
+    active: active({ phase: 'retiring', mergeStarted: NOW.toISOString() }) }).active.phase, 'retiring');
+  assert.throws(() => validateState({ version: 1, blocked: [],
+    active: active({ phase: 'retiring', mergeStarted: NOW.toISOString(), dispatchRecorded: false }) }), /Invalid/);
+});
+
+test('merge intent is committed before successful checks or a protected merge request', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  api.finishCheck = async (...args) => {
+    assert.equal(api.state.active.phase, 'merging');
+    assert.equal(api.state.active.mergeStarted, NOW.toISOString());
+    api.calls.push(['finish', ...args]);
+  };
+  api.merge = async () => {
+    assert.equal(api.state.active.phase, 'merging');
+    assert.equal(count(api, 'finish'), 4);
+    return { merged: true };
+  };
+  assert.equal(await step(api), 'merged');
+});
+
+test('one delayed native merge observation preserves all successful checks and recovers without another request', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  const read = api.pull.bind(api);
+  let stale = true;
+  api.pull = async number => {
+    const value = await read(number);
+    if (value.merged && stale) { stale = false; return { ...value, merged: false, state: 'open' }; }
+    return value;
+  };
+  api.merge = async value => {
+    api.calls.push(['merge', clone(value)]);
+    api.prs[0].merged = true;
+    api.prs[0].state = 'closed';
+    return { merged: false };
+  };
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(api.state.active.phase, 'merge-refused');
+  assert.deepEqual(api.calls.filter(call => call[0] === 'finish').map(call => call[2]),
+    ['success', 'success', 'success', 'success']);
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.deepEqual(api.state.blocked, []);
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'finish'), 4);
+});
+
+test('persistent explicit refusal waits to the exact deadline then fails only merge admission', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  api.merge = async value => { api.calls.push(['merge', clone(value)]); return { merged: false }; };
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(api.state.active.phase, 'merge-refused');
+  for (const elapsed of [0, MERGE_CONFIRMATION_MS - 1]) {
+    assert.equal(await step(api, { now: new Date(NOW.getTime() + elapsed) }), 'merge-pending');
+  }
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'finish'), 4);
+  assert.equal(await step(api, { now: new Date(NOW.getTime() + MERGE_CONFIRMATION_MS) }), 'blocked');
+  assert.equal(api.state.active, null);
+  assert.equal(api.state.blocked.length, 1);
+  assert.match(api.state.blocked[0].reason, /no merge was observed/);
+  assert.deepEqual(api.calls.filter(call => call[0] === 'finish').at(-1).slice(1, 3), [4, 'failure']);
+  assert.equal(count(api, 'finish'), 5);
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(await step(api), 'idle');
+});
+
+test('only an exact merged observation can confirm a refused request', async () => {
+  for (const merged of [undefined, null, 'true', 'false', 1, 0]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    const read = api.pull.bind(api);
+    let attempted = false;
+    api.merge = async () => { attempted = true; return { merged: false }; };
+    api.pull = async number => {
+      const value = await read(number);
+      return attempted ? { ...value, merged } : value;
+    };
+    assert.equal(await step(api), 'merge-pending');
+    assert.equal(api.state.active.phase, 'merge-refused');
+    assert.equal(count(api, 'finish'), 4);
+    assert.deepEqual(api.state.blocked, []);
+  }
+});
+
+test('lost merge responses are explicit and retain the lane without retry even after the confirmation budget', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.prs.push(pr(2));
+  api.workflowRuns = [run()];
+  api.merge = async value => { api.calls.push(['merge', clone(value)]); throw new Error('Merge response lost'); };
+  await assert.rejects(step(api), /Merge response lost/);
+  assert.equal(api.state.active.phase, 'merging');
+  assert.equal(await step(api), 'merge-pending');
+  assert.equal(await step(api, { now: new Date(NOW.getTime() + MERGE_CONFIRMATION_MS) }), 'merge-unconfirmed');
+  assert.equal(api.state.active.phase, 'merge-unconfirmed');
+  const writes = count(api, 'finish');
+  assert.equal(await step(api, { now: new Date(NOW.getTime() + MERGE_CONFIRMATION_MS + 1) }), 'merge-unconfirmed');
+  assert.equal(count(api, 'finish'), writes);
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.deepEqual(api.calls.filter(call => call[0] === 'finish').at(-1).slice(1, 3), [4, 'failure']);
+  api.prs[0].merged = true;
+  api.prs[0].state = 'closed';
+  assert.equal(await step(api), 'already-merged');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'finish'), writes);
+});
+
+test('merge attestation or response lookup failures cannot cause blind merge retries', async () => {
+  for (const boundary of ['attestation', 'lookup', 'malformed']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    let attempted = false;
+    api.merge = async value => {
+      attempted = true;
+      api.calls.push(['merge', clone(value)]);
+      return boundary === 'malformed' ? {} : { merged: false };
+    };
+    if (boundary === 'attestation') api.finishCheck = async () => { throw new Error('Attestation failed'); };
+    const read = api.pull.bind(api);
+    api.pull = async number => {
+      if (boundary === 'lookup' && attempted) { throw new Error('Merge lookup failed'); }
+      return read(number);
+    };
+    await assert.rejects(step(api), /failed|Unknown protected merge response/);
+    assert.equal(api.state.active.phase, boundary === 'lookup' ? 'merge-refused' : 'merging');
+    api.pull = read;
+    api.finishCheck = async (...args) => api.calls.push(['finish', ...args]);
+    assert.equal(await step(api), 'merge-pending');
+    assert.equal(count(api, 'merge'), boundary === 'attestation' ? 0 : 1);
+  }
+});
+
+test('unobservable or nonterminal validation after a merge attempt holds the lane rather than admitting another candidate', async () => {
+  for (const missing of [true, false]) {
+    const api = new Fake();
+    api.state.active = active({ phase: 'merge-refused', mergeStarted: NOW.toISOString() });
+    api.prs.push(pr(2));
+    api.workflowRuns = missing ? [] : [run({ status: 'in_progress', conclusion: null })];
+    assert.equal(await step(api), 'merge-pending');
+    assert.equal(await step(api, { now: new Date(NOW.getTime() + MERGE_CONFIRMATION_MS) }), 'merge-unconfirmed');
+    assert.equal(api.state.active.number, 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.deepEqual(api.calls.filter(call => call[0] === 'finish').at(-1).slice(1, 3), [4, 'failure']);
+    const writes = count(api, 'finish');
+    assert.equal(await step(api, { now: new Date(NOW.getTime() + MERGE_CONFIRMATION_MS + 1) }), 'merge-unconfirmed');
+    assert.equal(count(api, 'finish'), writes);
+  }
+});
+
+test('merge reconciliation still enforces source intent and reviews without rewriting validated job checks', async () => {
+  for (const boundary of ['head', 'base', 'intent', 'enrollment', 'review']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    api.merge = async value => { api.calls.push(['merge', clone(value)]); return { merged: false }; };
+    assert.equal(await step(api), 'merge-pending');
+    if (boundary === 'head') api.prs[0].head.sha = OTHER;
+    if (boundary === 'base') api.base = OTHER;
+    if (boundary === 'intent') api.prs[0].auto_merge = null;
+    if (boundary === 'enrollment') api.enrolled = NOW.toISOString();
+    if (boundary === 'review') api.approved = false;
+    assert.equal(await step(api), boundary === 'review' ? 'blocked' : 'retired');
+    assert.equal(api.state.active, null);
+    assert.equal(count(api, 'merge'), 1);
+    const writes = api.calls.filter(call => call[0] === 'finish');
+    assert.equal(writes.length, 5);
+    assert.equal(writes.at(-1)[1], 4);
+  }
+});
+
+test('merge reconciliation rejects backwards clocks and ambiguous candidate run identity', async () => {
+  for (const boundary of ['clock', 'duplicate', 'attempt', 'source']) {
+    const api = new Fake();
+    api.state.active = active({ phase: 'merging', mergeStarted: NOW.toISOString() });
+    api.workflowRuns = [run()];
+    if (boundary === 'duplicate') api.workflowRuns.push(run({ id: 10 }));
+    if (boundary === 'attempt') api.workflowRuns[0].run_attempt = 2;
+    if (boundary === 'source') api.workflowRuns[0].head_sha = OTHER;
+    await assert.rejects(step(api, { now: new Date(NOW.getTime() - (boundary === 'clock' ? 1 : 0)) }),
+      /clock moved|Multiple candidate runs|source or attempt changed/);
+    assert.notEqual(api.state.active, null);
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'merge'), 0);
+  }
 });
 
 test('protection and state persistence errors never turn into success or a second dispatch', async () => {

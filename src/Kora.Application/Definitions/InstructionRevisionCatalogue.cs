@@ -56,6 +56,7 @@ public sealed class InstructionRevisionCatalogue
     {
         lock (gate)
         {
+            if (unavailable) { SuspendReviewedUse(); }
             var before = Load();
             var initial = before is null;
             var state = before ?? new Dictionary<string, string?>(StringComparer.Ordinal);
@@ -237,6 +238,21 @@ public sealed class InstructionRevisionCatalogue
                 var saved = Load();
                 return string.Equals(enabledForRun.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal)
                     || string.Equals(saved?.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal);
+        }
+    }
+
+    /// <summary>Checks current catalogue authority for an already admitted exact owned revision.
+    /// The owning turn must establish capture separately; this does not admit queued use.</summary>
+    public bool IsCapturedUseAllowed(OwnedInstructionSnapshot snapshot)
+    {
+        RequireKind(snapshot);
+        if (snapshot.Document.Definition.Source is not "kora-profile")
+        { throw new InvalidDataException("Captured use requires an admitted Kora-owned source snapshot."); }
+        lock (gate)
+        {
+            if (unavailable) { return false; }
+            return IsEnabled(snapshot)
+                || string.Equals(explicitHolds.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal);
         }
     }
 

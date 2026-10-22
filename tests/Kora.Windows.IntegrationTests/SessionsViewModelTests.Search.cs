@@ -22,6 +22,11 @@ public sealed partial class SessionsViewModelTests
     [InlineData("privacy")]
     [InlineData("source")]
     [InlineData("clear")]
+    [InlineData("kind")]
+    [InlineData("task-state")]
+    [InlineData("decision")]
+    [InlineData("question-status")]
+    [InlineData("answer-channel")]
     public async Task Native_search_suppresses_cancelled_or_late_content_and_has_explicit_recovery(string mode)
     {
         using var f = new InteractionStorageFixture();
@@ -47,6 +52,11 @@ public sealed partial class SessionsViewModelTests
         if (mode is "privacy") { access.CanInspect = false; }
         if (mode is "source") { access.ControlRevision++; }
         if (mode is "clear") { model.ClearHistorySearchInputs(); }
+        if (mode is "kind") { model.HistoryKindChoice = model.HistoryKinds.Single(option => option.Value == SessionHistoryKind.Answer); }
+        if (mode is "task-state") { model.HistoryTaskStateChoice = model.HistoryTaskStates.Single(option => option.Value == HostTaskState.Succeeded); }
+        if (mode is "decision") { model.HistoryDecisionChoice = model.HistoryDecisions.Single(option => option.Value == HostInteractionOutcome.Answered); }
+        if (mode is "question-status") { model.HistoryQuestionStatusChoice = model.HistoryQuestionStatuses.Single(option => option.Value == QuestionStatus.Answered); }
+        if (mode is "answer-channel") { model.HistoryAnswerChannelChoice = model.HistoryAnswerChannels.Single(option => option.Value == RequestOrigin.LocalUi); }
         held.HistoryReads.Should().Be(1, "edits, clear and cancellation must not read storage");
         var record = new SessionHistoryEvent(Guid.NewGuid(), f.Request.SessionId, 1, new(1),
             SessionHistoryKind.Question, SessionHistoryAvailability.Available, f.Request.RequestId.Value,

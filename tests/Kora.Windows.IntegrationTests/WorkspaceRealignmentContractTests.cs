@@ -13,18 +13,19 @@ public sealed class WorkspaceRealignmentContractTests
     {
         var controls = Names(file);
         controls.Should().Contain(["ConversationQuery", "ConversationRole", "SearchConversation",
-            "ReadConversation", "ConversationSearchResults", "SubmitConversation"]);
+            "ReadConversation", "ConversationSearchResults", "SubmitConversation",
+            "ConversationSubmittedFrom", "ConversationSubmittedThrough", "ConversationTaskState"]);
         controls.Where(name => name.StartsWith("ConversationMinimum", StringComparison.Ordinal)
             || name.StartsWith("ConversationMaximum", StringComparison.Ordinal)
-            || name.StartsWith("ConversationSubmitted", StringComparison.Ordinal)
-            || name is "ConversationRequestId" or "ConversationTaskId" or "ConversationOutcome" or "ConversationReason"
-                or "ConversationTaskState").Should().BeEmpty();
+            || name is "ConversationRequestId" or "ConversationTaskId" or "ConversationOutcome" or "ConversationReason").Should().BeEmpty();
     }
 
     [Fact]
     public void SessionsRetainsExistingWorkInspectionAndCancellationWithoutDiagnosticAdmission()
     {
         var controls = Names("SessionsWindow.axaml");
+        controls.Should().Contain(["HistoryKind", "HistoryTaskState", "HistoryDecision",
+            "HistoryQuestionStatus", "HistoryAnswerChannel"]);
         controls.Should().Contain(["ReadQueue", "InspectWork", "CancelQueueEntry", "RemoveQueueEntry",
             "ClearQueue", "ReviewPendingCancellation", "ConfirmPendingCancellation", "DiscardPendingCancellation"]);
         controls.Where(name => name.StartsWith("Enqueue", StringComparison.Ordinal)

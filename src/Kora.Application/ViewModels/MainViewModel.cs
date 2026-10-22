@@ -5432,14 +5432,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var speechRevision = expectedSpeechRevision ?? Interlocked.Read(ref manualCallSpeechRevision);
         var responseRevision = Interlocked.Read(ref webResponseRevision);
         if (!IsHostInputEligible || additionalEligibility?.Invoke() == false) { return false; }
-        if (outputPresentationRevision == responseRevision)
+        var presentationRevision = outputPresentationRevision;
+        var presentationOutput = ResponseOutputUpdate;
+        var observedCurrentOutput = false;
+        if (presentationRevision >= 0)
         {
 #pragma warning disable VSTHRD003 // Join the response's owned output observation, rather than starting duplicate native discovery.
-            if (!await ResponseOutputUpdate) { return false; }
+            var refreshed = await presentationOutput;
 #pragma warning restore VSTHRD003
-            outputPresentationRevision = -1;
+            if (outputPresentationRevision == presentationRevision && ReferenceEquals(ResponseOutputUpdate, presentationOutput))
+            {
+                outputPresentationRevision = -1;
+            }
+            if (!refreshed) { return false; }
+            observedCurrentOutput = presentationRevision == responseRevision;
         }
-        else if (!await RefreshOutputEndpointsAsync(preserveResponse: additionalEligibility is not null, token: cancellationToken)) { return false; }
+        if (!observedCurrentOutput
+            && !await RefreshOutputEndpointsAsync(preserveResponse: additionalEligibility is not null, token: cancellationToken)) { return false; }
         if (responseRevision != Interlocked.Read(ref webResponseRevision)) { return false; }
         bool Eligible() => IsSpeechResponseEnabled && !cancellationToken.IsCancellationRequested
             && speechRevision == Interlocked.Read(ref manualCallSpeechRevision)

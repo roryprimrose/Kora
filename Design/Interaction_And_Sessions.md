@@ -25,6 +25,37 @@ Keep unsent input per exact conversation in memory across view/session switching
 The saved-draft catalogue, explicit ordinary Save/Reload/Clear, comparison and rebase/recovery management documented below are existing implementation approved for retirement, not the target UX.
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
 
+## Exact current-host pending-question focus - 2026-10-21
+
+`open pending question <session-id> <task-id>` is typed/current-name-activated
+navigation only. Both canonical nonempty lowercase D IDs must match the existing
+host-owned current native controller and admitted original wait. The binding is
+captured before either UI queue or generic feedback; IDs and selected-session/
+All work metadata never confer question authority. `pending question help` is
+constant and reads no question.
+
+The delivered production host has only one current local-version wait. Navigation
+does not add a question catalogue, rebind a session, reopen a closed presenter,
+restore history, refresh a question, or read persisted question bodies. A
+metadata-only exact wait/run/task/session and trusted-question-digest check
+validates the original record without replacing it. Original input, private/
+ownership/call/name/control/voice admission and native lifetime remain checked
+through both queues, activation and native acknowledgement. Unbound, changed,
+expired, terminal or uncertain sources fail closed, never focus another target.
+
+The same window, question, generation/revision, local answer and original expiry
+remain unchanged. Focus activation skips the ordinary source-refresh path only
+for this bounded request; existing keyboard/accessibility and explicit answer
+admission remain unchanged. No question creation, answer, approval, dispatch,
+replay, selection, source renewal, speech, clipboard, activity renewal or deadline
+extension is implied. Navigation has its own content-free status, not the
+question/security/response/transcript/speech surfaces.
+
+This consumes the existing original wait and presenter contracts only. No
+provider, hardware, installed-native, retired experiment or broader E/Q evidence
+is an implementation prerequisite. Deterministic parser/application/headless
+native and durable metadata tests own this boundary.
+
 ## Bounded admitted local answer execution - 2026-10-20
 
 Explicit Sessions, shared compact, fresh New request and expanded-prompt
@@ -1545,6 +1576,46 @@ The New request composer retains unsent text only in memory; nonempty input is d
 Unknown creation, retention, terminal or receipt outcomes hold the exact attempt without a second target or submission retry. **Inspect exact attempt** reads its retained target/task under current private/retention authority, changes no meaningful activity and grants no submission authority. A changed observed target remains held. Known or possible partial success stays disclosed; no automatic Done/delete is claimed.
 
 Private SQLite and headless native tests are implementation evidence, not installed accessibility, hardware, provider/inference, profile-original, physical-storage or full R12/R14 qualification. Those gates and the storage/profile deferrals remain unchanged.
+
+### Explicit literal New request dictation
+
+The existing native New request memory buffer has an explicit hold gesture,
+not a command or navigation route. [ComposerDictationService](../src/Kora.Application/Voice/ComposerDictationService.cs)
+owns the cohesive volatile capture/review lifetime. View models expose state
+and delegate; the native owner supplies an exact, user-armed generation,
+observed through lifecycle events rather than focused-window inference.
+There is no latest-target fallback or shared global dictation destination.
+
+The smallest consumed I subset is the existing consented PTT admission,
+activated capture generation/acknowledgement/quiescence seam, private workspace
+control revision, and NewRequestComposer's revisioned memory publication.
+Input/call/recovery/topology/ownership epochs and exact native/buffer identity
+are checked before capture, acknowledgement, result acceptance, release,
+dispatch and publication. Edits, Cancel, native-arm withdrawal, target rename,
+privacy or source lifecycle revocation invalidate late work. Publication rolls
+back after synchronous binding revocation without overwriting newer edits.
+Close, Stop, cancellation and disposal retain and await native release receipts;
+an unconfirmed release remains a sticky unavailable state.
+
+One admitted utterance is literal private memory, never routed to commands,
+models, questions, approvals or tools. Even reserved stop/approval words remain
+inert; native Cancel and Disable listening still revoke capture. Before an
+empty-buffer insert, native release must be confirmed. Every nonempty buffer,
+not just one differing from its saved baseline, requires complete old/literal
+review and explicit Append/Replace/Cancel. Append concatenates exact bytes with
+no inferred separator. No Create, Save, Submit, attachment, activity renewal
+or execution is implicit; separate ordinary retention screening is unchanged.
+The existing New request window has one buffer; no expanded editor or
+navigation behavior is added by dictation.
+
+`IActivatedVoiceRecognitionService.IsLiteralDictationAvailable` defaults false.
+Production Windows capture retains this explicit unqualified state: installed
+recognizer presence does not enable literal dictation. The gesture cannot
+enable listening, grant consent, select devices or perform provider setup.
+Deterministic seam fakes qualify only their test instances and cover the full
+path without real hardware/provider/experiment execution. E/Q, installed,
+hardware, acoustic and provider evidence remains separate and unclaimed;
+portable Release checks and raw 100% line/branch coverage remain merge gates.
 
 ### Explicit retained original USER text reuse — 2026-10-19
 

@@ -1,10 +1,12 @@
 using Kora.Application.ViewModels;
+using Kora.Application.Presentation;
+using Kora.Core.Presentation;
 
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-public sealed class ResponseWindowController : IDisposable
+public sealed class ResponseWindowController : IDisposable, ICurrentResponsePresentation
 {
     private readonly MainViewModel viewModel;
     private readonly ILogger<ResponseWindowController> logger;
@@ -21,7 +23,29 @@ public sealed class ResponseWindowController : IDisposable
         this.logger = logger;
         details = detailController;
         viewModel.WindowActionRequested += OnWindowActionRequested;
+        viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
+        viewModel.BindCurrentResponsePresentation(this);
     }
+
+    public Func<bool> CaptureLifetime()
+    {
+        var captured = window;
+        return () => !disposed && captured is { IsVisible: true } && ReferenceEquals(captured, window);
+    }
+
+    public bool Dismiss(Func<bool> admitted)
+    {
+        if (disposed || window is not { IsVisible: true } current || !admitted()) { return false; }
+        current.HideResponse();
+        return !current.IsVisible;
+    }
+
+    public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted) =>
+        !disposed && window is { IsVisible: true } current && admitted()
+        && details?.OpenCurrentResponse(content, current, admitted) == true;
+
+    private void OnCurrentResponseChanged(object? sender, EventArgs eventArgs) =>
+        details?.RetireUnavailableCurrentResponses();
 
     public void Dispose()
     {
@@ -32,11 +56,13 @@ public sealed class ResponseWindowController : IDisposable
 
         disposed = true;
         viewModel.WindowActionRequested -= OnWindowActionRequested;
+        viewModel.CurrentResponseChanged -= OnCurrentResponseChanged;
         if (window is not null)
         {
             window.Close();
             window = null;
         }
+        details?.RetireUnavailableCurrentResponses();
     }
 
     private void OnWindowActionRequested(object? sender, WindowAction action)

@@ -27,6 +27,19 @@ not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
+## Exact current-response window actions
+
+`dismiss current response` and `open current response details` use the same native
+controllers as **Dismiss** and **Current response details**. `current response help`
+lists the exact grammar. Activated voice requires the current assistant-name prefix.
+Only the original visible ordinary response is eligible: never a question,
+approval, preview, raw source or a newer response selected while work was queued.
+Native acknowledgement is required; privacy/ownership/input/call changes, source
+retirement or an unavailable native host fail closed. Details retire with that
+response and grant no clipboard authority. These actions do not change topmost,
+always-show or any other saved preference, speak, invoke a model or pin content.
+See [exact commands](commands.md#dismiss-or-inspect-the-exact-current-response).
+
 ## Deliberate current-response playback
 
 **Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.
@@ -35,6 +48,16 @@ It retains the complete answer, uses normal speech admission and both summary ca
 The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+## Return focus to a pending question
+
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)
+only focuses the exact still-open, current host-owned native question.
+It cannot reopen dismissed or historical questions, select a different session,
+replace a draft answer or answer/approve by command. `pending question help`
+displays constant syntax, not question content or current IDs.
+Navigation status is separate from the current response and transcript;
+question controls retain their existing explicit one-shot answer behavior.
 
 ## Output precedence
 

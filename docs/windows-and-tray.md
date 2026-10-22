@@ -101,6 +101,28 @@ No body or target arguments are accepted. Resolve pending questions/approvals fi
 2. Choose **Create new empty target**. Inspect the accepted **New conversation** ID, name, generation and metadata revision. This commits only an empty Active session, not the body.
 3. Choose **Review frozen body for this target**, inspect the exact body/target, then separately **Submit reviewed exact body**. Edits or Cancel retire that review, even if the edited bytes later match.
 
+**Hold to dictate literal draft text** is an explicit native gesture on this
+same buffer (left mouse button, Space or Enter; release to finish). It never
+opens New request through voice or infers a target from focus. Literal dictation
+is **currently unavailable in production** until the capture/transcriber is
+qualified; an installed recognizer alone is not qualification. The gesture
+cannot enable listening, grant consent or select a microphone.
+
+When qualified and admitted through current consented PTT readiness, one
+transcription is inert draft text, including words such as "stop listening",
+"approve" or "submit". Capture must be released before insertion. An empty
+buffer is never filled by a late open: releasing before capture opens cancels
+that activation, and opening has a five-second deadline. An empty
+buffer receives the exact literal text; any nonempty buffer first shows complete
+original/transcribed text and requires separate **Append**, **Replace** or
+**Cancel**. Append adds no separator. Neither choice creates, saves, submits,
+attaches or executes anything. Cancel preserves the original memory.
+Edits (even identical bytes), target rename/lifecycle changes, changed private,
+call/input/device/ownership epochs, Escape, loss of the native arm or closing
+discard stale results. Close/revocation awaits capture release; failed release
+is explicit and prevents another activation. Pending questions and approvals,
+ordinary PTT and separate saved-draft/submission review keep their own authority.
+
 Submit uses the same body bounds, best-effort credential rejection, exact USER retention and admitted execution as the [named-session composer](#exact-session-conversation-and-composer). A separately qualified local host turn may use admitted read-only tools and retain its genuine bounded ASSISTANT answer, displayed separately from HOST/task status. Production profiles remain unqualified and explicitly unavailable; no provider setup, hosted egress, fallback or implicit routing is performed. Cancellation or uncertain commit/readback holds the original attempt without retry; no answer is inferred from admission alone.
 
 Unsent input is memory-only. Creation and Submit remain separate operations; Cancel or close does not roll back the disclosed session or mark it Done. Nonempty close and application exit offer Discard/Cancel. There is no ordinary draft Save/Reload, autosave, catalogue or automatic transfer ([composer](../src/Kora.Application/Hosting/NewRequestComposer.cs), [native close](../src/Kora/NewRequestWindow.axaml.cs)).
@@ -314,11 +336,13 @@ clipboard. No new text quota or model capacity is inferred.
 
 In an admitted file preview, selected captured-folder file or retained Session attachment, enter a one-line literal in **Literal Find** and explicitly choose **Find first**. This searches only the displayed immutable original, not every folder file, the current filesystem, a provider or a conversation.
 
-Matching is **case-sensitive**, preserves spaces and punctuation exactly, and treats regex/wildcard-looking text literally. Limits are 256 UTF-16 characters / 512 strict UTF-8 bytes; empty, malformed or unsafe control-bearing input is unavailable. Nothing happens on keystrokes.
+**Match case** defaults checked: matching uses case-sensitive ordinal comparison. Uncheck it for explicit **ordinal ignore case** in this original-file Literal Find only. Neither mode uses the current culture, accent folding, normalization, regex, word stemming or fuzzy matching. Spaces, punctuation, original query and original source stay unchanged. Limits are 256 UTF-16 characters / 512 strict UTF-8 bytes; empty, malformed or unsafe control-bearing input is unavailable. Nothing searches on keystrokes or checkbox changes.
 
-**Find next** starts after the selected match's exclusive end. **Find previous** finds the last match ending before or at its start. There is no overlapping cursor step or wrap. End-of-direction is not a claim that the whole file has no match. **Clear literal Find** cancels work and clears its query, cursor and span.
+Editing the query or changing **Match case** immediately retires the match, total, ordinal, navigation and focus claims without I/O. Choose **Find first** separately to search again. Reopened/replaced views default checked; no mode is persisted. This option does not change clipboard, metadata, Details, draft Find or model lexical retrieval/citation rules.
 
-The focused match is inert, non-selectable text with exact source/revision/item/digest and original UTF-16 `[start, end)` metadata; it is not a ranked citation. Full original source remains below. Folder selection/citation navigation clear the old query and cursor; query/mode/search/cancel/source/private/window changes suppress late Find results.
+**Find next** starts after the selected match's exclusive end. **Find previous** reverses the same complete forward nonoverlapping sequence under the selected comparison, including near-overlapping literals. The total and ordinal describe that sequence only. There is no overlapping cursor step or wrap. End-of-direction is not a claim that the whole file has no match. **Clear literal Find** cancels work and clears its query, cursor and span.
+
+The focused match is inert, non-selectable **original-source text**, even when its case differs from the query, with exact source/revision/item/digest and original UTF-16 `[start, end)` metadata; it is not a ranked citation. Full original source remains below. Folder selection/citation navigation clear the old query and cursor; query/mode/search/cancel/source/private/window changes suppress late Find results.
 
 Retained Find validates the exact private historical Session/storage source after original-file removal, without rereading that path or renewing session activity. No clipboard, export, links, speech, history, query persistence, model or new read permission is added. Native-only Find is separate from existing inspect/search focus routes and unchanged ranked lexical/Markdown search.
 
@@ -751,6 +775,15 @@ This question card is separate from passive Sessions/history and is not a
 new side effect or general approval dispatcher.
 
 ### Return to the current version question
+
+For focus **without recovery**, use
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question).
+Both IDs must match the original currently host-owned wait and its still-open
+native window. This command preserves unsaved answers and never reloads source
+content, selects a session or resurrects a closed/historical question.
+`pending question help` is constant syntax, not a list of questions or IDs.
+Navigation status is separate; answer or cancel only through the existing
+explicit controls. The recovery tray entry below retains its distinct behavior.
 
 Use **Tray > Return to current question** after closing/Escape on the native local-version card. This returns to the **same still-live original request, session, task and question**, not a replacement version check. If its exact window is already open, the route activates it; selecting another Session does not retarget it.
 

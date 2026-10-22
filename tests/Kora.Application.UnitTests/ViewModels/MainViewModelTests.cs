@@ -4537,6 +4537,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
+            .Concat(["pending question help"])
             .Concat(NewRequestOpenCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
@@ -4558,6 +4559,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
+            .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
@@ -9326,6 +9328,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public long CaptureGeneration => Generation;
 
         public bool IsAmbientListeningAvailable => false;
+
+        public bool IsLiteralDictationAvailable { get; set; }
 
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 

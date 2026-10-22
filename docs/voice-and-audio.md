@@ -101,6 +101,12 @@ listening** closes input for the current run without withdrawing saved consent.
 
 ### Exact stop listening
 
+The separate [New request literal dictation gesture](windows-and-tray.md#new-request-with-a-fresh-session)
+does not use the command router. In that explicitly armed buffer, even "stop
+listening" is inert draft content; use native Cancel dictation or Disable
+listening to revoke capture. Literal dictation remains unavailable until its
+capture/transcriber is qualified and does not change consent or listening.
+
 Type exact `stop listening` or `disable listening`, optionally prefixed by the current assistant name. Already activated voice accepts the same phrases; this does not add ambient listening or a wake detector ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [recognition phrases](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 These commands, native Settings and tray Disable listening share one run-only [stop action](../src/Kora.Application/Voice/ListeningStopAction.cs).

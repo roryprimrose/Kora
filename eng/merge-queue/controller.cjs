@@ -186,7 +186,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       active.phase = 'merge-refused';
       await persist();
       const observed = await api.pull(active.number);
-      if (!observed.merged) {
+      if (observed.merged !== true) {
         api.notice('Protected merge request was refused; awaiting native merge visibility without retrying or overwriting validated CI.');
         return 'merge-pending';
       }

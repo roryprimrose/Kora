@@ -789,6 +789,25 @@ test('persistent explicit refusal waits to the exact deadline then fails only me
   assert.equal(await step(api), 'idle');
 });
 
+test('only an exact merged observation can confirm a refused request', async () => {
+  for (const merged of [undefined, null, 'true', 'false', 1, 0]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    const read = api.pull.bind(api);
+    let attempted = false;
+    api.merge = async () => { attempted = true; return { merged: false }; };
+    api.pull = async number => {
+      const value = await read(number);
+      return attempted ? { ...value, merged } : value;
+    };
+    assert.equal(await step(api), 'merge-pending');
+    assert.equal(api.state.active.phase, 'merge-refused');
+    assert.equal(count(api, 'finish'), 4);
+    assert.deepEqual(api.state.blocked, []);
+  }
+});
+
 test('lost merge responses are explicit and retain the lane without retry even after the confirmation budget', async () => {
   const api = new Fake();
   api.state.active = active();

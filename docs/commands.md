@@ -109,6 +109,28 @@ outcomes through configured provider-neutral admission. It is not a new typed/
 voice command, question reply, approval, fixed-read queue profile, model tool or
 bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
+## Dismiss or inspect the exact current response
+
+Use `dismiss current response`, `open current response details`, or `current response help`.
+Typed input accepts the optional current assistant name. Activated voice requires
+that current name, for example `Kora, open current response details`. Extra words,
+sources, controls and incomplete forms are refused, not sent to a model.
+
+These commands share the compact window's **Dismiss** and **Current response
+details** native controllers. They capture the original ordinary response before
+command feedback, never choose a later response, and report success only after
+the native window acknowledges hiding or opening that exact revision.
+Details contain only that ordinary response's title and body as inert native text;
+this route does not copy content or open web, clipboard, file or retained sources.
+
+Questions, approvals, security previews, protected calls, missing/hidden/replaced
+responses and revoked privacy, input or ownership are refused without cancelling
+or replacing a pending decision. A queued action is rechecked through native
+completion. Dismissal, replacement, timeout, privacy closure and disposal retire
+current-response details; recovery never resurrects them.
+There is no per-response pin/unpin, preference write, model or speech action.
+Uncomposed native hosts report unavailable; this does not qualify a model route.
+
 ## Read the current response aloud once
 
 Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.

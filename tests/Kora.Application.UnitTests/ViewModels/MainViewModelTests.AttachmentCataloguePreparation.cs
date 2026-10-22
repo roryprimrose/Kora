@@ -143,10 +143,8 @@ public sealed partial class MainViewModelTests
                 case "call": newerInput = f.ViewModel.SetManualCallAsync(true, RequestOrigin.LocalUi,
                     f.ViewModel.CallPolicyRevision, TestContext.Current.CancellationToken); break;
                 case "input":
-                    var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
-                        "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-                    newerInput = (Task)routing.Invoke(f.ViewModel,
-                        ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null, null])!;
+                    newerInput = InvokeTranscriptForTest(f.ViewModel, "attachment catalogue help",
+                        SecurityAuditInitiator.TypedCommand);
                     break;
             }
         };
@@ -232,10 +230,8 @@ public sealed partial class MainViewModelTests
         {
             f.Dispatcher.BeforeInvoke = () =>
             {
-                var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
-                    "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-                consentChange = (Task)routing.Invoke(f.ViewModel,
-                    ["attachment catalogue help", 1f, SecurityAuditInitiator.TypedCommand, null, null, null, null])!;
+                consentChange = InvokeTranscriptForTest(f.ViewModel, "attachment catalogue help",
+                    SecurityAuditInitiator.TypedCommand);
             };
         }
         await f.Voice.RaiseTranscriptAsync((loss is "unprefixed" ? "" : "Kora, ") + PrepareCatalogue, 1);
@@ -286,9 +282,7 @@ public sealed partial class MainViewModelTests
     public async Task CataloguePreparationRejectsNonCommandInitiators(SecurityAuditInitiator initiator)
     {
         var f = new Fixture();
-        var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
-            "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, [PrepareCatalogue, 1f, initiator, null, null, null, null])!;
+        await InvokeTranscriptForTest(f.ViewModel, PrepareCatalogue, initiator);
         f.ViewModel.Transcript.Should().Contain("unavailable");
     }
 

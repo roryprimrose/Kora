@@ -60,6 +60,21 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Embedded_owned_editor_metadata_find_is_displayed_details_only_without_read_or_use_authority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Find in selected metadata")
+            .And.Contain("never searches the")
+            .And.Contain("complete nonoverlapping sequence without wrapping")
+            .And.Contain("source editor, unsaved draft, other rows, hidden paths")
+            .And.Contain("It does not open or inspect a file")
+            .And.Contain("focus failure explicitly clears")
+            .And.Contain("not logged, persisted, copied, sent to a model or spoken")
+            .And.Contain("Ctrl+F is not");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

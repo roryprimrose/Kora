@@ -2,6 +2,7 @@ using Kora.Core.Context;
 
 namespace Kora.Application.Presentation;
 
+// Getters are cached reads. Owners must check admission before disclosure and at each native focus boundary.
 public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool> current, bool counted = false) : IDisposable
 {
     private string snapshot = admittedDetails;
@@ -20,14 +21,14 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         ? new(true, query, status, match, cursor is not null, exactMatch, count, ordinal, hasCount)
         : AdmittedMetadataFindSnapshot.Unavailable;
 
-    public bool Available => EnsureCurrent();
-    public string Query => EnsureCurrent() ? query : string.Empty;
-    public string Status => EnsureCurrent() ? status : string.Empty;
-    public SnapshotLiteralSpan? Match => EnsureCurrent() ? match : null;
-    public bool CanNavigate => EnsureCurrent() && cursor is not null;
-    public int Count => EnsureCurrent() ? count : 0;
-    public int Ordinal => EnsureCurrent() ? ordinal : 0;
-    public string ExactMatch => EnsureCurrent() ? exactMatch : string.Empty;
+    public int Count => count;
+    public int Ordinal => ordinal;
+    public bool Available => admission is not null;
+    public string Query => query;
+    public string Status => status;
+    public SnapshotLiteralSpan? Match => match;
+    public bool CanNavigate => cursor is not null;
+    public string ExactMatch => exactMatch;
 
     public void Edit(string value)
     {
@@ -97,13 +98,16 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
         if (counted)
         {
             status += $" Selected metadata only: {count} nonoverlapping matches; "
-                + (found is null ? "no displayed match." : $"selected {ordinal} of {count}.");
+                + (found is null ? $"no displayed match; boundary ordinal {ordinal} of {count}." : $"selected {ordinal} of {count}.");
         }
     }
 
+    public bool CheckAdmission() => EnsureCurrent();
+
     private bool EnsureCurrent()
     {
-        if (admission?.Invoke() == true) { return true; }
+        var admitted = admission;
+        if (admitted?.Invoke() == true && ReferenceEquals(admission, admitted)) { return true; }
         Dispose();
         return false;
     }
@@ -111,7 +115,7 @@ public sealed class AdmittedMetadataFindState(string admittedDetails, Func<bool>
     public void Dispose()
     {
         admission = null;
-        snapshot = query = status = string.Empty;
+        snapshot = query = status = exactMatch = string.Empty;
         cursor = match = null;
         count = ordinal = 0;
         hasCount = false;

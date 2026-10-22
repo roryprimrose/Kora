@@ -97,14 +97,14 @@ public sealed partial class IdentityMetadataFindPane : UserControl, IDisposable
     }
 
     private bool CurrentMatch(AdmittedMetadataFindState? admitted) =>
-        admitted is not null && ReferenceEquals(state, admitted) && admitted.Match is not null;
+        admitted is not null && ReferenceEquals(state, admitted) && admitted.CheckAdmission() && admitted.Match is not null;
 
     private void Render()
     {
         rendering = true;
         try
         {
-            var available = state?.Available == true;
+            var available = state?.CheckAdmission() == true;
             if (!available) { state?.Dispose(); state = null; }
             // Focus must not remain on a retired private match or disabled query.
             var hasMatch = state?.Match is not null;

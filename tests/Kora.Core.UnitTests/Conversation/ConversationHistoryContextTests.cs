@@ -55,6 +55,7 @@ public sealed class ConversationHistoryContextTests
     [InlineData("missing-answer")]
     [InlineData("role")]
     [InlineData("null")]
+    [InlineData("null-message")]
     [InlineData("sequence")]
     [InlineData("inconsistent")]
     [InlineData("invalid")]
@@ -70,6 +71,7 @@ public sealed class ConversationHistoryContextTests
         if (fault is "missing-answer") { selected = [new(Message(1, answer: null), ConversationHistoryRole.Assistant)]; }
         if (fault is "role") { selected = [new(message, (ConversationHistoryRole)99)]; }
         if (fault is "null") { selected = [null!]; }
+        if (fault is "null-message") { selected = [new(null!, ConversationHistoryRole.User)]; }
         if (fault is "sequence") { selected = [selected[0], new(Message(1), ConversationHistoryRole.User)]; }
         if (fault is "inconsistent") { selected = [selected[0], new(message with { Body = "different" }, ConversationHistoryRole.Assistant)]; }
         if (fault is "invalid") { selected = [new(message with { Sequence = 0 }, ConversationHistoryRole.User)]; }

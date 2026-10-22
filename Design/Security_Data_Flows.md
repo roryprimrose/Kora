@@ -2,23 +2,15 @@
 
 ## Private retained attachment metadata search boundary
 
-The [retained-slot catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) permits native bounded literal search only over already exposed Session/source/revision/item IDs, digest and media type. It does not search hidden descriptor filenames/paths or removed-slot metadata. The shared strict literal policy preserves exact case/spaces and fails closed on malformed/oversized input.
-The query remains volatile and excluded from query/page serialization, audit/logging, tags/Baggage, persistence, export, transcripts and model/network context. Run-local authenticated continuations contain only a keyed query fingerprint; source/profile/viewer/authority/expiry bounds and full validation of irrelevant records remain mandatory. No content read, original-path access, index, permission, consent, activity renewal or authority expansion is added. Query/source/private changes and cancellation/close fence late results and exact navigation; unknown/corrupt/unsupported state is not empty success.
+The [retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) exposes bounded metadata Browse/exact-session navigation and meaningful lifecycle/type/copy-status/byte filters, not engineering source/profile/revision/digest queries. Selected displayed-text Find remains volatile and inert.
 
-Native attachment revocation is nonblocking and bound to the originating inspection lifetime; body invalidation additionally binds its exact view revision. Delayed notifications cannot cancel a newly admitted explicit inspection or close its new retained/recovery view. Current-lifetime session/private revocation still clears all its views and pending work; changing views alone does not supersede that revocation.
+Internal source identity, complete row/audit-prefix validation, keyed continuations and exact retained-copy verification remain mandatory. Query edits/source/privacy closure retire observations and late callbacks; metadata matching is not file-read, model-source-use, egress or execution authority.
 
-Optional exact local-file source/revision/item IDs use the shared nonempty
-canonical lowercase D-GUID policy and match only Confirmed retained copies.
-Every complete summary is validated before exclusion. Exact predicates cannot
-reconstruct or expose former IDs from unavailable/removed tombstones; Held
-copies never match. These volatile IDs are keyed-continuation-bound correlation
-metadata only, never source consent, current file identity, path disclosure,
-body integrity, file-read authority or proof a copy exists. Existing provenance
-and separately admitted full-byte navigation remain unchanged.
+Revocation remains bound to its originating inspection lifetime and exact body view. Delayed notifications cannot cancel a newer independent admitted inspection. Removed/Held/Unavailable copies never acquire content authority through a query or display field.
 
 ## All work private metadata query boundary
 
-The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the authoritative Sessions/saved-draft metadata query policy, never content search. Literal saved-name substrings and canonical exact GUIDs are private navigation data, not intent, identity or authority. Typing performs no read; explicit Search/Refresh/Next uses existing private metadata admission and independently admitted per-session work observations. Ten-session scans, fifty task/question records per session, complete 64 KiB projection, canonical-ID ordering, timeout/cancellation and explicit unavailable/nonmatch/omission counts remain unchanged.
+The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the Sessions metadata query policy, never content search. Names/IDs are private navigation data, not authority. Explicit Search/Refresh/Next retains bounded scans, full validation and truthful unavailable/omitted status; typing reads nothing.
 Only the query digest enters a volatile host/admission/source-epoch/filter-bound continuation; query text never enters persistence, logs, Activity tags/Baggage or model context. Edits clear stale selection/page/continuation and fence late results; private closure clears text too. Empty pages with Next are not all-clear, and mutable keysets are not atomic global snapshots. Exact navigation repeats private admission and grants no resume, activity renewal, queue action, question/voice retarget, provider/worker/resource, network or execution authority. This does not qualify global work/body search or installed accessibility.
 
 ## Owned definition metadata navigation boundary
@@ -36,11 +28,8 @@ Queries and one exact match are volatile presentation only: no persistence, logg
 ## Exact-session conversation retention boundary
 
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
-stores exact explicitly submitted user content and explicitly saved drafts
-only in the private session authority. One saved draft per exact session and
-100 submitted messages/session are initial UX bounds, **not aggregate stored
-session/draft/message quotas**. Nothing evicts unexpired content or required
-audit to meet capacity.
+stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
+The 100-message session bound is not an aggregate storage quota. Nothing silently evicts unexpired content or required audit ([unsent input](../src/Kora/SessionsViewModel.Unsent.cs), [read-only recovery](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
 
 Frozen body/source and fresh task intent share one physical COMMIT with typed
 requested/terminal audit and content digests; raw bodies are not audit/log/tag/
@@ -124,84 +113,15 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
-The [native optional prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) captures only exact same-session immutable ID and real revision from existing bounded host task metadata. It adds an optional optimistic enqueue guard, not durable policy/schema or authority.
-The original audited transaction rechecks task existence/session/revision and private source eligibility before COMMIT; missing/changed source refuses without None fallback. Typed after-task remains unchanged, and normal dispatch reevaluates Succeeded independently of the original observation.
+Public diagnostic scheduling/preparation/settings are removed. Exact retained-work inspection/cancellation/removal/clear remains without replay or new authority ([workspace boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [compatibility](Work_Management.md#delivered-deterministic-local-version-queue)).
 
-The [expired current-run removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) binds the exact stored Pending source/task/run/private epoch and host-issued fresh same-profile request/task IDs to a separate user confirmation.
-Queue/order/pause/settings/source revisions and actual original UTC expiry are checked under the same short private SQLite admission fence. Typed original/fresh audit lineage and old Removed/Cancelled plus new Pending/IntentRecorded changes commit all-or-none, without new grants, replay, dependency retarget or side-file authority. Unknown commit/delivery holds admission.
+The maintained internal scheduler/store retains original host-issued identities, private admission, FIFO/dependencies, full-row validation, no-replay restart handling and typed requested/terminal audit. Malformed/corrupt/unconfirmed state never falls back to defaults or apparent success ([queue service](../src/Kora.Application/Hosting/SessionQueueService.cs)).
 
-The [selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) admits only a complete host-reviewed same-session current-run set of at most the shared ten pending IDs/revisions. No arbitrary payload/path/model selection enters it.
-Original native/typed/activated input, private epoch, generation, queue/run/control and full ordered membership bind review and physical commit.
+Pending cancellation binds the complete reviewed same-session/current-run set and original provenance to final membership/source/private fences. Revisions/audit/receipt commit atomically; one stale member refuses all. Uncertainty holds without rollback or retry ([contract](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12)).
 
-All selected queue/task revisions, optional existing order-lineage append, requested/terminal typed audit and terminal control receipt commit together under the existing exclusive SQLite lease.
-Audit provenance retains each exact original member, not parsed rendered messages or an arbitrary SecurityAudit property. Existing canonical bytes/digests, storage inventory and retention/disposition authority are preserved.
+Internal configuration compatibility preserves existing saved values and admitted clocks. Retiring its editor never changes captured budgets or grants dispatch ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)). Direct version/capability/readiness actions retain their separate exact routes and authority.
 
-One stale member or concurrent mutation refuses all without skipping. Required write/audit/readback/commit uncertainty holds admission; known commit is not undone after failed delivery. No automatic retry, rollback claim, history deletion, provider/worker termination, grant consumption or new persistence authority is introduced.
-
-The original [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
-share the original queue admission fence and freshly admitted Native registry
-caller. New page rows retain only bounded typed catalogue/recorded-readiness/
-runtime metadata, with terminal digest/profile binding. Raw probe details,
-user content, paths, dumps, arbitrary arguments and provider/model authority
-are excluded. Exact private status retrieves the saved observation; Work/AllWork
-and local events exclude result data. Format 4 is explicit; legacy version
-bytes/digests/clocks stay unchanged. No grants, permission levels, egress,
-automatic dispatch or replay are introduced.
-
-The [two targeted profiles](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) use the same fences and actual actions: one exact current-catalogue descriptor selection or host-fixed recorded `local.inference` status. Explicit format 5 alone carries the new closed metadata; runtime targets cannot be overridden.
-Matching single-record wire validation is shared with the registry. No arbitrary request/JSON/parameters, egress, probe, inference or new authority is admitted.
-
-The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
-Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
-Protected original-voice writes deny without channel relabelling or deferred application.
-Required typed audit, atomic save/readback and durable completed intent precede activation; unknown/corrupt/unconfirmed storage holds new admissions without defaulting ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs)).
-
-Only pending capacity 1-10, synchronous read-only slots 1-2, future-enqueue pending lifetime 1-120 minutes/default 30 and future-admission active budget 1-60 minutes/default 5 are configurable.
-Short consuming transactions serialize with edits and revalidate confirmed storage at reads/commits, but active callbacks do not hold that configuration gate.
-Lowering limits never removes pending records or revokes existing admissions; existing pending metadata and admitted deadlines remain unchanged. Original dispatch authority binds format-3 active budget/precise UTC deadline and same-run monotonic enforcement; legacy admissions retain five minutes. Cancellation/elapsed budgets suppress late output without termination/rollback authority.
-No grant, execution token, schema migration, automatic dispatch, model configuration tool or general effect/provider authority is created ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [durable invariants](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
-
-The native selected-session work surface is a passive consumer of one bounded
-validated authority snapshot. It adds no store/schema, egress, authority grant
-or model-facing tool. IDs/revisions/selection epoch bind admitted controls to
-the same exact command services and commit checks. Background observations
-neither extend meaningful activity nor dispatch/renew/retarget questions.
-No session name, question text, history/evidence content, path, preview/skill
-body or caption enters queue payloads, diagnostics or activity tags/baggage.
-Close/privacy loss cancels and clears live presentation; disposed subjects
-fail closed while exact redacted history remains independently readable.
-
-The schema-v5 queue is host-only metadata over the existing qualified local
-version action. Original native/typed/current-name activated user routes share
-one service; no model or provider receives queue bodies, IDs or observations.
-Only exact session/request/task identities and explicit expected revisions
-admit mutation. Name, focus, incoming trace, model text, grant or selected
-window cannot create dispatch authority.
-
-Private ownership, call/privacy epoch, existing Active session generation,
-capacity/dependencies and fair slots are checked before and under the
-transactional commit lease. Lock/unlock and handoff epochs retire eligibility;
-no ambient resume occurs. Queue admission/terminal task state and required
-typed audit are one COMMIT. Generic task writes cannot bypass the queue
-gateway; only truthful no-replay Interrupted/Unknown recovery is permitted.
-Audit/storage failures expose uncertainty and stop dispatch without retry.
-
-Only the fixed read-only registry action is callable, with fresh host-bound
-Native authority. No arbitrary resource/effect descriptors, scripts, power,
-write connectors, hosted/local-model reasoning or audio are admitted.
-Unknown/unclassified effects quarantine the addressed session and dependent
-work, while unrelated fixed local reads remain eligible. No SDK callback or
-cancel acknowledgement certifies an effect's termination.
-
-Queue rows retain content-free identity/revision/timing/state metadata.
-They contain no label, utterance, path, skill body, file/clipboard preview,
-caption or model output. Deferred work uses fresh activities and causal links,
-not a retired parent or Baggage; logs contain only fixed structured failure
-type. Ordered history still derives from committed task receipts, never from
-logs or queue contents. Logical disposition retains these minimal audited
-identities while redacting existing history content; it is not forensic erasure.
-Perpetual grants remain independent. Restart restores observation only,
-projects interrupted/unknown tasks and never dispatches a saved queue.
+Work/All Work are bounded independent observations, not global completeness or physical-stop claims. Names, selection, event/model text and incoming traces cannot supply control authority. Privacy/source loss retires volatile display ([workspace contract](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)).
 
 ## Passive Committed Authority Audit Inspection
 
@@ -725,7 +645,7 @@ cancelled/declined or audit-failed review returns no disclosure authority.
 An approved one-use confirmation still encounters the independent unavailable
 production qualification and missing final-request egress gates.
 
-The [R02 outcomes](Runtime_Provider_Feasibility.md#evidence-baseline-and-interpretation)
+The [R02 outcomes](Runtime_Provider_Feasibility.md#historical-node-baseline-and-interpretation)
 reject prompt/tool-hook-only mediation: failed tool output bypassed the
 successful-result hook. Every result status and exception must be host-bounded
 and sanitized before SDK submission, without inventing success or changing

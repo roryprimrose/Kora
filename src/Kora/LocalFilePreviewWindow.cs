@@ -454,6 +454,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         ClearNavigation();
         SetFindSource(null);
         findQuery = null;
+        findMatchCase = null;
         findStatus = null;
         findNext = null;
         findPrevious = null;

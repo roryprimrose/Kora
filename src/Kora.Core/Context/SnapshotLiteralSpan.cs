@@ -3,4 +3,11 @@ namespace Kora.Core.Context;
 /// <summary>One end-exclusive UTF-16 span, not an occurrence index.</summary>
 /// <param name="Start">Original UTF-16 start.</param>
 /// <param name="Length">Unchanged literal length.</param>
-public sealed record SnapshotLiteralSpan(int Start, int Length);
+public sealed record SnapshotLiteralSpan(int Start, int Length)
+{
+    internal StringComparison Comparison { get; init; } = StringComparison.Ordinal;
+
+    // Opt-in comparisons must not promote a cursor from another exact source or query.
+    internal string? SourceText { get; init; }
+    internal string? Query { get; init; }
+}

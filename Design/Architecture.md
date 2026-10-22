@@ -417,8 +417,15 @@ The voice controller owns microphone consent, device lifetime, and a bounded in-
 First-launch consent, ordinary restart, unlock/resume and loss recovery use the
 [canonical microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix);
 saved consent and live capture enablement are separate.
-A local detector recognises the configured active names ("Kora" initially) without sending ambient audio to transcription or a model.
-The host-owned profile/alias registry and atomic detector switching follow [Custom Activation Names](Activation_Name.md); names are data-only settings, not replacement executable code.
+A local detector recognises the configured active name ("Kora" initially)
+without sending ambient audio to a general transcriber or reasoning model.
+The configured name and atomic detector switching follow
+[Assistant and Activation Name](Activation_Name.md); no old-name alias is retained.
+The [local speech-input contract](Speech_Input.md) owns separate wake,
+endpointing, ASR and optional speaker capabilities, configurable resource
+profiles and bounded personalization. All speech inference is local; hosted
+reasoning selection never enables audio transmission. These are approved design
+directions, not claims that production wake or new input providers are enabled.
 
 On detection, the controller emits activation feedback and captures the command, preserving words spoken immediately after the wake word.
 Local voice activity detection ends the command. Only activated command audio

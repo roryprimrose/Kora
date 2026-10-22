@@ -1014,6 +1014,19 @@ model, speech or future Copilot dependencies. Shared/pre-existing components
 are not automatically removed on Kora uninstall; ownership and data-retention
 decisions must be explicit.
 
+The approved [local speech-input lifecycle](Speech_Input.md#optional-installation-and-runtime-lifecycle)
+extends this direction to future qualified wake/VAD/ASR and optional verifier
+assets: offer explicit unchecked preparation at install time or the same
+approved setup later through Settings. The [shared setup contract](Environment_Setup.md#optional-local-speech-component-lifecycle)
+owns catalogue identity, user-scoped assets and readiness, not duplicated Burn
+download/validation rules. No new speech choice is implemented by this design.
+Model acquisition never selects a provider or grants microphone/learning
+consent. MSI still owns application/adapters/native payload; optional model
+selection does not remove bundled loader or shared-runtime prerequisites.
+Reassess payload hashes, native closure/licences, CPU/GPU/architecture support,
+disk costs, cancellation and repair/upgrade/uninstall compatibility for each
+offered component. Optional data cannot become an in-app executable updater.
+
 The implemented R17 binary slice has MSI component/product/upgrade identities
 and shared version mapping; production upgrade behavior is not established.
 The custom BA currently rejects silent/passive/layout operation, so related

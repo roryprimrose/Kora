@@ -1,4 +1,4 @@
-using System.Text.Json;
+﻿using System.Text.Json;
 
 using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
@@ -19,7 +19,7 @@ public sealed class InstructionRevisionCatalogue
     private readonly Dictionary<string, (string Revision, Guid Receipt)> preparedReviews = new(StringComparer.Ordinal);
     private readonly Dictionary<string, string> enabledForRun = new(StringComparer.Ordinal);
     private readonly Dictionary<string, (string Revision, Guid Epoch)> observedRevisions = new(StringComparer.Ordinal);
-    private readonly Dictionary<string, string> explicitHolds = new(StringComparer.Ordinal);
+    private readonly Dictionary<string, (string Revision, Guid Epoch)> explicitHolds = new(StringComparer.Ordinal);
 
     public void PublishReconciled(IReadOnlyList<ArtifactDefinition> discovered,
         Action<IReadOnlyList<ArtifactDefinition>> publish)
@@ -81,10 +81,10 @@ public sealed class InstructionRevisionCatalogue
                 if (unavailable || !string.Equals(approved, revision, StringComparison.Ordinal)) { state[name] = null; }
                 if (!string.Equals(preparedReviews.GetValueOrDefault(name).Revision, revision, StringComparison.Ordinal)) { preparedReviews.Remove(name); }
                 if (!string.Equals(enabledForRun.GetValueOrDefault(name), revision, StringComparison.Ordinal)) { enabledForRun.Remove(name); }
-                if (!string.Equals(explicitHolds.GetValueOrDefault(name), revision, StringComparison.Ordinal)) { explicitHolds.Remove(name); }
+                if (!string.Equals(explicitHolds.GetValueOrDefault(name).Revision, revision, StringComparison.Ordinal)) { explicitHolds.Remove(name); }
                 return artifact with { IsUseEnabled = !unavailable && (string.Equals(state[name], revision, StringComparison.Ordinal)
                     || string.Equals(enabledForRun.GetValueOrDefault(name), revision, StringComparison.Ordinal)),
-                    PreservesCapturedUse = !unavailable && string.Equals(explicitHolds.GetValueOrDefault(name), revision, StringComparison.Ordinal) };
+                    PreservesCapturedUse = !unavailable && string.Equals(explicitHolds.GetValueOrDefault(name).Revision, revision, StringComparison.Ordinal) };
             }).ToArray();
             Save(state);
             unavailable = false;
@@ -131,9 +131,12 @@ public sealed class InstructionRevisionCatalogue
         {
             RequireExactCandidate(reviewed, catalogue);
             var enabled = IsEnabled(reviewed);
+            var previous = explicitHolds.GetValueOrDefault(reviewed.Name);
+            var epoch = string.Equals(previous.Revision, reviewed.Revision, StringComparison.Ordinal)
+                ? previous.Epoch : CaptureReviewEpoch(reviewed);
             Hold(reviewed.Name, publish: () =>
             {
-                explicitHolds[reviewed.Name] = reviewed.Revision;
+                explicitHolds[reviewed.Name] = (reviewed.Revision, epoch);
                 PublishUse(reviewed, catalogue, enabled: false, preservesCapturedUse: true);
             });
             return enabled;
@@ -241,9 +244,9 @@ public sealed class InstructionRevisionCatalogue
         }
     }
 
-    /// <summary>Checks current catalogue authority for an already admitted exact owned revision.
+    /// <summary>Checks current catalogue authority for an already admitted exact owned revision and capture epoch.
     /// The owning turn must establish capture separately; this does not admit queued use.</summary>
-    public bool IsCapturedUseAllowed(OwnedInstructionSnapshot snapshot)
+    public bool IsCapturedUseAllowed(OwnedInstructionSnapshot snapshot, Guid epoch)
     {
         RequireKind(snapshot);
         if (snapshot.Document.Definition.Source is not "kora-profile")
@@ -251,8 +254,13 @@ public sealed class InstructionRevisionCatalogue
         lock (gate)
         {
             if (unavailable) { return false; }
-            return IsEnabled(snapshot)
-                || string.Equals(explicitHolds.GetValueOrDefault(snapshot.Name), snapshot.Revision, StringComparison.Ordinal);
+            var enabled = IsEnabled(snapshot);
+            if (enabled && observedRevisions.TryGetValue(snapshot.Name, out var observed)
+                && string.Equals(observed.Revision, snapshot.Revision, StringComparison.Ordinal)
+                && observed.Epoch == epoch) { return true; }
+            var held = explicitHolds.GetValueOrDefault(snapshot.Name);
+            return !unavailable && string.Equals(held.Revision, snapshot.Revision, StringComparison.Ordinal)
+                && held.Epoch == epoch;
         }
     }
 

@@ -49,6 +49,16 @@ The action has no raw-text input and cannot select conversation USER/HOST rows, 
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
+## Reviewed earlier conversation context
+
+In Sessions, explicitly read the selected conversation, then choose **Review earlier messages for a follow-up**. Select whole earlier USER and/or finalized ASSISTANT messages from that observed page, write the new request, and choose **Review complete selection and request**. Read the complete review before separately confirming one local-only tool-free follow-up ([native workflow](../src/Kora/SessionsViewModel.HistoryContext.cs)).
+
+Only selected messages from that exact conversation are admitted, in original order. Shared limits are 16 selected messages and 32,768 UTF-8 bytes for the complete model envelope, including policy, request and framing. Oversized selections fail explicitly; nothing is silently shortened or dropped. Prior text is inert evidence, not instructions, approval or hidden learning ([history policy](../src/Kora.Core/Conversation/ConversationHistoryContext.cs)).
+
+The review expires after 60 seconds. Editing the new request or selection, closing review, privacy/control loss, changed or deleted source, or a changed conversation invalidates the operation. Successful admitted local execution retains a genuine ASSISTANT answer separately; unavailable runtime returns an explicit HOST failure without a provider call. Unknown commits remain held for inspection, never automatic retry ([review and submission](../src/Kora.Application/Hosting/SessionConversationService.History.cs)).
+
+Ordinary **Submit** remains unchanged: it does not implicitly include history, memory or attachments. This opt-in operation adds no tools, hosted transfer, saved drafts or memory creation ([ordinary submission policy](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
 ## Return focus to a pending question
 
 [`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)

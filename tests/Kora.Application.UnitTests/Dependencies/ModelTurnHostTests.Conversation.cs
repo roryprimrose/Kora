@@ -325,7 +325,16 @@ public sealed partial class ModelTurnHostTests
             return ValueTask.FromResult(receipt);
         }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
-            HostId<RequestIdentity> request, CancellationToken token) => ValueTask.FromResult(Retained!);
+            HostId<RequestIdentity> request, CancellationToken token)
+        {
+            if (HistoryMessages.TryGetValue(request, out var history))
+            {
+                HistoryReads++;
+                BeforeHistoryRead?.Invoke();
+                return ValueTask.FromResult(history);
+            }
+            return ValueTask.FromResult(Retained!);
+        }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token) => ValueTask.FromResult(new ConversationPage(Session, 2, Retained is null ? 0 : 1,
                 Retained is null ? [] : [Retained], null));

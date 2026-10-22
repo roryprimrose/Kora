@@ -45,6 +45,7 @@
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+          <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
         </WrapPanel>
         <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"

@@ -22,6 +22,7 @@ internal sealed partial class SessionsWindow : Window
         this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        BindHistoryContext(model);
         BindWorkScrolling();
         BindListPageOrder(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);

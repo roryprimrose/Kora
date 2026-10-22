@@ -93,6 +93,9 @@ public sealed partial class ResponseWindow : Window
         viewModel.HideApplication();
     }
 
+    private async void OnCurrentResponseDetailsClicked(object? sender, RoutedEventArgs eventArgs) =>
+        await viewModel.OpenCurrentResponseDetailsAsync();
+
     private async void OnCancelTaskClicked(object? sender, RoutedEventArgs eventArgs) =>
         await viewModel.CancelCurrentTaskAsync();
 

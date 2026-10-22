@@ -132,6 +132,28 @@ outcomes through configured provider-neutral admission. It is not a new typed/
 voice command, question reply, approval, fixed-read queue profile, model tool or
 bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
 
+## Dismiss or inspect the exact current response
+
+Use `dismiss current response`, `open current response details`, or `current response help`.
+Typed input accepts the optional current assistant name. Activated voice requires
+that current name, for example `Kora, open current response details`. Extra words,
+sources, controls and incomplete forms are refused, not sent to a model.
+
+These commands share the compact window's **Dismiss** and **Current response
+details** native controllers. They capture the original ordinary response before
+command feedback, never choose a later response, and report success only after
+the native window acknowledges hiding or opening that exact revision.
+Details contain only that ordinary response's title and body as inert native text;
+this route does not copy content or open web, clipboard, file or retained sources.
+
+Questions, approvals, security previews, protected calls, missing/hidden/replaced
+responses and revoked privacy, input or ownership are refused without cancelling
+or replacing a pending decision. A queued action is rechecked through native
+completion. Dismissal, replacement, timeout, privacy closure and disposal retire
+current-response details; recovery never resurrects them.
+There is no per-response pin/unpin, preference write, model or speech action.
+Uncomposed native hosts report unavailable; this does not qualify a model route.
+
 ## Read the current response aloud once
 
 Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.
@@ -494,7 +516,7 @@ No read, metadata capture, refresh, Attach, source-use consent, model/provider, 
 The query is volatile native input, never a response, transcript, speech, log/audit field or Activity tag. Late/reused handoffs expire and repeated preparation clears old citations without searching. Retained attachments, native Literal Find and existing invalid `search file <query>` / `search folder <query>` forms are unchanged
 ([deterministic host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs), [native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs)).
 
-**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
+**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. **Match case** defaults checked (ordinal); unchecked uses ordinal ignore case in this original-file Find only. Changing it clears the result without I/O and requires a separate **Find first**. Exact spaces/punctuation, nonoverlapping steps and no wrap apply; only one original-source match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file; model retrieval is unchanged.
 
 See [native Find](windows-and-tray.md#find-a-literal-in-the-currently-inspected-original-file). Shared 256 UTF-16 / 512 strict UTF-8 bounds apply without lexical token rules; unsafe controls, malformed Unicode or empty input reject. Retained Find revalidates the stored original, never its filesystem path. Queries remain native-only, not transcripts/history/model/log/clipboard data.
 

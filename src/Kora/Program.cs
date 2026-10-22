@@ -334,6 +334,8 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddSingleton<IProfileInstructionReader, WindowsProfileInstructionReader>();
+        services.AddSingleton<Kora.Application.Definitions.ProfileInstructionForkWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
             provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt),
             provider.GetRequiredService<Kora.Application.Definitions.InstructionControlAdmission>(),

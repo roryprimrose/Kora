@@ -11,7 +11,7 @@ No AI model, hosted account or network is involved in editing.
 |---|---|
 | Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
-| Registered profile instructions | Existing read/selection only; no original writer or fork |
+| Personal profile instructions | Explicit native exact-file selection, bounded read consent and separately reviewed disabled native v1 Kora copy; no original writer ([workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
@@ -25,7 +25,7 @@ Equivalent controls are `instructions list`, `instructions create example`,
 it does not undo an already-started publication. `instructions discard` opens
 the same deliberate discard/reload workflow as `instructions reload`.
 The editor writes only `%APPDATA%\Kora\Instructions\<id>.instructions.md`, using Kora's application-data paths.
-Profile originals and bundled resources remain read-only here.
+Profile originals and bundled resources remain read-only here; the separate [profile copy operation](#create-a-disabled-kora-copy-of-a-personal-instruction) never changes an original.
 Select **Prompt** in the same editor for `%APPDATA%\Kora\Prompts\<id>.prompt.md`.
 Each supported kind has its own 128-file bound and separate revision state;
 changing kind asks before discarding an unsaved draft. The corresponding exact
@@ -33,6 +33,31 @@ controls use `prompts` in place of `instructions`, for example `prompts create
 example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
+
+## Create a disabled Kora copy of a personal instruction
+
+Select **Instruction**, enter a fresh **new-copy-owned-id**, and choose **Create Kora copy from profile instruction**. Select exactly one original through the native picker. Existing editor text, its baseline and unsaved changes are not replaced by this workflow ([native integration](../src/Kora/OwnedInstructionEditorController.ProfileCopy.cs)).
+
+This bounded operation supports immediate canonical `*.instructions.md` files in the current user's roaming `Code\User\prompts`, `Code - Insiders\User\prompts`, or `User\profiles\<profile>\prompts` beneath either editor.
+It does not scan a profile, workspace or repository, register a root, or reuse skill registration consent. Other personal locations remain explicitly unavailable ([source admission](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs)).
+
+**Allow bounded local source read** discloses the exact source and byte length before reading its body. Memory-held consent covers one capture and at most five bounded freshness checks during this copy, including at publication;
+no storage, activation, model use or other read authority is granted ([read disclosure](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+
+**Cancel profile copy**, review Cancel, privacy closure, ownership loss or changed editor input retires private review and the source lease ([lifecycle](../src/Kora/OwnedInstructionEditorController.ProfileCopy.cs)).
+
+Only strict UTF-8 native `kora-format: 1` instructions are supported: at most 65,536 whole-file bytes including BOM, 16 header fields and 4,096 header bytes. Only `name`, `description`, `kora-format` and optional `attribution` metadata are admitted.
+Legacy files, unsupported metadata/versions, prompt/agent files and `SKILL.md` packages are rejected, never flattened or repaired into instructions ([shared parser](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.cs), [profile validation](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs)).
+
+Separately review the entire original and entire proposed copy, fresh name, exact destination and disabled state. The copy preserves original BOM, body, line endings and other supported metadata, changes its name, and adds explicit source attribution while retaining original attribution.
+**Confirm disabled Kora copy** writes only a new absent Kora-owned destination; original files are never edited ([copy preparation](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs), [write review](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+
+Success offers the existing **List**, select-new-ID and **Inspect** path, not Enable or execution. Saving grants no applicability, inherited approval, permissions, grants, model context or egress. Any later use still requires the existing independent exact-revision review ([publication](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.cs)).
+
+Changed/replaced/busy/unreadable sources, withdrawn consent, collisions and cancellation fail explicitly. No overwrite or automatic retry occurs. If publication or later audit/catalogue completion is unconfirmed, inspect the exact destination before retrying; no rollback or success is implied.
+Verified source handles are released when the operation retires ([source lease](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs), [workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
+
+This is an implementation-only native fork increment. Voice-only read/write confirmation, profile mutation, general import, skill/prompt/agent copying and provider/runtime qualification are not enabled ([native-only admission](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
 
 ## Live source-buffer size
 

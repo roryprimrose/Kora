@@ -103,6 +103,26 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <Expander Header="Use one enabled owned instruction for one local request">
+          <StackPanel Spacing="6">
+            <WrapPanel>
+              <Button x:Name="RefreshInstructions" Content="Refresh enabled owned instructions" IsEnabled="{Binding CanRefreshInstructions}" />
+              <ComboBox x:Name="InstructionSelection" ItemsSource="{Binding InstructionChoices}" SelectedItem="{Binding InstructionChoice, Mode=TwoWay}"
+                  IsEnabled="{Binding CanRefreshInstructions}" Width="320"
+                  AutomationProperties.Name="Select an enabled owned instruction for this request only; no source read or activation">
+                <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Name}" /></DataTemplate></ComboBox.ItemTemplate>
+              </ComboBox>
+              <Button x:Name="ReviewInstruction" Content="Review complete instruction and request" IsEnabled="{Binding CanReviewInstruction}" />
+            </WrapPanel>
+            <TextBox Text="{Binding InstructionReviewText, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                TextWrapping="Wrap" MaxHeight="360"
+                AutomationProperties.Name="Complete pinned instruction and original request; lower-trust one-shot local guidance, not host policy" />
+            <WrapPanel>
+              <Button x:Name="SubmitInstruction" Content="Submit this one reviewed local request" IsEnabled="{Binding CanSubmitInstruction}" />
+              <Button x:Name="ClearInstruction" Content="Discard instruction-use review" />
+            </WrapPanel>
+          </StackPanel>
+        </Expander>
       </StackPanel>
     </Expander>
     <WrapPanel>

@@ -24,6 +24,7 @@ internal sealed partial class SessionsWindow : Window
         DataContext = model;
         BindWorkScrolling();
         BindListPageOrder(model);
+        BindInstructionContext(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);

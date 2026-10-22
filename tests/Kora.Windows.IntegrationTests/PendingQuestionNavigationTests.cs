@@ -31,7 +31,8 @@ public sealed class PendingQuestionNavigationTests
             NativeQuestionViewModel? model = null;
             try
             {
-                window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await PresentedOrEndedAsync(shown.Task, run);
+                window = await shown.Task;
                 model = State(controller) ?? throw new InvalidOperationException("The shown question has no state.");
                 await EditableAsync(model, f.Token);
                 model.Edit(new(["show"]));
@@ -65,7 +66,7 @@ public sealed class PendingQuestionNavigationTests
                 f.Main.CommandText.Should().Be("independent unfinished composer");
                 model.Edit(new(["show"]));
                 await model.SubmitAsync();
-                await run.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await run;
                 (await model.Completion).Question!.Status.Should().Be(QuestionStatus.Answered);
                 controller.CaptureFocus(question.Key.Request.SessionId.Value, question.Key.Request.TaskId.Value).Should().BeNull();
             }
@@ -104,7 +105,8 @@ public sealed class PendingQuestionNavigationTests
             NativeQuestionViewModel? model = null;
             try
             {
-                window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await PresentedOrEndedAsync(shown.Task, run);
+                window = await shown.Task;
                 model = State(controller) ?? throw new InvalidOperationException("The shown question has no state.");
                 await EditableAsync(model, f.Token);
                 var key = model.Key;
@@ -165,7 +167,7 @@ public sealed class PendingQuestionNavigationTests
             var run = controller.ReviewVersionAsync(owner);
             try
             {
-                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await PresentedOrEndedAsync(entered.Task, run);
                 var failed = FailBeforePresentationAsync();
                 try
                 {
@@ -193,6 +195,21 @@ public sealed class PendingQuestionNavigationTests
                 finally { await CloseAndDrainAsync(controller, owner, null, null, run); }
             }
         });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EndedOriginalRunCannotBecomeSuccessfulPresentationReadiness(bool failed)
+    {
+        var presented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var run = failed
+            ? Task.FromException(new InvalidOperationException("Synthetic original run failure."))
+            : Task.CompletedTask;
+        Func<Task> observe = () => PresentedOrEndedAsync(presented.Task, run);
+        await observe.Should().ThrowAsync<InvalidOperationException>().WithMessage(failed
+            ? "Synthetic original run failure."
+            : "The original question run ended before presentation became ready.");
     }
 
     [Theory]
@@ -244,6 +261,17 @@ public sealed class PendingQuestionNavigationTests
         (NativeQuestionViewModel?)typeof(QuestionWindowController).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic)!
             .GetValue(controller);
 
+    private static async Task PresentedOrEndedAsync(Task presented, Task run)
+    {
+        var completed = await Task.WhenAny(presented, run).WaitAsync(TestContext.Current.CancellationToken);
+        await completed;
+        if (!presented.IsCompleted)
+        {
+            throw new InvalidOperationException("The original question run ended before presentation became ready.");
+        }
+        await presented;
+    }
+
     private static async Task CloseAndDrainAsync(QuestionWindowController controller, Window owner,
         QuestionWindow? window, NativeQuestionViewModel? model, Task run)
     {
@@ -265,12 +293,16 @@ public sealed class PendingQuestionNavigationTests
         void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
         {
             if (model.IsEditable) { ready.TrySetResult(); }
+            else if (model.Completion.IsCompleted || !model.HasPresentation)
+            {
+                ready.TrySetException(new InvalidOperationException("The original question ended before editing became ready."));
+            }
         }
         model.PropertyChanged += Changed;
         try
         {
-            if (model.IsEditable) { ready.TrySetResult(); }
-            await ready.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            Changed(null, new(null));
+            await ready.Task.WaitAsync(token);
         }
         finally { model.PropertyChanged -= Changed; }
     }

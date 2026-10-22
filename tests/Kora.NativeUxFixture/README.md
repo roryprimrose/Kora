@@ -22,6 +22,8 @@ setup assertion is not a resource-quiescence receipt. The held-transaction
 regression uses the existing internal interaction checkpoint; no real provider,
 device or additional authority is admitted
 ([test lifecycle](../Kora.Windows.IntegrationTests/PendingQuestionNavigationTests.cs)).
+Presentation readiness waits for the original operation or its terminal failure,
+not a fixed hosted-runner latency threshold. Test cancellation still applies.
 
 The pending proof is the **screen-reader/text-scale/physical-display slice of
 R05/R12/R14/A4**, not a repeat of the already recorded

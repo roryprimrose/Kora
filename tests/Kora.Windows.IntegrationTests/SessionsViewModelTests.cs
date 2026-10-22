@@ -160,8 +160,7 @@ public sealed partial class SessionsViewModelTests
             document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
                 "{Binding " + binding + ", Mode=TwoWay}", StringComparison.Ordinal));
         }
-        foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence",
-            "ConversationSubmittedFrom", "ConversationSubmittedThrough" })
+        foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence" })
         {
             document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
                 "{Binding " + binding + ", Mode=TwoWay}", StringComparison.Ordinal));

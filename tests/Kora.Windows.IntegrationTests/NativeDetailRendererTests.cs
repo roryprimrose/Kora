@@ -292,17 +292,21 @@ public sealed class NativeDetailRendererTests
         ((SelectableTextBlock)MarkdownDocumentRenderer.CreateControls(result)[1]).Text.Should().Be(source);
     });
 
-    [Fact]
-    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload(bool tables)
     {
         const string secret = "<script>NEVER_LOG_THIS_SECRET</script>";
         var logger = new RecordingLogger();
-        var renderer = new NativeDetailRenderer(logger);
-        renderer.Render(secret).IsFallback.Should().BeTrue();
+        var renderer = new NativeDetailRenderer(logger, pipeTablesAvailable: tables);
+        renderer.Render(secret, format: tables ? NativeDetailFormat.PipeTablesV2 : NativeDetailFormat.TextV1)
+            .IsFallback.Should().BeTrue();
         logger.Messages.Should().ContainSingle();
         logger.Messages[0].Should().Contain("Native detail source fallback:").And.Contain("Structure")
             .And.NotContain(secret).And.NotContain("NEVER_LOG");
         logger.Exceptions.Should().OnlyContain(exception => exception == null);
+        logger.Messages[0].Should().Contain(tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name);
     }
 
     private sealed class UnsupportedTestBlock() : LeafBlock(null);

@@ -5,6 +5,7 @@ using System.Text;
 using Kora.Core.Presentation;
 
 using Markdig;
+using Markdig.Extensions.Tables;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
@@ -12,7 +13,8 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer> logger, bool available = true)
+internal sealed partial class NativeDetailRenderer(
+    ILogger<NativeDetailRenderer> logger, bool available = true, bool pipeTablesAvailable = false)
 {
     private static readonly ActivitySource ActivitySource =
         new("Kora.Desktop", typeof(NativeDetailRenderer).Assembly.GetName().Version!.ToString());
@@ -21,6 +23,14 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
     }.Build();
+    private static readonly MarkdownPipeline TablePipeline = new MarkdownPipelineBuilder
+    {
+        MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
+    }.UsePipeTables(new PipeTableOptions
+    {
+        RequireHeaderSeparator = true,
+        UseHeaderForColumnCount = false,
+    }).Build();
     private static readonly HashSet<Type> SupportedTypes =
     [
         typeof(MarkdownDocument), typeof(HeadingBlock), typeof(ParagraphBlock), typeof(ListBlock),
@@ -32,17 +42,25 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
 
     // Supported: CommonMark headings, paragraphs, lists, quotes, breaks, literal/code text,
     // emphasis (plain semantic text), fenced/indented code, and inert labelled links.
-    // No extensions, HTML conversion, resource resolver, browser, or actionable links.
+    // The optional table profile adds only inert header-labelled text, not rich controls.
+    // No HTML conversion, resource resolver, browser, or actionable links.
     internal NativeDocumentResult Render(
         string source,
         DetailContentKind kind = DetailContentKind.Markdown,
-        DetailContentReference? reference = null)
+        DetailContentReference? reference = null,
+        NativeDetailFormat format = NativeDetailFormat.TextV1)
     {
+        var tables = kind == DetailContentKind.Markdown
+            && format == NativeDetailFormat.PipeTablesV2 && pipeTablesAvailable;
+        var profile = tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name;
+        NativeDocumentResult Fallback(string text, string reason, string message, DetailContentReference? item,
+            int blocks = 0, int nodes = 0, int depth = 0) =>
+            SourceFallback(text, reason, message, item, blocks, nodes, depth, profile);
         using var render = ActivitySource.StartActivity("presentation.render");
         render?.SetStatus(ActivityStatusCode.Error);
         render?.SetTag("kora.item.id", reference?.ItemId.Value);
         render?.SetTag("kora.item.revision", reference?.Revision);
-        render?.SetTag("kora.presentation.profile", NativeDetailProfile.Name);
+        render?.SetTag("kora.presentation.profile", profile);
         ArgumentNullException.ThrowIfNull(source);
         int byteCount;
         try { byteCount = Utf8.GetByteCount(source); }
@@ -64,7 +82,7 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         {
             return Fallback(source, "Unavailable", "Renderer unavailable; exact source fallback.", reference);
         }
-        if (!Enum.IsDefined(kind))
+        if (!Enum.IsDefined(kind) || !Enum.IsDefined(format))
         {
             return Fallback(source, "UnsupportedKind", "Unsupported content kind; exact source fallback.", reference);
         }
@@ -73,31 +91,38 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
             render?.SetStatus(ActivityStatusCode.Ok);
             return Success(source, [new(source, NativeTextStyle.Paragraph)], 0, 1, 1);
         }
-        var preflight = Preflight(source);
+        var preflight = Preflight(source, format, tables);
         if (preflight is not null)
         {
             return Fallback(source, "SourcePreflight", preflight, reference);
         }
 
         MarkdownDocument document;
-        try { document = Markdown.Parse(source, Pipeline); }
+        try { document = Markdown.Parse(source, tables ? TablePipeline : Pipeline); }
         catch (InvalidOperationException)
         {
             // Markdig's nesting guard throws InvalidOperationException. Never log its source-bearing message.
             return Fallback(source, "ParserGuard", "Parser nesting/error guard; exact source fallback.", reference);
         }
 
-        var validation = Validate(document);
+        var validation = Validate(document, tables);
         if (validation.Error is not null)
         {
             return Fallback(source, "Structure", validation.Error, reference,
+                validation.Blocks, validation.Nodes, validation.Depth);
+        }
+        if (tables && ValidateTables(document, source) is { } tableError)
+        {
+            return Fallback(source, "TableStructure", tableError, reference,
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
         List<NativeTextSection> sections;
         try { sections = Flatten(document); }
         catch (InvalidDataException)
         {
-            return Fallback(source, "SemanticLimit", "Semantic text limit exceeded; exact source fallback.", reference);
+            return Fallback(source, "SemanticLimit",
+                tables ? "Semantic text limit exceeded (including table-cell UTF-8 limits); exact source fallback."
+                    : "Semantic text limit exceeded; exact source fallback.", reference);
         }
         catch (InvalidOperationException)
         {
@@ -116,7 +141,8 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         }
         render?.SetStatus(ActivityStatusCode.Ok);
         return new(source, semantic,
-            "Rendered native-text-v1 CommonMark text subset. Links are inert; emphasis is plain text.",
+            $"Rendered {profile} CommonMark text subset. Links are inert; emphasis is plain text."
+                + (tables ? " Tables use complete header-labelled rows, not a visual grid." : string.Empty),
             false, sections, validation.Blocks, validation.Nodes, validation.Depth);
     }
 
@@ -124,16 +150,16 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         string source, IReadOnlyList<NativeTextSection> sections, int blocks, int nodes, int depth) =>
         new(source, source, "Rendered native-text-v1 plain text.", false, sections, blocks, nodes, depth);
 
-    private NativeDocumentResult Fallback(
+    private NativeDocumentResult SourceFallback(
         string source, string reason, string message, DetailContentReference? reference,
-        int blocks = 0, int nodes = 0, int depth = 0)
+        int blocks, int nodes, int depth, string profile)
     {
         RenderFallback(logger, reason, reference?.ItemId.Value, reference?.Revision,
-            NativeDetailProfile.Name, blocks, nodes, depth);
+            profile, blocks, nodes, depth);
         return new(source, source, message, true, [], blocks, nodes, depth);
     }
 
-    private static string? Preflight(string source)
+    private static string? Preflight(string source, NativeDetailFormat format, bool tables)
     {
         // Conservative lexical rejection complements Markdig's pre-parse nesting cap.
         // False positives stay readable as exact source rather than being partially rendered.
@@ -174,12 +200,17 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
                 }
             }
             var trimmed = line.Trim();
+            if (trimmed.Contains('|') && IsTableSeparator(trimmed) && !tables)
+            {
+                return format == NativeDetailFormat.PipeTablesV2
+                    ? $"{NativeMarkdownTableProfile.Name} unavailable pending profile qualification; exact source fallback."
+                    : "Unsupported Markdown extension/table; exact source fallback.";
+            }
             if (trimmed.Contains("~~", StringComparison.Ordinal)
                 || trimmed.StartsWith(":::", StringComparison.Ordinal)
                 || trimmed.StartsWith("[^", StringComparison.Ordinal)
                 || trimmed.Contains("[ ]", StringComparison.Ordinal)
-                || trimmed.Contains("[x]", StringComparison.OrdinalIgnoreCase)
-                || (trimmed.Contains('|') && IsTableSeparator(trimmed)))
+                || trimmed.Contains("[x]", StringComparison.OrdinalIgnoreCase))
             {
                 return "Unsupported Markdown extension/table; exact source fallback.";
             }
@@ -198,7 +229,8 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         return dash;
     }
 
-    internal static (string? Error, int Blocks, int Nodes, int Depth) Validate(MarkdownDocument document)
+    internal static (string? Error, int Blocks, int Nodes, int Depth) Validate(
+        MarkdownDocument document, bool tables = false)
     {
         var pending = new Stack<(MarkdownObject Node, int Depth)>();
         pending.Push((document, 0));
@@ -217,7 +249,7 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
                 return ("Structural limit exceeded (512 blocks / 4096 nodes / depth 32); exact source fallback.",
                     blocks, nodes, depth);
             }
-            unsupported ??= Unsupported(entry.Node);
+            unsupported ??= Unsupported(entry.Node, tables);
             // Advance siblings without recursively constructing or queuing a large visual tree.
             switch (entry.Node)
             {
@@ -251,7 +283,7 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
         return (unsupported, blocks, nodes, depth);
     }
 
-    private static string? Unsupported(MarkdownObject node) =>
+    private static string? Unsupported(MarkdownObject node, bool tables) =>
         node switch
         {
             HtmlBlock or HtmlInline => "Unsupported raw HTML; exact source fallback (no HTML/resource loading).",
@@ -260,6 +292,8 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
                 "Unsupported Mermaid; exact source fallback (no diagram execution).",
             EmphasisInline { DelimiterCount: not (1 or 2) } =>
                 "Unsupported emphasis extension; exact source fallback.",
+            _ when tables && (node.GetType() == typeof(Table) || node.GetType() == typeof(TableRow)
+                || node.GetType() == typeof(TableCell)) => null,
             _ when SupportedTypes.Contains(node.GetType()) => null,
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
@@ -268,11 +302,23 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
     {
         var sections = new List<NativeTextSection>();
         var semanticBudget = new BoundedNativeText();
+        var tableNumber = 0;
+        void AddSection(NativeTextSection section)
+        {
+            if (sections.Count != 0) { semanticBudget.Append(Environment.NewLine + Environment.NewLine); }
+            semanticBudget.Append(section.Text);
+            sections.Add(section);
+        }
         var pending = new Stack<(Block Block, string Prefix)>();
         for (var index = document.Count - 1; index >= 0; index--) { pending.Push((document[index], string.Empty)); }
         while (pending.TryPop(out var entry))
         {
             var block = entry.Block;
+            if (block is Table table)
+            {
+                foreach (var section in ProjectTable(table, ++tableNumber)) { AddSection(section); }
+                continue;
+            }
             // CommonMark definitions are counted metadata; each used destination is
             // projected by its link, while unused definitions remain in exact source.
             if (block is LinkReferenceDefinition) { continue; }
@@ -308,10 +354,7 @@ internal sealed partial class NativeDetailRenderer(ILogger<NativeDetailRenderer>
                 CodeBlock => NativeTextStyle.Code,
                 _ => NativeTextStyle.Paragraph,
             };
-            if (sections.Count != 0) { semanticBudget.Append(Environment.NewLine + Environment.NewLine); }
-            semanticBudget.Append(entry.Prefix);
-            semanticBudget.Append(text);
-            sections.Add(new(entry.Prefix + text, style));
+            AddSection(new(entry.Prefix + text, style));
         }
         return sections;
     }

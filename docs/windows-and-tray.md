@@ -748,6 +748,15 @@ new side effect or general approval dispatcher.
 
 ### Return to the current version question
 
+For focus **without recovery**, use
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question).
+Both IDs must match the original currently host-owned wait and its still-open
+native window. This command preserves unsaved answers and never reloads source
+content, selects a session or resurrects a closed/historical question.
+`pending question help` is constant syntax, not a list of questions or IDs.
+Navigation status is separate; answer or cancel only through the existing
+explicit controls. The recovery tray entry below retains its distinct behavior.
+
 Use **Tray > Return to current question** after closing/Escape on the native local-version card. This returns to the **same still-live original request, session, task and question**, not a replacement version check. If its exact window is already open, the route activates it; selecting another Session does not retarget it.
 
 Close clears the window's text, unsaved choices and review. Only **Save draft** preserves an answer for return; it does not submit it. A saved draft returns at its current revision; otherwise no affirmative option is selected. **Submit answer** and **Cancel question** remain separate deliberate actions. Cancel commits the original task and question as Cancelled before dispatch, not termination of a running effect.

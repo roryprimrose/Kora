@@ -605,6 +605,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || EvidenceTraceCommand.Parse(CommandText, AssistantName) is not null
+                      || PendingQuestionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
@@ -4004,8 +4005,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             var responseReadInput = CaptureResponseReadInput();
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
+            var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
             await uiDispatcher.InvokeAsync(
-                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility));
+                () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility, questionTarget));
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -4049,7 +4051,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
-        Func<bool> reviewEligibility)
+        Func<bool> reviewEligibility, PendingQuestionCapture questionTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4063,6 +4065,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Attachment catalogue preparation unavailable: the original voice generation or host was revoked."; }
             if (EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
             { Transcript = "Evidence trace unavailable: the original voice generation or host was revoked."; }
+            if (questionTarget.Command is not null)
+            { PendingQuestionNavigationStatus = "Pending question navigation unavailable: original voice or host admission was revoked."; }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4072,6 +4076,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (questionTarget.Command is not null)
+        {
+            await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
+                SecurityAuditInitiator.VoiceCommand, manualInput, questionTarget: questionTarget);
+            return;
+        }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
@@ -4106,7 +4116,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SecurityAuditInitiator initiator,
         ManualCallInput? manualInput = null,
         ResponseReadInput? responseReadInput = null,
-        Func<bool>? reviewEligibility = null)
+        Func<bool>? reviewEligibility = null, PendingQuestionCapture? questionTarget = null)
     {
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
@@ -4120,6 +4130,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
         var evidenceTraceCommand = EvidenceTraceCommand.Parse(spokenText, AssistantName);
+        var pendingQuestionCommand = questionTarget?.Command ?? PendingQuestionCommand.Parse(spokenText, AssistantName);
         if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
@@ -4128,6 +4139,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (evidenceTraceCommand is not null)
         {
             await PrepareEvidenceTraceAsync(evidenceTraceCommand, initiator, manualInput);
+            return;
+        }
+        if (pendingQuestionCommand is not null)
+        {
+            await ExecutePendingQuestionCommand(pendingQuestionCommand, spokenText, initiator, manualInput, questionTarget);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -6149,6 +6165,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
+            .Concat(["pending question help"])
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)

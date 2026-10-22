@@ -15,6 +15,14 @@ alone is not sufficient to release database handles. Headless tests remain in
 the exclusive UI collection so unrelated test activities do not enter fixture
 storage.
 
+Pending-question navigation tests retire their controller/window and join the
+original wait and any pending presentation operation before disposing scratch
+storage, including setup failure before the window becomes editable. A timed
+setup assertion is not a resource-quiescence receipt. The held-transaction
+regression uses the existing internal interaction checkpoint; no real provider,
+device or additional authority is admitted
+([test lifecycle](../Kora.Windows.IntegrationTests/PendingQuestionNavigationTests.cs)).
+
 The pending proof is the **screen-reader/text-scale/physical-display slice of
 R05/R12/R14/A4**, not a repeat of the already recorded
 [bounded keyboard observations](evidence/2026-10-09-native-ux.json). This does not

@@ -27,21 +27,23 @@ public sealed class PendingQuestionNavigationTests
             var owner = new Window();
             owner.Show();
             var run = controller.ReviewVersionAsync(owner);
-            var window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
-            var model = State(controller);
-            await EditableAsync(model, f.Token);
-            model.Edit(new(["show"]));
-            await model.SaveDraftAsync();
-            model.Edit(new([]));
-            var question = model.Question;
-            var answer = model.Answer;
-            var status = model.Status;
-            var body = f.Main.ResponseBody;
-            var transcript = f.Main.Transcript;
-            f.Main.CommandText = "independent unfinished composer";
-            owner.Activate();
+            QuestionWindow? window = null;
+            NativeQuestionViewModel? model = null;
             try
             {
+                window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                model = State(controller) ?? throw new InvalidOperationException("The shown question has no state.");
+                await EditableAsync(model, f.Token);
+                model.Edit(new(["show"]));
+                await model.SaveDraftAsync();
+                model.Edit(new([]));
+                var question = model.Question;
+                var answer = model.Answer;
+                var status = model.Status;
+                var body = f.Main.ResponseBody;
+                var transcript = f.Main.Transcript;
+                f.Main.CommandText = "independent unfinished composer";
+                owner.Activate();
                 var target = controller.CaptureFocus(question.Key.Request.SessionId.Value, question.Key.Request.TaskId.Value);
                 target.Should().NotBeNull();
                 (await host.ValidateFocusAsync(model)).Should().BeTrue();
@@ -69,11 +71,7 @@ public sealed class PendingQuestionNavigationTests
             }
             finally
             {
-                controller.Dispose();
-                window.Close();
-                owner.Close();
-                await run;
-                await QuiescentAsync(model, f.Token);
+                await CloseAndDrainAsync(controller, owner, window, model, run);
             }
         });
     }
@@ -102,14 +100,16 @@ public sealed class PendingQuestionNavigationTests
             var owner = new Window();
             owner.Show();
             var run = controller.ReviewVersionAsync(owner);
-            var window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
-            var model = State(controller);
-            await EditableAsync(model, f.Token);
-            var key = model.Key;
-            var expiry = model.Question.ExpiresAt;
-            var target = controller.CaptureFocus(key.Request.SessionId.Value, key.Request.TaskId.Value)!;
+            QuestionWindow? window = null;
+            NativeQuestionViewModel? model = null;
             try
             {
+                window = await shown.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                model = State(controller) ?? throw new InvalidOperationException("The shown question has no state.");
+                await EditableAsync(model, f.Token);
+                var key = model.Key;
+                var expiry = model.Question.ExpiresAt;
+                var target = controller.CaptureFocus(key.Request.SessionId.Value, key.Request.TaskId.Value)!;
                 switch (loss)
                 {
                     case "session":
@@ -137,11 +137,60 @@ public sealed class PendingQuestionNavigationTests
             }
             finally
             {
-                controller.Dispose();
-                window.Close();
-                owner.Close();
-                await run.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
-                await QuiescentAsync(model, f.Token);
+                await CloseAndDrainAsync(controller, owner, window, model, run);
+            }
+        });
+    }
+
+    [Fact]
+    public async Task EarlyPresentationFailureDrainsOwnedStorageOperationBeforeFixtureCleanup()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var checkpoint = new InteractionTransactionCheckpoint();
+            using var release = new ManualResetEventSlim();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var f = new NativeUxFixtureSession(Path.GetTempPath(), interactionCheckpoint: checkpoint);
+            await f.InitializeAsync();
+            using var host = Host(f);
+            using var controller = Controller(f, host);
+            var owner = new Window();
+            owner.Show();
+            checkpoint.Commit = (_, _) =>
+            {
+                checkpoint.Commit = null;
+                entered.TrySetResult();
+                release.Wait(f.Token);
+            };
+            var run = controller.ReviewVersionAsync(owner);
+            try
+            {
+                await entered.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                var failed = FailBeforePresentationAsync();
+                try
+                {
+                    failed.IsCompleted.Should().BeFalse();
+                    run.IsCompleted.Should().BeFalse();
+                    Directory.Exists(f.LocalRoot).Should().BeTrue();
+                }
+                finally { release.Set(); }
+                Func<Task> observeFailure = () => failed;
+                await observeFailure.Should().ThrowAsync<InvalidOperationException>()
+                    .WithMessage("Synthetic presentation setup failure.");
+                run.IsCompleted.Should().BeTrue();
+                f.Dispose();
+                Directory.Exists(f.LocalRoot).Should().BeFalse();
+            }
+            finally
+            {
+                release.Set();
+                await CloseAndDrainAsync(controller, owner, null, null, run);
+            }
+
+            async Task FailBeforePresentationAsync()
+            {
+                try { throw new InvalidOperationException("Synthetic presentation setup failure."); }
+                finally { await CloseAndDrainAsync(controller, owner, null, null, run); }
             }
         });
     }
@@ -191,9 +240,23 @@ public sealed class PendingQuestionNavigationTests
             new(NullLogger<NativeDetailRenderer>.Instance), () => f.Access.Open,
             NullLogger<QuestionWindowController>.Instance, () => f.Access.ControlRevision);
 
-    private static NativeQuestionViewModel State(QuestionWindowController controller) =>
-        (NativeQuestionViewModel)typeof(QuestionWindowController).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic)!
-            .GetValue(controller)!;
+    private static NativeQuestionViewModel? State(QuestionWindowController controller) =>
+        (NativeQuestionViewModel?)typeof(QuestionWindowController).GetField("state", BindingFlags.Instance | BindingFlags.NonPublic)!
+            .GetValue(controller);
+
+    private static async Task CloseAndDrainAsync(QuestionWindowController controller, Window owner,
+        QuestionWindow? window, NativeQuestionViewModel? model, Task run)
+    {
+        var pending = model ?? State(controller);
+        controller.Dispose();
+        window?.Close();
+        owner.Close();
+        try { await run; }
+        finally
+        {
+            if (pending is not null) { await QuiescentAsync(pending); }
+        }
+    }
 
     private static async Task EditableAsync(NativeQuestionViewModel model, CancellationToken token)
     {
@@ -212,7 +275,7 @@ public sealed class PendingQuestionNavigationTests
         finally { model.PropertyChanged -= Changed; }
     }
 
-    private static async Task QuiescentAsync(NativeQuestionViewModel model, CancellationToken token)
+    private static async Task QuiescentAsync(NativeQuestionViewModel model)
     {
         var ready = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         void Changed(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
@@ -223,7 +286,7 @@ public sealed class PendingQuestionNavigationTests
         try
         {
             if (!model.HasPendingOperation) { ready.TrySetResult(); }
-            await ready.Task.WaitAsync(TimeSpan.FromSeconds(10), token);
+            await ready.Task;
         }
         finally { model.PropertyChanged -= Changed; }
     }

@@ -54,7 +54,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
         bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
-        ISqliteTransactionCheckpoint? evidenceCheckpoint = null)
+        ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
+        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null)
     {
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
         {
@@ -94,7 +95,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             Loggers = LoggerFactory.Create(builder => builder.AddProvider(evidenceProvider));
             Audit = new LoggerSecurityAuditLog(Loggers.CreateLogger<LoggerSecurityAuditLog>());
             Tasks = new(this);
-            Interactions = new(this, Tasks);
+            Interactions = new(this, Tasks, TimeProvider.System, interactionCheckpoint);
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
             Evidence = new(new WindowsSqliteEvidenceReader(sink), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
             SharedAdmission = new(Interactions, Interactions, new(Tasks));

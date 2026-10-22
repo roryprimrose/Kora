@@ -139,6 +139,17 @@ measurements rather than treating candidate availability as acceptance.
 
 ## Known Future Capability Dependencies
 
+The [local speech-input candidates](Speech_Input.md#provider-choices-and-selection)
+also include Windows recognition as baseline and local Whisper/Parakeet ASR;
+no new native runtime, model version or GPU dependency is selected here.
+When qualified, independently installable speech components must appear in the
+same approved catalogue for optional install-time assistance and Settings,
+following the [speech setup lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle).
+Record model data separately from bundled native libraries and required launch
+runtimes; account for sizes, backend/hardware support, shared ownership,
+verification, removal and version compatibility. Installed is not selected,
+qualified or consented for microphone use.
+
 Selections/versions below are deliberately unresolved unless already identified
 above. Setup must register a reviewed first-party handler only after the
 corresponding implementation and decision are admitted; acquiring a package

@@ -276,8 +276,10 @@ The UI always shows the effective processing mode and runtime.
 
 ## Wake-Listening Privacy
 
-"Kora" activation is included from Slice A and runs locally in both data modes.
-It is the default name, not a permanently enabled alias: users explicitly choose custom-only or default-plus-custom under [Custom Activation Names](Activation_Name.md).
+"Kora" activation is a Slice A1 design requirement and runs locally in both
+data modes; production wake remains unavailable. It is the default name, not
+a permanently enabled alias: the current name is custom-only under
+[Assistant and Activation Name](Activation_Name.md).
 Name changes never authenticate a speaker, modify embedded skills/code, expand ambient capture, or bypass output/action policy.
 Setup requires explicit microphone/wake-listening consent; once enabled, verbal activation requires no click or keypress.
 Distinguish Wake Listening, Awaiting Conversational Reply, Capturing
@@ -297,6 +299,13 @@ Microphone enumeration is not recording consent; first-run and failure recovery 
 Device reconnection cannot reopen capture, and stale pre-failure input cannot approve actions.
 Detection of "Kora" is neither authentication nor approval; all commands still pass existing policy and approval checks.
 Playback echo rejection must prevent spoken answers and activation cues from becoming user input.
+
+The [speech-input contract](Speech_Input.md) keeps wake detection, endpointing,
+transcription and optional verification local, with zero hosted speech requests
+or billed token/audio-duration usage. Hosted reasoning preferences cannot grant
+microphone egress; asset downloads are separate explicit setup. No failure or
+hardware/performance choice enables hosted transcription, silently substitutes
+an input profile or disables selected speaker protection.
 
 ### Microphone Consent and Enablement Matrix
 
@@ -411,6 +420,16 @@ Protected native OS enrollment requirements do not apply merely to enabling this
 Missing assets, failure, consent withdrawal, or changed user/device binding pauses learning with an explicit explanation; general voice and safety controls remain available.
 Benchmark predominant-speaker attribution, correction/drift, voice variation, supported microphones, mixed speakers, and playback contamination before claiming quality.
 Do not advertise inferred frequent-speaker confidence as authenticated-owner confidence; any optional privacy use needs separate explicit policy and verifier evidence.
+
+The [learning mechanisms and resource policy](Speech_Input.md#optional-learning-and-calibration)
+distinguish wake calibration, speaker features, vocabulary personalization and
+actual acoustic adaptation. An accepted transcript or completed command is not
+a correctness/owner label. Bound and validate updates between utterances;
+exclude uncertain/mixed/playback samples and stop/defer optional updates for
+cancellation, consent withdrawal or interactive resource pressure.
+Performance presets cannot change consent, enroll a verifier or disable an
+existing selected protection. General owner-only command admission is not
+introduced by this learning direction.
 
 ### Explicit Verification and Output Privacy
 

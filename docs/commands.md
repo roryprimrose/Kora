@@ -950,6 +950,7 @@ The query is everything after the single space following `--`, including any add
 The canonical lexical limits above apply; empty/invalid input refuses before body reads, never Browse, a question answer or model fallback.
 
 One original-user action calls the same [canonical search service](../src/Kora.Application/Hosting/SessionConversationService.cs) as native search. Active and retained Done are readable without Resume.
+Native Sessions and compact search additionally retain inclusive submitted-date bounds and an observed task-state choice with explicit Any. These AND-compose with the query and role, bind the continuation, and require explicit fresh Search after editing; typed/voice syntax is unchanged ([native search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
 Results are inert chronological original USER messages and separate typed HOST outcomes with exact session/generation/request/task/sequence/revision provenance, not generated snippets.
 Each page returns at most 25 messages, scans at most the existing 100-message session bound and preserves the complete serialized 64 KiB limit, counters and source-qualified cursor.
 

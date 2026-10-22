@@ -300,7 +300,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.EvidenceTracePreparationRequested += _ => { calls++; return Task.FromResult(true); };
         var routing = typeof(Kora.Application.ViewModels.MainViewModel).GetMethod(
             "HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, [EvidencePrepare, 1f, initiator, null, null, null])!;
+        await (Task)routing.Invoke(f.ViewModel, [EvidencePrepare, 1f, initiator, null, null, null, null])!;
         calls.Should().Be(0);
         f.ViewModel.Transcript.Should().Contain("unavailable");
         f.HostStore.Records.Should().BeEmpty();

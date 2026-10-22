@@ -1,5 +1,6 @@
 using Avalonia.Controls;
 using AwesomeAssertions;
+using Kora.Application;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
@@ -29,7 +30,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(f.Main, f.Sessions, f.Evidence, access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var requests = new NewRequestWindowController(f.Main, f.Sessions, access,
-                () => new(f.Sessions, conversation, access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(f.Sessions, conversation, access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             sessions.Bind();
             requests.Bind();
             ConversationShutdownGuard.Bind(f.Main, requests, sessions);

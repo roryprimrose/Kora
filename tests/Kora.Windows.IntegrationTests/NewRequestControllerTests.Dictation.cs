@@ -6,6 +6,7 @@ using Avalonia.Interactivity;
 
 using AwesomeAssertions;
 
+using Kora.Application;
 using Kora.Application.Hosting;
 using Kora.Application.Voice;
 using Kora.Core.Hosting;
@@ -110,7 +111,8 @@ public sealed partial class NewRequestControllerTests
             using var sessions = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence, fixture.Access,
                 NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(fixture.Main, fixture.Sessions, fixture.Access,
-                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             controller.BindDictation(NullLogger<ComposerDictationService>.Instance);
             NewRequestWindow? window = null;

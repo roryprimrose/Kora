@@ -785,6 +785,17 @@ descriptor remains unavailable until Kora's parameterized tool/result loop and
 durable approval resumption are qualified. Preapproved address patterns will
 apply through the normal grant model when that route becomes available.
 
+### Open the existing New request composer
+
+- Typed: **open new request**, optionally prefixed by the current assistant name.
+- Activated voice: **Kora, open new request**, replacing Kora with the configured name.
+
+This is navigation into the existing [singleton native composer](windows-and-tray.md#new-request-with-a-fresh-session), not a new conversation or submission. Reopening preserves its exact memory, reviews, held state and active operation; it never selects a target, transfers text, saves, submits, resumes work or renews session activity ([controller](../src/Kora/NewRequestWindowController.cs)).
+
+Use the exact phrase without punctuation or trailing arguments. Malformed reserved input does not become a question answer or model request. A conflicting assistant name such as **New Request** requires explicit renaming ([parser](../src/Kora.Core/Commands/NewRequestOpenCommand.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs)).
+
+Resolve the current question or approval first. Privacy, ownership, call activation and original-input restrictions apply; stale queued opening is refused. Later Create/Submit require their own native gesture/review. Model-facing opening is unavailable: this event is not a registered model tool ([navigation](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs)).
+
 ### Inspect existing minimal durable sessions
 
 - **open sessions**

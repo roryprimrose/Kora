@@ -69,6 +69,29 @@ displays constant syntax, not question content or current IDs.
 Navigation status is separate from the current response and transcript;
 question controls retain their existing explicit one-shot answer behavior.
 
+## Cancel an exact running conversation
+
+In Sessions, **Refresh running work** observes only the selected exact active conversation.
+When an admitted turn is running, its actual task appears beside **Cancel this running conversation task**.
+This separate control remains available during submission; it does not select work by message text or cancel another session
+([native controls](../src/Kora/SessionsWindow.axaml), [presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+
+Choosing Cancel requests cancellation once. **Cancelling** means the request was accepted, not that the provider has stopped.
+Kora joins its owned provider work and cancellation callbacks before confirming terminal retention; a non-cooperative provider keeps that operation pending.
+Late answers and faults cannot replace the cancelled conversation with success
+([lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [lease](../src/Kora.Application/Hosting/ConversationCancellationLease.cs)).
+
+After a confirmed join and readback, the conversation reports **Cancelled** with no assistant answer.
+Its durable dispatched task remains **Unknown**, not a claimed rollback.
+If terminal storage, audit or private admission cannot be confirmed, inspect the exact original task without retrying.
+If terminal storage wins first, cancellation is refused and the actual committed answer remains
+([task rules](../src/Kora.Core/Conversation/ConversationMessage.cs), [race and failure tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ConversationCancellation.cs)).
+
+Cancellation requires fresh original-user control, exact task/session/generation ownership and trusted audit.
+Private closure clears the displayed target and cannot authorize later controls.
+This does not add a global stop command, provider retry, history deletion or production runtime qualification; bundled unqualified providers remain unavailable
+([cancellation admission](../src/Kora.Application/Hosting/SessionConversationService.Cancellation.cs), [provider gates](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
 ## Output precedence
 
 Response selection has this precedence, before all mandatory policy gates:

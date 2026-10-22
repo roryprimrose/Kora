@@ -178,6 +178,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("voice")]
     [InlineData("missing")]
     [InlineData("closed")]
+    [InlineData("stopped-current")]
     [InlineData("cancelled")]
     [InlineData("unavailable")]
     [InlineData("source")]
@@ -198,6 +199,10 @@ public sealed partial class AppearanceConfigurationServiceTests
             _ => SuggestionInput(message.Request),
         });
         if (fault is "closed") { input!.Complete(HostOperationOutcome.Completed); }
+        if (fault is "stopped-current")
+        {
+            await Task.Run(() => input!.Activity!.Stop(), TestContext.Current.CancellationToken);
+        }
         var token = fault is "cancelled" ? new CancellationToken(true) : TestContext.Current.CancellationToken;
         await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
             () => fault is not "source", _ => Task.CompletedTask, token)).Should().ThrowAsync<Exception>();

@@ -6,6 +6,7 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application;
 using Kora.Core.Artifacts;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
@@ -153,6 +154,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             }
             await closed.Task.WaitAsync(TestContext.Current.CancellationToken);
             await operation;
+            if (change is "privacy") { await f.Session.Main.PrivacyClosureTask; }
             confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             f.Status.Should().NotContain("baseline adopted");
             f.Store.Reads.Should().Be(1);
@@ -241,12 +243,71 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (change is "close") { editor.Close(); }
             f.Sessions.Release.TrySetResult();
             await operation;
+            if (change is "privacy") { await f.Session.Main.PrivacyClosureTask; }
             f.Store.Reads.Should().Be(0);
             f.Store.Writes.Should().Be(0);
             f.Status.Should().NotContain("baseline adopted");
             if (change is "privacy") { editor.Source.Text.Should().BeEmpty(); }
             else { editor.Source.Text.Should().Be(change is "draft" ? draft + "Edited" : draft); }
         });
+    }
+
+    [Fact]
+    public async Task RejectedRebaseIsNotTheDispatchedPrivacyClosureReceipt()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var dispatcher = new DeferredPrivacyDispatcher();
+            await using var f = await DraftValidationFixture.Create(ArtifactKind.Instruction, false, dispatcher);
+            var editor = f.Editor!;
+            f.Sessions.PauseNext = true;
+            var operation = f.Run("instructions rebase");
+            try
+            {
+                await f.Sessions.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+                dispatcher.PauseNext = true;
+                f.Session.Main.CloseForObservedPrivacyEvent("Synthetic deferred privacy closure", hidePresentation: true);
+                await dispatcher.Started.Task.WaitAsync(TestContext.Current.CancellationToken);
+                f.Session.Main.CanRevealPrivatePresentation.Should().BeFalse();
+                f.Sessions.Release.TrySetResult();
+                await operation;
+                f.Store.Reads.Should().Be(0);
+                f.Store.Writes.Should().Be(0);
+                f.Session.Main.PrivacyClosureTask.IsCompleted.Should().BeFalse();
+            }
+            finally
+            {
+                f.Sessions.Release.TrySetResult();
+                dispatcher.Release.TrySetResult();
+                await operation;
+                await f.Session.Main.PrivacyClosureTask;
+            }
+            editor.Source.Text.Should().BeEmpty();
+            editor.IsVisible.Should().BeFalse();
+            f.Store.Reads.Should().Be(0);
+            f.Store.Writes.Should().Be(0);
+        });
+    }
+
+    private sealed class DeferredPrivacyDispatcher : IUiDispatcher
+    {
+        private readonly AvaloniaUiDispatcher inner = new();
+        internal bool PauseNext;
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+
+        public async Task InvokeAsync(Func<Task> action)
+        {
+            if (PauseNext)
+            {
+                PauseNext = false;
+                Started.TrySetResult();
+                await Release.Task;
+            }
+            await inner.InvokeAsync(action);
+        }
+
+        public void Post(Action action) => inner.Post(action);
     }
 
     [Theory]
@@ -270,6 +331,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 if (change is "privacy") { f.Session.Main.CloseForObservedPrivacyEvent("Synthetic reentrant rebase closure", hidePresentation: true); }
             });
             await f.Run("instructions rebase");
+            if (change is "privacy") { await f.Session.Main.PrivacyClosureTask; }
             review.Should().NotBeNull();
             review!.IsVisible.Should().BeFalse();
             review.Content.Should().BeNull();

@@ -61,56 +61,9 @@ This is the bounded I implementation subset: existing singleton/tab/private-nati
 
 ### Delivered bounded fixed local-version queue settings (R10/R13)
 
-The [optional native prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) is a volatile explicit decision for one new fixed read, not a device preference or policy edit. Initial None preserves the original route; after enqueue choose None or an exact observed same-session task again.
-Refresh/private/session changes revoke selection. Pending capacity, slots and captured pending/active lifetimes below remain unchanged.
-Already-observed queued pending/running/recent terminal tasks now join the bounded native picker using actual host task state/revision from the same atomic work observation. Queue-entry revisions are never prerequisite revisions. No saved preference, history scan, new dependency policy or automatic dispatch is introduced; unavailable metadata requires explicit recovery/choice, not silent None.
+The native and exact fixed-read queue preference editors are removed. Former setting phrases report retirement rather than mutating preferences or falling through to model/approval routing ([workspace contract tests](../tests/Kora.Windows.IntegrationTests/WorkspaceRealignmentContractTests.cs)).
 
-The [two closed targeted queue reads](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) add no preference or authority store. One volatile explicit descriptor choice controls `capabilities.get`; it resets after enqueue/staleness. `runtime.get_status` has only fixed recorded `local.inference`. All six reads inherit the same prerequisite, configuration and admission fences.
-
-Native **Settings > Sessions > Fixed read-only local-version queue** and exact typed/current-name activated input share the [queue configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs).
-Device-local options are `queue.pending-per-session` (**1-10**, default/reset **10**), `queue.execution-slots` (**1-2**, default/reset **1**), `queue.pending-lifetime-minutes` (**1-120 minutes**, default/reset **30**) and `queue.active-budget-minutes` (**1-60 minutes**, default/reset **5**); all values are canonical integers.
-Each option resets independently, preserving the other three; resetting all four removes only this override file ([domain validation](../src/Kora.Core/Configuration/SessionQueuePreferences.cs), [atomic preferences](../src/Kora.Application/Configuration/LocalSessionQueuePreferences.cs)).
-
-Use `list queue settings`, `get`/`status <option-id>`, `set <option-id> to <canonical integer>` or `reset <option-id>`; no fuzzy/model setter or whole-profile reset is added ([parser](../src/Kora.Application/Configuration/SessionQueueConfigurationCommand.cs)).
-The same parser admits `show fixed read queue settings` and exact `show`, `set ... to <integer>` and `reset` aliases for `fixed read pending capacity`, `fixed read execution slots`, `fixed read pending lifetime` and `fixed read active budget`; both duration setters require the literal `minutes` suffix ([complete grammar](../docs/commands.md#fixed-queue-settings)).
-Natural aliases retain whole-utterance canonical validation, current-name activation and original provenance; malformed reserved phrases clarify before other routing ([parser tests](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationCommandTests.cs)).
-Independent resets preserve sparse companions and cannot repair corrupt saved state ([action tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.QueueConfiguration.cs)).
-Native Refresh captures the host-held draft revision, call revision, original input and exact visible lifetime; Save/Reset requires that unchanged admitted draft.
-Hiding/reopening, concurrent typed edits, stale session/generation/origin or private ownership changes refuse, rather than overwrite a newer value ([native workflow](../src/Kora.Application/ViewModels/MainViewModel.QueueConfiguration.cs)).
-
-Required typed REQUESTED/terminal audit, atomic save/readback, durable original-input control receipt and confirmed readback precede activation.
-Protected Active/Suspected/Unknown original-voice writes are denied without UI relabelling, downgrade or delayed application ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
-Schema-3 `session-queue.txt` has five lines: `3`, capacity, slots, pending lifetime minutes and active budget minutes; overrides are canonical integers or exact `default`.
-Known schema-1/2 files validate first and preserve prior fields. Schema 1 supplies pending default 30; both supply active default 5. Observation never rewrites source bytes; the next explicit confirmed edit writes schema 3. Partial, downgraded shapes and unknown versions are unavailable, not converted.
-The file (256-byte ceiling) and durable `session-queue-unconfirmed.txt` marker use `IApplicationDataPaths` and the shared atomic store.
-Unknown schema/shape, noncanonical values, invalid UTF-8, inaccessible or unconfirmed state is unavailable, never a successful default or rollback.
-Inspect saved state and audit/control receipts, explicitly repair, then refresh; ordinary refresh cannot clear an unconfirmed marker ([storage tests](../tests/Kora.Application.UnitTests/Configuration/LocalSessionQueuePreferencesTests.cs)).
-
-Confirmed limits feed enqueue/fair dispatch ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs)), native/exact work snapshots ([work consumer](../src/Kora.Application/Hosting/SessionWorkspaceService.cs)) and trusted local events ([event consumer](../src/Kora.Application/Interaction/AuthorityLocalEventSource.cs)).
-Short admission/observation transactions serialize with edits and revalidate saved state/revisions at consequential boundaries; the gate is not held through an active read or the dispatch batch.
-Lowering pending capacity never evicts or reclassifies existing entries; enqueue holds until capacity is available.
-The [reviewed expired removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) captures current confirmed future pending lifetime and rejects stale settings at confirmation.
-Replacing one existing pending source frees exactly one slot in the same transaction; the resulting pending total must fit the current limit, even when lowered below existing total. Old deadlines and future-dispatch active budgets are never renewed by preview or replacement.
-The [reviewed selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) still accepts up to the shared maximum ten existing pending entries after capacity falls.
-It is explicit one-session/current-run management, not a configurable policy: no eviction, expiry renewal, pause/resume/dispatch, current-task cancellation or meaningful activity extension.
-Lowering slots never cancels or reinterprets active admissions; subsequent fair admission uses the current limit ([race/capacity tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Queue.cs)).
-
-These settings apply only to the six closed synchronous read-only metadata profiles, not general tool parameters or workers.
-Manual dispatch, FIFO/fairness, one active task per session and no replay remain unchanged.
-The [exact current-run session queue pause](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) is a separate fixed safety control, not a saved queue setting or permission tier.
-Native/typed/activated Pause blocks only new admissions; Resume withdraws only the matched run/generation pause and never dispatches. Work/All work/status show the authoritative pause/hold reason and run receipt. Fresh runs start unpaused while previous pending work remains Interrupted; privacy retirement, audit/storage uncertainty and stale controls never restore queued eligibility.
-Pause/Resume do not change configured limits, captured deadlines, meaningful activity/retention or routine-notice quiet mode; general workers/providers/current-task cancellation remain unavailable.
-Pending lifetime affects **only newly enqueued admitted entries after confirmed activation**. Editing or refreshing preferences never enqueues, dispatches, cancels, expires or extends meaningful activity. Existing pending/cancelled/expired/running entries retain their exact deadlines and identities.
-New queue payload format 2 captures `RecordVersion=2` and integer `PendingLifetimeMinutes`; exact `ExpiresAt - EnqueuedAt` must match that captured value under the original enqueue intent/revision and committed change digest.
-Legacy payloads without either field still require exactly 30 minutes and retain their original serialized bytes/digests; no database schema or historical authority migration occurs. Unknown/partial/downgraded formats and changed raw payload bytes fail closed ([serialization tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.Lifetime.cs)).
-Active budget affects **future admission only after confirmed activation**, including a later admission from an old pending entry; it never alters that entry's enqueue time, pending lifetime or expiry. The actual chosen budget, precise UTC admission/deadline and same-run monotonic start are captured together under the original fair queue/configuration/host/current-intent transaction.
-Explicit payload format 3 binds `ActiveBudgetMinutes`, `AdmittedAt` and `ActiveDeadlineAt` to the original committed dispatch digest/time; later terminal revisions retain that authority. Known already-admitted legacy/format-2 records keep their original fixed five-minute deadline from their original admission audit, never current preferences.
-Work/status presents the same precise captured deadline for current, Unknown and retained terminal work. Current-event eligibility uses the active clock, not pending expiry. Actual callbacks succeed only strictly before the captured monotonic budget; equal/late results suppress the version and commit failure, with no physical termination or rollback claim.
-Cancellation/private-authority loss suppresses late receipts and drains admitted callbacks; uncertain dispatch stays for Unknown recovery and session quarantine, without free slots or restart replay. Separate user-question expiry, R08's independent 15-second model deadline, cancellation-grace and native/worker/provider/power limits remain immutable.
-Apply-now, current-task extension and the broader 1-50 capacity/general execution contract are not delivered ([actual enforcement and durable tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).
-No worker, automatic dispatch, resource lease, model tool, general execution or real two-slot provider/hardware qualification is added ([bounded workflow](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
-
-Validation and retained experiment reasons are recorded in the [active-deadline delivery receipt](Archive/Implementation_Roadmap_2026-10-11.md#r10r13-future-admission-active-deadlines---2026-10-10). Full R10/R13/A3, installed native/accessibility and affected provider/hardware acceptance remain open under the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy).
+Existing values, validation and unconfirmed-write holds remain in the internal [configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs). Retirement never defaults corrupt state, changes captured deadlines or grants dispatch. General work settings need their own approved consumers.
 
 ### R18 bounded local event suppression
 
@@ -1192,6 +1145,13 @@ consent withdrawal does. See the
 
 ## 1. Voice Input and Activation
 
+The following includes intended settings, not an inventory of delivered
+controls. The approved [local speech-input design](Speech_Input.md) adds
+separate provider/resource choices; production wake, new ASR providers,
+learning and enrolled verification remain unavailable until their own
+implementation and qualification. No new setting IDs or command syntax are
+registered by this design.
+
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
@@ -1205,6 +1165,9 @@ consent withdrawal does. See the
 | Trailing-silence endpoint | 1 second; 0.5-3 seconds | "Allow two seconds of silence before finishing my command" |
 | Maximum utterance | 60 seconds; 10-120 seconds | "Limit commands to forty-five seconds" |
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
+| Local input provider profiles (planned) | Separate qualified wake/name and transcription engine/model/language selections; no hosted audio or automatic provider substitution | "Show my local speech input options" |
+| Optional speech assets (planned) | Explicit install/verify/retry/remove through Settings or install-time preparation; share catalogue/services, with selection and consent independent | "Show installed speech input components" |
+| Speech resource profile (planned) | Measured Low resource, Balanced, Accuracy focused or Custom choices; supported CPU/GPU and explicit keep-loaded/idle-unload policy; no silent protection changes | "Show the speech accuracy and resource trade-offs" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
 
@@ -1242,6 +1205,21 @@ That requirement applies to explicitly enrolled verification, not merely optiona
 Learning consent/status/reset/deletion follow [Optional Local Frequent-Speaker Learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning); Off stops learning but is not an implicit deletion of derived features.
 Voice can initiate verification enrollment but cannot bypass its secure flow. Changes to owner-aware output/approval preferences use explicit exact voice/UI confirmation, not automatic template adaptation.
 All voice-profile settings and management changes obey the protected-call origin gate; status inspection remains available.
+
+Performance profiles resolve to exact supported settings; saved/effective
+values and unavailable reasons are distinct. Changing model residency affects
+memory and next-request startup, not microphone consent or audio retention.
+Provider/profile switching retires capture and old callbacks before new
+admission and never clears recovery holds. Unsupported personalization is
+explicitly unavailable, not a promise that every installed ASR model learns.
+An optional explicitly started local setup comparison uses inert phrases,
+discards audio and does not execute commands or alter settings until confirmed.
+It is separate from the existing no-transcription microphone test.
+The [optional component lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle)
+keeps WiX/Burn preparation and runtime Settings consistent. Model install/remove
+does not change the selected reasoning provider, output voice, microphone or
+speaker-protection policy. Keep installed/verified/selected/effective states
+visible and report missing or incompatible retained assets without fallback.
 
 ## 2. Spoken and Visual Responses
 

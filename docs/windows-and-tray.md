@@ -155,8 +155,10 @@ copy or grant new clipboard authority. Existing native editing/copy/paste is unc
 ### Search one exact retained conversation
 
 Select a session, enter lexical words and choose **Search this conversation** in Sessions or its compact projection.
-Both views share query, role, results and continuation.
-**All**, **USER** and **HOST** select the fields to search; generation/revision/sequence/time, request/task IDs and terminal outcome/reason predicates are not normal browsing controls ([shared search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
+Both views share query, role, submitted-date bounds, observed task state, results and continuation ([shared search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
+**All**, **USER** and **HOST** select the fields to search. Optional submitted **from** and **through** UTC bounds are inclusive; empty means Any. Use `yyyy-MM-ddTHH:mm:ss.fffffff+00:00` without repair or truncation.
+Task state has explicit **Any**; an exact state matches typed HOST outcomes, so USER-only with a state yields zero ([validated predicates](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+Editing any predicate retires results and requires explicit Search. Generation/revision/sequence bounds, request/task IDs and terminal outcome/reason predicates remain retired from normal browsing ([shared search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
 
 Search returns chronological retained messages, not generated summaries. Enter searches; Cancel, Clear or Escape in the query retires search without changing the composer. Changing the exact source or private ownership rejects late results. Opening a view performs no search ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs)).
 
@@ -683,7 +685,9 @@ Select a session or enter its canonical exact ID, then explicitly **Read exact h
 Next continues the bounded original snapshot; later appends require a fresh read.
 Select a receipt and **Open immutable receipt details** to freshly resolve its exact retained provenance into the passive native viewer ([history workflow](../src/Kora/SessionsViewModel.cs), [details](../src/Kora.Application/Hosting/SessionWorkspaceService.cs)).
 
-**Search exact history** accepts lexical words in the volatile query. Enter searches, Next continues, Cancel suppresses pending results, and Clear/Escape clears the query. Engineering receipt/task/request/source IDs, revision/generation/sequence ranges and typed decision filters are retired from normal browsing ([search presentation](../src/Kora/SessionsViewModel.Search.cs)).
+**Search exact history** accepts lexical words and optional receipt kind, task state, decision, question status and answer-channel choices, each with explicit **Any**.
+Predicates AND-compose; editing retires results without reading. Enter searches, Next continues, Cancel suppresses pending results, and Clear/Escape clears query, predicates and results ([search presentation](../src/Kora/SessionsViewModel.Search.cs)).
+Engineering receipt/task/request/source-ID predicates and revision/generation/sequence ranges remain retired. Ordinary receipt states are passive search choices, not current task, answer or approval authority ([validated predicates](../src/Kora.Core/Storage/SessionHistoryMetadataFilter.cs)).
 
 History remains passive: no question answer, approval, replay, task execution, activity renewal or implicit source repair. Unavailable/redacted citations remain explicit; privacy/source/lifetime changes fence late content. Internal exact receipt identity and snapshot validation remains authoritative ([history service](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs)).
 

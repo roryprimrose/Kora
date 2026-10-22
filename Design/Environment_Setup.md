@@ -238,6 +238,60 @@ Declining/failing verification leaves confidence `Unavailable`, not an authentic
 Both capabilities discard transient sample audio and keep derived templates device-local, protected, and absent from roaming, logs, diagnostics, and model-accessible stores.
 Provide status/test/correct/reset/delete recovery; protected-call changes require new UI initiation under the origin gate.
 
+## Optional Local Speech Component Lifecycle
+
+The [approved speech-input design](Speech_Input.md#optional-installation-and-runtime-lifecycle)
+requires future qualified wake/VAD/ASR and optional verifier assets to be
+available through both explicit WiX/Burn install-time preparation and later
+Settings setup. Current installer choices remain PowerShell, Ollama/Qwen and
+Kokoro; this design does not add checkboxes or enable speech profiles.
+
+Extend one versioned host catalogue and existing setup seams, rather than
+implementing independent installer and application download policies. Each
+component records exact engine/runtime/model identities, supported
+Windows/architecture/CPU/GPU, trusted source, byte/hash verification, licence
+and redistribution disposition, download and staged/installed disk estimates,
+RAM/VRAM estimates, dependencies, scope/ownership, health checks and removal
+rules. Bundled native code/launch dependencies remain distinct from optional
+data; a new adapter/runtime must arrive through admitted application delivery.
+
+Both entry points must:
+
+1. Inspect existing assets and compatibility without starting capture, learning,
+   inference or downloads during read-only preflight. Unknown is not Missing or
+   Ready. Show install/reuse/verify needs and retain a continue-without path.
+2. Present only actionable qualified choices, unchecked at install time, with
+   source/licence, download/storage/resource costs and any external prerequisite
+   before exact consent. Required shared runtimes/elevation stay under
+   distribution policy; never silently install GPU drivers or SDKs.
+3. Prepare only selected assets using the common bounded service. Follow the
+   existing non-elevated interactive-user asset scope even for all-users Kora
+   installation, with production paths supplied by `IApplicationDataPaths`.
+   Isolate staging and verify bytes before atomic publication; preserve
+   pre-existing/shared assets and report partial or uncertain outcomes.
+4. Re-probe after preparation. A verified download or installed record is not
+   functional readiness, capability qualification or selected provider state.
+   Functional checks use inert fixtures, never microphone capture or commands.
+   The app revalidates readiness on use; no installer receipt grants host
+   authority, microphone consent, enrollment, learning or future downloads.
+5. Surface progress, cancellation, failures and retry/reconciliation in Settings.
+   Optional failure/cancellation does not roll back Kora or remove user-owned
+   components. Offline users can decline acquisition or explicitly verify
+   supported already-present assets without hidden network fallback.
+6. Keep installation/removal, active profile choice, compute/residency and
+   learning/protection settings separate. Join owned capture/model work before
+   replacing/removing in-use assets; check shared consumers, preserve saved
+   selections as unavailable if their assets are removed, and never select
+   another provider or disable protection implicitly.
+
+App upgrade/repair/uninstall follows the existing ownership/retention policy,
+not automatic removal of model data or derived voice profiles. Version or
+backend incompatibility reports unavailable pending explicit reconciliation.
+Explicit derived-profile deletion also clears bounded candidate/recovery
+revisions and cached features; deleting a model is not implied biometric-data
+deletion. Installer versus Settings paths need equivalent detection,
+verification, failure/cancel/retry and existing-asset preservation coverage.
+
 ## Setup Flow
 
 1. Launch Kora's setup shell and initialise its own local storage.

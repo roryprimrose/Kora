@@ -3,6 +3,7 @@ using System.Reflection;
 using AwesomeAssertions;
 
 using Kora.Application.ViewModels;
+using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
 using Kora.Core.Configuration;
@@ -12,6 +13,29 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task CompletedResponseOutputFailureIsConsumedWithoutStartingAnotherDiscovery()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
+        fixture.TextToSpeech.OutputEnumerationException = new IOException("render endpoints unavailable");
+        fixture.TextToSpeech.ClearSpokenResponse();
+        fixture.WindowActions.Clear();
+        var before = fixture.TextToSpeech.OutputEnumerationCalls;
+        var present = typeof(MainViewModel).GetMethod("ShowInformation", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        present.Invoke(fixture.ViewModel, ["Original response", "Must not replace the output error.", true]);
+        (await fixture.ViewModel.ResponseOutputUpdate).Should().BeFalse();
+        var speak = typeof(MainViewModel).GetMethod("SpeakCurrentResponseAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
+
+        await (Task)speak.Invoke(fixture.ViewModel, [Type.Missing, Type.Missing, Type.Missing])!;
+
+        fixture.TextToSpeech.OutputEnumerationCalls.Should().Be(before + 1);
+        fixture.ViewModel.State.Should().Be(AssistantState.Failure);
+        fixture.ViewModel.ResponseTitle.Should().Be("Audio output is unavailable.");
+        fixture.WindowActions.Should().Equal(WindowAction.Show);
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
     [Fact]
     public async Task SupersededResponseCannotBeSpokenAfterItsOutputDiscoveryCompletes()
     {

@@ -11,6 +11,9 @@ internal sealed partial class SessionsViewModel
 {
     private string conversationQuery = string.Empty;
     private ConversationSearchRole conversationRole;
+    private string conversationSubmittedFrom = string.Empty;
+    private string conversationSubmittedThrough = string.Empty;
+    private HostTaskState? conversationTaskState;
     private ConversationSearchPage? conversationSearchPage;
     private CancellationTokenSource? conversationSearchCancellation;
     private long conversationSearchEpoch;
@@ -35,6 +38,59 @@ internal sealed partial class SessionsViewModel
         }
     }
     public string ConversationSearchStatus => conversationSearchStatus;
+    public string ConversationSubmittedFrom
+    {
+        get => conversationSubmittedFrom;
+        set => EditConversationDate(ref conversationSubmittedFrom, value);
+    }
+    public string ConversationSubmittedThrough
+    {
+        get => conversationSubmittedThrough;
+        set => EditConversationDate(ref conversationSubmittedThrough, value);
+    }
+    public IReadOnlyList<ConversationTaskStateOption> ConversationTaskStates { get; } =
+        [new(null), .. Enum.GetValues<HostTaskState>().Select(value => new ConversationTaskStateOption(value))];
+    public ConversationTaskStateOption ConversationTaskStateChoice
+    {
+        get => new(conversationTaskState);
+        set
+        {
+            if (closed || !access.CanInspect || value is null || conversationTaskState == value.Value) { return; }
+            conversationTaskState = value.Value;
+            RetireConversationFilter();
+        }
+    }
+
+    private void EditConversationDate(ref string field, string value)
+    {
+        if (closed || !access.CanInspect || string.Equals(field, value, StringComparison.Ordinal)) { return; }
+        field = value;
+        RetireConversationFilter();
+    }
+
+    private void RetireConversationFilter()
+    {
+        InvalidateConversationSearch();
+        conversationSearchTarget = selected;
+        conversationSearchControlRevision = access.ControlRevision;
+        conversationSearchStatus = "Submitted date or task state edited. Explicit Search required; empty dates and Any state add no restriction.";
+        NotifyConversationSearch();
+    }
+
+    private void ResetConversationFilters()
+    {
+        conversationSubmittedFrom = string.Empty;
+        conversationSubmittedThrough = string.Empty;
+        conversationTaskState = null;
+    }
+
+    private static ConversationRangeFilter ParseConversationDates(string from, string through)
+    {
+        try { return ConversationRangeFilter.Parse(string.Empty, string.Empty, from, through); }
+        catch (InvalidDataException exception)
+        { throw new ArgumentException("Submitted date bounds require ordered canonical UTC timestamps.", nameof(from), exception); }
+    }
+
     public IReadOnlyList<ConversationSearchRole> ConversationRoles { get; } = Enum.GetValues<ConversationSearchRole>();
     public ConversationSearchRole ConversationRole
     {
@@ -60,6 +116,7 @@ internal sealed partial class SessionsViewModel
         InvalidateConversationSearch();
         conversationQuery = string.Empty;
         conversationRole = ConversationSearchRole.All;
+        ResetConversationFilters();
         conversationSearchTarget = null;
         conversationSearchStatus = "Private search query, rows and continuation cleared. Composer and saved draft unchanged.";
         NotifyConversationSearch();
@@ -85,6 +142,9 @@ internal sealed partial class SessionsViewModel
         var revision = access.ControlRevision;
         var query = conversationQuery;
         var role = conversationRole;
+        var submittedFrom = conversationSubmittedFrom;
+        var submittedThrough = conversationSubmittedThrough;
+        var taskState = conversationTaskState;
         conversationSearchTarget = target;
         conversationSearchControlRevision = revision;
         var cursor = next ? conversationSearchPage?.Next : null;
@@ -102,8 +162,9 @@ internal sealed partial class SessionsViewModel
         try
         {
             if (next && cursor is null) { throw new ArgumentException("CursorMismatch", nameof(next)); }
+            var range = ParseConversationDates(submittedFrom, submittedThrough);
             var result = await conversation!.SearchAsync(target.Authority.SessionId, query, cursor,
-                ConversationSearchPage.DefaultRecords, cancellation.Token, role);
+                ConversationSearchPage.DefaultRecords, cancellation.Token, role, new(TaskState: taskState), range);
             cancellation.Token.ThrowIfCancellationRequested();
             if (!Live() || result.Session != target.Authority)
             { throw new OperationCanceledException("Exact private conversation search was revoked."); }
@@ -125,11 +186,12 @@ internal sealed partial class SessionsViewModel
                     InvalidateConversationSearch();
                     conversationQuery = string.Empty;
                     conversationRole = ConversationSearchRole.All;
+                    ResetConversationFilters();
                     conversationSearchTarget = null;
                 }
                 conversationSearchStatus = exception switch
                 {
-                    ArgumentException => "InvalidQuery, InvalidRole or CursorMismatch. Use 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start a fresh Search.",
+                    ArgumentException => "InvalidQuery, InvalidRole, InvalidTaskState, InvalidRange or CursorMismatch. Use ordered inclusive UTC dates in yyyy-MM-ddTHH:mm:ss.fffffff+00:00 format (empty means Any), a defined task state and 1-256 UTF-16 characters / 512 UTF-8 bytes with 1-32 distinct lexical terms of at most 64 characters; start a fresh Search.",
                     ConversationSnapshotChangedException => "Snapshot changed. No search content; start a fresh Search.",
                     OperationCanceledException => "Search cancelled. No search content or successful observation inferred.",
                     _ => "Exact conversation search unavailable. No search content; refresh the selected source and start fresh Search.",
@@ -155,14 +217,19 @@ internal sealed partial class SessionsViewModel
             InvalidateConversationSearch();
             conversationQuery = string.Empty;
             conversationRole = ConversationSearchRole.All;
+            ResetConversationFilters();
             conversationSearchTarget = null;
             conversationSearchStatus = "Exact session/source or private ownership changed. Private search cleared; explicit fresh Search required.";
         }
         foreach (var name in new[] { nameof(ConversationQuery), nameof(ConversationRole),
+            nameof(ConversationSubmittedFrom), nameof(ConversationSubmittedThrough), nameof(ConversationTaskStateChoice),
             nameof(ConversationSearchStatus), nameof(ConversationSearchMessages),
             nameof(CanSearchConversation), nameof(CanNextConversationSearch), nameof(CanCancelConversationSearch) })
         { OnPropertyChanged(name); }
     }
 
-
+    internal sealed record ConversationTaskStateOption(HostTaskState? Value)
+    {
+        public override string ToString() => Value?.ToString() ?? "Any";
+    }
 }

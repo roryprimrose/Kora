@@ -7,7 +7,7 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.UnitTests.Context;
 
-public sealed class LocalFileLiteralFindTests
+public sealed partial class LocalFileLiteralFindTests
 {
     [Theory]
     [InlineData("", "a", 0)]

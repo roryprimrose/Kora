@@ -174,4 +174,18 @@ public sealed partial class ModelTurnHostTests
         receipt.Message.AssistantResponse!.Body.Should().Be("answer");
         root.Complete(HostOperationOutcome.Completed);
     }
+
+    [Fact]
+    public async Task ScopedInstructionReviewWithoutATraceListenerNeverFabricatesAnActivityOrDispatches()
+    {
+        listener.Dispose();
+        using var f = new Fixture();
+        var source = new InstructionSource();
+        var (broker, catalogue, _) = InstructionBroker(f, source);
+        var review = await broker.ReviewAsync(new(f.Session, null), catalogue.Artifacts.Single(), "Request", static () => true, Token);
+        review.Trace.Should().BeNull();
+        review.CanSubmit.Should().BeTrue();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
 }

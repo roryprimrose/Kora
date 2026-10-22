@@ -9326,6 +9326,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public bool IsAmbientListeningAvailable => false;
 
+        public bool IsLiteralDictationAvailable { get; set; }
+
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
         public bool PreventQuiescence { get; set; }

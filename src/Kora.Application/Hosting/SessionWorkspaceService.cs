@@ -20,6 +20,7 @@ public sealed partial class SessionWorkspaceService(
     public event Action<HostTaskObservation>? WaitingTaskCancelled;
     public event Action<HostId<SessionIdentity>>? SessionRetired;
     public event Action<HostId<SessionIdentity>>? SessionLifecycleChanged;
+    public event Action<HostId<SessionIdentity>>? SessionMetadataChanging;
     private SessionRetentionService? retention;
     public void BindRetention(SessionRetentionService service)
     {
@@ -51,9 +52,12 @@ public sealed partial class SessionWorkspaceService(
             (request, eligible) => store.CreateNamedSessionAsync(request, name, eligible, token), token);
 
     public Task<SessionWorkspaceEntry> RenameAsync(HostId<SessionIdentity> session, HostRevision expectedGeneration,
-        long expectedMetadataRevision, SessionName name, RequestOrigin origin, CancellationToken token) =>
-        ControlAsync(session, origin,
+        long expectedMetadataRevision, SessionName name, RequestOrigin origin, CancellationToken token)
+    {
+        SessionMetadataChanging?.Invoke(session);
+        return ControlAsync(session, origin,
             (request, eligible) => store.RenameSessionAsync(request, expectedGeneration, expectedMetadataRevision, name, eligible, token), token);
+    }
 
     public Task<SessionPage<HostQuestionRecord>> ReadQuestionsAsync(HostId<SessionIdentity> session, Guid? after, int limit, CancellationToken token) =>
         ReadAsync(() => store.ReadQuestionPageAsync(session, after, limit, token), token);

@@ -11,6 +11,9 @@ internal sealed partial class NewRequestWindow : Window
     private bool choosing;
     private bool openingPrivate;
     private Window? discardDialog;
+    private long dictationArm;
+    private bool dictationHeld;
+    private readonly Action<Exception> reportFailure;
     internal Task Operation { get; private set; } = Task.CompletedTask;
     internal Func<Task<ComposerDraftDecision>>? DecideDraft { get; set; }
 
@@ -19,11 +22,13 @@ internal sealed partial class NewRequestWindow : Window
     {
         this.model = model;
         captureSource = captureDraftSource ?? (() => static () => true);
+        reportFailure = navigationFailure;
         InitializeComponent();
         DataContext = model;
         _ = new NativeDraftWrapping(this, NewRequestBody, WrapDraftText, model,
             captureDraftSource ?? (() => () => model.CanEdit));
         DecideDraft = ChooseDraft;
+        BindDictation();
         CreateTarget.Click += async (_, _) => await (Operation = model.Composer.Create());
         ReviewNewRequest.Click += (_, _) => model.Composer.Review();
         SubmitNewRequest.Click += async (_, _) => await (Operation = model.Composer.Submit());
@@ -45,13 +50,19 @@ internal sealed partial class NewRequestWindow : Window
                 return;
             }
             if (privateClose) { return; }
-            if (!model.Composer.Dirty) { model.Composer.Cancel(); return; }
+            CancelLiteralDictation();
+            if (!model.Composer.Dirty && model.Dictation?.Quiescence.IsCompletedSuccessfully != false)
+            { model.Composer.Cancel(); return; }
             args.Cancel = true;
             if (choosing) { return; }
             model.Composer.Cancel();
             choosing = true;
             try
             {
+#pragma warning disable VSTHRD003 // Native closing joins the exact owned capture release without blocking the dispatcher.
+                if (model.Dictation is { } dictation) { await dictation.Quiescence; }
+#pragma warning restore VSTHRD003
+                if (!model.Composer.Dirty) { privateClose = true; Close(); return; }
                 await (Operation = ProtectClose());
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -76,9 +87,14 @@ internal sealed partial class NewRequestWindow : Window
     {
         privateClose = true;
         DisposeDraftFind();
+        CancelLiteralDictation();
         model.Dispose();
         discardDialog?.Close();
-        if (!openingPrivate) { Close(); }
+        if (!openingPrivate)
+        {
+            Hide();
+            RunDictation(CloseAfterDictationRelease);
+        }
     }
 
     internal async Task<bool> PrepareShutdown()
@@ -100,7 +116,15 @@ internal sealed partial class NewRequestWindow : Window
         openingPrivate = true;
         try { Show(); }
         finally { openingPrivate = false; }
-        if (privateClose) { Hide(); Close(); }
+        if (privateClose) { Hide(); RunDictation(CloseAfterDictationRelease); }
+    }
+
+    private async Task CloseAfterDictationRelease()
+    {
+#pragma warning disable VSTHRD003 // Private closure waits for the owned native release while the window stays hidden.
+        if (model.Dictation is { } dictation) { await dictation.Quiescence; }
+#pragma warning restore VSTHRD003
+        Close();
     }
 
     private async Task<bool> ProtectClose()

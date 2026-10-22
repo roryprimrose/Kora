@@ -10,7 +10,9 @@ internal sealed partial class ListeningStopAction(IActivatedVoiceRecognitionServ
 
     public bool IsHeld => Volatile.Read(ref held) != 0;
 
-    public bool CanRecover => Volatile.Read(ref stopping) == 0 && capture.IsCaptureQuiescent;
+    public bool IsStopping => Volatile.Read(ref stopping) != 0;
+
+    public bool CanRecover => !IsStopping && capture.IsCaptureQuiescent;
 
     public bool TryRecover()
     {

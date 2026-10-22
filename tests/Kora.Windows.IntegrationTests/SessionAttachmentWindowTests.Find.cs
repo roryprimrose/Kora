@@ -23,11 +23,16 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionAttachmentWindowTests
 {
     [Theory]
-    [InlineData("close")]
-    [InlineData("private")]
-    [InlineData("session")]
-    [InlineData("audit-failure")]
-    public async Task LiteralFindInActualRetainedDoneControllerRevalidatesPrivateSqliteWithoutOriginalPathOrActivityRenewal(string boundary)
+    [InlineData("close", true)]
+    [InlineData("private", true)]
+    [InlineData("session", true)]
+    [InlineData("audit-failure", true)]
+    [InlineData("close", false)]
+    [InlineData("private", false)]
+    [InlineData("session", false)]
+    [InlineData("audit-failure", false)]
+    public async Task LiteralFindInActualRetainedDoneControllerRevalidatesPrivateSqliteWithoutOriginalPathOrActivityRenewal(
+        string boundary, bool matchCase)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -70,17 +75,19 @@ public sealed partial class SessionAttachmentWindowTests
                 var view = opened!;
                 view.UpdateLayout();
                 var query = view.GetVisualDescendants().OfType<TextBox>().Single(box =>
-                    AutomationProperties.GetName(box)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+                    AutomationProperties.GetName(box)?.StartsWith("Literal Find in", StringComparison.Ordinal) == true);
                 var source = view.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
                     string.Equals(AutomationProperties.GetName(block), "Untrusted local file plain text content", StringComparison.Ordinal));
-                query.Text = "EXACT_LITERAL_SECRET";
+                view.GetVisualDescendants().OfType<CheckBox>().Single(box =>
+                    string.Equals(AutomationProperties.GetName(box), "Match case", StringComparison.Ordinal)).IsChecked = matchCase;
+                query.Text = matchCase ? "EXACT_LITERAL_SECRET" : "exact_literal_secret";
                 await Press(view, "Find first");
                 var span = view.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
                     AutomationProperties.GetName(block)?.StartsWith("Exact literal original", StringComparison.Ordinal) == true);
-                span.Text.Should().Be(query.Text);
+                span.Text.Should().Be("EXACT_LITERAL_SECRET");
                 span.IsFocused.Should().BeTrue();
                 await Press(view, "Find next");
-                span.Text.Should().Be(query.Text);
+                span.Text.Should().Be("EXACT_LITERAL_SECRET");
                 (await service.Read(done.Authority.SessionId, fixture.Token))!.File.Reference.Should().Be(retained.File.Reference);
                 (await fixture.Store.ReadRetentionAsync(done.Authority.SessionId, fixture.Token)).Should().Be(clock);
                 fixture.Count("session_file").Should().Be(1);

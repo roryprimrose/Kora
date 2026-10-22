@@ -7,6 +7,11 @@ Related: [User Configuration](User_Configuration.md),
 [Interaction Fallback](Interaction_Fallback.md), and
 [Acceptance Criteria](Acceptance_Criteria.md).
 
+The approved [local speech-input design](Speech_Input.md) separates wake-name
+detection from transcription, optional speaker observations and action routing.
+Its configurable provider/resource profiles do not make every valid display
+name a qualified wake phrase or enable production wake.
+
 ## Implemented Product Behaviour
 
 The assistant name defaults to "Kora". One device-local configured name is used

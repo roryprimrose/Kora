@@ -535,6 +535,55 @@ These are proposed release targets, not measured detector capabilities.
 Wake activation is mandatory for Slice A: shipping PTT alone does not pass this gate.
 If the detector fails, change/tune the local implementation or explicitly revisit supported hardware; do not defer activation or switch to cloud listening.
 
+### Configurable Local Speech Input Gate
+
+The [approved input design](Speech_Input.md) adds these affected-profile checks;
+it does not replace or lower the performance, wake, privacy or speaker gates.
+Apply the three-tier policy: deterministic maintained checks gate the consumed
+implementation, actual profile evidence gates enablement, and integrated final
+bytes gate the enabled RC scope.
+
+- Prove zero speech-provider network requests during wake listening, activated
+  transcription and optional verification/learning, including when hosted
+  reasoning is selected. Explicit model download is a separate setup operation;
+  no local failure or resource pressure can enable hosted speech.
+- Test final-only, at-most-once text admission with frozen provider/configuration
+  and generation. Partial, duplicate, stale, cancelled and cross-session results
+  cannot route commands or answer a different question.
+- Test missing/corrupt assets, unsupported CPU/GPU/language/name, unload while
+  busy, failed cleanup, consent withdrawal, profile switching and late callbacks.
+  Selection/presets never clear recovery holds, acquire consent, silently
+  substitute a provider or disable selected speaker protection.
+- Compare exact model/runtime/backend bytes on recorded Windows hardware,
+  reporting cold versus warm latency, configured idle unloading, wake-only cost,
+  peak CPU/GPU/memory and contention with local reasoning. Measure end-of-speech
+  to final text and intended-command outcomes, not word error rate alone.
+- Include silence/noise, short commands, names/numbers/negation, immediate
+  wake-and-command, accents, playback and mixed-speaker handoff. Hallucinated or
+  vocabulary-biased command text must not pass critical wrong-action fixtures;
+  calibrate admission independently per engine, not by reusing Windows scores.
+- Optional local setup comparisons are explicitly started, bounded and inert:
+  phrases cannot execute, approve, collect task context, retain audio or confer
+  ongoing listening. Cancel preserves prior settings; this is not the existing
+  no-transcription microphone test or release qualification.
+- Exercise the [shared optional-component lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle)
+  through both Burn and Settings: unchecked/skip/reuse/install/verify,
+  unavailable/incompatible assets, insufficient resources, failed/cancelled
+  acquisition and retry. Preflight never downloads, loads models or records.
+  Optional failure retains Kora; both entry points use the same pinned catalogue
+  and verification policy, without provider selection or microphone consent.
+  Test current-user/all-users scope with non-elevated asset ownership,
+  shared-component/in-use removal, retained preferences and upgrade/repair/
+  uninstall compatibility. Packaging/native-loader changes require the affected
+  exact-byte evidence; no model-data choice waives launch prerequisites.
+- For every advertised learning mechanism, compare baseline and personalized
+  recognition on held-out eligible utterances without training/test leakage.
+  Record bounded update time/state/resources and regression/drift cases; an
+  accepted transcript/completed command is not a correctness or owner label.
+  Consent loss cancels adaptation, uncertain/playback/mixed/reply samples are
+  excluded, incompatible versions are unavailable and unstable updates cannot
+  silently replace known-good state or an enrolled verification identity.
+
 ### Shared-Space and Optional Speaker-Verification Gate
 
 - With verification absent/disabled, baseline deliberate voice/UI interaction remains available under normal output/privacy policy. With owner-aware privacy enabled but unhealthy/stale/uncertain, private content uses a neutral visual notice rather than silently disabling protection.

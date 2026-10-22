@@ -1192,6 +1192,13 @@ consent withdrawal does. See the
 
 ## 1. Voice Input and Activation
 
+The following includes intended settings, not an inventory of delivered
+controls. The approved [local speech-input design](Speech_Input.md) adds
+separate provider/resource choices; production wake, new ASR providers,
+learning and enrolled verification remain unavailable until their own
+implementation and qualification. No new setting IDs or command syntax are
+registered by this design.
+
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Input device | System by default and follows live Windows multimedia-default changes; a specific endpoint-ID override remains pinned until changed back to System; changing selection after manual disablement does not restart capture | "Use my headset microphone" |
@@ -1205,6 +1212,9 @@ consent withdrawal does. See the
 | Trailing-silence endpoint | 1 second; 0.5-3 seconds | "Allow two seconds of silence before finishing my command" |
 | Maximum utterance | 60 seconds; 10-120 seconds | "Limit commands to forty-five seconds" |
 | Recognition language/model | Initial supported local English configuration; choose only delivered/ready assets | "Use the more accurate installed recognition model" |
+| Local input provider profiles (planned) | Separate qualified wake/name and transcription engine/model/language selections; no hosted audio or automatic provider substitution | "Show my local speech input options" |
+| Optional speech assets (planned) | Explicit install/verify/retry/remove through Settings or install-time preparation; share catalogue/services, with selection and consent independent | "Show installed speech input components" |
+| Speech resource profile (planned) | Measured Low resource, Balanced, Accuracy focused or Custom choices; supported CPU/GPU and explicit keep-loaded/idle-unload policy; no silent protection changes | "Show the speech accuracy and resource trade-offs" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
 
@@ -1242,6 +1252,21 @@ That requirement applies to explicitly enrolled verification, not merely optiona
 Learning consent/status/reset/deletion follow [Optional Local Frequent-Speaker Learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning); Off stops learning but is not an implicit deletion of derived features.
 Voice can initiate verification enrollment but cannot bypass its secure flow. Changes to owner-aware output/approval preferences use explicit exact voice/UI confirmation, not automatic template adaptation.
 All voice-profile settings and management changes obey the protected-call origin gate; status inspection remains available.
+
+Performance profiles resolve to exact supported settings; saved/effective
+values and unavailable reasons are distinct. Changing model residency affects
+memory and next-request startup, not microphone consent or audio retention.
+Provider/profile switching retires capture and old callbacks before new
+admission and never clears recovery holds. Unsupported personalization is
+explicitly unavailable, not a promise that every installed ASR model learns.
+An optional explicitly started local setup comparison uses inert phrases,
+discards audio and does not execute commands or alter settings until confirmed.
+It is separate from the existing no-transcription microphone test.
+The [optional component lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle)
+keeps WiX/Burn preparation and runtime Settings consistent. Model install/remove
+does not change the selected reasoning provider, output voice, microphone or
+speaker-protection policy. Keep installed/verified/selected/effective states
+visible and report missing or incompatible retained assets without fallback.
 
 ## 2. Spoken and Visual Responses
 

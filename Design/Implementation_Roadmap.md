@@ -41,6 +41,24 @@ provider, containment and installed trials are E/Q for their affected profile.
 Clipboard preview does not depend on model explanation, deterministic queues
 do not depend on hosted management, and speech preferences do not qualify wake.
 
+## Approved Speech-Input Direction - 2026-10-22
+
+The [local speech-input contract](Speech_Input.md) records approved configurable
+wake detection, activated local ASR, resource/residency choices and optional
+bounded personalization, without changing text-to-action routing or adding
+hosted audio. D-002 engine selection, D-006 learning/verifier qualification and
+D-007 hardware evidence remain open. New profiles/settings and production wake
+are not delivered or enabled by this documentation.
+Future qualified optional speech components must support both WiX/Burn
+install-time preparation and runtime Settings through shared setup services;
+application/native payload, model data and input consent remain distinct.
+
+Implement only the consumed provider/settings/generation/quiescence subset
+with deterministic seams; do not wait for unrelated R09/R24 physical evidence.
+Exact offered speech profiles still need applicable E evidence, and the final
+enabled manifest needs Q evidence. Optional learning is not a baseline voice
+dependency and does not authorize a blanket owner-only command policy.
+
 ## Current Delivery
 
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20

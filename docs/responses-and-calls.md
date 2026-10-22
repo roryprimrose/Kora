@@ -49,6 +49,16 @@ The action has no raw-text input and cannot select conversation USER/HOST rows, 
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
+## Return focus to a pending question
+
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)
+only focuses the exact still-open, current host-owned native question.
+It cannot reopen dismissed or historical questions, select a different session,
+replace a draft answer or answer/approve by command. `pending question help`
+displays constant syntax, not question content or current IDs.
+Navigation status is separate from the current response and transcript;
+question controls retain their existing explicit one-shot answer behavior.
+
 ## Output precedence
 
 Response selection has this precedence, before all mandatory policy gates:

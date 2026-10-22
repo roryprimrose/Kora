@@ -72,6 +72,29 @@ Native composition and original/current private ownership, input, call/privacy e
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
+## Focus the exact pending native question
+
+Use `open pending question <session-id> <task-id>` with two nonempty canonical
+lowercase D-format GUIDs. Typed input may use the current assistant-name prefix;
+activated voice requires it. `pending question help` shows constant syntax only,
+without reading a question or revealing current IDs.
+
+This focuses only the **same already-open native question window** for the exact
+currently host-owned admitted wait matching both IDs. The current production
+host owns at most one local-version question; Sessions and All work question
+metadata cannot select, recover or create another presenter. Missing, closed,
+expired, answered, cancelled, stale, foreign or uncertain targets explicitly
+report unavailable. There is no latest-question fallback or historical recovery.
+
+Navigation preserves question/options, saved and unsaved answers, original
+expiry, revision and session generation. It does not answer, approve, cancel,
+resume, replay, submit work, select a session, replace a dirty composer, read
+question bodies from storage, refresh the source, speak or copy. Answer separately
+through the existing native one-shot controls. Protected calls refuse focus.
+Malformed reserved commands are refused before question-answer/model routing.
+The separate navigation status does not replace the transcript, current response,
+question status or security preview.
+
 ## Unsent conversation input and legacy recovery
 
 Sessions are ongoing topic conversations with Active/Done lifecycle. Unsent input stays separately in memory for each exact session while switching topics; Sessions and compact views share the same buffer. There is no ordinary draft Save/Reload/Clear, catalogue, search or saved-buffer comparison workflow ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).

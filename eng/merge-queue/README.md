@@ -29,7 +29,7 @@ Do not enable the queue merely by merging its implementation PR.
    protected squash merge. GitHub's native auto-merge may perform the same
    authorised merge first; recovery recognises that outcome.
 
-Conflicting or failed revisions leave the lane with explicit failed App checks.
+Conflicting or failed validation revisions leave the lane with explicit failed App checks.
 Fix them with a new commit, or disable and re-enable Auto-merge for an intentional
 retry. Repeated scheduled reconciliations do not rebuild the same failed head.
 Enrollment is identified by GitHub's Auto-merge `enabledAt` timestamp, not an
@@ -187,6 +187,19 @@ private key restricted to trusted main workflows rather than treating the
 permission name as a review-approval restriction.
 
 ## Durable scheduling and cancellation
+
+### Merge confirmation and native Auto-merge
+
+The controller records merge intent before attesting checks or issuing its single protected merge request. Native GitHub Auto-merge can complete concurrently; one unmerged observation after a refused request is not a final outcome ([controller](controller.cjs), [race regressions](controller.test.cjs)).
+
+- An explicit refusal waits up to ten minutes for merge visibility, without repeating the merge API. Confirmed merging preserves the validated check results and releases only after the matching workflow is terminal.
+- If the PR remains unmerged at that deadline after an explicit refusal, only **Merge admission** fails and the revision is quarantined. Passed build/test/installer checks remain evidence of their actual results, not permission to bypass admission.
+- Lost responses, malformed responses and unobservable or nonterminal validation are uncertain outcomes. At the deadline, merge admission reports uncertainty while the lane stays held; no blind retry, second candidate or automatic success is produced. Inspect the source, actual PR and workflow before deliberate withdrawal or renewal of queue intent.
+- Source, base, enrollment and review changes retain their fail-closed behavior. Once merge intent exists, cancellation/refusal reporting changes the admission gate rather than rewriting passed validation jobs. Existing independent protection and expected-head checks remain mandatory.
+
+The version-1 state accepts the previous phases and additive `merging`, `merge-refused` and `merge-unconfirmed` phases with a canonical `mergeStarted` timestamp and complete dispatched check identities ([validation](policy.cjs)). A rollback to an older controller cannot interpret those new phases and fails closed; it is not permission to rewrite durable queue state.
+
+The preserved timestamp on an already-completed GitHub check does not date a later conclusion update. Use the actual controller log and merge record to diagnose a race, not `completed_at` alone. This fix applies to future reconciliation and does not rewrite historical check results.
 
 Only short controller reconciliations are serialised; no runner waits for CI.
 Pending wakeups may coalesce safely because each run rereads GitHub state.

@@ -39,9 +39,35 @@ public sealed partial class SessionConversationService(
         Func<bool> admitted, CancellationToken token) =>
         workspace.ReadConversationDetailAsync(target, expected, admitted, token);
 
-    public async Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
+    public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
-        IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi)
+        IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi) =>
+        SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null, ModelTurnChoice.Default, token);
+
+    internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
+        Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
+        Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
+        RequestOrigin origin, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(createContext);
+        ArgumentNullException.ThrowIfNull(validateSource);
+        ModelContextEnvelope Create(HostRequest request, DateTimeOffset now)
+        {
+            var context = createContext(request, now);
+            if (context.Request != request || !string.Equals(context.UserRequest, body, StringComparison.Ordinal)
+                || context.ToolMode != ModelToolMode.None || context.Evidence.IsEmpty
+                || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
+            { throw new InvalidDataException("Reviewed conversation context requires exact original input, local-only evidence and no tools."); }
+            return context;
+        }
+        return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local, token);
+    }
+
+    private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, Func<CancellationToken, Task>? beforeRetain,
+        IEnumerable<ActivityLink>? links, RequestOrigin origin,
+        Func<HostRequest, DateTimeOffset, ModelContextEnvelope>? createContext,
+        ModelTurnChoice choice, CancellationToken token)
     {
         RequireOriginalSource(origin);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
@@ -63,7 +89,8 @@ public sealed partial class SessionConversationService(
         if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
         var now = time.GetUtcNow();
-        var context = new ModelContextEnvelope(request, Policy, body, [], now, now.AddSeconds(15));
+        var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now, now.AddSeconds(15))
+            : createContext(request, now);
         context.RequireCompleteInputLimit();
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
         try
@@ -88,7 +115,7 @@ public sealed partial class SessionConversationService(
                 if (!Live()) { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
                 else
                 {
-                    var admission = await turns.AdmitAsync(ModelTurnChoice.Default, context, null, token).ConfigureAwait(false);
+                    var admission = await turns.AdmitAsync(choice, context, null, token).ConfigureAwait(false);
                     if (admission.Turn is not null)
                     {
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain, token).ConfigureAwait(false);

@@ -29,6 +29,8 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     {
         this.sessions = sessions;
         this.access = new(access);
+        contextSource = new(workspace, access, host, store, audit);
+        contextTime = time;
         Admission = new(workspace, this.access, host, new SessionMemoryScopeAccess(store, this.access, host),
             audit, logger, time, store);
         sessions.SessionRetired += ExpireSession;
@@ -42,18 +44,21 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
 
     internal void ClearVolatile()
     {
+        contextSource.Invalidate();
         Admission.ClearCache();
         ClearInspection();
     }
 
     internal void ClearSessionDrafts(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ClearSessionCache(session);
         ClearInspection();
     }
 
     internal void ExpireSession(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ExpireSession(session);
         lock (stateGate)
         {
@@ -64,6 +69,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
 
     private void ClearSession(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ClearSessionCache(session);
         ClearInspection();
     }
@@ -91,6 +97,8 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
             throw new InvalidOperationException("Memory management requires fresh original local user input.");
         }
         if (command.Operation == MemoryCommandOperation.Invalid) { throw new InvalidOperationException(command.Error); }
+        if (command.Operation is not (MemoryCommandOperation.Help or MemoryCommandOperation.List or MemoryCommandOperation.Inspect))
+        { contextSource.Invalidate(); }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         token = linked.Token;
         await gate.WaitAsync(token).ConfigureAwait(false);
@@ -204,6 +212,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     private async Task CloseAsync()
     {
         disposed = true;
+        contextSource.Close();
         sessions.SessionRetired -= ExpireSession;
         sessions.SessionLifecycleChanged -= ClearSession;
         Admission.Dispose();

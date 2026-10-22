@@ -424,8 +424,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindCurrentResponsePresentation(native);
         using var activity = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(origin),
             Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
-        var routing = typeof(MainViewModel).GetMethod("HandleTranscriptAsync", BindingFlags.Instance | BindingFlags.NonPublic)!;
-        await (Task)routing.Invoke(f.ViewModel, ["open current response details", 1f, initiator, null, null, null, null])!;
+        await InvokeTranscriptForTest(f.ViewModel, "open current response details", initiator);
         native.Calls.Should().Be(0);
         f.ViewModel.Transcript.Should().Contain("was not accepted");
     }

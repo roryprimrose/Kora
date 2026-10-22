@@ -1,5 +1,6 @@
 ﻿using Avalonia.Threading;
 
+using Kora.Application;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
@@ -9,10 +10,11 @@ namespace Kora;
 
 internal sealed partial class NewRequestWindowController(
     MainViewModel main, SessionWorkspaceService workspace, ISessionWorkspaceAccess access,
-    Func<NewRequestComposer> create, SessionsWindowController sessions) : IDisposable
+    Func<NewRequestComposer> create, SessionsWindowController sessions, IUiDispatcher dispatcher) : IDisposable
 {
     private NewRequestWindow? window;
     private NewRequestComposer? composer;
+    private long openingEpoch;
     private bool disposed;
     private long windowEpoch;
     internal Func<bool> CaptureShutdownEligibility()
@@ -43,6 +45,7 @@ internal sealed partial class NewRequestWindowController(
 
     internal void Bind()
     {
+        main.NewRequestOpeningRequested += OpenFromCommand;
         main.PrivacyClosureRequested += PrivacyClosed;
         workspace.SessionLifecycleChanged += RevokeSession;
         workspace.SessionRetired += RevokeSession;
@@ -54,9 +57,29 @@ internal sealed partial class NewRequestWindowController(
         OpenCore();
     }
 
-    private bool OpenCore(NewRequestComposer? seedTarget = null)
+    private async Task<bool> OpenFromCommand(Func<bool> admitted)
     {
-        if (disposed || !access.CanInspect)
+        var revision = access.ControlRevision;
+        var epoch = Volatile.Read(ref openingEpoch);
+        var opened = false;
+        await dispatcher.InvokeAsync(() =>
+        {
+            bool Current() => !disposed && access.CanInspect && access.ControlRevision == revision
+                && Volatile.Read(ref openingEpoch) == epoch && admitted();
+            if (Current())
+            {
+                CancelOriginalReuse();
+                opened = OpenCore(admitted: Current);
+            }
+            return Task.CompletedTask;
+        });
+        return opened;
+    }
+
+    private bool OpenCore(NewRequestComposer? seedTarget = null, Func<bool>? admitted = null)
+    {
+        bool Current() => !disposed && access.CanInspect && (admitted is null || admitted());
+        if (!Current())
         {
             main.ReportHostInteractionFailure("New request unavailable: live private desktop ownership is required.");
             return false;
@@ -65,6 +88,11 @@ internal sealed partial class NewRequestWindowController(
         {
             windowEpoch++;
             var state = seedTarget ?? create();
+            if (!Current())
+            {
+                if (seedTarget is null) { state.Dispose(); }
+                return false;
+            }
             var opened = new NewRequestWindow(new(state), () => Navigate(state),
                 exception => main.ReportHostInteractionFailure("New request native navigation/closing failed; memory edits remain recoverable unless privacy revoked. No implicit Save or selection. Failure type: " + exception.GetType().Name),
                 () =>
@@ -75,11 +103,18 @@ internal sealed partial class NewRequestWindowController(
                 });
             opened.Closed += (_, _) =>
             {
-                if (ReferenceEquals(window, opened)) { windowEpoch++; window = null; composer = null; }
+                if (ReferenceEquals(window, opened))
+                {
+                    windowEpoch++;
+                    Interlocked.Increment(ref openingEpoch);
+                    window = null;
+                    composer = null;
+                }
             };
             composer = state;
             window = opened;
             BindDraftFind(opened, state);
+            if (!Current()) { opened.ClosePrivate(); return false; }
             try { opened.OpenPrivate(); }
             catch
             {
@@ -87,10 +122,12 @@ internal sealed partial class NewRequestWindowController(
                 opened.ClosePrivate();
                 throw;
             }
+            if (!Current()) { opened.ClosePrivate(); return false; }
         }
         var exactWindow = window;
+        if (!Current()) { return false; }
         exactWindow?.Activate();
-        return !disposed && access.CanInspect && exactWindow is { IsVisible: true }
+        return Current() && exactWindow is { IsVisible: true }
             && ReferenceEquals(window, exactWindow) && (seedTarget is null || ReferenceEquals(composer, seedTarget));
     }
 
@@ -105,17 +142,22 @@ internal sealed partial class NewRequestWindowController(
 
     internal void RevokeSession(HostId<SessionIdentity> session)
     {
+        Interlocked.Increment(ref openingEpoch);
         if (!Dispatcher.UIThread.CheckAccess())
         {
             Dispatcher.UIThread.Invoke(() => RevokeSession(session));
             return;
         }
         if (reuseSource == session) { CancelOriginalReuse(); }
-        if (composer?.Creation?.Request.SessionId == session) { window?.ClosePrivate(); }
+        if (composer?.Creation?.Request.SessionId == session)
+        {
+            window?.ClosePrivate();
+        }
     }
 
     private void PrivacyClosed(object? sender, EventArgs args)
     {
+        Interlocked.Increment(ref openingEpoch);
         CancelOriginalReuse();
         window?.ClosePrivate();
     }
@@ -124,6 +166,8 @@ internal sealed partial class NewRequestWindowController(
     {
         if (disposed) { return; }
         disposed = true;
+        Interlocked.Increment(ref openingEpoch);
+        main.NewRequestOpeningRequested -= OpenFromCommand;
         CancelOriginalReuse();
         main.PrivacyClosureRequested -= PrivacyClosed;
         workspace.SessionLifecycleChanged -= RevokeSession;

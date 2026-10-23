@@ -255,14 +255,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Tools.Clipboard.ClipboardExplain clipboardExplain,
         AuditedPreferenceWriter preferenceWriter,
         BoundedAudioOutputCatalog outputCatalog,
+        AudioPlaybackSettings audioPlaybackSettings,
         BoundedMicrophoneCatalog? microphoneCatalog = null,
         OutputDeviceConfigurationService? outputConfiguration = null,
-        PlaybackVolumeConfigurationService? playbackVolumeConfiguration = null,
         ResponseModeConfigurationService? responseModeConfiguration = null,
         DiagnosticRetentionConfigurationService? diagnosticRetentionConfiguration = null,
         ManualCallControl? manualCallControl = null,
         AuditRetentionConfigurationService? auditRetentionConfiguration = null,
-        WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration = null,
         InCallFeedbackConfigurationService? inCallFeedbackConfiguration = null,
         SpeechTextConfigurationService? speechTextConfiguration = null,
         SessionRetentionConfigurationService? sessionRetentionConfiguration = null,
@@ -323,31 +322,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.appearanceConfiguration = appearanceConfiguration;
         appearanceConfiguration.Changed += OnAppearanceChanged;
         this.speechConfiguration = speechConfiguration;
-        this.windowsSpeechRateConfiguration = windowsSpeechRateConfiguration;
-        if (windowsSpeechRateConfiguration is not null)
-        {
-            try { windowsSpeechRateConfiguration.Observe(); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
-            {
-                windowsSpeechRateConfiguration.HoldUnavailable();
-            }
-            selectedWindowsSpeechRate = windowsSpeechRateConfiguration.Get().Desired?.Value ?? WindowsSpeechRate.Default.Value;
-            windowsSpeechRateConfiguration.Changed += OnWindowsSpeechRateChanged;
-        }
+        this.audioPlaybackSettings = audioPlaybackSettings;
+        audioPlaybackSettings.OutputInvalidated += OnAudioPlaybackOutputInvalidated;
+        audioPlaybackSettings.Changed += OnAudioPlaybackSettingsChanged;
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
-        this.playbackVolumeConfiguration = playbackVolumeConfiguration;
-        if (playbackVolumeConfiguration is not null)
-        {
-            try { playbackVolumeConfiguration.Observe(); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException)
-            {
-                playbackVolumeConfiguration.HoldUnavailable();
-                ApplicationLog.Error(logger, exception, "Reading playback volume");
-            }
-            selectedPlaybackVolume = playbackVolumeConfiguration.Get().Desired?.Percent ?? PlaybackVolume.Default.Percent;
-            playbackVolumeConfiguration.Changed += OnPlaybackVolumeChanged;
-        }
         this.responseModeConfiguration = responseModeConfiguration;
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
@@ -1680,7 +1659,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsSpeechOutputAvailable =>
         activeSpeechVoice is not null
-        && (playbackVolumeConfiguration is null || playbackVolumeConfiguration.Get().AllowsSpeech)
+        && (audioPlaybackSettings.VolumeState is null || audioPlaybackSettings.VolumeState.AllowsSpeech)
         && IsWindowsSpeechRateOutputEligible
         && (responseModeConfiguration is null || responseModeConfiguration.Get().Available)
         && (inCallFeedbackConfiguration is null || inCallFeedbackConfiguration.Get().Available)
@@ -3682,7 +3661,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowInformation("Voice preview is suppressed.", "Protected call policy requires visual-only output.");
             return;
         }
-        if (playbackVolumeConfiguration is not null && !playbackVolumeConfiguration.Get().AllowsSpeech)
+        if (audioPlaybackSettings.VolumeState is { AllowsSpeech: false })
         {
             ShowInformation("Voice preview is unavailable.",
                 "Kora playback volume is zero or unavailable. Inspect volume status in Settings; changing it never replays stopped speech.");
@@ -3720,7 +3699,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         catch (WindowsSpeechRateUnavailableException exception)
         {
             ApplicationLog.Error(logger, exception, "Previewing with unavailable Windows speech rate");
-            windowsSpeechRateConfiguration?.HoldUnavailable();
+            audioPlaybackSettings.HoldRateUnavailable();
             PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
         }
         catch (ArgumentOutOfRangeException exception)
@@ -5536,7 +5515,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         catch (WindowsSpeechRateUnavailableException exception)
         {
             LogSpokenResponseFailure(exception, "Playing a response with unavailable Windows speech rate", additionalEligibility is not null);
-            windowsSpeechRateConfiguration?.HoldUnavailable();
+            audioPlaybackSettings.HoldRateUnavailable();
             PreserveSpokenResponseFailure("Windows speech rate is unavailable. Full visual output is retained; explicitly refresh rate preferences.");
         }
         catch (ArgumentOutOfRangeException exception)

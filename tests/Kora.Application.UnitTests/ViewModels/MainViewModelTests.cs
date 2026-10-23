@@ -8727,11 +8727,13 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 clipboardAction,
                 new AuditedPreferenceWriter(Audit), outputCatalog,
-                microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
+                new Kora.Application.Presentation.AudioPlaybackSettings(Dispatcher,
+                    NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance, VolumeConfiguration, RateConfiguration),
+                microphoneCatalog, OutputConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration, RateConfiguration, FeedbackConfiguration,
+                AuditConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
                 SessionRetentionConfiguration,
                 enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,

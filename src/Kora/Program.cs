@@ -10,6 +10,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Documentation;
 using Kora.Application.Hosting;
 using Kora.Application.Maintenance;
+using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
 using Kora.Core.Artifacts;
@@ -539,6 +540,7 @@ internal static class Program
         services.AddSingleton<IWindowsSpeechRatePreferences>(provider =>
             new LocalWindowsSpeechRatePreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<WindowsSpeechRateConfigurationService>();
+        services.AddSingleton<AudioPlaybackSettings>();
         services.AddSingleton<IDiagnosticRetentionPreferences>(provider =>
             new LocalDiagnosticRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<DiagnosticRetentionConfigurationService>();

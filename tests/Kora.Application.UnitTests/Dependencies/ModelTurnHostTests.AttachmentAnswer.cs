@@ -257,6 +257,115 @@ public sealed partial class ModelTurnHostTests
         review.Dispose();
         review.Invoking(value => _ = value.Question).Should().Throw<InvalidOperationException>();
         review.Invoking(value => _ = value.Source).Should().Throw<InvalidOperationException>();
+        review.Invoking(value => _ = value.Evidence).Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AttachmentEvidenceCancellationAuditsCancellationWithoutDisclosureOrRetain(bool duringRead)
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha retained source");
+        var audit = new AttachmentAudit();
+        var workflow = f.AttachmentWorkflow(new(), audit);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        if (duringRead) { f.OnRead = cancellation.Cancel; }
+        else { cancellation.Cancel(); }
+        await workflow.Invoking(value => value.Prepare(new(f.Session, null), f.Attachment!, "alpha",
+            static () => true, cancellation.Token)).Should().ThrowAsync<OperationCanceledException>();
+        audit.Events.Select(value => value.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Cancelled);
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AttachmentWorkflowUnavailableDoesNotConsumeReviewedSourceOrStartConversation()
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha retained source");
+        var workflow = f.AttachmentWorkflow(new(), new());
+        using var review = await workflow.Prepare(new(f.Session, null), f.Attachment!, "alpha", static () => true, Token);
+        var service = f.ConversationService(f.ConfiguredProfiles(production: true));
+        await service.Invoking(value => value.PrepareAttachmentAnswerAsync(new(f.Session, null), f.Attachment!,
+            "alpha", static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+        await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        review.Evidence.Citations.Should().ContainSingle();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AttachmentFailureLoggingUsesOnlyExceptionTypeNotPrivateSource()
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha private retained marker");
+        f.AttachmentFault = "malformed";
+        var workflow = f.AttachmentWorkflow(new(), new(), enabledLogger: true);
+        await workflow.Invoking(value => value.Prepare(new(f.Session, null), f.Attachment!, "alpha",
+            static () => true, Token)).Should().ThrowAsync<InvalidDataException>();
+        f.Messages.Should().Contain(value => value.Contains(nameof(InvalidDataException), StringComparison.Ordinal))
+            .And.NotContain(value => value.Contains("alpha", StringComparison.Ordinal)
+                || value.Contains("retained marker", StringComparison.Ordinal)
+                || value.Contains(@"C:\Synthetic", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task AttachmentUnsampledRequestUsesNoInventedCauseAndAuditsCancelledSubmission()
+    {
+        listener.Dispose();
+        using var sampled = new System.Diagnostics.ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref System.Diagnostics.ActivityCreationOptions<System.Diagnostics.ActivityContext> options) =>
+                options.Name is "session.request" ? System.Diagnostics.ActivitySamplingResult.None
+                    : System.Diagnostics.ActivitySamplingResult.AllData,
+        };
+        System.Diagnostics.ActivitySource.AddActivityListener(sampled);
+        using var f = new Fixture();
+        f.SetAttachment("alpha retained source");
+        var audit = new AttachmentAudit();
+        var workflow = f.AttachmentWorkflow(new(), audit);
+        using var review = await workflow.Prepare(new(f.Session, null), f.Attachment!, "alpha", static () => true, Token);
+        review.Cause.Should().Be(default(System.Diagnostics.ActivityContext));
+        var request = new HostRequest(new(Guid.NewGuid()), f.Session.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var receipt = await workflow.Submit(review, (create, _, _, _, _) =>
+        {
+            create(request, f.Time.Now).Request.Should().BeSameAs(request);
+            var message = new Kora.Core.Conversation.ConversationMessage(request, f.Session.Generation,
+                1, 2, f.Time.Now, "alpha", ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled);
+            message.Validate();
+            return System.Threading.Tasks.Task.FromResult(new Kora.Core.Conversation.ConversationSubmissionReceipt(
+                message, new(request, new(2), HostTaskState.Cancelled)));
+        }, request, static () => true, Token);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task AttachmentPostCompletionSourceRevocationKeepsExactUncertaintyAndCompletesFailureAudit()
+    {
+        using var f = new Fixture();
+        f.SetAttachment("alpha retained source");
+        var audit = new AttachmentAudit();
+        var workflow = f.AttachmentWorkflow(new(), audit);
+        var service = f.AttachmentConversationService(workflow, f.ConfiguredProfiles(production: true));
+        using var review = await service.PrepareAttachmentAnswerAsync(new(f.Session, null), f.Attachment!, "alpha", static () => true, Token);
+        audit.OnWrite = value =>
+        {
+            if (value.ActionId is "session.attachment.answer.local" && value.Outcome == SecurityAuditOutcome.Failed)
+            { f.Attachment = null; }
+        };
+        var failure = await service.Invoking(value => value.SubmitAttachmentAnswerAsync(review, static () => true, Token))
+            .Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+        failure.Which.Request.Should().Be(f.Retained!.Request);
+        audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Unknown);
+        f.Retained.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        f.Retained.AssistantResponse.Should().BeNull();
+        f.RetainCalls.Should().Be(1);
+        f.Adapter.Calls.Should().Be(0);
     }
 
     [Theory]
@@ -375,7 +484,7 @@ public sealed partial class ModelTurnHostTests
         f.RetainCalls.Should().Be(0);
     }
 
-    private sealed partial class Fixture : ISessionFileStore
+    private sealed partial class Fixture : ISessionFileStore, Microsoft.Extensions.Logging.ILogger<SessionAttachmentAnswerWorkflow>
     {
         internal Kora.Application.Dependencies.ModelTurnHost QualifiedAttachmentHost()
         {
@@ -396,9 +505,11 @@ public sealed partial class ModelTurnHostTests
                 new(new(Guid.NewGuid(), Guid.NewGuid(), Request,
                     new(@"C:\Synthetic\retained.md", "retained-identity", bytes.Length, Time.Now)), bytes, Time.Now));
         }
-        internal SessionAttachmentAnswerWorkflow AttachmentWorkflow(AttachmentPolicy policy, AttachmentAudit audit) =>
+        internal SessionAttachmentAnswerWorkflow AttachmentWorkflow(AttachmentPolicy policy, AttachmentAudit audit,
+            bool enabledLogger = false) =>
             new(new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance), this,
-                new LocalFileLexicalRetrieval(), policy, Time, audit, NullLogger<SessionAttachmentAnswerWorkflow>.Instance);
+                new LocalFileLexicalRetrieval(), policy, Time, audit,
+                enabledLogger ? this : NullLogger<SessionAttachmentAnswerWorkflow>.Instance);
         public ValueTask<SessionFileAttachment?> ReadAttachment(HostId<SessionIdentity> session, CancellationToken token) =>
             AttachmentFault is "malformed" ? throw new InvalidDataException("Malformed retained attachment")
                 : ValueTask.FromResult(Attachment);

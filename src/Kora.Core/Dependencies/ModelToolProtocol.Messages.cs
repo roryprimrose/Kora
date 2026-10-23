@@ -40,7 +40,8 @@ public static partial class ModelToolProtocol
             var capabilityId = ReadString(call, "capabilityId");
             if (!ValidCallId(callId) || !ids.Add(callId))
             { throw new InvalidDataException("Tool-call correlation must be unique bounded ASCII, not host identity."); }
-            var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId);
+            var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId)
+                ?? Network.LocalWebPageTool.FindExact(capabilityId);
             if (descriptor is null || descriptor.Availability != CapabilityAvailability.Available
                 || !descriptor.CallerLanes.Contains(CapabilityLane.Execution))
             { throw new InvalidDataException("The requested capability is not in the available execution catalogue."); }

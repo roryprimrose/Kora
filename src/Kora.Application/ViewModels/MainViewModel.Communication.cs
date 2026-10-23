@@ -249,16 +249,18 @@ public sealed partial class MainViewModel
         });
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "CallCommunicationPolicy.Changed requires void; failures are logged and presented without relaxing call protections.")]
     private async void OnCommunicationPolicyChanged(object? sender, EventArgs args)
     {
-        auditImpactPreview?.Retire("Call revision changed; preview retired.");
-        diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
-        sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
-        RetireSessionCommandReviews();
-        RetireQuestionVoiceReply();
-        RetireComposerDictation();
         try
         {
+            auditImpactPreview?.Retire("Call revision changed; preview retired.");
+            diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
+            sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");
+            RetireSessionCommandReviews();
+            RetireQuestionVoiceReply();
+            RetireComposerDictation();
             var observation = communicationPolicy.Current;
             RetireCurrentResponseSpeech();
             RetireWebResultDetails();

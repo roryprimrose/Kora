@@ -108,4 +108,42 @@ public sealed class AsyncCommandTests
         exception.Should().BeOfType<IOException>()
             .Which.Message.Should().Be("failed");
     }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ICommand_Execute_routes_deferred_faults_and_cancellation_and_restores_availability(bool cancel)
+    {
+        var work = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var handled = new TaskCompletionSource<Exception>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var failure = new IOException("deferred failure");
+        var notifications = 0;
+        var command = new AsyncCommand(() => work.Task, handled.SetResult);
+        command.CanExecuteChanged += (_, _) => notifications++;
+
+        ((ICommand)command).Execute(null);
+        command.CanExecute(null).Should().BeFalse();
+        handled.Task.IsCompleted.Should().BeFalse();
+        if (cancel) { work.SetCanceled(TestContext.Current.CancellationToken); }
+        else { work.SetException(failure); }
+
+        var exception = await handled.Task.WaitAsync(TimeSpan.FromSeconds(1), TestContext.Current.CancellationToken);
+        if (cancel) { exception.Should().BeAssignableTo<OperationCanceledException>(); }
+        else { exception.Should().BeSameAs(failure); }
+        command.CanExecute(null).Should().BeTrue();
+        notifications.Should().Be(2);
+    }
+
+    [Fact]
+    public void ICommand_Execute_routes_synchronous_delegate_failures()
+    {
+        var failure = new IOException("synchronous failure");
+        Exception? reported = null;
+        var command = new AsyncCommand(() => throw failure, exception => reported = exception);
+
+        ((ICommand)command).Execute(null);
+
+        reported.Should().BeSameAs(failure);
+        command.CanExecute(null).Should().BeTrue();
+    }
 }

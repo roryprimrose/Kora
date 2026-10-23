@@ -53,6 +53,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, conversationDetailClick);
         surface.AddHandler(Button.ClickEvent, OnOriginalMessageReuse);
         surface.AddHandler(Button.ClickEvent, OnAppearanceSuggestion);
+        surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         refresh.Start();
     }
 
@@ -66,19 +67,27 @@ internal sealed partial class SessionsPresentationOwner
         Release();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "DispatcherTimer.Tick requires void; failures route to the session model's logged recovery status.")]
     private async void Refresh(object? sender, EventArgs args)
     {
-        if (model.CanRefreshWork) { await model.RefreshWorkAsync(); }
+        try { if (model.CanRefreshWork) { await model.RefreshWorkAsync(); } }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { model.ReportComposerCloseFailure(exception); }
     }
 
     private void Activated(object? sender, EventArgs args) => active = sender as Window;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
         if (revoked || args.Source is not Button { Name: "OpenConversationDetail", DataContext: ConversationMessage message }
             || !model.CanOpenConversationDetails) { return; }
         args.Handled = true;
-        await (DetailOperation = model.OpenConversationDetailAsync(message));
+        try { await (DetailOperation = model.OpenConversationDetailAsync(message)); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { model.ReportComposerCloseFailure(exception); }
     }
 
     private void Closing(object? sender, WindowClosingEventArgs args)
@@ -120,6 +129,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, conversationDetailClick);
         surface.RemoveHandler(Button.ClickEvent, OnOriginalMessageReuse);
         surface.RemoveHandler(Button.ClickEvent, OnAppearanceSuggestion);
+        surface.RemoveHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }

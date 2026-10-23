@@ -573,6 +573,39 @@
                       AutomationProperties.Name="Create only a volatile Proposed Pending user candidate in the exact active selected session; no review, admission, recall or transmission" />
               <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
                       AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
+              <TextBlock Text="Optional memory-assisted conversation: explicitly select one to sixteen ENABLED reviewed memories from this session. Review complete content and your request, then separately consent to one local-only tool-free turn. Ordinary conversation Send never reads memory."
+                         TextWrapping="Wrap" />
+              <ListBox x:Name="MemoryContextRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
+                       SelectionMode="Multiple" IsEnabled="{Binding CanFilterMemories}"
+                       AutomationProperties.Name="Explicit conversation memory subset; metadata only; Ctrl or Shift multi-selection does not read or approve">
+                <ListBox.ItemTemplate>
+                  <DataTemplate>
+                    <StackPanel>
+                      <TextBlock Text="{Binding Id}" />
+                      <TextBlock Text="{Binding Review}" />
+                      <TextBlock Text="{Binding Retention}" />
+                    </StackPanel>
+                  </DataTemplate>
+                </ListBox.ItemTemplate>
+              </ListBox>
+              <TextBox Text="{Binding MemoryContextRequest, Mode=TwoWay}" AcceptsReturn="True" TextWrapping="Wrap"
+                       IsEnabled="{Binding CanCompose}"
+                       AutomationProperties.Name="Complete request for optional reviewed session memory turn; edits retire earlier review; never autosaved" />
+              <WrapPanel>
+                <Button x:Name="ReviewMemoryContext" Content="Review selected memory and request"
+                        IsEnabled="{Binding CanReviewMemoryContext}" />
+                <Button x:Name="ConfirmMemoryContext" Content="Confirm ONE local-only tool-free turn"
+                        IsEnabled="{Binding CanConfirmMemoryContext}" />
+                <Button x:Name="CancelMemoryContext" Content="Cancel memory review or use"
+                        IsEnabled="{Binding CanCancelMemoryContext}" />
+              </WrapPanel>
+              <TextBox Text="{Binding MemoryContextDetail, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                       TextWrapping="Wrap" MaxHeight="240" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                       AutomationProperties.Name="Complete selected memory values, classifications, exact session scope and request; review is not model-use consent" />
+              <TextBox Text="{Binding MemoryContextOutcome, Mode=OneWay}" IsReadOnly="True" AcceptsReturn="True"
+                       TextWrapping="Wrap" MaxHeight="240" ScrollViewer.VerticalScrollBarVisibility="Auto"
+                       AutomationProperties.Name="Genuine retained assistant answer or explicit HOST failure for the reviewed memory turn; never source text presented as an answer" />
+              <TextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap" />
               <TextBlock Text="Explicit selected-subset DISABLE or irreversible FORGET. Admitted enabled rows support either; disabled rows support forget. Select with Ctrl/Shift and arrow keys; no automatic Select All. Forget removes application content, keeps a non-reusable identity tombstone, and does not promise physical or forensic erasure."
                          TextWrapping="Wrap" />
               <ComboBox x:Name="MemoryBatchOperationChoice" ItemsSource="{Binding MemoryBatchOperations}"

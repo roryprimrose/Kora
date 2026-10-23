@@ -137,13 +137,17 @@ internal sealed partial class SessionsViewModel
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
 
-    private Task SubmitConversationCoreAsync(bool allowQuestion) => RunConversationAsync(async (target, live) =>
+    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = composerBody;
         var presenter = allowQuestion ? QuestionPresenter
             ?? throw new InvalidOperationException("The exact native clarification presenter is unavailable. Nothing was submitted.") : null;
-        var receipt = await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter);
+        var receipt = pageAddress is null
+            ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
+            : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter
+                ?? throw new InvalidOperationException("The exact native page approval presenter is unavailable. Nothing was submitted."),
+                live, lifetime.Token);
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
         if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; }
         RememberUnsent();

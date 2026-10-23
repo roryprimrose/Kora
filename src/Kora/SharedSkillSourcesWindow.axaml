@@ -9,7 +9,7 @@
     Foreground="{DynamicResource KoraForegroundBrush}">
   <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10">
-    <TextBlock Text="Registration authorizes only bounded local reading. No enable/disable/invoke, model exposure, execution, egress, approval, source editing or trust promotion."
+    <TextBlock Text="Registration authorizes only bounded local reading. Compatible single-file zero-tool instructions have a separate reviewed local-only invocation. No automatic enablement, execution, egress, approval, source editing or trust promotion."
                TextWrapping="Wrap" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <Button x:Name="RegisterSource" Content="Choose and register profile root (read only)" />
@@ -21,6 +21,7 @@
       <ComboBox x:Name="SourceSelector" MinWidth="360" AutomationProperties.Name="Registered exact shared profile roots" />
       <Button x:Name="DiscoverSource" Content="List selected source" />
       <Button x:Name="VerifyRevision" Content="Recheck selected revision" />
+      <Button x:Name="ReviewInstructionUse" Content="Review selected instruction-only use" />
     </StackPanel>
     <controls:NamedTextBlock x:Name="SharedStatus" Grid.Row="3" TextWrapping="Wrap"
                             AutomationProperties.Name="Source availability and immutable revision status" />

@@ -612,6 +612,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -2998,6 +2999,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         await ClosePromptPreparation();
+        await CloseSharedSkillUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
@@ -4171,6 +4173,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (currentResponseCommand is not null)
         {
             await ExecuteCurrentResponseCommandAsync(currentResponseCommand, spokenText, initiator, manualInput, currentResponseInput);
+            return;
+        }
+        if (Kora.Application.Skills.SharedSkillInvocationCommand.Parse(spokenText, AssistantName) is { } skillUse)
+        {
+            await ExecuteSharedSkillInvocation(skillUse, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
@@ -5913,6 +5921,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ClosePromptPreparation();
+            await CloseSharedSkillUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.

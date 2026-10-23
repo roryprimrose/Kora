@@ -140,6 +140,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
+            BindSharedSkillInvocation(viewModel, skillPackagesWindow);
             instructionEditor = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
                 Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),
@@ -381,6 +382,7 @@ public sealed partial class App : Avalonia.Application
         evidenceWindow?.Dispose();
         evidenceWindow = null;
         skillPackagesWindow?.Dispose();
+        sharedSkillInvocation?.Dispose();
         skillPackagesWindow = null;
         workspaceSurfaceCommands?.Dispose();
         workspaceSurfaceCommands = null;

@@ -109,7 +109,9 @@ Order edits clear selection/private source panes without reading, discovering or
 exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewed
 explicit use of the saved revision. Profile originals and other kinds remain read-only.
 
-**Planned:** skill enablement/invocation, conversational skill/instruction
+**Current bounded:** [reviewed instruction-only shared skill invocation](commands.md#reviewed-instruction-only-shared-skill-invocation) separately enables one exact compatible single-file revision for a volatile local-only, zero-tool request in one existing Active conversation. Registration/inspection alone grants no invocation authority ([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+**Planned:** general tool-dependent skill enablement/invocation, conversational skill/instruction
 authoring and agent profiles. Saving or loading a definition is not executable
 trust. [Execution design](skill-and-task-execution-design.md) describes the
 future boundary.

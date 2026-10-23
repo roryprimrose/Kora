@@ -326,3 +326,20 @@ The current Windows bootstrap reports automatic call detection as unavailable.
 An open communications application alone is not treated as proof of a call.
 Native accessibility, real-call detection, acoustic leakage and output-stop
 timing still require separately approved acceptance.
+
+## Reviewed session memory conversation
+
+In **Sessions > Session memories**, explicitly list the exact active session, select one to sixteen enabled reviewed memories in the conversation subset, and enter a request. Selection reads metadata only.
+**Review selected memory and request** shows every complete value, classification, session scope and request; it does not authorize model use ([native route](../src/Kora/SessionsViewModel.MemoryContext.cs)).
+
+**Confirm ONE local-only tool-free turn** separately authorizes that exact reviewed request. The full serialized input must fit 32768 UTF-8 bytes; nothing is truncated. Reviews expire after two minutes.
+A genuine final answer is displayed as ASSISTANT and retained through the existing conversation path; unavailable or denied HOST status is not an answer. Unqualified providers remain unavailable ([workflow](../src/Kora.Application/Memory/SessionMemoryContext.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.MemoryContext.cs)).
+
+Changed, disabled, forgotten, foreign, stale or unreviewed memory cannot be used. Memory management, private-access loss, navigation, cancellation and expiry retire pending review/use and clear its source bodies; late provider results cannot become a successful answer.
+Inspection/use never changes retention or remembers a new fact ([source admission](../src/Kora.Application/Memory/SessionMemoryContextSource.cs), [review lifecycle](../src/Kora.Application/Memory/SessionMemoryContextReview.cs)).
+
+Private source reads use their own host-owned control intent and confirmed terminal receipt before disclosure. This does not remember content or alter a selected memory's revision ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.MemoryContext.cs)).
+The retained turn uses the shared execution/cancellation lifecycle; an accepted running-turn cancellation waits for provider quiescence and retains Cancelled, never a late answer ([canonical execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Ordinary conversation Send remains no-memory. This route does not recall/rank memory automatically, combine other context, promote scopes, invoke tools or transmit to hosted providers.
+Selected source bodies are volatile input, not copied into saved conversation history; retained requests and answers follow normal conversation retention ([default and explicit admission](../src/Kora.Application/Hosting/SessionConversationService.cs)).

@@ -136,6 +136,12 @@ protocol:
 7. Verify authoritative merged state, the actual merge SHA and its reachability
    from fresh main before reporting completion or cleaning up.
 
+For coordinated agents, follow the [routine continuation rule](../../.github/agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input):
+send the publication handoff and yield without asking the user whether to stop,
+wait or check again. Pending hosted admission is not a user decision. Retain
+ownership for supported re-entry; this neither promises background monitoring
+nor expands repair or merge authority.
+
 App installation, secrets, environments, expected-source protection, mode
 changes and durable state repair require separate administrator authorization.
 Do not perform the one-time rollout merely because a user authorized PR

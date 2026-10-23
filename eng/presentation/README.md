@@ -22,7 +22,9 @@ Table controls are inert accessible text, with no automatic clipboard surface in
 
 ### Implementation and qualification
 
-Deterministic tests cover table/source boundaries, malformed/unsupported fallback, accessible complete row names, native source switching, privacy closure and activity outcomes ([table tests](../../tests/Kora.Windows.IntegrationTests/NativeMarkdownTableTests.cs), [controller tests](../../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Tables.cs)).
+Deterministic tests cover table/source boundaries, malformed/unsupported fallback, accessible complete row names, native source switching and privacy closure ([table tests](../../tests/Kora.Windows.IntegrationTests/NativeMarkdownTableTests.cs), [controller tests](../../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Tables.cs)).
+
+Activity parentage, outcomes and source-free tags use the nonparallel `Host tracing` collection ([trace tests](../../tests/Kora.Windows.IntegrationTests/NativeMarkdownTableTracingTests.cs), [test policy](../../CONTRIBUTING.md#test-and-dependency-policies)).
 
 These tests do not qualify the profile. Enablement requires applicable exact-profile native keyboard/screen-reader, theme/contrast, scaling and responsive bounded-content evidence.
 No installed accessibility or RC qualification is claimed, and no production composition enables tables in this increment ([qualification policy](../../Design/Acceptance_Criteria.md#three-tier-qualification-policy), [display acceptance](../../Design/Acceptance_Criteria.md)).

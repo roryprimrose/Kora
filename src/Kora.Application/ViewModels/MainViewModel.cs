@@ -4943,7 +4943,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             else
             {
-                ShowInformation("Local model response", $"Generated locally; verify important details.\n\n{decision.Answer}");
+                PresentResponse(AssistantState.Information, "Local model response",
+                    $"Generated locally; verify important details.\n\n{decision.Answer}",
+                    modelAnswer: new(decision.Answer!));
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }
@@ -6117,7 +6119,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         string body,
         bool requestWindow = true,
         bool refreshOutput = true,
-        Action? sourceAssigned = null)
+        Action? sourceAssigned = null,
+        FinalizedModelAnswer? modelAnswer = null)
     {
         RetireCurrentResponseSpeech();
         RetireWebResultDetails(retireControl: false);
@@ -6132,7 +6135,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         sourceAssigned?.Invoke();
         BindCurrentResponseSpeech(!isInitializing && sourceAssigned is null
             && responseState is AssistantState.Information or AssistantState.Success
-            && !IsResponseInteractionPending && !IsGrantEditorVisible);
+            && !IsResponseInteractionPending && !IsGrantEditorVisible, modelAnswer);
         NotifyOutputPolicyChanged();
         if (!isInitializing && refreshOutput && SelectedOutputDevice is not null
             && responseState is not (AssistantState.Failure or AssistantState.Listening)

@@ -14,7 +14,10 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
 {
     private readonly SpeechReadOnce speechReadOnce;
     private sealed record CurrentResponseSpeech(Guid Id, long Revision, AssistantState State,
-        string Title, string Body, HostRequest? Request);
+        string Title, string Body, HostRequest? Request)
+    {
+        internal FinalizedModelAnswer? ModelAnswer { get; init; }
+    }
     private CurrentResponseSpeech? ordinaryResponse;
     private long ordinaryResponseRevision;
     private CancellationTokenSource? responseReadCancellation;
@@ -105,12 +108,12 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
 
     public event EventHandler? CurrentResponseChanged;
 
-    private void BindCurrentResponseSpeech(bool eligible)
+    private void BindCurrentResponseSpeech(bool eligible, FinalizedModelAnswer? modelAnswer = null)
     {
         if (eligible)
         {
             Volatile.Write(ref ordinaryResponse, new(Guid.NewGuid(), Interlocked.Read(ref ordinaryResponseRevision),
-                State, ResponseTitle, ResponseBody, HostActivity.Current?.Request));
+                State, ResponseTitle, ResponseBody, HostActivity.Current?.Request) { ModelAnswer = modelAnswer });
         }
         ReadCurrentResponseStatus = string.Empty;
         NotifyResponseReadChanged();

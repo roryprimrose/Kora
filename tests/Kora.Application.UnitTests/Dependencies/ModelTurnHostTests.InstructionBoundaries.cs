@@ -2,6 +2,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Core.Artifacts;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -187,5 +188,87 @@ public sealed partial class ModelTurnHostTests
         review.CanSubmit.Should().BeTrue();
         f.RetainCalls.Should().Be(0);
         f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("disable", true)]
+    [InlineData("repeated-disable", true)]
+    [InlineData("fresh-enable", false)]
+    [InlineData("hold", false)]
+    [InlineData("suspend", false)]
+    [InlineData("unavailable", false)]
+    [InlineData("reload", false)]
+    [InlineData("source", false)]
+    [InlineData("privacy", false)]
+    [InlineData("expiry", false)]
+    [InlineData("cancel", false)]
+    [InlineData("replayed-capture", false)]
+    [InlineData("foreign-request", false)]
+    public async Task ScopedInstructionCanonicalCallbackDistinguishesAfterCaptureDisableFromStrongRevocationBeforeDispatch(
+        string change, bool completes)
+    {
+        using var f = new Fixture();
+        var source = new InstructionSource();
+        var (broker, catalogue, revisions) = InstructionBroker(f, source);
+        var snapshot = source.Snapshot!;
+        var epoch = revisions.CaptureReviewEpoch(snapshot);
+        var review = await broker.ReviewAsync(new(f.Session, null), catalogue.Artifacts.Single(), "Request", static () => true, Token);
+        review.Consume();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var captures = 0;
+        var service = f.ConversationService(f.PolicyHost, execution: f.PolicyHost);
+        async Task<ConversationSubmissionReceipt> Submit() => await service.SubmitReviewedContextAsync(review.Target,
+            review.Body, review.Capture, review.IsCurrent, review.ValidateSourceAsync, null, review.Origin,
+            cancellation.Token, provenance =>
+            {
+                f.ExecutionStarts.Should().Be(0, "canonical capture precedes the dispatch transaction");
+                f.Adapter.Calls.Should().Be(0);
+                if (change is "foreign-request")
+                {
+                    review.BeginExecution(provenance with { Request = HostRequest.Create(RequestOrigin.LocalUi) });
+                    return;
+                }
+                review.BeginExecution(provenance);
+                captures++;
+                if (change is "replayed-capture") { review.BeginExecution(provenance); }
+                if (change is "disable" or "repeated-disable" or "fresh-enable")
+                {
+                    revisions.DisableExact(snapshot, catalogue).Should().BeTrue();
+                    if (change is "repeated-disable") { revisions.DisableExact(snapshot, catalogue).Should().BeFalse(); }
+                    revisions.IsCapturedUseAllowed(snapshot, epoch).Should().BeTrue();
+                    revisions.IsCapturedUseAllowed(snapshot, revisions.CaptureReviewEpoch(snapshot)).Should().BeFalse();
+                    if (change is "fresh-enable")
+                    { revisions.CompleteActivation(snapshot, revisions.PrepareActivation(snapshot), catalogue); }
+                }
+                if (change is "hold") { revisions.Hold(snapshot.Name); }
+                if (change is "suspend") { revisions.SuspendReviewedUse(); }
+                if (change is "unavailable") { revisions.MarkUnavailable(); }
+                if (change is "reload") { catalogue.ReportReloadFailure(new IOException("Source unavailable")); }
+                if (change is "source") { source.Snapshot = InstructionSnapshot(body: "Replacement guidance"); }
+                if (change is "privacy") { f.ControlRevision++; }
+                if (change is "expiry") { f.Time.Now = f.Time.Now.AddMinutes(2); }
+                if (change is "cancel") { cancellation.Cancel(); }
+            });
+        try
+        {
+            if (completes)
+            {
+                var receipt = await Submit();
+                receipt.Message.AssistantResponse!.Body.Should().Be("answer");
+                f.Adapter.Calls.Should().Be(1);
+                f.ExecutionCompletions.Should().Be(1);
+                revisions.IsEnabled(snapshot).Should().BeFalse();
+            }
+            else
+            {
+                await ((Func<Task>)(async () => { await Submit(); }))
+                    .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+                f.Adapter.Calls.Should().Be(0);
+                f.ExecutionCompletions.Should().Be(0);
+                f.Retained!.AssistantResponse.Should().BeNull();
+            }
+            captures.Should().Be(change is "foreign-request" ? 0 : 1);
+        }
+        finally { review.Retire(); }
     }
 }

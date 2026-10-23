@@ -262,10 +262,11 @@ public sealed partial class ModelTurnHostTests
         private SavedConversationDraft? conversationDraft;
 
         internal SessionConversationService ConversationService(Kora.Application.Dependencies.IModelTurnAdmission host,
-            bool enabledLogger = true, Kora.Application.Dependencies.IModelTurnExecution? execution = null)
+            bool enabledLogger = true, Kora.Application.Dependencies.IModelTurnExecution? execution = null, bool cancellationAuditAvailable = true)
         {
             var workspace = new SessionWorkspaceService(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
-            return new(this, this, workspace, this, host, Time, enabledLogger ? this : NullLogger<SessionConversationService>.Instance, execution);
+            return new(this, this, workspace, this, host, Time, enabledLogger ? this : NullLogger<SessionConversationService>.Instance,
+                execution, cancellationAuditAvailable ? CancelAudit : null);
         }
         public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
             ValueTask.FromResult(new ConversationDraftSnapshot(Session, conversationDraft ?? new(session, 0, null)));
@@ -325,7 +326,16 @@ public sealed partial class ModelTurnHostTests
             return ValueTask.FromResult(receipt);
         }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
-            HostId<RequestIdentity> request, CancellationToken token) => ValueTask.FromResult(Retained!);
+            HostId<RequestIdentity> request, CancellationToken token)
+        {
+            if (HistoryMessages.TryGetValue(request, out var history))
+            {
+                HistoryReads++;
+                BeforeHistoryRead?.Invoke();
+                return ValueTask.FromResult(history);
+            }
+            return ValueTask.FromResult(Retained!);
+        }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token) => ValueTask.FromResult(new ConversationPage(Session, 2, Retained is null ? 0 : 1,
                 Retained is null ? [] : [Retained], null));

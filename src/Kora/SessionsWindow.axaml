@@ -46,6 +46,7 @@
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
+          <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
         </WrapPanel>
         <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
@@ -101,9 +102,20 @@
               AutomationProperties.Name="Read-only compatibility recovery for this exact session; no save, delete or submit" />
           <Button x:Name="DiscardComposer" Content="Discard this unsent message..." IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="RefreshRunningConversation" Content="Refresh running work" IsEnabled="{Binding CanRefreshRunningConversation}" />
+          <Button x:Name="CancelRunningConversation" Content="Cancel this running conversation task" IsEnabled="{Binding CanCancelRunningConversation}"
+              AutomationProperties.Name="Deliberately request cancellation of the displayed exact running conversation task; waits for owned resources, never rolls back a committed answer" />
         </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
+        <WrapPanel>
+          <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+          <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+        </WrapPanel>
       </StackPanel>
     </Expander>
     <WrapPanel>

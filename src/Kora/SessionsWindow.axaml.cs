@@ -9,6 +9,7 @@ internal sealed partial class SessionsWindow : Window
 {
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
@@ -22,6 +23,7 @@ internal sealed partial class SessionsWindow : Window
         this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        BindHistoryContext(model);
         BindWorkScrolling();
         BindListPageOrder(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
@@ -53,6 +55,8 @@ internal sealed partial class SessionsWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
+        CancelRunningConversation.Click += async (_, _) => await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)

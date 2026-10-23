@@ -153,9 +153,7 @@ public sealed partial class SetupWindow : Window
                     SpeechComponentOptions.Children.Add(option);
                     SpeechComponentOptions.Children.Add(new TextBlock
                     {
-                        Text = choice.Disclosure + $" Installed: {choice.Readiness.Storage.Installed}; "
-                            + $"verified: {choice.Readiness.Storage.Verified}; compatible: {choice.Readiness.Compatible}; "
-                            + $"qualified: {choice.Readiness.Qualified}.",
+                        Text = choice.Disclosure + " " + choice.Readiness.Description,
                         TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                     });
                 }

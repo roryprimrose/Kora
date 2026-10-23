@@ -262,6 +262,20 @@ The production unavailable adapter denies those operations. A release adding
 an offer must supply and qualify that adapter; component setup cannot install
 native code or launch prerequisites.
 
+Readiness remains a cohesive setup observation, not a runtime-profile selection
+contract. An inspection failure returns no storage snapshot and an explicit
+**Unknown** reason rather than false/missing/ready. Installed-adapter observations
+distinguish unknown, unavailable and incompatible state; functional evidence is
+not-checked, verified, failed, unknown or unavailable. Inspection reads only
+existing authoritative evidence and never performs a functional probe
+([readiness](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs),
+[runtime port](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs)).
+The exclusive mutation port returns a
+[typed admission](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs):
+acquired ownership carries a real owned lease, while unavailable, busy, unknown,
+shared/user-owned and policy-denied states carry distinct status/audit reasons.
+Denied states cannot become a successful no-op lease.
+
 [Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
 [Burn choices](../installer/Kora.Setup/SpeechComponentInstallChoice.cs)
 consume the same one-use, expiring exact review and shared service. Inspection

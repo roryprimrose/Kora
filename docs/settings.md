@@ -964,6 +964,14 @@ review; existing foreign/shared assets are never overwritten or removed
 ([shared service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs),
 [atomic storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
 
+Unreadable data is **Unknown**, not missing or unverified false. Runtime
+compatibility and existing functional evidence have separate explicit states
+and reasons; **Inspect** does not run inference, audio, downloads or functional
+probes. A busy component, unknown ownership, unavailable runtime and
+shared/user-owned assets produce distinct mutation denials, not successful
+no-op preparation ([observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs),
+[mutation admission](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs)).
+
 Preparation does not select a runtime, open the microphone, enroll a verifier,
 enable learning or change reasoning/output settings. Removal affects only the
 exact managed model data after exclusive quiescence; saved selections, personal

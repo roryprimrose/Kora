@@ -40,11 +40,11 @@ public sealed partial class MainViewModelTests
         var wasVoiceEnabled = fixture.ViewModel.IsVoiceEnabled;
         var before = fixture.Events.ToArray();
         var observed = await fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity, TestContext.Current.CancellationToken);
-        observed.Storage.Installed.Should().BeFalse();
+        observed.Storage?.Installed.Should().BeFalse();
         var plan = await fixture.ViewModel.ReviewSpeechComponentAsync(component.Component.Identity,
             SpeechComponentOperation.Prepare, TestContext.Current.CancellationToken);
         var result = await fixture.ViewModel.ApplySpeechComponentAsync(plan, true, component.Progress, TestContext.Current.CancellationToken);
-        result.FunctionalVerified.Should().BeTrue();
+        result.Runtime.Functional.Should().Be(Kora.Core.Dependencies.SpeechComponentFunctionalEvidence.Verified);
         fixture.ViewModel.SelectedSpeechProvider.Should().BeSameAs(selectedOutput);
         fixture.ViewModel.IsListening.Should().Be(wasListening);
         fixture.ViewModel.IsVoiceEnabled.Should().Be(wasVoiceEnabled);

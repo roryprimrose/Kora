@@ -46,7 +46,7 @@ public sealed class SpeechComponentInstallChoice
         try
         {
             var result = await setup.ApplyAsync(plan, consent: true, progress, cancellationToken);
-            if (!result.Storage.Verified || !result.FunctionalVerified)
+            if (result.Storage?.Verified != true || result.Runtime.Functional != SpeechComponentFunctionalEvidence.Verified)
             {
                 throw new InvalidDataException("Optional speech data did not pass exact verification. Kora remains installed.");
             }

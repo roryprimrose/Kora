@@ -382,6 +382,12 @@ selections. The [production catalogue](../src/Kora.Core/Dependencies/SpeechCompo
 has no input offers while D-002 backend selection and exact qualification remain
 open. The installer says so explicitly; it does not show a placeholder checkbox
 or claim preparation succeeded. A Kora-only installation remains valid.
+Unknown inspection state is not a missing or failed component; the shared
+[readiness observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs)
+retains explicit reasons and only existing authoritative functional evidence.
+No functional probe runs during inspection. An exclusive mutation attempt
+returns a [typed acquired/denied status](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs),
+not a null lease that conflates busy, unknown and unavailable state.
 
 Use the [shared setup catalogue and lifecycle](../Design/Environment_Setup.md#optional-local-speech-component-lifecycle)
 for source/digest/licence, supported hardware/backend, download/disk/resource

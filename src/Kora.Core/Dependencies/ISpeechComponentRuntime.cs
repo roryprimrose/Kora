@@ -3,10 +3,10 @@ namespace Kora.Core.Dependencies;
 /// <summary>The installed host adapter owns compatibility, inert functional checks and all runtime consumers.</summary>
 public interface ISpeechComponentRuntime
 {
-    /// <summary>Checks the exact installed runtime/backend profile; unknown is incompatible.</summary>
-    bool IsCompatible(SpeechComponentDefinition component);
-    /// <summary>Excludes new consumers and joins existing model/capture users. Unknown/shared ownership returns no lease.</summary>
-    ValueTask<IAsyncDisposable?> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken);
+    /// <summary>Reads installed compatibility and existing authoritative functional evidence; never loads, probes, captures or downloads.</summary>
+    SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component);
+    /// <summary>Excludes new consumers and joins existing users, or returns an explicit unavailable, busy, unknown or ownership denial.</summary>
+    ValueTask<SpeechComponentMutationAdmission> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken);
     /// <summary>Runs the exact adapter's inert local fixture without microphone, inference commands or preference changes.</summary>
-    Task<bool> VerifyAsync(SpeechComponentDefinition component, CancellationToken cancellationToken);
+    Task<SpeechComponentRuntimeObservation> VerifyAsync(SpeechComponentDefinition component, CancellationToken cancellationToken);
 }

@@ -9,22 +9,25 @@ namespace Kora.Application.Dependencies;
 
 public sealed partial class SpeechComponentSetupService(
     SpeechComponentCatalogue catalogue, ISpeechComponentStore store, ISpeechComponentRuntime runtime,
-    ISecurityAuditLog audit, ILogger<SpeechComponentSetupService> logger, TimeProvider clock) : ISpeechComponentReadiness
+    ISecurityAuditLog audit, ILogger<SpeechComponentSetupService> logger, TimeProvider clock)
 {
     private readonly Guid owner = Guid.NewGuid();
 
+    public IReadOnlyList<SpeechComponentDefinition> Components => catalogue.Components;
     public IReadOnlyList<SpeechComponentDefinition> Offers =>
-        catalogue.Components.Where(component => component.Qualified && runtime.IsCompatible(component)).ToArray();
+        catalogue.Components.Where(component => component.Qualified
+            && ObserveRuntime(component).Compatibility == SpeechComponentCompatibility.Compatible).ToArray();
 
     public async Task<SpeechComponentReadiness> InspectAsync(SpeechComponentIdentity identity, CancellationToken cancellationToken)
     {
         ArgumentNullException.ThrowIfNull(identity);
         var component = catalogue.Resolve(identity);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Runtime);
+        SpeechComponentSnapshot? storage = null;
         try
         {
-            var storage = await store.InspectAsync(component, cancellationToken).ConfigureAwait(false);
-            var result = new SpeechComponentReadiness(identity, storage, runtime.IsCompatible(component), component.Qualified);
+            storage = await store.InspectAsync(component, cancellationToken).ConfigureAwait(false);
+            var result = new SpeechComponentReadiness(identity, storage, ObserveRuntime(component), component.Qualified);
             activity.Complete(HostOperationOutcome.Completed);
             return result;
         }
@@ -37,7 +40,11 @@ public sealed partial class SpeechComponentSetupService(
         {
             InspectionFailed(logger, exception);
             activity.Complete(HostOperationOutcome.Failed);
-            throw;
+            return new(identity, storage,
+                new(SpeechComponentCompatibility.Unknown, SpeechComponentFunctionalEvidence.Unknown,
+                    "Current runtime evidence could not be established by this inspection."),
+                component.Qualified, "Inspection failed; local data state must not be inferred as missing or ready. "
+                    + "Resolve exact ownership/access and inspect again. " + exception.Message);
         }
     }
 
@@ -56,7 +63,7 @@ public sealed partial class SpeechComponentSetupService(
         var readiness = await InspectAsync(identity, cancellationToken).ConfigureAwait(false);
         if (!readiness.CanOffer || !admitted())
         {
-            throw new InvalidOperationException("This exact speech component is not qualified and compatible for setup.");
+            throw new InvalidOperationException("This exact speech component is not offered for setup. " + readiness.Description);
         }
         return new(owner, component, operation, readiness, request, admitted, clock.GetUtcNow().AddMinutes(5));
     }
@@ -83,22 +90,33 @@ public sealed partial class SpeechComponentSetupService(
         await audit.WriteAsync(auditEvent, cancellationToken).ConfigureAwait(false);
         var committed = false;
         var denied = false;
+        var failureReason = "inspect-before-retry";
         try
         {
             bool Admitted() => consent && clock.GetUtcNow() < plan.Expires && plan.Admitted()
                 && ReferenceEquals(catalogue.Resolve(plan.Component.Identity), plan.Component)
-                && plan.Component.Qualified && runtime.IsCompatible(plan.Component);
+                && plan.Component.Qualified
+                && ObserveRuntime(plan.Component).Compatibility == SpeechComponentCompatibility.Compatible;
             if (!Admitted())
             {
                 denied = true;
+                failureReason = "review-not-admitted";
                 throw new UnauthorizedAccessException("Speech setup was not approved or the reviewed host state changed.");
             }
+            var mutation = await runtime.TryAcquireExclusiveAsync(plan.Component, cancellationToken).ConfigureAwait(false);
+            if (mutation is null || mutation.State != SpeechComponentMutationState.Acquired)
+            {
+                denied = true;
+                var refusal = mutation ?? new SpeechComponentMutationAdmission(SpeechComponentMutationState.UnknownOwnership);
+                failureReason = refusal.ReasonCode;
+                throw new SpeechComponentMutationDeniedException(refusal);
+            }
             SpeechComponentReadiness result;
-            await using (var lease = await runtime.TryAcquireExclusiveAsync(plan.Component, cancellationToken).ConfigureAwait(false)
-                ?? throw new InvalidOperationException("Speech assets are in use, shared, or ownership/quiescence is unknown. No assets changed."))
+            await using (var lease = mutation.Lease
+                ?? throw new InvalidOperationException("The host returned acquired ownership without an exclusive lease. No assets changed."))
             {
                 var current = await store.InspectAsync(plan.Component, cancellationToken).ConfigureAwait(false);
-                if (current != plan.Readiness.Storage || !Admitted())
+                if (current != plan.ExpectedStorage || !Admitted())
                 {
                     throw new InvalidOperationException("Speech component state changed. Inspect and explicitly review the exact current state before retrying.");
                 }
@@ -113,31 +131,43 @@ public sealed partial class SpeechComponentSetupService(
                 }
                 committed = plan.Operation != SpeechComponentOperation.Verify;
                 result = await InspectAsync(plan.Component.Identity, cancellationToken).ConfigureAwait(false);
+                if (result.Storage is not { } observed)
+                {
+                    throw new InvalidDataException(result.Description);
+                }
                 if (plan.Operation == SpeechComponentOperation.Remove)
                 {
-                    if (result.Storage.Installed || result.Storage.Ownership != SpeechComponentOwnership.Missing)
+                    if (observed.Installed || observed.Ownership != SpeechComponentOwnership.Missing)
                     {
                         throw new InvalidDataException("Removal did not reconcile to the exact absent component.");
                     }
                 }
                 else
                 {
-                    if (!result.Storage.Verified || !Admitted()
-                        || !await runtime.VerifyAsync(plan.Component, cancellationToken).ConfigureAwait(false))
+                    if (!observed.Verified || !Admitted())
                     {
-                        throw new InvalidDataException("Component bytes or the inert runtime check failed. Data may remain installed but is not usable. Inspect before retrying.");
+                        throw new InvalidDataException("Component integrity or host admission failed. Data may remain installed but is not usable. Inspect before retrying.");
+                    }
+                    var functional = await runtime.VerifyAsync(plan.Component, cancellationToken).ConfigureAwait(false)
+                        ?? throw new InvalidDataException("The host returned no authoritative functional evidence. Current state is Unknown.");
+                    if (functional.Compatibility != SpeechComponentCompatibility.Compatible
+                        || functional.Functional != SpeechComponentFunctionalEvidence.Verified)
+                    {
+                        throw new InvalidDataException($"Functional verification is {functional.Functional}. {functional.Detail} "
+                            + "Data may remain installed but no runtime was enabled. Inspect before retrying.");
                     }
                     var rechecked = await InspectAsync(plan.Component.Identity, cancellationToken).ConfigureAwait(false);
-                    if (rechecked != result || !Admitted())
+                    if (rechecked.Storage != observed || !rechecked.CanOffer || !Admitted())
                     {
                         throw new InvalidDataException("Speech component readiness changed during verification. No runtime was enabled.");
                     }
-                    result = result with { FunctionalVerified = true };
+                    result = rechecked with { Runtime = functional };
                 }
                 if (!Admitted())
                 {
                     throw new UnauthorizedAccessException("Host admission changed after asset reconciliation. Inspect the exact outcome; no runtime was selected.");
                 }
+
             }
             await audit.WriteAsync(auditEvent.WithOutcome(SecurityAuditOutcome.Succeeded), CancellationToken.None).ConfigureAwait(false);
             Completed(logger, plan.Operation);
@@ -155,12 +185,31 @@ public sealed partial class SpeechComponentSetupService(
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
             or InvalidOperationException or HttpRequestException or TimeoutException)
         {
-            Failed(logger, plan.Operation, exception);
+            if (exception is SpeechComponentMutationDeniedException refusal)
+            {
+                MutationDenied(logger, plan.Operation, refusal.State);
+            }
+            else { Failed(logger, plan.Operation, exception); }
             await audit.WriteAsync(auditEvent.WithOutcome(denied ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Failed,
-                denied ? "review-not-admitted" : "inspect-before-retry"),
+                failureReason),
                 CancellationToken.None).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Failed);
             throw;
+        }
+    }
+
+    private SpeechComponentRuntimeObservation ObserveRuntime(SpeechComponentDefinition component)
+    {
+        try
+        {
+            return runtime.Observe(component)
+                ?? throw new InvalidOperationException("The installed adapter returned no readiness observation.");
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            InspectionFailed(logger, exception);
+            return new(SpeechComponentCompatibility.Unknown, SpeechComponentFunctionalEvidence.Unknown,
+                "Installed runtime evidence could not be read. Resolve adapter access and inspect again; no probe was run.");
         }
     }
 }

@@ -10,6 +10,7 @@ public sealed partial class MainViewModel
     private Func<bool> speechComponentNativeLifetime = static () => false;
 
     public IReadOnlyList<SpeechComponentDefinition> SpeechComponentOffers => speechComponentSetup?.Offers ?? [];
+    public IReadOnlyList<SpeechComponentDefinition> SpeechComponentInspectionTargets => speechComponentSetup?.Components ?? [];
     public bool IsSpeechComponentSetupAvailable => speechComponentSetup is not null;
 
     public void BindSpeechComponentNativeLifetime(Func<bool> lifetime)

@@ -303,7 +303,7 @@ public sealed class WindowsSpeechComponentStoreTests : IDisposable
         }
         var choice = choices.Should().ContainSingle().Subject;
         choice.Selected.Should().BeFalse();
-        choice.Readiness.Storage.Installed.Should().BeFalse();
+        choice.Readiness.Storage?.Installed.Should().BeFalse();
         await FluentActions.Awaiting(() => choice.PrepareAsync(fixture.Progress, CancellationToken.None))
             .Should().ThrowAsync<InvalidOperationException>();
         fixture.Download.Calls.Should().Be(0);
@@ -315,8 +315,8 @@ public sealed class WindowsSpeechComponentStoreTests : IDisposable
         using var settings = Begin();
         var verify = await shared.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Verify, () => true, CancellationToken.None);
         var result = await shared.ApplyAsync(verify, true, fixture.Progress, CancellationToken.None);
-        result.Storage.Verified.Should().BeTrue();
-        result.FunctionalVerified.Should().BeTrue();
+        result.Storage?.Verified.Should().BeTrue();
+        result.Runtime.Functional.Should().Be(SpeechComponentFunctionalEvidence.Verified);
         fixture.Download.Calls.Should().Be(2);
         await FluentActions.Awaiting(() => choice.PrepareAsync(fixture.Progress, CancellationToken.None))
             .Should().ThrowAsync<InvalidOperationException>();

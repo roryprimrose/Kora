@@ -33,7 +33,7 @@ public sealed partial class SettingsWindow
                 TextWrapping = TextWrapping.Wrap,
             });
         }
-        foreach (var component in viewModel.SpeechComponentOffers)
+        foreach (var component in viewModel.SpeechComponentInspectionTargets)
         {
             var status = new TextBlock { Text = "Inspect to check current local data. Installed is not selected or usable.", TextWrapping = TextWrapping.Wrap };
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
@@ -46,6 +46,7 @@ public sealed partial class SettingsWindow
             });
             foreach (var operation in Enum.GetValues<SpeechComponentOperation>())
             {
+                if (!viewModel.SpeechComponentOffers.Any(offer => offer.Identity == component.Identity)) { continue; }
                 var button = new Button { Content = operation == SpeechComponentOperation.Prepare ? "Prepare / retry" : operation.ToString() };
                 actions.Children.Add(button);
                 button.Click += async (_, _) => await RunSpeechComponentUiAsync(status, async token =>
@@ -85,7 +86,7 @@ public sealed partial class SettingsWindow
         }
         var cancel = new Button { Content = "Cancel speech data operation" };
         cancel.Click += (_, _) => speechComponentCancellation?.Cancel();
-        cancel.IsVisible = viewModel.SpeechComponentOffers.Count != 0;
+        cancel.IsVisible = viewModel.SpeechComponentInspectionTargets.Count != 0;
         panel.Children.Add(cancel);
         PropertyChanged += (_, args) =>
         {
@@ -120,8 +121,5 @@ public sealed partial class SettingsWindow
         finally { speechComponentCancellation = null; }
     }
 
-    private static string DescribeSpeechComponent(SpeechComponentReadiness state) =>
-        $"Installed: {state.Storage.Installed}; verified bytes: {state.Storage.Verified}; compatible: {state.Compatible}; "
-        + $"qualified: {state.Qualified}; inert functional check in this operation: {state.FunctionalVerified}; ownership: {state.Storage.Ownership}. "
-        + "Runtime selection and current usability are separate; no microphone or learning consent was granted.";
+    private static string DescribeSpeechComponent(SpeechComponentReadiness state) => state.Description;
 }

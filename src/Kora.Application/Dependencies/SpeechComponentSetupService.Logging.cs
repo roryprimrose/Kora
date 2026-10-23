@@ -1,4 +1,5 @@
 using Microsoft.Extensions.Logging;
+using Kora.Core.Dependencies;
 
 namespace Kora.Application.Dependencies;
 
@@ -15,4 +16,7 @@ public sealed partial class SpeechComponentSetupService
 
     [LoggerMessage(4, LogLevel.Error, "Optional speech component operation {Operation} failed; inspection required before retry")]
     private static partial void Failed(ILogger logger, SpeechComponentOperation operation, Exception exception);
+
+    [LoggerMessage(5, LogLevel.Warning, "Optional speech component operation {Operation} denied with mutation state {MutationState}")]
+    private static partial void MutationDenied(ILogger logger, SpeechComponentOperation operation, SpeechComponentMutationState mutationState);
 }

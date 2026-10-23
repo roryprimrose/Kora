@@ -93,28 +93,38 @@ internal sealed class SpeechComponentSetupFixture
 
     internal sealed class Runtime : ISpeechComponentRuntime
     {
-        internal bool Compatible { get; set; } = true;
-        internal bool Quiescent { get; set; } = true;
-        internal bool Functional { get; set; } = true;
+        internal SpeechComponentCompatibility Compatibility { get; set; } = SpeechComponentCompatibility.Compatible;
+        internal SpeechComponentMutationState MutationState { get; set; } = SpeechComponentMutationState.Acquired;
+        internal SpeechComponentFunctionalEvidence Functional { get; set; } = SpeechComponentFunctionalEvidence.Verified;
+        internal SpeechComponentFunctionalEvidence ExistingFunctional { get; set; } = SpeechComponentFunctionalEvidence.NotChecked;
+        internal Exception? ObservationFailure { get; set; }
         internal int Checks { get; private set; }
         internal int Leases { get; private set; }
         internal int Releases { get; private set; }
         internal Exception? ReleaseFailure { get; set; }
         internal Action? BeforeCheck { get; set; }
-        public bool IsCompatible(SpeechComponentDefinition component) => Compatible;
-        public ValueTask<IAsyncDisposable?> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
+        public SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component)
+        {
+            if (ObservationFailure is { } failure) { throw failure; }
+            return new(Compatibility, ExistingFunctional, "Fixture-only installed runtime observation; no probe was run.");
+        }
+        public ValueTask<SpeechComponentMutationAdmission> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (!Quiescent) { return ValueTask.FromResult<IAsyncDisposable?>(null); }
+            if (MutationState != SpeechComponentMutationState.Acquired)
+            {
+                return ValueTask.FromResult(new SpeechComponentMutationAdmission(MutationState));
+            }
             Leases++;
-            return ValueTask.FromResult<IAsyncDisposable?>(new Lease(this));
+            return ValueTask.FromResult(new SpeechComponentMutationAdmission(SpeechComponentMutationState.Acquired, new Lease(this)));
         }
-        public Task<bool> VerifyAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
+        public Task<SpeechComponentRuntimeObservation> VerifyAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
             Checks++;
             BeforeCheck?.Invoke();
-            return Task.FromResult(Functional);
+            return Task.FromResult(new SpeechComponentRuntimeObservation(Compatibility, Functional,
+                "Fixture-only explicit verification result."));
         }
         private sealed class Lease(Runtime owner) : IAsyncDisposable
         {

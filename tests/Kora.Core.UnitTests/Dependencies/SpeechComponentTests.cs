@@ -147,9 +147,80 @@ public sealed class SpeechComponentTests
     public void OfferAdmissionKeepsCompatibilityAndQualificationDistinct(bool compatible, bool qualified, bool offered)
     {
         var state = new SpeechComponentReadiness(new("fixture", "v1"),
-            new(false, false, SpeechComponentOwnership.Missing, "missing"), compatible, qualified);
+            new(false, false, SpeechComponentOwnership.Missing, "missing"),
+            new(compatible ? SpeechComponentCompatibility.Compatible : SpeechComponentCompatibility.Incompatible,
+                SpeechComponentFunctionalEvidence.NotChecked, "Fixture-only observed compatibility."), qualified);
         state.CanOffer.Should().Be(offered);
-        state.FunctionalVerified.Should().BeFalse();
-        state.Storage.Installed.Should().BeFalse();
+        state.Runtime.Functional.Should().Be(SpeechComponentFunctionalEvidence.NotChecked);
+        state.Storage?.Installed.Should().BeFalse();
+    }
+
+    [Fact]
+    public void UnknownStorageDoesNotUseFalseOrMissingAsAReadinessFallback()
+    {
+        var state = new SpeechComponentReadiness(new("fixture", "v1"), null,
+            new(SpeechComponentCompatibility.Unknown, SpeechComponentFunctionalEvidence.Unknown, "Unknown exact host evidence."),
+            true, "Inspect ownership before retrying.");
+        state.CanOffer.Should().BeFalse();
+        state.Storage.Should().BeNull();
+        state.Description.Should().Contain("Local data state: Unknown").And.Contain("Inspect ownership");
+    }
+
+    [Theory]
+    [InlineData(SpeechComponentMutationState.Unavailable)]
+    [InlineData(SpeechComponentMutationState.Busy)]
+    [InlineData(SpeechComponentMutationState.UnknownOwnership)]
+    [InlineData(SpeechComponentMutationState.SharedOrUserOwned)]
+    [InlineData(SpeechComponentMutationState.Denied)]
+    public void MutationAdmissionRequiresExactLeaseAndExposesDistinctDenialReasons(SpeechComponentMutationState state)
+    {
+        var denied = new SpeechComponentMutationAdmission(state);
+        denied.State.Should().Be(state);
+        denied.Lease.Should().BeNull();
+        denied.Detail.Should().NotBeNullOrWhiteSpace();
+        denied.ReasonCode.Should().NotBeNullOrWhiteSpace();
+        FluentActions.Invoking(() => new SpeechComponentMutationAdmission(state, new FixtureLease()))
+            .Should().Throw<ArgumentException>();
+    }
+
+    [Fact]
+    public async Task AcquiredAdmissionCarriesOnlyItsOwnedLease()
+    {
+        var owned = new FixtureLease();
+        var admission = new SpeechComponentMutationAdmission(SpeechComponentMutationState.Acquired, owned);
+        admission.Lease.Should().BeSameAs(owned);
+        admission.ReasonCode.Should().Be("exclusive-ownership-confirmed");
+        admission.Detail.Should().Contain("Exclusive");
+        await owned.DisposeAsync();
+        owned.Released.Should().BeTrue();
+        FluentActions.Invoking(() => new SpeechComponentMutationAdmission(SpeechComponentMutationState.Acquired))
+            .Should().Throw<ArgumentException>();
+        FluentActions.Invoking(() => new SpeechComponentMutationAdmission((SpeechComponentMutationState)99))
+            .Should().Throw<ArgumentOutOfRangeException>();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("private\nbody")]
+    public void RuntimeObservationRequiresExplicitBoundedReasons(string detail) =>
+        FluentActions.Invoking(() => new SpeechComponentRuntimeObservation(SpeechComponentCompatibility.Unknown,
+            SpeechComponentFunctionalEvidence.Unknown, detail)).Should().Throw<ArgumentException>();
+
+    [Fact]
+    public void RuntimeObservationRejectsUnknownEnumValuesAndOverBudgetReasons()
+    {
+        FluentActions.Invoking(() => new SpeechComponentRuntimeObservation((SpeechComponentCompatibility)99,
+            SpeechComponentFunctionalEvidence.NotChecked, "Reason")).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(() => new SpeechComponentRuntimeObservation(SpeechComponentCompatibility.Unknown,
+            (SpeechComponentFunctionalEvidence)99, "Reason")).Should().Throw<ArgumentOutOfRangeException>();
+        FluentActions.Invoking(() => new SpeechComponentRuntimeObservation(SpeechComponentCompatibility.Unknown,
+            SpeechComponentFunctionalEvidence.Unknown, new string('a', 513))).Should().Throw<ArgumentException>();
+    }
+
+    private sealed class FixtureLease : IAsyncDisposable
+    {
+        internal bool Released { get; private set; }
+        public ValueTask DisposeAsync() { Released = true; return ValueTask.CompletedTask; }
     }
 }

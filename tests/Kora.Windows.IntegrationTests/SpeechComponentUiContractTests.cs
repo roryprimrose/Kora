@@ -32,7 +32,7 @@ public sealed class SpeechComponentUiContractTests
         File.ReadAllText(Path.Combine(root, "installer", "Kora.Setup", "OptionalComponentSetup.cs"))
             .Should().Contain("choice.PrepareAsync").And.NotContain("new SpeechComponentDefinition");
         var program = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
-        program.Should().Contain("SpeechComponentCatalogue.Production").And.Contain("ISpeechComponentReadiness")
+        program.Should().Contain("SpeechComponentCatalogue.Production").And.NotContain("ISpeechComponentReadiness")
             .And.Contain("UnavailableSpeechComponentRuntime");
     }
 }

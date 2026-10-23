@@ -532,7 +532,6 @@ internal static class Program
         services.AddSingleton<ISpeechComponentStore, WindowsSpeechComponentStore>();
         services.AddSingleton<ISpeechComponentRuntime, UnavailableSpeechComponentRuntime>();
         services.AddSingleton<SpeechComponentSetupService>();
-        services.AddSingleton<ISpeechComponentReadiness>(provider => provider.GetRequiredService<SpeechComponentSetupService>());
         services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>

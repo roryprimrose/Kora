@@ -14,6 +14,8 @@ public sealed class SpeechComponentSetupPlan
         Component = component;
         Operation = operation;
         Readiness = readiness;
+        ExpectedStorage = readiness.Storage
+            ?? throw new ArgumentException("Unknown local data cannot be approved for mutation.", nameof(readiness));
         Request = request;
         Admitted = admitted;
         Expires = expires;
@@ -27,10 +29,11 @@ public sealed class SpeechComponentSetupPlan
     public SpeechComponentDefinition Component { get; }
     public SpeechComponentOperation Operation { get; }
     public SpeechComponentReadiness Readiness { get; }
+    public SpeechComponentSnapshot ExpectedStorage { get; }
     public string Disclosure => $"{Operation}: {Component.Name}. Model: {Component.ModelIdentity}. "
         + $"Installed runtime profile: {Component.RuntimeProfile}. Licence: {Component.Licence} ({Component.LicenceSource}). "
         + $"Sources: {string.Join(", ", Component.Assets.Select(asset => asset.Source.AbsoluteUri))}. "
-        + $"Download: {(Operation == SpeechComponentOperation.Prepare && !Readiness.Storage.Verified ? Component.DownloadBytes : 0)} bytes; "
+        + $"Download: {(Operation == SpeechComponentOperation.Prepare && !ExpectedStorage.Verified ? Component.DownloadBytes : 0)} bytes; "
         + $"staging: {Component.StagingBytes} bytes; installed: {Component.InstalledBytes} bytes; "
         + $"RAM: {Component.RamBytes} bytes; VRAM: {Component.VramBytes} bytes. "
         + "Destination: this user's private Kora speech-component store, separate from application code and personal profiles. "

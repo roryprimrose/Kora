@@ -90,16 +90,50 @@ bootstrap readiness cannot bypass exact host/session/task admission. Transport
 implementation is not candidate acceptance, qualification evidence, permission
 to start a server, or permission to install/download/select another model.
 
-Desktop composition constructs the bounded Application adapter over this
-transport, but its candidate registration retains `None` evidence and an
-expired qualification. The endpoint resolver also returns no binding by
-default. Host admission therefore remains explicitly unavailable. No existing
-rejected runtime/model is qualified, no readiness observation sets
+Desktop composition now uses a [fresh runtime resolver](../src/Kora.Windows/Dependencies/WindowsOllamaRuntimeResolver.cs)
+for the local capability catalogue and exact-profile registration. It consumes
+an independently issued [qualification and process-use receipt](../src/Kora.Windows/Dependencies/WindowsOllamaQualification.cs),
+not installation discovery, saved selections or model/provider text. The receipt
+pins one account/catalogue/model/reasoning/context tuple, runtime version, model
+digest, process ID/start/executable/hash, validity interval and revocation.
+Its trusted issuer must retain the immutable receipt instance while current and
+revoke it before replacement. Only the implemented `off` reasoning and
+provider-managed `bounded` context controls can be offered; this is not a claim
+about a model's native context capacity.
+
+Each observation rechecks the authorized process with the Windows identity and
+fixed loopback ownership checks. Each admitted turn resolves the same exact
+receipt again, creates a new [turn-owned adapter](../src/Kora/OllamaModelTurnAdapter.cs)
+and revocable endpoint binding, and runs the existing bounded engine. Cancellation,
+qualification revocation and termination close that binding; the host retains
+its existing task, original-channel, tool, result and physical-quiescence fences.
+The native transport independently rechecks runtime version and selected model
+digest before chat dispatch, rejects redirects and never chooses another endpoint.
+
+**Enablement remains unavailable.** The shipped
+[qualification source](../src/Kora/UnqualifiedOllamaQualificationSource.cs)
+has no accepted receipt and offers no executable profile. It does not inspect
+or adopt an installed model as qualification, auto-install/start Ollama, initiate
+authentication, or fall back to hosted inference. A future enablement change
+must supply an approved trusted receipt issuer and the exact profile's required
+evidence; a preference file or an arbitrary JSON manifest is not such an issuer.
+No existing rejected runtime/model is qualified, no readiness observation sets
 `ToolLoopQualified`, and no legacy/global reasoner fallback is used.
 `IModelTurnAdmission` and `IModelTurnExecution` resolve the same host singleton.
 That host supplies the live continuation guard around each exchange/tool and
 retains the session consumer's current-source fence; native composition does
 not call the engine's deliberately refused unguarded entry.
+
+Deterministic [resolver tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaRuntimeResolverTests.cs)
+cover missing/stale/revoked evidence, unknown installation, dead or changed
+processes, exact tuple matching, cancellation and binding revocation. The
+[retained-answer integration tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.RetainedAnswer.cs)
+use fake HTTP and process observations through the real resolver, composition
+adapter, model host, six-action registry and SQLite conversation service. They
+retain a genuine bounded answer for separately admitted text/ActivatedVoice
+requests and suppress a cancelled late answer while awaiting quiescence.
+They do not execute an installed Ollama/model, validate physical containment,
+qualify a profile or prove user-visible backend availability.
 
 ### Shared execution seam for original-request consumers
 

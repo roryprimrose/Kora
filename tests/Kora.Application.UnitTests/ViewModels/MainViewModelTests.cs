@@ -8562,7 +8562,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
-            Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false)
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
+            SpeechComponentSetupService? speechComponentSetup = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8727,11 +8728,13 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 clipboardAction,
                 new AuditedPreferenceWriter(Audit), outputCatalog,
-                microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
+                new Kora.Application.Presentation.AudioPlaybackSettings(Dispatcher,
+                    NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance, VolumeConfiguration, RateConfiguration),
+                microphoneCatalog, OutputConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration, RateConfiguration, FeedbackConfiguration,
+                AuditConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
                 SessionRetentionConfiguration,
                 enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
@@ -8748,7 +8751,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
                 clipboardExplanation: clipboardWorkflow,
-                speechInputConfiguration: InputConfiguration);
+                speechInputConfiguration: InputConfiguration,
+                speechComponentSetup: speechComponentSetup);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

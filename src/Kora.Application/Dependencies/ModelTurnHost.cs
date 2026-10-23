@@ -26,6 +26,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private readonly ISessionProviderProfileStore? sessionProfiles;
+    private readonly IModelProviderRegistrationSource? registrationSource;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -49,7 +50,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
         ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
-        ISessionProviderProfileStore? sessionProfiles = null)
+        ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -62,6 +63,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.sessionProfiles = sessionProfiles;
+        this.registrationSource = registrationSource;
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -69,7 +71,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         AdmitSelectionAsync(selection, context, HostActivity.Current, cancellationToken);
 
     private async Task<ModelTurnAdmission> AdmitSelectionAsync(ModelProviderSelection selection,
-        ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken)
+        ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken,
+        Kora.Core.Providers.ProviderProfileTuple? profile = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
         var current = HostActivity.Current;
@@ -125,24 +128,35 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 {
                     result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.EnvelopeLimitExceeded, provenance);
                 }
-                else if (registration is null)
-                {
-                    result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, provenance);
-                }
-                else if (!registration.IsQualified(time.GetUtcNow()))
-                {
-                    result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance);
-                }
-                else if (selection.Provider != ModelProviderIdentity.Ollama)
-                {
-                    // Hosted eligibility is not an exact destination/content approval. No egress authority exists in this slice.
-                    result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
-                }
                 else
                 {
-                    turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
-                        revision, registration);
-                    result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None, provenance);
+                    if (profile is not null && selection.Provider == ModelProviderIdentity.Ollama && registrationSource is not null)
+                    { registration = await registrationSource.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false); }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!Eligible(revision))
+                    { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, provenance); }
+                    else if (registration is null || registration.Selection != selection)
+                    { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, provenance); }
+                    else if (!registration.IsQualified(time.GetUtcNow()))
+                    { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance); }
+                    else if (selection.Provider != ModelProviderIdentity.Ollama)
+                    {
+                        // Hosted eligibility is not destination/content approval. Local composition cannot clear this denial.
+                        result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
+                    }
+                    else
+                    {
+                        turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
+                            revision, registration);
+                        var refreshed = profile is not null && registrationSource is not null
+                            ? await RevalidateAsync(turn, cancellationToken).ConfigureAwait(false) : ModelTurnReason.None;
+                        if (refreshed != ModelTurnReason.None)
+                        {
+                            turn = null;
+                            result = Finish(ModelTurnOutcome.Denied, refreshed, provenance);
+                        }
+                        else { result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None, provenance); }
+                    }
                 }
             }
         }

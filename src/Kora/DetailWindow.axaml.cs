@@ -45,7 +45,10 @@ public sealed partial class DetailWindow : Window, IDetailView
         disclosure = Required<CheckBox>("DisclosureConfirmation");
         renderedDocument = Required<StackPanel>("RenderedDocument");
         renderedViewport = Required<ScrollViewer>("RenderedViewport");
-        var renderedControls = MarkdownDocumentRenderer.CreateControls(result, selectable: false);
+        var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
+        var renderedControls = content.Kind == DetailContentKind.StaticHtml
+            ? StaticHtmlDocumentRenderer.CreateControls(result)
+            : MarkdownDocumentRenderer.CreateControls(result, selectable: false);
         foreach (var control in renderedControls)
         {
             if (typographyHost is not null && control is TextBlock text
@@ -57,7 +60,6 @@ public sealed partial class DetailWindow : Window, IDetailView
         }
         if (typographyHost is not null) { NativeReaderTypography.Bind(reader, typographyHost); }
         if (typographyHost is not null) { NativeReaderTypography.Bind(findSpan, typographyHost); }
-        var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
         Title = $"{content.Title} — details — revision {content.Reference.Revision}";
         Required<TextBlock>("DetailTitle").Text = content.Title;
         Required<TextBlock>("ProvenanceLabel").Text =

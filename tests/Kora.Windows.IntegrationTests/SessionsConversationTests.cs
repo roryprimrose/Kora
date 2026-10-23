@@ -266,7 +266,7 @@ public sealed partial class SessionsConversationTests
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance, turns);
+                NullLogger<SessionConversationService>.Instance, turns, Audit);
             Conversation = conversation;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();

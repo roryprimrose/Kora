@@ -61,6 +61,8 @@ Use **Cancel answer reading** or the existing speech Stop control to retire play
 
 Unqualified conversation generation remains unavailable; this operation does not add a model or speech backend ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerRead.cs)).
 
+Typing a command while a prompt review is open still closes that prompt on the first edit. If the submitted typed command is `read selected answer`, that reading is refused once; make a fresh deliberate request. Native and activated-voice reads do not inherit or consume this typed-input refusal ([input guard](../src/Kora/PromptParameterController.AnswerRead.cs)).
+
 ## Return focus to a pending question
 
 [`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)

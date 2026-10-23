@@ -1,5 +1,3 @@
-using Kora.Application.Voice;
-
 namespace Kora;
 
 internal sealed partial class PromptParameterController
@@ -10,7 +8,8 @@ internal sealed partial class PromptParameterController
 
     private void HoldRetiredPromptAnswerReadInput()
     {
-        if (draft is not null && ResponseReadCommand.Parse(main.CommandText, main.AssistantName) is { SelectedAnswer: true })
+        // The first edit closes the prompt before a complete command is available.
+        if (draft is not null || window is not null)
         { main.RefuseSelectedAnswerReadForRetiredDecisionInput(); }
     }
 }

@@ -310,4 +310,128 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("dictation owns input");
         f.TextToSpeech.SpokenText.Should().BeNull();
     }
+
+    [Theory]
+    [InlineData("what power action is pending")]
+    [InlineData("read selected answer from clipboard")]
+    public async Task SelectedAnswerDisplacedTypedIntentIsClearedByEveryNonReadTypedDispatch(string command)
+    {
+        var f = await CreateReadableResponseAsync();
+        var reads = 0;
+        f.ViewModel.BindSelectedAnswerRead(eligible => token =>
+        {
+            eligible().Should().BeTrue();
+            reads++;
+            return Task.CompletedTask;
+        });
+        f.ViewModel.RefuseSelectedAnswerReadForRetiredDecisionInput();
+        await f.RunAsync(command);
+        f.TextToSpeech.ClearSpokenResponse();
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(1);
+        f.ViewModel.ReadCurrentResponseStatus.Should().NotContain("original input belonged");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SelectedAnswerDisplacedTypedReadIsDeniedOnceThenFreshDeliberateRetryCanPlay()
+    {
+        var f = await CreateReadableResponseAsync();
+        var reads = 0;
+        f.ViewModel.BindSelectedAnswerRead(eligible => async token =>
+        {
+            reads++;
+            var request = HostActivity.RequireCurrent().Request;
+            (await f.ViewModel.ReadAnswerOnceAsync(SpeechAnswer(request), eligible, _ => Task.CompletedTask, token))
+                .Should().Contain("completed once");
+        });
+        f.ViewModel.RefuseSelectedAnswerReadForRetiredDecisionInput();
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(0);
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(1);
+        f.TextToSpeech.SpokenText.Should().Be("Retained answer only.");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SelectedAnswerVoiceAndNativeNeverApplyOrConsumeTypedDisplacement(bool voice)
+    {
+        var f = await CreateReadableResponseAsync();
+        var reads = 0;
+        f.ViewModel.BindSelectedAnswerRead(eligible => async token =>
+        {
+            reads++;
+            var request = HostActivity.RequireCurrent().Request;
+            (await f.ViewModel.ReadAnswerOnceAsync(SpeechAnswer(request), eligible, _ => Task.CompletedTask, token))
+                .Should().Contain("completed once");
+        });
+        f.ViewModel.RefuseSelectedAnswerReadForRetiredDecisionInput();
+        if (voice)
+        {
+            await f.RaiseActivatedTranscriptAsync("Kora, read selected answer", 1);
+            reads.Should().Be(1);
+        }
+        else
+        {
+            var request = HostRequest.Create(RequestOrigin.LocalUi);
+            using var input = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            (await f.ViewModel.ReadAnswerOnceAsync(SpeechAnswer(request), () => true, _ => Task.CompletedTask,
+                TestContext.Current.CancellationToken)).Should().Contain("completed once");
+        }
+        f.TextToSpeech.SpokenText.Should().Be("Retained answer only.");
+        f.TextToSpeech.ClearSpokenResponse();
+        var beforeTyped = reads;
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(beforeTyped);
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(beforeTyped + 1);
+        f.TextToSpeech.SpokenText.Should().Be("Retained answer only.");
+    }
+
+    [Fact]
+    public async Task SelectedAnswerVoiceRefusalForActivePromptLeavesTypedIntentUnconsumed()
+    {
+        var f = await CreateReadableResponseAsync();
+        var reads = 0;
+        f.ViewModel.BindSelectedAnswerRead(eligible => token => { reads++; return Task.CompletedTask; });
+        f.ViewModel.BindRetainedAnswerReadDecisionGate(() => false);
+        f.ViewModel.RefuseSelectedAnswerReadForRetiredDecisionInput();
+        await f.RaiseActivatedTranscriptAsync("Kora, read selected answer", 1);
+        reads.Should().Be(0);
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.ViewModel.ReadCurrentResponseStatus.Should().Contain("prompt review");
+        f.ViewModel.BindRetainedAnswerReadDecisionGate(() => true);
+        await f.RunAsync("read selected answer");
+        reads.Should().Be(0);
+        f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task SelectedAnswerLiteralCaptureCannotDispatchOrConsumeTypedIntent()
+    {
+        var f = CreateVoicePrivacyFixture();
+        f.ViewModel.BindVoiceOwnershipGate(() => true);
+        f.Voice.IsLiteralDictationAvailable = true;
+        await f.ViewModel.InitializeAsync();
+        using var composer = DictationComposer(f);
+        await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
+        f.ViewModel.RefuseSelectedAnswerReadForRetiredDecisionInput();
+        await service.BeginAsync(composer, () => true, TestContext.Current.CancellationToken);
+        await f.Voice.RaiseTranscriptAsync("Kora, read selected answer", 1);
+        await service.EndAsync();
+        await service.Quiescence;
+        composer.Body.Should().Be("Kora, read selected answer");
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal));
+        await f.RunAsync("read selected answer");
+        f.ViewModel.ReadCurrentResponseStatus.Should().Contain("original input belonged");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
 }

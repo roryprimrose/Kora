@@ -4137,8 +4137,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
-        var displacedAnswerDecision = Interlocked.Exchange(ref retainedAnswerDisplacedDecisionInput, 0) != 0;
-        if (selectedAnswerCommand is not null && displacedAnswerDecision)
+        var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
+            && Interlocked.Exchange(ref retainedAnswerDisplacedDecisionInput, 0) != 0;
+        if (selectedAnswerCommand is { IsValid: true } && displacedAnswerDecision)
         {
             ReportResponseRead("Retained answer reading refused: the original input belonged to a prompt review retired by input editing. No decision was resumed and no playback or replay was queued.");
             return;

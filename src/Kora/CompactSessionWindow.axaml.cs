@@ -8,6 +8,7 @@ internal sealed partial class CompactSessionWindow : Window
     internal event EventHandler? SessionsRequested;
     internal event EventHandler? NewRequestRequested;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
 
     internal CompactSessionWindow(SessionsViewModel model, SessionsPresentationOwner owner)
     {
@@ -43,6 +44,11 @@ internal sealed partial class CompactSessionWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        SubmitConversationWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
+        CancelRunningConversation.Click += async (_, _) =>
+            await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         CloseView.Click += (_, _) => Close();
         KeyDown += (_, args) =>
         {

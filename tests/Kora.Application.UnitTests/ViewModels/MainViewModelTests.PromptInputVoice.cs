@@ -2,6 +2,7 @@
 
 using Kora.Application.Definitions;
 using Kora.Application.UnitTests.Interaction;
+using Kora.Application.Voice;
 using Kora.Core.Artifacts;
 using Kora.Core.Communication;
 using Kora.Core.Hosting;
@@ -109,6 +110,72 @@ public sealed partial class MainViewModelTests
         applied.Should().Be(0);
         (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
             .UserRequest.Should().Be("unchanged private input");
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ClipboardReader.Calls.Should().Be(0);
+        f.ViewModel.UnbindPromptInputVoice(input);
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ComposerCaptureIsExclusiveWithPromptAndQuestionAndKeepsLiteralInItsOriginalBuffer(bool promptFirst)
+    {
+        var f = await ReplyHostAsync();
+        f.Voice.IsLiteralDictationAvailable = true;
+        using var host = new InteractionFixture();
+        using var composer = DictationComposer(f);
+        await using var dictation = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
+        await using var replies = f.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,
+            NullLogger<Kora.Application.Interaction.HostQuestionVoiceReplyService>.Instance)!;
+        await using var input = f.ViewModel.BindPromptInputVoice(NullLogger<PromptInputVoiceController>.Instance)!;
+        var question = await host.QuestionAsync();
+        var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Test\n---\n${input:topic}", false),
+            ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact" };
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        using var draft = new PromptParameterDraft(source, f.ArtifactCatalogue, () => true);
+        draft.SetValue("topic", "unchanged prompt");
+        composer.Body = "unchanged composer";
+        if (promptFirst)
+        { await input.Begin(draft, "topic", () => true, draft.SetValue, TestContext.Current.CancellationToken); }
+        else { await replies.OpenAsync(question, () => true, _ => { }, false, TestContext.Current.CancellationToken); }
+        var generation = f.Voice.Generation;
+        await dictation.BeginAsync(composer, () => true, TestContext.Current.CancellationToken);
+        dictation.IsActive.Should().BeFalse();
+        input.IsActive.Should().Be(promptFirst);
+        replies.IsActive.Should().Be(!promptFirst);
+        f.Voice.Generation.Should().Be(generation);
+        f.Voice.StartCalls.Should().Be(1);
+
+        input.Retire("Explicitly cancel prompt capture");
+        replies.Retire("Explicitly cancel question capture");
+        await input.Quiescence;
+        await replies.Quiescence;
+        await dictation.BeginAsync(composer, () => true, TestContext.Current.CancellationToken);
+        dictation.IsActive.Should().BeTrue();
+        generation = f.Voice.Generation;
+        await input.Begin(draft, "topic", () => true, draft.SetValue, TestContext.Current.CancellationToken);
+        await replies.OpenAsync(question, () => true, _ => { }, false, TestContext.Current.CancellationToken);
+        input.IsActive.Should().BeFalse();
+        replies.IsActive.Should().BeFalse();
+        dictation.IsActive.Should().BeTrue();
+        f.Voice.Generation.Should().Be(generation);
+        f.Voice.StartCalls.Should().Be(2);
+
+        f.Voice.RaiseTranscript("literal for composer only", 1);
+        await dictation.EndAsync();
+        dictation.HasReview.Should().BeTrue();
+        composer.Body.Should().Be("unchanged composer");
+        dictation.LiteralText.Should().Be("literal for composer only");
+        dictation.Replace();
+        await dictation.Quiescence;
+        composer.Body.Should().Be("literal for composer only");
+        host.Store.Snapshot.Questions.Single().Draft.Should().BeNull();
+        (await draft.Preview(f.ViewModel.IsPromptSourceCurrent, TestContext.Current.CancellationToken))
+            .UserRequest.Should().Be("unchanged prompt");
         f.Session.LockCalls.Should().Be(0);
         f.Reasoner.Requests.Should().BeEmpty();
         f.ClipboardReader.Calls.Should().Be(0);

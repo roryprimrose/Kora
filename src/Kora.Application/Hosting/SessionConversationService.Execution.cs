@@ -11,7 +11,8 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> ExecuteRetainedAsync(SessionWorkspaceEntry target,
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
         Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
-        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null)
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null,
+        Action? terminalCommitted = null)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -92,6 +93,7 @@ public sealed partial class SessionConversationService
                 || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
                 || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)
             { throw new IOException("Assistant completion is unconfirmed; inspect the exact original request without retry."); }
+            terminalCommitted?.Invoke();
             await RequireSubmissionReadbackAsync(completed, target, request, retained.Message.Body, live, validateSource, token).ConfigureAwait(false);
             confirmed = true;
             running.Complete(completed.Message.Outcome!.Value, completed.Task.State);

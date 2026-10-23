@@ -177,8 +177,11 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             // Remaining assistant messages are fully validated tool-call batches.
             var assistant = (ModelAssistantToolCalls)message;
-            if (context.ToolMode == ModelToolMode.None)
+            if (assistant.Calls.Any(call => !ModelToolProtocol.GetTools(context.ToolMode)
+                .Any(descriptor => string.Equals(descriptor.Id, call.CapabilityId, StringComparison.Ordinal))))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
+            if (context.ToolMode == ModelToolMode.LocalWebPage && (assistant.Calls.Length != 1 || calls != 0))
+            { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Length > ModelToolProtocol.MaximumCalls - calls)
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Any(call => callIds.Contains(call.CallId)))
@@ -200,6 +203,8 @@ internal sealed partial class BoundedModelTurnAdapter(
                     return Finish(provenance, toolReply.Outcome == CapabilityOutcome.Denied
                         ? ModelTurnOutcome.Denied : ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected);
                 }
+                if (toolReply.WebPage is { } page && page.Request != provenance.Request)
+                { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 ModelToolResultMessage result;
                 try { result = ModelToolProtocol.CreateToolResult(call, toolReply); }
                 catch (InvalidDataException)

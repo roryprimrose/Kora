@@ -164,6 +164,15 @@ internal sealed partial class SessionsWindowController(
                 questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact
                     ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
                     request, generation, spec, expiry, admitted, token);
+            model.WebPagePresenter = async (proposal, generation, address, admitted, token) =>
+            {
+                var placeholder = new Kora.Core.Interaction.QuestionSpec("Exact page approval",
+                    Kora.Core.Interaction.QuestionKind.SingleChoice, [new("once", "Approve once")]);
+                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact
+                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
+                    proposal.Request, generation, placeholder, proposal.ExpiresAt, admitted, token, proposal, address);
+                return new(receipt.Presented, receipt.Completed);
+            };
         }
         presentation = new(model);
     }

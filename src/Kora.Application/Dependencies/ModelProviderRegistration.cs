@@ -5,7 +5,7 @@ namespace Kora.Application.Dependencies;
 /// <summary>Host-owned qualification, bound to one exact catalogue revision; never deserialized from model output.</summary>
 internal sealed record ModelProviderRegistration(
     ModelProviderSelection Selection, ModelQualificationGate Evidence,
-    DateTimeOffset ExpiresAt, IModelTurnAdapter? Adapter)
+    DateTimeOffset ExpiresAt, IModelTurnAdapter? Adapter, Func<bool>? RemainsQualified = null)
 {
     internal bool IsQualified(DateTimeOffset now)
     {
@@ -19,6 +19,6 @@ internal sealed record ModelProviderRegistration(
         const ModelQualificationGate known = ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
             | ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle | ModelQualificationGate.ExecutionAccount;
         return Selection.IsValid && (Evidence & ~known) == ModelQualificationGate.None && (Evidence & required) == required
-            && now < ExpiresAt && Adapter is not null;
+            && now < ExpiresAt && Adapter is not null && (RemainsQualified is null || RemainsQualified());
     }
 }

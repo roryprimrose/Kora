@@ -18,6 +18,7 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Kora.Core.UnitTests\Dependencies\SpeechComponentFixture.cs" Link="Dependencies\SpeechComponentFixture.cs" />
   </ItemGroup>
 
   <ItemGroup>

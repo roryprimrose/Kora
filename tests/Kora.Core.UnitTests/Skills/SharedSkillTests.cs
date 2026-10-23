@@ -8,6 +8,19 @@ namespace Kora.Core.UnitTests.Skills;
 
 public sealed class SharedSkillTests
 {
+    [Fact]
+    public void CanonicalWebToolDeclarationIsInertAndStillInstructionIncompatible()
+    {
+        var text = Valid.Replace("description: Inspect a selected example",
+            $"description: Inspect a selected example\nallowed-tools: {Kora.Core.Network.WebPageCapability.Id}", StringComparison.Ordinal);
+        var snapshot = Parse(text);
+        snapshot.DeclaredTools.Should().Equal(Kora.Core.Network.WebPageCapability.Id);
+        snapshot.UnavailableReasons.Should().Equal("declared-tools-unavailable");
+        snapshot.IsInstructionCompatible.Should().BeFalse();
+        snapshot.IsAvailableForInvocation.Should().BeFalse();
+        snapshot.Text.Should().Be(text);
+    }
+
     private static readonly Guid SourceId = Guid.NewGuid();
     private const string Valid = "---\nname: inspect-example\nversion: 1.0.0\ndescription: Inspect a selected example\n---\n# Instructions\nExplain the supplied text, without tools.";
 

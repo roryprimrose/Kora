@@ -2,7 +2,7 @@
 
 Status: bounded bundled catalogue and explicit shared-profile native inspection delivered.
 The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation.
-General tool-dependent invocation and Kora-specific authoring remain proposed.
+The separate [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) admits a declarative shared revision declaring only the host's WebPageGet binding, with independent model-context consent and per-action authorization. General tool-dependent invocation and Kora-specific authoring remain proposed.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
@@ -16,7 +16,7 @@ does not expand the delivered R21 read-only boundary below.
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
-| Shared profile | User-selected registered roots below the Windows profile known folder | Bounded native discovery/inspection; separate [single-file instruction-only use](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) requires reviewed volatile enablement and exact Active-conversation confirmation. No scripts, tools or hosted egress. |
+| Shared profile | User-selected registered roots below the Windows profile known folder | Bounded native discovery/inspection; separate [zero-tool](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) and [reviewed one-tool](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) paths. Neither admits scripts or hosted disclosure. |
 | Kora-specific | `%APPDATA%\Kora\Skills` | Create/update validated declarative skills through the authoring writer |
 
 Resolve Roaming AppData and the user profile through Windows Known Folder APIs, not model-provided paths or hard-coded user names.
@@ -192,17 +192,35 @@ Corrupt preferences cannot be reset, repaired or unregistered through
 this workflow. Privacy closure and window disposal cancel pending work and
 destroy native content views, including confirmation metadata.
 
-Enable/disable/invoke, remote transmission/model-context exposure, editing,
-Kora-specific authoring, executable imports and runtime dependency admission
-remain unavailable. The remaining sections describe future work, not powers
-granted by this delivered registration/review slice.
+Registration alone grants no enablement, invocation or model-context exposure. Editing,
+Kora-specific authoring, executable imports and general runtime dependency admission
+remain unavailable. The separate reviewed consumers below do not derive authority
+from registration or Markdown ([source admission](../src/Kora.Application/Skills/SharedSkillDiscoveryService.cs)).
+
+### Reviewed declarative one-tool invocation
+
+The [separately typed review and invocation](../src/Kora.Application/Skills/ReviewedToolSkillReview.cs) bind one registered source identity, exact revision bytes/digest, existing Active target/generation/metadata, original UI or activated-voice channel, two-minute expiry and single use. They cannot enter or widen the existing zero-tool workflow.
+
+The [consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) accepts one single-file declarative `SKILL.md` with only `allowed-tools: network.get_web_page`. Additional declarations, uninspected files, scripts, executable fences, unresolved resources and ambiguous source identities remain refused. No bundled definition, script runner, agent or MCP binding is added.
+
+Source-read consent, explicit enablement of the exact revision's local model context, confirmation of the original request/target, and the WebPageGet action's own permission are separate boundaries. Guidance is inert untrusted evidence, never system instructions or permission. A model cannot expand the host-owned tool subset or budgets ([workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).
+
+The native source inspector offers **Review selected one-tool use**. Select an existing target, **Review exact target and tool revision**, then separately enable, enter the explicit page address and original request, review the invocation and confirm ([controller](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
+
+Typed commands use `review tool skill <exact name>` and the distinct `tool skill targets`, `target <ID>`, `review tool revision`, `enable`, `address <absolute HTTP or HTTPS URL>`, `request <unchanged prose>`, `review invocation`, `confirm invocation` and `close` forms. The destination is explicit original input, never inferred from instructions or model output ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs)).
+
+Activated voice uses the same commands with the current assistant-name prefix and existing call/privacy admission. Changing the reviewed channel or target requires fresh review. The original instruction-only `shared skill` commands remain distinct ([desktop consumer](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
+
+The [canonical retained conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs) selects local-only reasoning and retains its genuine terminal result in that exact session. Source/session/privacy validation remains active before dispatch, continuation and terminal readback. Cancellation, denial or missing runtime readiness must not become a successful answer or automatic retry.
+
+This is an implementation path, not qualification of an installed model or approval of any existing external definition. An unqualified local profile remains explicitly unavailable; no live provider/network/hardware evidence is claimed, and lock/shutdown/restart resources are unchanged ([host admission](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [bundled catalogue](../src/Kora.Definitions/Skills/EmbeddedSkillCatalogue.cs)).
 
 ### Future discovery and enablement
 
 The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
 Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
 The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
-Broader catalogue/model selection, tools, additional files, executable requirements and hosted transmission below remain future work.
+Broader catalogue/model selection, tools outside the separately reviewed one-tool path, additional files, executable requirements and hosted transmission below remain future work.
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.

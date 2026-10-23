@@ -4,12 +4,12 @@ using System.Diagnostics;
 using AwesomeAssertions;
 
 using Kora.Application.Definitions;
+using Kora.Application.UnitTests.Network;
 using Kora.Application.UnitTests.Interaction;
 using Kora.Application.Voice;
 using Kora.Core.Artifacts;
 using Kora.Core.Diagnostics;
-
-using Microsoft.Extensions.Logging.Abstractions;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.UnitTests.Definitions;
 
@@ -38,6 +38,144 @@ public sealed class PromptInputVoiceControllerTests
         (await f.Draft.Preview(f.Fresh, Token)).UserRequest.Should().Be(
             "Request   ${input:topic-two}\r\nKora lock workstation   / untouched");
         f.Controller.Status.Should().NotContain("lock workstation");
+    }
+
+    [Theory]
+    [InlineData("before-read")]
+    [InlineData("stale-source")]
+    [InlineData("after-read")]
+    public async Task OpeningCannotCaptureAfterExactSourceOrFocusValidationIsWithdrawn(string boundary)
+    {
+        await using var f = new Fixture();
+        if (boundary is "before-read")
+        { f.Controller.Changed += (_, _) => f.Focused = false; }
+        if (boundary is "stale-source") { f.FreshSource = false; }
+        if (boundary is "after-read") { f.BeforeFresh = () => f.Focused = false; }
+        await f.Begin();
+        await f.Controller.Quiescence;
+        f.Applied.Should().Be(0);
+        f.Capture.Opens.Should().Be(0);
+        f.Controller.IsActive.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task CancellationDuringOpeningNotificationJoinsReleaseBeforeAnExpiryTimerExists()
+    {
+        await using var f = new Fixture();
+        using var cancelled = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        f.Controller.Changed += (_, _) =>
+        {
+            if (f.Controller.IsActive) { cancelled.Cancel(); }
+        };
+        await f.Controller.Begin(f.Draft, "topic", () => f.Focused, f.Apply, cancelled.Token);
+        await f.Controller.Quiescence;
+        f.Capture.Opens.Should().Be(0);
+        f.Applied.Should().Be(0);
+        f.Time.Timers.Should().OnlyContain(timer => timer.Disposed);
+    }
+
+    [Fact]
+    public async Task FailedExpirySetupRetiresTheTargetAndCompletesOwnedRelease()
+    {
+        await using var f = new Fixture(time: new UnavailableExpiryTime());
+        await f.Begin();
+        await f.Controller.Quiescence;
+        f.Controller.IsActive.Should().BeFalse();
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+        f.Capture.Opens.Should().Be(0);
+        f.Applied.Should().Be(0);
+        f.Controller.Status.Should().Contain("failed");
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task UnconfirmedNativeReleaseFaultsTheReceiptAndNeverPublishesOrReopens(bool duringDelivery)
+    {
+        var f = new Fixture();
+        try
+        {
+            await f.Begin();
+            f.Capture.NonQuiescent = true;
+            if (duringDelivery) { f.Capture.Transcript("private must not publish"); }
+            else { f.Controller.Retire("Cancel while native release cannot be confirmed"); }
+            await ((Func<Task>)(() => f.Controller.Quiescence)).Should().ThrowAsync<InvalidOperationException>();
+            f.Applied.Should().Be(0);
+            f.Controller.Status.Should().Contain("cleanup unconfirmed");
+            f.Capture.NonQuiescent = false;
+            await f.Begin();
+            f.Capture.Opens.Should().Be(1);
+            f.Logger.Messages.Should().NotBeEmpty().And.NotContain(message => message.Contains("private must not publish", StringComparison.Ordinal));
+        }
+        finally { await ((Func<Task>)(async () => await f.DisposeAsync())).Should().ThrowAsync<InvalidOperationException>(); }
+    }
+
+    [Fact]
+    public async Task CleanupObserverFailureFaultsThePublishedReceiptInsteadOfHangingOrReopening()
+    {
+        var f = new Fixture();
+        try
+        {
+            await f.Begin();
+            var observerFailed = false;
+            f.Controller.Changed += (_, _) =>
+            {
+                if (!observerFailed && f.Controller.Status.Contains("cleanup unconfirmed", StringComparison.Ordinal))
+                {
+                    observerFailed = true;
+                    throw new IOException("Synthetic cleanup observer failure");
+                }
+            };
+            f.Capture.StopFailure = new IOException("Synthetic stop failure");
+            f.Controller.Retire("Explicit cancellation");
+            await ((Func<Task>)(() => f.Controller.Quiescence)).Should().ThrowAsync<IOException>()
+                .WithMessage("Synthetic cleanup observer failure");
+            observerFailed.Should().BeTrue();
+            f.Applied.Should().Be(0);
+            f.Capture.StopFailure = null;
+            await f.Begin();
+            f.Capture.Opens.Should().Be(1);
+        }
+        finally
+        {
+            await ((Func<Task>)(async () => await f.DisposeAsync())).Should().ThrowAsync<IOException>()
+                .WithMessage("Synthetic cleanup observer failure");
+        }
+    }
+
+    [Fact]
+    public async Task MissingAndForeignCompletionEventsCannotRetireCurrentOrAlreadyDeliveringTarget()
+    {
+        await using var f = new Fixture();
+        f.Capture.Fail();
+        f.Capture.Complete();
+        await f.Begin();
+        f.Capture.Fail(f.Generation - 1);
+        f.Capture.Complete(f.Generation - 1);
+        f.Controller.IsActive.Should().BeTrue();
+        f.Dispatcher.Hold = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Capture.Transcript("exact current value");
+        f.Capture.Complete(f.Generation);
+        f.Controller.IsActive.Should().BeTrue();
+        f.Dispatcher.Hold.SetResult();
+        await f.Controller.Quiescence;
+        f.Applied.Should().Be(1);
+        f.Capture.Fail(f.Generation);
+        f.Capture.Complete(f.Generation);
+        f.Applied.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ForeignHostActivityAtPublicationCannotAuthorizeTheCapturedPrompt()
+    {
+        await using var f = new Fixture();
+        await f.Begin();
+        f.Dispatcher.UseForeignContext = true;
+        f.Capture.Transcript("private captured prompt");
+        await f.Controller.Quiescence;
+        f.Applied.Should().Be(0);
+        f.Controller.Status.Should().Contain("rejected");
+        f.Logger.Messages.Should().NotContain(message => message.Contains("private captured prompt", StringComparison.Ordinal));
     }
 
     [Theory]
@@ -277,7 +415,8 @@ public sealed class PromptInputVoiceControllerTests
             Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
         };
         public QuestionReplyFixture.ReplyCapture Capture { get; } = new();
-        public QuestionReplyFixture.ReplyDispatcher Dispatcher { get; } = new();
+        public PromptDispatcher Dispatcher { get; } = new();
+        public EnabledLogger<PromptInputVoiceController> Logger { get; } = new();
         public QuestionReplyFixture.ReplyTime Time { get; } = new();
         public QuestionVoiceAdmission? Admission { get; set; } = new(new("mic", "Synthetic"), 1, 1, 1);
         public ArtifactDefinition Source { get; }
@@ -290,7 +429,7 @@ public sealed class PromptInputVoiceControllerTests
         public long Generation { get; set; }
         public TaskCompletionSource<bool>? FreshGate { get; set; }
         public Action? BeforeFresh { get; set; }
-        public Fixture(string body = "Request ${input:topic} / ${input:topic-two}")
+        public Fixture(string body = "Request ${input:topic} / ${input:topic-two}", TimeProvider? time = null)
         {
             ActivitySource.AddActivityListener(listener);
             Source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
@@ -298,7 +437,7 @@ public sealed class PromptInputVoiceControllerTests
                 ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact" };
             Catalogue = new([Source]);
             Draft = new(Source, Catalogue, () => true);
-            Controller = new(Capture, Dispatcher, () => Admission, Fresh, NullLogger<PromptInputVoiceController>.Instance, Time);
+            Controller = new(Capture, Dispatcher, () => Admission, Fresh, Logger, time ?? Time);
         }
         public Task<bool> Fresh(ArtifactDefinition source, CancellationToken token)
         {
@@ -317,5 +456,26 @@ public sealed class PromptInputVoiceControllerTests
             try { await Controller.DisposeAsync(); }
             finally { Draft.Dispose(); listener.Dispose(); }
         }
+    }
+
+    private sealed class PromptDispatcher : IUiDispatcher
+    {
+        public TaskCompletionSource? Hold { get; set; }
+        public bool UseForeignContext { get; set; }
+        public async Task InvokeAsync(Func<Task> action)
+        {
+            if (Hold is not null) { await Hold.Task; }
+            using var foreign = UseForeignContext
+                ? HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Application, HostOperation.Presentation)
+                : null;
+            await action();
+        }
+        public void Post(Action action) => action();
+    }
+
+    private sealed class UnavailableExpiryTime : TimeProvider
+    {
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            throw new IOException("Synthetic expiry timer unavailable");
     }
 }

@@ -1,4 +1,5 @@
 ﻿using System.Diagnostics;
+using System.Runtime.ExceptionServices;
 
 using Kora.Application.Voice;
 using Kora.Core.Artifacts;
@@ -69,11 +70,11 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
         Publish();
         if (opened is null) { return; }
         using var activity = BeginActivity(opened, HostOperation.Presentation);
-        opened.Registration = token.Register(() => Retire(opened, "Prompt input cancelled. Late text discarded."));
-        opened.Expiry = time.CreateTimer(_ => Retire(opened, "Prompt input expired. Microphone release required; no text admitted."),
-            null, TimeSpan.FromSeconds(75), Timeout.InfiniteTimeSpan);
         try
         {
+            opened.Registration = token.Register(() => Retire(opened, "Prompt input cancelled. Late text discarded."));
+            opened.Expiry = time.CreateTimer(_ => Retire(opened, "Prompt input expired. Microphone release required; no text admitted."),
+                null, TimeSpan.FromSeconds(75), Timeout.InfiniteTimeSpan);
             opened.Context = HostActivity.RequireCurrent().Activity!.Context;
             if (!Eligible(opened) || !await fresh(draft.Source, opened.Cancellation.Token) || !Eligible(opened))
             { throw new OperationCanceledException("Prompt source or focus changed before capture."); }
@@ -138,10 +139,10 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
             delivery = finished.Task;
         }
         capture.InvalidateCapture();
-        _ = CompleteDelivery(Deliver(current, args.Transcript, delivered), finished);
+        _ = CompleteOperation(Deliver(current, args.Transcript, delivered), finished);
     }
 
-    private static async Task CompleteDelivery(Task operation, TaskCompletionSource finished)
+    private static async Task CompleteOperation(Task operation, TaskCompletionSource finished)
     {
         try
         {
@@ -230,12 +231,12 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
             capture.InvalidateCapture();
             previous.Cancellation.Cancel();
             previous.Expiry?.Dispose();
-            _ = Release(previous, released);
+            _ = CompleteOperation(Release(previous), released);
         }
         Publish();
     }
 
-    private async Task Release(Turn previous, TaskCompletionSource released)
+    private async Task Release(Turn previous)
     {
         using var activity = BeginActivity(previous, HostOperation.Recovery);
         Exception? failure = null;
@@ -265,8 +266,7 @@ public sealed partial class PromptInputVoiceController : IAsyncDisposable
             await previous.Registration.DisposeAsync().ConfigureAwait(false);
             previous.Cancellation.Dispose();
         }
-        if (failure is null) { released.TrySetResult(); }
-        else { released.TrySetException(failure); }
+        if (failure is not null) { ExceptionDispatchInfo.Throw(failure); }
     }
 
     private static HostActivity BeginActivity(Turn current, HostOperation operation) =>

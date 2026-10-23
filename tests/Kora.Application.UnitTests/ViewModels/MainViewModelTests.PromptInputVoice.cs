@@ -7,6 +7,7 @@ using Kora.Core.Artifacts;
 using Kora.Core.Communication;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
+using System.Reflection;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -14,6 +15,106 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task UnsupportedActivatedReplyCaptureDoesNotBindAPromptVoiceOwner()
+    {
+        var f = CreateVoicePrivacyFixture();
+        f.ViewModel.BindPromptInputVoice(NullLogger<PromptInputVoiceController>.Instance).Should().BeNull();
+        f.ViewModel.Dispose();
+    }
+
+    [Theory]
+    [InlineData("question-speech")]
+    [InlineData("ptt")]
+    [InlineData("stop-request")]
+    [InlineData("stop-release")]
+    public async Task PromptCaptureRefusesEveryCompetingActivatedInputHold(string hold)
+    {
+        var f = await ReplyHostAsync();
+        await using var input = f.ViewModel.BindPromptInputVoice(NullLogger<PromptInputVoiceController>.Instance)!;
+        var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Test\n---\n${input:topic}", false),
+            ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact" };
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        using var draft = new PromptParameterDraft(source, f.ArtifactCatalogue, () => true);
+        var stop = typeof(Kora.Application.ViewModels.MainViewModel).GetField("listeningStop",
+            BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(f.ViewModel)!;
+        var stopping = stop.GetType().GetField("stopping", BindingFlags.Instance | BindingFlags.NonPublic)!;
+        try
+        {
+            if (hold is "question-speech") { Field(f, "questionSpeech", true); }
+            if (hold is "ptt") { Field(f, "pushToTalkHeld", 1); }
+            if (hold is "stop-request") { Field(f, "listeningStopRequests", 1); }
+            if (hold is "stop-release") { stopping.SetValue(stop, 1); }
+            await input.Begin(draft, "topic", () => true, draft.SetValue, TestContext.Current.CancellationToken);
+            input.IsActive.Should().BeFalse();
+            f.Voice.StartCalls.Should().Be(0);
+            draft.PreviewText.Should().BeNull();
+        }
+        finally
+        {
+            Field(f, "questionSpeech", false);
+            Field(f, "pushToTalkHeld", 0);
+            Field(f, "listeningStopRequests", 0);
+            stopping.SetValue(stop, 0);
+            f.ViewModel.UnbindPromptInputVoice(input);
+            f.ViewModel.Dispose();
+        }
+    }
+
+    [Fact]
+    public async Task QueuedReadinessNotificationAfterUnbindingDoesNotTouchRetiredCapture()
+    {
+        var f = await ReplyHostAsync();
+        PromptInputVoiceController? bound = null;
+        f.ViewModel.PropertyChanged += (_, _) =>
+        {
+            if (bound is not { } current) { return; }
+            bound = null;
+            f.ViewModel.UnbindPromptInputVoice(current);
+        };
+        await using var input = f.ViewModel.BindPromptInputVoice(NullLogger<PromptInputVoiceController>.Instance)!;
+        bound = input;
+        f.ViewModel.CommandText = "new native input";
+        bound.Should().BeNull();
+        input.IsActive.Should().BeFalse();
+        f.Voice.StartCalls.Should().Be(0);
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task OrdinaryPushToTalkWaitsForPromptCaptureReleaseBeforeOpeningItsOwnGeneration()
+    {
+        var f = await ReplyHostAsync();
+        await using var input = f.ViewModel.BindPromptInputVoice(NullLogger<PromptInputVoiceController>.Instance)!;
+        var source = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nkora-format: 2\nname: example\ndescription: Test\n---\n${input:topic}", false),
+            ArtifactKind.Prompt, "kora-profile", "example").Definition with { OwnedInstructionRevision = "exact" };
+        f.ArtifactCatalogue.Publish([source]);
+        f.ViewModel.BindOwnedInstructionFreshness(_ => Task.FromResult(true));
+        using var draft = new PromptParameterDraft(source, f.ArtifactCatalogue, () => true);
+        var applied = 0;
+        await input.Begin(draft, "topic", () => true, (_, _) => applied++, TestContext.Current.CancellationToken);
+        var retired = f.Voice.Generation;
+        f.Voice.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var command = f.ViewModel.BeginPushToTalkAsync();
+        try
+        {
+            command.IsCompleted.Should().BeFalse();
+            input.IsActive.Should().BeFalse();
+            f.Voice.StartCalls.Should().Be(1);
+            f.Voice.RaiseTranscriptForGeneration(retired);
+            applied.Should().Be(0);
+        }
+        finally { f.Voice.StopGate.SetResult(); }
+        await command;
+        f.Voice.StartCalls.Should().Be(2);
+        await f.ViewModel.EndPushToTalkAsync();
+        f.ViewModel.UnbindPromptInputVoice(input);
+        f.ViewModel.Dispose();
+    }
+
     [Theory]
     [InlineData("disable")]
     [InlineData("lock")]

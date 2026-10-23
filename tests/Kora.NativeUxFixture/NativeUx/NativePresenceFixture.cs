@@ -154,6 +154,8 @@ internal static partial class NativePresenceFixture
             double hostHeight() => host?.Bounds.Height ?? 600;
         }
 
+        [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+            Justification = "Avalonia Loaded requires void; fixture failures are written to stderr and exit with failure.")]
         private async void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
         {
             try

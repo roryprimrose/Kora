@@ -922,6 +922,38 @@ readback, required questions/options and voice previews are not ordinary
 summaries; their existing exact/bounded/privacy rules still apply.
 No arbitrary full-content reading command is added.
 
+#### Review an assistant speech limit suggestion
+
+In an exact Active conversation, ask for a limit for future ordinary speech,
+for example, "Suggest a word limit of forty for future ordinary spoken responses."
+An admitted local model may return exactly `set speech.summary-words to 40`
+or `set speech.summary-sentences to 2`. This is inert answer data, not a write,
+approval, tool invocation or a request to speak.
+
+Choose **Review speech limit suggestion...** on that exact retained answer in
+Sessions or the compact conversation. Review the complete **current** and
+**proposed** sentence/word pair, saved/default provenance, unchanged companion,
+shared device-local scope and next-ordinary-speech timing. Then separately choose
+**Confirm exact speech limit change**, or **Cancel speech limit review**.
+Only the two existing caps are admitted; provider, installed voice and other
+settings are not suggestions for this operation.
+
+An exact completed typed/activated-voice `session request` receipt can also be
+reviewed with **review speech limit suggestion**, then separately confirmed with
+**confirm speech limit change**, or discarded with **cancel speech limit review**.
+Voice requires the current assistant-name prefix. No receipt means no guessed
+latest answer. The review is displayed visually even when ordinary speech is
+unavailable. A generic "yes", the original ask and model text cannot confirm it.
+
+Reviews expire after 60 seconds and are invalidated by source, configuration,
+selection, privacy, ownership or call changes. Voice provenance survives later
+typed/native confirmation; protected calls cannot launder it into a native
+write. Saved/effective readback uses the existing audited preference service.
+An uncertain save is not rollback or success: inspect Settings/audit receipts
+before a fresh review, with no automatic retry. Nothing truncates, regenerates,
+speaks or replays the current answer. Unqualified model execution remains
+unavailable; this workflow does not enable or install a provider.
+
 Counting is deterministic Unicode text counting, not acoustic duration or
 linguistic segmentation:
 
@@ -971,6 +1003,39 @@ See [output workflow](voice-and-audio.md#audio-output-selection) and
 
 Re-enumerates microphones, voices, speakers, Windows defaults, mute state, and
 dependency readiness. Refresh does not enable listening.
+
+## Optional speech-input data
+
+**Speech & audio → Optional speech-input components** manages only exact
+host-catalogued optional model data. This release has no qualified optional
+input offers, so the panel reports that state and cannot download or claim
+installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+[Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
+
+For an admitted future offer, **Inspect** reports installed bytes, integrity,
+compatibility, qualification and ownership separately. **Prepare / retry**,
+**Verify** and **Remove** require a fresh complete review of the exact model,
+sources, licence, download/storage/resource costs and operation before approval.
+Verification of already-present data is local-only. Cancellation, stale review,
+integrity failure or an uncertain write requires inspection and a new explicit
+review; existing foreign/shared assets are never overwritten or removed
+([shared service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs),
+[atomic storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
+
+Unreadable data is **Unknown**, not missing or unverified false. Runtime
+compatibility and existing functional evidence have separate explicit states
+and reasons; **Inspect** does not run inference, audio, downloads or functional
+probes. A busy component, unknown ownership, unavailable runtime and
+shared/user-owned assets produce distinct mutation denials, not successful
+no-op preparation ([observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs),
+[mutation admission](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs)).
+
+Preparation does not select a runtime, open the microphone, enroll a verifier,
+enable learning or change reasoning/output settings. Removal affects only the
+exact managed model data after exclusive quiescence; saved selections, personal
+profiles, calibration and secrets are outside this operation. Burn uses the
+same lifecycle with individually unchecked choices; skipping optional work
+keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
 
 ## Responses
 

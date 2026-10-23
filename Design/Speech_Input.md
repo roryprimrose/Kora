@@ -180,6 +180,14 @@ owns the shared catalogue, detection, consent, readiness and removal workflow;
 [Distribution](Distribution_And_Updates.md#selected-windows-installer-direction)
 owns WiX/Burn integration and launch prerequisites.
 
+The bounded [shared lifecycle implementation](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+now connects [Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
+[Burn preparation](../installer/Kora.Setup/SpeechComponentInstallChoice.cs).
+The [production input-data catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
+is deliberately empty until an authoritative exact profile is selected and
+qualified. Both surfaces report no offers; deterministic fixture preparation
+does not qualify a production backend or advertise an installed model.
+
 The WiX MSI owns the protected application payload and first-party adapters.
 Burn may offer unchecked, individually actionable speech preparation choices
 after native installation; a Kora-only path remains. Settings uses the same

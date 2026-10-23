@@ -39,10 +39,11 @@ public static partial class ModelToolProtocol
             ImmutableArray.CreateRange(wire.ToArray()));
     }
 
-    internal static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
+    public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
         ModelToolMode.None => [],
+        ModelToolMode.LocalWebPage => Network.LocalWebPageTool.Descriptors,
         _ => throw new InvalidDataException("The complete turn requires a known host tool mode."),
     };
 

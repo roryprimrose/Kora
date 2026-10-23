@@ -8,4 +8,5 @@ public enum CapabilityOutputShape
     Readiness,
     Runtimes,
     Runtime,
+    WebPage,
 }

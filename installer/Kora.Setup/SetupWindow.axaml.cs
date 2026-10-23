@@ -3,6 +3,9 @@ using System.Diagnostics.CodeAnalysis;
 using Avalonia.Controls;
 using Avalonia.Controls.Primitives;
 using WixToolset.BootstrapperApplicationApi;
+using Kora.Application.Dependencies;
+using Kora.Application.Hosting;
+using Kora.Core.Hosting;
 
 namespace Kora.Setup;
 
@@ -21,13 +24,16 @@ public sealed partial class SetupWindow : Window
     private bool closeRequested;
     private InstallScope? startupScope;
     private InstallerStartupStatus? startupSnapshot;
+    private readonly SpeechComponentSetupService? speechComponents;
+    private IReadOnlyList<SpeechComponentInstallChoice> speechChoices = [];
 
     public SetupWindow(InstallerSession session, string version, InstallerPreflightState preflight, bool preview = false,
-        LaunchAction requestedAction = LaunchAction.Install)
+        LaunchAction requestedAction = LaunchAction.Install, SpeechComponentSetupService? speechComponents = null)
     {
         this.session = session;
         this.preflight = preflight;
         this.preview = preview;
+        this.speechComponents = speechComponents;
         presentation = new InstallerPresentation(session,
             requestedAction == LaunchAction.Repair ? SetupAction.Repair : SetupAction.Uninstall,
             requiresInstalledPackage: requestedAction is LaunchAction.Repair or LaunchAction.Uninstall);
@@ -103,7 +109,8 @@ public sealed partial class SetupWindow : Window
     {
         var selection = action == SetupAction.Uninstall ? new OptionalComponents()
             : new OptionalComponents(PowerShellOption.IsChecked == true,
-                InferenceOption.IsChecked == true, KokoroOption.IsChecked == true);
+                InferenceOption.IsChecked == true, KokoroOption.IsChecked == true)
+                { Speech = Array.AsReadOnly(speechChoices.Where(choice => choice.Selected).ToArray()) };
         try
         {
             var startAtLogin = action != SetupAction.Uninstall && StartupOption.IsChecked == true;
@@ -122,16 +129,56 @@ public sealed partial class SetupWindow : Window
         try
         {
             await preflight.CheckAsync(optionalCancellation.Token);
+            if (speechComponents is not null && !preview)
+            {
+                await HostRequestRunner.RunAsync(RequestOrigin.LocalUi, async () =>
+                {
+                    speechChoices = await SpeechComponentInstallChoice.InspectAsync(speechComponents,
+                        () => !closed && !closeRequested && !optionalCancellation.IsCancellationRequested,
+                        optionalCancellation.Token);
+                });
+                SpeechComponentOptions.Children.Clear();
+                if (speechChoices.Count == 0)
+                {
+                    SpeechComponentOptions.Children.Add(new TextBlock
+                    {
+                        Text = "No qualified optional speech-input components are offered by this release.",
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    });
+                }
+                foreach (var choice in speechChoices)
+                {
+                    var option = new CheckBox { Content = "Prepare / verify " + choice.Name, IsChecked = false };
+                    option.IsCheckedChanged += (_, _) => choice.Selected = option.IsChecked == true;
+                    SpeechComponentOptions.Children.Add(option);
+                    SpeechComponentOptions.Children.Add(new TextBlock
+                    {
+                        Text = choice.Disclosure + " " + choice.Readiness.Description,
+                        TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+                    });
+                }
+            }
         }
         catch (OperationCanceledException) when (optionalCancellation.IsCancellationRequested)
         {
             // Closing setup cancels read-only work; it never approves preparation.
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
+        {
+            speechChoices = [];
+            SpeechComponentOptions.Children.Clear();
+            SpeechComponentOptions.Children.Add(new TextBlock
+            {
+                Text = "Optional speech inspection failed; no speech data is offered. " + exception.Message,
+                TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+            });
         }
         finally
         {
             checkingPreflight = false;
             if (closed) { optionalCancellation.Dispose(); }
             else if (closeRequested) { Close(); }
+            else { Refresh(); }
         }
     }
 
@@ -174,6 +221,7 @@ public sealed partial class SetupWindow : Window
         StartupPanel.IsVisible = presentation.ShowConfiguration;
         RuntimePanel.IsVisible = presentation.ShowConfiguration;
         OptionalPanel.IsVisible = presentation.ShowConfiguration;
+        SpeechComponentOptions.IsEnabled = !closeRequested && session.CanStart && !checkingPreflight;
         ConsentLabel.Text = presentation.ConsentText;
         ConsentLabel.IsVisible = presentation.ShowAction;
         ActionButton.IsVisible = presentation.ShowAction;
@@ -202,12 +250,12 @@ public sealed partial class SetupWindow : Window
         StartupOption.IsEnabled = !closeRequested && session.CanStart && preflight.IsComplete && startup.CanConfigure;
         StartupStatus.IsVisible = !startup.CanConfigure;
         StartupStatus.Text = startup.Detail;
-        ActionButton.IsEnabled = !preview && !closeRequested && presentation.ShowAction && session.CanStart &&
+        ActionButton.IsEnabled = !preview && !closeRequested && !checkingPreflight && presentation.ShowAction && session.CanStart &&
             (PrimaryAction == SetupAction.Uninstall || (preflight.IsComplete && startup.CanProceed));
         RepairButton.IsVisible = presentation.CanSwitchAction;
         RepairButton.Content = presentation.AlternateAction == SetupAction.Repair ? "Switch to repair" : "Switch to uninstall";
         RepairButton.IsEnabled = !closeRequested && presentation.CanSwitchAction;
-        RetryDetectionButton.IsEnabled = !closeRequested && session.CanStart && !preflight.IsChecking;
+        RetryDetectionButton.IsEnabled = !closeRequested && !checkingPreflight && session.CanStart && !preflight.IsChecking;
         DotNetStatus.Text = $".NET: {session.DotNetRuntime.Summary}";
         VCStatus.Text = $"Visual C++: {session.VCRuntime.Summary}";
         RuntimeDetails.Text = $"{session.DotNetRuntime.Display}\n{session.VCRuntime.Display}";

@@ -6,7 +6,7 @@ using Kora.Theming;
 
 namespace Kora.Setup;
 
-internal sealed class SetupApplication(Func<SetupWindow> createWindow, ThemeVariant? previewTheme = null) : Application
+internal sealed class SetupApplication(Func<SetupWindow> createWindow, ThemeVariant? previewTheme = null) : Avalonia.Application
 {
     public override void Initialize()
     {

@@ -19,11 +19,13 @@ public sealed partial class MemoryAdmissionServiceTests
         var first = await f.Admitted();
         var unselected = await f.Admitted();
         var rows = f.Stored.Values.ToArray();
-        var source = new SessionMemoryContextSource(f, f, f, f, f);
+        var source = f.ContextSource();
         var audits = f.Audits.Count;
         var snapshot = await source.ReadAsync(new(f.Session, null), [Summary(first)], static () => true, Token);
         snapshot.Records.Should().Equal(first);
         snapshot.Boundary.Should().Be(f.Boundary);
+        f.ControlOutcomes.Should().HaveCount(1).And.OnlyContain(outcome =>
+            outcome.State == HostTaskState.Succeeded && outcome.Request == f.ControlIntents.Single().Request);
         f.Stored.Values.Should().Equal(rows);
         f.Stored.Should().ContainKey(unselected.Id);
         f.Audits.Skip(audits).Select(row => row.Outcome).Should()
@@ -71,7 +73,7 @@ public sealed partial class MemoryAdmissionServiceTests
                 _ => record with { Retention = (MemoryRetentionState)99 },
             };
         }
-        var source = new SessionMemoryContextSource(f, f, f, f, f);
+        var source = f.ContextSource();
         await source.Invoking(value => value.ReadAsync(new(f.Session, null), [selection], static () => true, Token))
             .Should().ThrowAsync<InvalidDataException>();
     }
@@ -117,13 +119,37 @@ public sealed partial class MemoryAdmissionServiceTests
             case "late-audit": f.FailTerminalAudit = true; break;
             case "cancellation": cancellation.Cancel(); break;
         }
-        var source = new SessionMemoryContextSource(f, f, f, f, f);
+        var source = f.ContextSource();
         await source.Invoking(value => value.ReadAsync(target, [Summary(record)], static () => true, cancellation.Token))
             .Should().ThrowAsync<Exception>();
     }
 
     private static MemorySummary Summary(MemoryRecord record) =>
         new(record.Id.Value, record.Revision.Value, record.Scope, record.Review, record.Retention, record.CreatedAt);
+
+    [Theory]
+    [InlineData("privacy")]
+    [InlineData("source")]
+    [InlineData("receipt")]
+    public async Task ContextReadCompletionRevalidatesPrivateAccessAndExactTerminalReceiptBeforeDisclosure(string fault)
+    {
+        using var f = new Fixture(durable: true);
+        using var root = f.Root();
+        var record = await f.Admitted();
+        var source = f.ContextSource();
+        f.AfterControlOutcome = () =>
+        {
+            if (fault is "privacy") { f.ControlRevision++; }
+            else if (fault is "source") { source.Invalidate(); }
+            else
+            {
+                var outcome = f.ControlOutcomes.Single();
+                f.ControlOutcomes[0] = new(outcome.Request, new(2), HostTaskState.Unknown);
+            }
+        };
+        await source.Invoking(value => value.ReadAsync(new(f.Session, null), [Summary(record)], static () => true, Token))
+            .Should().ThrowAsync<Exception>();
+    }
 
     [Theory]
     [InlineData("disable")]
@@ -168,6 +194,18 @@ public sealed partial class MemoryAdmissionServiceTests
             current.Activity.TagObjects.Where(tag => tag.Value is string text
                 && text.Contains("user-content-not-for-logs", StringComparison.Ordinal)).Should().BeEmpty();
             fixture.Audits.Add(auditEvent);
+        }
+
+    }
+
+    private sealed partial class Fixture
+    {
+        internal SessionMemoryContextSource ContextSource()
+        {
+            MemoryControlEnabled = true;
+            var sessions = new Kora.Application.Hosting.SessionWorkspaceService(this, new(this), this,
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Application.Hosting.SessionWorkspaceService>.Instance);
+            return new(sessions, this, this, this, this, this);
         }
     }
 }

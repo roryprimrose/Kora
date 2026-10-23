@@ -44,7 +44,10 @@ internal sealed partial class SessionsViewModel
                 + "The original request and genuine final answer or HOST failure follow conversation retention; "
                 + "selected source bodies are not copied into retained conversation history.\n");
             foreach (var record in review.Records)
-            { text.AppendLine(JsonSerializer.Serialize(new { record.Scope, record.Candidate })); }
+            {
+                text.AppendLine("Classification: " + record.Candidate!.ContentClass + "; scope: " + record.Scope.Kind);
+                text.AppendLine(JsonSerializer.Serialize(new { record.Scope, record.Candidate }));
+            }
             return text.AppendLine("Complete request:").Append(review.UserRequest).ToString();
         }
     }

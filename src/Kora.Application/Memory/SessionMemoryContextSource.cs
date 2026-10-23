@@ -11,7 +11,7 @@ using Kora.Core.Tools;
 namespace Kora.Application.Memory;
 
 internal sealed class SessionMemoryContextSource(
-    ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
+    SessionWorkspaceService sessions, ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
     IMemoryStore store, ISecurityAuditLog audit) : ISessionMemoryContextSource
 {
     private long revision;
@@ -37,6 +37,33 @@ internal sealed class SessionMemoryContextSource(
         SessionConversationService.RequireOriginalSource(issuer.Request.Origin);
         if (issuer.Request.SessionId != target.Authority.SessionId)
         { throw new InvalidOperationException("Memory context requires the exact original session activity."); }
+        var control = access.ControlRevision;
+        var sourceRevision = Revision;
+        bool Current() => !Volatile.Read(ref closed) && access.CanInspect && access.CanControl && host.IsCurrentHost
+            && access.ControlRevision == control && Revision == sourceRevision && admitted()
+            && !token.IsCancellationRequested && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;
+        HostRequest? readRequest = null;
+        var snapshot = await sessions.ExecuteMemoryContextReadAsync(target.Authority.SessionId, issuer.Request.Origin, Current,
+            (request, live) =>
+            {
+                readRequest = request;
+                return ReadControlledAsync(target, selection, live, token);
+            }, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (readRequest is null || !Current())
+        { throw new InvalidOperationException("Memory source admission changed during control completion."); }
+        var receipt = await workspace.ReadTaskAsync(readRequest.SessionId, readRequest.TaskId, token).ConfigureAwait(false);
+        if (receipt is not { Task.State: HostTaskState.Succeeded, Task.Revision.Value: 2 }
+            || receipt.Task.Request != readRequest || receipt.Generation != target.Authority.Generation
+            || await workspace.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false) != target || !Current())
+        { throw new IOException("The exact memory context read receipt is unconfirmed; no private content was published."); }
+        return snapshot;
+    }
+
+    private async ValueTask<SessionMemoryContextSnapshot> ReadControlledAsync(SessionWorkspaceEntry target,
+        ImmutableArray<MemorySummary> selection, Func<bool> admitted, CancellationToken token)
+    {
+        var issuer = HostActivity.RequireCurrent();
         var control = access.ControlRevision;
         bool Live() => !Volatile.Read(ref closed) && access.CanInspect && access.CanControl && host.IsCurrentHost
             && access.ControlRevision == control && !token.IsCancellationRequested && admitted()

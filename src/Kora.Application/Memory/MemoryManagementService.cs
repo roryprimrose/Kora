@@ -29,7 +29,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     {
         this.sessions = sessions;
         this.access = new(access);
-        contextSource = new(workspace, access, host, store, audit);
+        contextSource = new(sessions, workspace, access, host, store, audit);
         contextTime = time;
         Admission = new(workspace, this.access, host, new SessionMemoryScopeAccess(store, this.access, host),
             audit, logger, time, store);

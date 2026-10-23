@@ -5,6 +5,8 @@ namespace Kora;
 
 internal sealed partial class SessionsWindow
 {
+    internal Task MemoryContextOperation { get; private set; } = Task.CompletedTask;
+
     private void BindMemoryContext(SessionsViewModel model)
     {
         var synchronizing = false;
@@ -27,8 +29,8 @@ internal sealed partial class SessionsWindow
         };
         model.PropertyChanged += changed;
         Closed += (_, _) => { model.PropertyChanged -= changed; model.CancelMemoryContext(); };
-        ReviewMemoryContext.Click += async (_, _) => await model.ReviewMemoryContextAsync();
-        ConfirmMemoryContext.Click += async (_, _) => await model.ConfirmMemoryContextAsync();
+        ReviewMemoryContext.Click += async (_, _) => await (MemoryContextOperation = model.ReviewMemoryContextAsync());
+        ConfirmMemoryContext.Click += async (_, _) => await (MemoryContextOperation = model.ConfirmMemoryContextAsync());
         CancelMemoryContext.Click += (_, _) => model.CancelMemoryContext();
     }
 }

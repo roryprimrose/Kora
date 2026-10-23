@@ -235,5 +235,8 @@ A genuine final answer is displayed as ASSISTANT and retained through the existi
 Changed, disabled, forgotten, foreign, stale or unreviewed memory cannot be used. Memory management, private-access loss, navigation, cancellation and expiry retire pending review/use and clear its source bodies; late provider results cannot become a successful answer.
 Inspection/use never changes retention or remembers a new fact ([source admission](../src/Kora.Application/Memory/SessionMemoryContextSource.cs), [review lifecycle](../src/Kora.Application/Memory/SessionMemoryContextReview.cs)).
 
+Private source reads use their own host-owned control intent and confirmed terminal receipt before disclosure. This does not remember content or alter a selected memory's revision ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.MemoryContext.cs)).
+The retained turn uses the shared execution/cancellation lifecycle; an accepted running-turn cancellation waits for provider quiescence and retains Cancelled, never a late answer ([canonical execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 Ordinary conversation Send remains no-memory. This route does not recall/rank memory automatically, combine other context, promote scopes, invoke tools or transmit to hosted providers.
 Selected source bodies are volatile input, not copied into saved conversation history; retained requests and answers follow normal conversation retention ([default and explicit admission](../src/Kora.Application/Hosting/SessionConversationService.cs)).

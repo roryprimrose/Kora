@@ -230,11 +230,15 @@ public sealed partial class SessionsConversationTests
     {
         private readonly AudioControlAdmission admission;
         private readonly ModelTurnHost turns;
+        private readonly Kora.Application.Memory.MemoryManagementService? memories;
         internal WindowsSqliteSessionWorkspaceTests.Access Access { get; } = new();
         internal AuditLog Audit { get; } = new();
         internal SessionsViewModel Model { get; }
         internal SessionWorkspaceService Workspace { get; }
         internal SessionConversationService Conversation { get; }
+        internal ModelTurnHost Turns => turns;
+        internal Kora.Application.Memory.MemoryManagementService Memories =>
+            memories ?? throw new InvalidOperationException("Memory context was not composed for this fixture.");
         internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
 
         internal Composition(InteractionStorageFixture f,
@@ -243,7 +247,7 @@ public sealed partial class SessionsConversationTests
             ISessionWorkspaceStore? conversationReader = null,
             Action<HostId<SessionIdentity>>? revokeDetails = null,
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
-            IModelTurnAdapter? adapter = null)
+            IModelTurnAdapter? adapter = null, bool memoryContext = false)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -266,18 +270,21 @@ public sealed partial class SessionsConversationTests
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance, turns);
+                NullLogger<SessionConversationService>.Instance, turns, Audit);
             Conversation = conversation;
+            memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
+                NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,
                 NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance,
-                conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails,
+                memories: memories, conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails,
                 reviewOriginalMessageReuse: reuseOriginal);
         }
         public async ValueTask DisposeAsync()
         {
             Model.Close();
+            if (memories is not null) { await memories.DisposeAsync(); }
             await turns.DisposeAsync();
             await admission.DisposeAsync();
         }

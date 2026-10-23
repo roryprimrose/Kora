@@ -7,12 +7,12 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Voice;
 
-/// <summary>One host owner for wake, activated capture, governed dispatch and quiescent re-arm.</summary>
+/// <summary>One host owner for wake, activated capture, governed dispatch and quiescent re-arm. Borrows the activated adapter.</summary>
 public sealed partial class HandsFreeVoiceRecognitionService(
     IQuestionVoiceRecognitionService activated,
     IHandsFreeAudioStage audio,
     ILogger<HandsFreeVoiceRecognitionService> logger,
-    TimeProvider? timeProvider = null) : IQuestionVoiceRecognitionService
+    TimeProvider? timeProvider = null) : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
 {
     private readonly Lock gate = new();
     private Func<HandsFreeVoiceAdmission?>? observe;
@@ -278,6 +278,11 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         return receipt;
     }
 
+    private void EnsureNotDisposed()
+    {
+        lock (gate) { ObjectDisposedException.ThrowIf(disposed, this); }
+    }
+
 #pragma warning disable VSTHRD003 // Exposes only the owned worker receipt for deterministic lifecycle observation.
     internal Task Completion { get { lock (gate) { return run; } } }
 #pragma warning restore VSTHRD003
@@ -330,7 +335,6 @@ public sealed partial class HandsFreeVoiceRecognitionService(
             finally
             {
                 cancellation?.Dispose();
-                await activated.DisposeAsync();
             }
         }
     }

@@ -258,7 +258,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         }
     }
 
-    private sealed class Activated : IQuestionVoiceRecognitionService
+    private sealed class Activated : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized { add { } remove { } }
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
@@ -272,6 +272,23 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public long CaptureGeneration => Generation;
         public int ReplyCalls { get; private set; }
         public int PushToTalkCalls { get; private set; }
+        public SpeechInputGeneration ProfileGeneration { get; private set; } = new(1, SpeechInputSelection.Default);
+        public bool IsProfileAvailable { get; private set; } = true;
+        public int ProfileRetireCalls { get; private set; }
+        public void InitializeProfile(SpeechInputSelection? selection) => IsProfileAvailable = selection is not null;
+        public Task<ISpeechInputProfileSwitch> RetireProfileAsync(CancellationToken cancellationToken)
+        {
+            IsCaptureQuiescent.Should().BeTrue();
+            ProfileRetireCalls++;
+            IsProfileAvailable = false;
+            return Task.FromResult<ISpeechInputProfileSwitch>(new ProfileSwitch(this));
+        }
+        private sealed class ProfileSwitch(Activated owner) : ISpeechInputProfileSwitch
+        {
+            public void Publish(SpeechInputGeneration generation) { owner.ProfileGeneration = generation; owner.IsProfileAvailable = true; }
+            public void HoldUnavailable() => owner.IsProfileAvailable = false;
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
         public bool AcceptCaptureGeneration(long generation) => generation == Generation;
         public IReadOnlyList<MicrophoneDevice> GetMicrophones() => [Admission.Microphone];
         public MicrophoneDevice? GetDefaultMicrophone() => Admission.Microphone;

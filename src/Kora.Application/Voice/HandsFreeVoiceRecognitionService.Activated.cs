@@ -47,7 +47,9 @@ public sealed partial class HandsFreeVoiceRecognitionService
     public async Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
         string? assistantName = null, CancellationToken cancellationToken = default)
     {
+        EnsureNotDisposed();
         await StopAsync(cancellationToken);
+        EnsureNotDisposed();
         Interlocked.Exchange(ref ambientGeneration, 0);
         await activated.BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
     }
@@ -55,7 +57,9 @@ public sealed partial class HandsFreeVoiceRecognitionService
     public async Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
         Func<bool> isAdmitted, CancellationToken cancellationToken)
     {
+        EnsureNotDisposed();
         await StopAsync(cancellationToken);
+        EnsureNotDisposed();
         Interlocked.Exchange(ref ambientGeneration, 0);
         await activated.BeginReplyAsync(microphone, phrases, isAdmitted, cancellationToken);
     }

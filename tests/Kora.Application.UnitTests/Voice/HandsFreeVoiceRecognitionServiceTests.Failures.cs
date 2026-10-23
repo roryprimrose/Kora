@@ -39,6 +39,16 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         var disposedBind = () => voice.Bind(() => Admission, (_, _) => Task.CompletedTask, static () => true);
         disposedBind.Should().Throw<ObjectDisposedException>();
         await competing.Should().ThrowAsync<ObjectDisposedException>();
+        voice.IsProfileAvailable.Should().BeFalse();
+        var manual = () => voice.BeginPushToTalkAsync(Admission.Microphone, ["help"],
+            cancellationToken: TestContext.Current.CancellationToken);
+        await manual.Should().ThrowAsync<ObjectDisposedException>();
+        var reply = () => voice.BeginReplyAsync(Admission.Microphone, ["Yes"], static () => true, TestContext.Current.CancellationToken);
+        await reply.Should().ThrowAsync<ObjectDisposedException>();
+        var initialize = () => voice.InitializeProfile(SpeechInputSelection.Default);
+        initialize.Should().Throw<ObjectDisposedException>();
+        var profile = () => voice.RetireProfileAsync(TestContext.Current.CancellationToken);
+        await profile.Should().ThrowAsync<ObjectDisposedException>();
     }
 
     [Theory]
@@ -296,6 +306,56 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         await voice.Completion;
         stage.Opens.Should().Be(0);
         voice.State.Should().Be(HandsFreeVoiceState.Stopped);
+    }
+
+    [Fact]
+    public async Task Profile_switch_joins_ambient_cleanup_before_native_cutover_and_never_auto_rearms()
+    {
+        var stage = new Stage();
+        var native = new Activated();
+        await using var voice = Create(native, stage);
+        voice.InitializeProfile(null);
+        voice.IsProfileAvailable.Should().BeFalse();
+        voice.InitializeProfile(SpeechInputSelection.Default);
+        voice.IsProfileAvailable.Should().BeTrue();
+        voice.ProfileGeneration.Should().Be(native.ProfileGeneration);
+        voice.Bind(() => Admission, (_, _) => Task.CompletedTask, static () => true);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var opened = await stage.NextAsync();
+        opened.HoldClose = true;
+        var initialize = () => voice.InitializeProfile(SpeechInputSelection.Default);
+        initialize.Should().Throw<InvalidOperationException>();
+        var cutover = voice.RetireProfileAsync(TestContext.Current.CancellationToken);
+        await opened.CloseStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        cutover.IsCompleted.Should().BeFalse();
+        native.ProfileRetireCalls.Should().Be(0);
+        opened.ReleaseClose.SetResult();
+        await using var lease = await cutover;
+        native.ProfileRetireCalls.Should().Be(1);
+        voice.Generation.Should().NotBe(opened.Binding.Generation);
+        var next = new SpeechInputGeneration(2, SpeechInputSelection.Default);
+        lease.Publish(next);
+        voice.ProfileGeneration.Should().Be(next);
+        voice.IsProfileAvailable.Should().BeTrue();
+        lease.HoldUnavailable();
+        voice.IsProfileAvailable.Should().BeFalse();
+        voice.IsListening.Should().BeFalse();
+        stage.Opens.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task Missing_native_profile_contract_is_explicitly_unavailable_not_a_default_profile()
+    {
+        var native = new Kora.Application.UnitTests.Interaction.QuestionReplyFixture.ReplyCapture();
+        await using var voice = new HandsFreeVoiceRecognitionService(native, new Stage(),
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<HandsFreeVoiceRecognitionService>.Instance);
+        voice.IsProfileAvailable.Should().BeFalse();
+        var generation = () => voice.ProfileGeneration;
+        generation.Should().Throw<InvalidOperationException>();
+        var initialize = () => voice.InitializeProfile(SpeechInputSelection.Default);
+        initialize.Should().Throw<InvalidOperationException>();
+        var retire = () => voice.RetireProfileAsync(TestContext.Current.CancellationToken);
+        await retire.Should().ThrowAsync<InvalidOperationException>();
     }
 
     private sealed class DeadlineTimeProvider : TimeProvider

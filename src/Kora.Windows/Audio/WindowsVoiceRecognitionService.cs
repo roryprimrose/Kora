@@ -14,7 +14,7 @@ using NAudio.CoreAudioApi;
 
 namespace Kora.Windows.Audio;
 
-public sealed class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionService
+public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
 {
     private const float MinimumConfidence = 0.62f;
     private readonly Lock gate = new();
@@ -193,8 +193,14 @@ public sealed class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionSe
         }
         var commandPhrases = phrases.Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
         long requestedGeneration;
+        SpeechInputGeneration requestedProfile;
         lock (gate)
         {
+            if (profileSwitchActive || !profileAvailable)
+            {
+                throw new InvalidOperationException("The selected speech-input profile is unavailable or switching. Use typed/native recovery or explicitly select a supported tuple.");
+            }
+            requestedProfile = profileGeneration;
             if (stopRequests != 0)
             {
                 throw new InvalidOperationException("Capture is closing. Wait for confirmed stop before activating again.");
@@ -261,7 +267,7 @@ public sealed class WindowsVoiceRecognitionService : IQuestionVoiceRecognitionSe
                     return CaptureGeneration == requestedGeneration && !openCancellation.IsCancellationRequested &&
                         snapshot.TopologyRevision == beforeOpen.TopologyRevision && snapshot.CanCaptureFrom(microphone)
                         && (isAdmitted?.Invoke() ?? true);
-                }, speechStartWindow), CancellationToken.None);
+                }, speechStartWindow, requestedProfile), CancellationToken.None);
             IActivatedCapture opened;
             try
             {

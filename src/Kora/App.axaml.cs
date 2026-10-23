@@ -151,7 +151,8 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
                 Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>(),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
-                Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt));
+                Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
+                Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>());
             instructionEditor.Bind();
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
@@ -159,7 +160,8 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<PromptParameterController>>());
+                Services.GetRequiredService<ILogger<PromptParameterController>>(),
+                viewModel.BindPromptInputVoice(Services.GetRequiredService<ILogger<Kora.Application.Definitions.PromptInputVoiceController>>()));
             promptParameters.Bind();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();
@@ -219,7 +221,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
-                Services.GetRequiredService<SessionConversationService>());
+                Services.GetRequiredService<SessionConversationService>(),
+                Services.GetRequiredService<ScopedInstructionUseBroker>());
             sessionsWindow.Bind();
             viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
                 sessionsWindow.OpenRetentionReviewAsync);
@@ -230,6 +233,7 @@ public sealed partial class App : Avalonia.Application
             newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
             ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
+            sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             allWorkWindow = new AllWorkWindowController(viewModel,

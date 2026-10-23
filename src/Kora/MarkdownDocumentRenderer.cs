@@ -3,6 +3,8 @@ using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
 
+using Kora.Controls;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -41,7 +43,8 @@ internal static class MarkdownDocumentRenderer
             NativeTextStyle.Code => 13,
             _ => 14,
         };
-        TextBlock control = selectable ? new SelectableTextBlock() : new TextBlock();
+        TextBlock control = selectable ? new SelectableTextBlock()
+            : style == NativeTextStyle.Table ? new NamedTextBlock { Focusable = true } : new TextBlock();
         control.Text = text;
         control.FontSize = fontSize;
         control.FontWeight = style is NativeTextStyle.Heading1 or NativeTextStyle.Heading2

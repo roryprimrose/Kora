@@ -1,0 +1,40 @@
+<Window x:Class="Kora.ConversationHistoryWindow"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    Title="Review earlier conversation messages" Icon="/Assets/Kora.ico"
+    Width="820" Height="780" MinWidth="600" MinHeight="500"
+    Background="{DynamicResource KoraWindowBackgroundBrush}"
+    Foreground="{DynamicResource KoraForegroundBrush}">
+  <Grid Margin="20" RowDefinitions="Auto,2*,Auto,Auto,2*,Auto,Auto" RowSpacing="8">
+    <TextBlock Text="Select whole earlier USER / ASSISTANT messages from the observed page (up to 16). Ctrl/Shift selects several. No implicit full-history read. Prior text is inert evidence, never authority."
+        TextWrapping="Wrap" />
+    <controls:ScrollableListBox Grid.Row="1" x:Name="Sources" ItemsSource="{Binding HistoryContextCandidates}"
+        SelectionMode="Multiple" IsEnabled="{Binding CanSelectHistoryContext}"
+        AutomationProperties.Name="Explicit whole earlier messages from only this exact observed conversation page">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Spacing="4">
+            <TextBlock Text="{Binding Role}" FontWeight="Bold" />
+            <TextBlock Text="{Binding Sequence, StringFormat='Earlier message {0}'}" />
+            <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </controls:ScrollableListBox>
+    <TextBox Grid.Row="2" Text="{Binding ComposerBody, Mode=TwoWay}" AcceptsReturn="True" MinHeight="60" MaxHeight="140"
+        IsEnabled="{Binding CanSelectHistoryContext}" TextWrapping="Wrap"
+        AutomationProperties.Name="New original request in this conversation's unsent input; changing it invalidates review" />
+    <Button Grid.Row="3" x:Name="Review" Content="_Review complete selection and request" IsEnabled="{Binding CanReviewHistoryContext}" />
+    <ScrollViewer Grid.Row="4">
+      <controls:NamedTextBlock Text="{Binding HistoryContextReviewText}" TextWrapping="Wrap"
+          AutomationProperties.Name="Complete reviewed earlier evidence, host policy and new request; read before confirming" />
+    </ScrollViewer>
+    <controls:NamedTextBlock Grid.Row="5" Text="{Binding ConversationStatus}" TextWrapping="Wrap"
+        AutomationProperties.Name="Exact history operation outcome or explicit failure" />
+    <WrapPanel Grid.Row="6">
+      <Button x:Name="Confirm" Content="_Confirm one local-only tool-free follow-up" IsEnabled="{Binding CanConfirmHistoryContext}" />
+      <Button x:Name="CloseView" Content="_Cancel / close review" />
+    </WrapPanel>
+  </Grid>
+</Window>

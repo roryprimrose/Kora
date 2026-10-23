@@ -1775,11 +1775,44 @@ For the attempted source, refreshing does not revive its old identity in the
 current host: retry unregistering any remaining saved metadata, then select the
 folder afresh to obtain a new source ID if you want to grant local reading again.
 
-**Enable, disable, invoke, Kora-specific authoring and model exposure are
-unavailable here.** Registration/review grants no execution, egress, approval
-or bundled trust; Kora never writes the shared source, fetches references,
-installs dependencies or executes its scripts. This is not a harmlessness or
-complete dependency-inventory certification.
+Registration and inspection alone grant no invocation, egress, approval or bundled trust.
+Kora never writes the shared source, fetches references, installs dependencies or executes its scripts.
+This is not a harmlessness or complete dependency-inventory certification
+([inspection contract](../src/Kora.Core/Skills/SharedSkillSnapshot.cs)).
+
+### Reviewed instruction-only shared skill invocation
+
+For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
+Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.
+Refresh and explicitly select one existing Active conversation, enter your original request, choose **Review exact invocation** and confirm the exact skill/request/target.
+Only a retained answer or a truthful unavailable/failure/cancelled outcome completes use
+([native controller](../src/Kora/SharedSkillInvocationController.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+Typed and current-name activated voice can perform the same review, enablement and confirmation:
+
+```text
+Kora, review shared skill concise-review
+Kora, shared skill enable
+Kora, shared skill targets
+Kora, shared skill target <exact displayed Active conversation ID>
+Kora, shared skill request <original prose>
+Kora, shared skill review invocation
+Kora, shared skill confirm invocation
+Kora, shared skill close
+```
+
+Use **shared skill next targets** for the next bounded metadata page.
+The exact case-sensitive skill name resolves only within the explicitly listed native source; use `name from source <displayed source ID>` when source qualification is needed.
+No fuzzy match, model selection, reserved alias registration or implicit conversation creation is admitted.
+Initial root registration and discovery remain native-only
+([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesWindow.Invocation.cs)).
+
+Enablement is memory-only, exact-revision, single-use and expires after two minutes.
+Close, privacy/control/call/ownership changes, changed registration or stale source revoke the review; restored old bytes do not revive an observed revoked review.
+The complete serialized context must fit the existing 32768-byte envelope; nothing is truncated.
+The unchanged original request is retained separately from typed untrusted local-only skill evidence; all tools and hosted fallback are denied.
+Unqualified local providers truthfully report unavailable, without installation, network fallback or replay
+([review lifetime](../src/Kora.Application/Skills/SharedSkillUseReview.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs), [host regression tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SharedSkills.cs)).
 
 **What “run” means**
 

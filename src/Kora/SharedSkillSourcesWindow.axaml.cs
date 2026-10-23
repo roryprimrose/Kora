@@ -110,7 +110,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
         SetResults(value.Packages, null);
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
         selector.SelectedIndex = busy || value.Packages.Count == 0 ? -1 : 0;
-        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"{value.Packages.Count} admitted snapshots; All includes unavailable entries. All invocation unavailable.";
+        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"{value.Packages.Count} admitted snapshots; All includes unavailable entries. Inspection alone cannot invoke.";
         Report($"{value.Packages.Count} pinned local snapshots. No scripts or references read. Live sources can change; recheck before relying on the displayed revision.");
     }
 
@@ -214,7 +214,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
                 (SkillCatalogueOrder)this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
-                $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. All invocation unavailable."
+                $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. Inspection alone cannot invoke."
                 + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException)

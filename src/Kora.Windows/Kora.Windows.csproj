@@ -6,6 +6,9 @@
 
   <ItemGroup>
     <PackageReference
+        Include="GitHub.Copilot.SDK"
+        ExcludeAssets="build;buildTransitive;contentFiles" />
+    <PackageReference
         Include="KokoroSharp"
         ExcludeAssets="build;buildTransitive;contentFiles" />
     <PackageReference Include="Microsoft.Extensions.Logging.Abstractions" />

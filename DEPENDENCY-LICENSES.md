@@ -81,5 +81,30 @@ and whether Kora redistributes it. Kora currently installs Ollama 0.35.1 only
 after user consent under its MIT license and downloads the pinned Qwen3 1.7B
 model under Apache-2.0; neither is bundled into Kora's publish archives.
 
+The hosted adapter pins the MIT-licensed `GitHub.Copilot.SDK` **1.0.26**.
+Its managed .NET 10 dependency closure includes
+`Microsoft.Extensions.AI.Abstractions` 10.2.0 and the centrally pinned logging
+abstractions. The package's build/content assets are excluded: restoring,
+building or publishing Kora must not implicitly download or redistribute the
+separate Copilot runtime. The package declares runtime **1.0.103**; that is
+dependency metadata, not installed-runtime or distribution approval.
+
+The public SDK API was researched at release tag `v1.0.26`, commit
+`f527e6134f9b38980af8aa796b4c959458a88769`. The actual restored NuGet package
+instead identifies `github/copilot-agent-runtime` commit
+`131fc866123af5df4451497f183cadef4ddf20f2` in its repository metadata.
+Compilation against the released package is verified independently; no
+public-source/package byte-parity claim is made. Final-request interception
+and typed session-filesystem APIs carry the SDK's experimental `GHCP001`
+annotation; the adapter's narrowly scoped suppressions are not a claim of
+stable upstream API guarantees.
+
+An approved explicit execution account, current account-bound catalogue,
+runtime provenance/terms, usage/cost approval and private host-owned runtime
+paths remain live enablement requirements. The default account source returns
+unavailable. Kora never treats the developer agent's Copilot login, `gh`
+credentials, saved provider preferences or this dependency licence review as
+execution-account or hosted-disclosure approval.
+
 This policy is an engineering control, not legal advice. Material licensing
 questions or unusual terms require qualified legal review.

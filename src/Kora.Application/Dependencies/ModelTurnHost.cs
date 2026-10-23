@@ -33,7 +33,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private volatile bool disposed;
     private Task? disposal;
 
-    public bool IsQuiescent { get { lock (dispatchGate) { return quiescence is null || quiescence.Task.IsCompleted; } } }
+    public bool IsQuiescent
+    {
+        get
+        {
+            lock (dispatchGate)
+            {
+                return (quiescence is null || quiescence.Task.IsCompleted)
+                    && registrations.All(item => item.Adapter?.IsQuiescent != false);
+            }
+        }
+    }
 
     public ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
@@ -69,7 +79,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         AdmitSelectionAsync(selection, context, HostActivity.Current, cancellationToken);
 
     private async Task<ModelTurnAdmission> AdmitSelectionAsync(ModelProviderSelection selection,
-        ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken)
+        ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken,
+        CopilotTurnAuthorization? hostedAuthorization = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
         var current = HostActivity.Current;
@@ -133,7 +144,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 {
                     result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance);
                 }
-                else if (selection.Provider != ModelProviderIdentity.Ollama)
+                else if (selection.Provider != ModelProviderIdentity.Ollama
+                    && !HostedAuthorized(registration, hostedAuthorization, context, issuer))
                 {
                     // Hosted eligibility is not an exact destination/content approval. No egress authority exists in this slice.
                     result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
@@ -142,6 +154,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 {
                     turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
                         revision, registration);
+                    if (hostedAuthorization is not null && registration.Adapter is CopilotModelTurnAdapter copilot)
+                    {
+                        var boundTurn = turn;
+                        turn.Registration = registration with
+                        {
+                            Adapter = copilot.Bind(hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
+                        };
+                    }
                     result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None, provenance);
                 }
             }
@@ -412,6 +432,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        if (!IsQuiescent)
+        { throw new InvalidOperationException("The model runtime has not confirmed resource quiescence."); }
         lock (policyGate) { policies.Clear(); }
         lifetime.Dispose();
     }

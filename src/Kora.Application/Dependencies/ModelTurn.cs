@@ -36,7 +36,7 @@ public sealed class ModelTurn
     internal HostRevision SessionGeneration { get; }
     internal HostRevision TaskRevision { get; }
     internal long ControlRevision { get; }
-    internal ModelProviderRegistration Registration { get; }
+    internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
     internal bool TryUse() => Interlocked.Exchange(ref used, 1) == 0;

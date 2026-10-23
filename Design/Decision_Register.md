@@ -24,11 +24,11 @@ Existing security, provider, storage and qualification decisions below remain in
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
 | D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |
-| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Open, release-blocking | Candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests |
+| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Local configurable input direction approved 2026-10-22; engine/profile selection and enablement open | [Speech-input design](Speech_Input.md); candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests; apply I/E/Q, not a monolithic implementation block |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for production model-assisted management; released-profile .NET MG1 envelope passes, historical witnesses unchanged | Carry MG1 bytes/deadline/admission/no-retry/Unknown quarantine to R13 using R04 host contracts. Applicable RT2 and management PV1 still require approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost evidence. Byte limits do not bound billed reasoning; deterministic fallback is independent. |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First production-accepted binary candidate | WiX MSI/custom Burn binary packaging, POC release automation, managed-source build-only tooling and immutable source-tool packaging/channel resolution implemented; source activation/installed/protection acceptance open, production release-blocking; historical NSIS receipts retained | Approved unsigned beta/stable POC publication is not D-005 closure. Static acquisition binds complete tool bytes to canonical exact-source Git identity; production excludes drafts/prereleases, preview explicitly admits published prereleases, and neither executes downloaded code. CI gates, per-release native/redistribution review, lifecycle/logon/upgrades and actual runtime/identity/protection trials remain required; follow R02-D01 through R17-D03 below. No install-capable updater; future signed-metadata trust is separately gated. |
-| D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; engine/privacy proof open | Separate consent, local protected per-SID/device learning, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
+| D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; bounded local personalization/resource choices approved 2026-10-22; engine/privacy proof open | Separate consent, local protected per-SID/device learning, measured recognition benefit, bounded updates/resources, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes and [session-level direction](Session_Permission_Levels.md); enforcement open, release-blocking | Exact use, independent perpetual retention; levels/reviewer/consent; call migration; atomic audit/lifecycle; all-route and race proof |
 | D-009 | Durable session/evidence storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Owner-approved standard SQLite/private profile baseline; encryption/key/rekey prerequisites superseded; bounded actual task store delivered, composed evidence/schema/lifecycle acceptance partial | Supplied LocalApplicationData and effective ACLs, pinned standard SQLite, versioned schemas, ordered durable events, W3C/call-time correlation, independent log/audit/span/link persistence and retention, explicit recovery/gaps, copy disclosure, lifecycle/deletion and no replay; D-008 audit authority remains separate |
@@ -154,6 +154,16 @@ catalogue or returning an action name alone does not prove a mediated tool loop.
 
 ## D-002 Wake and Endpointing Engine
 
+The product owner approved [configurable local speech input](Speech_Input.md)
+on 2026-10-22: always-on local name detection without ambient transcription,
+activated local ASR, zero hosted speech usage, measured hardware/resource
+choices and unchanged text-to-action routing. PTT remains an explicit option.
+This does not select an engine, register settings or enable a speech profile.
+Additional qualified speech components must support optional WiX/Burn
+preparation and later Settings setup through the same catalogue/services.
+Installed, selected, qualified and consented input remain separate; see the
+[installation/runtime lifecycle](Speech_Input.md#optional-installation-and-runtime-lifecycle).
+
 Benchmark at least:
 
 - `openWakeWord`
@@ -261,6 +271,12 @@ The WiX direction selected above does not demonstrate installer assistance
 or waive required product-level provider/resource acceptance.
 
 ## D-006 Optional Speaker Verification
+
+The 2026-10-22 approval adds [bounded learning and calibration](Speech_Input.md#optional-learning-and-calibration)
+and measured resource profiles, not compulsory biometrics or blanket owner-only
+commands. Provider-supported vocabulary/acoustic adaptation, frequent-speaker
+features and protected verifier enrollment are distinct capabilities; repeated
+use alone is not evidence that an ASR model learns or improves.
 
 No verifier or frequent-speaker profile is required for general voice use or baseline explicit voice approval in an unlocked Windows session.
 The separately consented [frequent-speaker learning](Security_Data_Flows.md#optional-local-frequent-speaker-learning) direction is accepted as non-authorizing personalization, not authenticated-owner enrollment.

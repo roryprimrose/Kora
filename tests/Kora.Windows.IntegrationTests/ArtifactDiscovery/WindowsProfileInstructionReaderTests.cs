@@ -185,7 +185,7 @@ public sealed partial class WindowsProfileInstructionReaderTests : IDisposable
             ? Path.Combine(Roaming, editor, "User", "profiles", "one", "prompts", "example.instructions.md")
             : Path.Combine(Roaming, editor, "User", "prompts", "example.instructions.md");
         Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-        File.WriteAllBytes(path, Bytes);
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(path, Bytes);
         using var selection = await Reader.OpenSelection(path, TestContext.Current.CancellationToken);
         selection.Metadata.CanonicalPath.Should().Be(path);
     }
@@ -260,7 +260,7 @@ public sealed partial class WindowsProfileInstructionReaderTests : IDisposable
     private void CreateSource()
     {
         Directory.CreateDirectory(Path.GetDirectoryName(Source)!);
-        File.WriteAllBytes(Source, Bytes);
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(Source, Bytes);
     }
 
     [Fact]
@@ -270,7 +270,7 @@ public sealed partial class WindowsProfileInstructionReaderTests : IDisposable
         var roaming = Path.Combine(appData, "Roaming");
         var source = Path.Combine(roaming, "Code", "User", "prompts", "example.instructions.md");
         Directory.CreateDirectory(Path.GetDirectoryName(source)!);
-        File.WriteAllBytes(source, Bytes);
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(source, Bytes);
         File.SetAttributes(appData, File.GetAttributes(appData) | FileAttributes.Hidden);
         using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
         var inspector = new WindowsLocalFileInspector(new Paths(root));

@@ -41,7 +41,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             Directory.CreateDirectory(Path.GetDirectoryName(sourcePath)!);
             if (condition is "confirmed") { File.SetAttributes(profile, File.GetAttributes(profile) | FileAttributes.Hidden); }
             var sourceBytes = Document(ArtifactKind.Instruction, "Exact personal original").CopyBytes();
-            File.WriteAllBytes(sourcePath, sourceBytes);
+            WindowsOwnedInstructionStoreTests.WriteOwnedFile(sourcePath, sourceBytes);
             try
             {
                 await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));

@@ -21,6 +21,15 @@ public sealed class ProfileInstructionSnapshotTests
     [InlineData("\n", false, "attribution: Original author")]
     [InlineData("\r", true, "attribution:")]
     [InlineData("\n", true, "")]
+    [InlineData("\r\n", false, "")]
+    [InlineData("\r", false, "")]
+    [InlineData("\n", false, "  attribution:   'Original author'   ")]
+    [InlineData("\n", false, "attribution: \"Original author\"")]
+    [InlineData("\n", false, "attribution: '")]
+    [InlineData("\n", false, "attribution: 'x\"")]
+    [InlineData("\n", false, "attribution: [value]")]
+    [InlineData("\n", false, "attribution: aa")]
+    [InlineData("\n", false, "attribution:     ")]
     public void ForkPreservesAllOriginalBytesExceptReviewedNameAndExplicitAttribution(string newline, bool bom, string attribution)
     {
         var text = $"---{newline}kora-format: 1{newline}name: 'example'{newline}description: Test{newline}"
@@ -96,5 +105,29 @@ public sealed class ProfileInstructionSnapshotTests
         var maximum = Parse(text + new string('a', ArtifactDefinition.MaximumContentLength - text.Length));
         ((Action)(() => maximum.Document.WithProfileInstructionCopyName("separate", maximum.Identity))).Should().Throw<InvalidDataException>();
         ((Action)(() => Parse(text + new string('a', ArtifactDefinition.MaximumContentLength)))).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(ArtifactKind.Prompt, "profile-instruction")]
+    [InlineData(ArtifactKind.Skill, "profile-instruction")]
+    [InlineData(ArtifactKind.Instruction, "kora-profile")]
+    [InlineData(ArtifactKind.Instruction, "vscode-profile")]
+    public void ProfileSourceValidationRejectsWrongKindOrReaderIdentity(ArtifactKind kind, string source)
+    {
+        var bytes = ArtifactFileDocument.Encode("---\nkora-format: 1\nname: example\ndescription: Test\n---\nBody", false);
+        var document = ArtifactFileDocument.Parse(bytes, kind, source, "example");
+        ((Action)document.RequireProfileInstructionSource).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData(true, "native-file")]
+    [InlineData(false, "")]
+    [InlineData(false, " ")]
+    public void SnapshotRejectsMissingLeaseOrFileIdentity(bool emptyLease, string identity)
+    {
+        var bytes = ArtifactFileDocument.Encode("---\nkora-format: 1\nname: example\ndescription: Test\n---\nBody", false);
+        var parse = () => ProfileInstructionSnapshot.Parse(emptyLease ? Guid.Empty : Source,
+            new(Path, identity, bytes.Length, DateTimeOffset.UnixEpoch), bytes);
+        parse.Should().Throw<InvalidDataException>();
     }
 }

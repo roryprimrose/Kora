@@ -24,12 +24,11 @@ public sealed partial class ArtifactFileDocument
         { attribution += "; original attribution:" + (original.Length > 0 ? " " + original : string.Empty); }
         var text = owned.Text;
         var offset = NextLine(text, 0);
-        while (offset < text.Length)
+        // Parse already established a complete scalar header and its closing delimiter.
+        while (true)
         {
             var next = NextLine(text, offset);
-            var end = next;
-            while (end > offset && text[end - 1] is '\r' or '\n') { end--; }
-            var line = text[offset..end];
+            var line = text[offset..next].TrimEnd('\r', '\n');
             if (string.Equals(line, "---", StringComparison.Ordinal))
             {
                 var newline = text.AsSpan(3).StartsWith("\r\n", StringComparison.Ordinal) ? "\r\n"
@@ -38,7 +37,7 @@ public sealed partial class ArtifactFileDocument
                 break;
             }
             var separator = line.IndexOf(':');
-            if (separator > 0 && string.Equals(line[..separator].Trim(), "attribution", StringComparison.Ordinal))
+            if (string.Equals(line[..separator].Trim(), "attribution", StringComparison.Ordinal))
             {
                 // Retain the original scalar's quoting, whitespace and exact newline.
                 var start = separator + 1;

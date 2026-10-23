@@ -57,6 +57,37 @@ public sealed partial class InstructionEditorTests
         reader.Source.Disposed.Should().BeTrue();
     }
 
+    [Fact]
+    public async Task ProfileForkDestinationCreatedDuringReviewFailsWithoutOverwritingOrRetrying()
+    {
+        await using var f = new Fixture();
+        using var reader = new ProfileReader();
+        var original = f.Files.Current!;
+        var occupied = new OwnedInstructionSnapshot("separate", "a", "b", original.Document.WithOwnedCopyName("separate"));
+        var review = new ProfileReview { BeforeCopy = () => f.Files.Copies["separate"] = occupied };
+        var workflow = new ProfileInstructionForkWorkflow(reader, f.Admission, f.Actions, f.Audit);
+        var operation = () => workflow.Fork(reader.Source.Metadata.CanonicalPath, "separate", review, f.Eligible, CancellationToken.None);
+        await operation.Should().ThrowAsync<InvalidOperationException>().WithMessage("*destination is occupied*");
+        f.Files.Copies["separate"].Should().BeSameAs(occupied);
+        f.Files.Writes.Should().Be(0);
+        f.Files.Current.Should().BeSameAs(original);
+        reader.Source.Disposed.Should().BeTrue();
+        review.CopyReviews.Should().Be(1);
+        f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task PromptEditorCannotPrepareAProfileInstructionCopy()
+    {
+        await using var f = new Fixture(ArtifactKind.Prompt);
+        using var reader = new ProfileReader();
+        var bytes = await reader.Source.Read(CancellationToken.None);
+        var snapshot = ProfileInstructionSnapshot.Parse(reader.Source.Id, reader.Source.Metadata, bytes);
+        ((Action)(() => f.Actions.PrepareProfileCopy("separate", snapshot))).Should().Throw<InvalidDataException>();
+        f.Files.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData("changed-bytes")]
     [InlineData("replaced")]

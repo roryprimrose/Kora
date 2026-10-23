@@ -334,6 +334,8 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddSingleton<IProfileInstructionReader, WindowsProfileInstructionReader>();
+        services.AddSingleton<Kora.Application.Definitions.ProfileInstructionForkWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
             provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt),
             provider.GetRequiredService<Kora.Application.Definitions.InstructionControlAdmission>(),
@@ -617,6 +619,11 @@ internal static class Program
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
         services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();
         services.AddSingleton<WindowsVoiceRecognitionService>();
+        services.AddSingleton<ISpeechInputPreferences>(provider =>
+            new LocalSpeechInputPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ISpeechInputProfileRuntime>(provider =>
+            provider.GetRequiredService<WindowsVoiceRecognitionService>());
+        services.AddSingleton<SpeechInputConfigurationService>();
         services.AddSingleton<IVoiceRecognitionService>(provider =>
             provider.GetRequiredService<WindowsVoiceRecognitionService>());
         services.AddSingleton<IActivatedVoiceRecognitionService>(provider =>
@@ -646,7 +653,9 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
             provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
-        services.AddSingleton<Kora.Core.Context.ILocalFileInspector, Kora.Windows.Context.WindowsLocalFileInspector>();
+        services.AddSingleton<Kora.Windows.Context.WindowsLocalFileInspector>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileInspector>(provider =>
+            provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();
         services.AddSingleton<SessionFileAttachmentService>();

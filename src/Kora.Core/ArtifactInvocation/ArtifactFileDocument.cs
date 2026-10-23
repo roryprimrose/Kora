@@ -179,6 +179,11 @@ public sealed partial class ArtifactFileDocument
         _ = OwnedDefinitionKind.DirectoryName(Definition.Kind);
         if (!string.Equals(Definition.Source, "kora-profile", StringComparison.Ordinal))
         { throw new InvalidDataException("Only Kora-owned instructions and prompts can be edited."); }
+        RequireSupportedEditorFormat();
+    }
+
+    private void RequireSupportedEditorFormat()
+    {
         using var reader = new StringReader(Text);
         var headerBytes = 0;
         var count = 0;

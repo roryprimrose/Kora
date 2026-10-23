@@ -21,6 +21,8 @@
 
   <ItemGroup>
     <Using Include="Xunit" />
+    <Compile Include="..\Kora.Core.UnitTests\Dependencies\SpeechComponentFixture.cs" Link="Dependencies\SpeechComponentFixture.cs" />
+    <Compile Include="..\Kora.Application.UnitTests\Dependencies\SpeechComponentSetupFixture.cs" Link="Dependencies\SpeechComponentSetupFixture.cs" />
     <Compile Include="..\Kora.NativeUxFixture\NativeUx\*.cs" Link="NativeUx\%(Filename)%(Extension)" />
   </ItemGroup>
 

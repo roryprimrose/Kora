@@ -131,6 +131,11 @@ public sealed class InstallerSession(IInstallerEngine engine, IOptionalComponent
         }
 
         var selection = optionalComponents ?? new OptionalComponents();
+        if (selection.Speech.Any(choice => choice is null || !choice.Selected)
+            || selection.Speech.Select(choice => choice.Identity).Distinct().Count() != selection.Speech.Count)
+        {
+            throw new InvalidOperationException("Optional speech preparation requires distinct explicitly checked exact choices.");
+        }
         if (selection.Any && (requestedAction == SetupAction.Uninstall || optionalSetup is null))
         {
             throw new InvalidOperationException("Optional preparation requires install/repair and an available setup service.");

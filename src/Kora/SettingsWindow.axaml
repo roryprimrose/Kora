@@ -418,6 +418,8 @@
                   FontSize="13" />
             </StackPanel>
 
+            <StackPanel x:Name="SpeechComponentsPanel" Spacing="8" />
+
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">

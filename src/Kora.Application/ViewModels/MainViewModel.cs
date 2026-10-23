@@ -280,7 +280,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
-        SpeechInputConfigurationService? speechInputConfiguration = null)
+        SpeechInputConfigurationService? speechInputConfiguration = null,
+        SpeechComponentSetupService? speechComponentSetup = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -290,6 +291,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
+        this.speechComponentSetup = speechComponentSetup;
         this.localModelReasoner = localModelReasoner;
         this.modelApprovalPreferences = modelApprovalPreferences;
         this.modelExecutionPreferences = modelExecutionPreferences;

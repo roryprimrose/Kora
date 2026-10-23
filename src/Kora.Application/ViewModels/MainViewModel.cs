@@ -279,7 +279,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SessionRetentionPlannerService? sessionRetentionPlanner = null,
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
-        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null)
+        Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
+        SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -445,6 +446,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
                     () => HandleCommandException(exception)), canExecute);
 
+        InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -4295,6 +4297,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
             return;
         }
+        if (SpeechInputCommand.Parse(spokenText, AssistantName) is { } speechInputCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no speech-input selection was dispatched.";
+                return;
+            }
+            await ExecuteSpeechInputCommandAsync(speechInputCommand, initiator);
+            return;
+        }
         if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
         {
             await ExecutePlaybackVolumeCommandAsync(volumeCommand, initiator);
@@ -6169,6 +6181,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6216,6 +6229,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)

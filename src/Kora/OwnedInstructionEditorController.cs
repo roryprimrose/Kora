@@ -13,7 +13,9 @@ internal sealed partial class OwnedInstructionEditorController(
     MainViewModel main, OwnedInstructionEditorActions actions, InstructionSaveWorkflow saves, ArtifactCatalogueReloadService reload,
     IApplicationDataPaths paths,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedInstructionEditorController> logger,
-    OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null) : IDisposable
+    OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null,
+    ProfileInstructionForkWorkflow? profileForks = null,
+    Kora.Core.Context.IUserFilePicker? profilePicker = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -76,7 +78,8 @@ internal sealed partial class OwnedInstructionEditorController(
         lifetime = new();
         window = new(action =>
         {
-            if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
+            if (action is "Cancel profile copy") { CancelProfileCopy(); }
+            else if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { _ = Run(action); }
         });
         var findOwner = window;
@@ -213,6 +216,9 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
                     break;
+                case "Create Kora copy from profile instruction":
+                    await ForkProfileInstruction(opened, Eligible, token);
+                    break;
                 case "Delete":
                     await Save(opened, delete: true, Eligible, token);
                     break;
@@ -235,6 +241,12 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
+            if (action is "Create Kora copy from profile instruction")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.Report("Profile copy cancelled or consent withdrawn. Private review cleared; editor draft retained. A destination may already be durable but is not enabled. Inspect the exact destination before retry; no rollback or automatic retry."); }
+                return;
+            }
             if (action is "Rebase")
             {
                 if (ReferenceEquals(window, opened))
@@ -271,7 +283,7 @@ internal sealed partial class OwnedInstructionEditorController(
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
-                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
+                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals are never modified."); }
         }
         finally { busy = false; }
     }
@@ -511,7 +523,7 @@ internal sealed partial class OwnedInstructionEditorController(
         return false;
     }
 
-    private void OnPrivacyClosed(object? sender, EventArgs args) { lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
+    private void OnPrivacyClosed(object? sender, EventArgs args) { CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;

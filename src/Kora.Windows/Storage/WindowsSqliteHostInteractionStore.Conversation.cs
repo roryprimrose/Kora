@@ -410,9 +410,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         { throw new InvalidDataException("Conversation task source does not match its immutable retained original request."); }
         using var blockers = connection.CreateCommand();
         blockers.CommandText = """
-            SELECT 1 FROM host_tasks WHERE session_id=$session AND task_id<>$task AND state IN (0,1,7)
-            UNION ALL
-            SELECT 1 FROM host_questions WHERE session_id=$session AND json_extract(payload,'$.Status')=0 LIMIT 1;
+            SELECT 1 FROM host_tasks WHERE session_id=$session AND task_id<>$task AND state IN (0,1,7) LIMIT 1;
             """;
         blockers.Parameters.AddWithValue("$session", Id(task.Request.SessionId));
         blockers.Parameters.AddWithValue("$task", Id(task.Request.TaskId));
@@ -420,7 +418,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             session.IsActive && message.Generation == session.Generation && message.Outcome is null
                 && task.State == message.ExpectedTaskState
                 && task.Revision.Value == message.Revision
-                && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null, null);
+                && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null
+                && ConversationQuestionsPermitObservation(connection, task, message, session), null);
     }
 
     private static void RemoveConversation(SqliteConnection connection, SqliteTransaction transaction, HostId<SessionIdentity> session) =>

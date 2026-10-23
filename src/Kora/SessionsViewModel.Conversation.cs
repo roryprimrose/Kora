@@ -135,11 +135,15 @@ internal sealed partial class SessionsViewModel
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
 
-    public Task SubmitConversationAsync() => RunConversationAsync(async (target, live) =>
+    public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+
+    private Task SubmitConversationCoreAsync(bool allowQuestion) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = composerBody;
-        var receipt = await conversation!.SubmitAsync(target, body, live, lifetime.Token);
+        var presenter = allowQuestion ? QuestionPresenter
+            ?? throw new InvalidOperationException("The exact native clarification presenter is unavailable. Nothing was submitted.") : null;
+        var receipt = await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter);
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
         if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; }
         RememberUnsent();
@@ -244,6 +248,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
         CancelAppearanceSuggestion(reportCancellation: false);
@@ -268,12 +273,13 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanConfirmAppearanceSuggestion));
         OnPropertyChanged(nameof(CanReviewAppearanceSuggestion));
         RestoreUnsent();
+        NotifyInstructionContext();
         NotifyHistoryContext();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
-            nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback) })
+            nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification) })
         { OnPropertyChanged(name); }
     }
 }

@@ -188,17 +188,19 @@ public sealed partial class MemoryAdmissionServiceTests
         internal bool MemoryControlEnabled { get; private set; }
         internal List<HostTaskRecord> ControlIntents { get; } = [];
         internal List<HostTaskRecord> ControlOutcomes { get; } = [];
+        internal Action? AfterControlOutcome { get; set; }
         internal SessionWorkspaceService? ManagementSessions { get; private set; }
-        internal MemoryManagementService Management()
+        internal MemoryManagementService Management(Kora.Core.Auditing.ISecurityAuditLog? audit = null)
         {
             MemoryControlEnabled = true;
             ManagementSessions = new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
             return new(ManagementSessions,
-                this, this, this, this, this, this, new FixedTime());
+                this, this, this, this, audit ?? this, this, new FixedTime());
         }
         public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
         {
             ControlOutcomes.Add(record);
+            AfterControlOutcome?.Invoke();
             return ValueTask.CompletedTask;
         }
         public ValueTask<IReadOnlyList<HostTaskRecord>> ReadIncompleteAsync(int limit, CancellationToken cancellationToken) =>

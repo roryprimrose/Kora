@@ -17,7 +17,7 @@ public sealed class DetailViewerRegistry
         ArgumentNullException.ThrowIfNull(content);
         presentation?.SetTag("kora.item.id", content.Reference.ItemId.Value);
         presentation?.SetTag("kora.item.revision", content.Reference.Revision);
-        presentation?.SetTag("kora.presentation.profile", NativeDetailProfile.Name);
+        presentation?.SetTag("kora.presentation.profile", content.Profile);
         if (!canAccess)
         {
             throw new InvalidOperationException("Details are unavailable while the host privacy/input gate is closed.");

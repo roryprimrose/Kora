@@ -32,6 +32,7 @@ public sealed class DetailViewerState : ObservableObject
         readAdmission = sourceReadAdmission;
         this.findAdmission = findAdmission;
         Reference = content.Reference;
+        status = $"Rendering {content.Profile}.";
     }
 
     public DetailContentReference Reference { get; }
@@ -66,7 +67,9 @@ public sealed class DetailViewerState : ObservableObject
         {
             return false;
         }
-        if (new UTF8Encoding(false, true).GetByteCount(semanticText) > NativeDetailProfile.MaximumUtf8Bytes)
+        var limit = !fallback && content!.Kind == DetailContentKind.StaticHtml
+            ? StaticHtmlProfile.MaximumSemanticUtf8Bytes : NativeDetailProfile.MaximumUtf8Bytes;
+        if (new UTF8Encoding(false, true).GetByteCount(semanticText) > limit)
         {
             throw new InvalidDataException("The semantic text exceeds the native detail profile.");
         }

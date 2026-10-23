@@ -180,6 +180,7 @@ internal sealed partial class SessionsViewModel
 
     private void RetireMemorySelection()
     {
+        RetireMemoryContext();
         RetireMemoryBatch();
         selectedMemory = null;
         inspectedMemory = null;
@@ -339,6 +340,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearMemories()
     {
+        ClearMemoryContext();
         memoryRows = [];
         visibleMemoryRows = [];
         memoryListed = false;
@@ -360,6 +362,7 @@ internal sealed partial class SessionsViewModel
         notifying = true;
         try
         {
+            NotifyMemoryContext();
             OnPropertyChanged(nameof(MemoryRecords));
             OnPropertyChanged(nameof(SelectedMemory));
             OnPropertyChanged(nameof(MemoryDetail));

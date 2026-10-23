@@ -665,6 +665,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         internal bool FailTerminalAudit { get; set; }
         internal bool FailRequestedAudit { get; set; }
         internal Action? OnTerminalAudit { get; set; }
+        internal Action? OnRequestedAudit { get; set; }
         internal int Writes { get; private set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
         internal List<string> Messages { get; } = [];
@@ -767,6 +768,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             if (FailTerminalAudit && auditEvent.Outcome != SecurityAuditOutcome.Requested) { throw new IOException("audit unavailable"); }
             HostActivity.RequireCurrent().Request.Should().BeSameAs(Request);
             Audits.Add(auditEvent);
+            if (auditEvent.Outcome == SecurityAuditOutcome.Requested) { OnRequestedAudit?.Invoke(); }
             if (auditEvent.Outcome != SecurityAuditOutcome.Requested) { OnTerminalAudit?.Invoke(); }
         }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

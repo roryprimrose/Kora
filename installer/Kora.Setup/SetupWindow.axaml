@@ -53,6 +53,10 @@
         <TextBlock Text="Optional components" FontWeight="SemiBold" />
         <TextBlock Text="Prepared only for this Windows user. Select an option to see details."
                    FontSize="12" TextWrapping="Wrap" Foreground="{DynamicResource KoraMutedForegroundBrush}" />
+        <StackPanel x:Name="SpeechComponentOptions" Spacing="6">
+          <TextBlock Text="No qualified optional speech-input components are offered by this release."
+                     FontSize="12" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel Spacing="4">
           <Grid ColumnDefinitions="*,Auto">
             <StackPanel Spacing="4">

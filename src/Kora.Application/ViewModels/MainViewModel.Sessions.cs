@@ -142,7 +142,7 @@ public sealed partial class MainViewModel
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
             if (result.RequestSubmission is { } submitted)
-            { await PinSpeechSummarySuggestionAsync(submitted, Eligible); }
+            { await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands); }
             ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }

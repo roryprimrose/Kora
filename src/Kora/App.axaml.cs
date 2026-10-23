@@ -104,7 +104,8 @@ public sealed partial class App : Avalonia.Application
             detailWindow = new DetailWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(), viewModel,
                 Services.GetRequiredService<ILogger<DetailWindowController>>(),
-                Services.GetRequiredService<ILogger<NativeDetailRenderer>>());
+                Services.GetRequiredService<ILogger<NativeDetailRenderer>>(),
+                Services.GetRequiredService<ILogger<StaticHtmlDetailRenderer>>());
             detailWindow.BindHistoryAccess(() => Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>().CanInspect);
             documentationWindow = new DocumentationWindowController(
                 Services.GetRequiredService<IUserDocumentationProvider>(),

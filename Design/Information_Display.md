@@ -1242,6 +1242,24 @@ Malformed/unsupported content offers escaped source/plain text, explicitly label
 Dynamic model-generated JavaScript applications are outside initial scope; they need a separate containment proof, not an "enable scripts" preference.
 Saving/exporting HTML is an exact user-selected write outside protected roots; opening exported content outside Kora is separately requested with limitations disclosed.
 
+### Strict Native Static HTML Implementation Boundary
+
+The additive `static-html-v1` implementation consumes only an explicitly admitted `DetailContentKind.StaticHtml` snapshot. It is **unqualified and unavailable by default**; production composition does not enable it ([renderer](../src/Kora/StaticHtmlDetailRenderer.cs), [composition](../src/Kora/App.axaml.cs)).
+The actual detail controller uses the existing immutable viewer, privacy/access/generation and source-copy boundaries and returns labelled complete-source fallback, not a helper-only preview or inferred HTML classification ([routing](../src/Kora/DetailWindowController.cs)).
+
+The approved initial grammar is an XML-compatible fragment, not HTML5 error recovery: lowercase `div`, `p`, `h1`-`h6`, `ul`, `ol`, `li`, `blockquote`, `pre`, `code`, `strong`, `em`, `b`, `i`, `span`, and self-closed `br`/`hr` ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+All other elements, every attribute (including namespaces), comments, processing instructions and CDATA are unsupported. Lists require direct `li` children; block content inside phrasing containers is rejected ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+Inline emphasis becomes semantic plain text, lists/quotes receive inert textual labels, and headings retain levels in labelled native text controls ([controls](../src/Kora/StaticHtmlDocumentRenderer.cs)).
+
+One authoritative profile limits parsing to 65,536 strict UTF-8 source bytes, 65,536 semantic UTF-8 bytes, 256 block-element starts, 2,048 element/text nodes (including whitespace text, excluding closing tags), element depth 16, zero attributes and 2,048 entity-reference introducers ([limits](../src/Kora.Core/Presentation/StaticHtmlProfile.cs)).
+Bounds are inclusive; separators and list/quote labels count toward semantic bytes. Only XML predefined and numeric entities are decoded, once; DTDs and resolvers are disabled. No additional public dependency or browser is used ([bounded parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [exact-boundary tests](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+Entity introducers are counted directly in source before decoding, independently of nodes. The immutable result records both counts; predefined and numeric references coalescing into one reader text node cannot bypass the separate 2,048-reference bound ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [measured boundaries](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+
+Unsupported, malformed, oversize-for-profile, unknown-profile and unqualified results never publish partial semantics. They retain the entire admitted Unicode source, including original line endings; rendering may collapse XML whitespace and normalize preformatted XML line endings without changing that source ([fallback](../src/Kora/StaticHtmlDetailRenderer.cs)).
+The existing 256 KiB admission ceiling still applies: content above admission is explicitly refused, never truncated ([admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+This increment adds no byte-ingestion route, asset resolver, rich clipboard serializer, active navigation or default content producer; existing byte decoders and source admission remain responsible for valid Unicode ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [composition](../src/Kora/App.axaml.cs)).
+Native/accessibility/theme/DPI qualification and complete rich-clipboard behavior remain separate enablement work, not implementation claims ([source/privacy tests](../tests/Kora.Windows.IntegrationTests/StaticHtmlDetailRendererTests.cs), [qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy)).
+
 ## Markdown and Extensions
 
 The implemented Documentation window renders only build-time embedded

@@ -178,6 +178,7 @@ public sealed partial class MainViewModelTests
             HostId<RequestIdentity> request, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            BeforeSpeechExactRead?.Invoke();
             var message = RequestMessage ?? throw new InvalidOperationException("The exact original request is not retained.");
             if (message.Request.SessionId != session || message.Request.RequestId != request)
             { throw new InvalidOperationException("The retained source does not match the requested session and request."); }

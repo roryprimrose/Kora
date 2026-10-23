@@ -290,6 +290,7 @@ public sealed partial class SpeechConfigurationServiceTests
     [InlineData("Nova, confirm speech limit change", SpeechSummarySuggestionOperation.Confirm)]
     [InlineData("Nova cancel speech limit review", SpeechSummarySuggestionOperation.Cancel)]
     [InlineData("yes", null)]
+    [InlineData("Nova", null)]
     [InlineData("Novax, confirm speech limit change", null)]
     [InlineData("confirm speech limit change and apply", null)]
     public void SpeechSuggestionExactPhrasesDoNotCollideOrAcceptGenericApproval(string text, SpeechSummarySuggestionOperation? expected)
@@ -396,5 +397,21 @@ public sealed partial class SpeechConfigurationServiceTests
             f.Preferences.Writes.Should().Be(0);
             f.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
         }
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionStoppedHostContextCannotBeRestoredAsOriginalUserAuthority()
+    {
+        using var f = new Fixture();
+        var message = SpeechSuggestion();
+        using var input = BeginSpeechInput(SpeechInput(message));
+        input.Activity!.Stop();
+        Activity.Current = input.Activity;
+        FluentActions.Invoking(HostActivity.RequireCurrent).Should().Throw<InvalidOperationException>();
+        await FluentActions.Awaiting(() => SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy,
+            new SuggestionClock(), message, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Preferences.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
     }
 }

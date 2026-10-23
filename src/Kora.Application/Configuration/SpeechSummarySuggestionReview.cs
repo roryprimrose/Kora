@@ -165,7 +165,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
     private static HostRequest RequireInput(HostId<SessionIdentity> session)
     {
         var activity = HostActivity.RequireCurrent();
-        if (activity.Activity!.IsStopped || activity.Outcome != HostOperationOutcome.Unknown
+        if (activity.Outcome != HostOperationOutcome.Unknown
             || activity.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || activity.Request.SessionId != session || activity.Request.InvocationId is not null)
         { throw new InvalidOperationException("Speech limit review requires live original-user input in the exact session."); }

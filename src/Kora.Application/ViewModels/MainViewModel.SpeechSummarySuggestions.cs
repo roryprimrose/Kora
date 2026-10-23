@@ -12,26 +12,26 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private SessionConversationService? speechSuggestionConversation;
-    private TimeProvider? speechSuggestionTime;
+    private SpeechSuggestionBinding? speechSuggestionBinding;
     private PinnedSpeechSuggestion? pinnedSpeechSuggestion;
     private SpeechSummarySuggestionReview? commandSpeechReview;
     private Task speechSummaryPersistence = Task.CompletedTask;
 
-    private sealed record PinnedSpeechSuggestion(SessionWorkspaceEntry Target, ConversationMessage Message, Func<bool> Current);
+    private sealed record SpeechSuggestionBinding(SessionConversationService Conversation, TimeProvider Time);
+    private sealed record PinnedSpeechSuggestion(SessionWorkspaceEntry Target, ConversationMessage Message,
+        Func<bool> Current, SpeechSuggestionBinding Binding);
 
     public void BindSpeechSummarySuggestions(SessionConversationService conversation, TimeProvider time)
     {
         RetireSpeechSummarySuggestions();
-        speechSuggestionConversation = conversation;
-        speechSuggestionTime = time;
+        speechSuggestionBinding = new(conversation, time);
     }
 
     public Task<SpeechSummarySuggestionReview> ReviewSpeechSummarySuggestionAsync(ConversationMessage message,
         Func<bool> sourceCurrent, Func<CancellationToken, Task> validateSource, CancellationToken token)
     {
-        var time = speechSuggestionTime
-            ?? throw new InvalidOperationException("The host speech suggestion workflow is unavailable.");
+        var time = (speechSuggestionBinding
+            ?? throw new InvalidOperationException("The host speech suggestion workflow is unavailable.")).Time;
         if (!speechSummaryPersistence.IsCompleted)
         { throw new InvalidOperationException("Wait for the current speech limit confirmation outcome before reviewing another suggestion."); }
         var privacy = privacyObservation.Current.TopologyRevision;
@@ -67,19 +67,21 @@ public sealed partial class MainViewModel
         }
     }
 
-    private async Task PinSpeechSummarySuggestionAsync(ConversationSubmissionReceipt receipt, Func<bool> sourceCurrent)
+    private async Task PinSpeechSummarySuggestionAsync(ConversationSubmissionReceipt receipt, Func<bool> sourceCurrent,
+        SessionWorkspaceService workspace)
     {
         RetireSpeechSummarySuggestions();
         var message = receipt.Message;
         message.Validate();
         if (message.AssistantResponse is null) { return; }
-        var target = await (sessionCommands ?? throw new InvalidOperationException("Exact session authority is unavailable."))
-            .ReadExactMetadataAsync(message.Request.SessionId, CancellationToken.None);
+        var binding = speechSuggestionBinding;
+        if (binding is null) { return; }
+        var target = await workspace.ReadExactMetadataAsync(message.Request.SessionId, CancellationToken.None);
         if (!sourceCurrent() || target.Authority.Generation != message.Generation || !target.Authority.IsActive
             || (target.Metadata?.Revision.Value ?? 0) != message.ExecutionMetadataRevision
-            || receipt.Task.Request != message.Request || receipt.Task.State != message.ExpectedTaskState)
+            || !ReferenceEquals(binding, speechSuggestionBinding))
         { throw new InvalidOperationException("The exact successful submission receipt is no longer current."); }
-        pinnedSpeechSuggestion = new(target, message, sourceCurrent);
+        pinnedSpeechSuggestion = new(target, message, sourceCurrent, binding);
     }
 
     private void RetireSpeechSummarySuggestions()
@@ -133,8 +135,7 @@ public sealed partial class MainViewModel
                 commandSpeechReview = null;
                 async Task Validate(CancellationToken token)
                 {
-                    _ = await (speechSuggestionConversation
-                        ?? throw new InvalidOperationException("Canonical speech suggestion source validation is unavailable."))
+                    _ = await pinned.Binding.Conversation
                         .ReadSpeechSummarySuggestionAsync(pinned.Target, pinned.Message, Live, token).ConfigureAwait(false);
                 }
                 commandSpeechReview = await ReviewSpeechSummarySuggestionAsync(pinned.Message, Live, Validate, CancellationToken.None);

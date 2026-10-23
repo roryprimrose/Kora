@@ -10,6 +10,7 @@ using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 
 using Microsoft.Extensions.Logging;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora;
 
@@ -19,6 +20,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly IUserDocumentationProvider documentation;
     private readonly Func<bool> canAccess;
     private readonly NativeDetailRenderer renderer;
+    private readonly StaticHtmlDetailRenderer staticHtmlRenderer;
     private readonly IDetailClipboard clipboard;
     private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
     private readonly ILogger<DetailWindowController> logger;
@@ -53,10 +55,12 @@ public sealed partial class DetailWindowController : IDisposable
 
     internal DetailWindowController(
         IUserDocumentationProvider documentation, MainViewModel viewModel,
-        ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger)
+        ILogger<DetailWindowController> logger, ILogger<NativeDetailRenderer> rendererLogger,
+        ILogger<StaticHtmlDetailRenderer> staticHtmlLogger)
         : this(documentation, () => viewModel.CanRevealPrivatePresentation,
             new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
-            (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger)
+            (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger,
+            new StaticHtmlDetailRenderer(staticHtmlLogger))
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -69,11 +73,12 @@ public sealed partial class DetailWindowController : IDisposable
     internal DetailWindowController(
         IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
         IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView,
-        ILogger<DetailWindowController> logger)
+        ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null)
     {
         this.documentation = documentation;
         this.canAccess = canAccess;
         this.renderer = renderer;
+        this.staticHtmlRenderer = staticHtmlRenderer ?? new(NullLogger<StaticHtmlDetailRenderer>.Instance);
         this.clipboard = clipboard;
         this.createView = createView;
         this.logger = logger;
@@ -265,8 +270,10 @@ public sealed partial class DetailWindowController : IDisposable
                 : PublishContent(content, owner, existing, existing.State.Status, activateOnly: true, acknowledge);
         }
         var generation = state.Generation;
-        // Additive native profiles remain unavailable in composition until their own qualification.
-        var result = renderer.Render(content.Source, content.Kind, content.Reference, SelectNativeFormat(content));
+        // Each additive profile remains unavailable until its own qualification.
+        var result = content.Kind == DetailContentKind.StaticHtml
+            ? staticHtmlRenderer.Render(content)
+            : renderer.Render(content.Source, content.Kind, content.Reference, SelectNativeFormat(content));
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);

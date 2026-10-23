@@ -18,7 +18,7 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
-    private static (SessionCommandStore Store, SpeechSuggestionModel Model) BindSpeechSuggestions(Fixture fixture)
+    private static (SessionCommandStore Store, SpeechSuggestionModel Model) BindSpeechSuggestions(Fixture fixture, bool bindSpeech = true)
     {
         var store = new SessionCommandStore(fixture);
         var workspace = new SessionWorkspaceService(store, new(fixture.HostStore), store, NullLogger<SessionWorkspaceService>.Instance);
@@ -26,21 +26,24 @@ public sealed partial class MainViewModelTests
         var conversation = new SessionConversationService(store, store, workspace, store, model, TimeProvider.System,
             NullLogger<SessionConversationService>.Instance, execution: model);
         fixture.ViewModel.BindSessionCommands(workspace, new(workspace, conversation, store, TimeProvider.System));
-        fixture.ViewModel.BindSpeechSummarySuggestions(conversation, TimeProvider.System);
+        if (bindSpeech) { fixture.ViewModel.BindSpeechSummarySuggestions(conversation, TimeProvider.System); }
         return (store, model);
     }
 
-    private static async Task SubmitSpeechSuggestion(Fixture fixture, SessionCommandStore store, bool voice)
+    private static async Task SubmitSpeechSuggestion(Fixture fixture, SessionCommandStore store, bool voice, bool expectRetained = true)
     {
         var id = store.Session.Authority.SessionId.Value.ToString("D");
-        var review = "session request review " + id + " 1 0 -- Suggest a word limit of forty for future ordinary spoken responses.";
+        var review = "session request review " + id + " 1 " + (store.Session.Metadata?.Revision.Value ?? 0)
+            .ToString(System.Globalization.CultureInfo.InvariantCulture)
+            + " -- Suggest a word limit of forty for future ordinary spoken responses.";
         if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + review, 1); }
         else { await fixture.RunAsync(review); }
         fixture.ViewModel.ResponseTitle.Should().Be("Session command review.");
         using var json = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
         var confirmation = "session request confirm " + id + " " + json.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
         await fixture.RunAsync(confirmation);
-        fixture.ViewModel.ResponseTitle.Should().Be("Session command retained.", fixture.ViewModel.ResponseBody);
+        fixture.ViewModel.ResponseTitle.Should().Be(expectRetained ? "Session command retained." : "Session command not confirmed.",
+            fixture.ViewModel.ResponseBody);
         store.RequestMessage!.HasAssistantResponse.Should().BeTrue();
     }
 
@@ -259,8 +262,155 @@ public sealed partial class MainViewModelTests
         }
     }
 
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("done")]
+    [InlineData("metadata")]
+    [InlineData("binding")]
+    public async Task SpeechSuggestionReceiptRaceCannotPinChangedTargetOrReviveNewBinding(string fault)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f);
+        var injected = false;
+        store.BeforeSpeechMetadataRead = read =>
+        {
+            if (read != 5) { return; }
+            injected = true;
+            if (fault is "binding") { BindSpeechSuggestions(f); }
+            else { store.ChangeSpeechTarget(fault); }
+        };
+        await SubmitSpeechSuggestion(f, store, voice: false, expectRetained: false);
+        injected.Should().BeTrue("the race must occur after canonical terminal readbacks, during receipt pinning");
+        f.ViewModel.ResponseBody.Should().Contain("exact successful submission receipt is no longer current");
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        model.Calls.Should().Be(1);
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionVoiceConsentLossDuringReceiptPinCannotAuthorizeReviewOrConfirmation()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f);
+        Task? withdrawal = null;
+        store.BeforeSpeechMetadataRead = read =>
+        {
+            if (read == 5) { withdrawal = f.ViewModel.SetVoiceConsentAsync(false); }
+        };
+        await SubmitSpeechSuggestion(f, store, voice: true);
+        withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
+        await withdrawal!;
+        f.ViewModel.HasVoiceConsent.Should().BeFalse();
+        store.RequestMessage!.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit change unconfirmed.");
+        await f.RunAsync("confirm speech limit change");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        model.Calls.Should().Be(1);
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("request")]
+    [InlineData("state")]
+    public async Task SpeechSuggestionCanonicalTerminalReadbackRejectsForgedReceiptBeforePinning(string fault)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f);
+        store.SpeechTerminalReceiptFault = fault;
+        await SubmitSpeechSuggestion(f, store, voice: false, expectRetained: false);
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        model.Calls.Should().Be(1);
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionUnboundConsumerCannotPinACompletedCanonicalReceipt()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f, bindSpeech: false);
+        await SubmitSpeechSuggestion(f, store, voice: false);
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        model.Calls.Should().Be(1);
+        f.Preferences.SummaryLimits.Should().BeNull();
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionSavedSessionMetadataAndRepeatedReviewKeepOneExactCurrentTarget()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f);
+        store.ChangeSpeechTarget("metadata");
+        await SubmitSpeechSuggestion(f, store, voice: false);
+        await f.RunAsync("review speech limit suggestion");
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Review exact speech limit suggestion.");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        await f.RunAsync("confirm speech limit change");
+        f.Preferences.SummaryLimits.Should().Be(new SpokenSummaryLimits(3, 40));
+        model.Calls.Should().Be(1);
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionCancelledSourceReadRetiresReviewWithoutWriteOrReplay()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, model) = BindSpeechSuggestions(f);
+        await SubmitSpeechSuggestion(f, store, voice: false);
+        store.BeforeSpeechExactRead = () => throw new OperationCanceledException("source retired");
+        await f.RunAsync("review speech limit suggestion");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit change unconfirmed.");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        store.BeforeSpeechExactRead = null;
+        await f.RunAsync("confirm speech limit change");
+        f.ViewModel.ResponseTitle.Should().Be("Speech limit source unavailable.");
+        model.Calls.Should().Be(1);
+        await f.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task SpeechSuggestionLateHostDisposalDuringWriteFailureDoesNotReopenPrivateFeedback()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var (store, _) = BindSpeechSuggestions(f);
+        await SubmitSpeechSuggestion(f, store, voice: false);
+        await f.RunAsync("review speech limit suggestion");
+        f.Audit.BeforeWrite = item =>
+        {
+            if (!item.ActionId.StartsWith("configuration.speech-summary-", StringComparison.Ordinal)) { return; }
+            if (item.Outcome == SecurityAuditOutcome.Requested) { f.ViewModel.Dispose(); throw new IOException("retired host"); }
+        };
+        await f.RunAsync("confirm speech limit change");
+        f.Preferences.SummaryLimits.Should().BeNull();
+        f.ViewModel.ResponseTitle.Should().NotBe("Speech limit saved.");
+        f.Audit.BeforeWrite = null;
+        await f.ViewModel.DisposeAsync();
+    }
+
     private sealed partial class SessionCommandStore
     {
+        internal Action<int>? BeforeSpeechMetadataRead { get; set; }
+        internal Action? BeforeSpeechExactRead { get; set; }
+        internal string? SpeechTerminalReceiptFault { get; set; }
+        private int speechMetadataReads;
+        internal void ChangeSpeechTarget(string fault)
+        {
+            Session = fault switch
+            {
+                "generation" => Session with { Authority = Session.Authority with { Generation = new(2) } },
+                "done" => Session with { Authority = Session.Authority with { IsActive = false } },
+                "metadata" => Session with { Metadata = new(Session.Authority.SessionId, new(1), new("changed")) },
+                _ => throw new ArgumentOutOfRangeException(nameof(fault)),
+            };
+        }
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
         {
@@ -281,7 +431,13 @@ public sealed partial class MainViewModelTests
                 AssistantResponse = ConversationResponse.FromResult(result, RequestMessage.Execution!),
             };
             TaskResult = TaskResult! with { Task = TaskResult.Task.Next(RequestMessage.ExpectedTaskState) };
-            return ValueTask.FromResult(new ConversationSubmissionReceipt(RequestMessage, TaskResult.Task));
+            var task = SpeechTerminalReceiptFault switch
+            {
+                "request" => new HostTaskRecord(HostRequest.Create(RequestOrigin.LocalUi), new(3), HostTaskState.Succeeded),
+                "state" => new HostTaskRecord(request, new(3), HostTaskState.Denied),
+                _ => TaskResult.Task,
+            };
+            return ValueTask.FromResult(new ConversationSubmissionReceipt(RequestMessage, task));
         }
     }
 

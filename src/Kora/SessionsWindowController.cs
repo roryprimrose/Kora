@@ -18,7 +18,7 @@ internal sealed partial class SessionsWindowController(
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
-    SessionConversationService? conversation = null) : IDisposable, ISessionDispositionReviewPresenter,
+    SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -155,7 +155,8 @@ internal sealed partial class SessionsWindowController(
             (source, original, admitted, token) => ReviewOriginalMessageReuse?.Invoke(source, original,
                 window ?? (Avalonia.Controls.Window?)compact, admitted, token)
                 ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."),
-            main.ReviewAppearanceSuggestionAsync, main.ConfirmAppearanceSuggestionAsync);
+            main.ReviewAppearanceSuggestionAsync, main.ConfirmAppearanceSuggestionAsync,
+            instructionUse: instructionUse);
         presentation = new(model);
     }
 

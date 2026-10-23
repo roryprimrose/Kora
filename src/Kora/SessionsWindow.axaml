@@ -111,6 +111,9 @@
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
             AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
+          <Button x:Name="SubmitWebPage" Content="Retrieve and summarize one page locally"
+            IsEnabled="{Binding CanSubmitConversation}"
+            AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />
           <Button x:Name="RefreshRunningConversation" Content="Refresh running work" IsEnabled="{Binding CanRefreshRunningConversation}" />
           <Button x:Name="CancelRunningConversation" Content="Cancel this running conversation task" IsEnabled="{Binding CanCancelRunningConversation}"
               AutomationProperties.Name="Deliberately request cancellation of the displayed exact running conversation task; waits for owned resources, never rolls back a committed answer" />

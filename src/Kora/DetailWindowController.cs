@@ -159,7 +159,17 @@ public sealed partial class DetailWindowController : IDisposable
         }
     }
 
-    private async void OnConversationValidation(object? sender, EventArgs args) => await RevalidateConversationDetailsAsync();
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "DispatcherTimer.Tick requires void; failures are logged and revoke retained conversation details.")]
+    private async void OnConversationValidation(object? sender, EventArgs args)
+    {
+        try { await RevalidateConversationDetailsAsync(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ConversationSourceFailure(logger, exception.GetType().Name);
+            foreach (var reference in conversationSources.Keys.ToArray()) { RevokeReference(reference); }
+        }
+    }
 
     internal async Task RevalidateConversationDetailsAsync()
     {

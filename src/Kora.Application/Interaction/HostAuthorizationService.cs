@@ -86,6 +86,24 @@ public sealed class HostAuthorizationService(
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);
 
+    public ValueTask<HostInteractionDecision> PresentWebPageOnceAsync(
+        HostRequest request, Uri address, CancellationToken cancellationToken) =>
+        transaction.RunAsync(request, "approval.web-page-once", snapshot =>
+        {
+            if (!Eligible(snapshot, request) || !WebPageAccessBinding.Matches(snapshot.Proposal!, address)
+                || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
+            { return InteractionTransaction.Reject(snapshot, "exact-page-proposal-not-current"); }
+            var spec = new QuestionSpec(
+                "Approve ONE retrieval of this exact public page for the original local model request? "
+                + "Other destinations and redirects are not approved. Page text stays local.\n" + address.AbsoluteUri,
+                QuestionKind.SingleChoice, [new("once", "Approve once")],
+                purpose: "authorization", sourceId: "local-web-page");
+            var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)),
+                spec, snapshot.Session.Generation, snapshot.Proposal!.ExpiresAt, Proposal: snapshot.Proposal);
+            return (snapshot with { Questions = snapshot.Questions.Add(question) },
+                new(HostInteractionOutcome.Presented, "exact-page-approval-presented", question));
+        }, cancellationToken);
+
     public ValueTask<HostInteractionDecision> RequestWebPageAccessAsync(
         HostRequest request,
         Uri address,

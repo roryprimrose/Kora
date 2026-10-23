@@ -5,4 +5,5 @@ public enum CapabilityInputShape
     None,
     Page,
     Id,
+    WebPageAddress,
 }

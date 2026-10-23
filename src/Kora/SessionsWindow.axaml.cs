@@ -60,6 +60,7 @@ internal sealed partial class SessionsWindow : Window
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
         RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
         CancelRunningConversation.Click += async (_, _) =>
             await (ConversationCancellationOperation = model.CancelRunningConversationAsync());

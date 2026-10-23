@@ -2,6 +2,8 @@
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Authorization;
+using Kora.Core.Network;
 
 namespace Kora;
 
@@ -9,7 +11,8 @@ internal sealed partial class NativeQuestionHost
 {
     internal async Task<ConversationQuestionPresentation> AskConversationAsync(HostRequest request,
         HostRevision generation, QuestionSpec spec, DateTimeOffset expiresAt, Func<bool> admitted,
-        Func<NativeQuestionViewModel, Task> present, CancellationToken token)
+        Func<NativeQuestionViewModel, Task> present, CancellationToken token,
+        HostOperationProposal? webProposal = null, Uri? webAddress = null)
     {
         if (disposed || !canInteract() || !admitted() || HostActivity.RequireCurrent().Request != request
             || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
@@ -25,12 +28,18 @@ internal sealed partial class NativeQuestionHost
         {
             var task = await store.ReadTaskAsync(request.SessionId, request.TaskId, token);
             if (!Eligible() || task is not { CurrentSource: true, Task.State: HostTaskState.DispatchRecorded, Task.Revision.Value: 2 }
-                || task.Task.Request != request || task.Generation != generation)
+                || !request.IsWithinIntent(task.Task.Request) || task.Generation != generation)
             { throw new InvalidOperationException("The original conversation task is no longer dispatched in this exact generation."); }
-            var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: false)
+            if (webProposal is not null && (webAddress is null || webProposal.Request != request
+                || !WebPageAccessBinding.Matches(webProposal, webAddress) || webProposal.ExpiresAt != expiresAt
+                || callObservation is null))
+            { throw new InvalidOperationException("The exact page proposal and current native policy observation are required."); }
+            var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: webProposal is not null)
                 ?? new(Eligible(), false, false, true);
-            await store.PublishTrustedSnapshotAsync(request, policy, proposal: null, expectedObservationRevision: 0, token);
-            var created = await questions.CreateAsync(request, spec, expiresAt, token);
+            await store.PublishTrustedSnapshotAsync(request, policy, webProposal, expectedObservationRevision: 0, token);
+            var created = webProposal is null
+                ? await questions.CreateAsync(request, spec, expiresAt, token)
+                : await authorization.PresentWebPageOnceAsync(request, webAddress!, token);
             if (created.Outcome != HostInteractionOutcome.Presented || created.Question is not { } initial
                 || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The exact clarification could not be durably presented."); }

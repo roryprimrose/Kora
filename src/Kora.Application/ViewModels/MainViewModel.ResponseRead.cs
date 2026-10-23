@@ -57,8 +57,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         var output = SelectedOutputDevice;
         var effectiveOutput = EffectiveOutputDevice;
         var mode = EffectiveResponseMode;
-        var volume = playbackVolumeConfiguration?.Get().Revision;
-        var rate = windowsSpeechRateConfiguration?.Get().Revision;
+        var volume = audioPlaybackSettings.VolumeState?.Revision;
+        var rate = audioPlaybackSettings.RateState?.Revision;
         var outputRevision = outputConfiguration?.Get(CallPolicyRevision).Revision;
         var responseModeRevision = responseModeConfiguration?.Get().Revision;
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
@@ -74,8 +74,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             && speech == speechConfiguration.Get().Revision
             && SelectedOutputDevice == output && EffectiveOutputDevice == effectiveOutput
             && EffectiveResponseMode == mode
-            && volume == playbackVolumeConfiguration?.Get().Revision
-            && rate == windowsSpeechRateConfiguration?.Get().Revision
+            && volume == audioPlaybackSettings.VolumeState?.Revision
+            && rate == audioPlaybackSettings.RateState?.Revision
             && outputRevision == outputConfiguration?.Get(CallPolicyRevision).Revision
             && responseModeRevision == responseModeConfiguration?.Get().Revision
             && feedbackRevision == inCallFeedbackConfiguration?.Get().Revision
@@ -86,13 +86,15 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             && ChannelEligible(), captureSelectedAnswerRead?.Invoke(SelectedChannelEligible), SelectedChannelEligible);
     }
 
-    private bool IsCurrentResponseSpeechTarget(ResponseSpeechTarget target) =>
-        retainedAnswerSpeech is { } retained ? retained.Target == target && retained.Admitted()
+    private bool IsCurrentResponseSpeechTarget(ResponseSpeechTarget target)
+    {
+        return retainedAnswerSpeech is { } retained ? retained.Target == target && retained.Admitted()
             && HostActivity.Current?.Request == retained.Request
             && target.PolicyRevision == CallPolicyRevision
-        : Volatile.Read(ref ordinaryResponse)?.Id == target.ResponseId && target.ResponseId != Guid.Empty
-        && target.Revision == Interlocked.Read(ref ordinaryResponseRevision)
-        && target.PolicyRevision == CallPolicyRevision;
+            : Volatile.Read(ref ordinaryResponse)?.Id == target.ResponseId
+                && target.Revision == Interlocked.Read(ref ordinaryResponseRevision)
+                && target.PolicyRevision == CallPolicyRevision;
+    }
 
     private void RetireResponseReadPlayback()
     {
@@ -198,7 +200,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         CancellationToken cancellationToken)
     {
         var input = CaptureResponseReadInput(initiator);
-        if (input.Target != target || !input.Eligible() || IsSpeaking || responseReadCancellation is not null)
+        if (target.ResponseId == Guid.Empty || input.Target != target || !input.Eligible()
+            || IsSpeaking || responseReadCancellation is not null)
         {
             ReportResponseRead("Read current response was refused: its exact source, policy or speech admission is no longer current.");
             return;
@@ -228,9 +231,10 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             responseReadAudit = audit;
             if (retained is not null)
             {
-                activity.Activity?.SetTag("kora.source.request.id", retained.Source.Request.RequestId.Value);
-                activity.Activity?.SetTag("kora.source.task.id", retained.Source.Request.TaskId.Value);
-                activity.Activity?.SetTag("kora.source.revision", retained.Source.Revision);
+                var sourceActivity = HostActivity.RequireCurrent().Activity!;
+                sourceActivity.SetTag("kora.source.request.id", retained.Source.Request.RequestId.Value);
+                sourceActivity.SetTag("kora.source.task.id", retained.Source.Request.TaskId.Value);
+                sourceActivity.SetTag("kora.source.revision", retained.Source.Revision);
             }
             bool Eligible() => input.Eligible() && !cancellation.IsCancellationRequested;
             var played = Eligible() && await TrySpeakCurrentResponseAsync(cancellationToken: cancellation.Token,

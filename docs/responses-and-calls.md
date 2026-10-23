@@ -73,6 +73,20 @@ The action has no raw-text input and cannot select conversation USER/HOST rows, 
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
 
+## Read one retained assistant answer
+
+In Sessions or the compact conversation, explicitly read a conversation page, select a row with a retained **ASSISTANT** answer, then choose **Read selected ASSISTANT answer once** or request `read selected answer`. Selection alone never speaks ([native selection and cancellation](../src/Kora/SessionsViewModel.AnswerRead.cs)).
+
+The host reads only that exact assistant body, not its original USER message or separate HOST status. It re-reads the retained record and revision under the same session/privacy/retention authority immediately before playback; a missing or changed source never falls back to the latest/current answer ([source workflow](../src/Kora.Application/Hosting/SessionAnswerReadWorkflow.cs)).
+
+Normal output admission, Text only, protected-call restrictions and both spoken-summary caps still apply. An over-cap answer is withheld in full, never silently shortened; its full visual source remains available. Changing speech settings cannot start or replay this operation ([shared playback admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+Use **Cancel answer reading** or the existing speech Stop control to retire playback. Closing its surface, changing selection, privacy/source retirement or cancellation suppresses late completion; another reading always needs a fresh deliberate request ([retirement tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RetainedAnswerRead.cs)).
+
+Unqualified conversation generation remains unavailable; this operation does not add a model or speech backend ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerRead.cs)).
+
+Typing a command while a prompt review is open still closes that prompt on the first edit. If the submitted typed command is `read selected answer`, that reading is refused once; make a fresh deliberate request. Native and activated-voice reads do not inherit or consume this typed-input refusal ([input guard](../src/Kora/PromptParameterController.AnswerRead.cs)).
+
 ## Reviewed earlier conversation context
 
 In Sessions, explicitly read the selected conversation, then choose **Review earlier messages for a follow-up**. Select whole earlier USER and/or finalized ASSISTANT messages from that observed page, write the new request, and choose **Review complete selection and request**. Read the complete review before separately confirming one local-only tool-free follow-up ([native workflow](../src/Kora/SessionsViewModel.HistoryContext.cs)).

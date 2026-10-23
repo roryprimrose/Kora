@@ -4122,7 +4122,21 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         CurrentResponseInput? currentResponseInput = null,
         PendingQuestionCapture? questionTarget = null)
     {
-        RetireComposerDictation();
+        var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
+            ? selectedRead : null;
+        var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
+            && Interlocked.Exchange(ref retainedAnswerDisplacedDecisionInput, 0) != 0;
+        if (selectedAnswerCommand is { IsValid: true } && displacedAnswerDecision)
+        {
+            ReportResponseRead("Retained answer reading refused: the original input belonged to a prompt review retired by input editing. No decision was resumed and no playback or replay was queued.");
+            return;
+        }
+        if (selectedAnswerCommand is not null && !CanEnterRetainedAnswerRead)
+        {
+            ReportResponseRead("Retained answer reading is unavailable while a question, approval, prompt review or dictation owns input. That input and its decision remain unchanged; no playback or replay was queued.");
+            return;
+        }
+        if (selectedAnswerCommand is null) { RetireComposerDictation(); }
         if (ClipboardSnapshotStatusCommand.Parse(spokenText, AssistantName) is { } snapshotStatusCommand)
         {
             await ExecuteClipboardSnapshotStatusCommandAsync(snapshotStatusCommand, initiator,
@@ -4205,6 +4219,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ExecuteResponseWindowCommandAsync(responseWindowCommand, initiator);
+            return;
+        }
+        if (selectedAnswerCommand is not null)
+        {
+            await ExecuteResponseReadCommandAsync(selectedAnswerCommand, spokenText, initiator, responseReadInput);
             return;
         }
         Interlocked.Increment(ref dispositionReviewEpoch);
@@ -5432,7 +5451,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     private async Task<bool> TrySpeakCurrentResponseAsync(string? spokenText = null, long? expectedSpeechRevision = null,
-        Func<bool>? additionalEligibility = null, CancellationToken cancellationToken = default)
+        Func<bool>? additionalEligibility = null, bool boundedExactReadback = false,
+        Func<CancellationToken, Task>? validateReadSource = null, CancellationToken cancellationToken = default)
     {
         if (additionalEligibility is null && responseReadCancellation is not null)
         {
@@ -5475,7 +5495,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return false;
         }
 
-        var exactReadback = spokenText is not null || IsResponseInteractionPending;
+        if (validateReadSource is not null) { await validateReadSource(cancellationToken); }
+        if (!Eligible()) { return false; }
+        var exactReadback = !boundedExactReadback && (spokenText is not null || IsResponseInteractionPending);
         spokenText ??= $"{ResponseTitle}. {ResponseBody}";
         IsSpeaking = true;
         activeSpokenText = spokenText;

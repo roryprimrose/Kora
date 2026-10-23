@@ -294,6 +294,7 @@ public sealed partial class ModelTurnHostTests
         internal MemorySummary[] Selection => [.. Snapshot.Records.Select(record =>
             new MemorySummary(record.Id.Value, record.Revision.Value, record.Scope, record.Review, record.Retention, record.CreatedAt))];
         internal int Reads { get; private set; }
+        internal Action? OnRead { get; set; }
         public long Revision { get; private set; }
         public event Action? Invalidated;
         internal void Invalidate() { Revision++; Invalidated?.Invoke(); }
@@ -305,6 +306,7 @@ public sealed partial class ModelTurnHostTests
             target.Authority.SessionId.Should().Be(Snapshot.Boundary.Session);
             selection.Select(row => row.Id).Should().Equal(Selection.Select(row => row.Id));
             Reads++;
+            OnRead?.Invoke();
             return System.Threading.Tasks.Task.FromResult(Snapshot);
         }
     }
@@ -315,12 +317,18 @@ public sealed partial class ModelTurnHostTests
         private object? state;
         internal bool TimerDisposed { get; private set; }
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        internal bool FailTimer { get; set; }
+        internal bool ExpireDuringCreation { get; set; }
+        internal Action? OnCreateTimer { get; set; }
         public override DateTimeOffset GetUtcNow() => Now;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             this.callback = callback;
             this.state = state;
             dueTime.Should().Be(TimeSpan.FromMinutes(2));
+            if (FailTimer) { throw new IOException("Timer creation unavailable."); }
+            if (ExpireDuringCreation) { callback(state); }
+            OnCreateTimer?.Invoke();
             return new ReviewTimer(this);
         }
         internal void Expire() => callback!(state);

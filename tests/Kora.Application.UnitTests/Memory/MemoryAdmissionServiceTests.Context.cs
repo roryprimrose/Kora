@@ -127,6 +127,40 @@ public sealed partial class MemoryAdmissionServiceTests
     private static MemorySummary Summary(MemoryRecord record) =>
         new(record.Id.Value, record.Revision.Value, record.Scope, record.Review, record.Retention, record.CreatedAt);
 
+    [Fact]
+    public async Task ContextReadRejectsPrivateAccessRevokedByRequestedAuditBeforeStoreDisclosure()
+    {
+        using var f = new Fixture(durable: true);
+        using var root = f.Root();
+        var record = await f.Admitted();
+        var source = f.ContextSource();
+        f.OnRequestedAudit = () => f.InspectEnabled = false;
+        await source.Invoking(value => value.ReadAsync(new(f.Session, null), [Summary(record)],
+            static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+        f.ControlOutcomes.Should().Contain(task => task.State == HostTaskState.Denied);
+    }
+
+    [Theory]
+    [InlineData("cancel-transaction")]
+    [InlineData("revoke-disclosure")]
+    public async Task ContextReadRevalidatesCancellationAndDisclosureAfterSuccessfulStoreWork(string fault)
+    {
+        using var f = new Fixture(durable: true);
+        using var root = f.Root();
+        var record = await f.Admitted();
+        var source = f.ContextSource();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        if (fault is "cancel-transaction") { f.OnStoreCommit = cancellation.Cancel; }
+        else { f.OnTerminalAudit = source.Invalidate; }
+        await source.Invoking(value => value.ReadAsync(new(f.Session, null), [Summary(record)],
+            static () => true, cancellation.Token)).Should().ThrowAsync<Exception>();
+        if (fault is "cancel-transaction")
+        {
+            f.Audits.Should().Contain(row => row.ActionId == "memory.context.read"
+                && row.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Cancelled);
+        }
+    }
+
     [Theory]
     [InlineData("privacy")]
     [InlineData("source")]

@@ -52,6 +52,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.Closed += Closed;
         surface.AddHandler(Button.ClickEvent, conversationDetailClick);
         surface.AddHandler(Button.ClickEvent, OnOriginalMessageReuse);
+        surface.AddHandler(Button.ClickEvent, OnAppearanceSuggestion);
         refresh.Start();
     }
 
@@ -118,6 +119,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.Closed -= Closed;
         surface.RemoveHandler(Button.ClickEvent, conversationDetailClick);
         surface.RemoveHandler(Button.ClickEvent, OnOriginalMessageReuse);
+        surface.RemoveHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }

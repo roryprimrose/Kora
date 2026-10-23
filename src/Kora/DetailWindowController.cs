@@ -265,7 +265,8 @@ public sealed partial class DetailWindowController : IDisposable
                 : PublishContent(content, owner, existing, existing.State.Status, activateOnly: true, acknowledge);
         }
         var generation = state.Generation;
-        var result = renderer.Render(content.Source, content.Kind, content.Reference);
+        // The additive table profile remains unavailable in composition until its own qualification.
+        var result = renderer.Render(content.Source, content.Kind, content.Reference, NativeDetailFormat.PipeTablesV2);
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);

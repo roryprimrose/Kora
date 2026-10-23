@@ -82,8 +82,7 @@ internal sealed class SessionMemoryContext(
             ObjectDisposedException.ThrowIf(disposed, this);
             if (!ReferenceEquals(current, review) || !review.TryConsume())
             { throw new InvalidOperationException("Select and review exact memory again; this review is retired or consumed."); }
-            try { return new(source, review, admitted, token); }
-            catch { review.Dispose(); throw; }
+            return new(source, review, admitted, token);
         }
     }
 

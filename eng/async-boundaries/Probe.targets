@@ -1,0 +1,8 @@
+<Project>
+  <Target Name="IncludeAsyncVoidServiceProbe" BeforeTargets="CoreCompile"
+          Condition="'$(MSBuildProjectName)' == 'Kora.Application' and '$(KoraAsyncVoidServiceProbe)' == 'true'">
+    <ItemGroup>
+      <Compile Include="$(MSBuildThisFileDirectory)UnjustifiedAsyncVoidService.cs" />
+    </ItemGroup>
+  </Target>
+</Project>

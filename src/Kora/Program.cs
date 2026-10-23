@@ -495,11 +495,6 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Runtime.RuntimeList>();
         services.AddSingleton<Kora.Tools.Runtime.RuntimeGetStatus>();
         services.AddSingleton<Kora.Application.Tools.ReadOnlyCapabilityRegistry>();
-        services.AddSingleton(provider => new BoundedModelTurnAdapter(
-            new WindowsOllamaToolTransport(static _ => null, provider.GetRequiredService<TimeProvider>(),
-                provider.GetRequiredService<ILogger<WindowsOllamaToolTransport>>()),
-            provider.GetRequiredService<TimeProvider>(),
-            provider.GetRequiredService<ILogger<BoundedModelTurnAdapter>>()));
         services.AddSingleton(provider => new ModelTurnHost(
             provider.GetRequiredService<ISessionWorkspaceStore>(),
             provider.GetRequiredService<ISessionWorkspaceAccess>(),
@@ -509,12 +504,13 @@ internal static class Program
             provider.GetRequiredService<ILogger<ModelTurnHost>>(),
             provider.GetRequiredService<TimeProvider>(),
             [
-                OllamaModelProviderFactory.CreateUnavailable(provider.GetRequiredService<BoundedModelTurnAdapter>()),
+                new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
                 new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
             ],
             provider.GetRequiredService<ProviderModeConfigurationService>(),
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
-            provider.GetRequiredService<ISessionProviderProfileStore>()));
+            provider.GetRequiredService<ISessionProviderProfileStore>(),
+            provider.GetRequiredService<OllamaModelProviderFactory>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
@@ -532,6 +528,12 @@ internal static class Program
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
 #endif
         services.AddSingleton<DependencySetupWorkflow>();
+        services.AddSingleton(SpeechComponentCatalogue.Production);
+        services.AddSingleton<ISpeechComponentFiles, WindowsSpeechComponentFiles>();
+        services.AddSingleton<ISpeechComponentAcquisition>(_ => HttpSpeechComponentAcquisition.CreateDefault());
+        services.AddSingleton<ISpeechComponentStore, WindowsSpeechComponentStore>();
+        services.AddSingleton<ISpeechComponentRuntime, UnavailableSpeechComponentRuntime>();
+        services.AddSingleton<SpeechComponentSetupService>();
         services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>

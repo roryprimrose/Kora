@@ -279,7 +279,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
-        SpeechInputConfigurationService? speechInputConfiguration = null)
+        SpeechInputConfigurationService? speechInputConfiguration = null,
+        SpeechComponentSetupService? speechComponentSetup = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -289,6 +290,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.artifactCommandRouter = artifactCommandRouter;
         this.dependencyBootstrapper = dependencyBootstrapper;
         this.dependencySetup = dependencySetup;
+        this.speechComponentSetup = speechComponentSetup;
         this.localModelReasoner = localModelReasoner;
         this.modelApprovalPreferences = modelApprovalPreferences;
         this.modelExecutionPreferences = modelExecutionPreferences;
@@ -3965,6 +3967,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             1,
             SecurityAuditInitiator.TypedCommand);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
     {
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];

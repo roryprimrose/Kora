@@ -73,8 +73,28 @@ public sealed class SpeechComponentTests
     [InlineData("model.data:stream")]
     [InlineData("model..data")]
     [InlineData("con.data")]
+    [InlineData("prn.data")]
+    [InlineData("aux.data")]
+    [InlineData("nul.data")]
     [InlineData("com1.data")]
+    [InlineData("com2.data")]
+    [InlineData("com3.data")]
+    [InlineData("com4.data")]
+    [InlineData("com5.data")]
+    [InlineData("com6.data")]
+    [InlineData("com7.data")]
+    [InlineData("com8.data")]
+    [InlineData("com9.data")]
+    [InlineData("lpt1.data")]
+    [InlineData("lpt2.data")]
+    [InlineData("lpt3.data")]
+    [InlineData("lpt4.data")]
+    [InlineData("lpt5.data")]
+    [InlineData("lpt6.data")]
+    [InlineData("lpt7.data")]
+    [InlineData("lpt8.data")]
     [InlineData("lpt9.data")]
+    [InlineData("overlong-model-file-name-that-exceeds-the-sixty-four-character-budget.data")]
     [InlineData(".data")]
     [InlineData("model.DATA")]
     public void AssetsRejectPathsNativeCodeAndArchives(string name) =>
@@ -84,6 +104,7 @@ public sealed class SpeechComponentTests
     [InlineData("http://speech.example.invalid/model.data")]
     [InlineData("https://localhost/model.data")]
     [InlineData("https://127.0.0.1/model.data")]
+    [InlineData("https://192.0.2.1/model.data")]
     [InlineData("https://speech.example.invalid:444/model.data")]
     [InlineData("https://user:password@speech.example.invalid/model.data")]
     [InlineData("https://speech.example.invalid/model.data?token=secret")]
@@ -118,6 +139,7 @@ public sealed class SpeechComponentTests
         FluentActions.Invoking(() => new SpeechComponentCatalogue(Enumerable.Range(0, 33)
             .Select(index => SpeechComponentFixture.Definition(identity: new("fixture", "v" + index)))))
             .Should().Throw<ArgumentException>();
+        FluentActions.Invoking(() => new SpeechComponentCatalogue([null!])).Should().Throw<ArgumentException>();
     }
 
     [Fact]
@@ -128,7 +150,47 @@ public sealed class SpeechComponentTests
             .Should().Throw<ArgumentException>();
         FluentActions.Invoking(() => SpeechComponentFixture.Definition(assets: Enumerable.Range(0, 17)
             .Select(index => SpeechComponentFixture.Asset("asset" + index + ".data")))).Should().Throw<ArgumentException>();
+        FluentActions.Invoking(() => SpeechComponentFixture.Definition(assets: [null!])).Should().Throw<ArgumentException>();
     }
+
+    [Theory]
+    [InlineData("name-length")]
+    [InlineData("model-length")]
+    [InlineData("licence-length")]
+    [InlineData("name-control")]
+    [InlineData("model-control")]
+    [InlineData("licence-control")]
+    [InlineData("relative-licence")]
+    [InlineData("http-licence")]
+    [InlineData("licence-user")]
+    [InlineData("licence-fragment")]
+    public void DefinitionRejectsInvalidDisplayAndLicenceMetadata(string invalid)
+    {
+        var name = invalid is "name-length" ? new string('a', 129) : invalid is "name-control" ? "name\nvalue" : "Fixture";
+        var model = invalid is "model-length" ? new string('a', 257) : invalid is "model-control" ? "model\nvalue" : "fixture-model";
+        var licence = invalid is "licence-length" ? new string('a', 257) : invalid is "licence-control" ? "licence\nvalue" : "Fixture licence";
+        var licenceUri = invalid switch
+        {
+            "relative-licence" => new Uri("licence.txt", UriKind.Relative),
+            "http-licence" => new Uri("http://speech.example.invalid/licence"),
+            "licence-user" => new Uri("https://fixture@speech.example.invalid/licence"),
+            "licence-fragment" => new Uri("https://speech.example.invalid/licence#fragment"),
+            _ => new Uri("https://speech.example.invalid/licence"),
+        };
+        FluentActions.Invoking(() => new SpeechComponentDefinition(new("fixture", "v1"), name, "fixture-runtime",
+            model, licence, licenceUri, "fixture-qualified", 16, 8, 32, 0,
+            [SpeechComponentFixture.Asset("model.data")])).Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData("model.bin")]
+    [InlineData("model.onnx")]
+    [InlineData("model.json")]
+    [InlineData("model.txt")]
+    [InlineData("model.model")]
+    [InlineData("model.data")]
+    public void AssetsAcceptOnlyExplicitDataExtensionsWithoutChangingTheirIdentity(string name) =>
+        SpeechComponentFixture.Asset(name).Name.Should().Be(name);
 
     [Theory]
     [InlineData(4, 8, 32, 0)]
@@ -179,6 +241,7 @@ public sealed class SpeechComponentTests
         denied.Lease.Should().BeNull();
         denied.Detail.Should().NotBeNullOrWhiteSpace();
         denied.ReasonCode.Should().NotBeNullOrWhiteSpace();
+        FluentActions.Invoking(() => denied.RequireLease()).Should().Throw<InvalidOperationException>();
         FluentActions.Invoking(() => new SpeechComponentMutationAdmission(state, new FixtureLease()))
             .Should().Throw<ArgumentException>();
     }
@@ -189,6 +252,7 @@ public sealed class SpeechComponentTests
         var owned = new FixtureLease();
         var admission = new SpeechComponentMutationAdmission(SpeechComponentMutationState.Acquired, owned);
         admission.Lease.Should().BeSameAs(owned);
+        admission.RequireLease().Should().BeSameAs(owned);
         admission.ReasonCode.Should().Be("exclusive-ownership-confirmed");
         admission.Detail.Should().Contain("Exclusive");
         await owned.DisposeAsync();

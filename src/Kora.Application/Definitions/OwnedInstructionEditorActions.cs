@@ -75,6 +75,33 @@ public sealed partial class OwnedInstructionEditorActions(
         ArtifactFileDocument? replacement, Func<CancellationToken, Task<bool>> exactConfirmation,
         Func<bool> eligible, CancellationToken token, OwnedDefinitionCopy? copy = null,
         Func<OwnedInstructionSnapshot, bool>? reconcile = null) =>
+        SaveCore(name, expected, replacement, exactConfirmation, eligible, copy, reconcile, null, null, token);
+
+    public ProfileInstructionCopy PrepareProfileCopy(string destinationName, ProfileInstructionSnapshot source)
+    {
+        if (Kind != ArtifactKind.Instruction) { throw new InvalidDataException("Only native profile instructions can be forked."); }
+        var proposed = source.Document.WithProfileInstructionCopyName(destinationName, source.Identity);
+        proposed = Validate(destinationName, proposed.Text, proposed.HasBom);
+        return new(source, destinationName, proposed);
+    }
+
+    internal Task<InstructionWriteResult> SaveProfileCopy(ProfileInstructionCopy copy, IProfileInstructionSelection source,
+        IProfileInstructionCopyReview review, Func<bool> eligible, Func<OwnedInstructionSnapshot, bool>? reconcile,
+        CancellationToken token) =>
+        SaveCore(copy.DestinationName, null, copy.Proposed, admitted => review.ConfirmCopy(copy, admitted),
+            eligible, null, reconcile, copy, source, token);
+
+    internal async Task RequireNewProfileCopyDestination(string name, CancellationToken token)
+    {
+        if (Kind != ArtifactKind.Instruction || await store.Read(name, token).ConfigureAwait(false) is not null)
+        { throw new InvalidOperationException("The profile copy destination is occupied or unavailable. Inspect that exact owned ID or choose a fresh ID; no overwrite or retry is approved."); }
+    }
+
+    private Task<InstructionWriteResult> SaveCore(string name, OwnedInstructionSnapshot? expected,
+        ArtifactFileDocument? replacement, Func<CancellationToken, Task<bool>> exactConfirmation,
+        Func<bool> eligible, OwnedDefinitionCopy? copy,
+        Func<OwnedInstructionSnapshot, bool>? reconcile, ProfileInstructionCopy? profileCopy,
+        IProfileInstructionSelection? profileSource, CancellationToken token) =>
         admission.Run(eligible, async (request, session, current, admitted) =>
         {
             if (expected is not null && expected.Document.Definition.Kind != Kind
@@ -83,34 +110,50 @@ public sealed partial class OwnedInstructionEditorActions(
             if (copy is not null && (expected is not null || !ReferenceEquals(replacement, copy.Proposed)
                 || !string.Equals(name, copy.DestinationName, StringComparison.Ordinal)))
             { throw new InvalidDataException("The copy approval does not match the exact new-file proposal."); }
+            if (profileCopy is not null && (request.Origin != RequestOrigin.LocalUi || Kind != ArtifactKind.Instruction
+                || copy is not null || expected is not null || !ReferenceEquals(replacement, profileCopy.Proposed)
+                || !string.Equals(name, profileCopy.DestinationName, StringComparison.Ordinal)
+                || profileSource is null || profileSource.Id != profileCopy.Source.SourceId
+                || profileSource.Metadata != profileCopy.Source.Metadata))
+            { throw new InvalidDataException("The native profile copy does not match its exact admitted source and destination."); }
+            var copying = copy is not null || profileCopy is not null;
             if (!await exactConfirmation(admitted).ConfigureAwait(false))
             { return new InstructionWriteResult(false, false, false, expected); }
             admitted.ThrowIfCancellationRequested();
             await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
             var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
-                copy is not null ? Kind == ArtifactKind.Instruction ? "definition.instruction.copy" : "definition.prompt.copy"
+                copying ? Kind == ArtifactKind.Instruction ? "definition.instruction.copy" : "definition.prompt.copy"
                     : replacement is null ? Kind == ArtifactKind.Instruction ? "definition.instruction.delete" : "definition.prompt.delete"
                     : Kind == ArtifactKind.Instruction ? "definition.instruction.save" : "definition.prompt.save",
                 SecurityAuditOutcome.Requested, request.Origin == RequestOrigin.ActivatedVoice
                     ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
-                copy?.AuditTarget ?? (Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt"));
+                profileCopy?.AuditTarget ?? copy?.AuditTarget ?? (Kind == ArtifactKind.Instruction ? "definition.owned-instruction" : "definition.owned-prompt"));
             auditLog.Write(audit);
             var unchanged = expected is not null && replacement is not null
                 && string.Equals(expected.Document.Definition.Digest, replacement.Definition.Digest, StringComparison.Ordinal);
             var publicationObserved = false;
+            Func<bool>? sourceFresh = null;
+            bool PublicationCurrent() => current() && (profileSource is null || sourceFresh is not null && sourceFresh());
             // Hold before any physical publication; failed/uncertain saves never leave old guidance current.
             try
             {
-                if (copy is not null) { _ = Validate(name, copy.Proposed.Text, copy.Proposed.HasBom); }
-                if (!unchanged) { HoldRevision(name, existingOnly: copy is not null); }
-                var result = await store.Write(name, expected, replacement, current,
-                    operation => admission.Publish(request, session, current, operation, admitted).AsTask(), admitted).ConfigureAwait(false);
+                if (copying) { _ = Validate(name, replacement!.Text, replacement.HasBom); }
+                if (!unchanged) { HoldRevision(name, existingOnly: copying); }
+                var result = await store.Write(name, expected, replacement, PublicationCurrent,
+                    operation => profileSource is null
+                        ? admission.Publish(request, session, current, operation, admitted).AsTask()
+                        : profileSource.WithCurrent(profileCopy!.Source, current,
+                            fresh =>
+                            {
+                                sourceFresh = fresh;
+                                return admission.Publish(request, session, current, operation, admitted).AsTask();
+                            }, admitted), admitted).ConfigureAwait(false);
                 publicationObserved = result.Published;
                 await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
-                if (copy is not null && result.Published && reconcile is not null
+                if (copying && result.Published && reconcile is not null
                     && !await admission.Publish(request, session, current, () => reconcile(result.Current!), admitted).ConfigureAwait(false))
                 { throw new IOException("The saved copy catalogue is unconfirmed. Inspect the destination; the original draft is retained."); }
-                if (result.Conflict) { HoldRevision(name, existingOnly: copy is not null); }
+                if (result.Conflict) { HoldRevision(name, existingOnly: copying); }
                 auditLog.Write(audit.WithOutcome(result.Conflict ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded,
                     result.Conflict ? "base-conflict" : null));
                 return result;

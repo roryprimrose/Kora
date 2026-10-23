@@ -15,6 +15,7 @@ public sealed class SpeechComponentMutationAdmission
 
     public SpeechComponentMutationState State { get; }
     public IAsyncDisposable? Lease { get; }
+    public IAsyncDisposable RequireLease() => Lease ?? throw new InvalidOperationException(Detail);
     public string ReasonCode => State switch
     {
         SpeechComponentMutationState.Acquired => "exclusive-ownership-confirmed",
@@ -22,8 +23,7 @@ public sealed class SpeechComponentMutationAdmission
         SpeechComponentMutationState.Busy => "component-in-use",
         SpeechComponentMutationState.UnknownOwnership => "ownership-unknown",
         SpeechComponentMutationState.SharedOrUserOwned => "shared-or-user-owned",
-        SpeechComponentMutationState.Denied => "mutation-denied",
-        _ => throw new InvalidOperationException("Unknown mutation admission."),
+        _ => "mutation-denied",
     };
     public string Detail => State switch
     {
@@ -32,7 +32,6 @@ public sealed class SpeechComponentMutationAdmission
         SpeechComponentMutationState.Busy => "A known consumer is using these speech assets. Stop that use before a fresh review. No assets changed.",
         SpeechComponentMutationState.UnknownOwnership => "Exclusive ownership or quiescence is unknown. Inspect and resolve ownership before retrying. No assets changed.",
         SpeechComponentMutationState.SharedOrUserOwned => "Shared or user-owned speech assets are preserved. This operation cannot remove or replace them.",
-        SpeechComponentMutationState.Denied => "Host policy denies this exact speech-data mutation. No assets changed.",
-        _ => throw new InvalidOperationException("Unknown mutation admission."),
+        _ => "Host policy denies this exact speech-data mutation. No assets changed.",
     };
 }

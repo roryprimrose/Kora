@@ -505,6 +505,26 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Speech input profile" Classes="settings-title" />
+                <TextBlock Text="{Binding SpeechInputStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Selection never opens the microphone, downloads assets, enables name activation or changes voice permission, learning, verification, reasoning or speech output. Switching stops and joins active capture; start push-to-talk again explicitly. Other resource and residency combinations are not yet available and do not select another engine."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding SpeechInputProfiles}" SelectedItem="{Binding SelectedSpeechInputProfile}"
+                          DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding CanChangeSpeechInputNative}"
+                          AutomationProperties.Name="Speech input profile" />
+                <ComboBox ItemsSource="{Binding SpeechInputResources}" SelectedItem="{Binding SelectedSpeechInputResource}"
+                          IsEnabled="{Binding CanChangeSpeechInputNative}" AutomationProperties.Name="Speech input resource preference" />
+                <ComboBox ItemsSource="{Binding SpeechInputResidencies}" SelectedItem="{Binding SelectedSpeechInputResidency}"
+                          IsEnabled="{Binding CanChangeSpeechInputNative}" AutomationProperties.Name="Speech input residency preference" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save speech input" Command="{Binding SaveSpeechInputCommand}" IsEnabled="{Binding CanChangeSpeechInputNative}" />
+                  <Button Content="Inspect speech input" Command="{Binding InspectSpeechInputCommand}" IsEnabled="{Binding CanChangeSpeechInputNative}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech downloads" Classes="settings-title" />

@@ -424,6 +424,179 @@ public sealed class SpeechComponentSetupServiceTests : IDisposable
     }
 
     [Fact]
+    public async Task MissingMutationObservationIsAnAuditedUnknownOwnershipDenial()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        fixture.RuntimeAdapter.ReturnNoMutation = true;
+        var failure = await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<SpeechComponentMutationDeniedException>();
+        failure.Which.State.Should().Be(SpeechComponentMutationState.UnknownOwnership);
+        fixture.AuditLog.Events.Last().ReasonCode.Should().Be("ownership-unknown");
+        fixture.Store.Prepares.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingOrIncompatibleFunctionalObservationCannotEnableAComponent(bool missing)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        fixture.RuntimeAdapter.ReturnNoVerification = missing;
+        if (!missing)
+        {
+            fixture.RuntimeAdapter.BeforeCheck = () => fixture.RuntimeAdapter.Compatibility = SpeechComponentCompatibility.Incompatible;
+        }
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidDataException>();
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+        fixture.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task MissingReadOnlyRuntimeObservationRemainsUnknownWithoutProbing()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.RuntimeAdapter.ReturnNoObservation = true;
+        using var host = Begin();
+        var state = await fixture.Service.InspectAsync(fixture.Component.Identity, TestContext.Current.CancellationToken);
+        state.Runtime.Compatibility.Should().Be(SpeechComponentCompatibility.Unknown);
+        fixture.RuntimeAdapter.Checks.Should().Be(0);
+        fixture.Service.Offers.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task HostRevocationWithUnchangedStorageBeforeMutationStopsTheOperation()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        fixture.Store.AfterInspect = () => fixture.Eligible = false;
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.Store.Prepares.Should().Be(0);
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task FinalAdmissionRevocationAfterSuccessfulReadbackStillCannotCommitSuccess()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        var checksAfterReadback = 0;
+        fixture.Store.AfterInspect = () =>
+        {
+            if (fixture.Store.Inspections == 4)
+            {
+                fixture.AdmissionOverride = () => ++checksAfterReadback == 1;
+            }
+        };
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<UnauthorizedAccessException>();
+        checksAfterReadback.Should().Be(2);
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+        fixture.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task CompatibilityLossDuringReadbackCannotPublishAFunctionalSuccess()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        fixture.Store.AfterInspect = () =>
+        {
+            if (fixture.Store.Inspections == 4) { fixture.RuntimeAdapter.Compatibility = SpeechComponentCompatibility.Unknown; }
+        };
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidDataException>();
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+        fixture.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+    }
+
+    [Fact]
+    public async Task VerifiedExistingDataReviewDisclosesZeroTransferAndRejectsUnknownStoragePlans()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Store.State = new(true, true, SpeechComponentOwnership.Managed, "verified");
+        using var host = Begin();
+        var plan = await fixture.Review();
+        plan.Disclosure.Should().Contain("Download: 0 bytes");
+        var unknown = new SpeechComponentReadiness(fixture.Component.Identity, null,
+            fixture.RuntimeAdapter.Observe(fixture.Component), true, "Unknown fixture storage.");
+        FluentActions.Invoking(() => new SpeechComponentSetupPlan(Guid.NewGuid(), fixture.Component,
+            SpeechComponentOperation.Prepare, unknown, host.Request, () => true, fixture.Time.Now))
+            .Should().Throw<ArgumentException>();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task DiagnosticEventsPreserveAllLifecycleOutcomesWithLoggingEnabledOrDisabled(bool enabled)
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        fixture.Logger.Enabled = enabled;
+        using var host = Begin();
+        var plan = await fixture.Review();
+        await fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken);
+        plan = await fixture.Review();
+        fixture.RuntimeAdapter.MutationState = SpeechComponentMutationState.Busy;
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<SpeechComponentMutationDeniedException>();
+        fixture.RuntimeAdapter.MutationState = SpeechComponentMutationState.Acquired;
+        plan = await fixture.Review();
+        fixture.Store.WriteFailure = new OperationCanceledException();
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<OperationCanceledException>();
+        fixture.Store.WriteFailure = new TimeoutException("Fixture transfer timed out.");
+        plan = await fixture.Review();
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<TimeoutException>();
+        fixture.Store.InspectionFailure = new IOException("Fixture read unavailable.");
+        (await fixture.Service.InspectAsync(fixture.Component.Identity, TestContext.Current.CancellationToken)).Storage.Should().BeNull();
+        fixture.RuntimeAdapter.Releases.Should().Be(fixture.RuntimeAdapter.Leases);
+        fixture.AuditLog.Events.Count(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(1);
+    }
+
+    [Fact]
+    public async Task AuditedCancellationPreservesTheOriginalExceptionTokenAndCancelledTask()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        using var cancellation = new CancellationTokenSource();
+        cancellation.Cancel();
+        var original = new OperationCanceledException("Fixture transfer cancelled.", cancellation.Token);
+        fixture.Store.WriteFailure = original;
+        var operation = fixture.Service.ApplyAsync(plan, true, fixture.Progress, TestContext.Current.CancellationToken);
+        var failure = await FluentActions.Awaiting(() => operation).Should().ThrowAsync<OperationCanceledException>();
+        failure.Which.Should().BeSameAs(original);
+        failure.Which.CancellationToken.Should().Be(cancellation.Token);
+        operation.IsCanceled.Should().BeTrue();
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+        fixture.AuditLog.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Cancelled);
+    }
+
+    [Fact]
+    public async Task UnexpectedProgrammingFailurePropagatesWithoutAFalseTerminalSuccessAndStillRetiresLease()
+    {
+        var fixture = new SpeechComponentSetupFixture();
+        using var host = Begin();
+        var plan = await fixture.Review();
+        fixture.Store.WriteFailure = new ArgumentException("Fixture invalid platform contract.");
+        await FluentActions.Awaiting(() => fixture.Service.ApplyAsync(plan, true, fixture.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<ArgumentException>();
+        fixture.RuntimeAdapter.Releases.Should().Be(1);
+        fixture.AuditLog.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested);
+        stopped.Where(activity => string.Equals(activity.DisplayName, "storage.commit", StringComparison.Ordinal))
+            .Should().OnlyContain(activity => activity.Status == ActivityStatusCode.Error);
+    }
+
+    [Fact]
     public async Task LeaseRetirementFailureCannotPublishSuccessfulTerminalAudit()
     {
         var fixture = new SpeechComponentSetupFixture();

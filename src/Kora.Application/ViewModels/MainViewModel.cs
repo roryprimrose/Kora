@@ -280,6 +280,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Voice.SpeechPreparationCoordinator? speechPreparation = null,
         DiagnosticImpactPreviewService? diagnosticImpactPreview = null,
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
+        SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null)
     {
         this.commandCatalog = commandCatalog;
@@ -447,6 +448,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi,
                     () => HandleCommandException(exception)), canExecute);
 
+        InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -612,6 +614,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -2998,6 +3001,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         await ClosePromptPreparation();
+        await CloseSharedSkillUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
@@ -4173,6 +4177,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteCurrentResponseCommandAsync(currentResponseCommand, spokenText, initiator, manualInput, currentResponseInput);
             return;
         }
+        if (Kora.Application.Skills.SharedSkillInvocationCommand.Parse(spokenText, AssistantName) is { } skillUse)
+        {
+            await ExecuteSharedSkillInvocation(skillUse, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -4295,6 +4305,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (WindowsSpeechRateCommand.Parse(spokenText, AssistantName) is { } rateCommand)
         {
             await ExecuteWindowsSpeechRateCommandAsync(rateCommand, initiator);
+            return;
+        }
+        if (SpeechInputCommand.Parse(spokenText, AssistantName) is { } speechInputCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no speech-input selection was dispatched.";
+                return;
+            }
+            await ExecuteSpeechInputCommandAsync(speechInputCommand, initiator);
             return;
         }
         if (PlaybackVolumeCommand.Parse(spokenText, AssistantName) is { } volumeCommand)
@@ -4945,7 +4965,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             else
             {
-                ShowInformation("Local model response", $"Generated locally; verify important details.\n\n{decision.Answer}");
+                PresentResponse(AssistantState.Information, "Local model response",
+                    $"Generated locally; verify important details.\n\n{decision.Answer}",
+                    modelAnswer: new(decision.Answer!));
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
         }
@@ -5901,6 +5923,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ClosePromptPreparation();
+            await CloseSharedSkillUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.
@@ -6119,7 +6142,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         string body,
         bool requestWindow = true,
         bool refreshOutput = true,
-        Action? sourceAssigned = null)
+        Action? sourceAssigned = null,
+        FinalizedModelAnswer? modelAnswer = null)
     {
         RetireCurrentResponseSpeech();
         RetireWebResultDetails(retireControl: false);
@@ -6134,7 +6158,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         sourceAssigned?.Invoke();
         BindCurrentResponseSpeech(!isInitializing && sourceAssigned is null
             && responseState is AssistantState.Information or AssistantState.Success
-            && !IsResponseInteractionPending && !IsGrantEditorVisible);
+            && !IsResponseInteractionPending && !IsGrantEditorVisible, modelAnswer);
         NotifyOutputPolicyChanged();
         if (!isInitializing && refreshOutput && SelectedOutputDevice is not null
             && responseState is not (AssistantState.Failure or AssistantState.Listening)
@@ -6168,6 +6192,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
+        OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6215,6 +6240,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)

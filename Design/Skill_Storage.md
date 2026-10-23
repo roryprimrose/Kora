@@ -1,8 +1,8 @@
 # Skill Sources, Profile Reuse, and Roaming Storage
 
-Status: bounded bundled catalogue and R21 explicit shared-profile read-only
-inspection delivered. Shared enable/disable/invoke/model exposure and
-Kora-specific authoring remain proposed Slice B/C work.
+Status: bounded bundled catalogue and explicit shared-profile native inspection delivered.
+The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation.
+General tool-dependent invocation and Kora-specific authoring remain proposed.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
@@ -16,7 +16,7 @@ does not expand the delivered R21 read-only boundary below.
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
-| Shared profile | User-selected registered roots below the Windows profile known folder | Current R21: bounded local discovery and exact immutable inspection only. No enablement, invocation, execution or model exposure. |
+| Shared profile | User-selected registered roots below the Windows profile known folder | Bounded native discovery/inspection; separate [single-file instruction-only use](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) requires reviewed volatile enablement and exact Active-conversation confirmation. No scripts, tools or hosted egress. |
 | Kora-specific | `%APPDATA%\Kora\Skills` | Create/update validated declarative skills through the authoring writer |
 
 Resolve Roaming AppData and the user profile through Windows Known Folder APIs, not model-provided paths or hard-coded user names.
@@ -198,6 +198,11 @@ remain unavailable. The remaining sections describe future work, not powers
 granted by this delivered registration/review slice.
 
 ### Future discovery and enablement
+
+The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
+Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
+The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
+Broader catalogue/model selection, tools, additional files, executable requirements and hosted transmission below remain future work.
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.

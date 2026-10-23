@@ -5,6 +5,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Testing;
 
@@ -15,7 +16,9 @@ internal sealed class SpeechComponentSetupFixture
     internal Runtime RuntimeAdapter { get; } = new();
     internal Audit AuditLog { get; } = new();
     internal Clock Time { get; } = new();
+    internal DiagnosticLogger Logger { get; } = new();
     internal bool Eligible { get; set; } = true;
+    internal Func<bool>? AdmissionOverride { get; set; }
     internal List<string> ProgressMessages { get; } = [];
     internal IProgress<string> Progress => new SynchronousProgress(ProgressMessages.Add);
     internal SpeechComponentSetupService Service { get; }
@@ -26,10 +29,10 @@ internal sealed class SpeechComponentSetupFixture
     }
 
     internal SpeechComponentSetupService Create(ISpeechComponentStore store) =>
-        new(new([Component]), store, RuntimeAdapter, AuditLog, NullLogger<SpeechComponentSetupService>.Instance, Time);
+        new(new([Component]), store, RuntimeAdapter, AuditLog, Logger, Time);
 
     internal Task<SpeechComponentSetupPlan> Review(SpeechComponentOperation operation = SpeechComponentOperation.Prepare) =>
-        Service.ReviewAsync(Component.Identity, operation, () => Eligible, TestContext.Current.CancellationToken);
+        Service.ReviewAsync(Component.Identity, operation, () => AdmissionOverride?.Invoke() ?? Eligible, TestContext.Current.CancellationToken);
 
     internal sealed class SynchronousProgress(Action<string> report) : IProgress<string>
     {
@@ -103,14 +106,20 @@ internal sealed class SpeechComponentSetupFixture
         internal int Releases { get; private set; }
         internal Exception? ReleaseFailure { get; set; }
         internal Action? BeforeCheck { get; set; }
+        internal Action? AfterRelease { get; set; }
+        internal bool ReturnNoMutation { get; set; }
+        internal bool ReturnNoObservation { get; set; }
+        internal bool ReturnNoVerification { get; set; }
         public SpeechComponentRuntimeObservation Observe(SpeechComponentDefinition component)
         {
             if (ObservationFailure is { } failure) { throw failure; }
+            if (ReturnNoObservation) { return null!; }
             return new(Compatibility, ExistingFunctional, "Fixture-only installed runtime observation; no probe was run.");
         }
         public ValueTask<SpeechComponentMutationAdmission> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
         {
             cancellationToken.ThrowIfCancellationRequested();
+            if (ReturnNoMutation) { return ValueTask.FromResult<SpeechComponentMutationAdmission>(null!); }
             if (MutationState != SpeechComponentMutationState.Acquired)
             {
                 return ValueTask.FromResult(new SpeechComponentMutationAdmission(MutationState));
@@ -123,6 +132,7 @@ internal sealed class SpeechComponentSetupFixture
             cancellationToken.ThrowIfCancellationRequested();
             Checks++;
             BeforeCheck?.Invoke();
+            if (ReturnNoVerification) { return Task.FromResult<SpeechComponentRuntimeObservation>(null!); }
             return Task.FromResult(new SpeechComponentRuntimeObservation(Compatibility, Functional,
                 "Fixture-only explicit verification result."));
         }
@@ -132,9 +142,20 @@ internal sealed class SpeechComponentSetupFixture
             {
                 owner.Releases++;
                 if (owner.ReleaseFailure is { } failure) { throw failure; }
+                owner.AfterRelease?.Invoke();
                 return ValueTask.CompletedTask;
             }
         }
+    }
+
+    internal sealed class DiagnosticLogger : ILogger<SpeechComponentSetupService>
+    {
+        internal bool Enabled { get; set; } = true;
+        internal List<EventId> Events { get; } = [];
+        public bool IsEnabled(LogLevel logLevel) => Enabled;
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+            Func<TState, Exception?, string> formatter) => Events.Add(eventId);
     }
 
     internal sealed class Audit : ISecurityAuditLog

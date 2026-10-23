@@ -91,6 +91,9 @@ public sealed partial class SpeechComponentSetupService(
         var committed = false;
         var denied = false;
         var failureReason = "inspect-before-retry";
+        Exception failure;
+        SecurityAuditEvent failureAudit;
+        HostOperationOutcome failureOutcome;
         try
         {
             bool Admitted() => consent && clock.GetUtcNow() < plan.Expires && plan.Admitted()
@@ -112,8 +115,7 @@ public sealed partial class SpeechComponentSetupService(
                 throw new SpeechComponentMutationDeniedException(refusal);
             }
             SpeechComponentReadiness result;
-            await using (var lease = mutation.Lease
-                ?? throw new InvalidOperationException("The host returned acquired ownership without an exclusive lease. No assets changed."))
+            await using (var lease = mutation.RequireLease())
             {
                 var current = await store.InspectAsync(plan.Component, cancellationToken).ConfigureAwait(false);
                 if (current != plan.ExpectedStorage || !Admitted())
@@ -174,13 +176,13 @@ public sealed partial class SpeechComponentSetupService(
             activity.Complete(HostOperationOutcome.Completed);
             return result;
         }
-        catch (OperationCanceledException)
+        catch (OperationCanceledException exception)
         {
             Cancelled(logger, plan.Operation);
-            await audit.WriteAsync(auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled,
-                committed ? "reconcile-after-cancel" : "cancelled"), CancellationToken.None).ConfigureAwait(false);
-            activity.Complete(HostOperationOutcome.Cancelled);
-            throw;
+            failure = exception;
+            failureAudit = auditEvent.WithOutcome(SecurityAuditOutcome.Cancelled,
+                committed ? "reconcile-after-cancel" : "cancelled");
+            failureOutcome = HostOperationOutcome.Cancelled;
         }
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
             or InvalidOperationException or HttpRequestException or TimeoutException)
@@ -190,12 +192,13 @@ public sealed partial class SpeechComponentSetupService(
                 MutationDenied(logger, plan.Operation, refusal.State);
             }
             else { Failed(logger, plan.Operation, exception); }
-            await audit.WriteAsync(auditEvent.WithOutcome(denied ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Failed,
-                failureReason),
-                CancellationToken.None).ConfigureAwait(false);
-            activity.Complete(HostOperationOutcome.Failed);
-            throw;
+            failure = exception;
+            failureAudit = auditEvent.WithOutcome(denied ? SecurityAuditOutcome.Denied : SecurityAuditOutcome.Failed, failureReason);
+            failureOutcome = HostOperationOutcome.Failed;
         }
+        await audit.WriteAsync(failureAudit, CancellationToken.None).ConfigureAwait(false);
+        activity.Complete(failureOutcome);
+        return await Task.FromException<SpeechComponentReadiness>(failure).ConfigureAwait(false);
     }
 
     private SpeechComponentRuntimeObservation ObserveRuntime(SpeechComponentDefinition component)

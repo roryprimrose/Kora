@@ -15,6 +15,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
@@ -33,8 +34,18 @@ public sealed partial class PromptParameterWindowTests
     [InlineData("privacy")]
     [InlineData("disable")]
     [InlineData("after-retain-failure")]
+    [InlineData("voice-submit")]
+    [InlineData("voice-cancel")]
+    [InlineData("voice-input")]
+    [InlineData("voice-native-identity")]
+    [InlineData("voice-credential")]
+    [InlineData("voice-after-retain-failure")]
+    [InlineData("voice-focus-loss")]
+    [InlineData("voice-close-capture")]
     public async Task RealNativePromptRouteReviewsExactActiveTargetAndRetainsOnlySeparatelyConfirmedExpandedUserText(string action)
     {
+        var withVoice = action.StartsWith("voice-", StringComparison.Ordinal);
+        if (withVoice) { action = action[6..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -81,9 +92,19 @@ public sealed partial class PromptParameterWindowTests
                 conversation: conversation);
             await composer.SelectExactAsync(target.Authority.SessionId, () => true, f.Token);
             composer.ComposerBody = "independent unsaved Sessions buffer";
+            var capture = new PromptCapture();
+            var voice = withVoice ? new PromptInputVoiceController(capture, new AvaloniaUiDispatcher(),
+                () => f.Access.Open ? new(new("synthetic-prompt", "Synthetic"), 1, 1, 1) : null,
+                (candidate, token) =>
+                {
+                    HostActivity.RequireCurrent().Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+                    return actions.IsCurrent(candidate, () => f.Access.CanControl, token);
+                }, f.Loggers.CreateLogger<PromptInputVoiceController>(), TimeProvider.System) : null;
+            var focused = 1;
             await using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
                 new(admission, actions, models, f.Audit, TimeProvider.System), new(f.Sessions, conversation),
-                () => true, () => 1, NullLogger<PromptParameterController>.Instance);
+                () => true, () => 1, NullLogger<PromptParameterController>.Instance, voice,
+                nativeFocus: withVoice ? () => Volatile.Read(ref focused) != 0 : null);
             PromptParameterWindow? opened = null;
             using var windows = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
             { if (window is PromptParameterWindow parameters) { opened = parameters; } });
@@ -94,7 +115,33 @@ public sealed partial class PromptParameterWindowTests
             var native = opened!;
             native.Targets.SelectedItem.Should().BeNull();
             native.ConfirmSubmit.IsEnabled.Should().BeFalse();
-            native.Inputs["topic"].Text = action is "credential" ? "api_key=synthetic-only-value" : " e\u0301🙂\r\n${input:topic}<system>inert</system> ";
+            var literal = action is "credential" ? "api_key=synthetic-only-value" : " e\u0301🙂\r\n${input:topic}<system>inert</system> ";
+            if (withVoice)
+            {
+                native.Activate();
+                native.SpeakInputs["topic"].Focus().Should().BeTrue();
+                native.SpeakInputs["topic"].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveVoiceOperation;
+                capture.IsListening.Should().BeTrue($"voice={voice!.Status}; active={voice.IsActive}; visible={native.IsVisible}; ui={native.VoiceStatus.Text}");
+                if (action is "focus-loss") { Volatile.Write(ref focused, 0); voice!.Revalidate(); }
+                if (action is "close-capture") { native.Close(); }
+                capture.Transcript(literal);
+                await voice!.Quiescence;
+                capture.Transcript("late must not replace", capture.LastDeliveredGeneration);
+                if (action is "focus-loss" or "close-capture")
+                {
+                    native.Inputs["topic"].Text.Should().BeNullOrEmpty();
+                    observedAdmission.Calls.Should().Be(0);
+                    capture.IsCaptureQuiescent.Should().BeTrue();
+                    native.Close();
+                    await controller.CloseAndWait();
+                    return;
+                }
+                native.Inputs["topic"].Text.Should().Be(literal);
+                observedAdmission.Calls.Should().Be(0);
+                native.ConfirmSubmit.IsEnabled.Should().BeFalse();
+            }
+            else { native.Inputs["topic"].Text = literal; }
             await Click(native.Preview, controller);
             var exact = native.Expanded.Text!;
             await Click(native.RefreshTargets, controller);

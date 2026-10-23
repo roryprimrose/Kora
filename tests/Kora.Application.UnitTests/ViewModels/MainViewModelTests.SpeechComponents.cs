@@ -14,6 +14,7 @@ public sealed partial class MainViewModelTests
         var component = new SpeechComponentSetupFixture();
         var fixture = new Fixture(speechComponentSetup: component.Service);
         fixture.ViewModel.SpeechComponentOffers.Should().ContainSingle();
+        fixture.ViewModel.SpeechComponentInspectionTargets.Should().ContainSingle();
         await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
             TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
         using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
@@ -65,6 +66,60 @@ public sealed partial class MainViewModelTests
         await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
             TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
         component.Store.Inspections.Should().Be(0);
-        if (!withService) { fixture.ViewModel.SpeechComponentOffers.Should().BeEmpty(); }
+        if (!withService)
+        {
+            fixture.ViewModel.SpeechComponentOffers.Should().BeEmpty();
+            fixture.ViewModel.SpeechComponentInspectionTargets.Should().BeEmpty();
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SpeechComponentSettingsCannotRelabelMissingOrActivatedVoiceContextAsLocalUi(bool activatedVoice)
+    {
+        var component = new SpeechComponentSetupFixture();
+        var fixture = new Fixture(speechComponentSetup: component.Service);
+        fixture.ViewModel.BindSpeechComponentNativeLifetime(() => true);
+        using var host = activatedVoice
+            ? HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice), HostActivityLayer.Application, HostOperation.Request)
+            : null;
+        await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        component.Store.Inspections.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task SpeechComponentSettingsCannotSupersedeAnExistingApproval()
+    {
+        var component = new SpeechComponentSetupFixture();
+        var fixture = new Fixture(speechComponentSetup: component.Service);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.BindSpeechComponentNativeLifetime(() => true);
+        using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
+        await fixture.ViewModel.PrepareGrantChangeAsync(new Kora.Core.Commands.GrantChange(
+            Kora.Core.Commands.GrantChangeOperation.Add, Kora.Core.Commands.BuiltInAction.LockMachine,
+            Kora.Core.Commands.ModelApprovalScope.Always));
+        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        await FluentActions.Awaiting(() => fixture.ViewModel.InspectSpeechComponentAsync(component.Component.Identity,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        component.Store.Inspections.Should().Be(0);
+        fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task SpeechComponentSettingsLifetimeRevocationWithSameBindingInvalidatesPendingReview()
+    {
+        var component = new SpeechComponentSetupFixture();
+        var fixture = new Fixture(speechComponentSetup: component.Service);
+        var visible = true;
+        fixture.ViewModel.BindSpeechComponentNativeLifetime(() => visible);
+        using var host = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
+        var plan = await fixture.ViewModel.ReviewSpeechComponentAsync(component.Component.Identity,
+            SpeechComponentOperation.Prepare, TestContext.Current.CancellationToken);
+        component.Store.AfterInspect = () => visible = false;
+        await FluentActions.Awaiting(() => fixture.ViewModel.ApplySpeechComponentAsync(plan, true, component.Progress,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        component.Store.Prepares.Should().Be(0);
     }
 }

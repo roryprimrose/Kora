@@ -315,20 +315,26 @@ public sealed class NativeDetailRendererTests
     });
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload(bool tables)
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload(int profile)
     {
         const string secret = "<script>NEVER_LOG_THIS_SECRET</script>";
         var logger = new RecordingLogger();
-        var renderer = new NativeDetailRenderer(logger, pipeTablesAvailable: tables);
-        renderer.Render(secret, format: tables ? NativeDetailFormat.PipeTablesV2 : NativeDetailFormat.TextV1)
+        var renderer = new NativeDetailRenderer(logger, pipeTablesAvailable: true, checklistsAvailable: true);
+        renderer.Render(secret, format: (NativeDetailFormat)profile)
             .IsFallback.Should().BeTrue();
         logger.Messages.Should().ContainSingle();
         logger.Messages[0].Should().Contain("Native detail source fallback:").And.Contain("Structure")
             .And.NotContain(secret).And.NotContain("NEVER_LOG");
         logger.Exceptions.Should().OnlyContain(exception => exception == null);
-        logger.Messages[0].Should().Contain(tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name);
+        logger.Messages[0].Should().Contain(profile switch
+        {
+            2 => NativeMarkdownChecklistProfile.Name,
+            1 => NativeMarkdownTableProfile.Name,
+            _ => NativeDetailProfile.Name,
+        });
     }
 
     private sealed class UnsupportedTestBlock() : LeafBlock(null);

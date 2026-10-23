@@ -690,6 +690,10 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetirePromptInputVoice();
+#pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
+        if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
+#pragma warning restore VSTHRD003
         RetireComposerDictation();
 #pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
         if (composerDictation is not null) { await composerDictation.Quiescence; }

@@ -107,13 +107,36 @@ gh pr merge $PullRequest --repo $Repository --auto --squash `
 
 No `--admin`, direct force merge, manual candidate dispatch, fabricated check or queue-state edit. Do not rebase repeatedly while the queue updates its selected candidate.
 
-Read back `gh pr view` with `number,url,state,author,headRefOid,isDraft,autoMergeRequest,mergeStateStatus,mergeCommit`. Verify actual enrollment/`enabledAt` or actual merged state. Already enrolled means readback, not disable/re-enable to force a fresh ticket. Skipped ordinary waiting-PR jobs are not successful candidate admission.
+Read back the actual PR and enrollment:
+
+```powershell
+gh pr view $PullRequest --repo $Repository `
+    --json number,url,state,author,baseRefName,headRefOid,isDraft,autoMergeRequest,mergeStateStatus,mergeCommit,statusCheckRollup
+```
+
+Verify repository/base/author, actual URL/current remote head, draft state and `autoMergeRequest.mergeMethod`/`enabledAt` against authority. Already enrolled means readback, not disable/re-enable to force a fresh ticket. Preserve a chosen draft/PR-only exception explicitly; never infer Auto-merge authority. Reconcile a changed head before claiming exact-head enrollment.
+
+Record current candidate-head App checks and ticket when available, not merely main-workflow results. Pending is not passed; skipped ordinary waiting-PR jobs are not successful candidate admission. Enrollment is a publication milestone, not merge proof.
 
 ## Handoff, Repair and Uncertainty
 
-Return one compact durable handoff with principal, repository, owner/branch/head, PR URL, enrollment or merge outcome, actual check state, evidence pointers, failures and command termination.
+For a coordinator job, send immediate native `pr-enrolled-ci-wait` after actual PR/enrollment readback and all local finite consequential commands have terminated/joined. Follow the agent's [publication milestone protocol](../../agents/roadmap-coordinator.agent.md#publication-milestone-protocol); do not wait for final merge or parent ACK.
 
-The same source owner handles real review/CI repair on that PR under the approved scope. Preserve remote App updates, changed-head validation and actual required checks; no duplicate PR or replacement owner. Hosted CI waiting is not a request for another child slot.
+The agent owns event fields, once-only release/refill, native delivery readback and authority exceptions; do not duplicate that protocol here.
+
+Apply the agent's [routine continuation rule](../../agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input): finish the authorized handoff and yield without a stop/wait/check-again user prompt. Supported re-entry retains existing authority and repair admission; pending hosted checks do not authorize polling or imply continuous monitoring.
+
+Return one compact durable handoff with principal, repository, exact launch-mapped owner/branch/current remote head, actual PR URL, Auto method/`enabledAt` or explicit authority exception, current candidate state, evidence pointers, failures and command termination. Persist deep CLI evidence in the owner's receipt; a status-file write alone is not native delivery.
+
+Retain the same source owner/worktree and PR for approved review/CI repair. Preserve App updates, changed-input validation and required checks. Hosted CI wait does not consume execution allocation.
+
+On supported resume, report concrete source-bound failure for repair admission; an actual scoped fix and normal same-PR push return the agent's distinct repair handoff.
+
+## Scratch Usage
+
+Keep durable receipts in the established host-owned artifact location. For transient repository scratch, use `New-NetAaaScratchPath -RepoRoot <owning-worktree> -SkillName 'kora-github-pr'` from the installed shared helper.
+
+Verify approved `.scratch/` ignore policy; obtain consent before changing it. Do not add a dependency or bootstrap tooling just for scratch.
 
 For `MERGED_VERIFIED`, require authoritative merged state, actual merge SHA and reachability from freshly fetched main. Auto-merge requested, green CI or an archived session alone is not merge proof. No unapproved cleanup or unsupported continuous-monitoring claim.
 

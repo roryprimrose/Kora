@@ -26,6 +26,7 @@ internal sealed partial class SessionsWindow : Window
         BindHistoryContext(model);
         BindWorkScrolling();
         BindListPageOrder(model);
+        BindInstructionContext(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
@@ -57,8 +58,11 @@ internal sealed partial class SessionsWindow : Window
         RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        SubmitConversationWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
-        CancelRunningConversation.Click += async (_, _) => await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
+        CancelRunningConversation.Click += async (_, _) =>
+            await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)

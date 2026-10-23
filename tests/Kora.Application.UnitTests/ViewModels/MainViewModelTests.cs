@@ -4545,6 +4545,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
@@ -8561,7 +8562,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
-            Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8616,6 +8617,9 @@ public sealed partial class MainViewModelTests : IDisposable
             RatePreferences.ReadFailure = rateReadFailure;
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
+            InputRuntime = new(Voice);
+            InputConfiguration = enableSpeechInput ? new(InputPreferences, InputRuntime, OutputAdmission, Audit,
+                NullLogger<SpeechInputConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
             DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
@@ -8743,11 +8747,13 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
-                clipboardExplanation: clipboardWorkflow);
+                clipboardExplanation: clipboardWorkflow,
+                speechInputConfiguration: InputConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            if (enableSpeechInput) { ViewModel.BindSpeechInputNativeLifetime(static () => true); }
             if (enableInCallFeedback) { ViewModel.BindInCallFeedbackNativeLifetime(static () => true); }
             ViewModel.BindVoiceOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
@@ -8785,6 +8791,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public SpeechConfigurationService SpeechConfiguration { get; }
         public FakeWindowsSpeechRatePreferences RatePreferences { get; } = new();
         public WindowsSpeechRateConfigurationService? RateConfiguration { get; }
+        public FakeSpeechInputPreferences InputPreferences { get; } = new();
+        public SpeechInputTestRuntime InputRuntime { get; }
+        public SpeechInputConfigurationService? InputConfiguration { get; }
         public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
         public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }

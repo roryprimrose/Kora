@@ -44,7 +44,8 @@ internal static class MarkdownDocumentRenderer
             _ => 14,
         };
         TextBlock control = selectable ? new SelectableTextBlock()
-            : style == NativeTextStyle.Table ? new NamedTextBlock { Focusable = true } : new TextBlock();
+            : style is NativeTextStyle.Table or NativeTextStyle.Checklist
+                ? new NamedTextBlock { Focusable = true } : new TextBlock();
         control.Text = text;
         control.FontSize = fontSize;
         control.FontWeight = style is NativeTextStyle.Heading1 or NativeTextStyle.Heading2

@@ -244,6 +244,7 @@ public sealed partial class SessionsConversationTests
             Action<HostId<SessionIdentity>>? revokeDetails = null,
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
             IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
+            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null,
             ISessionAnswerPlayback? answerPlayback = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
@@ -267,7 +268,7 @@ public sealed partial class SessionsConversationTests
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance, turns, Audit);
+                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store);
             Conversation = conversation;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
@@ -278,6 +279,7 @@ public sealed partial class SessionsConversationTests
                 reviewAppearanceSuggestion: appearance is null ? null : (message, eligible, validate, token) =>
                     AppearanceSuggestionReview.ReviewAsync(appearance, message, eligible, validate, token),
                 confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token),
+                instructionUse: instructionFactory?.Invoke(Access),
                 answerReads: answerPlayback is null ? null : new(workspace, answerPlayback));
         }
         public async ValueTask DisposeAsync()

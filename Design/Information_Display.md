@@ -658,6 +658,20 @@ Semantic expansion is UTF-8-budgeted while building, including repeated
 reference-link destinations, before any control or joined projection is
 published.
 
+### Separately gated display-only Markdown checklists
+
+The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.
+
+The profile preserves strict source/semantic UTF-8, block, node and nesting bounds from [native-text-v1](../src/Kora.Core/Presentation/NativeDetailProfile.cs). Escaped markers and inline/fenced/indented code remain literal. Images, raw HTML, tables and unsupported extensions retain the entire admitted exact source; no partial checklist is published ([maintained parser/accessibility contracts](../tests/Kora.Windows.IntegrationTests/NativeMarkdownChecklistTests.cs)).
+
+[Native projection](../src/Kora/MarkdownDocumentRenderer.cs) uses inert text with explicit state in the accessible name, not toggle/invoke automation patterns. Original source and ordinary literal Find remain distinct, bounded in-memory projections. Source/privacy/session retirement and the existing no-copy policy for finalized responses remain enforced by [controller contracts](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Checklists.cs).
+
+[Details dispatch](../src/Kora/DetailWindowController.cs) selects this profile only for already host-classified Markdown finalized responses, never by inspecting model markup. Plain-text current responses and retained original USER records stay literal; embedded/history Markdown retain the independently gated table profile. Neither legacy profile acquires checklist support.
+
+The [validated final-answer producer](../src/Kora.Application/ViewModels/MainViewModel.cs) freezes the exact original answer in host-typed state alongside the current ordinary response. Existing native, typed and activated-voice current-response Details pass only that answer body as Markdown, retaining the local-generation warning in native provenance. Visible response/speech and ordinary status PlainText remain unchanged ([actual-route tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MarkdownAnswerDetails.cs)).
+
+Implementation and deterministic headless contracts do not enable composition: checklist availability defaults to false, returning labelled entire-source fallback for an explicitly requested unqualified profile. This delivers the frozen **current** model-answer source route, not persisted retained assistant-answer Details; retained original USER remains PlainText. No public switch, provider/hardware/browser/resource access or installed accessibility/Enablement/RC qualification is added.
+
 Native chrome contains provenance, revision/digest, sensitivity, renderer
 status, Rendered/Source, continuous text, search, selection/exact-source copy
 and close controls, outside
@@ -1227,6 +1241,24 @@ Present source/provenance and a visible static-preview limitation.
 Malformed/unsupported content offers escaped source/plain text, explicitly labelled rather than falsely reported as a successful rich preview.
 Dynamic model-generated JavaScript applications are outside initial scope; they need a separate containment proof, not an "enable scripts" preference.
 Saving/exporting HTML is an exact user-selected write outside protected roots; opening exported content outside Kora is separately requested with limitations disclosed.
+
+### Strict Native Static HTML Implementation Boundary
+
+The additive `static-html-v1` implementation consumes only an explicitly admitted `DetailContentKind.StaticHtml` snapshot. It is **unqualified and unavailable by default**; production composition does not enable it ([renderer](../src/Kora/StaticHtmlDetailRenderer.cs), [composition](../src/Kora/App.axaml.cs)).
+The actual detail controller uses the existing immutable viewer, privacy/access/generation and source-copy boundaries and returns labelled complete-source fallback, not a helper-only preview or inferred HTML classification ([routing](../src/Kora/DetailWindowController.cs)).
+
+The approved initial grammar is an XML-compatible fragment, not HTML5 error recovery: lowercase `div`, `p`, `h1`-`h6`, `ul`, `ol`, `li`, `blockquote`, `pre`, `code`, `strong`, `em`, `b`, `i`, `span`, and self-closed `br`/`hr` ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+All other elements, every attribute (including namespaces), comments, processing instructions and CDATA are unsupported. Lists require direct `li` children; block content inside phrasing containers is rejected ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+Inline emphasis becomes semantic plain text, lists/quotes receive inert textual labels, and headings retain levels in labelled native text controls ([controls](../src/Kora/StaticHtmlDocumentRenderer.cs)).
+
+One authoritative profile limits parsing to 65,536 strict UTF-8 source bytes, 65,536 semantic UTF-8 bytes, 256 block-element starts, 2,048 element/text nodes (including whitespace text, excluding closing tags), element depth 16, zero attributes and 2,048 entity-reference introducers ([limits](../src/Kora.Core/Presentation/StaticHtmlProfile.cs)).
+Bounds are inclusive; separators and list/quote labels count toward semantic bytes. Only XML predefined and numeric entities are decoded, once; DTDs and resolvers are disabled. No additional public dependency or browser is used ([bounded parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [exact-boundary tests](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+Entity introducers are counted directly in source before decoding, independently of nodes. The immutable result records both counts; predefined and numeric references coalescing into one reader text node cannot bypass the separate 2,048-reference bound ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [measured boundaries](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+
+Unsupported, malformed, oversize-for-profile, unknown-profile and unqualified results never publish partial semantics. They retain the entire admitted Unicode source, including original line endings; rendering may collapse XML whitespace and normalize preformatted XML line endings without changing that source ([fallback](../src/Kora/StaticHtmlDetailRenderer.cs)).
+The existing 256 KiB admission ceiling still applies: content above admission is explicitly refused, never truncated ([admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+This increment adds no byte-ingestion route, asset resolver, rich clipboard serializer, active navigation or default content producer; existing byte decoders and source admission remain responsible for valid Unicode ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [composition](../src/Kora/App.axaml.cs)).
+Native/accessibility/theme/DPI qualification and complete rich-clipboard behavior remain separate enablement work, not implementation claims ([source/privacy tests](../tests/Kora.Windows.IntegrationTests/StaticHtmlDetailRendererTests.cs), [qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy)).
 
 ## Markdown and Extensions
 

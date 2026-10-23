@@ -10,6 +10,8 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    private sealed record FinalizedModelAnswer(string Body);
+
     private ICurrentResponsePresentation? currentResponsePresentation;
     private long currentResponseBindingRevision;
     private sealed record CurrentResponseInput(CurrentResponseSpeech? Source, Func<bool> Eligible);
@@ -119,9 +121,11 @@ public sealed partial class MainViewModel
                     {
                         var request = source.Request ?? throw new InvalidOperationException("Original host response identity unavailable.");
                         var content = new AdmittedDetailContent(new(new(source.Id), source.Revision),
-                            DetailContentKind.PlainText, DetailContentOrigin.FinalizedResponse,
-                            DetailSensitivity.DisclosureConfirmationRequired, "Current response", "Exact ordinary response",
-                            source.Title + Environment.NewLine + source.Body,
+                            source.ModelAnswer is null ? DetailContentKind.PlainText : DetailContentKind.Markdown,
+                            DetailContentOrigin.FinalizedResponse,
+                            DetailSensitivity.DisclosureConfirmationRequired, "Current response",
+                            source.ModelAnswer is null ? "Exact ordinary response" : "Exact model answer. Generated locally; verify important details.",
+                            source.ModelAnswer?.Body ?? source.Title + Environment.NewLine + source.Body,
                             new(request.SessionId, request.RequestId, request.TaskId));
                         confirmed = presenter.OpenDetails(content, Admitted) && Admitted() && lifetime();
                     }

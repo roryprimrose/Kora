@@ -96,7 +96,7 @@ public sealed class AdmittedDetailContent
         Digest = Convert.ToHexString(SHA256.HashData(encoding.GetBytes(source)));
         admission?.SetTag("kora.item.id", reference.ItemId.Value);
         admission?.SetTag("kora.item.revision", reference.Revision);
-        admission?.SetTag("kora.presentation.profile", NativeDetailProfile.Name);
+        admission?.SetTag("kora.presentation.profile", Profile);
         admission?.SetTag("kora.presentation.origin", origin.ToString());
         admission?.SetTag("kora.presentation.bytes", Utf8Bytes);
         admission?.SetStatus(ActivityStatusCode.Ok);
@@ -104,6 +104,7 @@ public sealed class AdmittedDetailContent
 
     public DetailContentReference Reference { get; }
     public DetailContentKind Kind { get; }
+    public string Profile => Kind == DetailContentKind.StaticHtml ? StaticHtmlProfile.Name : NativeDetailProfile.Name;
     public DetailContentOrigin Origin { get; }
     public DetailSensitivity Sensitivity { get; }
     public string Title { get; }

@@ -241,9 +241,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             token.ThrowIfCancellationRequested();
             if (!ConsumerAdmissionCurrent(turn))
             { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, turn.Provenance); }
-            var pending = turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
-                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
-                continuationToken => RevalidateContinuationAsync(turn, continuationToken), token);
+            var pending = RunAdapterAsync(turn, token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {

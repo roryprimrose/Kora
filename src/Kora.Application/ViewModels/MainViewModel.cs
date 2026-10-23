@@ -2980,6 +2980,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
         await ClosePromptPreparation();
+        await CloseAgentRun();
         await CloseSharedSkillUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
@@ -4170,6 +4171,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (currentResponseCommand is not null)
         {
             await ExecuteCurrentResponseCommandAsync(currentResponseCommand, spokenText, initiator, manualInput, currentResponseInput);
+            return;
+        }
+        if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
+        {
+            await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
         if (Kora.Application.Skills.SharedSkillInvocationCommand.Parse(spokenText, AssistantName) is { } skillUse)
@@ -5932,6 +5939,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ClosePromptPreparation();
+            await CloseAgentRun();
             await CloseSharedSkillUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);

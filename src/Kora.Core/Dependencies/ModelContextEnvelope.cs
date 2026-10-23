@@ -16,13 +16,14 @@ public sealed class ModelContextEnvelope
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
-        ModelToolMode toolMode = ModelToolMode.ReadOnly)
+        ModelToolMode toolMode = ModelToolMode.ReadOnly, ModelTurnConstraints? constraints = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
         ArgumentNullException.ThrowIfNull(userRequest);
         ArgumentNullException.ThrowIfNull(evidence);
         _ = ModelToolProtocol.GetTools(toolMode);
+        _ = constraints?.GetTools(toolMode);
         if (expiresAt <= createdAt)
         {
             throw new InvalidDataException("A context envelope requires a finite positive validity interval.");
@@ -33,6 +34,7 @@ public sealed class ModelContextEnvelope
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
         ToolMode = toolMode;
+        Constraints = constraints;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -68,20 +70,23 @@ public sealed class ModelContextEnvelope
     public DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
     public ModelToolMode ToolMode { get; }
+    public ModelTurnConstraints? Constraints { get; }
+    public IReadOnlyList<CapabilityDescriptor> Tools => Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
 
-    public byte[] Serialize() => JsonSerializer.SerializeToUtf8Bytes(new
+    public byte[] Serialize()
     {
-        SystemPolicy,
-        UserRequest,
-        Evidence,
-        ToolMode,
-        Tools = ModelToolProtocol.GetTools(ToolMode),
-        MaximumOutputUtf8Bytes,
-    });
+        if (Constraints is null)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(new
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes });
+        }
+        return JsonSerializer.SerializeToUtf8Bytes(new
+        { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, Constraints });
+    }
 
     public void RequireCompleteInputLimit()
     {
-        if (Serialize().Length > MaximumInputUtf8Bytes)
+        if (Serialize().Length > (Constraints?.InputUtf8Bytes ?? MaximumInputUtf8Bytes))
         { throw new InvalidDataException("The complete serialized context exceeds 32768 UTF-8 bytes; nothing was dropped."); }
     }
 

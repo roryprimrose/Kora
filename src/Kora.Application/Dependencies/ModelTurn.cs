@@ -11,6 +11,9 @@ public sealed class ModelTurn
     private int used;
     private bool running;
     private int forbiddenToolAttempt;
+    private int toolCalls;
+    internal bool TryAdmitTool() => Interlocked.Increment(ref toolCalls) <=
+        (Context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls);
     internal bool HasForbiddenToolAttempt => Volatile.Read(ref forbiddenToolAttempt) != 0;
     internal void RejectToolAttempt() => Interlocked.Exchange(ref forbiddenToolAttempt, 1);
     internal bool IsRunning { get => Volatile.Read(ref running); set => Volatile.Write(ref running, value); }

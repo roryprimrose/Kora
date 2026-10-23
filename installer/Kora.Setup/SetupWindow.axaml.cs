@@ -116,6 +116,8 @@ public sealed partial class SetupWindow : Window
         }
     }
 
+    [SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Opened/Click require void; cancellation is observed and failures route to the logged setup failure state.")]
     private async void OnCheckDependencies(object? sender, EventArgs args)
     {
         checkingPreflight = true;
@@ -126,6 +128,10 @@ public sealed partial class SetupWindow : Window
         catch (OperationCanceledException) when (optionalCancellation.IsCancellationRequested)
         {
             // Closing setup cancels read-only work; it never approves preparation.
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            session.Fail(exception.HResult);
         }
         finally
         {
@@ -148,6 +154,8 @@ public sealed partial class SetupWindow : Window
         }
     }
 
+    [SuppressMessage("Usage", "VSTHRD100",
+        Justification = "INotifyPropertyChanged requires void; optional preparation failures route to the logged setup failure state.")]
     private async void OnSessionChanged(object? sender, PropertyChangedEventArgs args)
     {
         Refresh();
@@ -158,7 +166,7 @@ public sealed partial class SetupWindow : Window
             {
                 await session.PrepareOptionalAsync(optionalCancellation.Token);
             }
-            catch (InvalidOperationException exception)
+            catch (Exception exception) when (exception is not OutOfMemoryException)
             {
                 session.Fail(exception.HResult);
             }

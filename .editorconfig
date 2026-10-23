@@ -25,11 +25,11 @@ indent_size = 2
 # Catalog instances are injected to preserve a replaceable application composition boundary.
 dotnet_diagnostic.CA1822.severity = none
 
-# These rules conflict with framework-required async event/ICommand signatures and UI-context awaits.
+# These rules conflict with framework-required signatures and UI-context awaits.
 dotnet_diagnostic.MA0004.severity = none
 dotnet_diagnostic.MA0046.severity = none
 dotnet_diagnostic.MA0051.severity = none
-dotnet_diagnostic.VSTHRD100.severity = none
+dotnet_diagnostic.VSTHRD100.severity = warning
 dotnet_diagnostic.VSTHRD200.severity = none
 
 #### Core EditorConfig Options ####

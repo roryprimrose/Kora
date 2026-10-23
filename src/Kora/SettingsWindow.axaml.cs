@@ -50,6 +50,7 @@ public sealed partial class SettingsWindow : Window
         callsTab = this.FindControl<TabItem>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {
             this.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!.Bind(captionDisplay);

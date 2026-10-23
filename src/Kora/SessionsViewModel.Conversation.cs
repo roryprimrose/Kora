@@ -250,6 +250,7 @@ internal sealed partial class SessionsViewModel
     {
         ClearHistoryContext();
         ClearConversationCancellation();
+        CancelAppearanceSuggestion(reportCancellation: false);
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -266,6 +267,10 @@ internal sealed partial class SessionsViewModel
     {
         ObserveConversationCancellation();
         NotifyConversationCancellation();
+        if (appearanceReview is { Available: false }) { CancelAppearanceSuggestion(reportCancellation: false); }
+        OnPropertyChanged(nameof(AppearanceSuggestionDescription));
+        OnPropertyChanged(nameof(CanConfirmAppearanceSuggestion));
+        OnPropertyChanged(nameof(CanReviewAppearanceSuggestion));
         RestoreUnsent();
         NotifyHistoryContext();
         NotifyConversationSearch();

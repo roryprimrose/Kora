@@ -112,6 +112,12 @@
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
+        <WrapPanel>
+          <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+          <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+        </WrapPanel>
       </StackPanel>
     </Expander>
     <WrapPanel>

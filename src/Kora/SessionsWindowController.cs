@@ -155,7 +155,8 @@ internal sealed partial class SessionsWindowController(
             session => details?.RevokeConversationSession(session),
             (source, original, admitted, token) => ReviewOriginalMessageReuse?.Invoke(source, original,
                 window ?? (Avalonia.Controls.Window?)compact, admitted, token)
-                ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."));
+                ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."),
+            main.ReviewAppearanceSuggestionAsync, main.ConfirmAppearanceSuggestionAsync);
         if (ConversationQuestions is { } questions)
         {
             model.QuestionPresenter = (request, generation, spec, expiry, admitted, token) =>

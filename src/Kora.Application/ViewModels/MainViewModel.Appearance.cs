@@ -16,7 +16,8 @@ public sealed partial class MainViewModel
         // A forced desktop close need not pump UI continuations to join the owned storage write.
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
         await Task.WhenAll(appearancePersistence, preferencePersistence, consentPersistence,
-            AuditPersistence, outputDiscoveryPersistence, outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
+            appearanceSuggestionPersistence, AuditPersistence, outputDiscoveryPersistence,
+            outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
 #pragma warning restore VSTHRD003
     }
 
@@ -26,9 +27,37 @@ public sealed partial class MainViewModel
     private readonly Dictionary<AppearanceOption, PendingAppearance> pendingAppearance = [];
     private bool applyingAppearance;
     private Task appearancePersistence = Task.CompletedTask;
+    private Task appearanceSuggestionPersistence = Task.CompletedTask;
+
+    public async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(review);
+        if (disposed || !appearanceSuggestionPersistence.IsCompleted)
+        { throw new InvalidOperationException("Appearance confirmation is unavailable while the host is closing or another confirmation is pending."); }
+        var work = review.ConfirmAsync(token);
+        appearanceSuggestionPersistence = work;
+        try { return await work; }
+        finally { appearanceSuggestionPersistence = Task.CompletedTask; }
+    }
+
+    public Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
+        Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
+        Func<CancellationToken, Task> validateSource, CancellationToken token)
+    {
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var call = CallPolicyRevision;
+        var ownership = settingsOwnershipRevision();
+        var binding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
+            && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
+            && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
+            && settingsOwnershipRevision() == ownership
+            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding && sourceCurrent();
+        return AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, message, Eligible, validateSource, token);
+    }
 
     public Task AppearanceUpdate { get; private set; } = Task.CompletedTask;
-    public bool IsReaderTypographyUpdatePending => applyingAppearance;
+    public bool IsReaderTypographyUpdatePending => applyingAppearance || !appearanceSuggestionPersistence.IsCompleted;
 
     private sealed record PendingAppearance(AppearanceValue Value, SecurityAuditInitiator Initiator,
         string PropertyName, Func<bool> Eligible, Func<HostActivity> Begin);
@@ -41,7 +70,7 @@ public sealed partial class MainViewModel
 
     public void EnsureReaderTypographyAvailable()
     {
-        if (applyingAppearance)
+        if (IsReaderTypographyUpdatePending)
         {
             throw new InvalidOperationException("Native reader text scale is being saved. Wait for the preference result before opening a reader.");
         }

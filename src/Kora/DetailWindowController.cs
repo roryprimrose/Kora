@@ -265,8 +265,8 @@ public sealed partial class DetailWindowController : IDisposable
                 : PublishContent(content, owner, existing, existing.State.Status, activateOnly: true, acknowledge);
         }
         var generation = state.Generation;
-        // The additive table profile remains unavailable in composition until its own qualification.
-        var result = renderer.Render(content.Source, content.Kind, content.Reference, NativeDetailFormat.PipeTablesV2);
+        // Additive native profiles remain unavailable in composition until their own qualification.
+        var result = renderer.Render(content.Source, content.Kind, content.Reference, SelectNativeFormat(content));
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
@@ -300,6 +300,11 @@ public sealed partial class DetailWindowController : IDisposable
         windows.Add(reference, (state, view));
         return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
     }
+
+    private static NativeDetailFormat SelectNativeFormat(AdmittedDetailContent content) =>
+        content.Kind == DetailContentKind.Markdown && content.Origin == DetailContentOrigin.FinalizedResponse
+            ? NativeDetailFormat.MarkdownChecklistsV3
+            : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
         (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly, Action? acknowledge = null)

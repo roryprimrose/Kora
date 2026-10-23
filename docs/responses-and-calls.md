@@ -69,6 +69,54 @@ displays constant syntax, not question content or current IDs.
 Navigation status is separate from the current response and transcript;
 question controls retain their existing explicit one-shot answer behavior.
 
+## Conversation clarification
+
+A conversation sent using **Submit with one clarification** in Sessions or
+its compact view can use the existing native question window for **one**
+structured clarification during that exact model turn. Ordinary **Submit exact
+message** keeps its existing final-answer/read-only-tool behavior; it does not
+automatically acquire question continuation. The clarification route is a
+tool-free local request: it does not silently include
+history, memory, attachments or instructions. Models and profiles that are not
+qualified remain explicitly unavailable; this implementation does not enable
+either local inference or hosted egress.
+
+The model must issue a supported structured question, not prose that looks
+like a question or approval. The supported shape is either two to four
+single-choice labels or free text bounded to 500 characters. Other shapes,
+including multi-select proposals, are refused rather than converted to yes/no
+or a different answer shape. The ordinary host question controls keep their
+existing declared multi-select rules for other workflows.
+
+Review the question, then explicitly **Submit answer**, or use **Answer by
+voice** / **Hear then answer** when the one exact foreground question and
+current voice, microphone, privacy and call gates permit it. Saving a draft
+does not submit it. The host retains the original request channel and the
+actual reply channel; voice input is never relabelled as native typed input.
+Clarification cannot approve an action, grant tool permission or collect a
+credential.
+
+The original turn's fixed 15-second deadline is not renewed by opening,
+reviewing or drafting an answer. Only a fresh submitted answer for the same
+session, generation, task and question revision can resume that turn, once.
+**Refresh running work** and **Cancel this running conversation task** inspect
+and cancel that exact turn in Sessions or its compact view, including while
+the clarification is pending. Cancellation acceptance is not terminal success:
+the host joins the question/voice/provider work before retaining a cancelled
+outcome. Once terminal storage owns the outcome, cancellation cannot roll back
+the answer ([canonical lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs),
+[exact cancellation controls](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+Cancellation, expiry, changed ownership, an unavailable audit/store, a foreign
+answer or any uncertain state prevents continuation. There is no replay,
+automatic retry or provider fallback. Inspect the original conversation/task
+outcome and explicitly start a fresh request when recovery is needed.
+
+After a successful continuation, the genuine final ASSISTANT answer is retained
+separately from the original USER message. A refusal or provider failure has an
+explicit HOST terminal outcome, not a fabricated answer. If a privacy/source
+change prevents terminal confirmation, the original request remains
+unconfirmed for inspection; no successful retention is inferred.
+
 ## Cancel an exact running conversation
 
 In Sessions, **Refresh running work** observes only the selected exact active conversation.

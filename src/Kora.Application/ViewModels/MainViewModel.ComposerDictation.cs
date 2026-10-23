@@ -26,7 +26,7 @@ public sealed partial class MainViewModel
             && IsHostInputEligible && voiceOwnershipEligible() && IsVoiceReadinessEligible(privacy)
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && Volatile.Read(ref pushToTalkHeld) == 0 && !IsBusy && !IsResponseInteractionPending
-            && questionVoiceReplies?.IsActive != true && !textToSpeech.IsSpeaking && !IsSpeaking
+            && questionVoiceReplies?.IsActive != true && promptInputVoice?.IsActive != true && !textToSpeech.IsSpeaking && !IsSpeaking
                 ? new(EffectiveMicrophone!, Interlocked.Read(ref voiceRecoveryRevision), privacy.TopologyRevision,
                     CallPolicyRevision, auditImpactOwnerRevision(), Interlocked.Read(ref workspaceSurfaceInputRevision))
                 : null;

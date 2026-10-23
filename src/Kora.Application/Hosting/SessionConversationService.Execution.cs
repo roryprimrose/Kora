@@ -46,39 +46,63 @@ public sealed partial class SessionConversationService
         { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }
         turn.TaskRevision = dispatched.Task.Revision;
         turn.ConversationTarget = target;
-        var result = await executor.RunAsync(turn, live, token, validateSource).ConfigureAwait(false);
-        if (!ReferenceEquals(turn.TerminalResult, result) || result.Provenance != turn.Provenance
-            || !Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
-            || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
-        { throw new InvalidDataException("Only the owning admitted host's exact terminal result may complete this request."); }
-        if (resolveResponse is not null && result.Outcome == ModelTurnOutcome.Succeeded)
+        await using var running = RegisterRunningConversation(target, turn, live, token);
+        var confirmed = false;
+        try
         {
-            result = resolveResponse(result);
-            if (result is null || result.Provenance != turn.Provenance
-                || !Enum.IsDefined(result.Reason)
-                || result.Outcome is not (ModelTurnOutcome.Succeeded or ModelTurnOutcome.Unknown)
+            RunningConversationChanged?.Invoke(running.Status);
+            var result = await executor.RunAsync(turn, () => running.CanContinue, running.Token, validateSource).ConfigureAwait(false);
+            if (!ReferenceEquals(turn.TerminalResult, result) || result.Provenance != turn.Provenance
+                || !Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
                 || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
-            { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
+            { throw new InvalidDataException("Only the owning admitted host's exact terminal result may complete this request."); }
+            // This gate chooses one winner before any terminal transaction. A commit in progress cannot be rolled back by Cancel.
+            if (running.BeginCompletion())
+            {
+                result = new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, turn.Provenance);
+            }
+            // Logical timeout/cancellation is not physical completion. Caller shutdown retains its existing Unknown/recovery path.
+            if (!token.IsCancellationRequested)
+            { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            await running.JoinCancellationAsync().ConfigureAwait(false);
+            if (resolveResponse is not null && result.Outcome == ModelTurnOutcome.Succeeded)
+            {
+                result = resolveResponse(result);
+                if (result is null || result.Provenance != turn.Provenance
+                    || !Enum.IsDefined(result.Reason)
+                    || result.Outcome is not (ModelTurnOutcome.Succeeded or ModelTurnOutcome.Unknown)
+                    || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
+                { throw new InvalidDataException("A host source response projection cannot change turn authority or promote a failure."); }
+            }
+            ConversationResponse? answer = null;
+            if (result.Outcome == ModelTurnOutcome.Succeeded)
+            {
+                try { answer = ConversationResponse.FromResult(result, turn.Provenance); }
+                catch (Exception exception) when (exception is InvalidDataException or ConversationCredentialException)
+                { result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance); }
+            }
+            if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
+            token.ThrowIfCancellationRequested();
+            bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded || Current() && turns.IsQuiescent);
+            if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
+            { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
+            var completed = await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
+            if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
+                || completed.Message.AssistantResponse != answer || completed.Message.Execution != turn.Provenance
+                || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
+                || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)
+            { throw new IOException("Assistant completion is unconfirmed; inspect the exact original request without retry."); }
+            await RequireSubmissionReadbackAsync(completed, target, request, retained.Message.Body, live, validateSource, token).ConfigureAwait(false);
+            confirmed = true;
+            running.Complete(completed.Message.Outcome!.Value, completed.Task.State);
+            return completed;
         }
-        ConversationResponse? answer = null;
-        if (result.Outcome == ModelTurnOutcome.Succeeded)
+        finally
         {
-            try { answer = ConversationResponse.FromResult(result, turn.Provenance); }
-            catch (Exception exception) when (exception is InvalidDataException or ConversationCredentialException)
-            { result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance); }
+            // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
+            if (running.CancellationAccepted) { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            ReleaseRunningConversation(running, confirmed);
         }
-        if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
-        token.ThrowIfCancellationRequested();
-        bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded || Current() && turns.IsQuiescent);
-        if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
-        { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
-        var completed = await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
-        if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
-            || completed.Message.AssistantResponse != answer || completed.Message.Execution != turn.Provenance
-            || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
-            || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)
-        { throw new IOException("Assistant completion is unconfirmed; inspect the exact original request without retry."); }
-        return completed;
     }
 
     private async Task RequireSubmissionReadbackAsync(ConversationSubmissionReceipt receipt, SessionWorkspaceEntry target,

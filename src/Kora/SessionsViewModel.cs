@@ -30,6 +30,10 @@ internal sealed partial class SessionsViewModel(
     Func<AdmittedDetailContent, Func<bool>, Func<CancellationToken, Task<AdmittedDetailContent>>, CancellationToken, Task<string>>? openConversationDetail = null,
     Action<HostId<SessionIdentity>>? revokeConversationDetails = null,
     Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reviewOriginalMessageReuse = null,
+    Func<Kora.Core.Conversation.ConversationMessage, Func<bool>, Func<CancellationToken, Task>, CancellationToken,
+        Task<Kora.Application.Configuration.AppearanceSuggestionReview>>? reviewAppearanceSuggestion = null,
+    Func<Kora.Application.Configuration.AppearanceSuggestionReview, CancellationToken,
+        Task<Kora.Application.Configuration.AppearanceApplyResult>>? confirmAppearanceSuggestion = null,
     ScopedInstructionUseBroker? instructionUse = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);

@@ -44,7 +44,10 @@ public sealed partial class MainViewModel
         return true;
     }
 
-    private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission()
+    private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission() =>
+        promptInputVoice?.IsActive != true ? ObserveActivatedInputVoiceAdmission() : null;
+
+    private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission()
     {
         var privacy = privacyObservation.Current;
         return composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
@@ -59,10 +62,17 @@ public sealed partial class MainViewModel
     private void OnQuestionVoiceReadinessChanged(object? sender, PropertyChangedEventArgs args) =>
         questionVoiceReplies!.Revalidate();
 
-    public void RetireQuestionVoiceReply() =>
+    public void RetireQuestionVoiceReply()
+    {
+        RetirePromptInputVoice();
         questionVoiceReplies?.Retire("Voice admission changed. Microphone closed; native question remains answerable.");
+    }
 
-    private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key) => RetireComposerDictation();
+    private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key)
+    {
+        RetirePromptInputVoice();
+        RetireComposerDictation();
+    }
 
     private async Task SpeakExactQuestionAsync(string text, Func<bool> eligible, CancellationToken token)
     {

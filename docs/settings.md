@@ -946,6 +946,31 @@ See [output workflow](voice-and-audio.md#audio-output-selection) and
 Re-enumerates microphones, voices, speakers, Windows defaults, mute state, and
 dependency readiness. Refresh does not enable listening.
 
+## Optional speech-input data
+
+**Speech & audio → Optional speech-input components** manages only exact
+host-catalogued optional model data. This release has no qualified optional
+input offers, so the panel reports that state and cannot download or claim
+installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+[Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
+
+For an admitted future offer, **Inspect** reports installed bytes, integrity,
+compatibility, qualification and ownership separately. **Prepare / retry**,
+**Verify** and **Remove** require a fresh complete review of the exact model,
+sources, licence, download/storage/resource costs and operation before approval.
+Verification of already-present data is local-only. Cancellation, stale review,
+integrity failure or an uncertain write requires inspection and a new explicit
+review; existing foreign/shared assets are never overwritten or removed
+([shared service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs),
+[atomic storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
+
+Preparation does not select a runtime, open the microphone, enroll a verifier,
+enable learning or change reasoning/output settings. Removal affects only the
+exact managed model data after exclusive quiescence; saved selections, personal
+profiles, calibration and secrets are outside this operation. Burn uses the
+same lifecycle with individually unchecked choices; skipping optional work
+keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
+
 ## Responses
 
 ### Device default

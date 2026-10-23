@@ -8561,7 +8561,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
-            Kora.Application.Network.WebSummaryWorkflow? webSummary = null)
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
+            SpeechComponentSetupService? speechComponentSetup = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8743,7 +8744,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
                 speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
-                clipboardExplanation: clipboardWorkflow);
+                clipboardExplanation: clipboardWorkflow,
+                speechComponentSetup: speechComponentSetup);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

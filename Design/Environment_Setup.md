@@ -244,7 +244,33 @@ The [approved speech-input design](Speech_Input.md#optional-installation-and-run
 requires future qualified wake/VAD/ASR and optional verifier assets to be
 available through both explicit WiX/Burn install-time preparation and later
 Settings setup. Current installer choices remain PowerShell, Ollama/Qwen and
-Kokoro; this design does not add checkboxes or enable speech profiles.
+Kokoro. The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+now implements exact review, consent, verification, removal and retry orchestration,
+with [private atomic data storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs).
+The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
+is empty: D-002 has not supplied an authoritative qualified input backend/model
+offer. Settings and Burn therefore report no optional input offers, not fake
+installation success; no speech profile is enabled.
+
+The [catalogue metadata](../src/Kora.Core/Dependencies/SpeechComponentDefinition.cs)
+pins an exact model and immutable installed runtime-profile identity, source
+bytes/digests, licence, qualification and resource costs. The installed host
+adapter owns exact native/backend/hardware compatibility, all consumers,
+exclusive quiescence and inert functional checks through
+[the runtime seam](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs).
+The production unavailable adapter denies those operations. A release adding
+an offer must supply and qualify that adapter; component setup cannot install
+native code or launch prerequisites.
+
+[Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
+[Burn choices](../installer/Kora.Setup/SpeechComponentInstallChoice.cs)
+consume the same one-use, expiring exact review and shared service. Inspection
+hashes existing data without downloads or model loading. Mutation rechecks the
+reviewed content, host admission and exclusive ownership; preparation publishes
+a complete verified directory without overwriting existing data. Interrupted
+removal retains an exact recovery record. A failed/uncertain operation requires
+inspection and a new explicit review rather than automatic replay
+([deterministic tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsSpeechComponentStoreTests.cs)).
 
 Extend one versioned host catalogue and existing setup seams, rather than
 implementing independent installer and application download policies. Each

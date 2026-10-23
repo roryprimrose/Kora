@@ -1,0 +1,144 @@
+using System.Diagnostics;
+using Kora.Application.Dependencies;
+using Kora.Core.Auditing;
+using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Microsoft.Extensions.Logging.Abstractions;
+
+namespace Kora.Testing;
+
+internal sealed class SpeechComponentSetupFixture
+{
+    internal SpeechComponentDefinition Component { get; } = SpeechComponentFixture.Definition();
+    internal MemoryStore Store { get; } = new();
+    internal Runtime RuntimeAdapter { get; } = new();
+    internal Audit AuditLog { get; } = new();
+    internal Clock Time { get; } = new();
+    internal bool Eligible { get; set; } = true;
+    internal List<string> ProgressMessages { get; } = [];
+    internal IProgress<string> Progress => new SynchronousProgress(ProgressMessages.Add);
+    internal SpeechComponentSetupService Service { get; }
+
+    internal SpeechComponentSetupFixture()
+    {
+        Service = Create(Store);
+    }
+
+    internal SpeechComponentSetupService Create(ISpeechComponentStore store) =>
+        new(new([Component]), store, RuntimeAdapter, AuditLog, NullLogger<SpeechComponentSetupService>.Instance, Time);
+
+    internal Task<SpeechComponentSetupPlan> Review(SpeechComponentOperation operation = SpeechComponentOperation.Prepare) =>
+        Service.ReviewAsync(Component.Identity, operation, () => Eligible, TestContext.Current.CancellationToken);
+
+    internal sealed class SynchronousProgress(Action<string> report) : IProgress<string>
+    {
+        public void Report(string value) => report(value);
+    }
+
+    internal sealed class Clock : TimeProvider
+    {
+        internal DateTimeOffset Now { get; set; } = new(2026, 10, 23, 0, 0, 0, TimeSpan.Zero);
+        public override DateTimeOffset GetUtcNow() => Now;
+    }
+
+    internal sealed class MemoryStore : ISpeechComponentStore
+    {
+        internal SpeechComponentSnapshot State { get; set; } = new(false, false, SpeechComponentOwnership.Missing, "missing");
+        internal int Inspections { get; private set; }
+        internal int Prepares { get; private set; }
+        internal int Removals { get; private set; }
+        internal Exception? InspectionFailure { get; set; }
+        internal Exception? WriteFailure { get; set; }
+        internal bool WrongRemoval { get; set; }
+        internal bool CorruptPrepare { get; set; }
+        internal Action? BeforeWrite { get; set; }
+        internal Action? AfterWrite { get; set; }
+        internal Action? AfterInspect { get; set; }
+        public Task<SpeechComponentSnapshot> InspectAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Inspections++;
+            if (InspectionFailure is { } failure) { throw failure; }
+            var state = State;
+            AfterInspect?.Invoke();
+            return Task.FromResult(state);
+        }
+        public Task PrepareAsync(SpeechComponentDefinition component, SpeechComponentSnapshot expected, Func<bool> admitted,
+            IProgress<string> progress, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            BeforeWrite?.Invoke();
+            if (!admitted()) { throw new UnauthorizedAccessException("Fixture admission revoked."); }
+            if (WriteFailure is { } failure) { throw failure; }
+            Prepares++;
+            State = new(true, !CorruptPrepare, SpeechComponentOwnership.Managed, "installed");
+            AfterWrite?.Invoke();
+            return Task.CompletedTask;
+        }
+        public Task RemoveAsync(SpeechComponentDefinition component, SpeechComponentSnapshot expected, Func<bool> admitted,
+            CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            BeforeWrite?.Invoke();
+            if (!admitted()) { throw new UnauthorizedAccessException("Fixture admission revoked."); }
+            if (WriteFailure is { } failure) { throw failure; }
+            Removals++;
+            State = WrongRemoval ? new(false, false, SpeechComponentOwnership.RemovalPending, "pending")
+                : new(false, false, SpeechComponentOwnership.Missing, "missing");
+            AfterWrite?.Invoke();
+            return Task.CompletedTask;
+        }
+    }
+
+    internal sealed class Runtime : ISpeechComponentRuntime
+    {
+        internal bool Compatible { get; set; } = true;
+        internal bool Quiescent { get; set; } = true;
+        internal bool Functional { get; set; } = true;
+        internal int Checks { get; private set; }
+        internal int Leases { get; private set; }
+        internal int Releases { get; private set; }
+        internal Exception? ReleaseFailure { get; set; }
+        internal Action? BeforeCheck { get; set; }
+        public bool IsCompatible(SpeechComponentDefinition component) => Compatible;
+        public ValueTask<IAsyncDisposable?> TryAcquireExclusiveAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            if (!Quiescent) { return ValueTask.FromResult<IAsyncDisposable?>(null); }
+            Leases++;
+            return ValueTask.FromResult<IAsyncDisposable?>(new Lease(this));
+        }
+        public Task<bool> VerifyAsync(SpeechComponentDefinition component, CancellationToken cancellationToken)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            Checks++;
+            BeforeCheck?.Invoke();
+            return Task.FromResult(Functional);
+        }
+        private sealed class Lease(Runtime owner) : IAsyncDisposable
+        {
+            public ValueTask DisposeAsync()
+            {
+                owner.Releases++;
+                if (owner.ReleaseFailure is { } failure) { throw failure; }
+                return ValueTask.CompletedTask;
+            }
+        }
+    }
+
+    internal sealed class Audit : ISecurityAuditLog
+    {
+        internal List<SecurityAuditEvent> Events { get; } = [];
+        internal List<HostRequest> Requests { get; } = [];
+        internal List<ActivityContext> Traces { get; } = [];
+        internal SecurityAuditOutcome? FailOn { get; set; }
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            if (auditEvent.Outcome == FailOn) { throw new IOException("Fixture audit unavailable."); }
+            Events.Add(auditEvent);
+            Requests.Add(HostActivity.RequireCurrent().Request);
+            Traces.Add(Activity.Current!.Context);
+        }
+    }
+}

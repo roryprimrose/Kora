@@ -3988,6 +3988,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             1,
             SecurityAuditInitiator.TypedCommand);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
     {
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];

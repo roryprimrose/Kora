@@ -173,6 +173,8 @@ public sealed partial class MainWindow : Window
         DisposePresenceResources();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Loaded requires void; initialization failures are logged and retire the unusable window.")]
     private async void OnLoaded(object? sender, RoutedEventArgs eventArgs)
     {
         if (!initializeHost) { return; }
@@ -309,6 +311,8 @@ public sealed partial class MainWindow : Window
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "WindowActionRequested requires void; RunWindowActionAsync routes failures to ReportWindowActionFailure.")]
     private async void OnWindowActionRequested(object? sender, WindowAction action)
     {
         if (retiring) { return; }

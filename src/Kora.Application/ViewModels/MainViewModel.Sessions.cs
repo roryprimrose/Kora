@@ -73,6 +73,7 @@ public sealed partial class MainViewModel
         var topologyRevision = privacyObservation.Current.TopologyRevision;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
             or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel;
+        if (requestCommand) { RetireSpeechSummarySuggestions(); }
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand;
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
@@ -140,6 +141,8 @@ public sealed partial class MainViewModel
                     .ExecuteAsync(command, origin, Eligible, CancellationToken.None)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
+            if (result.RequestSubmission is { } submitted)
+            { await PinSpeechSummarySuggestionAsync(submitted, Eligible); }
             ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }

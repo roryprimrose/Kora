@@ -147,7 +147,7 @@ public sealed partial class MainViewModelTests
 
     private sealed partial class SessionCommandStore : ISessionConversationStore
     {
-        internal ConversationMessage? RequestMessage { get; private set; }
+        internal ConversationMessage? RequestMessage { get; set; }
         internal int RequestRetentions { get; private set; }
         public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request, HostRevision generation,
             long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)

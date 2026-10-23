@@ -1,5 +1,21 @@
 # Responses and manual call mode
 
+## Answer from a retained session attachment
+
+In **Sessions**, select the exact Active conversation and choose **Answer from this session's retained attachment**. The existing native source viewer opens only that session's already retained immutable text/Markdown copy; it never opens a picker or the original live file ([native route](../src/Kora/SessionsViewModel.AttachmentAnswer.cs)).
+
+Enter a bounded lexical question, choose **Review exact evidence for this question**, and inspect the complete admitted excerpts and question. Separately choose **Consent once: answer locally and retain in this conversation**. Saving or reading an attachment is not permission to send it to a model; source-use policy and qualified local runtime independently admit the turn ([review workflow](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
+
+This explicit operation uses one local-only, tool-free turn. It does not add history, memory, other attachments, folders, tools or hosted fallback. Changed/deleted/replaced sources, revoked consent, incomplete lexical selection and over-budget input are rejected rather than silently truncated. Inspection does not renew retention or Keep ([source and budget fences](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
+
+The host binds reviewed evidence to the exact submitted request through the [shared reviewed-context lifecycle](../src/Kora.Application/Hosting/SessionConversationService.cs). Citation resolution runs before the assistant response is committed, after the owning turn's terminal identity and cancellation checks ([execution boundary](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Refusal before conversation retention remains an explicit refusal, not an uncertain saved request. Unconfirmed submission or later audit failure identifies the actual submitted conversation request, never the source-review request ([attachment completion boundary](../src/Kora.Application/Hosting/SessionConversationService.AttachmentAnswer.cs)).
+
+An admitted result retains the question and genuine ASSISTANT answer in the same conversation. Each supported claim has host-resolved retained session/source/revision/digest and exact UTF-16 span references, not model-invented locations. Citation identity is verified, not semantic truth: inspect the retained source to check each claim. Unsupported evidence is explicit ([response admission](../src/Kora.Core/Context/SessionAttachmentAnswerResponse.cs), [retained commit](../src/Kora.Application/Hosting/SessionConversationService.AttachmentAnswer.cs)).
+
+Production source-use policy and unqualified runtimes remain unavailable; no generation or provider qualification is enabled by these controls. Cancellation clears pending review; late results cannot be published as success. If retention/commit is unconfirmed, inspect exact conversation/task receipts without repeating the turn. Close/privacy retirement clears private source-review controls ([native lifecycle](../src/Kora/LocalFilePreviewWindow.AttachmentAnswer.cs), [execution fences](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 ## Response modes
 
 Kora supports three response modes:

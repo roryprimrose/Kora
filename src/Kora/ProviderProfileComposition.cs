@@ -14,7 +14,10 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ProviderProfileConfigurationService>();
         services.AddSingleton<SessionProviderProfileConfigurationService>();
         services.AddSingleton<ISessionProviderProfileStore>(provider => provider.GetRequiredService<WindowsSqliteHostInteractionStore>());
-        services.AddSingleton<IProviderCapabilityCatalogue, UnavailableProviderCapabilityCatalogue>();
+        services.AddSingleton<IWindowsOllamaQualificationSource, UnqualifiedOllamaQualificationSource>();
+        services.AddSingleton<WindowsOllamaRuntimeResolver>();
+        services.AddSingleton<IProviderCapabilityCatalogue>(provider => provider.GetRequiredService<WindowsOllamaRuntimeResolver>());
+        services.AddSingleton<OllamaModelProviderFactory>();
         services.AddSingleton<ILocalProviderInstallationObservation, WindowsOllamaInstallationObservation>();
         services.AddSingleton<IProviderProfilePreferences>(provider =>
             new LocalProviderProfilePreferences(provider.GetRequiredService<IPreferenceStore>()));

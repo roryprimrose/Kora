@@ -28,7 +28,8 @@ public static class CapabilityReplyWire
         && reply.Descriptor is null && HasNoPages(reply);
 
     private static bool HasNoPages(CapabilityReply reply) =>
-        reply.Version is null && reply.Capabilities is null && reply.Readiness is null && reply.Runtimes is null;
+        reply.Version is null && reply.Capabilities is null && reply.Readiness is null && reply.Runtimes is null
+        && reply.WebPage is null;
 
     public static bool IsExactDescriptor(CapabilityDescriptor descriptor, CapabilityDescriptor expected) =>
         string.Equals(descriptor.Id, expected.Id, StringComparison.Ordinal)

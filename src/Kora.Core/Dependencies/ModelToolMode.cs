@@ -8,4 +8,7 @@ public enum ModelToolMode
 
     /// <summary>No tool declarations, calls, results or dispatch are admitted.</summary>
     None,
+
+    /// <summary>One explicitly approved public page, returned only to the original local model turn.</summary>
+    LocalWebPage,
 }

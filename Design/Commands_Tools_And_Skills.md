@@ -492,8 +492,17 @@ In neither case does the model directly execute application code.
 
 The [bounded read-only continuation implementation](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
 now supplies that host-owned loop over a provider-neutral portable transport.
-It consumes only the existing six read-only capabilities through the admitted
-host callback. Complete-message validation precedes serial one-use calls;
+Its default discovery mode consumes the existing six read-only capabilities through the admitted
+host callback. A separate explicit `LocalWebPage` mode exposes only
+`network.get_web_page`, classified as bounded network read rather than discovery.
+The original user supplies one exact destination and approves its host-resolved
+once-only proposal in the native grant workflow. The existing `WebPageGet`
+action performs retrieval; another redirect destination requires a fresh request.
+An inert, local-only, provenance-bearing result (2 KiB including framing) resumes
+the same admitted local turn and original retained conversation task. Hosted
+turns, tool-free flows, absent approval composition and unqualified local profiles
+cannot acquire this capability. See the [complete user operation](../docs/tools-and-built-in-skills.md#retrieve-and-summarize-one-public-page-locally).
+Complete-message validation precedes serial one-use calls;
 genuine correlated results remain inert data, and a final answer uses the
 existing response contract. Live host revalidation, complete cumulative byte,
 call/round and deadline limits, no retries and actual transport termination

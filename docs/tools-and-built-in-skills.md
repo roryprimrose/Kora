@@ -8,8 +8,41 @@ those references.
 **No script-backed built-in skill executor ships in the current release.**
 Exact commands run host-owned C# actions. A verified local model can answer,
 ask a clarification question or propose an existing action/grant change; this
-is not a generic model tool/result loop. Selecting artifact instructions does
+does not grant a general execution or browsing capability. Selecting artifact instructions does
 not execute their scripts or grant permission.
+
+### Retrieve and summarize one public page locally
+
+In **Sessions** or the compact conversation window, select an exact Active
+session and enter `get web page https://example.com/` in the conversation
+composer. Choose **Retrieve and summarize one page locally** (not ordinary
+Submit). The address must be an absolute HTTP or HTTPS address without
+credentials or a fragment.
+
+If the local model is admitted, its one-page request opens the existing native
+approval window. Review the exact destination and action, choose **Approve
+once**, and submit the approval. Closing/cancelling, expiry, revoked authority,
+or changed ownership/private presentation prevents continuation. Ordinary
+questions and model text cannot approve the operation. No preapproved address
+or reusable grant automatically authorizes this workflow.
+
+Kora retrieves bounded inert text through its existing public-address/DNS
+policy. A redirect to another address is denied, not silently followed or
+approved. At most one page action is dispatched. The result includes the exact
+requested/final address, retrieval time, content type, local-only provenance
+and truthful truncation; the complete result is limited to 2 KiB. Page text
+cannot enable tools or supply instructions. The same local turn summarizes
+that result, and the genuine final answer is retained in the original session.
+Cancel uses the exact running conversation task and waits for owned resources;
+no late response is presented as success.
+
+**Unavailable boundary:** this requires a separately admitted usable local model.
+Missing runtime/profile/approval composition reports unavailable or denied;
+it never fetches a page as a fallback. The existing finite turn deadline and
+cumulative byte budgets still apply, including approval time. There are no
+live-provider or hardware qualification claims here. Hosted providers cannot
+consume this tool or its result. This is not arbitrary browsing, SDK-native
+network access, or a change to the separate local-only web-result summary policy.
 
 ## Asking Kora to do something
 

@@ -302,6 +302,10 @@ jobs:
           --coverlet-output-format cobertura
           --coverlet-file-prefix unit
 
+      - name: Test coverage evidence contracts
+        shell: pwsh
+        run: ./eng/Test-CodeCoverage.ps1
+
       - name: Generate and enforce coverage report
         run: >
           dotnet reportgenerator
@@ -315,6 +319,7 @@ jobs:
         run: >
           ./eng/Assert-CodeCoverage.ps1
           -ReportPath .net-test-artifacts/coverage-report/Cobertura.xml
+          -InputDirectory .net-test-artifacts/unit
           -MinimumLine 100
           -MinimumBranch 100
 

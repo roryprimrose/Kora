@@ -146,6 +146,8 @@ internal sealed partial class SharedSkillInvocationController(
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native skill buttons require a void callback; RunReported logs failures and retires the exact review.")]
     private async void Start(string action, RequestOrigin origin)
     {
         if (!active.IsCompleted) { return; }

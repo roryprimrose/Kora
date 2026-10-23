@@ -124,6 +124,8 @@ For a coordinator job, send immediate native `pr-enrolled-ci-wait` after actual 
 
 The agent owns event fields, once-only release/refill, native delivery readback and authority exceptions; do not duplicate that protocol here.
 
+Apply the agent's [routine continuation rule](../../agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input): finish the authorized handoff and yield without a stop/wait/check-again user prompt. Supported re-entry retains existing authority and repair admission; pending hosted checks do not authorize polling or imply continuous monitoring.
+
 Return one compact durable handoff with principal, repository, exact launch-mapped owner/branch/current remote head, actual PR URL, Auto method/`enabledAt` or explicit authority exception, current candidate state, evidence pointers, failures and command termination. Persist deep CLI evidence in the owner's receipt; a status-file write alone is not native delivery.
 
 Retain the same source owner/worktree and PR for approved review/CI repair. Preserve App updates, changed-input validation and required checks. Hosted CI wait does not consume execution allocation.

@@ -74,6 +74,32 @@ configuration data. Saved values, defaults, unavailable settings and recovery
 instructions remain distinct. Advanced typed commands retain their existing
 option IDs and structured output.
 
+### Review an assistant appearance suggestion
+
+In a local UI conversation, ask for a theme or native reader text scale
+suggestion. An admitted model can answer with one exact `set appearance.theme
+to dark` (also `system` or `light`) or `set appearance.reader-text-scale to 125`
+suggestion, using the registered reader percentage range. This answer is inert
+text, never a command or permission to write. Other answers remain readable
+but cannot be used as appearance suggestions.
+
+Choose **Review appearance suggestion...** on that exact assistant answer in
+Sessions or the compact conversation. The native review shows the exact current
+value, whether it is saved or default, proposed value, units and shared
+device-local scope. Separately choose **Confirm exact appearance change** to
+save just that option, or **Cancel appearance review** to change nothing.
+Successful saves use the same shared validation, audit, persistence and live
+appearance refresh as Settings. Failed or stale saves are reported; review
+again rather than automatically retrying.
+
+The exact active original session, answer source, private host ownership and
+local input must remain eligible. Switching sessions, changing the source,
+closing the presentation, privacy/ownership changes or call-policy changes
+revoke review. Protected calls and original voice requests are not eligible
+for this native-only increment; UI confirmation does not relabel a voice
+request. Unqualified or unavailable models remain unavailable and cannot
+produce a reviewable successful answer. No provider is enabled by this feature.
+
 ### Navigate without changing a preference
 
 The [seven exact Settings-tab commands](commands.md#open-an-exact-settings-tab) select Appearance, Speech & audio, Responses, Sessions or Calls in this same singleton window.

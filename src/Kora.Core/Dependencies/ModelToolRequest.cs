@@ -7,7 +7,8 @@ namespace Kora.Core.Dependencies;
 public sealed class ModelToolRequest
 {
     internal ModelToolRequest(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
-        ModelToolContext context, ImmutableArray<ModelToolMessage> messages, int round, ModelToolBudget budget)
+        ModelToolContext context, ImmutableArray<ModelToolMessage> messages, int round, ModelToolBudget budget,
+        bool clarificationAllowed = false)
     {
         Provenance = provenance;
         Profile = profile;
@@ -15,6 +16,7 @@ public sealed class ModelToolRequest
         Messages = messages;
         Round = round;
         Budget = budget;
+        ClarificationAllowed = clarificationAllowed;
     }
 
     public ModelTurnProvenance Provenance { get; }
@@ -23,4 +25,5 @@ public sealed class ModelToolRequest
     public ImmutableArray<ModelToolMessage> Messages { get; }
     public int Round { get; }
     public ModelToolBudget Budget { get; }
+    public bool ClarificationAllowed { get; }
 }

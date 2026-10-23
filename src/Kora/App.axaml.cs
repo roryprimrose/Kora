@@ -150,7 +150,8 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
                 Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>(),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
-                Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt));
+                Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
+                Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>());
             instructionEditor.Bind();
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
@@ -218,7 +219,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Interaction.LocalEventBroker>(), detailWindow,
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
-                Services.GetRequiredService<SessionConversationService>());
+                Services.GetRequiredService<SessionConversationService>(),
+                Services.GetRequiredService<ScopedInstructionUseBroker>());
             sessionsWindow.Bind();
             viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
                 sessionsWindow.OpenRetentionReviewAsync);

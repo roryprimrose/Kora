@@ -243,7 +243,8 @@ public sealed partial class SessionsConversationTests
             ISessionWorkspaceStore? conversationReader = null,
             Action<HostId<SessionIdentity>>? revokeDetails = null,
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
-            IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null)
+            IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
+            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -276,7 +277,8 @@ public sealed partial class SessionsConversationTests
                 reviewOriginalMessageReuse: reuseOriginal,
                 reviewAppearanceSuggestion: appearance is null ? null : (message, eligible, validate, token) =>
                     AppearanceSuggestionReview.ReviewAsync(appearance, message, eligible, validate, token),
-                confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token));
+                confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token),
+                instructionUse: instructionFactory?.Invoke(Access));
         }
         public async ValueTask DisposeAsync()
         {

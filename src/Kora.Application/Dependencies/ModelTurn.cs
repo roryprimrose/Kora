@@ -43,5 +43,6 @@ public sealed class ModelTurn
     internal ModelProviderRegistration Registration { get; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
+    internal Kora.Application.Hosting.ConversationQuestionContinuation? QuestionContinuation { get; set; }
     internal bool TryUse() => Interlocked.Exchange(ref used, 1) == 0;
 }

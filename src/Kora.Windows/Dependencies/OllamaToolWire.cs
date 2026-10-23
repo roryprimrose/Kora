@@ -33,6 +33,7 @@ internal static partial class OllamaToolWire
                 }));
             }
             WriteTextMessage(writer, "user", request.Context.UserRequest);
+            if (request.ClarificationAllowed) { WriteQuestionHistory(writer, request); }
             var index = 0;
             foreach (var exchange in exchanges)
             {
@@ -55,9 +56,10 @@ internal static partial class OllamaToolWire
                     writer.WriteRawValue(resultWire);
                 }
             }
-            if (index != request.Messages.Length)
+            if (!request.ClarificationAllowed && index != request.Messages.Length)
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }
             writer.WriteEndArray();
+            if (request.ClarificationAllowed) { WriteQuestionFormat(writer); }
             if (request.Context.ToolMode == ModelToolMode.ReadOnly)
             {
                 writer.WriteStartArray("tools");
@@ -144,7 +146,7 @@ internal static partial class OllamaToolWire
         writer.WriteEndObject();
     }
 
-    internal static Reply ReadReply(byte[] bytes, string model, int round)
+    internal static Reply ReadReply(byte[] bytes, string model, int round, bool clarificationAllowed = false)
     {
         using var document = ReadJson(bytes);
         var root = document.RootElement;
@@ -177,6 +179,13 @@ internal static partial class OllamaToolWire
                 && (thinking.ValueKind != JsonValueKind.String || thinking.GetString()!.Length != 0))
         { throw new InvalidDataException("Only a complete native assistant message without hidden reasoning is admitted."); }
         var content = Text(message, "content");
+        if (clarificationAllowed)
+        {
+            if (message.TryGetProperty("tool_calls", out _))
+            { throw new InvalidDataException("Clarification responses cannot request tools."); }
+            return new(ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true),
+                JsonSerializer.SerializeToUtf8Bytes(message));
+        }
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {

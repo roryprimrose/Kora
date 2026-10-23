@@ -334,8 +334,13 @@ uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
-Header editing is bounded to 16 fields/4096 UTF-8 bytes. Profile fork, rename, restore,
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. Rename, restore,
 profile mutation, skill/agent writers, executable content and agent runtime are absent.
+
+**Create Kora copy from profile instruction** is a separate native-only operation for one explicitly selected personal native v1 instruction original, not a general import or profile writer ([delivered workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
+Exact-file memory-only read consent precedes content capture; the later complete original/proposed-source review separately confirms a fresh absent disabled owned destination. Existing editor drafts remain untouched ([native reviews](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+The same strict UTF-8/native metadata/header limits apply. The host admits only immediate canonical personal Code/Code - Insiders User prompt files, pins source identity, and bounds final exact-byte checks to the disclosed consent budget; skill registration and compatibility bits grant no fork authority ([reader](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs)).
+The distinct copy retains supported bytes and original attribution, adds source attribution and a fresh name, and inherits no enablement, grants, model context or egress. Failed/withdrawn/stale/uncertain outcomes require explicit recovery, never overwrite or automatic retry ([user contract](../docs/instruction-editor.md#create-a-disabled-kora-copy-of-a-personal-instruction)).
 
 **Owned native v2 required literal prompt inputs** extend only the Prompt kind, never instruction v1 or bundled/profile reader semantics.
 Use scalar `kora-format: 2` with the same `name`, `description`, optional `attribution` header. Required fields are derived from original-body `${input:name}` markers: 1–64 lowercase ASCII letters/digits/hyphens starting with a letter, at most eight distinct names in first-occurrence order. Repeated names use one value.

@@ -1,3 +1,4 @@
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -88,6 +89,13 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
         if (submitting && question.Proposal is not null)
         {
             return InteractionTransaction.Reject(snapshot, "approval-service-required");
+        }
+        if (string.Equals(question.Spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)
+            && string.Equals(question.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal))
+        {
+            try { LocalModelQuestionPolicy.RequireAnswerContent(answer); }
+            catch (Exception exception) when (exception is InvalidDataException or Kora.Core.Conversation.ConversationCredentialException)
+            { return InteractionTransaction.Reject(snapshot, "clarification-content-refused-before-storage"); }
         }
         return Replace(snapshot, question with
         {

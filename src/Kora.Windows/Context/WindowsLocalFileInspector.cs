@@ -1,10 +1,12 @@
-using System.ComponentModel;
+﻿using System.ComponentModel;
 using System.Runtime.InteropServices;
 using System.Security.Cryptography;
+
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Windows.Storage;
+
 using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Context;
@@ -29,15 +31,23 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
     public Task<ILocalFolderSelection> InspectFolderAsync(string selectedPath, CancellationToken cancellationToken) =>
         Task.Run<ILocalFolderSelection>(() => InspectFolder(selectedPath, cancellationToken), cancellationToken);
 
-    private Selection Inspect(string path, CancellationToken token)
+    internal Task<ILocalFileSelection> InspectProfileInstruction(string selectedPath, string knownRoamingRoot, CancellationToken token)
+    {
+        LocalFilePolicy.ValidateFolderPath(knownRoamingRoot);
+        if (!selectedPath.StartsWith(knownRoamingRoot + '\\', StringComparison.OrdinalIgnoreCase))
+        { throw new InvalidDataException("A profile instruction must remain within its host-resolved personal roaming root."); }
+        return Task.Run<ILocalFileSelection>(() => Inspect(selectedPath, token, knownRoamingRoot), token);
+    }
+
+    private Selection Inspect(string path, CancellationToken token, string? knownRoamingRoot = null)
     {
         using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
         activity.Complete(HostOperationOutcome.Failed);
         var handles = new List<SafeFileHandle>();
         try
         {
-            handles = OpenVerifiedHandles(path, file: true, token);
-            var selected = new Selection(handles, path);
+            handles = OpenVerifiedHandles(path, file: true, token, knownRoamingRoot);
+            var selected = new Selection(handles, path, knownRoamingRoot is null ? 0 : knownRoamingRoot[3..].Split('\\').Length + 1);
             if (selected.Metadata.ByteLength > LocalFilePolicy.MaximumBytes)
             {
                 throw new InvalidDataException("The selected file exceeds 256 KiB.");
@@ -57,7 +67,7 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
         }
     }
 
-    private List<SafeFileHandle> OpenVerifiedHandles(string path, bool file, CancellationToken token)
+    private List<SafeFileHandle> OpenVerifiedHandles(string path, bool file, CancellationToken token, string? knownRoamingRoot = null)
     {
         if (file) { LocalFilePolicy.ValidatePath(path); }
         else { LocalFilePolicy.ValidateFolderPath(path); }
@@ -81,7 +91,10 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
                 handles.Add(handle);
                 if (handle.IsInvalid) { throw new IOException("The selected source could not be opened with stable sharing."); }
                 var info = ReadInfo(handle);
-                var forbidden = ForbiddenAttributes(driveRoot: index < 0);
+                // Hidden AppData ancestry is metadata-only admission, not permission for hidden
+                // descendants or files. The same ancestor boundary survives lease revalidation.
+                var knownAncestor = !isFile && knownRoamingRoot is not null && LocalFilePolicy.IsWithin(knownRoamingRoot, current);
+                var forbidden = ForbiddenAttributes(driveRoot: index < 0, allowHiddenAncestor: knownAncestor);
                 if ((info.Attributes & forbidden) != (FileAttributes)0 || isFile == info.Attributes.HasFlag(FileAttributes.Directory)
                     || !string.Equals(FinalPath(handle).TrimEnd('\\'), current.TrimEnd('\\'), StringComparison.OrdinalIgnoreCase)
                     || (isFile && info.Links != 1))
@@ -164,16 +177,17 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
         catch (Win32Exception exception) { throw new IOException("The native directory identity is unavailable.", exception); }
     }
 
-    private static FileAttributes ForbiddenAttributes(bool driveRoot) =>
+    private static FileAttributes ForbiddenAttributes(bool driveRoot, bool allowHiddenAncestor = false) =>
         FileAttributes.ReparsePoint | FileAttributes.Device | FileAttributes.Offline | FileAttributes.Encrypted
-        | (driveRoot ? (FileAttributes)0 : FileAttributes.Hidden | FileAttributes.System);
+        | (driveRoot ? (FileAttributes)0 : FileAttributes.System | (allowHiddenAncestor ? (FileAttributes)0 : FileAttributes.Hidden));
 
-    private static void ValidateDirectories(List<SafeFileHandle> handles, int count)
+    private static void ValidateDirectories(List<SafeFileHandle> handles, int count, int knownAncestorCount = 0)
     {
         for (var index = 0; index < count; index++)
         {
             var attributes = ReadInfo(handles[index]).Attributes;
-            if (!attributes.HasFlag(FileAttributes.Directory) || (attributes & ForbiddenAttributes(driveRoot: index == 0)) != (FileAttributes)0)
+            if (!attributes.HasFlag(FileAttributes.Directory)
+                || (attributes & ForbiddenAttributes(driveRoot: index == 0, allowHiddenAncestor: index < knownAncestorCount)) != (FileAttributes)0)
             {
                 throw new InvalidDataException("A retained directory no longer satisfies source admission policy.");
             }
@@ -227,11 +241,13 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
     {
         private readonly List<SafeFileHandle> handles;
         private readonly SafeFileHandle file;
+        private readonly int knownAncestorCount;
         private int disposed;
         private int readStarted;
-        internal Selection(List<SafeFileHandle> handles, string path)
+        internal Selection(List<SafeFileHandle> handles, string path, int knownAncestorCount)
         {
             this.handles = handles;
+            this.knownAncestorCount = knownAncestorCount;
             file = handles[^1];
             Metadata = Observe(file, path);
         }
@@ -240,7 +256,7 @@ public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths path
         internal void Validate()
         {
             ObjectDisposedException.ThrowIf(Volatile.Read(ref disposed) != 0, this);
-            ValidateDirectories(handles, handles.Count - 1);
+            ValidateDirectories(handles, handles.Count - 1, knownAncestorCount);
             if (Observe(file, Metadata.CanonicalPath) != Metadata)
             {
                 throw new InvalidDataException("The reviewed source identity changed before confirmation.");

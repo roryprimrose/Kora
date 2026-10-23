@@ -1,5 +1,7 @@
 ﻿using System.Diagnostics;
+
 using AwesomeAssertions;
+
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
 using Kora.Application.Hosting;
@@ -10,7 +12,9 @@ using Kora.Core.Configuration;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
+
 using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -184,14 +188,238 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         SpeechInputCommand.Parse("unrelated", "Nova").Should().BeNull();
     }
 
+    [Theory]
+    [InlineData("get speech.input-device")]
+    [InlineData("status speech.input-device")]
+    [InlineData("set speech.input-device to mic")]
+    [InlineData("Nova, set speech.input-device to mic")]
+    [InlineData("get speech.input.other")]
+    public void ProfileParserDoesNotInterceptAnotherSetting(string text)
+    {
+        SpeechInputCommand.Parse(text, "Nova").Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("get speech.input extra")]
+    [InlineData("get speech.input\n")]
+    [InlineData("set speech.input")]
+    [InlineData("set speech.input to windows-activated-v1 Other CaptureLifetime")]
+    [InlineData("set speech.input to windows-activated-v1 WindowsManaged Other")]
+    [InlineData("set speech.input to windows-activated-v1 WindowsManaged 99")]
+    [InlineData("set speech.input to windows-activated-v1 99 CaptureLifetime")]
+    [InlineData("set speech.input to windows-activated-v1 WindowsManaged,Cpu CaptureLifetime")]
+    public void ProfileParserRejectsInvalidCompleteInput(string text)
+    {
+        SpeechInputCommand.Parse(text, "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+    }
+
+    [Fact]
+    public void ProfileParserRejectsOversizeInputAndNameLookalikes()
+    {
+        SpeechInputCommand.Parse("Nova get speech.input", "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Get);
+        SpeechInputCommand.Parse("get speech.input " + new string('x', 1024), "Kora")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+        SpeechInputCommand.Parse("Koral get speech.input", "Kora").Should().BeNull();
+        SpeechInputCommand.Parse("Kora", "Kora").Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("saved")]
+    [InlineData("unavailable")]
+    [InlineData("malformed")]
+    [InlineData("access")]
+    public async Task StartupKeepsSavedSelectionAndFailureStateSeparate(string kind)
+    {
+        await using var fixture = new Fixture(startup: kind);
+        var state = fixture.Service.Get();
+        if (kind is "malformed" or "access")
+        {
+            state.SavedStateKnown.Should().BeFalse();
+            state.Effective.Should().BeNull();
+            state.Describe().Should().Contain("unknown / unconfirmed").And.Contain("Desired: unknown");
+        }
+        else
+        {
+            state.Saved.Should().NotBeNull();
+            state.Describe().Should().Contain("Saved: SpeechInputSelection");
+            if (kind is "unavailable") { state.Effective.Should().BeNull(); }
+            else { state.Effective.Should().NotBeNull(); }
+        }
+    }
+
+    [Fact]
+    public async Task DefaultInspectionDoesNotImplyASavedPreference()
+    {
+        await using var fixture = new Fixture();
+        fixture.Service.Get().Describe().Should().Contain("not saved (baseline default)")
+            .And.Contain("Effective: SpeechInputSelection").And.Contain("Windows activated adapter selected");
+        fixture.Runtime.HoldUnavailable();
+        fixture.Service.Get().UnavailableReason.Should().Contain("held unavailable or switching");
+    }
+
+    [Theory]
+    [InlineData(SecurityAuditInitiator.ModelSuggestion, RequestOrigin.LocalUi)]
+    [InlineData(SecurityAuditInitiator.VoiceCommand, RequestOrigin.LocalUi)]
+    public async Task UntrustedInitiatorsCannotRetireCapture(SecurityAuditInitiator initiator, RequestOrigin origin)
+    {
+        await using var fixture = new Fixture();
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default, origin, initiator))
+            .Should().ThrowAsync<InvalidOperationException>();
+        fixture.Runtime.Retirements.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("io")]
+    [InlineData("cancel")]
+    public async Task RetirementFailureHasOneTerminalAuditWithoutAWrite(string kind)
+    {
+        await using var fixture = new Fixture();
+        fixture.Runtime.RetirementFailure = kind is "io" ? new IOException("retirement failed") : new OperationCanceledException();
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<Exception>();
+        fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested,
+            kind is "io" ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Cancelled);
+        fixture.Runtime.ProfileGeneration.Number.Should().Be(0);
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Service.Get().Effective.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("saved")]
+    [InlineData("access")]
+    [InlineData("requested-audit")]
+    [InlineData("cancel-audit")]
+    public async Task AdmissionOrStorageChangesCannotPublishAProfile(string change)
+    {
+        await using var fixture = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        fixture.Token = cancellation.Token;
+        fixture.Audit.BeforeWrite = audit =>
+        {
+            if (audit.Outcome != SecurityAuditOutcome.Requested) { return; }
+            switch (change)
+            {
+                case "saved": fixture.Preferences.Value = SpeechInputSelection.Default; break;
+                case "access": fixture.Preferences.WriteFailure = new UnauthorizedAccessException(); break;
+                case "requested-audit": throw new IOException("requested audit unavailable");
+                case "cancel-audit": cancellation.Cancel(); break;
+            }
+        };
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<Exception>();
+        fixture.Runtime.ProfileGeneration.Number.Should().Be(0);
+        fixture.Preferences.Writes.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("eligible")]
+    [InlineData("cancel")]
+    [InlineData("call")]
+    [InlineData("readback")]
+    [InlineData("dispose")]
+    public async Task LostTerminalAdmissionCannotActivatePersistedPreference(string change)
+    {
+        await using var fixture = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        fixture.Token = cancellation.Token;
+        Task? disposal = null;
+        fixture.Store.BeforeCommit = record =>
+        {
+            if (!record.IsTerminal || !fixture.Preferences.Pending) { return; }
+            switch (change)
+            {
+                case "eligible": fixture.Eligible = false; break;
+                case "cancel": cancellation.Cancel(); break;
+                case "call": fixture.Call.Set(CallState.Active); break;
+                case "readback": fixture.Preferences.MismatchReadback = true; break;
+                case "dispose": disposal = fixture.Service.DisposeAsync().AsTask(); break;
+            }
+        };
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<InvalidOperationException>();
+        if (disposal is not null) { await disposal; }
+        fixture.Runtime.ProfileGeneration.Number.Should().Be(0);
+        fixture.Runtime.IsProfileAvailable.Should().BeFalse();
+        fixture.Preferences.Pending.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("call")]
+    [InlineData("readback")]
+    public async Task ConfirmationRevalidatesTheExactSavedInputAndCallPolicy(string change)
+    {
+        await using var fixture = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        fixture.Token = cancellation.Token;
+        fixture.Preferences.AfterConfirm = () =>
+        {
+            switch (change)
+            {
+                case "cancel": cancellation.Cancel(); break;
+                case "call": fixture.Call.Set(CallState.Active); break;
+                case "readback": fixture.Preferences.Value = null; break;
+            }
+        };
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<InvalidDataException>();
+        fixture.Runtime.ProfileGeneration.Number.Should().Be(0);
+        fixture.Preferences.Pending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task StaleRevisionAndDisposedServiceCannotWrite()
+    {
+        await using var fixture = new Fixture();
+        await FluentActions.Awaiting(() => fixture.Service.SelectAsync(SpeechInputSelection.Default, -1, fixture.Policy.Current.Revision,
+            RequestOrigin.LocalUi, SecurityAuditInitiator.TypedCommand, fixture.Policy, static () => true, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await fixture.Service.DisposeAsync();
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<ObjectDisposedException>();
+        fixture.Preferences.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ACallTransitionBetweenReadbackAndTheCutoverLockCannotPublish()
+    {
+        await using var fixture = new Fixture();
+        var reads = 0;
+        fixture.Preferences.AfterReadBack = () =>
+        {
+            if (++reads == 2) { fixture.Call.Set(CallState.Active); }
+        };
+        await FluentActions.Awaiting(() => fixture.Select(SpeechInputSelection.Default)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.Runtime.ProfileGeneration.Number.Should().Be(0);
+        fixture.Runtime.IsProfileAvailable.Should().BeFalse();
+        fixture.Preferences.Pending.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task EnabledDiagnosticsRecordStartupCommitFailureAndCancellationWithoutTupleContent()
+    {
+        var logger = new RecordingLogger();
+        await using var invalid = new Fixture(invalidStartup: true, logger: logger);
+        await using (var success = new Fixture(logger: logger))
+        {
+            (await success.Select(SpeechInputSelection.Default)).Should().BeTrue();
+            success.Preferences.SaveFailure = true;
+            await FluentActions.Awaiting(() => success.Select(SpeechInputSelection.Default)).Should().ThrowAsync<IOException>();
+        }
+        await using (var cancelled = new Fixture(logger: logger))
+        {
+            cancelled.Runtime.RetirementFailure = new OperationCanceledException();
+            await FluentActions.Awaiting(() => cancelled.Select(SpeechInputSelection.Default)).Should().ThrowAsync<OperationCanceledException>();
+        }
+        logger.Events.Select(item => item.Name).Should().Contain(["StartupPreferenceUnavailable", "SelectionCommitted", "SelectionFailed", "SelectionCancelled"]);
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
-        internal Fixture(bool invalidStartup = false)
+        internal Fixture(bool invalidStartup = false, string? startup = null, ILogger<SpeechInputConfigurationService>? logger = null)
         {
             Preferences.Invalid = invalidStartup;
+            if (startup is "saved") { Preferences.Value = SpeechInputSelection.Default; }
+            if (startup is "unavailable") { Preferences.Value = SpeechInputSelection.Default with { Residency = SpeechInputResidency.KeepLoaded }; }
+            if (startup is "malformed") { Preferences.Value = SpeechInputSelection.Default with { ProfileId = "unknown" }; }
+            if (startup is "access") { Preferences.ReadFailure = new UnauthorizedAccessException(); }
             Admission = new(Store, Store, new HostTaskCoordinator(Store));
             Policy = new(Call);
-            Service = new(Preferences, Runtime, Admission, Audit, NullLogger<SpeechInputConfigurationService>.Instance);
+            Service = new(Preferences, Runtime, Admission, Audit, logger ?? NullLogger<SpeechInputConfigurationService>.Instance);
         }
         internal MemoryPreferences Preferences { get; } = new();
         internal Runtime Runtime { get; } = new();
@@ -224,12 +452,21 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         internal bool ConfirmFailure { get; set; }
         internal bool MismatchReadback { get; set; }
         internal Action? AfterConfirm { get; set; }
+        internal Action? AfterReadBack { get; set; }
+        internal Exception? ReadFailure { get; set; }
+        internal Exception? WriteFailure { get; set; }
         internal int Writes { get; private set; }
-        public SpeechInputSelection? Load() => Pending || Invalid ? throw new InvalidDataException("unconfirmed") : Value;
-        public SpeechInputSelection? ReadBack() => MismatchReadback && Value is { } saved ? saved with { Resource = SpeechInputResource.Cpu } : Value;
+        public SpeechInputSelection? Load() => ReadFailure is { } failure ? throw failure
+            : Pending || Invalid ? throw new InvalidDataException("unconfirmed") : Value;
+        public SpeechInputSelection? ReadBack()
+        {
+            AfterReadBack?.Invoke();
+            return MismatchReadback && Value is { } saved ? saved with { Resource = SpeechInputResource.Cpu } : Value;
+        }
         public void BeginWrite() => Pending = true;
         public void Save(SpeechInputSelection selection)
         {
+            if (WriteFailure is { } failure) { throw failure; }
             if (SaveFailure) { throw new IOException("fixture write failure"); }
             Value = selection; Writes++;
         }
@@ -248,6 +485,8 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         internal bool ActiveLease { get; private set; }
         internal int Retirements { get; private set; }
         internal Action? BeforeReturn { get; set; }
+        internal Exception? RetirementFailure { get; set; }
+        internal void HoldUnavailable() => IsProfileAvailable = false;
         public void InitializeProfile(SpeechInputSelection? selection)
         {
             if (selection is not null) { ProfileGeneration = new(0, selection); }
@@ -258,6 +497,7 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
             HostActivity.RequireCurrent();
             cancellationToken.ThrowIfCancellationRequested();
             Retirements++;
+            if (RetirementFailure is { } failure) { IsProfileAvailable = false; throw failure; }
             ActiveLease = true;
             BeforeReturn?.Invoke();
             return Task.FromResult<ISpeechInputProfileSwitch>(new Lease(this));
@@ -280,8 +520,10 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         internal List<HostRequest> Requests { get; } = [];
         internal List<ActivityContext> Contexts { get; } = [];
         internal bool FailSuccess { get; set; }
+        internal Action<SecurityAuditEvent>? BeforeWrite { get; set; }
         public void Write(SecurityAuditEvent auditEvent)
         {
+            BeforeWrite?.Invoke(auditEvent);
             if (FailSuccess && auditEvent.Outcome == SecurityAuditOutcome.Succeeded) { throw new IOException("fixture terminal audit failure"); }
             Events.Add(auditEvent);
             Requests.Add(HostActivity.RequireCurrent().Request);
@@ -297,5 +539,14 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         public Task StartAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public Task StopAsync(CancellationToken cancellationToken) => Task.CompletedTask;
         public void Dispose() { }
+    }
+
+    private sealed class RecordingLogger : ILogger<SpeechInputConfigurationService>
+    {
+        internal List<EventId> Events { get; } = [];
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
+            Events.Add(eventId);
     }
 }

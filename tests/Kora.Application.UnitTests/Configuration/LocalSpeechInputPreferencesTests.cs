@@ -1,4 +1,5 @@
 ﻿using AwesomeAssertions;
+
 using Kora.Application.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Voice;
@@ -13,7 +14,7 @@ public sealed class LocalSpeechInputPreferencesTests : IDisposable
     public void ExactTupleAndPendingEvidenceSurviveRestartWithoutChangingOtherPreferences()
     {
         var store = new LocalPreferenceStore(new Paths(root));
-        var preferences = new LocalSpeechInputPreferences(store);
+        var preferences = new LocalSpeechInputPreferences(new Paths(root));
         preferences.Load().Should().BeNull();
         store.WriteText("speech-provider.txt", "output-unchanged");
         var tuple = SpeechInputSelection.Default with { Resource = SpeechInputResource.Gpu, Residency = SpeechInputResidency.KeepLoaded };
@@ -32,6 +33,8 @@ public sealed class LocalSpeechInputPreferencesTests : IDisposable
     [InlineData("2\nwindows-activated-v1\nWindowsManaged\nCaptureLifetime")]
     [InlineData("1\nunknown\nWindowsManaged\nCaptureLifetime")]
     [InlineData("1\nwindows-activated-v1\n0\nCaptureLifetime")]
+    [InlineData("1\nwindows-activated-v1\nUnknown\nCaptureLifetime")]
+    [InlineData("1\nwindows-activated-v1\nWindowsManaged\nUnknown")]
     [InlineData("1\nwindows-activated-v1\nWindowsManaged\n99")]
     [InlineData("1\nwindows-activated-v1\nWindowsManaged\nCaptureLifetime\nextra")]
     public void MalformedTuplesCannotBecomeTheDefault(string contents)

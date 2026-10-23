@@ -4545,6 +4545,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)

@@ -1,11 +1,14 @@
 ﻿using AwesomeAssertions;
+
 using System.Diagnostics;
+
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
+[Collection("Host tracing")]
 public sealed partial class ActivatedVoiceRecognitionTests
 {
     [Fact]

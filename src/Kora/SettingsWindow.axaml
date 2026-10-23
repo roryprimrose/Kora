@@ -506,7 +506,7 @@
               <StackPanel Spacing="8">
                 <TextBlock Text="Speech input profile" Classes="settings-title" />
                 <TextBlock Text="{Binding SpeechInputStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="Selection never opens the microphone, downloads assets, enables name activation or changes voice permission, learning, verification, reasoning or speech output. Switching stops and joins active capture; start push-to-talk again explicitly. Additional resource/residency tuples are unqualified and unavailable, not alternate engines."
+                <TextBlock Text="Selection never opens the microphone, downloads assets, enables name activation or changes voice permission, learning, verification, reasoning or speech output. Switching stops and joins active capture; start push-to-talk again explicitly. Other resource and residency combinations are not yet available and do not select another engine."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <ComboBox ItemsSource="{Binding SpeechInputProfiles}" SelectedItem="{Binding SelectedSpeechInputProfile}"
                           DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding CanChangeSpeechInputNative}"

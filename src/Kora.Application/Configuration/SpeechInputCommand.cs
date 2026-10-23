@@ -1,4 +1,5 @@
 ﻿using System.Text;
+
 using Kora.Core.Commands;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
@@ -21,9 +22,10 @@ public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, Sp
         {
             text = text[name.Length..].TrimStart(' ', ',', '\t');
         }
-        if (!text.StartsWith("get speech.input", StringComparison.OrdinalIgnoreCase)
-            && !text.StartsWith("status speech.input", StringComparison.OrdinalIgnoreCase)
-            && !text.StartsWith("set speech.input", StringComparison.OrdinalIgnoreCase)) { return null; }
+        if (!TargetsProfile("get speech.input") && !TargetsProfile("status speech.input")
+            && !TargetsProfile("set speech.input")) { return null; }
+        bool TargetsProfile(string prefix) => text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+            && (text.Length == prefix.Length || char.IsWhiteSpace(text[prefix.Length]));
         if (Encoding.UTF8.GetByteCount(input) > SessionCommand.MaximumInputBytes || input.Any(char.IsControl))
         { return new(AppearanceCommandOperation.Clarify, Error: Syntax); }
         if (text.Equals("get speech.input", StringComparison.OrdinalIgnoreCase)

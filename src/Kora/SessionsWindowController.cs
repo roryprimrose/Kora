@@ -172,6 +172,8 @@ internal sealed partial class SessionsWindowController(
             reviewAppearanceSuggestion: main.ReviewAppearanceSuggestionAsync,
             confirmAppearanceSuggestion: main.ConfirmAppearanceSuggestionAsync,
             instructionUse: instructionUse,
+            reviewSpeechSummarySuggestion: main.ReviewSpeechSummarySuggestionAsync,
+            confirmSpeechSummarySuggestion: (review, token) => main.ConfirmSpeechSummarySuggestionAsync(review, token),
             answerReads: new SessionAnswerReadWorkflow(service, main));
         if (ConversationQuestions is { } questions)
         {

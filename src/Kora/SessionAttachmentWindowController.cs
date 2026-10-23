@@ -8,7 +8,7 @@ using Kora.Core.Storage;
 
 namespace Kora;
 
-internal sealed class SessionAttachmentWindowController : IUserFilePicker, IRetainedAttachmentViewer, IDisposable
+internal sealed partial class SessionAttachmentWindowController : IUserFilePicker, IRetainedAttachmentViewer, IDisposable
 {
     private readonly Action<string> reportFailure;
     private readonly SessionFileAttachmentService service;

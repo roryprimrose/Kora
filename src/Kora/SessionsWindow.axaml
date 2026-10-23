@@ -45,6 +45,7 @@
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+          <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
         </WrapPanel>
         <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
@@ -147,6 +148,12 @@
         <WrapPanel>
           <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
           <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
+        <WrapPanel>
+          <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+          <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
         </WrapPanel>
       </StackPanel>
     </Expander>

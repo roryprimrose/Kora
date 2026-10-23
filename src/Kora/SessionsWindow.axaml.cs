@@ -35,6 +35,7 @@ internal sealed partial class SessionsWindow : Window
         CancelAnswerRead.Click += (_, _) => model.CancelAnswerRead();
         Closed += (_, _) => model.CancelAnswerRead();
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
+        AnswerAttachment.Click += async (_, _) => await (ConversationOperation = model.OpenAttachmentAnswerAsync());
         SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
         CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();

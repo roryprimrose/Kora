@@ -4562,6 +4562,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
             .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
+            .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
@@ -4570,6 +4571,7 @@ public sealed partial class MainViewModelTests : IDisposable
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
                 .Distinct(StringComparer.OrdinalIgnoreCase));
+        fixture.Voice.StartedPhrases.Select(phrase => phrase.ToUpperInvariant()).Should().OnlyHaveUniqueItems();
         fixture.Voice.StartedPhrases.Should().NotContain(
             phrase => phrase.Contains("calculate", StringComparison.OrdinalIgnoreCase)
                 || phrase.Contains("local clock", StringComparison.OrdinalIgnoreCase)

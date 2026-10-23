@@ -1292,6 +1292,29 @@ Over-cap results remain fully visual with an explicit refusal status, never
 truncated. Exact approval/question readback retains its own mandatory bounds.
 See [counting and recovery semantics](settings.md#spoken-summary-limits).
 
+### Review one retained assistant speech limit suggestion
+
+- **review speech limit suggestion**
+- **confirm speech limit change**
+- **cancel speech limit review**
+
+These exact commands bind only the host-pinned successful answer from your
+explicit completed Active-session `session request`, never the newest message,
+current selection or model-claimed identity. Activated voice requires the current
+assistant-name prefix. Review shows both complete current/proposed caps,
+saved/default provenance, unchanged companion, shared device-local scope and
+next-ordinary-speech timing; confirmation must be a separate fresh input.
+No review, expired/changed source, pending question/approval or denied original
+channel means no write. The host retains original voice classification even
+after typed/native confirmation. A generic "yes" does not confirm.
+
+Alternatively use **Review speech limit suggestion...** on an exact answer in
+Sessions/compact view and its separate **Confirm exact speech limit change** or
+**Cancel speech limit review** buttons. This changes only one existing cap through
+the shared audited settings service; it never speaks/replays the current answer,
+reruns a model, installs a provider or grants model write authority.
+See [the full review and recovery rules](settings.md#review-an-assistant-speech-limit-suggestion).
+
 ### Open settings
 - **open settings**
 - **show Kora settings**

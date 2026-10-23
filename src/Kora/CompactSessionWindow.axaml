@@ -106,6 +106,12 @@
         <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
         <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
       </WrapPanel>
+      <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
+          AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
+      <WrapPanel>
+        <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+        <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+      </WrapPanel>
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>
   </ScrollViewer>

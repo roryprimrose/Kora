@@ -26,6 +26,7 @@ internal sealed class KoraBootstrapper : BootstrapperApplication, IInstallerEngi
 
     protected override void Run()
     {
+        using var speechComponents = new InstallerSpeechComponentHost();
         session = new InstallerSession(this, new OptionalComponentSetup(
             new BurnLogger<KokoroTextToSpeechProvider>((level, message) => engine.Log(
                 level >= Microsoft.Extensions.Logging.LogLevel.Warning ? LogLevel.Error : LogLevel.Standard,
@@ -46,7 +47,7 @@ internal sealed class KoraBootstrapper : BootstrapperApplication, IInstallerEngi
                     CreateLogger<WindowsInstallerPreflight>(), CreateLogger<KokoroTextToSpeechProvider>(),
                     engine.GetVariableString("KoraProductVersion")),
                     CreateLogger<InstallerPreflightState>()),
-                requestedAction: command.Action);
+                requestedAction: command.Action, speechComponents: speechComponents.Service);
             window.Opened += (_, _) => engine.Detect();
             return window;
         }).StartWithClassicDesktopLifetime([]);

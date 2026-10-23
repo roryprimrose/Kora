@@ -1019,7 +1019,10 @@ extends this direction to future qualified wake/VAD/ASR and optional verifier
 assets: offer explicit unchecked preparation at install time or the same
 approved setup later through Settings. The [shared setup contract](Environment_Setup.md#optional-local-speech-component-lifecycle)
 owns catalogue identity, user-scoped assets and readiness, not duplicated Burn
-download/validation rules. No new speech choice is implemented by this design.
+download/validation rules. The [shared lifecycle service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+and [Burn choice binding](../installer/Kora.Setup/SpeechComponentInstallChoice.cs)
+are implemented with an [empty production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs);
+there is no production optional speech-input choice before exact qualification.
 Model acquisition never selects a provider or grants microphone/learning
 consent. MSI still owns application/adapters/native payload; optional model
 selection does not remove bundled loader or shared-runtime prerequisites.

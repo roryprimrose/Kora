@@ -57,5 +57,11 @@ internal sealed class OptionalComponentSetup(ILogger<KokoroTextToSpeechProvider>
 
             progress.Report("Kokoro model loaded and voices verified. No speech playback or microphone capture started.");
         }
+        foreach (var choice in components.Speech)
+        {
+            cancellationToken.ThrowIfCancellationRequested();
+            await choice.PrepareAsync(progress, cancellationToken);
+            progress.Report("Exact speech input data verified. Runtime selection, microphone consent and personal profiles are unchanged.");
+        }
     }
 }

@@ -12,6 +12,7 @@
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kora.Windows\Kora.Windows.csproj" />
+    <ProjectReference Include="..\..\src\Kora.Application\Kora.Application.csproj" />
   </ItemGroup>
   <ItemGroup>
     <PackageReference Include="Avalonia.Desktop" />

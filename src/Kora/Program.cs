@@ -531,6 +531,12 @@ internal static class Program
         services.AddSingleton<ILocalModelSetup, WindowsOllamaSetupService>();
 #endif
         services.AddSingleton<DependencySetupWorkflow>();
+        services.AddSingleton(SpeechComponentCatalogue.Production);
+        services.AddSingleton<ISpeechComponentFiles, WindowsSpeechComponentFiles>();
+        services.AddSingleton<ISpeechComponentAcquisition>(_ => HttpSpeechComponentAcquisition.CreateDefault());
+        services.AddSingleton<ISpeechComponentStore, WindowsSpeechComponentStore>();
+        services.AddSingleton<ISpeechComponentRuntime, UnavailableSpeechComponentRuntime>();
+        services.AddSingleton<SpeechComponentSetupService>();
         services.AddSingleton<ILocalModelReasoner, UnavailableLocalModelReasoner>();
         services.AddSingleton<IPreferenceStore, LocalPreferenceStore>();
         services.AddSingleton<IPlaybackVolumePreferences>(provider =>

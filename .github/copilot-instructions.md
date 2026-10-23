@@ -14,7 +14,7 @@
 - Use small cohesive owners, strong types and nullable analysis. Keep policy/serialization authoritative in one place; reuse domain validation and shared admitted actions. Surface failures with repository-standard diagnostics and recovery, never silent defaults or success-shaped fallbacks.
 - Use asynchronous I/O/lifecycle APIs and deterministic disposal. Allow `async void` only at framework event or `ICommand` boundaries with explicit failure handling.
 - Follow the applicable scoped guidance for matching edits and cross-cutting work:
-  - [Architecture and ownership](instructions/architecture.instructions.md): layers, cohesive workflows, routes, DI and lifecycle.
+  - [Architecture and clean implementation](instructions/architecture.instructions.md): pragmatic SOLID, readable code, layers, ownership, shared routes and lifecycle.
   - [Behavioral testing](instructions/testing.instructions.md): deterministic regressions, typed outcomes and forbidden effects.
   - [Security boundaries](instructions/security.instructions.md): authority, revalidation, audit and resource quiescence.
   - [Automation evidence](instructions/automation.instructions.md): complete module/shard evidence, analyzers and CI.

@@ -39,6 +39,7 @@ internal sealed partial class SessionsWindowController(
     }
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
+    internal QuestionWindowController? ConversationQuestions { get; set; }
     internal Task<bool> PrepareShutdown() => presentation?.PrepareShutdown() ?? Task.FromResult(true);
     internal Func<bool> CaptureShutdownEligibility()
     {
@@ -157,6 +158,13 @@ internal sealed partial class SessionsWindowController(
                 ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."),
             main.ReviewAppearanceSuggestionAsync, main.ConfirmAppearanceSuggestionAsync,
             instructionUse: instructionUse);
+        if (ConversationQuestions is { } questions)
+        {
+            model.QuestionPresenter = (request, generation, spec, expiry, admitted, token) =>
+                questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact
+                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
+                    request, generation, spec, expiry, admitted, token);
+        }
         presentation = new(model);
     }
 

@@ -215,12 +215,12 @@ public sealed partial class WindowsOllamaToolTransportTests
         internal ModelToolRequest Request(IEnumerable<ModelToolMessage>? messages = null, int round = 1,
             ProviderProfileTuple? profile = null, string user = "Return the actual application version.",
             ModelToolBudget? budget = null, IEnumerable<ModelContextEvidence>? evidence = null,
-            ModelToolMode toolMode = ModelToolMode.ReadOnly)
+            ModelToolMode toolMode = ModelToolMode.ReadOnly, bool clarificationAllowed = false)
         {
             var envelope = new ModelContextEnvelope(RequestIdentity, "Tools are host-mediated observations.", user,
                 evidence ?? [], Time.GetUtcNow(), Time.GetUtcNow().AddMinutes(1), toolMode);
             return ModelToolProtocol.CreateRequest(Provenance, profile ?? Profile,
-                ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), messages ?? [], round, budget);
+                ModelToolProtocol.ReadContext(envelope.Serialize(), Provenance), messages ?? [], round, budget, clarificationAllowed);
         }
         public async ValueTask DisposeAsync()
         {

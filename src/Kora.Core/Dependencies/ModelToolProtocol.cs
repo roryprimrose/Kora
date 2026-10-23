@@ -18,7 +18,8 @@ public static partial class ModelToolProtocol
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
     public static ModelToolRequest CreateRequest(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
-        ModelToolContext context, IEnumerable<ModelToolMessage> messages, int round, ModelToolBudget? budget = null)
+        ModelToolContext context, IEnumerable<ModelToolMessage> messages, int round, ModelToolBudget? budget = null,
+        bool clarificationAllowed = false)
     {
         ArgumentNullException.ThrowIfNull(context);
         ArgumentNullException.ThrowIfNull(messages);
@@ -32,16 +33,19 @@ public static partial class ModelToolProtocol
             { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
         }
         var history = messages.Take(MaximumCalls * 2 + 1).ToImmutableArray();
-        if (context.ToolMode == ModelToolMode.None && !history.IsEmpty)
+        if (clarificationAllowed && context.ToolMode != ModelToolMode.None)
+        { throw new InvalidDataException("Clarification turns are tool-free."); }
+        if (context.ToolMode == ModelToolMode.None && !clarificationAllowed && !history.IsEmpty)
         { throw new InvalidDataException("A tool-free turn cannot contain any tool history."); }
-        ValidateHistory(history);
-        var expectedRound = history.Count(message => message is ModelAssistantToolCalls) + 1;
+        if (clarificationAllowed) { ValidateQuestionHistory(history); }
+        else { ValidateHistory(history); }
+        var expectedRound = history.Count(message => message is ModelAssistantMessage) + 1;
         if (round != expectedRound || round > MaximumRounds)
         { throw new InvalidDataException("The continuation round is not the complete serial history."); }
         // Revalidate the immutable source against this request rather than allowing cross-session reuse.
         ReadContext(context.Wire.AsSpan(), provenance);
         var request = new ModelToolRequest(provenance, profile, context, history, round,
-            budget ?? new(MaximumInputUtf8Bytes, MaximumOutputUtf8Bytes));
+            budget ?? new(MaximumInputUtf8Bytes, MaximumOutputUtf8Bytes), clarificationAllowed);
         if (SerializeRequest(request).Length > request.Budget.InputUtf8Bytes)
         { throw new InvalidDataException("The complete model request exceeds the input limit."); }
         return request;
@@ -54,7 +58,7 @@ public static partial class ModelToolProtocol
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", SchemaVersion);
+            writer.WriteNumber("schemaVersion", request.ClarificationAllowed ? ClarificationSchemaVersion : SchemaVersion);
             writer.WritePropertyName("context");
             writer.WriteRawValue(request.Context.Wire.AsSpan());
             writer.WriteStartArray("messages");

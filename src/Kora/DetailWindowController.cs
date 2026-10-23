@@ -270,9 +270,10 @@ public sealed partial class DetailWindowController : IDisposable
                 : PublishContent(content, owner, existing, existing.State.Status, activateOnly: true, acknowledge);
         }
         var generation = state.Generation;
+        // Each additive profile remains unavailable until its own qualification.
         var result = content.Kind == DetailContentKind.StaticHtml
             ? staticHtmlRenderer.Render(content)
-            : renderer.Render(content.Source, content.Kind, content.Reference);
+            : renderer.Render(content.Source, content.Kind, content.Reference, NativeDetailFormat.PipeTablesV2);
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);

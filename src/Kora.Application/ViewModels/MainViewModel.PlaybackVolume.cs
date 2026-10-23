@@ -11,36 +11,43 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private readonly PlaybackVolumeConfigurationService? playbackVolumeConfiguration;
-    private int selectedPlaybackVolume = PlaybackVolume.Default.Percent;
+    private readonly AudioPlaybackSettings audioPlaybackSettings;
     private bool volumeControlActive;
 
-    public int? SavedPlaybackVolume => playbackVolumeConfiguration?.Get().Effective?.Percent;
-    public IReadOnlyList<int> PlaybackVolumeChoices { get; } = Enumerable.Range(0, PlaybackVolume.MaximumPercent + 1).ToArray();
+    public int? SavedPlaybackVolume => audioPlaybackSettings.VolumeState?.Effective?.Percent;
+    public IReadOnlyList<int> PlaybackVolumeChoices => audioPlaybackSettings.PlaybackVolumeChoices;
     public int SelectedPlaybackVolume
     {
-        get => selectedPlaybackVolume;
-        set => SetProperty(ref selectedPlaybackVolume, new PlaybackVolume(value).Percent);
+        get => audioPlaybackSettings.SelectedPlaybackVolume;
+        set
+        {
+            var previous = audioPlaybackSettings.SelectedPlaybackVolume;
+            audioPlaybackSettings.SelectedPlaybackVolume = value;
+            if (previous != value) { OnPropertyChanged(); }
+        }
     }
     public AsyncCommand RefreshPlaybackVolumeCommand { get; }
     public AsyncCommand SavePlaybackVolumeCommand { get; }
     public AsyncCommand ResetPlaybackVolumeCommand { get; }
-    public bool CanChangePlaybackVolume => playbackVolumeConfiguration is not null && IsCallMutationHostEligible
+    public bool CanChangePlaybackVolume => audioPlaybackSettings.VolumeState is not null && IsCallMutationHostEligible
         && !volumeControlActive && !IsResponseInteractionPending;
-    public string PlaybackVolumeStatus => playbackVolumeConfiguration is null
-        ? "Volume settings are unavailable. Playback volume is unchanged."
-        : SettingsText.Describe(playbackVolumeConfiguration.Get());
+    public string PlaybackVolumeStatus => audioPlaybackSettings.PlaybackVolumeStatus;
 
-    private void OnPlaybackVolumeChanged(object? sender, EventArgs args)
+    private void OnAudioPlaybackOutputInvalidated(object? sender, EventArgs args)
     {
         if (IsSpeaking) { forceVisualResponse = true; }
-        uiDispatcher.Post(SynchronizePlaybackVolume);
+    }
+
+    private void OnAudioPlaybackSettingsChanged(object? sender, AudioPlaybackSetting setting)
+    {
+        if (setting == AudioPlaybackSetting.Volume) { SynchronizePlaybackVolume(); }
+        else { SynchronizeWindowsSpeechRate(); }
     }
 
     private void SynchronizePlaybackVolume()
     {
         if (disposed) { return; }
-        if (playbackVolumeConfiguration!.Get().Desired is { } volume) { SelectedPlaybackVolume = volume.Percent; }
+        OnPropertyChanged(nameof(SelectedPlaybackVolume));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(SavedPlaybackVolume));
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
@@ -73,38 +80,12 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanChangePlaybackVolume));
         try
         {
-            await playbackVolumeConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
-            var saved = false;
-            var outcome = "observed";
-            PlaybackVolume? previousDesired = null;
-            if (command.Adjustment is { } adjustment)
-            {
-                var current = playbackVolumeConfiguration.Get();
-                var proposal = playbackVolumeConfiguration.ProposeAdjustment(adjustment, current.Revision, CallPolicyRevision);
-                previousDesired = current.Desired;
-                if (proposal is null)
-                {
-                    outcome = adjustment == AudioPreferenceAdjustment.Increase ? "unchanged-upper-boundary" : "unchanged-lower-boundary";
-                }
-                else
-                {
-                    saved = await playbackVolumeConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
-                    outcome = !saved ? "denied" : proposal.Value!.Value.Percent == PlaybackVolume.MaximumPercent ? "saved-upper-boundary"
-                        : proposal.Value.Value.Percent == 0 ? "saved-lower-boundary" : "saved";
-                }
-            }
-            else if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
-            {
-                var proposal = playbackVolumeConfiguration.Propose(command.Operation == AppearanceCommandOperation.Reset ? null
-                    : command.Value ?? throw new InvalidOperationException("An exact percent is required."),
-                    playbackVolumeConfiguration.Get().Revision, CallPolicyRevision);
-                saved = await playbackVolumeConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
-                outcome = saved ? "saved" : "denied";
-            }
+            var change = await audioPlaybackSettings.ExecuteVolumeAsync(command, origin, initiator,
+                communicationPolicy, eligible, cancellationToken);
             if (!eligible()) { return; }
-            if (saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
+            if (change.Saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
             if (!eligible()) { return; }
-            var result = PlaybackVolumeState.Serialize(playbackVolumeConfiguration.Get(), CallPolicyRevision, outcome, previousDesired);
+            var result = PlaybackVolumeState.Serialize(audioPlaybackSettings.VolumeState!, CallPolicyRevision, change.Outcome, change.PreviousDesired);
             if (preserveResponse)
             {
                 Transcript = result;
@@ -127,7 +108,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException
             or OperationCanceledException or TimeoutException)
         {
-            playbackVolumeConfiguration!.HoldUnavailable();
+            audioPlaybackSettings.HoldVolumeUnavailable();
             if (disposed) { return; }
             if (preserveResponse || IsResponseInteractionPending)
             {

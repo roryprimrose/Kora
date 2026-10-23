@@ -248,7 +248,11 @@ public sealed partial class SessionsConversationTests
             Action<HostId<SessionIdentity>>? revokeDetails = null,
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
             IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
-            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null, bool memoryContext = false)
+            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null,
+            bool memoryContext = false,
+            SpeechConfigurationService? speech = null,
+            Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
+            Kora.Core.Network.IWebPageTransport? pageTransport = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -271,7 +275,8 @@ public sealed partial class SessionsConversationTests
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store);
+                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
+                webPageAction: pageTransport is null ? null : new(pageTransport, Audit));
             Conversation = conversation;
             memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
                 NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;
@@ -284,7 +289,12 @@ public sealed partial class SessionsConversationTests
                 reviewAppearanceSuggestion: appearance is null ? null : (message, eligible, validate, token) =>
                     AppearanceSuggestionReview.ReviewAsync(appearance, message, eligible, validate, token),
                 confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token),
-                instructionUse: instructionFactory?.Invoke(Access));
+                instructionUse: instructionFactory?.Invoke(Access),
+                reviewSpeechSummarySuggestion: speech is null ? null : (message, eligible, validate, token) =>
+                    SpeechSummarySuggestionReview.ReviewAsync(speech,
+                        speechPolicy ?? throw new InvalidOperationException("Test speech policy is required."),
+                        f.Time, message, eligible, validate, token),
+                confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token));
         }
         public async ValueTask DisposeAsync()
         {

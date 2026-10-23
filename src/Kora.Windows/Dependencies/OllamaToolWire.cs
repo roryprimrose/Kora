@@ -60,10 +60,10 @@ internal static partial class OllamaToolWire
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }
             writer.WriteEndArray();
             if (request.ClarificationAllowed) { WriteQuestionFormat(writer); }
-            if (request.Context.ToolMode == ModelToolMode.ReadOnly)
+            if (request.Context.ToolMode != ModelToolMode.None)
             {
                 writer.WriteStartArray("tools");
-                foreach (var descriptor in ReadOnlyCapabilityCatalog.Descriptors) { WriteTool(writer, descriptor); }
+                foreach (var descriptor in ModelToolProtocol.GetTools(request.Context.ToolMode)) { WriteTool(writer, descriptor); }
                 writer.WriteEndArray();
             }
             writer.WriteEndObject();
@@ -125,11 +125,17 @@ internal static partial class OllamaToolWire
             writer.WriteEndArray();
             writer.WriteEndObject();
         }
+        else if (descriptor.Input == CapabilityInputShape.WebPageAddress)
+        {
+            writer.WriteStartObject("address");
+            writer.WriteString("type", "string");
+            writer.WriteEndObject();
+        }
         writer.WriteEndObject();
-        if (descriptor.Input == CapabilityInputShape.Id)
+        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.WebPageAddress)
         {
             writer.WriteStartArray("required");
-            writer.WriteStringValue("id");
+            writer.WriteStringValue(descriptor.Input == CapabilityInputShape.Id ? "id" : "address");
             writer.WriteEndArray();
         }
         writer.WriteEndObject();

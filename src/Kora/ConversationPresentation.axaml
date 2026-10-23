@@ -15,6 +15,9 @@
         <Button Name="ReviewAppearanceSuggestion" Content="Review appearance suggestion..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewAppearanceSuggestion}"
             AutomationProperties.Name="Review this exact assistant answer as an inert theme or native reader text scale suggestion; never applies without separate local confirmation" />
+        <Button Name="ReviewSpeechSummarySuggestion" Content="Review speech limit suggestion..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewSpeechSummarySuggestion}"
+            AutomationProperties.Name="Review this exact inert answer as one shared future ordinary speech cap; never applies or speaks without separate confirmation" />
       </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />

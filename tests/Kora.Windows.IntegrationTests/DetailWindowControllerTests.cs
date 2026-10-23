@@ -370,10 +370,10 @@ public sealed partial class DetailWindowControllerTests
 
     private sealed class Fixture : IDisposable
     {
-        public Fixture(bool rendererAvailable = true, bool pipeTablesAvailable = false)
+        public Fixture(bool rendererAvailable = true, bool pipeTablesAvailable = false, bool checklistsAvailable = false)
         {
             Controller = new(Documents, () => AccessGate?.Invoke() ?? Accessible,
-                new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable, pipeTablesAvailable), Clipboard,
+                new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable, pipeTablesAvailable, checklistsAvailable), Clipboard,
                 (state, _, _) =>
                 {
                     if (FailCreate) { throw new InvalidOperationException("fake unavailable native controls"); }

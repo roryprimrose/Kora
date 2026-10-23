@@ -6,6 +6,7 @@ using Kora.Core.Presentation;
 
 using Markdig;
 using Markdig.Extensions.Tables;
+using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
 
@@ -14,7 +15,8 @@ using Microsoft.Extensions.Logging;
 namespace Kora;
 
 internal sealed partial class NativeDetailRenderer(
-    ILogger<NativeDetailRenderer> logger, bool available = true, bool pipeTablesAvailable = false)
+    ILogger<NativeDetailRenderer> logger, bool available = true, bool pipeTablesAvailable = false,
+    bool checklistsAvailable = false)
 {
     private static readonly ActivitySource ActivitySource =
         new("Kora.Desktop", typeof(NativeDetailRenderer).Assembly.GetName().Version!.ToString());
@@ -31,6 +33,10 @@ internal sealed partial class NativeDetailRenderer(
         RequireHeaderSeparator = true,
         UseHeaderForColumnCount = false,
     }).Build();
+    private static readonly MarkdownPipeline ChecklistPipeline = new MarkdownPipelineBuilder
+    {
+        MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
+    }.UseTaskLists().Build();
     private static readonly HashSet<Type> SupportedTypes =
     [
         typeof(MarkdownDocument), typeof(HeadingBlock), typeof(ParagraphBlock), typeof(ListBlock),
@@ -52,7 +58,9 @@ internal sealed partial class NativeDetailRenderer(
     {
         var tables = kind == DetailContentKind.Markdown
             && format == NativeDetailFormat.PipeTablesV2 && pipeTablesAvailable;
-        var profile = tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name;
+        var checklists = kind == DetailContentKind.Markdown && format == NativeDetailFormat.MarkdownChecklistsV3;
+        var profile = checklists ? NativeMarkdownChecklistProfile.Name
+            : tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name;
         NativeDocumentResult Fallback(string text, string reason, string message, DetailContentReference? item,
             int blocks = 0, int nodes = 0, int depth = 0) =>
             SourceFallback(text, reason, message, item, blocks, nodes, depth, profile);
@@ -91,21 +99,26 @@ internal sealed partial class NativeDetailRenderer(
             render?.SetStatus(ActivityStatusCode.Ok);
             return Success(source, [new(source, NativeTextStyle.Paragraph)], 0, 1, 1);
         }
-        var preflight = Preflight(source, format, tables);
+        if (checklists && !checklistsAvailable)
+        {
+            return Fallback(source, "ChecklistUnavailable",
+                $"{profile} unavailable pending profile qualification; exact source fallback.", reference);
+        }
+        var preflight = Preflight(source, format, tables, checklists);
         if (preflight is not null)
         {
             return Fallback(source, "SourcePreflight", preflight, reference);
         }
 
         MarkdownDocument document;
-        try { document = Markdown.Parse(source, tables ? TablePipeline : Pipeline); }
+        try { document = Markdown.Parse(source, checklists ? ChecklistPipeline : tables ? TablePipeline : Pipeline); }
         catch (InvalidOperationException)
         {
             // Markdig's nesting guard throws InvalidOperationException. Never log its source-bearing message.
             return Fallback(source, "ParserGuard", "Parser nesting/error guard; exact source fallback.", reference);
         }
 
-        var validation = Validate(document, tables);
+        var validation = Validate(document, tables, checklists);
         if (validation.Error is not null)
         {
             return Fallback(source, "Structure", validation.Error, reference,
@@ -142,7 +155,8 @@ internal sealed partial class NativeDetailRenderer(
         render?.SetStatus(ActivityStatusCode.Ok);
         return new(source, semantic,
             $"Rendered {profile} CommonMark text subset. Links are inert; emphasis is plain text."
-                + (tables ? " Tables use complete header-labelled rows, not a visual grid." : string.Empty),
+                + (tables ? " Tables use complete header-labelled rows, not a visual grid." : string.Empty)
+                + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty),
             false, sections, validation.Blocks, validation.Nodes, validation.Depth);
     }
 
@@ -159,7 +173,7 @@ internal sealed partial class NativeDetailRenderer(
         return new(source, source, message, true, [], blocks, nodes, depth);
     }
 
-    private static string? Preflight(string source, NativeDetailFormat format, bool tables)
+    private static string? Preflight(string source, NativeDetailFormat format, bool tables, bool checklists)
     {
         // Conservative lexical rejection complements Markdig's pre-parse nesting cap.
         // False positives stay readable as exact source rather than being partially rendered.
@@ -209,8 +223,8 @@ internal sealed partial class NativeDetailRenderer(
             if (trimmed.Contains("~~", StringComparison.Ordinal)
                 || trimmed.StartsWith(":::", StringComparison.Ordinal)
                 || trimmed.StartsWith("[^", StringComparison.Ordinal)
-                || trimmed.Contains("[ ]", StringComparison.Ordinal)
-                || trimmed.Contains("[x]", StringComparison.OrdinalIgnoreCase))
+                || !checklists && (trimmed.Contains("[ ]", StringComparison.Ordinal)
+                    || trimmed.Contains("[x]", StringComparison.OrdinalIgnoreCase)))
             {
                 return "Unsupported Markdown extension/table; exact source fallback.";
             }
@@ -230,7 +244,7 @@ internal sealed partial class NativeDetailRenderer(
     }
 
     internal static (string? Error, int Blocks, int Nodes, int Depth) Validate(
-        MarkdownDocument document, bool tables = false)
+        MarkdownDocument document, bool tables = false, bool checklists = false)
     {
         var pending = new Stack<(MarkdownObject Node, int Depth)>();
         pending.Push((document, 0));
@@ -249,7 +263,7 @@ internal sealed partial class NativeDetailRenderer(
                 return ("Structural limit exceeded (512 blocks / 4096 nodes / depth 32); exact source fallback.",
                     blocks, nodes, depth);
             }
-            unsupported ??= Unsupported(entry.Node, tables);
+            unsupported ??= Unsupported(entry.Node, tables, checklists);
             // Advance siblings without recursively constructing or queuing a large visual tree.
             switch (entry.Node)
             {
@@ -283,7 +297,7 @@ internal sealed partial class NativeDetailRenderer(
         return (unsupported, blocks, nodes, depth);
     }
 
-    private static string? Unsupported(MarkdownObject node, bool tables) =>
+    private static string? Unsupported(MarkdownObject node, bool tables, bool checklists) =>
         node switch
         {
             HtmlBlock or HtmlInline => "Unsupported raw HTML; exact source fallback (no HTML/resource loading).",
@@ -294,6 +308,7 @@ internal sealed partial class NativeDetailRenderer(
                 "Unsupported emphasis extension; exact source fallback.",
             _ when tables && (node.GetType() == typeof(Table) || node.GetType() == typeof(TableRow)
                 || node.GetType() == typeof(TableCell)) => null,
+            TaskList when checklists => null,
             _ when SupportedTypes.Contains(node.GetType()) => null,
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
@@ -352,6 +367,7 @@ internal sealed partial class NativeDetailRenderer(
                 HeadingBlock { Level: 2 } => NativeTextStyle.Heading2,
                 HeadingBlock => NativeTextStyle.Heading,
                 CodeBlock => NativeTextStyle.Code,
+                LeafBlock { Inline.FirstChild: TaskList } => NativeTextStyle.Checklist,
                 _ => NativeTextStyle.Paragraph,
             };
             AddSection(new(entry.Prefix + text, style));
@@ -378,6 +394,7 @@ internal sealed partial class NativeDetailRenderer(
             {
                 case LiteralInline literal: text.Append(literal.Content.ToString()); break;
                 case CodeInline code: text.Append(code.Content); break;
+                case TaskList task: text.Append(task.Checked ? "Checked:" : "Unchecked:"); break;
                 case LineBreakInline: text.Append(Environment.NewLine); break;
                 case AutolinkInline autolink:
                     text.Append(autolink.Url);

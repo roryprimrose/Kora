@@ -616,6 +616,11 @@ internal static class Program
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
         services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();
         services.AddSingleton<WindowsVoiceRecognitionService>();
+        services.AddSingleton<ISpeechInputPreferences>(provider =>
+            new LocalSpeechInputPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ISpeechInputProfileRuntime>(provider =>
+            provider.GetRequiredService<WindowsVoiceRecognitionService>());
+        services.AddSingleton<SpeechInputConfigurationService>();
         services.AddSingleton<IVoiceRecognitionService>(provider =>
             provider.GetRequiredService<WindowsVoiceRecognitionService>());
         services.AddSingleton<IActivatedVoiceRecognitionService>(provider =>

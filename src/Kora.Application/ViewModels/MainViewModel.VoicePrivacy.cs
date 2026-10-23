@@ -47,6 +47,8 @@ public sealed partial class MainViewModel
             ? "Microphone closed - Windows access denied or unknown"
         : EffectiveMicrophone is null
             ? "Microphone closed - selected microphone unavailable"
+        : ActiveHandsFreeVoiceStatus is { } handsFreeStatus
+            ? handsFreeStatus
         : IsListening && voiceRecognition.IsListening
             ? "Push-to-talk capture active"
         : IsVoiceEnabled
@@ -62,6 +64,8 @@ public sealed partial class MainViewModel
     {
         voiceOwnershipEligible = gate;
         Interlocked.Increment(ref voiceOwnershipBindingRevision);
+        BindHandsFreeVoiceRuntime();
+        if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree) { handsFree.Revalidate(); }
     }
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
@@ -503,6 +507,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        if (disposed) { RetireHandsFreeVoiceBinding(); }
         RetireSessionCommandReviews();
         long revision;
         lock (voiceReadinessGate)
@@ -599,6 +604,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             ApplicationLog.Information(logger, "Previously enabled voice readiness was restored after Windows unlock");
+            await StartHandsFreeVoiceAsync();
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

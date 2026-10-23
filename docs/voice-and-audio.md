@@ -1,5 +1,14 @@
 # Voice, microphone, and speakers
 
+## Hands-free availability
+
+Configured-name hands-free activation remains **unavailable**. The new host
+lifecycle and deterministic audio-boundary tests do not install or qualify a
+wake detector. Saying the assistant name does not open an ordinary command turn
+in the current released adapter. Use push-to-talk, typed input or native controls;
+PTT is a fallback, not delivery of the primary hands-free interaction.
+See [speech-input implementation and enablement](../Design/Speech_Input.md#current-implementation-boundary).
+
 ## Speech input profile preference
 
 In **Settings > Speech & audio > Speech input profile**, choose the profile, resource preference and residency, then select **Save speech input**. Changing a selector alone does not save. **Inspect speech input** reports saved preference, desired tuple, effective selection and unavailability separately ([native controls](../src/Kora/SettingsWindow.axaml), [shared action](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs)).

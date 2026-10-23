@@ -9,8 +9,8 @@ internal sealed record VoiceCaptureLimits(
 {
     public static VoiceCaptureLimits Default { get; } = new(
         TimeSpan.FromSeconds(5),
-        TimeSpan.FromSeconds(60),
+        Kora.Core.Voice.VoiceInputLimits.MaximumCommandDuration,
         TimeSpan.FromSeconds(5),
         TimeSpan.FromSeconds(2),
-        4096);
+        Kora.Core.Voice.VoiceInputLimits.MaximumTranscriptCharacters);
 }

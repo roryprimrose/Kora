@@ -47,6 +47,20 @@ learning and enrolled verification described below are not delivered by this
 document. A selected local reasoning model or Kokoro output voice is not a
 speech-input provider. Source presence is not runtime readiness.
 
+The mode-independent [hands-free host lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.cs)
+defines wake-only processing, generation-bound command capture, joined resource
+release, existing governed text dispatch and fresh-policy re-arm. Its
+[platform seam](../src/Kora.Core/Voice/IHandsFreeAudioSession.cs) separates wake
+observation from command-only transcription; the
+[pre-roll buffer](../src/Kora.Core/Voice/WakeAudioBuffer.cs) retains at most two
+seconds and consumes only the exact post-name interval. These contracts and
+deterministic fakes are implementation groundwork, not an acoustic detector.
+The [Windows adapter](../src/Kora.Windows/Audio/UnavailableHandsFreeAudioStage.cs)
+is explicitly unavailable. D-002 still requires an approved exact engine,
+configured-name/language, endpointing and playback-rejection profile; no package,
+model, microphone capture or implicit consent is introduced by this groundwork.
+In particular, token timestamps are not proof of an exact exclusive wake end.
+
 ## Processing and Data Boundaries
 
 | Stage | Work and output | Lifetime and destination |

@@ -13,6 +13,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
     public ReplyCapture Capture { get; } = new();
     public ReplyDispatcher Dispatcher { get; } = new();
     public HostQuestionVoiceReplyService Replies { get; }
+    private readonly IQuestionVoiceRecognitionService captureRuntime;
     public QuestionVoiceAdmission? Admission { get; set; } = new(new("mic", "Synthetic"), 1, 1, 1);
     public bool Visible { get; set; } = true;
     public bool ThrowPlayback { get; set; }
@@ -22,10 +23,11 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
     public HostInteractionDecision? Accepted { get; private set; }
     public int SpeechCalls { get; private set; }
     public Action? BeforeObserve { get; set; }
-    public QuestionReplyFixture()
+    public QuestionReplyFixture(Func<ReplyCapture, IQuestionVoiceRecognitionService>? captureDecorator = null)
     {
         Time.Now = Host.Time.Now;
-        Replies = new(Host.Questions, Capture, Time, Dispatcher, () => { BeforeObserve?.Invoke(); return Admission; },
+        captureRuntime = captureDecorator?.Invoke(Capture) ?? Capture;
+        Replies = new(Host.Questions, captureRuntime, Time, Dispatcher, () => { BeforeObserve?.Invoke(); return Admission; },
             async (_, eligible, token) =>
             {
                 SpeechCalls++;
@@ -46,6 +48,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
     public async ValueTask DisposeAsync()
     {
         await Replies.DisposeAsync();
+        await captureRuntime.DisposeAsync();
         Host.Dispose();
     }
 

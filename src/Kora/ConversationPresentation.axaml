@@ -12,6 +12,9 @@
         <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap"
             AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
         <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
+        <Button Name="ReviewAppearanceSuggestion" Content="Review appearance suggestion..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewAppearanceSuggestion}"
+            AutomationProperties.Name="Review this exact assistant answer as an inert theme or native reader text scale suggestion; never applies without separate local confirmation" />
       </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />

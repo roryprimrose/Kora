@@ -124,7 +124,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 {
                     result = Finish(ModelTurnOutcome.Denied, expired, provenance);
                 }
-                else if (wire.Length > ModelContextEnvelope.MaximumInputUtf8Bytes)
+                else if (wire.Length > (context.Constraints?.InputUtf8Bytes ?? ModelContextEnvelope.MaximumInputUtf8Bytes))
                 {
                     result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.EnvelopeLimitExceeded, provenance);
                 }
@@ -194,7 +194,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime);
         Tag(turn.Provenance);
         var requested = StartAudit(turn.Provenance);
-        using var deadline = new CancellationTokenSource(Deadline, time);
+        using var deadline = new CancellationTokenSource(turn.Context.Constraints is { } constraints
+            ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds) : Deadline, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token);
         ModelTurnResult result;
         try
@@ -277,7 +278,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
             || !Enum.IsDefined(reply.Reason)
-            || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
+            || reply.Outcome == ModelTurnOutcome.Succeeded && (!ValidResponse(reply.Response)
+                || JsonSerializer.SerializeToUtf8Bytes(reply.Response).Length >
+                    (turn.Context.Constraints?.OutputUtf8Bytes ?? ModelContextEnvelope.MaximumOutputUtf8Bytes)))
         {
             return Finish(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
         }
@@ -291,7 +294,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
         // Refuse before asynchronous source validation so an unawaited callback cannot race a successful answer.
-        if (turn.Owner == owner && turn.Context.ToolMode == ModelToolMode.None)
+        if (turn.Owner == owner && (turn.Context.ToolMode == ModelToolMode.None
+            || !turn.Context.Tools.Any(tool => string.Equals(tool.Id, id, StringComparison.Ordinal))))
         {
             turn.RejectToolAttempt();
             ToolDenied(logger);
@@ -305,11 +309,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
         }
-        if (!ModelToolProtocol.GetTools(turn.Context.ToolMode).Any(descriptor =>
-            string.Equals(descriptor.Id, id, StringComparison.Ordinal)))
+        if (!turn.TryAdmitTool())
         {
+            turn.RejectToolAttempt();
             ToolDenied(logger);
-            return new(CapabilityOutcome.Denied, "tool-not-in-exact-turn-subset");
+            return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
         var reply = turn.Context.ToolMode == ModelToolMode.LocalWebPage
             ? webPages.TryGetValue(turn, out var webPage)

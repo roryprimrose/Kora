@@ -384,20 +384,42 @@ Do not move protocol enforcement, authorization or security checks into
 Markdown, templates or model instructions. Existing model-selector framing
 and runtime code are unchanged by this resource migration.
 
-**Agent execution direction, not delivered execution:** compatible agent
-Markdown can now be loaded as a declarative instruction artifact. A future
-agent runtime may support named task profiles that reference instructions,
-skills and a bounded subset of admitted tools, with typed input/output and
-runtime/locality/budget constraints.
+**Bounded agent execution, local-only v1:** an existing user-owned compatible
+`.agent.md` profile can be selected for one reviewed serial exact-session
+invocation through the canonical retained model/tool loop. The
+[workflow](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs) is separate
+from legacy artifact-as-instruction selection and from shared skill use.
 A profile is not a running agent, scheduler lane or new permission system.
 The host owns each run's session/task/request identity, original origin,
 resource leases, cancellation, budgets and approval/egress decisions.
 Profile text cannot approve effects, acquire arbitrary context, expand the
 tool subset or select an unapproved processing destination. No recursive
 delegation, concurrent worker creation, profile auto-enablement or provider
-fallback follows from loading a definition. Qualification of the actual
-model/tool loop and host runtime remains mandatory; loading an agent artifact
-does not introduce an agent executor.
+fallback follows from loading a definition. Provider qualification remains
+mandatory for enablement: an unavailable model produces a truthful retained
+terminal without an assistant answer. Deterministic fake-backed implementation
+tests are not a live-provider qualification claim.
+
+The [bounded agent v1 compatibility parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs) accepts exactly these scalar fields on an existing agent artifact; unsupported or missing metadata is incompatible. Parsing alone is not source ownership verification, consent or enablement. [Deterministic parser tests](../tests/Kora.Core.UnitTests/Agents/BoundedAgentProfileTests.cs) cover the compatibility boundary without invoking a model.
+
+| Field | Compatible v1 value |
+| --- | --- |
+| `name`, `description` | Existing artifact name and description |
+| `kora-agent-format` | `1` |
+| `runtime` | `local`; no model, account or destination selection |
+| `input`, `output` | `text` |
+| `references` | `none`; no instruction, skill or file dependency resolution |
+| `tools` | `none`, or comma-separated distinct exact IDs from the six original read-only observation capabilities |
+| `maximum-calls` | Unsigned decimal integer; zero exactly when tools are `none` |
+| `maximum-rounds`, `maximum-input-bytes`, `maximum-output-bytes`, `deadline-ms` | Positive decimal integers within `Int32` representation |
+
+The [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs) retains the immutable original artifact and byte digest. It exposes requested and [host-clamped](../src/Kora.Core/Dependencies/ModelTurnConstraints.cs) budgets; rounds are additionally bounded by calls plus one final round. The canonical adapter enforces cumulative bytes, calls and rounds; host dispatch independently enforces the exact subset, call count and deadline. No hook, script, delegation, MCP, web or power-action metadata is compatible, even when declared disabled.
+
+The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileReader.cs) pins an existing current-user-owned canonical `.agent.md` on a local fixed drive using the existing protected-root, reparse, hard-link and writable-sharing file boundary. Each source read revalidates ownership and native identity. Hidden/system and protected roots are unavailable; this does not grant access to arbitrary account/profile storage.
+
+Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
+
+The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
 The host maintains related but distinct registries:
 

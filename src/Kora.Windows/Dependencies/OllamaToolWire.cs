@@ -24,6 +24,15 @@ internal static partial class OllamaToolWire
             writer.WriteBoolean("think", false);
             writer.WriteStartArray("messages");
             WriteTextMessage(writer, "system", request.Context.SystemPolicy);
+            if (request.Context.Constraints is { } constraints)
+            {
+                WriteTextMessage(writer, "system", JsonSerializer.Serialize(new
+                {
+                    HostTurnConstraints = constraints,
+                    RemainingByteBudget = request.Budget,
+                    request.Round,
+                }));
+            }
             // Evidence stays serialized lower-trust context data; it is never promoted into system instructions.
             if (!request.Context.Evidence.IsEmpty)
             {
@@ -63,7 +72,7 @@ internal static partial class OllamaToolWire
             if (request.Context.ToolMode != ModelToolMode.None)
             {
                 writer.WriteStartArray("tools");
-                foreach (var descriptor in ModelToolProtocol.GetTools(request.Context.ToolMode)) { WriteTool(writer, descriptor); }
+                foreach (var descriptor in request.Context.Tools) { WriteTool(writer, descriptor); }
                 writer.WriteEndArray();
             }
             writer.WriteEndObject();

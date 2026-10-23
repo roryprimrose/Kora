@@ -13,6 +13,8 @@ public sealed class AsyncCommand(
 
     public bool CanExecute(object? parameter) => !isExecuting && (canExecute?.Invoke() ?? true);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "ICommand.Execute requires void; failures are routed to the supplied exception handler.")]
     public async void Execute(object? parameter)
     {
         try

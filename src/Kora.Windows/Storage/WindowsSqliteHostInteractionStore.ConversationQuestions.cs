@@ -3,6 +3,7 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Network;
 
 using Microsoft.Data.Sqlite;
 
@@ -21,6 +22,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
         { return false; }
         var question = pending[0];
         var spec = question.Spec;
+        if (question.Proposal is { } proposal && question.Key.Request.IsWithinIntent(task.Request)
+            && question.Key.Request.InvocationId is not null && proposal.Request == question.Key.Request
+            && question.SessionGeneration == session.Generation && proposal.ExpiresAt > time.GetUtcNow()
+            && question.ExpiresAt == proposal.ExpiresAt && proposal.Effect == HostOperationEffect.BoundedRead
+            && string.Equals(proposal.Binding.ActionId, WebPageAccessBinding.ActionId, StringComparison.Ordinal)
+            && string.Equals(spec.Purpose, "authorization", StringComparison.Ordinal)
+            && string.Equals(spec.SourceId, "local-web-page", StringComparison.Ordinal)
+            && spec.Kind == QuestionKind.SingleChoice && spec.Options.SequenceEqual([new QuestionOption("once", "Approve once")]))
+        { return true; }
         if (question.Key.Request != task.Request || question.SessionGeneration != session.Generation
             || question.Proposal is not null || question.ExpiresAt <= time.GetUtcNow()
             || !string.Equals(spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)

@@ -1,14 +1,22 @@
 using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
+using Kora.Core.Providers;
+using Kora.Windows.Dependencies;
+using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal static class OllamaModelProviderFactory
+internal sealed class OllamaModelProviderFactory(
+    WindowsOllamaRuntimeResolver resolver, TimeProvider time, ILoggerFactory logging,
+    Func<WindowsOllamaToolEndpointBinding, IModelToolTransport>? createTransport = null) : IModelProviderRegistrationSource
 {
-    internal static ModelProviderRegistration CreateUnavailable(IModelTurnAdapter adapter)
+    public async Task<ModelProviderRegistration?> ResolveAsync(ModelProviderSelection selection, ProviderProfileTuple profile,
+        CancellationToken cancellationToken)
     {
-        ArgumentNullException.ThrowIfNull(adapter);
-        // A native transport is implementation, not exact-profile qualification evidence.
-        return new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, adapter);
+        var receipt = await resolver.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false);
+        return receipt is null ? null : new(selection,
+            ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+            receipt.Catalogue.ValidUntil, new OllamaModelTurnAdapter(resolver, receipt, time, logging, createTransport),
+            () => receipt.IsCurrent(time.GetUtcNow()));
     }
 }

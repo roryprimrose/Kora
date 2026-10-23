@@ -18,6 +18,30 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("Kora")]
+    [InlineData("Nova")]
+    public async Task SpeechSuggestionListeningGrammarRegistersOnlyTheThreeExactCommandsAndCurrentNameVariants(string name)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        if (!string.Equals(name, "Kora", StringComparison.Ordinal)) { await f.RunAsync("set assistant.name to " + name); }
+        await f.RaiseActivatedTranscriptAsync(name + ", show spoken summary limits", 1);
+        string[] expected =
+        [
+            "review speech limit suggestion", name + " review speech limit suggestion",
+            "confirm speech limit change", name + " confirm speech limit change",
+            "cancel speech limit review", name + " cancel speech limit review",
+        ];
+        f.Voice.StartedPhrases.Where(phrase => phrase.Contains("speech limit", StringComparison.OrdinalIgnoreCase))
+            .Should().BeEquivalentTo(expected);
+        SpeechSummarySuggestionCommand.FixedPhrases.Should()
+            .Equal("review speech limit suggestion", "confirm speech limit change", "cancel speech limit review");
+        f.Voice.StartedPhrases.Select(phrase => phrase.ToUpperInvariant()).Should().OnlyHaveUniqueItems();
+        f.Preferences.SummaryLimits.Should().BeNull();
+        f.Reasoner.Requests.Should().BeEmpty();
+        await f.ViewModel.DisposeAsync();
+    }
+
     private static (SessionCommandStore Store, SpeechSuggestionModel Model) BindSpeechSuggestions(Fixture fixture, bool bindSpeech = true)
     {
         var store = new SessionCommandStore(fixture);

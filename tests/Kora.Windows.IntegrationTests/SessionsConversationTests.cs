@@ -251,7 +251,8 @@ public sealed partial class SessionsConversationTests
             Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null,
             bool memoryContext = false,
             SpeechConfigurationService? speech = null,
-            Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null)
+            Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
+            Kora.Core.Network.IWebPageTransport? pageTransport = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -274,7 +275,8 @@ public sealed partial class SessionsConversationTests
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store);
+                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
+                webPageAction: pageTransport is null ? null : new(pageTransport, Audit));
             Conversation = conversation;
             memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
                 NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;

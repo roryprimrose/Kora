@@ -29,7 +29,8 @@ internal sealed partial class SessionsViewModel(
     SessionConversationService? conversation = null,
     Func<AdmittedDetailContent, Func<bool>, Func<CancellationToken, Task<AdmittedDetailContent>>, CancellationToken, Task<string>>? openConversationDetail = null,
     Action<HostId<SessionIdentity>>? revokeConversationDetails = null,
-    Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reviewOriginalMessageReuse = null) : ObservableObject
+    Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reviewOriginalMessageReuse = null,
+    SessionAnswerReadWorkflow? answerReads = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();

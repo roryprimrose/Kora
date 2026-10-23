@@ -31,9 +31,16 @@
         <Button x:Name="NextConversation" Content="Next bounded page" IsEnabled="{Binding CanNextConversation}" />
         <Button x:Name="RefreshWork" Content="Refresh observed work" IsEnabled="{Binding CanRefreshWork}" />
       </WrapPanel>
-      <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="200"
+      <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="200"
+          SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
           ItemTemplate="{StaticResource ConversationMessageTemplate}"
-          AutomationProperties.Name="Original USER messages and separate typed HOST outcomes; inert native text, not assistant output" />
+          AutomationProperties.Name="Original USER messages, separate retained ASSISTANT answers and typed HOST outcomes; selection never starts speech" />
+      <WrapPanel>
+        <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
+        <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
+      </WrapPanel>
+      <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />
       <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
           PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
           AutomationProperties.Name="Shared private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />

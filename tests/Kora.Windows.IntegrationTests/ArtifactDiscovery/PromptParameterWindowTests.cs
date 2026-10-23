@@ -55,6 +55,7 @@ public sealed partial class PromptParameterWindowTests
     [InlineData("privacy")]
     [InlineData("disable")]
     [InlineData("native-file")]
+    [InlineData("retained-read")]
     public async Task ActualArtifactRouteSupportsPrivateNativeFieldsCompletePreviewSeparateAdmissionAndClosure(string closure)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -122,6 +123,14 @@ public sealed partial class PromptParameterWindowTests
             {
                 case "cancel": native.Close(); break;
                 case "input": f.Main.CommandText = "changed"; break;
+                case "retained-read":
+                    var readRequests = 0;
+                    f.Main.BindSelectedAnswerRead(eligible => token => { readRequests++; return Task.CompletedTask; });
+                    f.Main.CommandText = "read selected answer";
+                    await f.Main.RunTypedCommand.ExecuteAsync();
+                    readRequests.Should().Be(0);
+                    f.Main.ReadCurrentResponseStatus.Should().Contain("original input belonged to a prompt review");
+                    break;
                 case "privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true); break;
                 case "disable": revisions.DisableExact(saved, f.ArtifactCatalogue); break;
                 case "native-file":

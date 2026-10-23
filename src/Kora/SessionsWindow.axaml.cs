@@ -28,6 +28,9 @@ internal sealed partial class SessionsWindow : Window
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
+        ReadSelectedAnswer.Click += async (_, _) => await (ConversationOperation = model.ReadSelectedAnswerAsync());
+        CancelAnswerRead.Click += (_, _) => model.CancelAnswerRead();
+        Closed += (_, _) => model.CancelAnswerRead();
         NextConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync(next: true));
         SearchConversation.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync());
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));

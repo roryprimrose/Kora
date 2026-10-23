@@ -28,6 +28,7 @@ internal sealed partial class SessionsWindowController(
     private bool disposed;
     private long dispositionOwnerEpoch;
     private int dispositionOwnerOpen;
+    private int compactAnswerReadOpen;
 
     internal Func<bool> CaptureCompactNavigationEligibility()
     {
@@ -59,11 +60,16 @@ internal sealed partial class SessionsWindowController(
     internal void Bind()
     {
         main.SessionsRequested += OnOpen;
+        main.BindSelectedAnswerRead(eligible => !disposed
+            && (Volatile.Read(ref dispositionOwnerOpen) != 0 || Volatile.Read(ref compactAnswerReadOpen) != 0)
+            ? model?.CaptureSelectedAnswerRead(() => eligible() && !disposed
+                && (Volatile.Read(ref dispositionOwnerOpen) != 0 || Volatile.Read(ref compactAnswerReadOpen) != 0)) : null);
         main.BindSessionDispositionReview(this);
         main.BindQueueCancellationReview(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
+        service.SessionMetadataChanging += OnAnswerSourceChanging;
     }
 
     internal void Open()
@@ -89,6 +95,7 @@ internal sealed partial class SessionsWindowController(
                 {
                     Interlocked.Increment(ref dispositionOwnerEpoch);
                     model?.RevokeDispositionReview();
+                    model?.CancelAnswerRead();
                 }
             };
             opened.Closed += (_, _) =>
@@ -124,9 +131,15 @@ internal sealed partial class SessionsWindowController(
             var opened = new CompactSessionWindow(model!, presentation!);
             opened.SessionsRequested += (_, _) => Open();
             opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
+            opened.PropertyChanged += (_, args) =>
+            {
+                if (args.Property != Avalonia.Controls.Window.IsVisibleProperty || !ReferenceEquals(compact, opened)) { return; }
+                Volatile.Write(ref compactAnswerReadOpen, opened.IsVisible ? 1 : 0);
+                if (!opened.IsVisible) { model?.CancelAnswerRead(); }
+            };
             opened.Closed += (_, _) =>
             {
-                if (ReferenceEquals(compact, opened)) { compact = null; }
+                if (ReferenceEquals(compact, opened)) { Volatile.Write(ref compactAnswerReadOpen, 0); compact = null; }
                 ReleaseUnusedPresentation();
             };
             compact = opened;
@@ -154,7 +167,8 @@ internal sealed partial class SessionsWindowController(
             session => details?.RevokeConversationSession(session),
             (source, original, admitted, token) => ReviewOriginalMessageReuse?.Invoke(source, original,
                 window ?? (Avalonia.Controls.Window?)compact, admitted, token)
-                ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."));
+                ?? Task.FromResult("Original USER reuse unavailable: native New request is not composed."),
+            answerReads: new SessionAnswerReadWorkflow(service, main));
         presentation = new(model);
     }
 
@@ -163,6 +177,11 @@ internal sealed partial class SessionsWindowController(
         if (window is not null || compact is not null) { return; }
         model = null;
         presentation = null;
+    }
+
+    private void OnAnswerSourceChanging(HostId<SessionIdentity> session)
+    {
+        if (model?.ReferencesSession(session) == true) { model.CancelAnswerRead(); }
     }
 
     internal async Task NavigateAsync(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session,
@@ -251,8 +270,10 @@ internal sealed partial class SessionsWindowController(
         main.BindQueueCancellationReview(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;
+        main.BindSelectedAnswerRead(static _ => null);
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
+        service.SessionMetadataChanging -= OnAnswerSourceChanging;
         presentation?.Revoke();
         window = null;
         compact = null;

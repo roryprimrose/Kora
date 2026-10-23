@@ -14,12 +14,16 @@ public sealed partial class SettingsWindow
     private OllamaAdmissionReview? localAdmissionReview;
     private bool localAdmissionBusy;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunLocalAdmission reports failures to diagnostics and the native status.")]
     private async void OnReviewLocalAdmission(object? sender, RoutedEventArgs args) =>
         await RunLocalAdmission(async (workflow, eligible) =>
         {
             localAdmissionReview = await workflow.Review(RequestOrigin.LocalUi, eligible, CancellationToken.None);
         });
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunLocalAdmission reports failures to diagnostics and the native status.")]
     private async void OnConfirmLocalAdmission(object? sender, RoutedEventArgs args) =>
         await RunLocalAdmission(async (workflow, eligible) =>
         {
@@ -28,6 +32,8 @@ public sealed partial class SettingsWindow
             await workflow.Confirm(review, RequestOrigin.LocalUi, eligible, CancellationToken.None);
         });
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunLocalAdmission reports failures to diagnostics and the native status.")]
     private async void OnRevokeLocalAdmission(object? sender, RoutedEventArgs args) =>
         await RunLocalAdmission(async (workflow, eligible) =>
         {

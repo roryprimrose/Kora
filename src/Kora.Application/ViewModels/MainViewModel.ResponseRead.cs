@@ -56,8 +56,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         var output = SelectedOutputDevice;
         var effectiveOutput = EffectiveOutputDevice;
         var mode = EffectiveResponseMode;
-        var volume = playbackVolumeConfiguration?.Get().Revision;
-        var rate = windowsSpeechRateConfiguration?.Get().Revision;
+        var volume = audioPlaybackSettings.VolumeState?.Revision;
+        var rate = audioPlaybackSettings.RateState?.Revision;
         var outputRevision = outputConfiguration?.Get(CallPolicyRevision).Revision;
         var responseModeRevision = responseModeConfiguration?.Get().Revision;
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
@@ -74,8 +74,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             && speech == speechConfiguration.Get().Revision
             && SelectedOutputDevice == output && EffectiveOutputDevice == effectiveOutput
             && EffectiveResponseMode == mode
-            && volume == playbackVolumeConfiguration?.Get().Revision
-            && rate == windowsSpeechRateConfiguration?.Get().Revision
+            && volume == audioPlaybackSettings.VolumeState?.Revision
+            && rate == audioPlaybackSettings.RateState?.Revision
             && outputRevision == outputConfiguration?.Get(CallPolicyRevision).Revision
             && responseModeRevision == responseModeConfiguration?.Get().Revision
             && feedbackRevision == inCallFeedbackConfiguration?.Get().Revision

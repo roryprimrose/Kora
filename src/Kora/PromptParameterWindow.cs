@@ -10,6 +10,9 @@ namespace Kora;
 internal sealed class PromptParameterWindow : Window
 {
     internal readonly Dictionary<string, TextBox> Inputs = new(StringComparer.Ordinal);
+    internal readonly Dictionary<string, Button> SpeakInputs = new(StringComparer.Ordinal);
+    internal readonly Button CancelVoice = new() { Content = "Cancel spoken input" };
+    internal readonly TextBlock VoiceStatus = new() { Text = "Voice input is unavailable.", TextWrapping = TextWrapping.Wrap };
     internal readonly Button Preview = new() { Content = "Preview complete expanded USER REQUEST" };
     internal readonly Button Use = new() { Content = "Use reviewed request (separate admission)", IsEnabled = false };
     internal readonly TextBlock Expanded = new() { TextWrapping = TextWrapping.Wrap };
@@ -23,7 +26,7 @@ internal sealed class PromptParameterWindow : Window
     internal readonly TextBlock RetentionReview = new() { TextWrapping = TextWrapping.Wrap };
 
     internal PromptParameterWindow(PromptParameterDraft draft, Action<string, string> edit, Action<string> run,
-        Action<SessionWorkspaceEntry?>? select = null)
+        Action<SessionWorkspaceEntry?>? select = null, Action<string>? speak = null, Action? cancelVoice = null)
     {
         Title = "Required prompt inputs — private preparation";
         Width = 880;
@@ -44,11 +47,19 @@ internal sealed class PromptParameterWindow : Window
             Inputs.Add(name, input);
             top.Children.Add(new TextBlock { Text = name + " (required; 512 UTF-16 / 2048 UTF-8 maximum)" });
             top.Children.Add(input);
+            var voice = new Button { Content = "Speak input " + name, IsEnabled = speak is not null };
+            SpeakInputs.Add(name, voice);
+            voice.Click += (_, _) => speak?.Invoke(name);
+            voice.LostFocus += (_, _) => cancelVoice?.Invoke();
+            top.Children.Add(voice);
             input.PropertyChanged += (_, change) =>
             {
                 if (change.Property == TextBox.TextProperty) { edit(name, input.Text ?? string.Empty); }
             };
         }
+        CancelVoice.Click += (_, _) => cancelVoice?.Invoke();
+        top.Children.Add(CancelVoice);
+        top.Children.Add(VoiceStatus);
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
         Preview.Click += (_, _) => run("Preview");
         Use.Click += (_, _) => run("Use");
@@ -104,6 +115,7 @@ internal sealed class PromptParameterWindow : Window
         foreach (var input in Inputs.Values) { input.Text = string.Empty; }
         RetirePreview();
         Status.Text = string.Empty;
+        VoiceStatus.Text = string.Empty;
         Targets.ItemsSource = null;
         Content = null;
     }

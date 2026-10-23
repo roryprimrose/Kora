@@ -158,7 +158,8 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<PromptParameterController>>());
+                Services.GetRequiredService<ILogger<PromptParameterController>>(),
+                viewModel.BindPromptInputVoice(Services.GetRequiredService<ILogger<Kora.Application.Definitions.PromptInputVoiceController>>()));
             promptParameters.Bind();
             viewModel.PrivacyClosureRequested += (_, _) =>
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>().SuspendReviewedUse();

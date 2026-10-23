@@ -62,7 +62,7 @@ public sealed partial class ModelTurnHost
                 else if (!resolved.Current()) { admission = new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged)); }
                 else
                 {
-                    admission = await AdmitSelectionAsync(resolved.Selection, context, current, token).ConfigureAwait(false);
+                    admission = await AdmitSelectionAsync(resolved.Selection, context, current, token, resolved.Tuple).ConfigureAwait(false);
                     if (admission.Turn is { } turn)
                     {
                         turn.Policy = policy;

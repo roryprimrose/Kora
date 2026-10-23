@@ -316,6 +316,8 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Loaded requires void; fixture failures are reported and stop the fixture.")]
     private async void OnLoaded(object? sender, Avalonia.Interactivity.RoutedEventArgs args)
     {
         try
@@ -418,6 +420,8 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Closing requires void; shutdown failures are reported and exit the fixture with failure.")]
     private async void OnClosing(object? sender, WindowClosingEventArgs args)
     {
         if (canClose) { return; }

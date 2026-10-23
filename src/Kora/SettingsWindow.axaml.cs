@@ -23,6 +23,7 @@ public sealed partial class SettingsWindow : Window
     private readonly TabItem callsTab;
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
+    private readonly MainViewModel model;
 
     public SettingsWindow()
         : this(App.Services.GetRequiredService<MainViewModel>())
@@ -32,6 +33,7 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow(MainViewModel viewModel, Action? chooseMicrophone = null,
         SpeechCaptionWindowController? captionDisplay = null)
     {
+        model = viewModel;
         AvaloniaXamlLoader.Load(this);
         settingsTabs = this.FindControl<TabControl>("SettingsTabs")
             ?? throw new InvalidOperationException("The settings tab control is unavailable.");
@@ -48,6 +50,7 @@ public sealed partial class SettingsWindow : Window
         callsTab = this.FindControl<TabItem>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {
             this.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!.Bind(captionDisplay);
@@ -83,6 +86,8 @@ public sealed partial class SettingsWindow : Window
         if (DataContext is MainViewModel viewModel) { viewModel.ShowMaintenance(); }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; dialog/setup failures are explicitly reported to the supplied model.")]
     private async void OnInstallLocalModelClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)
     {
         if (isLocalModelReviewOpen || isPowerShellReviewOpen)
@@ -133,12 +138,18 @@ public sealed partial class SettingsWindow : Window
                 await viewModel.InstallLocalModelAsync();
             }
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportHostInteractionFailure("Local model setup could not be completed. " + exception.Message);
+        }
         finally
         {
             isLocalModelReviewOpen = false;
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; dialog/setup failures are explicitly reported to the supplied model.")]
     private async void OnInstallPowerShellClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)
     {
         if (isPowerShellReviewOpen || isLocalModelReviewOpen)
@@ -184,6 +195,10 @@ public sealed partial class SettingsWindow : Window
             {
                 await viewModel.InstallPowerShellAsync();
             }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportHostInteractionFailure("PowerShell setup could not be completed. " + exception.Message);
         }
         finally
         {

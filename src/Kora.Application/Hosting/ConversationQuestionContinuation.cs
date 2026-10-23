@@ -48,7 +48,7 @@ public sealed class ConversationQuestionContinuation(
                 RequireLive(token);
                 var canonical = snapshot.Questions.SingleOrDefault(item => item.Key == answered.Key);
                 return InteractionTransaction.CanInteract(snapshot) && snapshot.Session.Generation == generation
-                    && canonical is not null && SameRecord(canonical, answered)
+                    && canonical is not null && SameRecord(canonical, answered, answer)
                     ? (snapshot, new(HostInteractionOutcome.Answered, "exact-conversation-question-consumed", canonical))
                     : InteractionTransaction.Reject(snapshot, "conversation-question-no-longer-current");
             }, token).ConfigureAwait(false);
@@ -68,7 +68,8 @@ public sealed class ConversationQuestionContinuation(
     {
         token.ThrowIfCancellationRequested();
         var current = HostActivity.RequireCurrent();
-        if (current.Request != request || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown
+        // RequireCurrent already rejects a retired framework activity; it cannot be restored as ambient authority.
+        if (current.Request != request || current.Outcome != HostOperationOutcome.Unknown
             || !admitted() || time.GetUtcNow() >= expiresAt)
         { throw new InvalidOperationException("Original question ownership, correlation or expiry changed. Start a fresh request."); }
     }
@@ -77,13 +78,16 @@ public sealed class ConversationQuestionContinuation(
         string.Equals(left.Text, right.Text, StringComparison.Ordinal) && left.Kind == right.Kind
         && string.Equals(left.Purpose, right.Purpose, StringComparison.Ordinal)
         && string.Equals(left.SourceId, right.SourceId, StringComparison.Ordinal)
-        && left.Minimum == right.Minimum && left.Maximum == right.Maximum && left.MaximumTextLength == right.MaximumTextLength
+        // Supported Text/SingleChoice constructors fix both choice bounds at one.
+        && left.MaximumTextLength == right.MaximumTextLength
         && left.Options.SequenceEqual(right.Options);
 
-    private static bool SameRecord(HostQuestionRecord left, HostQuestionRecord right) =>
-        left.Key == right.Key && left.Status == right.Status && left.SessionGeneration == right.SessionGeneration
-        && left.ExpiresAt == right.ExpiresAt && left.Proposal is null && right.Proposal is null
+    // The exact-key lookup and validated submitted receipt already establish right's key, null proposal and answer.
+    private static bool SameRecord(HostQuestionRecord left, HostQuestionRecord right, QuestionAnswer expectedAnswer) =>
+        left.Status == right.Status && left.SessionGeneration == right.SessionGeneration
+        && left.ExpiresAt == right.ExpiresAt && left.Proposal is null
         && left.AnswerChannel == right.AnswerChannel && SameSpec(left.Spec, right.Spec)
-        && left.Draft is { } a && right.Draft is { } b
-        && string.Equals(a.Text, b.Text, StringComparison.Ordinal) && a.Choices.SequenceEqual(b.Choices);
+        && left.Draft is { } actualAnswer
+        && string.Equals(actualAnswer.Text, expectedAnswer.Text, StringComparison.Ordinal)
+        && actualAnswer.Choices.SequenceEqual(expectedAnswer.Choices);
 }

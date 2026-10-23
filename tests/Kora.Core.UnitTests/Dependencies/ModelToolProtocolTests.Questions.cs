@@ -37,6 +37,7 @@ public sealed partial class ModelToolProtocolTests
     [InlineData("""{"kind":"question","prompt":"Choose","options":["Same","same"]}""")]
     [InlineData("""{"kind":"question","prompt":"Choose","options":["a","b","c","d","e"]}""")]
     [InlineData("""{"kind":"question","prompt":"Choose","options":[null,"b"]}""")]
+    [InlineData("""{"kind":"question","prompt":"Choose","options":"not-an-array"}""")]
     [InlineData("""{"kind":"question","prompt":"Choose","options":[],"approved":true}""")]
     [InlineData("""{"kind":"question","prompt":"Choose","options":[],"minimum":0}""")]
     [InlineData("""{"kind":"question","prompt":"Choose","options":[],"prompt":"different"}""")]
@@ -90,6 +91,30 @@ public sealed partial class ModelToolProtocolTests
         };
         var create = () => ModelToolProtocol.CreateRequest(provenance, null, context, history,
             fault is "wrong-round" ? 1 : 2, clarificationAllowed: fault is not "no-opt-in");
+        create.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("not-question")]
+    [InlineData("not-answer")]
+    public void ClarificationHistoryRejectsOtherwiseValidMessagesInEitherQuestionAnswerPosition(string fault)
+    {
+        var provenance = Provenance();
+        var original = Envelope(provenance);
+        var context = ModelToolProtocol.ReadContext(new ModelContextEnvelope(provenance.Request, original.SystemPolicy,
+            original.UserRequest, [], original.CreatedAt, original.ExpiresAt, ModelToolMode.None).Serialize(), provenance);
+        var question = new ModelClarificationQuestion(new("Choose format", ["Compact", "Detailed"]));
+        var answer = new ModelQuestionAnswerMessage(question, new(["option-0"]), RequestOrigin.LocalUi);
+        var final = ModelToolProtocol.ParseAssistant("""{"kind":"answer","answer":"A genuine answer"}"""u8);
+        ModelToolMessage[] history = fault is "not-question" ? [final, answer] : [question, final];
+        var create = () => ModelToolProtocol.CreateRequest(provenance, null, context, history, 2, clarificationAllowed: true);
+        create.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void MissingOptionLabelIsRejectedWithoutRepairOrPartialQuestion()
+    {
+        var create = () => LocalModelQuestionPolicy.CreateSpec(new("Choose format", [null!, "Detailed"]));
         create.Should().Throw<InvalidDataException>();
     }
 

@@ -197,6 +197,7 @@ public sealed class ConversationQuestionContinuationTests
     [InlineData("missing")]
     [InlineData("foreign")]
     [InlineData("completed")]
+    [InlineData("stopped")]
     [InlineData("expired")]
     [InlineData("closed")]
     public async Task MissingOriginalLiveHostContextNeverPresentsOrAuditsAnAnswer(string fault)
@@ -206,6 +207,13 @@ public sealed class ConversationQuestionContinuationTests
             fault is "foreign" ? HostRequest.Create(RequestOrigin.LocalUi) : f.Request,
             HostActivityLayer.Application, HostOperation.Request);
         if (fault is "completed") { root!.Complete(HostOperationOutcome.Completed); }
+        if (fault is "stopped")
+        {
+            root!.Activity!.Stop();
+            System.Diagnostics.Activity.Current = root.Activity;
+            root.Activity.IsStopped.Should().BeTrue();
+            HostActivity.Current.Should().BeNull("the host must reject a framework-retired activity before question admission");
+        }
         var presentations = 0;
         var broker = new ConversationQuestionContinuation(f.Store, (_, _, _, _, _, _) =>
         {
@@ -217,6 +225,63 @@ public sealed class ConversationQuestionContinuationTests
             .Should().ThrowAsync<InvalidOperationException>();
         presentations.Should().Be(0);
         f.Store.Commits.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("status")]
+    [InlineData("generation")]
+    [InlineData("expiry")]
+    [InlineData("proposal")]
+    [InlineData("channel")]
+    [InlineData("text")]
+    [InlineData("kind")]
+    [InlineData("purpose")]
+    [InlineData("source")]
+    [InlineData("text-limit")]
+    [InlineData("options")]
+    [InlineData("missing-answer")]
+    [InlineData("answer-text")]
+    [InlineData("answer-choices")]
+    public async Task CanonicalAnsweredRecordMustMatchEveryValidatedReceiptFieldBeforeResume(string fault)
+    {
+        using var f = new InteractionFixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var broker = new ConversationQuestionContinuation(f.Store, async (request, _, spec, expiry, _, token) =>
+        {
+            var initial = (await f.Questions.CreateAsync(request, spec, expiry, token)).Question!;
+            var answer = spec.Kind == QuestionKind.Text ? new QuestionAnswer([], "Fresh text") : new QuestionAnswer(["option-0"]);
+            var completed = await f.Questions.SubmitAsync(initial.Key, answer, RequestOrigin.LocalUi, token);
+            var answered = completed.Question!;
+            var changedSpec = fault switch
+            {
+                "text" => new QuestionSpec("Different prompt", spec.Kind, spec.Options, purpose: spec.Purpose, sourceId: spec.SourceId),
+                "kind" => new(spec.Text, QuestionKind.MultipleChoice, spec.Options, purpose: spec.Purpose, sourceId: spec.SourceId),
+                "purpose" => new(spec.Text, spec.Kind, spec.Options, purpose: "other", sourceId: spec.SourceId),
+                "source" => new(spec.Text, spec.Kind, spec.Options, purpose: spec.Purpose, sourceId: "other"),
+                "text-limit" => new(spec.Text, QuestionKind.Text, [], maximumTextLength: 499, purpose: spec.Purpose, sourceId: spec.SourceId),
+                "options" => new(spec.Text, spec.Kind, [new("option-0", "Changed"), spec.Options[1]], purpose: spec.Purpose, sourceId: spec.SourceId),
+                _ => spec,
+            };
+            var canonical = answered with { Spec = changedSpec };
+            canonical = fault switch
+            {
+                "status" => canonical with { Status = QuestionStatus.Pending },
+                "generation" => canonical with { SessionGeneration = new(2) },
+                "expiry" => canonical with { ExpiresAt = expiry.AddSeconds(1) },
+                "proposal" => canonical with { Proposal = f.Store.Snapshot.Proposal },
+                "channel" => canonical with { AnswerChannel = RequestOrigin.ActivatedVoice },
+                "missing-answer" => canonical with { Draft = null },
+                "answer-text" => canonical with { Draft = new(["option-0"], "Foreign text") },
+                "answer-choices" => canonical with { Draft = new(["option-1"]) },
+                _ => canonical,
+            };
+            f.Store.Change(snapshot => snapshot with { Questions = [canonical] });
+            return new(initial, completed);
+        }, f.Request, new(1), f.Time.Now.AddSeconds(15), static () => true, f.Time);
+        var question = new LocalModelQuestion("Choose format", ["Compact", "Detailed"]);
+        await broker.Invoking(value => value.AskAsync(fault is "text-limit" ? new("Describe format", []) : question, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Store.Commits.Last().Decision.Outcome.Should().Be(HostInteractionOutcome.Denied);
     }
 
     [Theory]

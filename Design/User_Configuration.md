@@ -834,6 +834,24 @@ slice above; the original provider/voice slice supplies no rate authority.
 
 ### Delivered bounded spoken summary limits (R10)
 
+The [retained-answer review](../src/Kora.Application/Configuration/SpeechSummarySuggestionReview.cs)
+completes the registered-setting model proposal route for these two caps only.
+The canonical request policy advertises one inert exact Set, using the existing
+parser and domain bounds. Successful retained execution/source provenance is
+revalidated through the canonical host; model prose has no apply authority.
+Both native conversation sizes and exact typed/current-name activated-voice
+review/confirm/cancel routes show complete current/proposed tuples, saved/default
+provenance, unchanged companion, shared device-local scope and next-operation
+timing. A distinct fresh original-user confirmation consumes a memory-only,
+60-second, revision/source-bound review through the existing speech proposal,
+atomic call-policy/write and typed audit path. Source or confirmation voice
+classification is preserved, including later native confirmation. Appearance
+review remains a separate native-only operation. Existing direct setters/resets
+are unchanged; no option, cap, batch, provider qualification or approval grant is
+added. Uncertain writes require explicit Settings/audit inspection, not retry,
+rollback claims or fabricated success. The current answer is never shortened,
+regenerated, spoken or replayed by the operation.
+
 The [same speech parser](../src/Kora.Application/Configuration/SpeechCommand.cs) admits exact whole-utterance aliases: `show spoken summary limits`, `set spoken summary sentence limit to <integer>`, `set spoken summary word limit to <integer>`, `reset spoken summary sentence limit` and `reset spoken summary word limit`.
 
 The prefix is the current configured assistant name: optional for typed input, required for activated-voice natural aliases. Provider/installed-voice grammar is unchanged ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).

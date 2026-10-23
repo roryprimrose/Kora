@@ -4,6 +4,7 @@ using Kora.Application.Hosting;
 using Kora.Core.Authorization;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -326,8 +327,12 @@ public sealed partial class MainViewModelTests
             await fixture.HostStore.CommitAsync(intent, 0, cancellationToken);
             return intent;
         }
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(Session);
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
+        {
+            if (RequestMessage?.Outcome == ModelTurnOutcome.Succeeded)
+            { BeforeSpeechMetadataRead?.Invoke(++speechMetadataReads); }
+            return ValueTask.FromResult(Session);
+        }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
             Failure is null ? ValueTask.FromResult(new SessionPage<SessionWorkspaceEntry>([Session], null))
                 : ValueTask.FromException<SessionPage<SessionWorkspaceEntry>>(Failure);

@@ -291,7 +291,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
         }
-        var reply = tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
+        if (!ModelToolProtocol.GetTools(turn.Context.ToolMode).Any(descriptor =>
+            string.Equals(descriptor.Id, id, StringComparison.Ordinal)))
+        {
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "tool-not-in-exact-turn-subset");
+        }
+        var reply = turn.Context.ToolMode == ModelToolMode.LocalWebPage
+            ? webPages.TryGetValue(turn, out var webPage)
+                ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
+            : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
         if (await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);

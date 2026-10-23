@@ -7,6 +7,16 @@ public static partial class ModelToolProtocol
     private static void ValidateResult(ModelToolCall call, CapabilityReply reply)
     {
         ValidateText(reply.Reason);
+        if (Network.LocalWebPageTool.FindExact(call.CapabilityId) is { } web)
+        {
+            var address = CapabilityInputPolicy.Read(web, call.InputJson).WebPageAddress;
+            if (address is null || !Network.LocalWebPageTool.Matches(reply, address))
+            { throw new InvalidDataException("The local page result does not match the exact approved destination."); }
+            ValidateText(reply.WebPage!.Text);
+            return;
+        }
+        if (reply.WebPage is not null)
+        { throw new InvalidDataException("Page content cannot be returned by a discovery tool."); }
         var shapeCount = (reply.Capabilities is null ? 0 : 1) + (reply.Descriptor is null ? 0 : 1)
             + (reply.Version is null ? 0 : 1) + (reply.Readiness is null ? 0 : 1)
             + (reply.Runtimes is null ? 0 : 1) + (reply.Runtime is null ? 0 : 1);

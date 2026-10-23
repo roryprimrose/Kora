@@ -244,6 +244,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
         CancelAppearanceSuggestion(reportCancellation: false);
@@ -268,6 +269,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanConfirmAppearanceSuggestion));
         OnPropertyChanged(nameof(CanReviewAppearanceSuggestion));
         RestoreUnsent();
+        NotifyInstructionContext();
         NotifyHistoryContext();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),

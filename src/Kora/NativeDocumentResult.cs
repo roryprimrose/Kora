@@ -1,3 +1,5 @@
+using Kora.Core.Presentation;
+
 namespace Kora;
 
 internal sealed record NativeDocumentResult(
@@ -8,4 +10,5 @@ internal sealed record NativeDocumentResult(
     IReadOnlyList<NativeTextSection> Sections,
     int BlockCount = 0,
     int NodeCount = 0,
-    int Depth = 0);
+    int Depth = 0,
+    StaticHtmlDocument? StaticHtml = null);

@@ -173,6 +173,7 @@ Persist feature/operation, nonce, owner, scope, base and authority before one la
 - Complete autonomous delivery authority, genuinely required local checks, hosted validation boundary, applicable commit/PR skills and normal hooks/signing.
 - The run's recorded publication policy and scope: standing ready-PR authority, explicit draft authority, or local-only. No merge authority is inferred.
 - Publication epoch/execution transition, the [immediate milestone callback](#publication-milestone-protocol), exact native delivery address/readback, stale-head handling, no nested/replacement workers and no assumed continuous monitoring.
+- The [routine continuation rule](#routine-continuation-without-user-input): publication handoff and yield require no user decision; supported re-entry preserves existing authority and repair admission.
 
 Owners coordinate directly: one owner per shared predicate/API/source/lifecycle hunk; consumers import the delta and test integrated heads, never competing policies.
 
@@ -243,6 +244,14 @@ The compact event contains these fields (illustrative values, not a JSON-only tr
 Persist pending event/delivery before sending to the exact launch callback. Save the native tool's message ID/revision/status as accepted transport readback, or literal failure as pending/failed. Acceptance is not coordinator processing and no policy ACK is required to finish.
 
 On refusal/unavailable re-entry retain a pending receipt: **resumable, not continuously monitoring**. No invented watchers, automations, forwarders or wakeup. Definitions cannot force host re-entry or override parent role/tool limits.
+
+### Routine Continuation Without User Input
+
+Include this rule in child launch and repair instructions; it also applies to the coordinator. Complete already-authorized work without asking whether to continue. After the required publication handoff, checkpoint and yield without asking the user whether to stop, wait, check again or resume later. Hosted CI pending, no actionable findings and unknown candidate state are not user decisions or permission to poll.
+
+On supported re-entry, inspect the relevant current state within the assigned role and existing authority. The coordinator dispatches verification or admits concrete repair; the retained owner performs admitted repair. A routine status check or yield grants no new repair execution, publication or merge authority.
+
+Ask only when a material product/scope, security, consent, ownership, authorization or capability decision requires user input. Report unavailable execution or transport with a durable pending handoff and yield when no such decision is needed. Do not compensate with polling, retries, watchdogs or invented background continuation, or claim merge before verified proof.
 
 Match admitted owner/job and stopped execution, then release/refill once: no raw TRX/Git audit, child counter lookup, head grant, permission phase or ACK. Existing equivalent textual/terminal handoffs, including released jobs, remain valid without strict-JSON migration, retransmission or revalidation.
 

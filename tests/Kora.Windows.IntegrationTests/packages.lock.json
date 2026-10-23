@@ -509,6 +509,7 @@
           "Avalonia.Desktop": "[12.1.3, )",
           "Avalonia.Fonts.Inter": "[12.1.3, )",
           "Avalonia.Themes.Fluent": "[12.1.3, )",
+          "Kora.Application": "[0.1.0, )",
           "Kora.Windows": "[0.1.0, )",
           "WixToolset.BootstrapperApplicationApi": "[7.0.0, )"
         }

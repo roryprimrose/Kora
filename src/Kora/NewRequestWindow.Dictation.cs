@@ -88,6 +88,8 @@ internal sealed partial class NewRequestWindow
 #pragma warning restore VSTHRD003
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia pointer/key callbacks require void; failures cancel dictation and invoke reportFailure.")]
     private async void RunDictation(Func<Task> operation)
     {
         try { await (Operation = operation()); }

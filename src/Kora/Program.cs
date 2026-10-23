@@ -365,6 +365,8 @@ internal static class Program
         services.AddSingleton<LocalSharedSkillPreferences>();
         services.AddSingleton<SharedSkillAdmission>();
         services.AddSingleton<SharedSkillDiscoveryService>();
+        services.AddSingleton<SharedSkillUseAdmission>();
+        services.AddSingleton<SharedSkillInvocationWorkflow>();
         services.AddSingleton<IAudioControlSessionStore>(interactions);
         services.AddSingleton<IDiagnosticRetentionSessionStore>(interactions);
         services.AddSingleton<DiagnosticRetentionAdmission>();

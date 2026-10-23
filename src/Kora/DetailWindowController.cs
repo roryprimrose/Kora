@@ -273,7 +273,7 @@ public sealed partial class DetailWindowController : IDisposable
         // Each additive profile remains unavailable until its own qualification.
         var result = content.Kind == DetailContentKind.StaticHtml
             ? staticHtmlRenderer.Render(content)
-            : renderer.Render(content.Source, content.Kind, content.Reference, NativeDetailFormat.PipeTablesV2);
+            : renderer.Render(content.Source, content.Kind, content.Reference, SelectNativeFormat(content));
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
@@ -307,6 +307,11 @@ public sealed partial class DetailWindowController : IDisposable
         windows.Add(reference, (state, view));
         return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
     }
+
+    private static NativeDetailFormat SelectNativeFormat(AdmittedDetailContent content) =>
+        content.Kind == DetailContentKind.Markdown && content.Origin == DetailContentOrigin.FinalizedResponse
+            ? NativeDetailFormat.MarkdownChecklistsV3
+            : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,
         (DetailViewerState State, IDetailView View) entry, string status, bool activateOnly, Action? acknowledge = null)

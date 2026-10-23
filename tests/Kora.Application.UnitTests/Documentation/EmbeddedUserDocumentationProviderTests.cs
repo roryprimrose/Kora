@@ -200,7 +200,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 20);
+        sections.Should().HaveCount(commands.Count + 21);
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -240,8 +240,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("network.get_web_page")
             .And.Contain("remains unavailable");
         var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
-        sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
+        sharedSkills.Should().Contain("immutable").And.Contain("inspection alone grant no invocation")
             .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
+        var sharedInvocation = sections.Single(section => section.StartsWith("Reviewed instruction-only shared skill invocation", StringComparison.Ordinal));
+        sharedInvocation.Should().Contain("shared skill enable").And.Contain("shared skill confirm invocation")
+            .And.Contain("unchanged original request").And.Contain("two minutes")
+            .And.Contain("all tools and hosted fallback are denied").And.Contain("existing Active conversation");
         var skillSearch = sections.Single(section => section.StartsWith("Search admitted skill package metadata", StringComparison.Ordinal));
         skillSearch.Should().Contain("ordinal-ignore-case").And.Contain("256 UTF-16 units / 512 strict UTF-8 bytes")
             .And.Contain("at most eight packages").And.Contain("at most 32 snapshots")
@@ -362,6 +366,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, sharedInvocation)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
             && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();
         for (var index = 0; index < commands.Count; index++)

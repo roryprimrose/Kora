@@ -658,6 +658,20 @@ Semantic expansion is UTF-8-budgeted while building, including repeated
 reference-link destinations, before any control or joined projection is
 published.
 
+### Separately gated display-only Markdown checklists
+
+The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.
+
+The profile preserves strict source/semantic UTF-8, block, node and nesting bounds from [native-text-v1](../src/Kora.Core/Presentation/NativeDetailProfile.cs). Escaped markers and inline/fenced/indented code remain literal. Images, raw HTML, tables and unsupported extensions retain the entire admitted exact source; no partial checklist is published ([maintained parser/accessibility contracts](../tests/Kora.Windows.IntegrationTests/NativeMarkdownChecklistTests.cs)).
+
+[Native projection](../src/Kora/MarkdownDocumentRenderer.cs) uses inert text with explicit state in the accessible name, not toggle/invoke automation patterns. Original source and ordinary literal Find remain distinct, bounded in-memory projections. Source/privacy/session retirement and the existing no-copy policy for finalized responses remain enforced by [controller contracts](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Checklists.cs).
+
+[Details dispatch](../src/Kora/DetailWindowController.cs) selects this profile only for already host-classified Markdown finalized responses, never by inspecting model markup. Plain-text current responses and retained original USER records stay literal; embedded/history Markdown retain the independently gated table profile. Neither legacy profile acquires checklist support.
+
+The [validated final-answer producer](../src/Kora.Application/ViewModels/MainViewModel.cs) freezes the exact original answer in host-typed state alongside the current ordinary response. Existing native, typed and activated-voice current-response Details pass only that answer body as Markdown, retaining the local-generation warning in native provenance. Visible response/speech and ordinary status PlainText remain unchanged ([actual-route tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MarkdownAnswerDetails.cs)).
+
+Implementation and deterministic headless contracts do not enable composition: checklist availability defaults to false, returning labelled entire-source fallback for an explicitly requested unqualified profile. This delivers the frozen **current** model-answer source route, not persisted retained assistant-answer Details; retained original USER remains PlainText. No public switch, provider/hardware/browser/resource access or installed accessibility/Enablement/RC qualification is added.
+
 Native chrome contains provenance, revision/digest, sensitivity, renderer
 status, Rendered/Source, continuous text, search, selection/exact-source copy
 and close controls, outside

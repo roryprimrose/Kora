@@ -39,6 +39,12 @@ public sealed class PromptParameterDraft : IDisposable
     public bool IsCurrent { get { lock (gate) { return Current(); } } }
     public bool CanUse { get { lock (gate) { return PreviewCurrent(); } } }
     public string? PreviewText { get { lock (gate) { return PreviewCurrent() ? preview!.UserRequest : null; } } }
+    internal long InputRevision { get { lock (gate) { return valueRevision; } } }
+
+    public void RetirePreview()
+    {
+        lock (gate) { preview = null; valueRevision++; }
+    }
 
     public void SetValue(string name, string value)
     {

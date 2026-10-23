@@ -163,6 +163,57 @@ public sealed class StaticHtmlDetailRendererTests
 
     private static StaticHtmlDetailRenderer Qualified() => new(NullLogger<StaticHtmlDetailRenderer>.Instance, true);
 
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task HtmlAndChecklistRoutesKeepIndependentQualificationAndExactPrivateLifetimes(
+        bool htmlQualified, bool checklistQualified)
+    {
+        var views = new List<FakeView>();
+        var htmlLive = true;
+        var clipboard = new NoClipboard();
+        using var controller = new DetailWindowController(new NoDocuments(), () => true,
+            new(NullLogger<NativeDetailRenderer>.Instance, pipeTablesAvailable: true,
+                checklistsAvailable: checklistQualified), clipboard,
+            (state, _, _) =>
+            {
+                var view = new FakeView(state);
+                views.Add(view);
+                return view;
+            }, NullLogger<DetailWindowController>.Instance,
+            new(NullLogger<StaticHtmlDetailRenderer>.Instance, htmlQualified));
+        var html = Content("<h2>Private HTML</h2>");
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        const string checklistSource = "- [ ] Private checklist\r\n";
+        var checklist = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.Markdown,
+            DetailContentOrigin.FinalizedResponse, DetailSensitivity.DisclosureConfirmationRequired,
+            "Exact assistant answer", "Host-issued immutable test answer", checklistSource,
+            new(request.SessionId, request.RequestId, request.TaskId));
+        controller.OpenCurrentResponse(html, null, () => htmlLive).Should().BeTrue();
+        controller.OpenCurrentResponse(checklist, null, () => true).Should().BeTrue();
+        views[0].State.ActiveText.Should().Be(htmlQualified ? "Private HTML" : html.Source);
+        views[0].State.Status.Should().Contain(StaticHtmlProfile.Name);
+        views[1].State.RenderState.Should().Be(checklistQualified ? DetailRenderState.Rendered : DetailRenderState.SourceFallback);
+        views[1].State.Status.Should().Contain(NativeMarkdownChecklistProfile.Name);
+        views[1].State.ActiveText.Should().Contain(checklistQualified ? "Unchecked: Private checklist" : checklistSource);
+        views[1].State.SetSource(true);
+        views[1].State.ActiveText.Should().Be(checklistSource);
+        var htmlGeneration = views[0].State.Generation;
+        htmlLive = false;
+        controller.RetireUnavailableCurrentResponses();
+        views[0].Cleared.Should().BeTrue();
+        views[0].State.ActiveText.Should().BeEmpty();
+        views[0].State.CompleteRender(htmlGeneration, "late HTML", "Late", false).Should().BeFalse();
+        views[1].Cleared.Should().BeFalse();
+        views[1].State.ActiveText.Should().Be(checklistSource);
+        await controller.CopyAsync(checklist.Reference, views[1].State.Generation, true);
+        clipboard.Writes.Should().Be(0);
+        controller.ClearForPrivacy();
+        views.Should().OnlyContain(view => view.Cleared && view.State.Content == null);
+    }
+
     private static AdmittedDetailContent Content(string source)
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);

@@ -33,6 +33,7 @@ internal sealed partial class SharedSkillSourcesWindowController(
             () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
             () => RunAsync(UnregisterAsync, supersede: true),
             () => Eligible() && main.CallPolicyRevision == revision);
+        window.BindInvocation(() => RunAsync(ReviewInvocationAsync));
         window.Closed += OnClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainChanged;

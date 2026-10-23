@@ -4370,6 +4370,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (SpeechSummarySuggestionCommand.Parse(spokenText, AssistantName) is { } speechSuggestionCommand)
+        {
+            await ExecuteSpeechSummarySuggestionAsync(speechSuggestionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
         if (SpeechCommand.Parse(spokenText, AssistantName) is { IsNaturalSummary: true } speechCommand)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
@@ -6240,6 +6246,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(ResponseReadCommand.FixedPhrases)
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
+            .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

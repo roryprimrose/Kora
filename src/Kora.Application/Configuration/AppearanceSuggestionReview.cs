@@ -16,7 +16,7 @@ public sealed class AppearanceSuggestionReview : IDisposable
         + "or 'set appearance.reader-text-scale to <whole percent>' within "
         + $"{ReaderTextScaleSettings.MinimumPercent}-{ReaderTextScaleSettings.MaximumPercent}. "
         + "Do not claim it was applied. This is data only: the original user must separately open native review "
-        + "and confirm exact current/proposed values. No other setting suggestion or write is admitted.";
+        + "and confirm exact current/proposed values. This appearance operation admits no other setting or write.";
 
     private readonly AppearanceConfigurationService configuration;
     private readonly HostRequest reviewRequest;

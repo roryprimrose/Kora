@@ -47,6 +47,7 @@ internal sealed partial class NativeQuestionHost
         {
             opened?.Close("Original clarification presentation ended. Inspect the retained task outcome; no replay or automatic retry was admitted.");
 #pragma warning disable VSTHRD003 // Joins this native owner's existing reply retirement without blocking the dispatcher.
+            if (opened is not null) { await opened.OperationQuiescence; }
             if (voiceReplies is not null) { await voiceReplies.Quiescence; }
 #pragma warning restore VSTHRD003
             current = null;

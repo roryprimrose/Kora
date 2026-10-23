@@ -3,9 +3,12 @@
 using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
+using Kora.Application.Interaction;
 using Kora.Core.Dependencies;
+using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +17,128 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Fact]
+    public async Task ClosingQuestionDoesNotClaimQuiescenceBeforeItsInFlightAuditedReviewFinishes()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        var spec = LocalModelQuestionPolicy.CreateSpec(new("Describe format", []));
+        var record = (await f.RunAsync(() => f.Questions.CreateAsync(f.Request, spec, f.Time.Now.AddSeconds(15), f.Token))).Question!;
+        var gated = new GatedQuestionStore(f.Store);
+        var state = new NativeQuestionViewModel(record, new(gated, f.Time), new(gated, f.Time),
+            new(gated, f.Time), static () => true, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
+        var review = state.ReviewAsync();
+        try
+        {
+            await gated.Entered.Task.WaitAsync(f.Token);
+            state.Close("Original question cancellation");
+            state.Completion.IsCompleted.Should().BeTrue("logical question withdrawal is immediate");
+            state.OperationQuiescence.IsCompleted.Should().BeFalse("the owned audit/store operation is still in flight");
+            state.IsEditable.Should().BeFalse();
+        }
+        finally { gated.Release.TrySetResult(); }
+        await review;
+        await state.OperationQuiescence;
+        state.HasPendingOperation.Should().BeFalse();
+        state.HasPresentation.Should().BeFalse();
+    }
+
+    private sealed class GatedQuestionStore(IHostInteractionStore inner) : IHostInteractionStore
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public async ValueTask<HostInteractionDecision> TransactAsync(HostRequest request,
+            Func<HostInteractionSnapshot, HostInteractionCommit> transition, CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult();
+            await Release.Task.WaitAsync(cancellationToken);
+            return await inner.TransactAsync(request, transition, cancellationToken);
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExistingExactRunningTaskControlsCancelPendingClarificationAndRejectLateNativeReply(bool compact)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var transport = new QuestionTransport(false);
+            await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
+            await using var composed = new Composition(f, adapter: adapter);
+            using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
+            host.BindGate(static () => true);
+            host.BindAdmissionRevision(static () => 1);
+            host.BindPrivateRevision(static () => 1);
+            var model = composed.Model;
+            var presentation = new SessionsPresentationOwner(model);
+            var workspace = compact ? null : new SessionsWindow(model, presentation);
+            var compactWindow = compact ? new CompactSessionWindow(model, presentation) : null;
+            Window owner = workspace ?? (Window)compactWindow!;
+            owner.Show();
+            var displayed = new TaskCompletionSource<NativeQuestionViewModel>(TaskCreationOptions.RunContinuationsAsynchronously);
+            QuestionWindow? questionWindow = null;
+            model.QuestionPresenter = async (request, generation, spec, expiry, admitted, token) =>
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(async () =>
+                {
+                    try
+                    {
+                        return await host.AskConversationAsync(request, generation, spec, expiry, admitted, state =>
+                        {
+                            questionWindow = new(state, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance));
+                            questionWindow.Show(owner);
+                            displayed.TrySetResult(state);
+                            return Task.CompletedTask;
+                        }, token);
+                    }
+                    finally { questionWindow?.Close(); }
+                });
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                await model.ReadConversationAsync();
+                model.ComposerBody = "cancel this exact clarification task";
+                owner.FindControl<Button>("SubmitConversationWithClarification")!
+                    .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                var operation = workspace?.ConversationOperation ?? compactWindow!.ConversationOperation;
+                var state = await displayed.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await model.RefreshRunningConversationAsync();
+                model.CanCancelRunningConversation.Should().BeTrue();
+                var cancel = owner.FindControl<Button>("CancelRunningConversation")!;
+                cancel.IsEffectivelyEnabled.Should().BeTrue();
+                cancel.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+                await (workspace?.ConversationCancellationOperation ?? compactWindow!.ConversationCancellationOperation);
+                model.RunningConversationStatus.Should().NotContain("unconfirmed");
+                model.RunningConversationStatus.Should().Match(text =>
+                    text.Contains("Cancelling requested", StringComparison.Ordinal)
+                    || text.Contains("Terminal Cancelled", StringComparison.Ordinal));
+                await operation;
+                state.IsEditable.Should().BeFalse();
+                state.Edit(new(["option-0"]));
+                await state.SubmitAsync();
+                var retained = model.ConversationMessages.Single();
+                retained.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                retained.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+                retained.ExpectedTaskState.Should().Be(HostTaskState.Unknown);
+                retained.AssistantResponse.Should().BeNull();
+                transport.Requests.Should().ContainSingle();
+                model.RunningConversationStatus.Should().Contain("Terminal Cancelled");
+                model.CanCancelRunningConversation.Should().BeFalse();
+                composed.Audit.Events.Where(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal))
+                    .Select(item => item.Outcome).Should().Equal(
+                        Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+                (await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token))
+                    .Should().Be(retained);
+                (await f.Store.ReadQuestionsAsync(retained.Request.SessionId, f.Token)).Single().Status.Should().NotBe(QuestionStatus.Answered);
+            }
+            finally { questionWindow?.Close(); presentation.Revoke(); }
+        });
+    }
+
     [Fact]
     public async Task BoundQuestionPresenterDoesNotChangeOrdinarySubmissionToolAdmissionOrRequestShape()
     {

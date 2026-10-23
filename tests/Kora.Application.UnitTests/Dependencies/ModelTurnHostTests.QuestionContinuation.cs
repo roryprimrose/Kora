@@ -4,6 +4,8 @@ using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Core.Dependencies;
+using Kora.Core.Auditing;
+using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -166,10 +168,199 @@ public sealed partial class ModelTurnHostTests
         transport.Requests.Should().ContainSingle();
     }
 
-    private static SessionConversationService QuestionService(Fixture f, ModelTurnHost host)
+    private static SessionConversationService QuestionService(Fixture f, ModelTurnHost host, ISecurityAuditLog? audit = null)
     {
         var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
-        return new(f, f, workspace, f, host, f.Time, f, host, f.Questions);
+        return new(f, f, workspace, f, host, f.Time, f, execution: host, cancellationAudit: audit ?? f, interactions: f.Questions);
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task ExactPendingQuestionCancellationJoinsLatePresenterAndRetainsOnlyCancelledTerminal(
+        RequestOrigin channel, bool lateFault)
+    {
+        using var f = new Fixture();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var transport = new ToolTransport(Clarification, FinalAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var audit = new QuestionCancellationAudit();
+        var service = QuestionService(f, host, audit);
+        var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var target = new Kora.Core.Storage.SessionWorkspaceEntry(f.Session, null);
+        var phases = new List<ConversationExecutionPhase>();
+        service.RunningConversationChanged += status => phases.Add(status.Phase);
+        var submission = service.SubmitAsync(target, "one original question request", static () => true, Token,
+            questionPresenter: async (request, _, spec, expiry, _, token) =>
+            {
+                f.Questions.Change(snapshot => snapshot with { Intent = f.Task!.Task, Session = f.Session });
+                var created = (await new HostQuestionService(f.Questions, f.Time).CreateAsync(request, spec, expiry, token)).Question!;
+                shown.TrySetResult();
+                await release.Task;
+                if (lateFault) { throw new IOException("private late question body must not be logged"); }
+                return new(created, new(HostInteractionOutcome.Answered, "too-late-receipt",
+                    created with { Key = created.Key.Next(), Status = QuestionStatus.Answered,
+                        Draft = new(["option-0"]), AnswerChannel = channel }));
+            });
+        ConversationCancellationTarget? observed = null;
+        try
+        {
+            await shown.Task.WaitAsync(Token);
+            observed = (await service.ReadRunningConversationAsync(target, static () => true, Token))!.Target;
+            (await service.CancelRunningConversationAsync(observed, static () => true, Token, channel))
+                .Phase.Should().Be(ConversationExecutionPhase.Cancelling);
+            (await service.CancelRunningConversationAsync(observed, static () => true, Token, channel))
+                .Phase.Should().Be(ConversationExecutionPhase.Cancelling);
+            submission.IsCompleted.Should().BeFalse("question presentation must actually quiesce before terminal retention");
+            host.IsQuiescent.Should().BeFalse();
+            f.ExecutionCompletions.Should().Be(0);
+            audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+            audit.Requests.Should().OnlyContain(request => request.TaskId == observed.Request.TaskId
+                && request.SessionId == observed.Request.SessionId && request.Origin == channel
+                && request.RequestId != observed.Request.RequestId);
+        }
+        finally { release.TrySetResult(); }
+        var receipt = await submission;
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        receipt.Message.Reason.Should().Be(ModelTurnReason.CallerCancelled);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        receipt.Task.State.Should().Be(HostTaskState.Unknown, "dispatched cancellation is not a rollback claim");
+        phases.Last().Should().Be(ConversationExecutionPhase.Terminal);
+        f.ExecutionCompletions.Should().Be(1);
+        transport.Requests.Should().ContainSingle();
+        f.Questions.Commits.Should().NotContain(item => item.Audit.ActionId == "question.continue");
+        f.Messages.Should().NotContain(text => text.Contains("private late", StringComparison.Ordinal));
+        (await service.ReadRunningConversationAsync(target, static () => true, Token)).Should().BeNull();
+        await service.Invoking(value => value.CancelRunningConversationAsync(observed!, static () => true, Token, channel))
+            .Should().ThrowAsync<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData("before-send")]
+    [InlineData("after-answer")]
+    [InlineData("after-final")]
+    [InlineData("commit-wins")]
+    public async Task QuestionUsesCanonicalCancellationWinnerBeforeSendDuringResumeAndBeforeTerminalCommit(string boundary)
+    {
+        using var f = new Fixture();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var transport = new ToolTransport(Clarification, FinalAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var service = QuestionService(f, host, new QuestionCancellationAudit());
+        Task<ConversationExecutionStatus>? cancel = null;
+        ConversationCancellationTarget? captured = null;
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Running) { captured = status.Target; }
+            if (boundary is "before-send" && status.Phase == ConversationExecutionPhase.Running
+                || boundary is "commit-wins" && status.Phase == ConversationExecutionPhase.Completing)
+            { cancel = service.CancelRunningConversationAsync(status.Target, static () => true, Token); }
+        };
+        transport.ChangeReply = (request, reply) =>
+        {
+            if (boundary is "after-final" && request.Round == 2)
+            {
+                cancel = service.CancelRunningConversationAsync(captured!, static () => true, Token);
+            }
+            return reply;
+        };
+        var receipt = await service.SubmitAsync(new(f.Session, null), "exact original", static () => true, Token,
+            questionPresenter: async (request, _, spec, expiry, _, token) =>
+            {
+                f.Questions.Change(snapshot => snapshot with { Intent = f.Task!.Task, Session = f.Session });
+                var questions = new HostQuestionService(f.Questions, f.Time);
+                var initial = (await questions.CreateAsync(request, spec, expiry, token)).Question!;
+                var completed = await questions.SubmitAsync(initial.Key, new(["option-0"]), RequestOrigin.LocalUi, token);
+                if (boundary is "after-answer")
+                {
+                    var running = (await service.ReadRunningConversationAsync(new(f.Session, null), static () => true, Token))!;
+                    cancel = service.CancelRunningConversationAsync(running.Target, static () => true, Token);
+                    await cancel;
+                }
+                return new(initial, completed);
+            });
+        cancel.Should().NotBeNull();
+        if (boundary is "commit-wins")
+        {
+            Func<Task> cancelled = async () => { await cancel!; };
+            await cancelled.Should().ThrowAsync<InvalidOperationException>();
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            receipt.Message.AssistantResponse!.Body.Should().Be("The observed version is 1.0.");
+        }
+        else
+        {
+            await cancel!;
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            receipt.Message.AssistantResponse.Should().BeNull();
+        }
+        f.ExecutionCompletions.Should().Be(1);
+        transport.Requests.Should().HaveCount(boundary is "before-send" ? 0 : boundary is "after-answer" ? 1 : 2);
+    }
+
+    private sealed class QuestionCancellationAudit : ISecurityAuditLog
+    {
+        internal List<SecurityAuditEvent> Events { get; } = [];
+        internal List<HostRequest> Requests { get; } = [];
+        internal SecurityAuditOutcome? FailOnOutcome { get; init; }
+        public void Write(SecurityAuditEvent auditEvent)
+        {
+            if (auditEvent.Outcome == FailOnOutcome) { throw new IOException("Required cancellation audit unavailable"); }
+            Events.Add(auditEvent);
+            Requests.Add(HostActivity.RequireCurrent().Request);
+        }
+    }
+
+    [Theory]
+    [InlineData(SecurityAuditOutcome.Requested)]
+    [InlineData(SecurityAuditOutcome.Succeeded)]
+    public async Task FailedRequiredCancellationAuditNeverSignalsPendingQuestionOrClaimsCancellation(SecurityAuditOutcome fault)
+    {
+        using var f = new Fixture();
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var transport = new ToolTransport(Clarification, FinalAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var audit = new QuestionCancellationAudit { FailOnOutcome = fault };
+        var service = QuestionService(f, host, audit);
+        var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var answerNow = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var source = new Kora.Core.Storage.SessionWorkspaceEntry(f.Session, null);
+        var submission = service.SubmitAsync(source, "one exact request", static () => true, Token,
+            questionPresenter: async (request, _, spec, expiry, _, token) =>
+            {
+                f.Questions.Change(snapshot => snapshot with { Intent = f.Task!.Task, Session = f.Session });
+                var questions = new HostQuestionService(f.Questions, f.Time);
+                var created = (await questions.CreateAsync(request, spec, expiry, token)).Question!;
+                shown.TrySetResult();
+                await answerNow.Task;
+                token.IsCancellationRequested.Should().BeFalse();
+                var submitted = await questions.SubmitAsync(created.Key, new(["option-0"]), RequestOrigin.LocalUi, token);
+                return new(created, submitted);
+            });
+        try
+        {
+            await shown.Task.WaitAsync(Token);
+            var running = (await service.ReadRunningConversationAsync(source, static () => true, Token))!;
+            await service.Invoking(value => value.CancelRunningConversationAsync(running.Target, static () => true, Token))
+                .Should().ThrowAsync<IOException>();
+            (await service.ReadRunningConversationAsync(source, static () => true, Token))!.Phase
+                .Should().Be(ConversationExecutionPhase.Running);
+            submission.IsCompleted.Should().BeFalse();
+        }
+        finally { answerNow.TrySetResult(); }
+        var receipt = await submission;
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded, "the rejected cancellation did not replace a fresh explicit answer");
+        f.ExecutionCompletions.Should().Be(1);
+        transport.Requests.Should().HaveCount(2);
+        audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
     }
 
     [Fact]

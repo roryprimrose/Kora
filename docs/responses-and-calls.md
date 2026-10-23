@@ -89,6 +89,13 @@ credential.
 The original turn's fixed 15-second deadline is not renewed by opening,
 reviewing or drafting an answer. Only a fresh submitted answer for the same
 session, generation, task and question revision can resume that turn, once.
+**Refresh running work** and **Cancel this running conversation task** inspect
+and cancel that exact turn in Sessions or its compact view, including while
+the clarification is pending. Cancellation acceptance is not terminal success:
+the host joins the question/voice/provider work before retaining a cancelled
+outcome. Once terminal storage owns the outcome, cancellation cannot roll back
+the answer ([canonical lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs),
+[exact cancellation controls](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
 Cancellation, expiry, changed ownership, an unavailable audit/store, a foreign
 answer or any uncertain state prevents continuation. There is no replay,
 automatic retry or provider fallback. Inspect the original conversation/task

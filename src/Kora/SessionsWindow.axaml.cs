@@ -9,6 +9,7 @@ internal sealed partial class SessionsWindow : Window
 {
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
@@ -54,6 +55,9 @@ internal sealed partial class SessionsWindow : Window
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
+        CancelRunningConversation.Click += async (_, _) =>
+            await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)

@@ -248,6 +248,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearConversationCancellation();
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -262,6 +263,8 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        ObserveConversationCancellation();
+        NotifyConversationCancellation();
         RestoreUnsent();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),

@@ -9,7 +9,7 @@ public sealed class SharedSkillSnapshot
     public const string ReaderVersion = "skill-md-instructions-v1";
     public const int MaximumBytes = 64 * 1024;
     public const string InvocationUnavailableReason =
-        "Read-only local inspection. Enable, disable, invoke, model exposure and Kora-specific authoring are unavailable. Registration grants no execution, egress, approval or trust promotion.";
+        "Inspection alone grants no invocation authority. Compatible single-file, zero-tool instructions require separate volatile review, exact-revision enablement and exact-conversation confirmation. Registration grants no execution, egress, approval or trust promotion.";
     private readonly byte[] bytes;
 
     private SharedSkillSnapshot(Guid sourceId, string relativeFile, byte[] content, string? text,

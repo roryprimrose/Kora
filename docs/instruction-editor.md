@@ -4,14 +4,14 @@
 
 Use the tray's **Owned instructions and prompts (native editor)** entry or type `instructions editor` / `prompts editor`.
 After ordinary push-to-talk admission, `Kora, instructions editor` focuses the same native surface.
-All write and use reviews remain native; voice-only confirmation and body dictation are unavailable.
+All write and use reviews remain native; definition-source body dictation and voice-only confirmation are unavailable. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
 No AI model, hosted account or network is involved in editing.
 
 | Kind/source/channel | This increment |
 |---|---|
 | Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
-| Registered profile instructions | Existing read/selection only; no original writer or fork |
+| Personal profile instructions | Explicit native exact-file selection, bounded read consent and separately reviewed disabled native v1 Kora copy; no original writer ([workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
@@ -25,7 +25,7 @@ Equivalent controls are `instructions list`, `instructions create example`,
 it does not undo an already-started publication. `instructions discard` opens
 the same deliberate discard/reload workflow as `instructions reload`.
 The editor writes only `%APPDATA%\Kora\Instructions\<id>.instructions.md`, using Kora's application-data paths.
-Profile originals and bundled resources remain read-only here.
+Profile originals and bundled resources remain read-only here; the separate [profile copy operation](#create-a-disabled-kora-copy-of-a-personal-instruction) never changes an original.
 Select **Prompt** in the same editor for `%APPDATA%\Kora\Prompts\<id>.prompt.md`.
 Each supported kind has its own 128-file bound and separate revision state;
 changing kind asks before discarding an unsaved draft. The corresponding exact
@@ -33,6 +33,32 @@ controls use `prompts` in place of `instructions`, for example `prompts create
 example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
+
+## Create a disabled Kora copy of a personal instruction
+
+Select **Instruction**, enter a fresh **new-copy-owned-id**, and choose **Create Kora copy from profile instruction**. Select exactly one original through the native picker. Existing editor text, its baseline and unsaved changes are not replaced by this workflow ([native integration](../src/Kora/OwnedInstructionEditorController.ProfileCopy.cs)).
+
+This bounded operation supports immediate canonical `*.instructions.md` files in the current user's roaming `Code\User\prompts`, `Code - Insiders\User\prompts`, or `User\profiles\<profile>\prompts` beneath either editor.
+It does not scan a profile, workspace or repository, register a root, or reuse skill registration consent. Other personal locations remain explicitly unavailable ([source admission](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs)).
+The exact host-resolved roaming ancestry may be Hidden (such as AppData); hidden descendants/files and System or linked/reparse sources remain unavailable. Ordinary file preview keeps its separate stricter policy ([verified reader](../src/Kora.Windows/Context/WindowsLocalFileInspector.cs)).
+
+**Allow bounded local source read** discloses the exact source and byte length before reading its body. Memory-held consent covers one capture and at most five bounded freshness checks during this copy, including at publication;
+no storage, activation, model use or other read authority is granted ([read disclosure](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+
+**Cancel profile copy**, review Cancel, privacy closure, ownership loss or changed editor input retires private review and the source lease ([lifecycle](../src/Kora/OwnedInstructionEditorController.ProfileCopy.cs)).
+
+Only strict UTF-8 native `kora-format: 1` instructions are supported: at most 65,536 whole-file bytes including BOM, 16 header fields and 4,096 header bytes. Only `name`, `description`, `kora-format` and optional `attribution` metadata are admitted.
+Legacy files, unsupported metadata/versions, prompt/agent files and `SKILL.md` packages are rejected, never flattened or repaired into instructions ([shared parser](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.cs), [profile validation](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs)).
+
+Separately review the entire original and entire proposed copy, fresh name, exact destination and disabled state. The copy preserves original BOM, body, line endings and other supported metadata, changes its name, and adds explicit source attribution while retaining original attribution.
+**Confirm disabled Kora copy** writes only a new absent Kora-owned destination; original files are never edited ([copy preparation](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs), [write review](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+
+Success offers the existing **List**, select-new-ID and **Inspect** path, not Enable or execution. Saving grants no applicability, inherited approval, permissions, grants, model context or egress. Any later use still requires the existing independent exact-revision review ([publication](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.cs)).
+
+Changed/replaced/busy/unreadable sources, withdrawn consent, collisions and cancellation fail explicitly. No overwrite or automatic retry occurs. If publication or later audit/catalogue completion is unconfirmed, inspect the exact destination before retrying; no rollback or success is implied.
+Verified source handles are released when the operation retires ([source lease](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs), [workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
+
+This is an implementation-only native fork increment. Voice-only read/write confirmation, profile mutation, general import, skill/prompt/agent copying and provider/runtime qualification are not enabled ([native-only admission](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
 
 ## Live source-buffer size
 
@@ -228,6 +254,10 @@ Explicit `/prompt compare`, `/compare` or `Kora, use compare` selects that exact
 Names are lowercase ASCII letters/digits/hyphens, start with a letter, and have at most 64 characters. At most eight distinct required inputs appear in first-occurrence order; repeated markers share one field. Blank/whitespace-only input requires correction.
 Fields preserve exact native text/newlines/case/Unicode, bounded to 512 UTF-16 units / 2048 UTF-8 bytes each. **Preview complete expanded USER REQUEST** displays the entire expansion, bounded to 4096 UTF-16 / 16384 UTF-8 bytes. Oversize/invalid values are rejected, not normalized; no defaults or hidden reads exist.
 Values containing `${input:name}` remain literal. No expression/environment/file/secret/clipboard/network/function evaluation or recursive expansion occurs. The preview is inert plain text, not Markdown evaluation, system instructions, command dispatch, model qualification or approval.
+For an already selected prompt, choose **Speak input _declared-name_** beside exactly one required field in the focused private form. Supply one utterance to replace that field, or **Cancel spoken input**. The [prompt input controller](../src/Kora.Application/Definitions/PromptInputVoiceController.cs) uses current consented activated recognition, not a new speech backend or the conversation-composer dictation profile.
+Starting spoken input retires the previous expanded preview and retention review. Capture must be released before literal text reaches the field; edits, focus/source/session/channel/privacy changes, cancellation or the 75-second lifetime discard late text. No name aliases, fuzzy name matching, command parsing, question answers or approval replies are accepted by this [exact target](../src/Kora/PromptParameterController.cs).
+Use native fields if activated capture is unsupported or unavailable; speaking does not enable listening, change consent or select a device. After voice or native edits, explicitly preview the **complete** expanded request, select the exact session, review and separately confirm with the existing native controls. Spoken values never auto-submit or authorize a model call ([native form](../src/Kora/PromptParameterWindow.cs)).
+Failed voice-turn setup retires its exact target without accepting text. If microphone cleanup is unconfirmed, further voice input stays blocked; restart Kora before trying voice again. Cancellation still joins outstanding publication and native release; no successful cleanup or automatic retry is claimed.
 Editing any field clears the old preview and disables Use until another explicit preview. Source/review/catalogue/native identity/input/call/private ownership changes retire the form; missed watcher changes are checked again immediately before preview and use.
 **Use reviewed request (separate admission)** sends only the captured full `UserRequest` to a fresh host model-admission check. Original source bytes/digest/native revision remain separate from the expansion digest; no body is replaced in the catalogue.
 Generation is currently unavailable: the existing artifact control task has no qualified model-task source classification (`Denied / HostAdmissionClosed`), and there is no qualified production adapter/model. Neither the rejected Ollama 0.35.1/qwen3 nor 0.40.2 is a recovery path. Use reports actual admission without HTTP/inference, installation, authentication fallback or action execution.
@@ -249,7 +279,8 @@ No assistant answer, generation, model/network/authentication/tool execution or 
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
 has its own destructive exact-original review; source removal is not deletion.
-No rename, restore, profile fork, script, agent-execution or generic file-editor controls are offered.
+No rename, restore, profile-original write, script, agent-execution or generic file-editor controls are offered.
+The separately consented [native v1 profile-instruction copy](#create-a-disabled-kora-copy-of-a-personal-instruction) creates only a distinct disabled owned file.
 
 ## Validate the open draft without saving
 
@@ -365,6 +396,7 @@ Cancel retains the source, draft and reviewed-use state. Changes to kind, select
 Disable never calls the definition writer or deletes/unregisters the source. Bytes, UTF-8 BOM, supported metadata, DACL, filename, digest and inventory remain unchanged; the disabled source stays inspectable/editable through existing bounded reads.
 Typed/slash/native command selection, current-name activated use and admitted catalogue/model descriptors no longer offer it for new requests. Already admitted reasoning retains captured immutable content; pending unadmitted questions/action choices expire without dispatch, reroute or replay.
 Existing source/access/consent, privacy and action/egress checks remain mandatory; disable is not permission to keep using a denied source.
+Already captured use requires the exact revision and capture epoch in current catalogue authority, not a retained display flag. Repeated Disable preserves only the original capture epoch; failed hold/reload recovery retires it. Queued use still needs separate successful request admission ([authority check](../src/Kora.Application/Definitions/InstructionRevisionCatalogue.cs)).
 
 The held revision is durable in the existing per-kind v1 revision preferences. Watcher/manual/no-change reload, restart, pre-use checking or restored old bytes cannot re-enable it. Repeating exact Disable truthfully reports already held; only a fresh exact **Review use** can enable the current revision for a later request.
 Same filenames in another kind, unrelated sources/copies and immutable bundled definitions are unaffected. Copies of disabled originals still enter independently disabled.

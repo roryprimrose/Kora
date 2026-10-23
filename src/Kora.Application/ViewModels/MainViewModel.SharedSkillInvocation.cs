@@ -1,0 +1,32 @@
+using Kora.Application.Hosting;
+using Kora.Application.Skills;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+
+namespace Kora.Application.ViewModels;
+
+public sealed partial class MainViewModel
+{
+    public event Func<SharedSkillInvocationCommand, RequestOrigin, Func<bool>, Task>? SharedSkillInvocationRequested;
+    private Func<Task>? sharedSkillUseShutdown;
+    public void BindSharedSkillUseShutdown(Func<Task>? shutdown) => sharedSkillUseShutdown = shutdown;
+    private Task CloseSharedSkillUse() => sharedSkillUseShutdown?.Invoke() ?? Task.CompletedTask;
+
+    private async Task ExecuteSharedSkillInvocation(SharedSkillInvocationCommand command, string text,
+        ManualCallInput input, Func<bool>? queuedEligibility)
+    {
+        var eligible = queuedEligibility ?? CaptureSkillReviewEligibility(input);
+        if (IsResponseInteractionPending || !eligible()
+            || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
+            || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+        {
+            Transcript = "Shared skill use requires original private typed input or current-name activated voice, without a pending question or approval.";
+            return;
+        }
+        if (SharedSkillInvocationRequested is not { } route)
+        { Transcript = "Reviewed shared skill use is unavailable in this host."; return; }
+        await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
+            () => route(command, input.Origin, eligible), operation: HostOperation.Request));
+    }
+}

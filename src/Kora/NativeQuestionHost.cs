@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed class NativeQuestionHost : IDisposable
+internal sealed partial class NativeQuestionHost : IDisposable
 {
     private static readonly TimeSpan VersionQuestionLifetime = TimeSpan.FromMinutes(5);
     private readonly WindowsSqliteHostInteractionStore store;

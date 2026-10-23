@@ -53,7 +53,7 @@ Kora ships useful skills without requiring users to author or download them.
 |---|---|---|
 | Bundled first-party skill | Explicit manifest, selection guidance, Markdown instructions/workflow, optional fixtures, and any registered PowerShell script set, all embedded resources in a protected Kora application binary; scripts may be shared between skills | No user/agent editing or file replacement; updated only with the application through verified out-of-band maintenance |
 | User-authored skill | Declarative manifest/instructions/workflows referencing admitted tools | Created/refined by voice in the dedicated user skill store; cannot create or modify executable scripts |
-| Shared profile skill | Supported declarative/instruction content; executable requirements are not admitted in the MVP | Current R21: read-only inspection. Target: explicit revision enablement and direct declarative editing through the dedicated writer; optional copies go to Kora's roaming store |
+| Shared profile skill | Supported declarative/instruction content; executable requirements are not admitted in the MVP | Native inspection plus separate [reviewed single-file zero-tool local-only invocation](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) with volatile exact-revision enablement. General tool-dependent use and dedicated-writer editing remain future work |
 
 All sources obey capability checks, action policy, task identity, and auditing.
 See [Skill Storage](Skill_Storage.md) for profile discovery and `%APPDATA%\Kora\Skills`.

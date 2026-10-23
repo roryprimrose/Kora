@@ -40,6 +40,14 @@ response and grant no clipboard authority. These actions do not change topmost,
 always-show or any other saved preference, speak, invoke a model or pin content.
 See [exact commands](commands.md#dismiss-or-inspect-the-exact-current-response).
 
+## Static HTML result boundary
+
+An explicitly host-admitted static HTML result uses a separate `static-html-v1` detail route. This profile is **not qualified or enabled by default**: the existing native viewer shows the complete admitted source with a qualification-unavailable status, not a claimed rich preview.
+Ordinary text and Markdown are not reclassified as HTML ([route and default](../src/Kora/StaticHtmlDetailRenderer.cs), [viewer dispatch](../src/Kora/DetailWindowController.cs)).
+
+The implementation supports only a strict inert fragment subset: headings, paragraphs, lists, quotations, preformatted text and basic inline text. It rejects attributes, document styling, links, forms, scripts, resources and unsupported or malformed markup as a whole; it does not repair arbitrary HTML or silently strip unsafe parts ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+Exact source remains available, subject to the original source/privacy lifetime. Opening or closing details grants no new clipboard, execution, network or file access ([profile limits](../src/Kora.Core/Presentation/StaticHtmlProfile.cs), [viewer lifecycle](../src/Kora/DetailWindowController.cs)).
+
 ## Deliberate current-response playback
 
 **Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.

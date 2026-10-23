@@ -48,6 +48,7 @@ internal sealed partial class PromptParameterController(
         catalogue.Changed += OnCatalogueChanged;
         catalogue.ReloadFailed += OnReloadFailed;
         main.BindPromptPreparationShutdown(CloseAndWait);
+        BindAnswerReadDecisionGate();
     }
 
     private Task Open(PromptParameterDraft proposed)
@@ -61,6 +62,7 @@ internal sealed partial class PromptParameterController(
         }
         ownership = ownershipRevision();
         draft = proposed;
+        BindAnswerReadDecisionGate();
         lifetime = new();
         window = new(proposed, Edit, action =>
         {
@@ -303,6 +305,7 @@ internal sealed partial class PromptParameterController(
     }
     private void OnInputChanged(object? sender, PropertyChangedEventArgs args)
     {
+        if (args.PropertyName is nameof(MainViewModel.CommandText)) { HoldRetiredPromptAnswerReadInput(); }
         if (args.PropertyName is nameof(MainViewModel.CommandText) or nameof(MainViewModel.CallPolicyRevision))
         { DispatchClose(); }
     }

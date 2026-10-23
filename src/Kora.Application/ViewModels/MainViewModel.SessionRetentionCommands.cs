@@ -29,6 +29,7 @@ public sealed partial class MainViewModel
 
     private void RetireSessionCommandReviews()
     {
+        RetireSpeechSummarySuggestions();
         sessionRequests?.Retire();
         sessionRetentionCommands?.Service.Retire();
         conversationSearchCommands?.Retire();

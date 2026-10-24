@@ -5,6 +5,19 @@ namespace Kora.Application.UnitTests.Skills;
 
 public sealed class SharedSkillInvocationCommandTests
 {
+    [Theory]
+    [InlineData("review tool skill page-guide", "Review")]
+    [InlineData("tool skill review tool revision", "ReviewToolRevision")]
+    [InlineData("tool skill enable", "Enable")]
+    [InlineData("tool skill confirm invocation", "Invoke")]
+    [InlineData("tool skill address https://example.com/", "Address")]
+    public void ToolCapableCommandsAreExplicitlyDistinct(string input, string action)
+    {
+        var command = SharedSkillInvocationCommand.Parse(input, "Kora")!;
+        command.Action.Should().Be(action);
+        command.ToolCapable.Should().BeTrue();
+    }
+
     [Fact]
     public void OversizedCommandNeverAdmitsTruncatedRequest() =>
         SharedSkillInvocationCommand.Parse("shared skill request " + new string('x', Kora.Core.Commands.SessionCommand.MaximumInputBytes), "Kora")!
@@ -32,6 +45,7 @@ public sealed class SharedSkillInvocationCommandTests
     [InlineData("shared skill confirm invocation", "Invoke")]
     [InlineData("shared skill close", "Close")]
     [InlineData("shared skill run script", "Invalid")]
+    [InlineData("shared skill review tool revision", "Invalid")]
     public void OnlyExactHostOwnedCommandsAreSelected(string input, string? expected) =>
         SharedSkillInvocationCommand.Parse(input, "Kora")?.Action.Should().Be(expected);
 }

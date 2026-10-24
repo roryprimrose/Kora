@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+
 using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
@@ -14,6 +15,7 @@ using Kora.Core.Tools;
 using Kora.Windows.Dependencies;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Storage;
+
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
@@ -27,31 +29,38 @@ public sealed partial class WindowsOllamaToolTransportTests
     public async Task ExactProductionResolverAdapterHostAndConversationRetainGenuineAnswerOrSuppressCancelledLateOutput(
         RequestOrigin origin, bool cancel)
     {
-        using var runtime = new WindowsOllamaRuntimeResolverTests.Fixture();
+        await using var runtime = await OllamaAdmissionWorkflowTests.Fixture.Create();
         await using var native = new Fixture();
-        using var storage = new InteractionStorageFixture();
-        native.Time.Now = storage.Time.Now = runtime.Time.Now;
-        await storage.InitializeAsync();
+        var storage = runtime.Storage;
+        native.Time.Now = storage.Time.Now;
         await WindowsSqliteConversationTests.FinishInitial(storage);
         var controls = new LocalControls();
         var workspace = new SessionWorkspaceService(storage.Store, new(storage.Tasks), controls,
             NullLogger<SessionWorkspaceService>.Instance);
-        await using var admission = new AudioControlAdmission(storage.Store, storage.Store, new(storage.Tasks));
+        var admission = runtime.Admission;
+        var review = (await runtime.Workflow.Review(origin, () => runtime.Eligible, Token))!;
+        await runtime.Workflow.Confirm(review, origin, () => runtime.Eligible, Token);
+        var resolver = new WindowsOllamaRuntimeResolver(runtime.Broker, new RetainedInstallation(), storage.Time,
+            NullLogger<WindowsOllamaRuntimeResolver>.Instance, (_, _) => Task.FromResult(runtime.SubjectAvailable));
+        var local = (await resolver.ObserveAsync(Token)).For(ProviderService.Local);
+        var selected = local.Models.Single();
+        var tuple = new ProviderProfileTuple(ProviderService.Local, local.Account!, local.Revision,
+            selected.Id, selected.Reasoning.Single().Id, selected.Context.Single().Id);
         var profiles = new LocalProviderProfilePreferences(storage.Paths);
-        profiles.Save(new(ProviderService.Local, [runtime.Profile]));
-        var profileConfiguration = new ProviderProfileConfigurationService(profiles, runtime.Resolver, admission, controls, storage.Time);
+        profiles.Save(new(ProviderService.Local, [tuple]));
+        var profileConfiguration = new ProviderProfileConfigurationService(profiles, resolver, admission, controls, storage.Time);
         var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(storage.Paths), admission, controls);
         using var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance, storage.Time);
         var recorded = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
         var registry = new ReadOnlyCapabilityRegistry(controls, new(), new(), new(controls), new(dependencies),
             new(recorded), new(recorded), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
         var bindings = new List<WindowsOllamaToolEndpointBinding>();
-        var factory = new OllamaModelProviderFactory(runtime.Resolver, storage.Time, NullLoggerFactory.Instance, binding =>
+        var factory = new OllamaModelProviderFactory(resolver, storage.Time, NullLoggerFactory.Instance, binding =>
         {
             bindings.Add(binding);
             return new WindowsOllamaToolTransport(new HttpClient(native.HttpHandler),
                 request => request.Provenance == binding.Provenance && request.Profile == binding.Profile ? binding : null,
-                (_, token) => { token.ThrowIfCancellationRequested(); return Task.FromResult(runtime.ProcessCurrent); },
+                (_, token) => { token.ThrowIfCancellationRequested(); return Task.FromResult(runtime.SubjectAvailable); },
                 storage.Time, NullLogger<WindowsOllamaToolTransport>.Instance);
         });
         await using var host = new ModelTurnHost(storage.Store, controls, controls, registry, controls,
@@ -96,6 +105,12 @@ public sealed partial class WindowsOllamaToolTransportTests
         page.Messages.Should().ContainSingle();
         (page.Messages[0].AssistantResponse?.Body).Should().Be(cancel ? null : "Genuine answer");
         controls.Audits.Should().Contain(item => string.Equals(item.ActionId, "model.turn", StringComparison.Ordinal));
+    }
+
+    private sealed class RetainedInstallation : ILocalProviderInstallationObservation
+    {
+        public Task<LocalProviderInstallation> ObserveAsync(CancellationToken cancellationToken) =>
+            Task.FromResult(LocalProviderInstallation.Installed);
     }
 
     private sealed class LocalControls : ISessionWorkspaceAccess, ICapabilityHostAccess, ISecurityAuditLog, IApplicationInfo

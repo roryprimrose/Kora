@@ -229,7 +229,7 @@ Persist feature/operation, nonce, owner, scope, base and authority before one la
 - Runtime/worktree requirements, actual path guards, own durable status/terminal locations and the absolute shared dataset/run/mailbox roots, dataset ID, leadership epoch, protocol version, writer identity and continuation method.
 - Required `kora-github-pr` skill and verified repository publishing principal/CLI context, independent of the Copilot/VS Code account; no PR UI forms.
 - Complete autonomous delivery authority, genuinely required local checks, hosted validation boundary, applicable commit/PR skills and normal hooks/signing.
-- The run's recorded publication policy and scope: standing ready-PR authority, explicit draft authority, or local-only. No merge authority is inferred.
+- The run's recorded publication policy and scope: authorized ready-PR delivery includes protected squash Auto-merge unless explicitly restricted to PR-only/no-merge, draft or local-only. Carry that authority to children; local implementation alone grants no publication authority.
 - Publication epoch/execution transition, the [immediate milestone publication](#publication-milestone-protocol), exact mailbox/readback, stale-head handling, no nested/replacement workers and no assumed post-yield wakeup.
 - The [routine continuation rule](#routine-continuation-without-user-input): publication handoff and yield require no user decision; supported re-entry preserves existing authority and repair admission.
 - Explicit authority and requirement, in every launch and repair packet, for the owning child to ask necessary user decisions directly in its own chat using the native structured question tool under [child-local user decisions](#child-local-user-decisions). Require the exact child link, decision receipt and pending/resolved mailbox events; no parent question proxy or per-stage ACK/publication/permission loop.
@@ -268,7 +268,13 @@ Each owner writes its own atomic compact status plus immutable terminal evidence
 
 Default to shared filesystem communication, not `send_message`, `write_agent` or peer chat replies. This prevents routine progress, ACK and status traffic from exhausting the reported 100-message host limit. Establish file transport before launch; it is not a fallback to bypass a refused native channel.
 
-The bootstrap worker resolves `git rev-parse --path-format=absolute --git-common-dir` in the exact checkout. The default stable dataset root is `<git-common-dir>\.scratch\roadmap-coordinator`, with run root `<dataset-root>\runs\<run-id>`. This is common Git metadata, outside the tracked source tree and independent of disposable worktrees. All isolated worktrees receive this **same absolute path**; their relative `.scratch` directories are not shared. Verify canonical local paths, no reparse/symlink components, common Git identity and shared read/write/locking access before dispatch. The repository `.scratch/` ignore rule still applies to transient scratch inside a checkout; it is not discovery or ownership of this metadata store. Do not install a helper or assume `New-NetAaaScratchPath` exists.
+The bootstrap worker resolves the owning coordinator workspace and common-Git identity. Default to `<coordinator-workspace>\.scratch\roadmap-coordinator`, with run root `<dataset-root>\runs\<run-id>`, following [repository scratch policy](../copilot-instructions.md#agent-scratch-and-session-files).
+Do not write the dataset under common Git metadata, host session storage, the user profile or system temp.
+
+All isolated owners receive the **same absolute registered workspace path**; their relative `.scratch` directories are not shared. Verify the ignore rule, canonical paths, no reparse/symlink components, common-Git identity and shared read/write/locking access before dispatch.
+Establish required host access to that root at launch; a path in a packet cannot bypass host approval. Use native filesystem operations without a shared scratch helper.
+
+Before initializing, reconcile existing runs/datasets for this common-Git identity from registered workspace/launch/recovery records. Later sessions join the recorded absolute locator, not a fresh dataset in their new worktree. If the existing location or its liveness is unknown/inaccessible, hold affected launches and report the gap; never create a second scheduler dataset to avoid it.
 
 Use protocol version 2 and this layout, with one writer per file/directory except the explicitly shared transaction lock:
 
@@ -310,7 +316,12 @@ Persist registry/transitions and receipts for fresh-session recovery under [data
 
 ### Shared Dataset Ownership and Recovery
 
-**One dataset, multiple participants, one scheduler writer.** The dataset belongs to the local repository installation/user, not the chat or worktree that first created it. An admitted bootstrap worker initializes its immutable identity only under the exclusive lock after an absence check; every later session validates and joins it. Separate clones/machines do not share a Git common directory. Another local clone may join only through an explicitly authorized registry alias binding its common-Git identity to the existing dataset ID/absolute locator, with verified matching repository and local filesystem access. A matching remote URL alone does not prove shared data. This protocol does not support cross-machine or distributed/network filesystem locking.
+**One dataset, multiple participants, one scheduler writer.** Bind the dataset to the local repository/common-Git identity and record its absolute workspace locator in launch and recovery handoffs. Retain the containing workspace while any run/owner references it; do not remove it as disposable worktree cleanup.
+Initialize identity only under the exclusive lock after an absence check; later sessions validate and join it.
+
+Another local clone may join only through an explicitly authorized registry alias binding its common-Git identity to the existing dataset ID/absolute locator, with verified matching repository and local filesystem access. A matching remote URL alone does not prove shared data. Do not use cross-machine or distributed/network filesystem locking.
+
+Preserve existing out-of-workspace datasets until an explicitly authorized, quiescent migration verifies every writer stopped, pending events/directives and receipt references preserved, and the new locator delivered to all retained owners. Do not silently copy, relocate, abandon or restart a live dataset to apply the new default.
 
 Multiple orchestration sessions register as leader or standby in the same dataset. Standbys may observe, propose candidate work and publish bounded recovery requests; they must not allocate slots, launch/wake owners, issue directives, start verifier fleets or clean data. Only the current fenced leader commits those operations. All open/retiring runs share the ten-job ceiling, source/API ownership index, pending launch reservations, evidence worker and remaining native-wake budget; run-specific product/publication authority stays scoped to that run. A new chat or run cannot replenish the host-message budget. Each session keeps the nonblocking tick policy within its role.
 
@@ -414,10 +425,12 @@ Ready means implemented with required local checks complete and hosted gates dis
 
 ### Standing PR Policy
 
-Establish publication authority once per run; if missing, record that run-wide pending decision without blocking the parent. Continue safe previously authorized work, but do not infer remote authority. Record policy/operation ID and publish scoped directives to retained owners so old LOCAL ONLY prompts do not persist silently.
+Establish publication authority once per run under the [Kora delivery default](../copilot-instructions.md#pull-requests-and-merge-admission); if missing, record that run-wide pending decision without blocking the parent. Local implementation alone grants no remote authority.
+Record policy/operation ID and scoped directives so explicit restrictions remain visible and later authorized changes supersede stale directives.
 
-- **Ready PRs:** matching product-admitted owners create/update their one ready PR after required current-head readiness checks and real prerequisites pass.
-- **Ready PRs with protected Auto-merge:** when explicitly requested for the run, owners also enable exact-head protected squash Auto-merge as queue intent. This standing merge authority covers matching current/future owners; do not ask again per PR.
+- **Ready PRs with protected Auto-merge (default for authorized ready-PR delivery):** matching product-admitted owners create/update their one ready PR after required current-head readiness checks and real prerequisites pass, then enable exact-head protected squash Auto-merge as queue intent.
+  Carry this standing authority to matching current/future owners; do not ask again per PR.
+- **PR-only/no-merge:** only when explicitly requested; create/update the ready PR without enrollment and preserve that restriction in handoffs.
 - **Drafts first:** only with explicit user authorization; disclose missing checks/dependencies and mark ready only after all required gates pass.
 - **Local only:** no remote mutation; preserve the explicit restriction and retained handoff.
 
@@ -431,7 +444,10 @@ Run-level protected Auto supersedes old PR-only directives within scope, not adm
 
 Publishers must invoke [kora-github-pr](../skills/kora-github-pr/SKILL.md), or read/apply it if unindexed. Generic PR guidance cannot override its adapter.
 
-Bootstrap records expected publisher and verified `gh` access, distinct from Copilot/VS Code or Git author. Owners use noninteractive CLI/scoped Git credentials and verify PR/head/Auto readback; no VS Code/MCP/browser PR forms, global auth switch or alternate identity/transport after denial. Parent only dispatches.
+Bootstrap discovers and records the authenticated repository `gh` publisher without routine confirmation, honoring any explicitly recorded expectation. Verify access and pin that identity in launch/resume packets; mismatch or missing access blocks affected writes, not automatic repinning.
+Do not use Copilot/VS Code, Git author or repository owner as identity evidence, or hardcode a contributor login.
+
+Owners use noninteractive CLI/scoped Git credentials and verify PR/head/Auto readback; no VS Code/MCP/browser PR forms, global auth switch or alternate identity/transport after denial. Parent only dispatches.
 
 ## Mode-Aware Integration
 
@@ -455,7 +471,7 @@ Withdrawal requires exact acknowledgment, terminated mutations and authoritative
 
 Publish READY work by prerequisite/roadmap priority, oldest ready as tie-breaker. Same owners publish/enroll under standing authority without global local-CI tokens, extra scheduling exchange or duplicate full local pipeline. Keep real local gates; GitHub serializes candidate validation/merge.
 
-Protected Auto-merge requires explicit scope, not mere PR-only permission. Existing authorized ready PRs need enrollment/readback, not another PR or code/main/test change. Skipped waiting-PR jobs are not candidate App success.
+Apply the recorded ready-PR delivery scope and default Auto-merge authority, preserving explicit PR-only/no-merge restrictions. Existing authorized ready PRs need enrollment/readback, not another PR or code/main/test change. Skipped waiting-PR jobs are not candidate App success.
 
 GitHub selects/updates/validates candidates. No rebase chase, candidate dispatch, stale-ticket retry, state mutation or fabricated success. Admit concrete repairs to retained owners; incorporate App updates before normal pushes.
 

@@ -140,7 +140,7 @@ internal sealed partial class SessionsViewModel
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        Func<bool>? mcpCallerAdmission = null, bool claude = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -165,6 +165,8 @@ internal sealed partial class SessionsViewModel
                     mcpResultRequest = request;
                     mcpResultControl = access.ControlRevision;
                 })
+            : claude
+            ? await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : pageAddress is null

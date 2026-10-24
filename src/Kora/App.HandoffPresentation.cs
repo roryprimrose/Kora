@@ -11,12 +11,14 @@ public sealed partial class App
 
     private void BindHandoffPresentation(MainViewModel main)
     {
+        BindClaudePresentation(main);
         handoffWindow = new(main, Services.GetRequiredService<ModelHandoffPresentation>(),
             Services.GetRequiredService<ILogger<ModelHandoffWindowController>>());
     }
 
     private void DisposeHandoffPresentation()
     {
+        DisposeClaudePresentation();
         handoffWindow?.Dispose();
         handoffWindow = null;
     }

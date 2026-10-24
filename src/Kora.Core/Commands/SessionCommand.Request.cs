@@ -1,23 +1,33 @@
 using System.Text;
 
 using Kora.Core.Conversation;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.Commands;
 
 public sealed partial record SessionCommand
 {
     public const string RequestSyntax =
-        "session request review <session-id> <generation> <metadata-revision> [copilot] -- <original body> | "
+        "session request review <session-id> <generation> <metadata-revision> [copilot|claude] -- <original body> | "
         + "session request confirm <session-id> <review-id> | session request cancel <session-id> <review-id>. "
         + "The body is everything after the single separator space following --, without normalization. "
         + "Review expires after 60 seconds; confirmation consumes it once and preserves the original channel. "
-        + "Optional copilot explicitly selects Copilot; a separate native final-send disclosure is still mandatory. "
-        + "Voice requires the current assistant-name prefix. No name, selected-session, question or approval routing. "
+        + "Optional copilot or claude explicitly selects that service; a separate native final-send disclosure is still mandatory. "
+        + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
         + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered.";
+    public const string ReadableRequestSyntax =
+        "session request review active [copilot|claude] -- <original body> | "
+        + "session request review \"<exact readable name>\" [copilot|claude] -- <original body> | "
+        + "session request confirm | session request cancel. "
+        + "Active must resolve to exactly one Active conversation; names must resolve uniquely. "
+        + "Confirmation consumes only the one host-held request review; it never answers another question or approval.";
 
     public string? RequestBody { get; init; }
     public Guid? RequestReviewId { get; init; }
     public SessionRequestReview.ProviderChoice RequestProvider { get; init; }
+    public SessionName? RequestTargetName { get; init; }
+    public bool RequestActiveTarget { get; init; }
+    public bool RequestUsesPendingReview { get; init; }
 
     private static SessionCommand? ParseRequest(string text)
     {
@@ -25,16 +35,57 @@ public sealed partial record SessionCommand
         if (words.Length < 2 || !words[0].Equals("session", StringComparison.OrdinalIgnoreCase)
             || !words[1].Equals("request", StringComparison.OrdinalIgnoreCase))
         { return null; }
-        static SessionCommand Invalid() => new(SessionCommandOperation.Invalid, Error: RequestSyntax);
-        var separator = text.IndexOf(" -- ", StringComparison.Ordinal);
+        static SessionCommand Invalid() => new(SessionCommandOperation.Invalid, Error: RequestSyntax + " " + ReadableRequestSyntax);
+        static bool Provider(string value, out SessionRequestReview.ProviderChoice provider)
+        {
+            provider = value.Equals("claude", StringComparison.OrdinalIgnoreCase)
+                ? SessionRequestReview.ProviderChoice.Claude : SessionRequestReview.ProviderChoice.Copilot;
+            return value.Equals("claude", StringComparison.OrdinalIgnoreCase) || value.Equals("copilot", StringComparison.OrdinalIgnoreCase);
+        }
+        var separator = RequestSeparator(text);
         var header = separator < 0 ? text.TrimEnd() : text[..separator];
         if (Encoding.UTF8.GetByteCount(header) > MaximumInputBytes || header.Any(char.IsControl))
         { return Invalid(); }
         var parts = header.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         if (parts.Length == 3 && parts[2].Equals("help", StringComparison.OrdinalIgnoreCase) && separator < 0)
         { return new(SessionCommandOperation.Help); }
+        if (parts.Length == 3 && separator < 0
+            && parts[2].ToLowerInvariant() is "confirm" or "cancel")
+        {
+            return new(parts[2].Equals("confirm", StringComparison.OrdinalIgnoreCase)
+                ? SessionCommandOperation.RequestConfirm : SessionCommandOperation.RequestCancel)
+            { RequestUsesPendingReview = true };
+        }
+        var readable = header.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
+        if (readable.Length == 4 && readable[2].Equals("review", StringComparison.OrdinalIgnoreCase) && separator >= 0)
+        {
+            var targetText = readable[3].TrimEnd();
+            var provider = SessionRequestReview.ProviderChoice.Default;
+            var lastSpace = targetText.LastIndexOf(' ');
+            if (lastSpace >= 0 && Provider(targetText[(lastSpace + 1)..], out var explicitProvider))
+            { provider = explicitProvider; targetText = targetText[..lastSpace].TrimEnd(); }
+            var active = targetText.Equals("active", StringComparison.OrdinalIgnoreCase);
+            SessionName? name = null;
+            if (!active && targetText.StartsWith('"') && targetText.EndsWith('"') && targetText.Length > 2)
+            {
+                var value = targetText[1..^1];
+                if (value.Replace("\"\"", string.Empty, StringComparison.Ordinal).Contains('"')) { return Invalid(); }
+                try { name = new(value.Replace("\"\"", "\"", StringComparison.Ordinal)); }
+                catch (InvalidDataException) { return Invalid(); }
+            }
+            if (active || name is not null)
+            {
+                var body = text[(separator + 4)..];
+                try { ConversationText.Validate(body, submission: true); }
+                catch (InvalidDataException) { return Invalid(); }
+                catch (ConversationCredentialException) { return Invalid(); }
+                return new(SessionCommandOperation.RequestReview)
+                { RequestBody = body, RequestProvider = provider, RequestActiveTarget = active, RequestTargetName = name };
+            }
+        }
         if (parts.Length < 5 || !ExactId(parts[3], out var session)) { return Invalid(); }
-        if ((parts.Length == 6 || parts.Length == 7 && parts[6].Equals("copilot", StringComparison.OrdinalIgnoreCase))
+        var exactProvider = SessionRequestReview.ProviderChoice.Default;
+        if ((parts.Length == 6 || parts.Length == 7 && Provider(parts[6], out exactProvider))
             && parts[2].Equals("review", StringComparison.OrdinalIgnoreCase) && separator >= 0
             && Revision(parts[4], true, out var generation) && Revision(parts[5], false, out var metadata))
         {
@@ -45,7 +96,7 @@ public sealed partial record SessionCommand
             return new(SessionCommandOperation.RequestReview, session, generation, metadata)
             {
                 RequestBody = body,
-                RequestProvider = parts.Length == 7 ? SessionRequestReview.ProviderChoice.Copilot : SessionRequestReview.ProviderChoice.Default,
+                RequestProvider = exactProvider,
             };
         }
         if (parts.Length == 5 && separator < 0 && ExactId(parts[4], out var review))
@@ -56,5 +107,20 @@ public sealed partial record SessionCommand
             { return new(SessionCommandOperation.RequestCancel, session) { RequestReviewId = review }; }
         }
         return Invalid();
+    }
+
+    private static int RequestSeparator(string text)
+    {
+        var quoted = false;
+        for (var index = 0; index < text.Length - 3; index++)
+        {
+            if (text[index] == '"')
+            {
+                if (quoted && text[index + 1] == '"') { index++; }
+                else { quoted = !quoted; }
+            }
+            else if (!quoted && text.AsSpan(index, 4).SequenceEqual(" -- ")) { return index; }
+        }
+        return -1;
     }
 }

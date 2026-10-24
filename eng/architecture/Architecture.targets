@@ -1,0 +1,38 @@
+<Project>
+  <PropertyGroup>
+    <KoraArchitectureSourceRoot Condition="'$(KoraArchitectureSourceRoot)' == ''">$([System.IO.Path]::GetFullPath('$(MSBuildThisFileDirectory)..\..\src'))</KoraArchitectureSourceRoot>
+    <_KoraPortableLayer Condition="'$(MSBuildProjectName)' == 'Kora.Core' or '$(MSBuildProjectName)' == 'Kora.Tools' or '$(MSBuildProjectName)' == 'Kora.Definitions' or '$(MSBuildProjectName)' == 'Kora.Application'">true</_KoraPortableLayer>
+  </PropertyGroup>
+  <ItemGroup>
+    <_KoraAllowedReference Include="$(KoraArchitectureSourceRoot)\Kora.Core\Kora.Core.csproj"
+                           Condition="'$(MSBuildProjectName)' == 'Kora.Tools' or '$(MSBuildProjectName)' == 'Kora.Definitions' or '$(MSBuildProjectName)' == 'Kora.Application' or '$(MSBuildProjectName)' == 'Kora.Windows' or '$(MSBuildProjectName)' == 'Kora'" />
+    <_KoraAllowedReference Include="$(KoraArchitectureSourceRoot)\Kora.Tools\Kora.Tools.csproj"
+                           Condition="'$(MSBuildProjectName)' == 'Kora.Application'" />
+    <_KoraAllowedReference Include="$(KoraArchitectureSourceRoot)\Kora.Definitions\Kora.Definitions.csproj;$(KoraArchitectureSourceRoot)\Kora.Application\Kora.Application.csproj;$(KoraArchitectureSourceRoot)\Kora.Windows\Kora.Windows.csproj"
+                           Condition="'$(MSBuildProjectName)' == 'Kora'" />
+    <Analyzer Include="$(MSBuildThisFileDirectory)bin\$(Configuration)\net10.0\Kora.Architecture.dll"
+              Condition="'$(_KoraPortableLayer)' == 'true' and '$(KoraArchitectureAnalyze)' == 'true'" />
+  </ItemGroup>
+  <Target Name="KoraCheckArchitecture">
+    <ItemGroup Condition="'$(TargetFramework)' == '' and '$(TargetFrameworks)' != ''">
+      <_KoraArchitectureFramework Include="$(TargetFrameworks)" />
+    </ItemGroup>
+    <MSBuild Projects="$(MSBuildProjectFullPath)" Targets="KoraCheckArchitecture"
+             Properties="TargetFramework=%(_KoraArchitectureFramework.Identity)"
+             Condition="'@(_KoraArchitectureFramework)' != ''" />
+    <Error Code="KORAARCH001"
+           Condition="'$(_KoraPortableLayer)' != 'true' and '$(MSBuildProjectName)' != 'Kora.Windows' and '$(MSBuildProjectName)' != 'Kora'"
+           Text="Unclassified production layer $(MSBuildProjectFullPath). Classify its allowed dependencies explicitly." />
+    <Error Code="KORAARCH001"
+           Condition="'$(_KoraPortableLayer)' == 'true' and ('$(TargetPlatformIdentifier)' != '' or '$(UseWPF)' == 'true' or '$(UseWindowsForms)' == 'true')"
+           Text="$(MSBuildProjectName) must retain a platform-neutral target framework." />
+    <ItemGroup>
+      <_KoraForbiddenReference Include="@(ProjectReference)" />
+      <_KoraForbiddenReference Remove="@(_KoraAllowedReference)" MatchOnMetadata="FullPath" MatchOnMetadataOptions="PathLike" />
+    </ItemGroup>
+    <Error Code="KORAARCH001" Condition="'@(_KoraForbiddenReference)' != ''"
+           Text="$(MSBuildProjectName) cannot reference %(_KoraForbiddenReference.FullPath) [Configuration=$(Configuration), Platform=$(Platform), RuntimeIdentifier=$(RuntimeIdentifier), OS=$(OS), TargetFramework=$(TargetFramework)]." />
+  </Target>
+  <Target Name="KoraCheckArchitectureBeforeCompile" BeforeTargets="CoreCompile" DependsOnTargets="KoraCheckArchitecture"
+          Condition="'$(_KoraPortableLayer)' == 'true' and '$(KoraArchitectureAnalyze)' == 'true'" />
+</Project>

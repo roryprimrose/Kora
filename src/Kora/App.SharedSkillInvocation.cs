@@ -17,5 +17,6 @@ public sealed partial class App
             Services.GetRequiredService<ILogger<SharedSkillInvocationController>>(),
             ActivatorUtilities.CreateInstance<ReviewedToolSkillInvocationWorkflow>(Services), questionWindow);
         sharedSkillInvocation.Bind();
+        BindOwnedSkillAuthoring(main);
     }
 }

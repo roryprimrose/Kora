@@ -137,10 +137,22 @@ protocol:
    from fresh main before reporting completion or cleaning up.
 
 For coordinated agents, follow the [routine continuation rule](../../.github/agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input):
-send the publication handoff and yield without asking the user whether to stop,
-wait or check again. Pending hosted admission is not a user decision. Retain
-ownership for supported re-entry; this neither promises background monitoring
-nor expands repair or merge authority.
+publish the handoff through the registered [shared file mailbox](../../.github/agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol)
+and release execution without asking the user whether to stop, wait or check
+again. Atomic event publication/readback replaces routine native messages;
+status alone is not notification. Retain source/PR ownership and the recorded
+administrative inbox continuation or budgeted wake for admitted repair.
+Pending hosted admission is not a user decision.
+
+The coordinator, unlike a released feature worker, keeps [bounded scheduling ticks](../../.github/agents/roadmap-coordinator.agent.md#continuous-scheduling)
+running while its host supports continuation. Before each refill pass, an
+asynchronous assessment consults repository-wide open and recently landed PRs,
+including work outside the coordinator, to avoid duplicate feature delivery.
+Concrete conflicts route to the same admitted PR owner; unknown mergeability
+does not authorize mutation. Parent questions never block this loop.
+These are agent instructions, not an installed scheduler or queue-controller
+change: filesystem writes do not wake idle sessions, unavailable continuation
+must be disclosed, and repair/merge authority is not expanded.
 
 App installation, secrets, environments, expected-source protection, mode
 changes and durable state repair require separate administrator authorization.

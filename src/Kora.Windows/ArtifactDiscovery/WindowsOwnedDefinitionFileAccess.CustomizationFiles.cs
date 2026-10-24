@@ -8,7 +8,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Artifacts;
 
-public sealed partial class WindowsOwnedInstructionStore
+internal sealed partial class WindowsOwnedDefinitionFileAccess
 {
     internal sealed class DefinitionDirectory : IDisposable
     {

@@ -85,6 +85,10 @@ public sealed partial class MainViewModelTests
     [InlineData("preview file")]
     [InlineData("list capabilities")]
     [InlineData("/instruction missing")]
+    [InlineData("owned skill list")]
+    [InlineData("agent author list")]
+    [InlineData("independent agents")]
+    [InlineData("instructions request cancel")]
     public async Task Explicit_local_routes_are_not_interpreted_as_editor_refinement(string command)
     {
         var f = await Fixture.CreateInitializedAsync();

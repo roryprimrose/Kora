@@ -73,6 +73,7 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<AppearanceConfigurationService>().ConfigureNativePresenceStartupDefault(
                 PresenceRendererSelection.UseNative(Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)));
             viewModel = Services.GetRequiredService<MainViewModel>();
+            Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -169,6 +170,7 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
                 Services.GetRequiredService<ILogger<CustomizationWindowController>>());
             customizations.Bind();
+            BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptConversationSubmission>(),
@@ -385,6 +387,8 @@ public sealed partial class App : Avalonia.Application
         customizations?.Dispose();
         customizations = null;
         instructionEditor = null;
+        instructionUse?.Dispose();
+        instructionUse = null;
         promptParameters?.Dispose();
         promptParameters = null;
         systemTray = null;

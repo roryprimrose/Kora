@@ -38,7 +38,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
             {
                 token.ThrowIfCancellationRequested();
                 if (!Directory.Exists(root.Path)) { continue; }
-                using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(root.Path, false, token);
+                using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(root.Path, false, token);
                 if (root.Kind == CustomizationKind.Skill)
                 {
                     var directories = Directory.EnumerateDirectories(root.Path).Take(129).ToArray();
@@ -54,7 +54,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
                 else if (root.Kind == CustomizationKind.McpServer)
                 {
                     var file = Path.Combine(root.Path, "mcp.json");
-                    var bytes = WindowsOwnedInstructionStore.ReadDefinitionFile(file, 256 * 1024, token);
+                    var bytes = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(file, 256 * 1024, token);
                     if (bytes is null) { continue; }
                     foreach (var name in new McpDefinitionDocument(bytes.Bytes).Names)
                     { Add(found, MakeTarget(root, file, name)); }
@@ -99,7 +99,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
                     : Path.Combine(root.Path, kind == CustomizationKind.McpServer ? "mcp.json" : name + Suffix(kind));
                 var target = MakeTarget(root, file, name);
                 if (File.Exists(file) && (kind != CustomizationKind.McpServer
-                    || new McpDefinitionDocument(WindowsOwnedInstructionStore.ReadDefinitionFile(file, 256 * 1024, token)!.Bytes)
+                    || new McpDefinitionDocument(WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(file, 256 * 1024, token)!.Bytes)
                         .Names.Contains(name, StringComparer.Ordinal)))
                 { throw new InvalidOperationException("That exact destination already exists. Select it or choose another name."); }
                 if (File.Exists(JournalPath(target)))
@@ -180,7 +180,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
             yield return root;
             var profiles = Path.Combine(root, "profiles");
             if (!Directory.Exists(profiles)) { continue; }
-            using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(profiles, false, CancellationToken.None);
+            using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(profiles, false, CancellationToken.None);
             var directories = Directory.EnumerateDirectories(profiles).Take(17).ToArray();
             if (directories.Length > 16) { throw new InvalidDataException("The editor profile inventory exceeds 16 profiles."); }
             foreach (var directory in directories) { yield return directory; }
@@ -208,7 +208,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
 
     private static DiskState Capture(Target target, CancellationToken token)
     {
-        using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(target.Directory, false, token);
+        using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, false, token);
         var files = new List<DiskFile>();
         if (target.Source.Kind == CustomizationKind.Skill)
         {
@@ -217,7 +217,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
         }
         else
         {
-            var file = WindowsOwnedInstructionStore.ReadDefinitionFile(Path.Combine(target.Directory, target.FileName),
+            var file = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(Path.Combine(target.Directory, target.FileName),
                 target.Entry is null ? 64 * 1024 : 256 * 1024, token);
             if (file is not null) { files.Add(new(target.FileName, file.Bytes, file.Identity)); }
         }
@@ -226,7 +226,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
 
     private static void CaptureDirectory(string root, string directory, List<DiskFile> files, ref int entries, CancellationToken token)
     {
-        using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(directory, false, token);
+        using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(directory, false, token);
         foreach (var entry in Directory.EnumerateFileSystemEntries(directory))
         {
             token.ThrowIfCancellationRequested();
@@ -236,7 +236,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
             { CaptureDirectory(root, entry, files, ref entries, token); }
             else
             {
-                var captured = WindowsOwnedInstructionStore.ReadDefinitionFile(entry, 64 * 1024, token)
+                var captured = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(entry, 64 * 1024, token)
                     ?? throw new IOException("A component disappeared during capture.");
                 _ = new CustomizationFile(name, captured.Bytes);
                 files.Add(new(name, captured.Bytes, captured.Identity));

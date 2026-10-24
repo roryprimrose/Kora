@@ -4,6 +4,9 @@ Status: categorized native Customizations editing for skills, instructions,
 agents, MCP entries and prompts across Built-in (read-only), Kora roaming and
 supported User profile sources, with device-local persisted runtime exclusion,
 recoverable reviewed source writes and tool-free local-model authoring proposals.
+Customization transactions reuse the same native definition-file access owner
+as the bounded owned instruction/agent stores. Independent local agent runs
+consume the same exclusion policy; disable/re-enable cannot revive their old reviews.
 The existing bounded owned instruction/versioned prompt editor and revision-held
 catalogue reload remain available. General agent execution, automatic source
 registration/applicability and the full qualification matrix remain unavailable.

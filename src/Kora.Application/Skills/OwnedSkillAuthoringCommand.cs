@@ -1,0 +1,44 @@
+using System.Text;
+using Kora.Core.Artifacts;
+using Kora.Core.Skills;
+
+namespace Kora.Application.Skills;
+
+public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = null, string? Version = null, string? Literal = null)
+{
+    public const string Syntax = "owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill validate | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill cancel";
+    public static IReadOnlyList<string> FixedPhrases { get; } =
+        Array.AsReadOnly(new[] { "owned skill editor", "owned skill list", "owned skill validate", "owned skill save", "owned skill cancel" });
+
+    public static OwnedSkillAuthoringCommand? Parse(string input, string assistantName)
+    {
+        var normalized = ArtifactCommandRouter.RemoveActivationPrefix(input.TrimStart(), assistantName);
+        if (string.Equals(normalized, "owned skill", StringComparison.OrdinalIgnoreCase)) { return new("Invalid"); }
+        if (!normalized.StartsWith("owned skill ", StringComparison.OrdinalIgnoreCase)) { return null; }
+        if (Encoding.UTF8.GetByteCount(input) > SharedSkillSnapshot.MaximumBytes + 512)
+        { return new("Invalid"); }
+        foreach (var field in new[] { "name", "description", "guidance" })
+        {
+            var prefix = "owned skill " + field + ": ";
+            if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
+            {
+                // Locate the prefix in the original input: prefix routing must not trim the literal payload.
+                var start = input.IndexOf(prefix, StringComparison.OrdinalIgnoreCase);
+                return new(field, Literal: input[(start + prefix.Length)..]);
+            }
+        }
+        var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (words.Length == 3 && !input.Any(char.IsControl))
+        {
+            var operation = words[2].ToLowerInvariant();
+            return new(operation is "editor" or "list" or "validate" or "save" or "cancel" ? operation : "Invalid");
+        }
+        if (words.Length == 5 && !input.Any(char.IsControl) && words[2].ToLowerInvariant() is "create" or "reopen")
+        {
+            try { OwnedDeclarativeSkillDocument.RequireIdentity(words[3], words[4]); }
+            catch (InvalidDataException) { return new("Invalid"); }
+            return new(words[2].ToLowerInvariant(), words[3], words[4]);
+        }
+        return new("Invalid");
+    }
+}

@@ -594,6 +594,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
@@ -2978,6 +2979,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
+        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
         var conversationCurrent = await PrepareConversationShutdown();
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
@@ -2985,6 +2987,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         await ClosePromptPreparation();
         await CloseAgentRun();
         await CloseSharedSkillUse();
+        await CloseInstructionUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
@@ -4199,6 +4202,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
+        if (Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(spokenText, AssistantName) is { } authoringCommand)
+        {
+            await ExecuteOwnedSkillAuthoring(authoringCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
         if (Kora.Application.Skills.SkillReviewCommand.Parse(spokenText, AssistantName) is { } reviewCommand)
         {
             await ExecuteSkillReviewCommand(reviewCommand, spokenText, manualInput
@@ -4282,7 +4291,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
-                () => ExecuteInstructionEditorCommand(spokenText));
+                () => ExecuteInstructionEditorCommand(spokenText, manualInput, reviewEligibility));
             return;
         }
         if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
@@ -5966,6 +5975,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task RestartApplicationAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
+        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
         var restartDispatched = false;
         var callRevision = CallPolicyRevision;
         var privacyRevision = privacyObservation.Current.TopologyRevision;
@@ -5997,6 +6007,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ClosePromptPreparation();
             await CloseAgentRun();
             await CloseSharedSkillUse();
+            await CloseInstructionUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.
@@ -6334,6 +6345,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

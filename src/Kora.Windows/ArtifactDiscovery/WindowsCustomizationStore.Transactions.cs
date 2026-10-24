@@ -30,8 +30,8 @@ public sealed partial class WindowsCustomizationStore
         CustomizationFile[] files, Func<bool> eligible, CancellationToken token)
     {
         RequireEligible(eligible, token);
-        using var root = WindowsOwnedInstructionStore.PinDefinitionDirectory(target.Directory, true, token);
-        using var journalRoot = WindowsOwnedInstructionStore.PinDefinitionDirectory(JournalDirectory, true, token);
+        using var root = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, true, token);
+        using var journalRoot = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(JournalDirectory, true, token);
         var current = Capture(target, token);
         var existing = ReadJournal(target, token);
         if (expected is not null && (expected.Source != target.Source
@@ -55,8 +55,8 @@ public sealed partial class WindowsCustomizationStore
             journal = new(target.Source, current.DirectoryIdentity, current.Files.ToArray(), after);
             var bytes = JsonSerializer.SerializeToUtf8Bytes(journal);
             if (bytes.Length > MaximumJournalBytes) { throw new InvalidDataException("The complete transaction exceeds its bounded recovery capacity."); }
-            WindowsOwnedInstructionStore.WriteDefinitionFile(JournalDirectory, journalRoot, JournalName(target), bytes, false, eligible, token);
-            var verified = WindowsOwnedInstructionStore.ReadDefinitionFile(JournalPath(target), MaximumJournalBytes, token);
+            WindowsOwnedDefinitionFileAccess.WriteDefinitionFile(JournalDirectory, journalRoot, JournalName(target), bytes, false, eligible, token);
+            var verified = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(JournalPath(target), MaximumJournalBytes, token);
             if (verified is null || !verified.Bytes.AsSpan().SequenceEqual(bytes))
             { throw new IOException("Transaction staging is unconfirmed. Review recovery before further writes."); }
         }
@@ -74,12 +74,12 @@ public sealed partial class WindowsCustomizationStore
             var next = journal.After.SingleOrDefault(file => string.Equals(file.Name, name, StringComparison.Ordinal));
             if (prior is not null && next is not null && prior.Bytes.AsSpan().SequenceEqual(next.Bytes)) { continue; }
             var fullPath = Path.Combine(target.Directory, name);
-            using var parent = WindowsOwnedInstructionStore.PinDefinitionDirectory(Path.GetDirectoryName(fullPath)!, next is not null, token);
+            using var parent = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(Path.GetDirectoryName(fullPath)!, next is not null, token);
             string? identity = null;
-            if (next is null) { WindowsOwnedInstructionStore.DeleteDefinitionFile(fullPath, eligible, token); }
+            if (next is null) { WindowsOwnedDefinitionFileAccess.DeleteDefinitionFile(fullPath, eligible, token); }
             else
             {
-                identity = WindowsOwnedInstructionStore.WriteDefinitionFile(Path.GetDirectoryName(fullPath)!, parent,
+                identity = WindowsOwnedDefinitionFileAccess.WriteDefinitionFile(Path.GetDirectoryName(fullPath)!, parent,
                     Path.GetFileName(fullPath), next.Bytes, prior is not null, eligible, token);
             }
             var written = Capture(target, token);
@@ -94,7 +94,7 @@ public sealed partial class WindowsCustomizationStore
         if (!SameBytes(current.Files, journal.After)
             || !string.Equals(Capture(target, token).Revision, current.Revision, StringComparison.Ordinal))
         { throw new IOException("Complete transaction publication is unconfirmed. Review recovery."); }
-        WindowsOwnedInstructionStore.DeleteDefinitionFile(JournalPath(target), eligible, token);
+        WindowsOwnedDefinitionFileAccess.DeleteDefinitionFile(JournalPath(target), eligible, token);
         return Expose(target, current);
     }
 
@@ -163,8 +163,8 @@ public sealed partial class WindowsCustomizationStore
     private Journal? ReadJournal(Target target, CancellationToken token)
     {
         if (!Directory.Exists(JournalDirectory)) { return null; }
-        using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(JournalDirectory, false, token);
-        var file = WindowsOwnedInstructionStore.ReadDefinitionFile(JournalPath(target), MaximumJournalBytes, token);
+        using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(JournalDirectory, false, token);
+        var file = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(JournalPath(target), MaximumJournalBytes, token);
         return file is null ? null : ParseJournal(file.Bytes, target);
     }
 
@@ -228,12 +228,12 @@ public sealed partial class WindowsCustomizationStore
     private IEnumerable<Target> ListJournalTargets(CancellationToken token)
     {
         if (!Directory.Exists(JournalDirectory)) { yield break; }
-        using var pinned = WindowsOwnedInstructionStore.PinDefinitionDirectory(JournalDirectory, false, token);
+        using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(JournalDirectory, false, token);
         var files = Directory.EnumerateFiles(JournalDirectory, "*.json").Take(33).ToArray();
         if (files.Length > 32) { throw new InvalidDataException("The pending transaction inventory exceeds its bound."); }
         foreach (var file in files)
         {
-            var bytes = WindowsOwnedInstructionStore.ReadDefinitionFile(file, MaximumJournalBytes, token)
+            var bytes = WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(file, MaximumJournalBytes, token)
                 ?? throw new IOException("A pending transaction disappeared.");
             var source = DeserializeJournal(bytes.Bytes).Source ?? throw new InvalidDataException("Missing transaction source.");
             var expectedFile = source.Kind switch

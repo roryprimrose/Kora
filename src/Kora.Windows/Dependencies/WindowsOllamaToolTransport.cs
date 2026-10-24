@@ -173,7 +173,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             var status = Status(response, message);
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
             var wire = await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false);
-            var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round, request.ClarificationAllowed);
+            var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round, request.ClarificationAllowed,
+                request.Context.McpTool);
             var outputCharge = Math.Max(wire.Length, ModelToolProtocol.SerializeMessage(parsed.Message).Length);
             if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
             outputBytes += outputCharge;

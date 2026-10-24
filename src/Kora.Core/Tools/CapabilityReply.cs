@@ -9,4 +9,5 @@ public sealed record CapabilityReply(
     ReadinessPage? Readiness = null,
     RuntimePage? Runtimes = null,
     RuntimeObservation? Runtime = null,
-    Kora.Core.Network.LocalWebPageResult? WebPage = null);
+    Kora.Core.Network.LocalWebPageResult? WebPage = null,
+    Kora.Core.Mcp.McpModelResult? Mcp = null);

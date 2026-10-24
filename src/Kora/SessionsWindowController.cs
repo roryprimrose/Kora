@@ -66,6 +66,22 @@ internal sealed partial class SessionsWindowController(
             ? model?.CaptureSelectedAnswerRead(() => eligible() && !disposed
                 && (Volatile.Read(ref dispositionOwnerOpen) != 0 || Volatile.Read(ref compactAnswerReadOpen) != 0)) : null);
         main.BindSessionDispositionReview(this);
+        main.BindMcpCommands(async (command, origin, token) =>
+        {
+            var active = model;
+            var target = active?.SelectedSessionRecord;
+            var revision = access.ControlRevision;
+            bool Live() => !disposed && access.CanControl && access.ControlRevision == revision
+                && ReferenceEquals(model, active) && target is not null && active?.SelectedSessionRecord == target
+                && (window?.IsActive == true || compact?.IsActive == true
+                    || active?.IsMcpActive == true && ConversationQuestions?.IsOwnerInUse == true);
+            if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
+            token.ThrowIfCancellationRequested();
+            if (command.Stop) { await active!.CancelMcpConversationAsync(); return "Cancellation requested; owned work remains held until actual termination. No rollback or automatic retry."; }
+            var message = await active!.SubmitMcpConversationAsync(command.Body, origin, Live);
+            if (!Live()) { throw new OperationCanceledException("The original MCP presentation changed; no result is disclosed to another target."); }
+            return message?.AssistantResponse?.Body ?? active.ConversationStatus;
+        });
         main.BindQueueCancellationReview(this);
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.SessionLifecycleChanged += RevokeSession;
@@ -190,6 +206,32 @@ internal sealed partial class SessionsWindowController(
                     proposal.Request, generation, placeholder, proposal.ExpiresAt, admitted, token, proposal, address);
                 return new(receipt.Presented, receipt.Completed);
             };
+            model.McpPresenter = async (proposal, generation, review, admitted, token) =>
+            {
+                var spec = new Kora.Core.Interaction.QuestionSpec("Exact HTTPS MCP approval",
+                    Kora.Core.Interaction.QuestionKind.SingleChoice, [new("once", "Approve once")]);
+                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact
+                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
+                    proposal.Request, generation, spec, proposal.ExpiresAt, admitted, token,
+                    webProposal: proposal, mcpReview: review);
+                return new(receipt.Presented, receipt.Completed);
+            };
+            model.McpSelector = async (request, generation, expiresAt, tools, admitted, token) =>
+            {
+                var options = tools.Select((tool, index) => new Kora.Core.Interaction.QuestionOption(
+                    "tool-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), tool.Name)).ToArray();
+                var spec = new Kora.Core.Interaction.QuestionSpec("Select one discovered host-mapped read-only MCP tool. "
+                    + "Its complete schema and outgoing arguments still require separate exact review.",
+                    Kora.Core.Interaction.QuestionKind.SingleChoice, options, sourceId: "mcp-tool-selection");
+                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact
+                    ?? throw new InvalidOperationException("The exact conversation window is unavailable."),
+                    request, generation, spec, expiresAt, admitted, token, mcpSelection: true);
+                if (receipt.Completed.Outcome != Kora.Core.Interaction.HostInteractionOutcome.Answered
+                    || receipt.Completed.Question?.Draft is not { Choices.Length: 1 } answer)
+                { return null; }
+                var selectedOption = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
+                return selectedOption < 0 ? null : tools[selectedOption].Name;
+            };
         }
         presentation = new(model);
     }
@@ -289,6 +331,7 @@ internal sealed partial class SessionsWindowController(
         OpenNewRequest = null;
         ReviewOriginalMessageReuse = null;
         main.BindSessionDispositionReview(null);
+        main.BindMcpCommands(null);
         main.BindQueueCancellationReview(null);
         main.SessionsRequested -= OnOpen;
         main.PrivacyClosureRequested -= OnPrivacyClosure;

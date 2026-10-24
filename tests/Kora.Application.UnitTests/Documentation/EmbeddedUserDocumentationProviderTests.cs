@@ -217,7 +217,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 22);
+        sections.Should().HaveCount(commands.Count + 23);
+        sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
+            .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
+            .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
         var speechSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant speech limit suggestion", StringComparison.Ordinal));
         foreach (var phrase in SpeechSummarySuggestionCommand.FixedPhrases)

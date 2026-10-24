@@ -88,7 +88,7 @@ public sealed class SharedSkillSnapshot
             tools.AddRange(declared.Split([' ', ','], StringSplitOptions.RemoveEmptyEntries));
             if (tools.Count is 0 or > 16 || tools.Distinct(StringComparer.OrdinalIgnoreCase).Count() != tools.Count
                 || tools.Any(tool => tool.Length > 80 || tool.Any(c =>
-                    c is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '-'))))
+                    c is not (>= 'a' and <= 'z' or >= '0' and <= '9' or '.' or '-' or '_'))))
             { reasons.Add("invalid-declared-tools"); }
             // No runtime tool/task dependency admission is provided by this inspection reader.
             reasons.Add("declared-tools-unavailable");

@@ -10,6 +10,7 @@ using AwesomeAssertions;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
+using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Platform;
@@ -54,6 +55,15 @@ public sealed partial class NativeUxFixtureContractTests
             ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--silent-caption-fixture", "--extra"], out _).Should().BeFalse();
         NativeUxFixtureHost.TryGetScratchParent(
             ["--silent-caption-fixture", "--scratch-parent", Path.GetTempPath()], out _).Should().BeFalse();
+    }
+
+    [Fact]
+    public void NativePresenceFixtureRequiresItsExactIsolatedMode()
+    {
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--native-presence-fixture"], out _).Should().BeTrue();
+        NativeUxFixtureHost.TryGetScratchParent(
+            ["--launch-native-fixtures", "--scratch-parent", Path.GetTempPath(), "--native-presence-fixture", "--silent-caption-fixture"], out _).Should().BeFalse();
     }
 
     [Fact]
@@ -193,6 +203,20 @@ public sealed partial class NativeUxFixtureContractTests
         provider.SetScrollPercent(-1, 100);
         list.UpdateLayout();
         provider.VerticalScrollPercent.Should().BeApproximately(100, 0.01);
+    }
+
+    private static async Task<SessionCommandResult> FixtureQueueCommand(NativeUxFixtureSession fixture,
+        SessionsViewModel viewer, SessionCommandOperation operation)
+    {
+        var target = viewer.SelectedSessionRecord?.Authority
+            ?? throw new InvalidOperationException("Select the exact fixture session before seeding internal records.");
+        var snapshot = await fixture.Interactions.ReadQueueAsync(target.SessionId, CancellationToken.None);
+        var result = await fixture.Queue.ExecuteCommandAsync(new(operation, target.SessionId.Value, target.Generation.Value)
+        {
+            QueueRevision = snapshot.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(),
+        }, RequestOrigin.LocalUi, () => fixture.Access.CanControl, CancellationToken.None);
+        await viewer.RefreshWorkAsync();
+        return result;
     }
 
     [Fact]
@@ -335,7 +359,7 @@ public sealed partial class NativeUxFixtureContractTests
             fixture.Main.LocalModelsEnabled.Should().BeFalse();
             fixture.Main.HostedModelsEnabled.Should().BeFalse();
             fixture.Main.CanRevealPrivatePresentation.Should().BeTrue("only synthetic private presentation is admitted");
-            fixture.Main.AppearanceOptions.Should().HaveCount(11);
+            fixture.Main.AppearanceOptions.Should().HaveCount(12);
             fixture.Main.ClipboardPreview.Should().BeNull();
             var maintenance = fixture.CreateMaintenance();
             maintenance.NetworkEnabled.Should().BeFalse();
@@ -451,12 +475,11 @@ public sealed partial class NativeUxFixtureContractTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single(entry =>
                 entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
-            await viewer.EnqueueVersionAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
             viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
             await viewer.RemoveQueueEntryAsync();
-            viewer.ChooseNoQueuePrerequisite();
-            await viewer.EnqueueVersionAsync();
-            await viewer.DispatchQueueAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueDispatch);
             var window = new SessionsWindow(viewer);
             window.Show();
             try
@@ -465,8 +488,7 @@ public sealed partial class NativeUxFixtureContractTests
                 records.UpdateLayout();
                 var peer = ControlAutomationPeer.CreatePeerForElement(records)!;
                 _ = Descendants(peer).ToArray();
-                viewer.ChooseNoQueuePrerequisite();
-                await viewer.EnqueueVersionAsync();
+                await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
                 var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
@@ -512,12 +534,11 @@ public sealed partial class NativeUxFixtureContractTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single(entry =>
                 entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
-            await viewer.EnqueueVersionAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
             viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
             await viewer.RemoveQueueEntryAsync();
-            viewer.ChooseNoQueuePrerequisite();
-            await viewer.EnqueueVersionAsync();
-            await viewer.DispatchQueueAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueDispatch);
             var window = new SessionsWindow(viewer);
             var records = window.FindControl<ListBox>("WorkRecords")!;
             records.Height = 110;
@@ -528,8 +549,7 @@ public sealed partial class NativeUxFixtureContractTests
             try
             {
                 records.UpdateLayout();
-                viewer.ChooseNoQueuePrerequisite();
-                await viewer.EnqueueVersionAsync();
+                await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
                 records.UpdateLayout();
                 var pending = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
                 var provider = peer.GetProvider<Avalonia.Automation.Provider.IScrollProvider>()!;
@@ -650,20 +670,19 @@ public sealed partial class NativeUxFixtureContractTests
             await viewer.RefreshAsync();
             await viewer.SelectAsync(viewer.Sessions.Single(entry =>
                 entry.Authority.SessionId == fixture.LifecycleTarget!.SessionId));
-            await viewer.EnqueueVersionAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
             viewer.QueueRecords.Should().ContainSingle().Which.State.Should().Be(SessionQueueState.Pending);
-            await viewer.DispatchQueueAsync();
+            var result = await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueDispatch);
             viewer.QueueRecords.Should().BeEmpty();
-            viewer.Detail.Should().Contain("\"queueDispatch\":").And.Contain("\"Succeeded\"");
+            result.QueueDispatch.Should().ContainSingle().Which.Entry.State.Should().Be(SessionQueueState.Succeeded);
             fixture.Main.HasVoiceConsent.Should().BeFalse();
             fixture.Main.LocalModelsEnabled.Should().BeFalse();
             fixture.Main.HostedModelsEnabled.Should().BeFalse();
-            viewer.ChooseNoQueuePrerequisite();
-            await viewer.EnqueueVersionAsync();
+            await FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueEnqueue);
             var pending = viewer.QueueRecords.Single();
             fixture.Access.SetOpen(false);
-            await viewer.DispatchQueueAsync();
-            viewer.Status.Should().Contain("Sessions unavailable/denied:");
+            var denied = () => FixtureQueueCommand(fixture, viewer, SessionCommandOperation.QueueDispatch);
+            await denied.Should().ThrowAsync<InvalidOperationException>();
             (await fixture.Interactions.ReadQueueEntryAsync(pending.Request.SessionId, pending.Request.TaskId,
                 CancellationToken.None))!.State.Should().Be(SessionQueueState.Pending);
             viewer.Close();
@@ -695,7 +714,8 @@ public sealed partial class NativeUxFixtureContractTests
             page.Records.Count(record => record.Reference.Source == EvidenceSource.Link).Should().Be(2);
             var confined = await fixture.Evidence.QueryAsync(new()
             {
-                TraceId = links.Linked.TraceId, SessionId = links.LinkedRequest.SessionId,
+                TraceId = links.Linked.TraceId,
+                SessionId = links.LinkedRequest.SessionId,
             }, null, CancellationToken.None);
             confined.Records.Single(record => record.Reference.Source == EvidenceSource.Span)
                 .RelatedSegments.Single(segment => string.Equals(segment.TraceId, links.Source.TraceId, StringComparison.Ordinal)).Record.Should().BeNull();

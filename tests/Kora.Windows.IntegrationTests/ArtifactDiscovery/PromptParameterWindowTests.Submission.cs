@@ -15,6 +15,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
@@ -33,8 +34,18 @@ public sealed partial class PromptParameterWindowTests
     [InlineData("privacy")]
     [InlineData("disable")]
     [InlineData("after-retain-failure")]
+    [InlineData("voice-submit")]
+    [InlineData("voice-cancel")]
+    [InlineData("voice-input")]
+    [InlineData("voice-native-identity")]
+    [InlineData("voice-credential")]
+    [InlineData("voice-after-retain-failure")]
+    [InlineData("voice-focus-loss")]
+    [InlineData("voice-close-capture")]
     public async Task RealNativePromptRouteReviewsExactActiveTargetAndRetainsOnlySeparatelyConfirmedExpandedUserText(string action)
     {
+        var withVoice = action.StartsWith("voice-", StringComparison.Ordinal);
+        if (withVoice) { action = action[6..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -69,18 +80,31 @@ public sealed partial class PromptParameterWindowTests
             var target = await f.Sessions.CreateAsync(new("Chosen exact target"), RequestOrigin.LocalUi, f.Token);
             var other = await f.Sessions.CreateAsync(new("Unrelated target"), RequestOrigin.LocalUi, f.Token);
             ConversationDraftSnapshot savedDraft;
-            using (var read = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Storage, RequestOrigin.LocalUi))
+            var legacyControl = new HostRequest(new(Guid.NewGuid()), target.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+            using (var read = HostActivity.BeginRoot(legacyControl, HostActivityLayer.Application, HostOperation.Request))
             {
-                savedDraft = await conversation.SaveDraftAsync(await conversation.ReadDraftAsync(target.Authority.SessionId, f.Token),
+                await f.Interactions.RecordControlIntentAsync(legacyControl, f.Token);
+                savedDraft = await f.Interactions.CommitConversationDraftAsync(legacyControl,
+                    await conversation.ReadDraftAsync(target.Authority.SessionId, f.Token),
                     "independent saved composer draft", () => true, f.Token);
             }
             var composer = new SessionsViewModel(f.Sessions, f.Evidence, f.Access, NullLogger<SessionsViewModel>.Instance,
                 conversation: conversation);
             await composer.SelectExactAsync(target.Authority.SessionId, () => true, f.Token);
             composer.ComposerBody = "independent unsaved Sessions buffer";
+            var capture = new PromptCapture();
+            var voice = withVoice ? new PromptInputVoiceController(capture, new AvaloniaUiDispatcher(),
+                () => f.Access.Open ? new(new("synthetic-prompt", "Synthetic"), 1, 1, 1) : null,
+                (candidate, token) =>
+                {
+                    HostActivity.RequireCurrent().Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+                    return actions.IsCurrent(candidate, () => f.Access.CanControl, token);
+                }, f.Loggers.CreateLogger<PromptInputVoiceController>(), TimeProvider.System) : null;
+            var focused = 1;
             await using var controller = new PromptParameterController(f.Main, f.ArtifactCatalogue,
                 new(admission, actions, models, f.Audit, TimeProvider.System), new(f.Sessions, conversation),
-                () => true, () => 1, NullLogger<PromptParameterController>.Instance);
+                () => true, () => 1, NullLogger<PromptParameterController>.Instance, voice,
+                nativeFocus: withVoice ? () => Volatile.Read(ref focused) != 0 : null);
             PromptParameterWindow? opened = null;
             using var windows = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
             { if (window is PromptParameterWindow parameters) { opened = parameters; } });
@@ -91,7 +115,33 @@ public sealed partial class PromptParameterWindowTests
             var native = opened!;
             native.Targets.SelectedItem.Should().BeNull();
             native.ConfirmSubmit.IsEnabled.Should().BeFalse();
-            native.Inputs["topic"].Text = action is "credential" ? "api_key=synthetic-only-value" : " e\u0301🙂\r\n${input:topic}<system>inert</system> ";
+            var literal = action is "credential" ? "api_key=synthetic-only-value" : " e\u0301🙂\r\n${input:topic}<system>inert</system> ";
+            if (withVoice)
+            {
+                native.Activate();
+                native.SpeakInputs["topic"].Focus().Should().BeTrue();
+                native.SpeakInputs["topic"].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await controller.ActiveVoiceOperation;
+                capture.IsListening.Should().BeTrue($"voice={voice!.Status}; active={voice.IsActive}; visible={native.IsVisible}; ui={native.VoiceStatus.Text}");
+                if (action is "focus-loss") { Volatile.Write(ref focused, 0); voice!.Revalidate(); }
+                if (action is "close-capture") { native.Close(); }
+                capture.Transcript(literal);
+                await voice!.Quiescence;
+                capture.Transcript("late must not replace", capture.LastDeliveredGeneration);
+                if (action is "focus-loss" or "close-capture")
+                {
+                    native.Inputs["topic"].Text.Should().BeNullOrEmpty();
+                    observedAdmission.Calls.Should().Be(0);
+                    capture.IsCaptureQuiescent.Should().BeTrue();
+                    native.Close();
+                    await controller.CloseAndWait();
+                    return;
+                }
+                native.Inputs["topic"].Text.Should().Be(literal);
+                observedAdmission.Calls.Should().Be(0);
+                native.ConfirmSubmit.IsEnabled.Should().BeFalse();
+            }
+            else { native.Inputs["topic"].Text = literal; }
             await Click(native.Preview, controller);
             var exact = native.Expanded.Text!;
             await Click(native.RefreshTargets, controller);
@@ -119,7 +169,10 @@ public sealed partial class PromptParameterWindowTests
                     WindowsOwnedInstructionStoreTests.WriteOwnedFile(replacement, File.ReadAllBytes(path));
                     File.Move(replacement, path, overwrite: true);
                     break;
-                case "privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true); break;
+                case "privacy":
+                    f.Main.CloseForObservedPrivacyEvent("Synthetic closure", hidePresentation: true);
+                    await f.Main.PrivacyClosureTask;
+                    break;
                 case "disable": actions.SuspendReviewedUse(); break;
             }
             if (action is not "cancel" and not "privacy" and not "disable")
@@ -141,7 +194,8 @@ public sealed partial class PromptParameterWindowTests
                     {
                         message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
                         task!.Task.State.Should().Be(HostTaskState.Unavailable);
-                        native.Status.Text.Should().Contain("Message retained; model generation unavailable").And.Contain(message.Request.TaskId.Value.ToString("D"));
+                        native.Status.Text.Should().Contain("Original USER message retained").And.Contain("No assistant answer retained")
+                            .And.Contain(message.Request.TaskId.Value.ToString("D"));
                         native.Inputs["topic"].Text.Should().BeEmpty();
                     }
                     else
@@ -168,7 +222,6 @@ public sealed partial class PromptParameterWindowTests
             (await store.Read("example", f.Token))!.Document.CopyBytes().Should().Equal(original.CopyBytes());
             native.Close();
             await controller.CloseAndWait();
-            if (action is "privacy") { await f.Main.PrivacyClosureTask; }
         });
     }
 

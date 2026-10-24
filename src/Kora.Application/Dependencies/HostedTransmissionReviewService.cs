@@ -12,6 +12,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     private readonly Lock gate = new();
     private CopilotTransmissionReview? pending;
     public event Action<CopilotTransmissionReview>? Offered;
+    public event Action<CopilotTransmissionReview>? Retired;
 
     public CopilotTurnAuthorization PrepareTurn(ModelContextEnvelope context, ProviderProfileTuple profile)
     {
@@ -82,6 +83,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
             audit.Write(requested.WithOutcome(outcome));
             activity.Complete(outcome == SecurityAuditOutcome.Succeeded ? HostOperationOutcome.Completed
                 : outcome == SecurityAuditOutcome.Cancelled ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+            if (review is not null) { Retired?.Invoke(review); }
         }
     }
 

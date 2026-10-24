@@ -6,7 +6,7 @@ using Kora.Core.Conversation;
 namespace Kora;
 
 // Owns the native selected-session presentation, not session/work authority.
-internal sealed class SessionsPresentationOwner
+internal sealed partial class SessionsPresentationOwner
 {
     private readonly SessionsViewModel model;
     private readonly EventHandler<RoutedEventArgs> conversationDetailClick;
@@ -18,6 +18,19 @@ internal sealed class SessionsPresentationOwner
     private bool revoked;
     internal Task CloseOperation { get; private set; } = Task.CompletedTask;
     internal Task DetailOperation { get; private set; } = Task.CompletedTask;
+    internal async Task<bool> PrepareShutdown()
+    {
+        try
+        {
+            if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
+            return await model.ConfirmUnsentDiscardAsync(all: true);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportComposerCloseFailure(exception);
+            return false;
+        }
+    }
 
     internal SessionsPresentationOwner(SessionsViewModel model)
     {
@@ -38,6 +51,8 @@ internal sealed class SessionsPresentationOwner
         surface.Closing += Closing;
         surface.Closed += Closed;
         surface.AddHandler(Button.ClickEvent, conversationDetailClick);
+        surface.AddHandler(Button.ClickEvent, OnOriginalMessageReuse);
+        surface.AddHandler(Button.ClickEvent, OnAppearanceSuggestion);
         refresh.Start();
     }
 
@@ -51,26 +66,42 @@ internal sealed class SessionsPresentationOwner
         Release();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "DispatcherTimer.Tick requires void; failures route to the session model's logged recovery status.")]
     private async void Refresh(object? sender, EventArgs args)
     {
-        if (model.CanRefreshWork) { await model.RefreshWorkAsync(); }
+        try { if (model.CanRefreshWork) { await model.RefreshWorkAsync(); } }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { model.ReportComposerCloseFailure(exception); }
     }
 
     private void Activated(object? sender, EventArgs args) => active = sender as Window;
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
         if (revoked || args.Source is not Button { Name: "OpenConversationDetail", DataContext: ConversationMessage message }
             || !model.CanOpenConversationDetails) { return; }
         args.Handled = true;
-        await (DetailOperation = model.OpenConversationDetailAsync(message));
+        try { await (DetailOperation = model.OpenConversationDetailAsync(message)); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { model.ReportComposerCloseFailure(exception); }
     }
 
     private void Closing(object? sender, WindowClosingEventArgs args)
     {
+        if (NativeShutdownPolicy.RequiresImmediateRetirement(args.CloseReason))
+        {
+            revoked = true;
+            model.Close();
+            draftDialog?.Close();
+            Release();
+            return;
+        }
         if (revoked) { return; }
         if (draftDialog is not null || closing) { args.Cancel = true; return; }
-        if (surfaces.Count > 1 || !model.ComposerDirty) { return; }
+        if (surfaces.Count > 1 || !model.HasUnsentMessages) { return; }
         args.Cancel = true;
         if (!model.CanRead || sender is not Window surface) { return; }
         active = surface;
@@ -81,7 +112,7 @@ internal sealed class SessionsPresentationOwner
     {
         closing = true;
         var protectedDraft = false;
-        try { protectedDraft = await model.ProtectComposerAsync(); }
+        try { protectedDraft = await model.ConfirmUnsentDiscardAsync(all: true); }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { model.ReportComposerCloseFailure(exception); }
         finally { closing = false; }
@@ -95,6 +126,8 @@ internal sealed class SessionsPresentationOwner
         surface.Closing -= Closing;
         surface.Closed -= Closed;
         surface.RemoveHandler(Button.ClickEvent, conversationDetailClick);
+        surface.RemoveHandler(Button.ClickEvent, OnOriginalMessageReuse);
+        surface.RemoveHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }
@@ -115,11 +148,11 @@ internal sealed class SessionsPresentationOwner
     {
         var owner = active is { IsVisible: true } ? active : surfaces.FirstOrDefault(surface => surface.IsVisible);
         if (revoked || owner is null || draftDialog is not null) { return ComposerDraftDecision.Cancel; }
-        var dialog = new Window { Title = "Unsaved exact-session conversation draft", Width = 680, Height = 230 };
+        var dialog = new Window { Title = "Discard unsent messages?", Width = 680, Height = 230 };
         var content = new StackPanel { Margin = new(18), Spacing = 14 };
         content.Children.Add(new TextBlock
         {
-            Text = model.ComposerTarget + "\nSave explicitly, discard the shared memory-only buffer, or cancel switching/closing. Nothing submits a message.",
+            Text = model.ComposerTarget + "\nUnsent messages are memory-only, separately held per session. Discard to continue closing/discarding, or Cancel to keep them. Switching sessions never discards or saves text. Nothing submits a message.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         var buttons = new StackPanel { Orientation = Avalonia.Layout.Orientation.Horizontal, Spacing = 12 };

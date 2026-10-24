@@ -1,5 +1,7 @@
 # All settings
 
+**Product realignment:** fixed diagnostic-read queue settings are approved for retirement from ordinary product workflows. Their descriptions below remain current until code removal; useful model/settings interaction and existing safety/retention controls remain in scope. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+
 Open Settings by:
 
 - right-clicking the tray icon and selecting **Kora Settings**;
@@ -12,7 +14,99 @@ application version as a suffix. Source builds default to version `0.1.0`;
 release builds can override that version during publishing. Changes use the
 same live application state as the presence and response surfaces.
 
+Refresh and Reset actions are in the cog menu at the top right of the relevant
+card or section, rather than taking up space beside the input. Refresh appears
+first, separated from any reset actions. Cards with multiple reset actions list
+each one separately, retaining its exact scope and availability. Opening the
+menu changes nothing; select an action to use its existing workflow. Apply,
+Save, Preview and Stop remain on the form.
+
+Cog controls use a small, thin outline icon and have no button background or
+border until you hover over them. Hovering shows a subtle border, and keyboard
+focus has a distinct accent outline. The larger click target, setting-specific
+tooltip and menu behavior are unchanged. When inspection is allowed but changes
+are unavailable, Refresh remains accessible while Reset stays disabled.
+
+## Compact controls
+
+Settings uses flat sections, compact inputs and quiet secondary actions. Numeric
+settings place the label, value, unit and **Save** together when there is room;
+the row wraps rather than clipping at narrower widths. List-management actions
+use compact toolbars. These styles apply only to Settings, not approval or
+recovery dialogs.
+
+Waiting/running task limits, volume, Windows voice speed and record-retention
+periods use whole-number fields with the existing domain limits. Up and Down
+adjust a valid number within its bounds. Blank, fractional, non-numeric and
+out-of-range edits remain visible with a validation message and disable the
+related Save or Preview action; they cannot save a previous valid draft.
+Switching tabs preserves an unfinished edit; a newly published host value can
+replace it after Refresh or another confirmed preference change.
+Unselected preview periods remain unselected until a valid number is entered.
+
+Numeric Save actions are emphasized when a valid draft differs from the
+confirmed value; unavailable saved state is not treated as a default.
+Editing is not saving. The existing explicit-save workflows, separate Refresh,
+read-only Preview and cog reset actions retain their admission checks. Queue
+changes still require a fresh Refresh from the cog menu before each Save or
+Reset. Settings that already save a selection immediately retain that behavior.
+
+## Local records and privacy
+
+Kora keeps task records, diagnostic records and security records on this device.
+Diagnostic and security records do not include your content.
+
+These record files are **not encrypted**. Administrators and other apps running
+under your Windows account may read them, and copies remain readable. Windows
+protects saved credentials separately; that does not encrypt the record files.
+
+Storage limits apply to new records only. Existing records keep their recorded
+dates, and cleanup may happen later than the selected limit. Security, task and
+session records are not automatically deleted. A storage limit is not
+confirmation that records have been removed.
+
 ## Preference Changes and Recovery
+
+Settings uses plain-language labels and short status summaries. For example,
+**Logging** describes diagnostic and security record storage without naming the
+database, and **Providers** shows AI service and model choices rather than raw
+configuration data. Saved values, defaults, unavailable settings and recovery
+instructions remain distinct. Advanced typed commands retain their existing
+option IDs and structured output.
+
+### Review an assistant appearance suggestion
+
+In a local UI conversation, ask for a theme or native reader text scale
+suggestion. An admitted model can answer with one exact `set appearance.theme
+to dark` (also `system` or `light`) or `set appearance.reader-text-scale to 125`
+suggestion, using the registered reader percentage range. This answer is inert
+text, never a command or permission to write. Other answers remain readable
+but cannot be used as appearance suggestions.
+
+Choose **Review appearance suggestion...** on that exact assistant answer in
+Sessions or the compact conversation. The native review shows the exact current
+value, whether it is saved or default, proposed value, units and shared
+device-local scope. Separately choose **Confirm exact appearance change** to
+save just that option, or **Cancel appearance review** to change nothing.
+Successful saves use the same shared validation, audit, persistence and live
+appearance refresh as Settings. Failed or stale saves are reported; review
+again rather than automatically retrying.
+
+The exact active original session, answer source, private host ownership and
+local input must remain eligible. Switching sessions, changing the source,
+closing the presentation, privacy/ownership changes or call-policy changes
+revoke review. Protected calls and original voice requests are not eligible
+for this native-only increment; UI confirmation does not relabel a voice
+request. Unqualified or unavailable models remain unavailable and cannot
+produce a reviewable successful answer. No provider is enabled by this feature.
+
+### Navigate without changing a preference
+
+The [seven exact Settings-tab commands](commands.md#open-an-exact-settings-tab) select Appearance, Speech & audio, Responses, Sessions or Calls in this same singleton window.
+`open microphone settings` and `open audio settings` only navigate to Speech & audio; Choose microphone, consent, listening, provider Refresh and all Save/Apply actions remain separate explicit native controls ([controller](../src/Kora/SettingsWindowController.cs), [named tabs](../src/Kora/SettingsWindow.axaml)).
+
+Opening Calls does not activate manual-call mode. Opening Responses does not replay or reveal retired private content.
+Navigation preserves unsaved fields and pending questions/approvals; unavailable or stale admission is reported in the transcript without opening a substitute tab ([workflow](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs), [tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
 
 Admitted exact/native preference workflows show saved/default/unavailable
 provenance, desired/effective values and revisions. Highlighting or opening
@@ -55,8 +149,8 @@ Voice-consent persistence runs on a worker. Withdrawal invalidates capture and s
 
 ## Read-only audit shortening preview
 
-In **Settings > Logging**, explicitly select **Proposed audit retention days for
-read-only preview**, then **Preview audit shortening impact only**. The value
+In **Settings > Logging**, explicitly select **Proposed security record storage
+days**, then **Preview affected security records**. The value
 must be 30–365 days and shorter than the current confirmed saved/default value.
 Selecting or previewing does not Save or change existing records.
 
@@ -83,6 +177,20 @@ Clear admits future new notices only; old muted records can be passive `RoutineS
 This does not change speech/listening/captions, call/privacy policy, approval authority or work. Quiet-hour schedules, multi-session reminders, proactive speech and broad model/typed quiet settings remain unavailable. Existing [exact event commands](commands.md#trusted-local-events) remain separate; a suppressed routine event cannot be deferred into a replay.
 
 ## Per-session retention status and hold
+
+### Read-only hypothetical policy preview
+
+In **Settings > Sessions**, refresh the saved archive and deletion settings, choose separate proposed archive/deletion days, then select **Preview affected sessions**. Choosing days alone does nothing. The proposal must have archive before deletion, within the existing 1-365 day policy bounds ([proposal controls](../src/Kora/SettingsWindow.axaml)).
+
+Complete separates hypothetical newly due archive/delete counts from already-due recorded deadlines and kept, work-held, unknown-hold and removed exclusions. Deletion takes precedence over archive.
+Question status is not read from private payloads, so retained questions are conservatively excluded as unknown. These are not cleanup eligibility or storage-removal forecasts ([aggregation and metadata reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionPlanner.cs)).
+
+Incomplete or Unavailable means **no aggregate**, not zero. The bounded metadata scan has finite candidate/encoded-byte/time limits.
+It expires and retires on edits, source/policy/preference or private/owner/control changes, refresh, close, cancellation or timeout. Explicitly Preview again; there is no automatic replay ([planner lifecycle](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
+Preview never saves/resets policy, changes recorded deadlines, archives/deletes/holds sessions or revokes sources. Current policy remains future-only; implementation and deterministic validation do not enable broader capabilities or claim E/Q qualification ([implementation boundary](../Design/User_Configuration.md#read-only-hypothetical-session-retention-planner)).
+
+### Exact existing session controls
 
 These are **Sessions** controls, not global preferences:
 
@@ -143,13 +251,13 @@ Sentence alignment remains unavailable because playback supplies no admitted
 sentence boundaries. Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
-**Caption display — this run only** is available in **Settings > Speech & audio** and the caption. Choose an available native display and press **Use selected display**; **Return to primary** explicitly resets to the current primary.
+**Caption screen — until Kora restarts** is available in **Settings > Responses** and the caption. Choose a connected screen and press **Use selected display**; the section's top-right cog offers **Use main screen** to reset to the current main screen.
 Labels show ordinal, primary designation and safe working-area geometry; they are not durable display identities. No monitor choice is saved; restart returns to primary.
 
 Choosing while speech text is Off applies only to the next eligible caption; it does not enable captions or speak/capture. Choosing while eligible text is visible moves only that observed caption, keeping its original completion deadline and pin. The saved corner remains relative to the chosen display's current working area/DPI; tiny areas clip rather than spill.
 
 Display changes expire old choices. If the explicit display disappears or is unknown, the caption immediately hides and retires, even when pinned; it does not move private text to another monitor.
-Inspect the display status, then explicitly select a current display or **Return to primary** when the owning unlocked/private/call gates allow it. Retired text never returns. This recovery does not repair caption preferences, clear privacy/ownership/call holds, or replace required response/question/recovery panels.
+Inspect the display status, then explicitly select a current display or **Use main screen** when the owning unlocked/private/call gates allow it. Retired text never returns. This recovery does not repair caption preferences, clear privacy/ownership/call holds, or replace required response/question/recovery panels.
 
 ## Windows-native speech rate
 
@@ -166,6 +274,9 @@ the installed available **Windows** provider and qualified Kora-owned adapter.
 never reported as a Kokoro speed effect. Unknown state stays unavailable.
 [Exact typed/current-name ACTIVATED commands](commands.md#inspect-or-change-windows-native-speech-rate)
 use the same admitted host workflow, not model settings tools.
+
+Exact typed/current-name activated **speak faster** and **speak slower** adjust the freshly admitted desired Windows rate by **1 provider-native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+At -10/10 the result explicitly reports unchanged without a write or success audit; reaching a bound is reported explicitly. Kokoro remains unsupported; aliases never select Windows for you ([rate action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
 
 Saving/resetting retires active and queued speech. Only future eligible Windows
 synthesis consumes the owned engine rate, after the previous synthesis lifetime
@@ -185,8 +296,9 @@ acceptance.
 
 ## SQLite diagnostic retention
 
-**Settings > Logging** provides Refresh, Save future retention only and Reset to
-30 days. The single `logging.sqlite-diagnostic-retention-days` option accepts
+**Settings > Logging** provides **Refresh diagnostic settings** and **Save
+diagnostic storage limit**; the card's top-right cog offers **Reset diagnostic
+storage to 30 days**. The single `logging.sqlite-diagnostic-retention-days` option accepts
 an exact integer **1–365**, default/reset **30**. Discovery/status shows saved or
 default provenance, desired/effective days, fresh revisions and explicit recovery.
 The [exact typed/current-name activated commands](commands.md#sqlite-diagnostic-retention)
@@ -212,10 +324,27 @@ explicitly repair and refresh. No silent default or automatic marker clearing.
 Ordinary SQLite delivery reports an explicit gap while independent file and
 required audit paths remain separate.
 
+The separate **Preview a shorter diagnostic storage period** section lets you
+choose fewer days and select **Preview affected diagnostic records**. Choosing
+days alone does not scan or save. The preview separately counts diagnostic
+records, activity records and activity connections that would become due at the
+preview time. Security records and sessions are excluded. Incomplete or
+unavailable checks show no count for that source; the preview expires after
+30 seconds and can be cancelled or cleared. It never saves settings or deletes
+records, and does not guarantee complete conversations or permanent removal
+from storage. Save and Reset still affect new records only.
+
+Diagnostic and security-record previews stop observing changes for presentation
+once their scan or result has been retired. Background log writes must not
+continually refresh Settings or schedule more UI activity. Source changes still
+invalidate an active scan or result immediately; a new preview requires an
+explicit action.
+
 ## Future-only audit retention
 
-**Settings > Logging** also provides independent audit Refresh, Save future
-audit retention only and Reset to **90**. `logging.audit-retention-days` admits
+**Settings > Logging** also provides **Refresh security record settings** and
+**Save security record storage limit**; the card's top-right cog offers
+**Reset security record storage to 90 days**. `logging.audit-retention-days` admits
 canonical integers **30–365**, default/reset **90**; typed/current-name
 ACTIVATED get/status/set/reset use this same workflow. `list logging settings`
 reports both complete admitted options and saved/default/effective provenance.
@@ -297,18 +426,18 @@ provider fallback or confidence-based handoff.
 
 ### App default service and desired profiles
 
-**Settings > Providers > App default service and per-service desired profile** is configuration only. Initially the desired service is **Local if a supported Ollama installation is observed; otherwise Unset**. Unknown installation is Unset. A detected executable is not a running runtime, an available model, consent to generate, or account/egress authorization.
+**Settings > Providers > Default service and model** is configuration only. Initially the desired service is **On-device (Ollama)** if a supported Ollama installation is observed; otherwise **Not selected**. Unknown installation is not selected. A detected executable is not a running runtime, an available model, consent to generate, or account/egress authorization.
 
-1. **Inspect app provider settings and current catalogue**.
-2. Explicitly choose Unset, Local, Copilot, Claude or Codex. Picking a service changes its tuple draft without changing saved settings or erasing other services.
-3. **Save desired app service only**, or choose all three exact advertised model/reasoning/context values and **Save selected app service and exact model/reasoning/context tuple**. Provider-managed values must themselves be advertised. Inspect again after a completed save.
-4. With a current saved complete tuple, **Review only model** from the model draft, or pick an exact reasoning/context field for the saved model and review that field. Inspect the field, saved/resulting whole tuples, dependent validity, preference revision and catalogue provenance; **Confirm reviewed app field and whole complete tuple** or **Cancel reviewed app field; no write**.
+1. **Refresh services and models**.
+2. Choose **Not selected**, **On-device (Ollama)**, **GitHub Copilot**, **Claude** or **Codex**. Picking a service changes the draft without changing saved settings or erasing other services.
+3. **Save default service**, or choose a model, thinking level and conversation size and **Save service and model settings**. These correspond to the exact model/reasoning/context choices supplied by the service. Refresh again after a completed save.
+4. With a current saved complete profile, use **Review model change**, **Review thinking level change** or **Review conversation size change**. Compare the current and proposed settings, then **Confirm model settings change** or **Cancel change**.
 
 Individual edits retain the saved other fields, app default service and other service tuples. A model edit never replaces incompatible reasoning/context IDs: use the complete draft/save above to choose all dependents explicitly. Missing/stale complete bases and changed selection/ownership/privacy/call/session/generation/app/account/catalogue state reject confirmation. No individual app field reset exists; selected-service tuple reset remains unresolved, not a substitute.
 
 Current production catalogues have **no available models** because no qualified capability/auth adapter is composed. Desired service may be saved while its model details remain Unavailable. **Sign in** is disabled/Unavailable, not a fake login or use of machine credentials. Nothing is authenticated, acquired, sent or generated by these controls.
 
-Status separates saved, desired and effective state. Unknown, expired, retired, cross-service, changed-account or changed-catalogue values do not select replacements. **Reset app service** re-observes Local-if-installed/otherwise-Unset and retains all service tuples. **Reset selected service tuple** removes only that tuple and leaves it unresolved.
+Status separates saved choices from models that are ready to use. Unknown, expired, retired, cross-service, changed-account or changed-catalogue values do not select replacements. **Reset default service** re-observes Local-if-installed/otherwise-Unset and retains all service tuples. **Clear model settings for this service** removes only that tuple and leaves it unresolved.
 
 This is independent of the unchanged **LocalOnly** `providers.default-mode` safety default and existing bootstrap local-model switches. Only subsequent eligible provider-neutral policy turns consume profiles; app edits never reroute/cancel/retry an admitted turn or change the buffered local bootstrap reasoner.
 
@@ -420,7 +549,7 @@ Filters are read-only native controls, not new tool execution descriptors or mod
 
 ## Readiness and required tools
 
-The setup queue checks local storage, SQLite, PowerShell 7 (`pwsh.exe`), and
+The setup queue checks local storage, setup record storage (SQLite internally), PowerShell 7 (`pwsh.exe`), and
 Ollama/model inference on startup and refresh even when local model execution
 is disabled, so readiness remains visible before it is re-enabled. A missing or unhealthy PowerShell
 runtime shows a PowerShell setup task. The Readiness page displays the detected
@@ -447,9 +576,11 @@ required queued setup task.
 
 ## Appearance
 
+The tab groups **Appearance** controls first (theme, reader text scale and response-window behavior), followed by **Presence** controls (visibility, timeout and animation). Each field has a cog actions button at the top right of its card, inside the card padding. Clicking it opens **Reset setting**, affecting only that field ([settings layout](../src/Kora/SettingsWindow.axaml)).
+
 The existing controls and exact typed/activated-voice commands share one
 host-owned, typed appearance service. No model or network is needed. Enter
-**list appearance settings** to inspect the eleven admitted options, units,
+**list appearance settings** to inspect the twelve admitted options, units,
 defaults, bounds, scope and application timing.
 
 | ID | Default | Values / units |
@@ -465,6 +596,7 @@ defaults, bounds, scope and application timing.
 | `appearance.speech-scaling` | `true` | `true`, `false` (visual sizing only) |
 | `appearance.speech-scale-amount` | `100` | 0-200 percent |
 | `appearance.reader-text-scale` | `100` | 75-200 integer percent; native source/detail and complete serialized Evidence bodies only ([domain](../src/Kora.Core/Configuration/ReaderTextScaleSettings.cs)) |
+| `appearance.native-presence-renderer` | `false` | `false` = Avalonia; `true` = Native (experimental); an environment startup default applies only without a saved choice |
 
 Use **get appearance.theme**, **set appearance.theme to dark**, or
 **reset appearance.theme**; substitute another listed ID and its typed value.
@@ -483,8 +615,45 @@ the animated presence optional. It is displayed by default. Turning it off
 keeps the presence hidden across restarts while response, settings, approval
 and other interactive surfaces remain available.
 
-The Appearance tab also offers **Reset selected option**. Reset affects only
-that option, not a whole profile or undo history. Updates revalidate the
+**Response-window visibility and topmost**
+
+The native **Always show responses** and **Keep responses on top** controls share their existing audited setters with the [exact typed/current-name activated commands](commands.md#inspect-or-change-koras-response-window-visibility-preferences).
+They remain separate from the appearance registry, output response mode, speech captions and content retention ([native setters](../src/Kora.Application/ViewModels/MainViewModel.cs), [command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+| Device-local option | Default | Exact natural on / off |
+| --- | --- | --- |
+| `response-window.always-show` | `false` | `keep responses visible` / `allow responses to hide` |
+| `response-window.topmost` | `true` | `keep response window on top` / `stop keeping response window on top` |
+
+Use `get/status <exact ID>`, `set <exact ID> to true/false` or `reset <exact ID>`; the spoken targets `response window always show` and `response window topmost` also work. Each off/reset affects only its Boolean, preserving its companion, position and timeout.
+Inspection distinguishes saved evidence from unsaved defaults, while malformed or changed/uncertain evidence requires explicit inspection/repair before restart, not saving assumed defaults
+([parser](../src/Kora.Application/Configuration/ResponseWindowCommand.cs), [confirmation](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+Command results stay in the transcript without immediate speech or replacing question/security panels. Saving AlwaysShow does not reopen a dismissed window or resurrect old/private/revoked content; native source, privacy, call and presentation admission remain authoritative.
+Topmost applies only to Kora's response window, not arbitrary OS windows, geometry, activation or foreground rights ([window controller](../src/Kora/ResponseWindowController.cs), [native response](../src/Kora/ResponseWindow.axaml.cs)).
+
+Under **Appearance > Presence**, **Animation mode** switches
+between **Standard** (Avalonia) and **Experimental** (native) without restarting Kora's
+host services. Both use the same particle cloud. The old presence fades out
+before its window and rendering resources are replaced, then the new one fades in. Switching waits for
+startup, mouse gestures and presence-owned dialogs/file pickers to finish.
+Position, hidden/minimized state and the remaining inactivity timeout are
+retained; privacy and display eligibility are rechecked before showing it.
+The status below the selector distinguishes a saved/pending choice from an
+active or unavailable renderer. Failures are explicit and do not silently select
+the other backend. Uncertain retirement requires normal exit, not a storage or
+ownership reset. Native remains experimental; this does not qualify laptop
+rendering performance or full physical interaction.
+
+The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
+With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the
+native startup default. Invalid environment values are errors.
+`set appearance.native-presence-renderer to true/false` uses the same audited
+setting and runtime switch as the selector. Saving is not evidence that a
+deferred replacement has completed; inspect the renderer status.
+
+Use the field's top-right cog actions button and choose **Reset setting** to restore its default; opening the menu does not change the value. The button retains its setting-specific accessible name and tooltip and also opens with Space or Enter ([actions menu](../src/Kora/Controls/SettingActionsButton.cs)).
+Reset affects only that field, not a whole group, profile or undo history. Updates revalidate the
 typed value and current host revision before one atomic preference-file write.
 A stale proposal requires a fresh inspection/proposal. A save failure retains
 the previous saved/effective value and revision and shows the error.
@@ -492,7 +661,15 @@ Get distinguishes a saved preference from an unsaved domain default.
 Successful changes update all open visual surfaces without reopening them.
 Speech scaling changes only animation, not audio output or call policy.
 
-**Native reader text scale** in Settings > Appearance applies an absolute integer percentage immediately; select its exact ID for **Reset selected option** (100). Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale`. Relative changes and number words are not inferred ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs), [editor](../src/Kora/SettingsWindow.axaml)).
+**Reading text size** applies an absolute integer percentage immediately; its **Reset setting** action restores 100 ([editor](../src/Kora/SettingsWindow.axaml)).
+Exact commands include `get/status appearance.reader-text-scale`, `set appearance.reader-text-scale to 75` (or 100/200), and `reset appearance.reader-text-scale` ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [ID parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+
+Natural exact aliases add `use dark mode`, `use light mode`, `use system theme`, `get/status reader text scale`, `reset reader text scale`, and `set reader text scale to <integer> percent`.
+Voice requires the current configured assistant-name prefix ([grammar](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [command reference](commands.md#natural-exact-app-theme-and-native-reader-text-scale)).
+
+`increase/decrease reader text scale by <positive integer> percentage points` resolves fresh confirmed state at execution, with checked arithmetic and the same 75–200 registry bounds.
+It submits the existing revision-bound proposal; stale concurrent changes refuse, not overwrite or silently clamp.
+Number words and vague/selected-window requests are not inferred ([proposal workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
 It scales only shared native DetailWindow Rendered/Source/continuous text, file/folder/retained attachment source bodies and exact cited/literal-match spans, the native clipboard snapshot source body, admitted complete serialized Evidence page bodies and their inert focused literal-Find spans, and the currently observed native speech-caption content text. New windows and live confirmed changes use original typography, never cumulative scaling. Trusted chrome, search inputs/result navigation, identity/location labels, consent/approval/question/error controls and caption labels, Pin/Unpin and display selector/status retain their own typography. Strings, bytes, digests and offsets are unchanged; the preference grants no content access/copy/export or persistence consent ([detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
@@ -519,9 +696,9 @@ documentation, and other Kora-owned visual surfaces.
 ### Independent visibility timeouts
 
 - **Presence timeout** - default **10 seconds**; range **1 to 60 seconds**,
-  under **Appearance > Presence appearance**.
+  in the **Presence** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)).
 - **Response timeout** - default **5 seconds**; range **1 to 60 seconds**,
-  under **Appearance > Visual feedback**.
+  in the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)).
 
 Presence hides automatically and without asking when it is idle or listening
 and no prompt needs attention. New Kora interaction restarts its timer.
@@ -538,7 +715,7 @@ timeout values are retained when upgrading.
 
 ### Presence appearance
 
-Under **Appearance > Presence appearance**:
+In the **Presence** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 | Setting | Range | Default |
 |---|---|---|
@@ -556,7 +733,7 @@ click-through and saved-position behavior, see [Presence](windows-and-tray.md#ko
 
 ### Response window
 
-Under **Appearance > Visual feedback**:
+In the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 | Control | Default / behavior |
 |---|---|
@@ -579,6 +756,8 @@ See [response window behavior](responses-and-calls.md#visual-response-window).
 
 **Apply name** and **Reset name to Kora** use the same typed, audited atomic
 workflow as [exact assistant settings commands](commands.md#assistant-display--ptt-command-prefix-setting).
+The [same name parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) accepts **what is your name** (optional **?**), **call yourself &lt;name&gt;**, **change your name to &lt;name&gt;**, and **reset your name**.
+Typed and current-name activated voice requests share Apply/reset; proposed spelling/case/content reach the existing validator unchanged. These change only the display/PTT command-prefix preference, not a production wake name or generic agent identity.
 Discovery/get show schema 1, `assistant.name` (spoken: **assistant name**),
 string type, bounds/default, device-local scope, effect/timing, process-local
 revision and saved-versus-unsaved-default provenance. Reset affects this option
@@ -615,7 +794,7 @@ profile, learning/enrollment, assets, download or OS/global setting is added.
 |---|---|
 | System | Follow the live Windows multimedia default |
 | Exact endpoint | Pinned device-local override; a missing pin is not replaced by name |
-| Choose microphone (native recovery) / Refresh | Bounded metadata only, including unavailable saved pins and Allowed/Blocked/Unknown Windows access |
+| Choose microphone / Refresh | Bounded metadata only, including unavailable saved pins and Allowed/Blocked/Unknown Windows access |
 | Save preference only | Save the exact highlighted endpoint; no capture |
 | Enable listening (PTT readiness only) | Separate fresh-gated action over the saved endpoint, not the highlight |
 
@@ -630,14 +809,15 @@ Windows microphone settings separately, then refresh.
 
 | Control/state | Behavior |
 |---|---|
-| Ongoing voice consent | Required before voice enablement; saved consent can arm PTT at ordinary startup without capture |
-| Push to talk | Hold mouse/Space/Enter, speak, then release; production wake is unavailable |
+| Allow listening on this device | Required before voice enablement; saved consent can arm PTT at ordinary startup without capture |
+| Push to talk | Available in the response window when ready, not in Settings |
 | Disable / Enable listening | Current-run release / explicit fresh-gated re-arm; disablement is not saved |
-| Withdraw voice consent | Persist closed consent across restart |
+| Remove listening permission | Persist closed consent across restart |
 | Normal authoritative unlock | Restore only prior enabled readiness after confirmed closure/fresh gates; never resume recording |
 | Resume/reconnect, restored permission/device or intervening failure | Explicit Enable required; selection/refresh does not release the hold |
 
-Status explains privacy, permission, call or manual holds.
+Settings configures consent and readiness only; it has no push-to-talk command
+button. Status explains privacy, permission, call or manual holds.
 See [consent and PTT workflow](voice-and-audio.md#voice-consent-and-explicit-push-to-talk)
 for the full lifecycle and recovery rules.
 
@@ -651,7 +831,7 @@ for the full lifecycle and recovery rules.
 **Speech voice** has one selector containing ready installed voices from all
 providers. Each entry identifies its provider; choosing a voice selects that
 provider automatically, without a separate provider selector.
-**Speech provider assets (review only)** never changes selection; completing
+**Speech downloads** never changes selection; completing
 Download makes choices available immediately but does not select one.
 **Remove downloaded model** removes Kokoro assets only.
 See [provider workflow](voice-and-audio.md#speech-providers).
@@ -696,6 +876,9 @@ works. Results show saved/default/unavailable source, desired/effective percent,
 bounds/default, revisions and recovery. Protected/unknown calls deny original
 voice mutations; use a new eligible typed/Settings request.
 
+Exact typed/current-name activated **speak louder** and **speak quieter** adjust the freshly admitted desired Kora volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
+A shorter final step explicitly reports the reached 0/100 boundary and old/new values (`adjustment.previousPercent` / `adjustment.currentPercent`, e.g. 95 to 100 or 5 to 0); already there reports unchanged with no write or success audit. Settings controls and aliases use the same [audited apply path](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86).
+
 Only Kora-owned Windows speech instance gain and Kokoro PCM attenuation change.
 No Windows/system/call volume, mute, microphone, consent, provider, output
 endpoint, summary, name, approval or retention setting changes. Unknown adapter
@@ -717,6 +900,12 @@ The registry IDs are `speech.summary-sentences` and `speech.summary-words`;
 spoken names are **speech summary sentences** and **speech summary words**.
 Discovery/get/set/per-option reset use the same native/typed/activated-voice
 workflow. For example, **set speech.summary-words to 40**.
+Exact natural aliases also accept **show spoken summary limits**, **set spoken summary sentence limit to 2**, **set spoken summary word limit to 40**, **reset spoken summary sentence limit** and **reset spoken summary word limit**, optionally with the current assistant-name prefix ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+Activated voice requires the current assistant-name prefix; typed input may omit it. Natural values use canonical decimal digits, not signs, leading zeroes, fractions or word numerals ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs), [parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+These are future admission budgets, not a request to speak, shorten or regenerate an answer. Pending questions/approvals remain unchanged and must be finished or cancelled first ([shared command path](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs)).
+
 Status distinguishes unsaved defaults from saved limits and reports revision
 and recovery. The host checks original channel, live privacy/ownership and call
 revision adjacent to audited atomic persistence. Protected calls reject
@@ -783,18 +972,55 @@ See [output workflow](voice-and-audio.md#audio-output-selection) and
 Re-enumerates microphones, voices, speakers, Windows defaults, mute state, and
 dependency readiness. Refresh does not enable listening.
 
+## Optional speech-input data
+
+**Speech & audio → Optional speech-input components** manages only exact
+host-catalogued optional model data. This release has no qualified optional
+input offers, so the panel reports that state and cannot download or claim
+installation success ([catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs),
+[Settings panel](../src/Kora/SettingsWindow.SpeechComponents.cs)).
+
+For an admitted future offer, **Inspect** reports installed bytes, integrity,
+compatibility, qualification and ownership separately. **Prepare / retry**,
+**Verify** and **Remove** require a fresh complete review of the exact model,
+sources, licence, download/storage/resource costs and operation before approval.
+Verification of already-present data is local-only. Cancellation, stale review,
+integrity failure or an uncertain write requires inspection and a new explicit
+review; existing foreign/shared assets are never overwritten or removed
+([shared service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs),
+[atomic storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs)).
+
+Unreadable data is **Unknown**, not missing or unverified false. Runtime
+compatibility and existing functional evidence have separate explicit states
+and reasons; **Inspect** does not run inference, audio, downloads or functional
+probes. A busy component, unknown ownership, unavailable runtime and
+shared/user-owned assets produce distinct mutation denials, not successful
+no-op preparation ([observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs),
+[mutation admission](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs)).
+
+Preparation does not select a runtime, open the microphone, enroll a verifier,
+enable learning or change reasoning/output settings. Removal affects only the
+exact managed model data after exclusive quiescence; saved selections, personal
+profiles, calibration and secrets are outside this operation. Burn uses the
+same lifecycle with individually unchecked choices; skipping optional work
+keeps a valid Kora-only installation ([installer](../installer/README.md#optional-local-speech-component-lifecycle)).
+
 ## Responses
 
 ### Device default
 
-Persistent `Hybrid` (**both audible and visual**), `VoiceOnly` (**audible only**)
-or `VisualOnly` (**visual only**), default `Hybrid`. Choose **Inspect response
-mode**, select a presented mode and **Save device-default mode**.
-**Reset device default to Hybrid** saves only this default; it does not clear
+Persistent `Hybrid` (**Text and speech**), `VoiceOnly` (**Speech only**)
+or `VisualOnly` (**Text only**), default `Hybrid`. Choose **Refresh response
+mode**, select a presented mode and **Save default response mode**.
+**Reset to text and speech** saves only this default; it does not clear
 queue/task overrides or change call/mute fallback, speech, microphone or consent.
-Status reports saved/default/unavailable provenance, revision, desired/configured
-effective mode and live output policy. The [exact commands](commands.md#inspect-or-change-the-device-default-response-mode)
+Settings shows saved/default/unavailable status and the current response mode.
+The [exact commands](commands.md#inspect-or-change-the-device-default-response-mode)
+also report revisions and desired/effective values and
 use the same admitted audited atomic save/readback workflow.
+The exact phrases **use visual responses**, **use spoken responses** and **use spoken and visual responses** save VisualOnly, VoiceOnly and Hybrid respectively through that same service.
+**check response mode** inspects the same status without writing ([parser](../src/Kora.Application/Configuration/ResponseModeCommand.cs), [native/typed/activated parity tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalResponseMode.cs)).
+These are future-response preferences, not immediate speech, replay, capture, speaker identification or output-device/provider/global-volume controls. VoiceOnly cannot override call/privacy suppression or speech caps. Ambiguous **be quiet** remains stop speech, not a saved mode change.
 Stale choices and failed storage/evidence require a fresh inspection; corrupt
 saved state is unavailable, never silently Hybrid. Save/reset never plays or
 replays speech or opens capture. Required full visual response/preview remains
@@ -806,12 +1032,12 @@ an unconfirmed marker or reports success after failed apply evidence.
 ### Current queue
 
 Process-local presentation override, not durable queue authority.
-Choose Inherit to remove it. See [output precedence](responses-and-calls.md#output-precedence).
+Choose **Use default** to remove it. See [output precedence](responses-and-calls.md#output-precedence).
 
 ### Current task
 
 Process-local presentation override, not task execution/configuration authority.
-Choose Inherit to remove it. See [output precedence](responses-and-calls.md#output-precedence).
+Choose **Use default** to remove it. See [output precedence](responses-and-calls.md#output-precedence).
 
 ### Muted speaker fallback
 
@@ -838,9 +1064,9 @@ is implemented.
 ### Manual call mode
 
 **I'm in a call** enables protection for this run.
-**Clear manual call mode** / **Reset manual off** clear only this layer,
+**Clear manual call mode** / **Reset call mode** clear only this layer,
 never enabled automatic Active/Suspected/Unknown evidence.
-**Cached call status** is passive. Manual state is not saved.
+**Refresh call status** shows the last known status. Manual state is not saved.
 
 Original channel, current host/session/call revisions and required audited
 intent remain mandatory. Stale/failed changes retain conservative protection.
@@ -850,8 +1076,9 @@ and [exact commands](commands.md#exact-current-run-manual-call-control).
 
 ### In-call feedback override
 
-**Refresh call feedback**, choose **Voice / UI / Both / Inherit**, then
-**Save call feedback only**. **Reset call feedback to UI** removes this
+**Refresh call feedback**, choose **Speech only / Text only / Text and speech /
+Use normal response settings**, then **Save call response mode**.
+**Reset to on-screen responses** removes this
 override; UI is the confirmed missing/default choice. Highlighting is a draft.
 
 Applied only to manual/observed Active or enabled Suspected, ahead of ordinary
@@ -905,51 +1132,14 @@ the microphone.
 Select **Open Windows microphone settings** to manage Kora's Windows microphone
 permission without navigating through Windows Settings manually.
 
-## Sessions: fixed read-only local-version queue
+## Sessions: diagnostic queue controls retired
 
-**Settings > Sessions > Fixed read-only local-version queue** provides pending
-capacity (1-10, default/reset 10), fixed synchronous read-only slots (1-2,
-default/reset 1), **future pending lifetime** (1-120 integer minutes,
-default/reset 30) and **future-admission active budget** (1-60 integer minutes,
-default/reset 5). Highlighting a choice does not save or enqueue work.
-Use **Refresh fixed queue settings**, then the option's **Save** or **Reset**.
-Each option resets independently; another Refresh is required before a new edit.
-The [exact typed/current-name commands](commands.md#fixed-queue-settings) use
-the same original-input host admission, revisions and audited confirmation.
+Normal **Settings > Sessions** no longer exposes diagnostic-only pending capacity, slots or waiting/running lifetime controls.
+Former fixed-read settings commands report retirement without writing preferences or changing existing records.
+Session retention and actual task/response policies remain separate ([settings](../src/Kora/SettingsWindow.axaml), [input boundary](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
-The displayed legacy settings-group name also covers the three additional
-[fixed first-page profiles](commands.md#deterministic-local-version-queue).
-Their captured deadlines and slots follow the same future-only rules;
-settings never supply page controls, probes or dispatch authority.
-
-Only newly enqueued admitted fixed reads after confirmed activation capture
-the chosen pending lifetime. Existing pending/cancelled/expired/running entries
-keep their exact pending deadlines and identities. The chosen active budget
-is captured once at future admission, including from old pending entries.
-Already-admitted/running/Unknown/terminal records keep their original deadline;
-legacy admissions retain five minutes. Separate question/model/provider clocks
-do not change. No apply-now/current-task extension,
-automatic dispatch, worker/model/provider/effect scheduler or expanded slot
-qualification is available. Refresh and preference edits never dispatch,
-cancel, expire old work or extend meaningful activity.
-
-Protected original activated-voice mutations remain denied without UI
-relabelling. Hidden/reopened settings, stale revisions, changed ownership/privacy,
-failed required audit/control receipt or mismatched readback cannot activate
-a draft. Unconfirmed writes remain unavailable across restart: inspect saved
-state and receipts, explicitly repair, then refresh; no automatic retry or false
-rollback. Existing queue authority remains independently inspectable.
-
-Schema-3 `session-queue.txt` contains capacity/slots and both minutes overrides.
-Known valid schemas 1/2 preserve prior fields and supply new defaults (active 5;
-pending 30 for schema 1); observation never rewrites source bytes. Unknown/malformed/noncanonical,
-oversize or invalid UTF-8 data never becomes a default. Legacy queue records
-remain exact fixed-30 with original payloads/digests; format-2 entries capture
-the configured minutes and exact expiry under committed enqueue authority,
-without a database schema or historical authority migration. Explicit format-3
-admissions bind active minutes and precise UTC deadline to their original
-dispatch audit/digest; actual callbacks enforce the same captured monotonic
-budget. Equal/late results suppress output without physical termination claims.
+Internal scheduler configuration remains validated, including malformed/unknown persisted-state refusal.
+Retirement neither rewrites saved settings nor changes captured pending/active deadlines, automatically dispatches work or qualifies new execution paths ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [scheduler](../src/Kora.Application/Hosting/SessionQueueService.cs)).
 
 ## Where settings are stored
 

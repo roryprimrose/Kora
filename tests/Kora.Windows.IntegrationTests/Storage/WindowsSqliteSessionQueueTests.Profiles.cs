@@ -132,7 +132,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var workspace = new SessionWorkspaceService(f.Store, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance, queue);
         var command = new SessionCommand(SessionCommandOperation.QueueEnqueue, f.Request.SessionId.Value, 1)
         { QueueProfile = profile, QueueTarget = targetId is null ? null : new(targetId), WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() };
-        var enqueued = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
+        var enqueued = await queue.ExecuteCommandAsync(command, origin, () => true, f.Token);
         var pending = enqueued.Queue!.Entries.Single();
         var pendingWork = await f.Store.ReadWorkAsync(f.Request.SessionId, 1, new(), f.Token);
         pendingWork.QueueRecords.Single().TaskMetadata.Should().Be(new HostTaskMetadata(pending.Request.TaskId,
@@ -142,7 +142,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
         actions.Probe.Calls.Should().Be(0);
         actions.Dependencies.RecordObservation(new("local.inference", "recorded", DependencyReadiness.Ready, "private detail must not appear"));
         var recorded = actions.Dependencies.Observations;
-        var dispatched = await workspace.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch, f.Request.SessionId.Value, 1)
+        var dispatched = await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueDispatch, f.Request.SessionId.Value, 1)
             { QueueRevision = enqueued.Queue.Revision }, origin, () => true, f.Token);
         var receipt = dispatched.QueueDispatch!.Single();
         receipt.Entry.ReadProfile.Should().Be(profile);

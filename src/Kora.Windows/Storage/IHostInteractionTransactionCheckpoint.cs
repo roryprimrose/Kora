@@ -9,5 +9,4 @@ internal interface IHostInteractionTransactionCheckpoint
     void BeforeCommit(SqliteConnection connection, SqliteTransaction transaction);
     void BeforeAttachmentCopyVerification() { }
     void BeforeAttachmentMetadataRead(SqliteCommand command) { }
-    void BeforeConversationDraftMetadataRead(SqliteCommand command) { }
 }

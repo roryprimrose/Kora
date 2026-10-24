@@ -168,12 +168,14 @@ public sealed partial class SessionWorkspaceServiceTests
     private partial class Fixture : ISessionWorkspaceAccess, ISessionWorkspaceStore, ISessionHistoryStore, IHostTaskStore, ISessionRetentionControlStore, IDisposable
     {
         internal Action? AfterPreview { get; set; }
+        internal Func<ValueTask<SessionDispositionPreview>>? ReadDispositionPreview { get; set; }
         internal bool RevokeDuringDispositionResolution { get; init; }
         internal void AdvanceRevision() => ControlRevision++;
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
         {
             AfterPreview?.Invoke();
+            if (ReadDispositionPreview is not null) { return ReadDispositionPreview(); }
             return ValueTask.FromResult(new SessionDispositionPreview(Guid.NewGuid(), new(Session, null), "revision", 1, 1, 1, 1));
         }
         public async ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
@@ -248,12 +250,16 @@ public sealed partial class SessionWorkspaceServiceTests
             return ValueTask.FromResult(HistoryEvent);
         }
         internal CancellationToken Token => TestContext.Current.CancellationToken;
+        internal Action<HostRequest>? BeforeIntent { get; set; }
+        internal Action<HostTaskRecord>? BeforeTaskWrite { get; set; }
+        internal Func<HostRequest, SessionName, Func<bool>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? LocalContextCreation { get; set; }
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; private set; } = 1;
 
         public async ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken)
         {
+            BeforeIntent?.Invoke(request);
             var record = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
             await CommitAsync(record, 0, cancellationToken);
             return record;
@@ -286,7 +292,8 @@ public sealed partial class SessionWorkspaceServiceTests
 
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name,
             Func<bool> canControl, CancellationToken cancellationToken) =>
-            ValueTask.FromResult(new SessionWorkspaceEntry(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name)));
+            LocalContextCreation is { } create ? create(request, name, canControl, cancellationToken)
+                : ValueTask.FromResult(new SessionWorkspaceEntry(new(request.SessionId, new(1), true), new(request.SessionId, new(1), name)));
 
         public ValueTask<SessionWorkspaceEntry> RenameSessionAsync(HostRequest request, HostRevision expectedGeneration,
             long expectedMetadataRevision, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) =>
@@ -319,6 +326,7 @@ public sealed partial class SessionWorkspaceServiceTests
 
         public ValueTask CommitAsync(HostTaskRecord record, long expectedRevision, CancellationToken cancellationToken)
         {
+            BeforeTaskWrite?.Invoke(record);
             if (string.Equals(Failure, "receipt", StringComparison.Ordinal) && record.IsTerminal)
             {
                 throw new IOException("receipt failed");

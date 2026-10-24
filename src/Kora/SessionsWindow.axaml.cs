@@ -9,6 +9,8 @@ internal sealed partial class SessionsWindow : Window
 {
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
+    internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
         owner.Revoke();
@@ -21,6 +23,11 @@ internal sealed partial class SessionsWindow : Window
         this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        BindHistoryContext(model);
+        BindWorkScrolling();
+        BindListPageOrder(model);
+        BindInstructionContext(model);
+        _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
         ReadConversation.Click += async (_, _) => await (ConversationOperation = model.ReadConversationAsync());
@@ -29,8 +36,7 @@ internal sealed partial class SessionsWindow : Window
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
         CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
         ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
-        foreach (var field in new[] { ConversationQuery, ConversationMinimumGeneration, ConversationMaximumGeneration,
-            ConversationMinimumRevision, ConversationMaximumRevision })
+        foreach (var field in new[] { ConversationQuery, ConversationSubmittedFrom, ConversationSubmittedThrough })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -46,12 +52,16 @@ internal sealed partial class SessionsWindow : Window
                 }
             };
         }
-        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
-        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
-        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
-        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
-        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
+        DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
+        SubmitConversationWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
+        RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
+        CancelRunningConversation.Click += async (_, _) =>
+            await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty)
@@ -68,8 +78,7 @@ internal sealed partial class SessionsWindow : Window
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);
         CancelListSearch.Click += (_, _) => model.CancelListSearch();
         ClearListSearch.Click += (_, _) => { model.ClearListSearch(); ListQuery.Focus(); };
-        foreach (var field in new[] { ListQuery, ListMinimumGeneration, ListMaximumGeneration,
-            ListMinimumMetadataRevision, ListMaximumMetadataRevision, ListMinimumNameLength, ListMaximumNameLength })
+        foreach (var field in new[] { ListQuery })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -94,6 +103,7 @@ internal sealed partial class SessionsWindow : Window
         AttachFile.Click += async (_, _) => await model.OpenAttachment(attach: true);
         InspectAttachment.Click += async (_, _) => await model.OpenAttachment(attach: false);
         RefreshProviders.Click += async (_, _) => await model.RefreshProviders();
+        ReviewProviderCopy.Click += async (_, _) => await model.ReviewProviderCopy();
         ReviewProviderService.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Service, reset: false);
         ReviewProviderModel.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Model, reset: false);
         ReviewProviderReasoning.Click += async (_, _) => await model.ReviewProviderField(Kora.Core.Providers.SessionProviderField.Reasoning, reset: false);
@@ -120,10 +130,7 @@ internal sealed partial class SessionsWindow : Window
         NextHistorySearch.Click += async (_, _) => await model.SearchHistoryAsync(next: true);
         CancelHistorySearch.Click += (_, _) => model.CancelHistorySearch();
         ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); };
-        foreach (var field in new[] { HistoryQuery, HistoryRequestId, HistoryTaskId, HistorySourceId,
-            HistoryMinimumSequence, HistoryMaximumSequence,
-            HistoryMinimumGeneration, HistoryMaximumGeneration, HistoryMinimumSourceRevision,
-            HistoryMaximumSourceRevision, HistoryMinimumAuditSequence, HistoryMaximumAuditSequence })
+        foreach (var field in new[] { HistoryQuery })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -146,33 +153,12 @@ internal sealed partial class SessionsWindow : Window
             model.SelectWorkRecord(WorkRecords.SelectedItem as SessionWorkRow);
         InspectWork.Click += async (_, _) => await model.InspectWorkAsync();
         RemoveQueueEntry.Click += async (_, _) => await model.RemoveQueueEntryAsync();
-        MoveQueueUp.Click += async (_, _) => await model.ReviewQueueMoveUpAsync();
-        MoveQueueDown.Click += async (_, _) => await model.ReviewQueueMoveDownAsync();
-        ConfirmQueueMove.Click += async (_, _) => await model.ConfirmQueueMoveAsync();
-        CancelQueueMove.Click += async (_, _) => await model.CancelQueueMoveAsync();
-        ReviewExpiredRequeue.Click += async (_, _) => await model.ReviewExpiredRequeueAsync();
-        ConfirmExpiredRequeue.Click += async (_, _) => await model.ConfirmExpiredRequeueAsync();
-        DiscardExpiredRequeue.Click += async (_, _) => await model.DiscardExpiredRequeueAsync();
         PendingCancellationEntries.SelectionChanged += (_, _) =>
             model.SelectPendingCancellationEntries(PendingCancellationEntries.SelectedItems?.OfType<Kora.Core.Hosting.SessionQueueEntry>().ToArray() ?? []);
         ReviewPendingCancellation.Click += async (_, _) => await model.ReviewPendingCancellationAsync();
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
-        NoQueuePrerequisite.Click += (_, _) => model.ChooseNoQueuePrerequisite();
-        QueuePrerequisites.SelectionChanged += (_, _) =>
-            model.SelectQueuePrerequisite(QueuePrerequisites.SelectedItem as QueuePrerequisiteOption);
-        EnqueueVersion.Click += async (_, _) => await model.EnqueueVersionAsync();
-        EnqueueCapabilities.Click += async (_, _) => await model.EnqueueCapabilitiesAsync();
-        EnqueueReadiness.Click += async (_, _) => await model.EnqueueReadinessAsync();
-        EnqueueRuntimes.Click += async (_, _) => await model.EnqueueRuntimesAsync();
-        QueueCapabilities.SelectionChanged += (_, _) =>
-            model.SelectQueueCapability(QueueCapabilities.SelectedItem as QueueCapabilityOption);
-        EnqueueCapability.Click += async (_, _) => await model.EnqueueCapabilityAsync();
-        EnqueueRuntimeStatus.Click += async (_, _) => await model.EnqueueRuntimeStatusAsync();
-        DispatchQueue.Click += async (_, _) => await model.DispatchQueueAsync();
-        PauseQueue.Click += async (_, _) => await model.PauseQueueAsync();
-        ResumeQueue.Click += async (_, _) => await model.ResumeQueueAsync();
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>
@@ -191,6 +177,7 @@ internal sealed partial class SessionsWindow : Window
         PreviewDisposition.Click += async (_, _) => await model.PreviewDispositionAsync();
         ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
+        BindMemoryContext(model);
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();
         ClearMemoryFilters.Click += (_, _) => { model.ClearMemoryFilters(); MemoryIdFilter.Focus(); };
         foreach (var filter in new Control[] { MemoryIdFilter, MemoryScopeIdentityFilter, MemoryMinimumRevisionFilter, MemoryMaximumRevisionFilter,
@@ -215,6 +202,37 @@ internal sealed partial class SessionsWindow : Window
         EditMemory.Click += async (_, _) => await model.EditMemoryAsync();
         DisableMemory.Click += async (_, _) => await model.DisableMemoryAsync();
         ForgetMemory.Click += async (_, _) => await model.ForgetMemoryAsync();
+        var synchronizingMemoryBatch = false;
+        MemoryBatchRecords.SelectionChanged += (_, _) =>
+        {
+            if (!synchronizingMemoryBatch)
+            {
+                model.SelectMemoryBatch(MemoryBatchRecords.SelectedItems?.OfType<Kora.Core.Commands.MemorySummary>().ToArray() ?? []);
+            }
+        };
+        System.ComponentModel.PropertyChangedEventHandler memoryBatchChanged = (_, args) =>
+        {
+            if (!string.Equals(args.PropertyName, nameof(SessionsViewModel.MemoryBatchSelection), StringComparison.Ordinal)) { return; }
+            synchronizingMemoryBatch = true;
+            try
+            {
+                if (model.MemoryBatchSelection.Count == 0) { MemoryBatchRecords.SelectedItems?.Clear(); }
+            }
+            finally { synchronizingMemoryBatch = false; }
+        };
+        model.PropertyChanged += memoryBatchChanged;
+        Closed += (_, _) => model.PropertyChanged -= memoryBatchChanged;
+        ReviewMemoryBatch.Click += async (_, _) => await (MemoryBatchOperation = model.ReviewMemoryBatchAsync());
+        ConfirmMemoryBatch.Click += async (_, _) => await (MemoryBatchOperation = model.ConfirmMemoryBatchAsync());
+        CancelMemoryBatch.Click += (_, _) => model.CancelMemoryBatch();
+        MemoryBatchRecords.KeyDown += (_, args) =>
+        {
+            if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.CancelMemoryBatch();
+            }
+        };
         CloseView.Click += (_, _) => Close();
         Closed += (_, _) =>
         {

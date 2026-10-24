@@ -81,7 +81,7 @@ public sealed partial class WindowsSqliteSessionQueueTests
     [InlineData(SessionQueueReadProfile.Capabilities, "capabilities.list")]
     [InlineData(SessionQueueReadProfile.Readiness, "readiness.get")]
     [InlineData(SessionQueueReadProfile.Runtimes, "runtime.list")]
-    public async Task NativeGuardAndOriginalTypedAfterTaskShareExactReceiptsClocksAndUnchangedCrossSessionContract(
+    public async Task InternalPrerequisitesRetainExactReceiptsClocksAndCrossSessionContract(
         SessionQueueReadProfile profile, string token)
     {
         using var f = new InteractionStorageFixture();
@@ -93,9 +93,12 @@ public sealed partial class WindowsSqliteSessionQueueTests
         var access = new WindowsSqliteSessionWorkspaceTests.Access();
         await using var queue = PauseQueue(f, access, new NeverAction());
         var snapshot = await f.Store.ReadQueueAsync(session, f.Token);
-        var command = SessionCommand.Parse("queue enqueue " + session.Value.ToString("D") + " 1 "
-            + snapshot.Revision + " " + Guid.NewGuid().ToString("D") + " " + Guid.NewGuid().ToString("D")
-            + " " + token + " after " + source.Request.TaskId.Value.ToString("D"), "Kora")!;
+        SessionQueueReadProfiles.Parse(token).Should().Be(profile);
+        var command = new SessionCommand(SessionCommandOperation.QueueEnqueue, session.Value, 1)
+        {
+            QueueRevision = snapshot.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(),
+            DependencyTaskId = source.Request.TaskId.Value, QueueProfile = profile,
+        };
         command.ExpectedDependencyRevision.Should().BeNull();
         var receipt = await queue.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, f.Token);
         var entry = receipt.Queue!.Entries.Single();

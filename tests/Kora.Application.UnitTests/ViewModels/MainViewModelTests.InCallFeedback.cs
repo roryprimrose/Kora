@@ -51,7 +51,7 @@ public sealed partial class MainViewModelTests
         fixture.FeedbackPreferences.Value.Should().Be(InCallFeedbackMode.Voice);
         await fixture.ViewModel.ResetInCallFeedbackCommand.ExecuteAsync();
         fixture.FeedbackPreferences.Value.Should().BeNull();
-        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("Using the default");
         fixture.Voice.StartCalls.Should().Be(starts);
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -196,7 +196,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.SelectedInCallFeedbackChoice = choice;
         await fixture.ViewModel.SaveInCallFeedbackCommand.ExecuteAsync();
         fixture.FeedbackPreferences.Value.Should().BeNull();
-        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("Setting unavailable");
         fixture.Reasoner.Requests.Should().BeEmpty();
     }
 
@@ -274,7 +274,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ExecuteInCallFeedbackCommandAsync(new(AppearanceCommandOperation.Reset),
             SecurityAuditInitiator.TypedCommand, cancellationToken: cancelled.Token);
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("\"available\":false");
+        fixture.ViewModel.InCallFeedbackStatus.Should().Contain("Setting unavailable");
         fixture.ViewModel.Dispose();
         await fixture.ViewModel.ResetInCallFeedbackCommand.ExecuteAsync();
         fixture.ViewModel.CanInspectInCallFeedback.Should().BeFalse();
@@ -344,7 +344,7 @@ public sealed partial class MainViewModelTests
             fixture.TextToSpeech.SpeakGate!.TrySetResult();
             await speaking;
         }
-        if (stage is "discovery" or "stop" or "disposed") { fixture.ViewModel.InCallFeedbackStatus.Should().Contain("\"available\":false"); }
+        if (stage is "discovery" or "stop" or "disposed") { fixture.ViewModel.InCallFeedbackStatus.Should().Contain("Setting unavailable"); }
         if (stage is "disposed") { fixture.FeedbackPreferences.Pending.Should().BeTrue(); }
         fixture.Voice.StartCalls.Should().Be(0);
     }

@@ -4,10 +4,25 @@ using Kora.Core.Storage;
 
 namespace Kora.Windows.Storage;
 
-public sealed class WindowsEvidenceReader(
-    WindowsSqliteEvidenceReader sqlite, WindowsDailyEvidenceReader daily,
-    ICommittedAuthorityAuditReader? authority = null) : IEvidenceReader
+public sealed class WindowsEvidenceReader : IEvidenceReader
 {
+    private readonly IEvidenceReader sqlite;
+    private readonly WindowsDailyEvidenceReader daily;
+    private readonly ICommittedAuthorityAuditReader? authority;
+
+    public WindowsEvidenceReader(WindowsSqliteEvidenceReader sqlite, WindowsDailyEvidenceReader daily,
+        ICommittedAuthorityAuditReader? authority = null) : this((IEvidenceReader)sqlite, daily, authority)
+    {
+    }
+
+    public WindowsEvidenceReader(IEvidenceReader sqlite, WindowsDailyEvidenceReader daily,
+        ICommittedAuthorityAuditReader? authority = null)
+    {
+        this.sqlite = sqlite;
+        this.daily = daily;
+        this.authority = authority;
+    }
+
     public ValueTask<EvidenceReadBatch> ReadAsync(EvidenceQuery query, EvidenceReadCheckpoint? checkpoint,
         HostRequest request, DateTimeOffset now, CancellationToken cancellationToken) =>
         query.Source == EvidenceSource.AuthorityAudit

@@ -13,7 +13,9 @@ internal sealed partial class OwnedInstructionEditorController(
     MainViewModel main, OwnedInstructionEditorActions actions, InstructionSaveWorkflow saves, ArtifactCatalogueReloadService reload,
     IApplicationDataPaths paths,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedInstructionEditorController> logger,
-    OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null) : IDisposable
+    OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null,
+    ProfileInstructionForkWorkflow? profileForks = null,
+    Kora.Core.Context.IUserFilePicker? profilePicker = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -51,8 +53,8 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             Interlocked.Increment(ref copyInputRevision);
             var opened = window;
-            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { opened?.ClearValidation(); }
-            else { Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { opened?.ClearValidation(); } }); }
+            if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { opened?.CancelRebaseReview(); opened?.ClearValidation(); }
+            else { Avalonia.Threading.Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { opened?.CancelRebaseReview(); opened?.ClearValidation(); } }); }
         }
         if (args.PropertyName is nameof(MainViewModel.CallPolicyRevision))
         { RetireInventory("Call/runtime admission changed. Refresh and reselect after recovery; the open draft is retained."); }
@@ -76,23 +78,34 @@ internal sealed partial class OwnedInstructionEditorController(
         lifetime = new();
         window = new(action =>
         {
-            if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
+            if (action is "Cancel profile copy") { CancelProfileCopy(); }
+            else if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { _ = Run(action); }
         });
+        var findOwner = window;
+        window.BindBufferFind(() => CaptureBufferFind(findOwner));
+        window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
+            { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
-        window.Files.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); };
-        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.ClearValidation(); };
+        window.Files.SelectionChanged += (_, _) =>
+        {
+            Interlocked.Increment(ref sourceRevision);
+            window?.CancelRebaseReview();
+            window?.ClearValidation();
+            if (window is { } opened) { AdmitSelectedMetadata(opened); }
+        };
+        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
@@ -111,10 +124,10 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task OnRequested(ArtifactKind requestedKind, string operation, string? name)
     {
-        if (operation is "Validate" or "Compare")
+        if (operation is "Validate" or "Compare" or "Rebase")
         {
             if (window is null || lifetime is null || requestedKind != kind)
-            { main.ReportHostInteractionFailure("Validate/Compare requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened by observation."); return; }
+            { main.ReportHostInteractionFailure("Validate/Compare/Rebase requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened implicitly."); return; }
             window.Activate();
             await Run(operation);
             return;
@@ -142,6 +155,7 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task Run(string action, string? exactName = null)
     {
+        window?.InvalidateGoToLine();
         if (busy || disposed || window is not { } opened || lifetime is null)
         {
             if (window is not null) { window.SelectKind(kind); }
@@ -153,7 +167,9 @@ internal sealed partial class OwnedInstructionEditorController(
             && ReferenceEquals(window, opened) && captured();
         var token = lifetime.Token;
         if (!Eligible() || ownership != windowOwnershipRevision) { OnPrivacyClosed(this, EventArgs.Empty); return; }
+        opened.RetireBufferFind(clearQuery: true);
         busy = true;
+        opened.RetireMetadataFind();
         try
         {
             switch (action)
@@ -187,6 +203,9 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Reload":
                     await InspectChoice(opened, action is "Reload", exactName, Eligible, token);
                     break;
+                case "Rebase":
+                    await RebaseDraft(opened, Eligible, token);
+                    break;
                 case "Save":
                     await Save(opened, delete: false, Eligible, token);
                     break;
@@ -196,6 +215,9 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
+                    break;
+                case "Create Kora copy from profile instruction":
+                    await ForkProfileInstruction(opened, Eligible, token);
                     break;
                 case "Delete":
                     await Save(opened, delete: true, Eligible, token);
@@ -219,6 +241,18 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
+            if (action is "Create Kora copy from profile instruction")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.Report("Profile copy cancelled or consent withdrawn. Private review cleared; editor draft retained. A destination may already be durable but is not enabled. Inspect the exact destination before retry; no rollback or automatic retry."); }
+                return;
+            }
+            if (action is "Rebase")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.Report("Rebase cancelled. No source write or baseline adoption; raw draft retained. Existing publication uncertainty is unchanged."); }
+                return;
+            }
             if (action is "Validate" or "Compare")
             {
                 if (ReferenceEquals(window, opened))
@@ -249,7 +283,7 @@ internal sealed partial class OwnedInstructionEditorController(
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
-                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals remain unavailable."); }
+                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals are never modified."); }
         }
         finally { busy = false; }
     }
@@ -456,6 +490,13 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (!closing && rebaseLifetime is not null)
+        {
+            args.Cancel = true;
+            rebaseLifetime.Cancel();
+            window?.CancelRebaseReview();
+            return;
+        }
         if (closing || !Dirty && !busy) { return; }
         args.Cancel = true;
         _ = CloseSafely();
@@ -482,7 +523,7 @@ internal sealed partial class OwnedInstructionEditorController(
         return false;
     }
 
-    private void OnPrivacyClosed(object? sender, EventArgs args) { lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
+    private void OnPrivacyClosed(object? sender, EventArgs args) { CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;

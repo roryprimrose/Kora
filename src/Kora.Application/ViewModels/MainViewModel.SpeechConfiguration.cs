@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
 using Kora.Core.Voice;
@@ -68,14 +69,7 @@ public sealed partial class MainViewModel
     private void SynchronizeSpeechConfiguration()
     {
         if (disposed) { return; }
-        if (windowsSpeechRateConfiguration is not null)
-        {
-            try { windowsSpeechRateConfiguration.Observe(); }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
-            {
-                windowsSpeechRateConfiguration.HoldUnavailable();
-            }
-        }
+        audioPlaybackSettings.ObserveWindowsSpeechRate();
         var current = speechConfiguration.Get();
         suppressVoicePreferenceSave = true;
         try
@@ -96,7 +90,7 @@ public sealed partial class MainViewModel
         SetActiveSpeechVoice(current.IsAvailable ? current.EffectiveVoice : null);
         VoiceAvailabilityMessage = current.Recovery
             ?? $"{current.EffectiveVoice!.Name} ({current.EffectiveVoice.Culture}) is selected.";
-        SpeechSettingStatus = DescribeSpeechConfiguration(current);
+        SpeechSettingStatus = SettingsText.Describe(current);
         UpdateSpeechProviderAvailability();
     }
 
@@ -140,6 +134,11 @@ public sealed partial class MainViewModel
 
     internal Task ExecuteSpeechCommandAsync(SpeechCommand command, SecurityAuditInitiator initiator)
     {
+        if (IsResponseInteractionPending)
+        {
+            Transcript = "Finish or cancel the pending question or approval before inspecting or changing speech settings.";
+            return Task.CompletedTask;
+        }
         if (!AdmitAppearanceRequest()) { return Task.CompletedTask; }
         if (command.Operation == AppearanceCommandOperation.Clarify)
         {

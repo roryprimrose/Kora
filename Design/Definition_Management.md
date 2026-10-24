@@ -11,6 +11,20 @@ boundary and skill-specific package/execution rules;
 The existing startup artifact reader and native skill inspection are partial
 deliveries, not evidence that this full contract is implemented.
 
+The owned editor's **Find in selected metadata** is a separate, ephemeral native
+literal Find over exactly one current, selected inventory row's displayed
+metadata details. It reuses admitted metadata state and the shared bounded
+literal/count policy; count/ordinal cover only that string's complete
+nonoverlapping sequence, with no wrap. The source editor/draft, hidden fields,
+other rows/kinds and resource bodies are excluded. Query edits/Clear are
+read-free and do not retarget inventory or modify drafts. Native match focus
+must succeed; failure is explicit, not a success claim. Selection/page/filter,
+source/control/host/privacy epochs and review/window retirement invalidate
+private state and late callbacks. Metadata Find has no discovery, file-read,
+mutation, clipboard, model, execution, trust, saved-revision or use authority.
+It adds no Ctrl+F binding and confines Enter/F3 to its own controls.
+See the [editor guide](../docs/instruction-editor.md#find-within-selected-displayed-metadata-details).
+
 ## Product Roles
 
 | Kind | Value and application |
@@ -36,6 +50,16 @@ Missing template parameters require clarification, not expression evaluation,
 file reads, secret substitution, or implicit network access.
 
 ## Source and Format Matrix
+
+The native owned Instruction/Prompt editor's [live source-buffer size feedback](../docs/instruction-editor.md#live-source-buffer-size)
+measures only the exact displayed buffer through the source document's strict
+UTF-8 encoder, without parsing or I/O. The existing `ArtifactFileDocument.Parse`
+whole-source bound is `ArtifactDefinition.MaximumContentLength` bytes, including
+the retained file BOM; the displayed buffer excludes that separately retained
+BOM. UTF-16 and scalar counts have no invented whole-source limits. Malformed
+Unicode has unavailable byte/scalar values, never replacement encoding.
+This passive observation neither retires reviews nor changes drafts or
+admission. Full Validate and exact save/use reviews remain independent.
 
 | Source | Skills | Prompts | Instructions | Agent profiles | Mutation boundary |
 |---|---|---|---|---|---|
@@ -139,6 +163,22 @@ unqualified-runtime reason, never emulate execution with a prompt.
 
 ## Delivered native skill metadata navigation
 
+Exact original typed input and current-name activated voice can open the existing bundled or registered shared-source singleton through `open skill packages` / `show skill package review` and `open shared skill sources` / `show shared skill sources`. No package/name/path selector or fallback surface is admitted ([whole-utterance grammar](../src/Kora.Application/Skills/SkillReviewCommand.cs)).
+
+The consumer-focused [Application navigation seam](../src/Kora.Application/Skills/ISkillReviewNavigation.cs) binds only to the [existing desktop controllers](../src/Kora/SkillPackagesWindowController.cs).
+
+The [queued route](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs) retains original origin and rechecks captured owner, binding, privacy, call, name and activated-voice lifetime; questions/security previews remain intact.
+
+Unknown call observations and unconfirmed manual-call evidence deny both native and command review opening. A deliberate unavailable automatic detector remains distinct from unknown state; this increment does not qualify detection or reopen capture ([shared review eligibility](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs)).
+
+Opening shared sources retains only registration-metadata refresh, whose failures remain separate native recovery. Registration, folder selection, discovery, recheck and withdrawal remain explicit native gestures ([shared controller](../src/Kora/SharedSkillSourcesWindowController.cs)).
+
+Embedded review still requires verified resource bytes/digests. Neither surface adds enablement, invocation, source consent, catalogue reload or model context ([bundled controller](../src/Kora/SkillPackagesWindowController.cs)).
+
+Voice keeps `ActivatedVoice` origin. Local-input-only admission refuses automatic metadata refresh; the open window reports native recovery, not invented `LocalUi` authority. Native Refresh remains explicit ([admission](../src/Kora.Application/Skills/SharedSkillAdmission.cs), [tests](../tests/Kora.Windows.IntegrationTests/SkillReviewNavigationTests.cs)).
+
+This is an I-only review-navigation increment, not the full Definitions management surface or E/Q qualification. Executors, agent profiles and unsupported definition kinds remain gated; no physical/acoustic/provider/installed proof or broader source authority is claimed ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 The separate [bundled](../src/Kora/SkillPackagesWindow.axaml.cs) and [registered shared-source](../src/Kora/SharedSkillSourcesWindow.axaml.cs) inspectors now provide explicit **Search/Clear** over already admitted immutable snapshots, not the broader Definitions management surface or voice/tool search grammar. Initial open/list still selects the first admitted package; subsequent search/filter/Clear never opens a different result.
 
 [Snapshot search](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) uses literal `OrdinalIgnoreCase` substring matching without trimming, wildcard syntax or Unicode normalization. Bundled fields are declared name, native manifest ID and description; shared fields are validated declared name, source-qualified metadata identity when that name exists, and a valid declared description. Missing metadata is not invented; path-fallback identities and roots/files/bodies are not query fields.
@@ -146,15 +186,11 @@ The separate [bundled](../src/Kora/SkillPackagesWindow.axaml.cs) and [registered
 [Query validation](../src/Kora.Core/Context/LiteralMetadataQuery.cs) shares the owned-definition policy: at most 256 UTF-16 units and 512 strict UTF-8 bytes, valid Unicode without control/format/line/paragraph separators. Invalid input is rejected explicitly with empty results/selection, never truncated or interpreted as All.
 Drafts apply only through Search; edits immediately retire results/selection/details without reads ([native controls](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
 
-Optional exact bundled `DefinitionDigest` and `DeclaredResourceDigest`, and shared `RevisionDigest`, AND-compose with the literal and availability/compatibility predicates ([authoritative query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
-Empty means Any; every nonempty value must satisfy the existing [canonical lowercase SHA-256 rule](../src/Kora.Core/ArtifactInvocation/ArtifactDigest.cs): exactly 64 ASCII lowercase hexadecimal characters, with ordinal equality and no trimming, case folding or normalization.
-
-Digest filters compare only already admitted immutable snapshot observations; they never reopen files, hash live content, discover, verify, reload, activate, invoke or grant ([authoritative query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
-Whole-catalogue admission still precedes exclusion; a digest cannot bypass source/catalogue bounds or reveal hidden names. A match is not authority, integrity beyond the snapshot observation, freshness, compatibility or a dependency-closure claim ([bundled admission](../src/Kora.Core/Skills/SkillPackageCatalogue.cs), [shared admission](../src/Kora.Core/Skills/SharedSkillCatalogue.cs)).
+Native bundled/shared digest-query widgets were removed in [#422](https://github.com/roryprimrose/Kora/pull/422). Literal names/metadata and meaningful compatibility/availability choices remain. Source digests and full catalogue/resource validation remain internal admission rules, not ordinary search fields.
 
 Shared **All / Instruction-compatible / Instruction-incompatible** classifies structural instruction-only compatibility; every invocation remains unavailable. Bundled **All / Runtime unavailable / Runtime available** uses existing invocation availability, not an invented instruction-compatibility claim; runtime admission remains outstanding. All includes unavailable/incompatible observations ([filter policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
-Filtering keeps exact original objects and only an unchanged exact surviving selection. Any query/digest/filter edit immediately clears results and private identity/text/hex/source tabs; Search never selects a different result ([bundled window](../src/Kora/SkillPackagesWindow.axaml.cs), [shared window](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
+Filtering keeps exact original objects and only an unchanged exact surviving selection. Query/filter edits clear results and private identity/text/hex/source tabs; Search never selects a different result ([bundled window](../src/Kora/SkillPackagesWindow.axaml.cs), [shared window](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
 Clear restores empty/All without selection, even if filters were already empty; Escape closes and clears private drafts. Nothing is persisted ([native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
 
 Source selection/reload/failure/withdrawal, privacy/ownership closure, call-policy change and close retire private navigation. Catalogue generations fence late discovery and recheck publication even after same-snapshot reselection; cancellation remains host-owned ([controller](../src/Kora/SharedSkillSourcesWindowController.cs)).
@@ -284,7 +320,7 @@ or count as user activity/approval.
 ### Bounded owned instruction and prompt editor
 
 Native tray and exact `instructions` or `prompts` followed by
-`editor/list/create/edit/inspect/validate/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
+`editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
 and body dictation/refinement are not implemented. No model/network is needed.
 Create and inspect use an explicit bounded ID; mutations target the open original.
@@ -298,15 +334,22 @@ uses scalar `kora-format: 1`, `name`, `description` and optional `attribution`;
 the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
-Header editing is bounded to 16 fields/4096 UTF-8 bytes. Profile fork, rename, restore,
+Header editing is bounded to 16 fields/4096 UTF-8 bytes. Rename, restore,
 profile mutation, skill/agent writers, executable content and agent runtime are absent.
+
+**Create Kora copy from profile instruction** is a separate native-only operation for one explicitly selected personal native v1 instruction original, not a general import or profile writer ([delivered workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
+Exact-file memory-only read consent precedes content capture; the later complete original/proposed-source review separately confirms a fresh absent disabled owned destination. Existing editor drafts remain untouched ([native reviews](../src/Kora/NativeProfileInstructionCopyReview.cs)).
+The same strict UTF-8/native metadata/header limits apply. The host admits only immediate canonical personal Code/Code - Insiders User prompt files, pins source identity, and bounds final exact-byte checks to the disclosed consent budget; skill registration and compatibility bits grant no fork authority ([reader](../src/Kora.Windows/ArtifactDiscovery/WindowsProfileInstructionReader.cs)).
+The distinct copy retains supported bytes and original attribution, adds source attribution and a fresh name, and inherits no enablement, grants, model context or egress. Failed/withdrawn/stale/uncertain outcomes require explicit recovery, never overwrite or automatic retry ([user contract](../docs/instruction-editor.md#create-a-disabled-kora-copy-of-a-personal-instruction)).
 
 **Owned native v2 required literal prompt inputs** extend only the Prompt kind, never instruction v1 or bundled/profile reader semantics.
 Use scalar `kora-format: 2` with the same `name`, `description`, optional `attribution` header. Required fields are derived from original-body `${input:name}` markers: 1–64 lowercase ASCII letters/digits/hyphens starting with a letter, at most eight distinct names in first-occurrence order. Repeated names use one value.
 No declarations/defaults/optional fields, expressions, environment/files/secrets/clipboard/network/functions or nested/escaped expansion are supported. Malformed or unsupported `${...}` is visibly incompatible. This is not general Copilot prompt-format support.
 The shared parser preserves every original literal/body newline/BOM/source byte and original digest. Expansion scans original markers once; marker-looking text in a value stays literal, never commands, tool arguments or system guidance.
 Each required native field is nonblank, well-formed Unicode without NUL, at most 512 UTF-16 units / 2048 UTF-8 bytes. The whole expanded request is at most 4096 UTF-16 / 16384 UTF-8 bytes; over-limit text is rejected, never normalized or shortened. The actual serialized model envelope, including host policy/tools overhead, remains separately bounded to 32768 UTF-8 bytes.
-Explicit `/prompt <id>`, `/<command>` and current-name activated selection of an enabled exact v2 owned revision focus one private native parameter form; inline/voice parameter values are not accepted. All new/saved/copied native revisions remain disabled until separate current-run exact-template use review.
+Explicit `/prompt <id>`, `/<command>` and current-name activated selection of an enabled exact v2 owned revision focus one private native parameter form; inline parameter values are not accepted. All new/saved/copied native revisions remain disabled until separate current-run exact-template use review.
+The [prompt input voice controller](../src/Kora.Application/Definitions/PromptInputVoiceController.cs) accepts one literal utterance only after the original user explicitly selects **Speak input** for one exact declared name in the focused form. Current activated recognition, consent/readiness and exclusive capture apply; no new backend, command reparse, question/approval reply reuse or synthesized UI origin is introduced.
+Arming retires preview/review; edits, source/session/channel/focus/privacy changes, cancel or expiry retire that exact voice target. Native release and fresh source validation precede field publication. Whole-request preview and separate exact-session native submission remain mandatory through the [existing consumer](../src/Kora.Application/Definitions/PromptConversationSubmission.cs); unavailable capture preserves native input.
 **Preview complete expanded USER REQUEST** shows the whole bounded expansion as inert user-data text, with an independent expansion digest. It does not replace catalogue/source bytes or original digest and is not tool approval, provider qualification or egress authority.
 Any input/template/native file identity/review/catalogue/host/call/privacy change retires the preview and pending Use; native pre-preview and pre-use source checks cover missed watcher events. No same-name or restored-byte retargeting/replay is allowed.
 **Use reviewed request** separately checks a fresh admitted request with `ModelTurnHost`, preserving original source/revision and exact preview/value identity. Expanded text occupies only `UserRequest`, not `SystemPolicy` or evidence. No typed-command reparse occurs.
@@ -320,10 +363,39 @@ Fields and expanded preview buffers exist only for this view lifetime: Cancel/cl
 Source checks consume view cancellation, and handoff/exit joins pending work before releasing owned resources. A new accepted typed/activated request retires the original preparation even when typed text is unchanged; original input is captured before awaited native source validation.
 Already captured immutable requests are not mutated by later source edits; ordinary source/privacy/approval boundaries still apply.
 
+**Native displayed owned-buffer Find** is separate from catalogue metadata navigation and passive Compare.
+The [native toolbar](../src/Kora/OwnedInstructionEditorWindow.Find.cs) searches only the exact currently displayed
+owned Instruction/Prompt text, including dirty or structurally invalid drafts, without disk reads or source discovery.
+It reuses [SnapshotLiteralFind.FindCounted](../src/Kora.Core/Context/SnapshotLiteralFind.cs) for bounded,
+well-formed one-line, case-sensitive ordinal literals, complete nonoverlapping counts/ordinals and First/Next/Previous without wrap.
+Only the exact UTF-16 occurrence in the existing source control is selected; an edge clears Find's selection
+but retains the cursor for reverse navigation. Query/source edits retire match/count/navigation; independent native
+user selection is not Find-owned. Native focus/selection failure reports unavailable, never a successful match.
+The [controller binding](../src/Kora/OwnedInstructionEditorController.Find.cs) captures the exact owned kind/ID,
+inspected source identity (or explicit new draft), raw buffer revision, current private host eligibility and ownership lifetime.
+Loading, chosen kind/ID/file changes, hide/close/private/control retirement and reentrant callbacks fence all publication/focus;
+callbacks cannot select an undisplayed file or retarget a replacement editor. Dirty drafts and existing discard reviews survive.
+No body mutation, inventory selection, Save/Reload/Validate/Rebase, use enablement, execution, dictation,
+clipboard/export, transcript, speech or content logging is added; existing source editing/undo/accessibility remains native.
+Profile/bundled sources acquire no edit/use authority. This consumes only the existing editor and literal-policy I subset;
+no provider, hardware, installed-native, experiment or E/Q evidence is an implementation prerequisite.
+See the [user workflow](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer) and
+[headless lifetime tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.BufferFindLifetime.cs).
+
 **Passive owned baseline/draft Compare** is an explicit native and exact `instructions compare` / `prompts compare` memory-only observation of the currently open same-kind inspected baseline or created draft. Complete inert source panes preserve raw metadata/attribution/whitespace; BOM/digests and shared changed-field rules disclose byte truth. Prepared Save validation is separately labelled, never substituted for raw text.
-Independent [pane-local literal Find](../src/Kora/OwnedComparisonFindPane.cs) reuses the authoritative [Core snapshot policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs): bounded private queries, ordinal case-sensitive First/Next/Previous without wrap, exact UTF-16 locations and explicit invalid/no-match outcomes. Missing baselines are labelled absences, never searchable fabricated source.
+Independent [pane-local literal Find](../src/Kora/SnapshotComparisonFindPane.cs) reuses the authoritative [Core snapshot policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs): bounded private queries, ordinal case-sensitive First/Next/Previous without wrap, exact UTF-16 locations and explicit invalid/no-match outcomes. Missing baselines are labelled absences, never searchable fabricated source.
 Query edits retire cursor/match; Clear resets that pane. Close, owner/private/eligibility retirement and replacement release queries, matches, source and callbacks. Keyboard/automation stays inert; Find grants no clipboard, persistence or other authority ([lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ComparisonFindLifetime.cs)).
 No source read/reload, mutation, use-state change, approval, clipboard/export/model authority or line-diff patch is added. Epoch changes retire the display; private closure clears buffers. Structural errors remain explicit, over-budget/invalid Unicode is rejected without truncation. Existing independently confirmed Save/conflict races are unchanged. See the [bounded Compare contract](../docs/instruction-editor.md#compare-the-open-draft-without-saving).
+
+**Explicit source-preserving owned draft Rebase** adds native and exact `instructions rebase` / `prompts rebase` observation/review of an already open supported baseline.
+The [admitted workflow](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rebase.cs) explicitly reads latest, validates exact kind/owned/artifact identity with the existing Save parser, and freezes old/latest/raw independently. It never merges or writes a definition.
+The [three-body review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) shows complete inert source and exact names, kind, revisions, digests, BOM/byte counts and shared change/equality truth.
+Shared prepared-Save validation is separately labelled; structurally invalid bounded raw drafts remain verbatim, while over-budget/invalid Unicode is rejected rather than shortened ([observation](../src/Kora.Application/Definitions/OwnedDraftRebase.cs)).
+Confirmation explicitly rereads latest and requires the frozen exact revision before adopting only that baseline in memory. Cancel retains the previous baseline/raw draft; source, control, private, ownership, input and editor generations fence both review and late adoption.
+Old editor validation/comparison and use-review eligibility retire; no use is enabled or revision preference rewritten ([editor lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+Deleted/missing, wrong-ID/kind or incompatible latest sources fail closed. An observed catalogue/control ABA invalidates review; an unobserved change restoring identical revision cannot prove history. Uncertain publication is not reconciled by Rebase.
+Future Save remains separately admitted, fully confirmed and optimistic, and can conflict again ([deterministic cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs)).
+This consumes only the existing owned reader/admission/parser/editor I subset. No profile-original writer, grant, runtime/provider/egress enablement or E/Q qualification is added; Reload/Overwrite/Compare/SaveCopy retain their existing semantics ([user contract](../docs/instruction-editor.md#rebase-the-open-draft-without-saving)).
 
 **Owned metadata inventory/search** extends this same native editor, not the future full Definitions source matrix. Explicit List/Refresh reuses admitted per-kind filename enumeration and existing reconciliation; an immutable projection includes only those owned filenames and coherent observed catalogue metadata.
 Literal filename/display-name/source-qualified-ID search uses the existing 256 UTF-16 / 512 UTF-8 query ceilings without lexical tokenization, regex or path resolution. Invalid controls/Unicode/oversize input requires correction, never trimming. All/UseEnabled/ReviewRequired/UnavailableOrUnknown reflects only actually known observed use state.
@@ -331,12 +403,12 @@ Explicit **Literal** (default), **ExactOwnedId** and **ExactArtifactId** navigat
 ExactOwnedId reuses canonical [OwnedInstructionNames.WriteName](../src/Kora.Core/ArtifactInvocation/OwnedInstructionNames.cs), matching only the owned name ID without extension/path.
 ExactArtifactId reuses [ArtifactDefinition.ValidateId](../src/Kora.Core/ArtifactInvocation/ArtifactDefinition.cs), matching only an existing mapped, revisioned observed artifact ID by ordinal case-sensitive equality.
 Unknown/unmapped rows cannot match exact artifact identity; display/name/correlation metadata never substitutes for it. Exact modes reject empty or malformed input without normalization.
-An optional exact artifact SHA-256 predicate composes with both existing predicates using AND for Instructions and Prompts. Empty means Any; nonempty input must satisfy the public portable `ArtifactDigest` policy shared by `ArtifactDefinition`: exactly 64 lowercase hexadecimal characters without trimming, folding, substring/prefix matching or repair. Ordinal equality tests only the row's observed Digest, never NativeRevision. Unknown/unmapped digests match only Any; unknown use state does not erase a known digest. Every filename and complete mapped metadata candidate is validated before any exclusion; zero matches is truthful.
+Ordinary digest/revision/observed-time query widgets were removed in [#422](https://github.com/roryprimrose/Kora/pull/422). Name/identity modes and observed use-state browsing remain. Complete filenames and mapped metadata are still validated before exclusion; displayed digests/revisions never grant use authority.
 No body, excerpt, description, attribution or full path is projected. Kind, filename ID, available display name, fixed owned source, artifact ID, exact digest/native revision and observed UTC are retained. Complete native label/details payloads fit 64 KiB UTF-8 using deterministic explicit Next pages when necessary; no partial-success truncation or durable index is introduced.
-Optional exact native revision and inclusive canonical UTC Observed From/Until bounds AND-compose with literal query, use state and digest for both owned kinds. Empty means Any independently. Shared portable `OwnedInstructionRevision` validation requires the complete ordinal lowercase `64.48.48.64` hexadecimal encoding, separated by literal dots; mapped candidates undergo the same syntax check before any exclusion. Unknown/unmapped rows never gain a fabricated revision. Shared `OptionalCanonicalUtc` parsing rejects repaired/noncanonical/nonzero-offset times; From must not exceed Until. Equal bounds include the exact instant. Observed time is inventory snapshot metadata shared by its rows, not file time, freshness, trust, approval, ownership or use authority. See [native field syntax and recovery](../docs/instruction-editor.md#search-observed-owned-metadata).
+Internal native revision and inventory observation-time semantics remain unchanged. They describe admitted source/snapshot identity, not freshness, trust, ownership or permission ([current native browsing](../docs/instruction-editor.md#search-observed-owned-metadata)).
 Rows are observations, not disk-current integrity or use authority: native Inspect compares the original row against current admitted catalogue identity and native readback. Missing/unmapped metadata cannot prove a match. Stale/replaced/changed/withdrawn choices require Refresh/reselection instead of silently showing a newer same-name file.
 Search/filter/page changes preserve the open original and dirty draft, never auto-select/load the first result or activate/save/discard. Failed reload removes current availability with historical/unavailable disclosure. Source/use/call changes invalidate choices; private ownership/closure clears private controls and fences late callbacks.
-Mode/query/use/digest/revision/time edits synchronously retire prior page/selection/details/continuation, validation and actionable review/use controls, including pending inspection/refresh/review callbacks, without disk/catalogue reads.
+Mode/query/use edits synchronously retire prior page/selection/details/continuation and pending inspection/review/use callbacks without disk/catalogue reads ([native browsing contract](../docs/instruction-editor.md#search-observed-owned-metadata)).
 Explicit **FileNameAscending** (default), **FileNameDescending**, **DisplayNameAscending** and **DisplayNameDescending** order the complete validated matching metadata before bounded pagination. Comparisons are ordinal, culture-independent and non-natural. Absent display names are last in either direction; ties always use canonical filename ascending ordinal ([ordering tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.Ordering.cs)).
 Filename keys/ties use exact extensionless owned filename IDs, preserving existing prefix ordering (`alpha` before `alpha-more`) and admitted legacy casing/Unicode without changing lowercase ASCII write/exact-owned-ID rules. Complete validation precedes exclusion/ordering; the 64 KiB complete-page budget and explicit identity/source failures remain ([inventory](../src/Kora.Application/Definitions/OwnedDefinitionInventory.cs)).
 Continuations bind the inventory and complete order/mode/query/use/digest/revision/time state; changing order rejects an old continuation. Accessible Clear and toolbar Escape restore FileNameAscending and Literal and reset every predicate; private closure/ownership/kind retirement clears the new fields too ([native controls](../src/Kora/OwnedInstructionEditorWindow.cs)).

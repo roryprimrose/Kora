@@ -20,6 +20,9 @@ license. Do not market or provide a fork as a practical substitute for Kora.
 
 ## Extending Kora
 
+Start with [product admission](Design/MVP_Scope.md#feature-admission): identify the approved outcome, concrete user scenario and host-versus-extension rationale before choosing a code layout.
+New material scope and retired-work revival require an explicit product decision; repairs and proportionate usability within approved outcomes do not. Tests and implementation readiness cannot substitute for this decision.
+
 Read [Extending Kora](EXTENDING-KORA.md) for the tool/skill/prompt/instruction/agent
 decision guide, layer boundaries and delivered versus gated functionality.
 Use the [Tools guide](src/Kora.Tools/README.md) for action classes and gateway/DI
@@ -30,16 +33,17 @@ the authoritative policy sources.
 
 ## Development checks
 
+PR merge orchestration can run entirely on GitHub, without a local agent.
+See [GitHub-hosted merge admission](eng/merge-queue/README.md) for queue intent,
+failure/retry behaviour, the disabled-by-default rollout and administrator setup.
+
 Restore, build, and test with the pinned SDK and locked dependencies:
 
 ```powershell
 dotnet restore .\Kora.slnx --locked-mode
 dotnet tool restore
 dotnet build .\Kora.slnx --configuration Release --no-restore
-dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
+dotnet test --solution .\Kora.UnitTests.slnx --configuration Release --no-build
 dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
 ```
 
@@ -51,10 +55,27 @@ even when the gate fails. Non-destructive Windows integration tests are not
 physical audio, provider or installed acceptance; CI must never lock or restart
 its runner.
 
+Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
+
+Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
+
+For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
+
+The separate `compare_native_evidence=true` input runs [17 representative headless cases](eng/Compare-NativeFixtureEvidence.ps1) in synchronous/buffered/buffered/synchronous order on one Windows runner. The [test-only selector](tests/Kora.Windows.IntegrationTests/NativeUxTestFixture.cs) uses the fixture's existing buffering option and rejects unknown profiles.
+
+Normal CI selects buffered evidence only for those 17 cases in the native-UX shard; other shards and unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). To reproduce the enabled profile locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running the native-UX shard.
+
+Restricted-storage fixtures create their unique, owner-only scratch directories
+under the discovered repository root, not the deeper testhost binary directory.
+This keeps nested segmented-store fixtures within native directory path limits
+in long worktrees without changing production path validation or ACL checks.
+Owned child-process creation and release probes share that exact parent and keep
+their GUID-name, existing-directory and non-reparse ownership checks.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
-cover heavy storage, other storage, definition UI, native UX fixtures, and all
-remaining UI/platform tests. Each shard retains its own TRX and console output;
+cover heavy storage, other storage, and three balanced UI/platform groups.
+Each shard retains its own TRX and console output;
 any nonzero shard exit fails the run. `-Shard <name>` selects exactly one existing
 shard; `-ListShards` lists the selected names and filters without running tests.
 CI isolates these same five shards on separate hosted Windows runners, retaining
@@ -66,10 +87,28 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
+The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
+
+Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
+
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
+
+### Microphone metadata refresh ownership
+
+The host publishes the owned refresh task before callbacks can complete it or
+start a replacement. Refresh admission and CTS detachment share one lifetime
+gate: normal completion detaches and disposes its source, or host disposal
+detaches and owns both cancellation and disposal until callbacks finish.
+Completion must not dispose a source transferred to host teardown, clear a
+replacement source, or leave a disposed source referenced by the host.
+Native enumeration may still finish after its bounded wait is retired; the
+catalog retains worker ownership, and late metadata cannot restore a disposed
+host or grant capture readiness. The [deterministic ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs)
+cover cancellation/completion, private retirement and reentrant replacement
+with fake completion barriers, not sleeps or installed-device assumptions.
 
 ### Documentation ownership
 

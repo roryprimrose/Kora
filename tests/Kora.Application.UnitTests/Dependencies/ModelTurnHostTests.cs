@@ -554,7 +554,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return ValueTask.FromResult(result);
         }
         public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
-            Kora.Core.Providers.SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
+            Kora.Core.Providers.SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token, SessionProviderProfile? source = null) => throw new NotSupportedException();
         internal ModelTurnHost Production()
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -563,7 +563,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ownedHosts.Add(host);
             return host;
         }
-        internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false)
+        internal ModelTurnHost ConfiguredProfiles(bool production = false, bool missingSessionStore = false,
+            IModelTurnAdapter? adapter = null, IModelProviderRegistrationSource? registrationSource = null)
         {
             var host = production ? new ModelTurnHost(this, this, this, registry, this, this, Time, ProviderConfiguration, ProfileConfiguration, this)
                 : new ModelTurnHost(this, this, this, registry, this, this, Time,
@@ -577,15 +578,17 @@ public sealed partial class ModelTurnHostTests : IDisposable
                                 Kora.Core.Providers.ProviderService.Claude => ModelProviderIdentity.Claude,
                                 _ => ModelProviderIdentity.Codex,
                             } };
-                            return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), Adapter);
-                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this);
+                            return new ModelProviderRegistration(selection, Gates(selection), Time.Now.AddMinutes(5), adapter ?? Adapter);
+                        }).ToArray(), ProviderConfiguration, ProfileConfiguration, missingSessionStore ? null : this, registrationSource);
             ownedHosts.Add(host);
             return host;
         }
-        internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null)
+        internal ModelTurnHost Qualified(ModelProviderSelection selection, ModelQualificationGate? evidence = null,
+            bool composeProfileStoreOnly = false)
         {
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
-                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)]);
+                [new(selection, evidence ?? Gates(selection), Time.Now.AddSeconds(30), Adapter)],
+                sessionProfiles: composeProfileStoreOnly ? this : null);
             ownedHosts.Add(host);
             return host;
         }
@@ -593,8 +596,9 @@ public sealed partial class ModelTurnHostTests : IDisposable
             ? ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost
             : ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost;
-        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret") =>
-            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1));
+        internal ModelContextEnvelope Context(HostRequest? request = null, string text = "request-secret",
+            ModelToolMode toolMode = ModelToolMode.ReadOnly) =>
+            new(request ?? Request, "policy", text, [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1), toolMode);
         internal async Task<ModelTurnResult> Run(CancellationToken? token = null)
         {
             var turn = (await Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, Context(), Token)).Turn!;
@@ -689,6 +693,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
 
     private sealed class ManualTime : TimeProvider
     {
+        internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
         private TimerCallback? callback;
         private object? state;
@@ -697,7 +702,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             this.callback = callback;
             this.state = state;
-            dueTime.Should().Be(TimeSpan.FromSeconds(15));
+            dueTime.Should().Be(ExpectedDeadline);
             return new FakeTimer();
         }
         internal void FireDeadline() => callback!(state);

@@ -51,15 +51,28 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         }
     }
     public string SpeechTextConfigurationStatus => speechTextConfiguration is null
-        ? "Speech-text control is unavailable; captions remain off."
-        : SpeechTextState.Serialize(speechTextConfiguration.Get());
+        ? "Caption settings are unavailable; captions remain off."
+        : Presentation.SettingsText.Describe(speechTextConfiguration.Get());
     public AsyncCommand RefreshSpeechTextCommand { get; }
     public AsyncCommand SaveSpeechTextCommand { get; }
     public AsyncCommand ResetSpeechTextCommand { get; }
     public AsyncCommand ToggleSpeechCaptionPinCommand { get; }
     public AsyncCommand SaveSpeechCaptionOptionCommand { get; }
     public AsyncCommand ResetSpeechCaptionOptionCommand { get; }
-    public IReadOnlyList<SpeechCaptionOption> SpeechCaptionOptionsList => Enum.GetValues<SpeechCaptionOption>();
+    public IReadOnlyList<SpeechCaptionOptionChoice> SpeechCaptionOptionsList { get; } =
+    [
+        new(SpeechCaptionOption.Placement, "Position on screen"),
+        new(SpeechCaptionOption.DismissalDelay, "Seconds to keep captions after speech"),
+    ];
+    public SpeechCaptionOptionChoice SelectedSpeechCaptionOptionChoice
+    {
+        get => SpeechCaptionOptionsList.Single(choice => choice.Option == SelectedSpeechCaptionOption);
+        set
+        {
+            ArgumentNullException.ThrowIfNull(value);
+            SelectedSpeechCaptionOption = value.Option;
+        }
+    }
     public SpeechCaptionOption SelectedSpeechCaptionOption
     {
         get => selectedSpeechCaptionOption;
@@ -68,6 +81,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             if (SetProperty(ref selectedSpeechCaptionOption, value))
             {
                 SelectedSpeechCaptionChoice = null;
+                OnPropertyChanged(nameof(SelectedSpeechCaptionOptionChoice));
                 OnPropertyChanged(nameof(SpeechCaptionOptionChoices));
             }
         }
@@ -80,13 +94,14 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         set => SetProperty(ref selectedSpeechCaptionChoice, value);
     }
 
-    private Task StartCaptionedSpeechAsync(string exactText, Func<bool> playbackEligible)
+    private Task StartCaptionedSpeechAsync(string exactText, Func<bool> playbackEligible,
+        CancellationToken cancellationToken = default)
     {
         RetireSpeechCaption();
         var captionState = speechTextConfiguration?.Get();
         if (captionState?.Effective is not SpeechTextMode.CurrentUtterance)
         {
-            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, CancellationToken.None);
+            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, cancellationToken);
         }
         var request = HostActivity.RequireCurrent().Request;
         captionPresentationContext = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
@@ -105,7 +120,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             && speechTextConfiguration?.Get() is { Available: true, Effective: SpeechTextMode.CurrentUtterance } current
             && current.Revision == captionState.Revision;
         var id = speechCaption.Bind(response, request, exactText, Eligible, captionState.EffectiveCaptionOptions);
-        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, CancellationToken.None);
+        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, cancellationToken);
     }
 
     private void RetireSpeechCaptionSource()

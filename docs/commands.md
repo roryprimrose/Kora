@@ -1,34 +1,109 @@
 # Voice and typed commands
 
-## Native saved conversation draft catalogue
+**Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
-**Tray > Saved conversation drafts (metadata only)** is native-only; it has no typed/voice/model body query. Opening reads nothing. Explicit Refresh/Next/Cancel shows bounded saved composer metadata across retained All/Active/Done sessions, never a body preview or global count.
-Cleared/empty/never-saved and question/parameter drafts are not saved-content results.
-Its **Browse / NameSubstring / ExactId** modes search session metadata only. Name matching is literal, ordinal case-sensitive under the session-name bounds; exact IDs require canonical lowercase D format. ID-shaped names are not targets. Invalid/empty queries never become All.
-Optional **Exact saved revision**, **Minimum UTF-8 bytes**, **Maximum UTF-8 bytes**,
-**Minimum Unicode scalars** and **Maximum Unicode scalars**
-compose with every mode and All/Active/Done. Empty fields mean Any; revision must
-be a positive integer; byte bounds are inclusive 0-16384 and Unicode scalar bounds
-are inclusive 0-4096, each with minimum <= maximum. Scalars are validated saved
-metadata, not UTF-16 code units or a new body read.
-Use decimal digits only: signs, whitespace, separators and overflow visibly refuse
-Search/Refresh, without repair or body reads.
-Optional **Minimum/Maximum session generation**, **Minimum/Maximum name metadata
-revision**, **Minimum/Maximum control revision** and **Minimum/Maximum authority
-ceiling** fields add inclusive ranges. Empty means Any; generation/name revision/
-ceiling are positive Int64 and control revision is nonnegative Int64, each with
-minimum <= maximum and the same decimal-only admission. Either name-revision
-bound excludes unnamed rows; unnamed is not revision zero.
-Optional exact observation-source/device-profile GUIDs use complete nonempty
-canonical lowercase D format (or empty Any), without trimming or repair.
-All predicates AND together. Generation, control revision, ceiling and digest
-are observed provenance only, not current authority, permission, body integrity,
-device ownership or navigation authority. Editing any of these fields performs
-no read and retires rows, exact selection and Next; Clear/revocation clears them.
-Typing performs no read. Query/mode/lifecycle/revision/byte/scalar edits cancel pending pages and invalidate the catalogue selection and exact navigation without changing the current composer. Use **Search / refresh metadata**, Next, Cancel, or **Clear query (Browse)** explicitly; Clear also empties the metadata fields without reading. A zero-match bounded page may still have Next; there is no global inventory count.
+## Prepare an exact Evidence trace filter
 
-Select one row and **Open exact session (no body load)**. Changed source/revision/privacy refuses with Refresh. The existing Sessions dirty-buffer Save/Discard/Cancel protection remains; an explicit Save that changes authority requires fresh catalogue observation.
-**Reload saved draft**, Save and Submit are separate Sessions gestures. Done remains Done. See the [canonical scope and limitations](../Design/Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13).
+Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
+current assistant-name prefix for activated voice, for example
+`Kora, prepare evidence trace 0123456789abcdef0123456789abcdef`.
+The trace value must be exactly 32 lowercase ASCII hexadecimal characters and
+not all zero. It is not a GUID, span ID, traceparent header, URI or link.
+There is no trimming, case folding, punctuation repair or inferred context
+([exact parser](../src/Kora.Core/Commands/EvidenceTraceCommand.cs)).
+
+This opens/focuses the **same native Evidence window** and prepares only
+**Trace correlation filter**, with exact native value and focus confirmation.
+**All other filters and the selected source remain unchanged and AND-composed**,
+even if they restrict or conflict with the trace. A new window keeps its usual
+defaults. Old rows, Details/selection, Find, actions and next-page cursors retire,
+including a pending page; preparation does not search, scan, read or count.
+Click **Search / refresh** separately to query the existing bounded retained
+reader. **Next page** remains a separate action over that exact snapshot.
+
+`evidence trace help` returns constant syntax/disclosure only; it reads no
+current trace, source, metadata or evidence. Malformed reserved commands do not
+answer pending questions or fall through to a model. Missing/stale native
+binding, original private/owner/input/call/voice admission or failed focus means
+explicit unavailable, never an unfiltered/latest/source fallback.
+
+Trace correlation is untrusted diagnostic data, not Kora session/task/user
+identity, ownership, permission, approval or authority. Preparation cannot select
+an authoritative audit source, promote diagnostics to audit, set activity parents,
+baggage or host context, copy/export/persist, renew session activity, capture a
+source, run retention maintenance or contact a model/provider/network.
+See the [Evidence guide](privacy-safety-and-logs.md#read-only-evidence-inspection)
+and [native contract](../Design/Information_Display.md#exact-native-evidence-trace-preparation).
+
+## Open an exact Settings tab
+
+Use one complete case-insensitive phrase below, optionally prefixed by the current assistant name when typed. Activated voice requires that current-name prefix. Outer spaces are accepted; punctuation, extra words, control characters and input over 256 characters are not ([exact grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs)).
+
+| Exact phrase | Existing tab |
+| --- | --- |
+| `open appearance settings` | Appearance |
+| `open speech settings`, `open audio settings`, `open microphone settings` | Speech & audio |
+| `open response settings` | Responses |
+| `open session settings` | Sessions |
+| `open call settings` | Calls |
+
+These routes open/activate the same singleton Settings window and select a named native tab, retaining unsaved state. Generic `open settings`, setup/readiness and voice recovery remain separate existing routes ([native controller](../src/Kora/SettingsWindowController.cs), [tab selection](../src/Kora/SettingsWindow.axaml.cs)).
+
+Navigation never chooses a microphone or endpoint, changes Windows defaults, starts listening/capture, grants permission, refreshes providers/network, saves a setting or confirms an action.
+Calls is not manual-call activation; Responses does not restore retired/private content. Native visibility/lifetime observation remains authoritative ([navigation admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs), [native tests](../tests/Kora.Windows.IntegrationTests/SettingsSectionNavigationTests.cs)).
+
+Malformed reserved section requests clarify in the transcript before model/question/approval routing. Pending questions, approvals and security previews are not answered or replaced.
+Missing/revoked/disposed presenters and stale original host, privacy, ownership or voice generations report unavailable, never a default page or success fallback ([routing](../src/Kora.Application/ViewModels/MainViewModel.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SettingsSectionNavigation.cs)).
+
+## Open existing workspace surfaces
+
+| Exact typed phrase | Existing native surface |
+|---|---|
+| `open all work` | Bounded All work / attention overview |
+| `open compact conversation` | Compact projection of the current Sessions selection and shared memory composer |
+
+Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
+These phrases accept no extra words, selectors, body queries or punctuation after the phrase; malformed reserved navigation input is refused, not sent to a model. The existing `open sessions` behavior is unchanged.
+
+Opening activates the same controller/window as tray and UI. It does not create/select/resume a session, discard a dirty buffer, reload a saved draft, submit work, answer a question or confirm an approval.
+No selection means an untargeted compact view, not a new conversation. Catalogue and overview opening perform no read, search, automatic refresh or corpus count; use their explicit metadata controls. All work remains a bounded observer, not an atomic global snapshot or all-clear.
+
+Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
+Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
+See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
+
+## Focus the exact pending native question
+
+Use `open pending question <session-id> <task-id>` with two nonempty canonical
+lowercase D-format GUIDs. Typed input may use the current assistant-name prefix;
+activated voice requires it. `pending question help` shows constant syntax only,
+without reading a question or revealing current IDs.
+
+This focuses only the **same already-open native question window** for the exact
+currently host-owned admitted wait matching both IDs. The current production
+host owns at most one local-version question; Sessions and All work question
+metadata cannot select, recover or create another presenter. Missing, closed,
+expired, answered, cancelled, stale, foreign or uncertain targets explicitly
+report unavailable. There is no latest-question fallback or historical recovery.
+
+Navigation preserves question/options, saved and unsaved answers, original
+expiry, revision and session generation. It does not answer, approve, cancel,
+resume, replay, submit work, select a session, replace a dirty composer, read
+question bodies from storage, refresh the source, speak or copy. Answer separately
+through the existing native one-shot controls. Protected calls refuse focus.
+Malformed reserved commands are refused before question-answer/model routing.
+The separate navigation status does not replace the transcript, current response,
+question status or security preview.
+
+## Unsent conversation input and legacy recovery
+
+Sessions are ongoing topic conversations with Active/Done lifecycle. Unsent input stays separately in memory for each exact session while switching topics; Sessions and compact views share the same buffer. There is no ordinary draft Save/Reload/Clear, catalogue, search or saved-buffer comparison workflow ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+After selecting an exact session, **Recover existing legacy text into empty input** reads only that session's existing saved text, independently of ordinary conversation reads. It cannot overwrite nonempty unsent input, write/remove legacy data, submit or renew activity ([admission](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+Legacy data retains existing privacy/retention; no silent migration or purge occurs. Missing or unavailable legacy text leaves history and unsent input unchanged ([regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
+
+Explicit discard and closing the last view/application protect nonempty unsent input with Discard/Cancel, not Save-as-document. Switching topics preserves text without prompting. Privacy/ownership/session retirement clears affected volatile text without saving ([owner](../src/Kora/SessionsPresentationOwner.cs)).
 
 Voice and typed input use the same exact built-in phrases, which always take
 precedence. Voice input may use the configured assistant name as a prefix.
@@ -56,6 +131,59 @@ retains deliberately submitted original user messages and unavailable HOST/task
 outcomes through configured provider-neutral admission. It is not a new typed/
 voice command, question reply, approval, fixed-read queue profile, model tool or
 bootstrap fallback. Draft saves are explicit; reading/restoring never submits.
+
+## Dismiss or inspect the exact current response
+
+Use `dismiss current response`, `open current response details`, or `current response help`.
+Typed input accepts the optional current assistant name. Activated voice requires
+that current name, for example `Kora, open current response details`. Extra words,
+sources, controls and incomplete forms are refused, not sent to a model.
+
+These commands share the compact window's **Dismiss** and **Current response
+details** native controllers. They capture the original ordinary response before
+command feedback, never choose a later response, and report success only after
+the native window acknowledges hiding or opening that exact revision.
+Details contain only that ordinary response's title and body as inert native text;
+this route does not copy content or open web, clipboard, file or retained sources.
+
+Questions, approvals, security previews, protected calls, missing/hidden/replaced
+responses and revoked privacy, input or ownership are refused without cancelling
+or replacing a pending decision. A queued action is rechecked through native
+completion. Dismissal, replacement, timeout, privacy closure and disposal retire
+current-response details; recovery never resurrects them.
+There is no per-response pin/unpin, preference write, model or speech action.
+Uncomposed native hosts report unavailable; this does not qualify a model route.
+
+## Read the current response aloud once
+
+Use **Read current response** in the compact response window, `read that aloud`, or `read current response`.
+Typed and activated voice input accept the optional current assistant-name prefix, for example `Kora, read that aloud`; extra words are not an exact command ([parser](../src/Kora.Application/Voice/ResponseReadCommand.cs), [native controls](../src/Kora/ResponseWindow.axaml)).
+The `read that` and `read current` families are reserved before question/approval and model dispatch. Incomplete, overlong, control-character or extra-argument forms report exact-command recovery without answering/cancelling a pending decision, synthesizing text or invoking inference ([boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+All routes invoke the same [one-shot action](../src/Kora.Tools/Speech/SpeechReadOnce.cs) for the exact current ordinary response identity/revision and observed call policy.
+This is not arbitrary TTS, history-row playback, raw clipboard/file/web reading, a question/approval readback, or an automatic replay queue ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+Normal speech admission still applies, including VisualOnly refusal, protected Active/Suspected/Unknown calls, owner/privacy/lock, voice/provider, both summary caps, Kora volume and the selected unmuted available output.
+The full visual answer is retained on length/output failure. Replacement (even identical text), source close, stop/cancellation, call/privacy/owner retirement and disposal invalidate the invocation; it has a two-minute cancellation bound.
+Refresh, unlock, call end and output recovery never retry it ([playback](../src/Kora.Application/ViewModels/MainViewModel.cs), [boundary tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+Push-to-talk preserves an existing eligible current answer while showing capture progress separately; it does not select an older answer. **Stop speaking** remains available during playback.
+The model lane remains unavailable with `current-response-model-tool-loop-not-qualified`; the six read-only descriptors and model transport are unchanged ([capture](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [action boundary](../src/Kora.Tools/Speech/SpeechReadOnce.cs)).
+
+## Open existing skill reviews
+
+| Whole typed utterance, or current-name activated voice | Existing native surface |
+|---|---|
+| `open skill packages` / `show skill package review` | Verified bundled skill-package review |
+| `open shared skill sources` / `show shared skill sources` | Registered shared-skill source review |
+
+Use exactly one phrase, ignoring case, optionally prefixed by the current assistant name for typing; activated voice requires that prefix. Outer spaces are accepted; punctuation, extra words, selectors, paths, controls and input over 1,024 UTF-8 bytes are not. Reserved malformed input clarifies, without selecting another surface ([grammar](../src/Kora.Application/Skills/SkillReviewCommand.cs)).
+
+Reopening activates the existing singleton and preserves its unsaved search/filter state. These commands are distinct from artifact `run`/`use` invocation. They do not answer pending questions or replace security previews; unavailable native binding or retired ownership/privacy/call/voice state reports unavailable ([routing](../src/Kora.Application/ViewModels/MainViewModel.SkillReview.cs)).
+
+Shared sources retain registration-metadata refresh with its own status. Register/folder selection, Discover, Verify and Unregister remain separate native gestures. Navigation grants no consent, enablement, reload, execution, agent-profile qualification or model authority ([controllers](../src/Kora/SkillPackagesWindowController.cs), [refresh](../src/Kora/SharedSkillSourcesWindowController.cs)).
+
+Activated voice opens the shared inspector without becoming native `LocalUi` authority. Its automatic metadata refresh is refused by the existing local-input-only admission; use the inspector's separate native Refresh control. No synthetic local-input origin or successful metadata/discovery claim is substituted ([shared admission](../src/Kora.Application/Skills/SharedSkillAdmission.cs)).
 
 ## Inspect or change the device-local provider mode
 
@@ -127,11 +255,59 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
 [Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
+Exact typed or current-name activated `prepare attachment catalogue <session-id>`
+opens/focuses that same singleton native catalogue and prepares **ExactId** and
+the exact query ID only. Use one nonempty canonical lowercase D-format GUID;
+names, current/latest, corpus queries, extra clauses and malformed IDs refuse
+without model/question fallback. `attachment catalogue help` is constant,
+read-only syntax help and does not disclose IDs or current filters.
+This is **preparation, not search**: no metadata query/count/probe, session
+resolution/selection, body/path/source read, capture, inspection or task action
+runs. Other native filter drafts remain **AND-composed**, including invalid
+drafts. Review all visible filters, then separately choose **Search / refresh
+metadata**. Preparation retires prior pages, continuation, selection/details,
+Find and open readiness, cancelling/rejecting old callbacks. The supplied ID
+grants no ownership, read authority or proof a retained copy exists. Native
+focus/preparation must acknowledge the original private host request; stale,
+unbound or unavailable presentation refuses, never falls back to Browse.
+
 Open **Sessions**, select the exact Active session, then **Attach text file to this exact Session**. A trusted native picker opens only metadata; review canonical path/native identity, source and host session, bytes/time, fixed limits and local durable retention/copy disclosure. **Confirm: capture and retain this exact file for this Session** is separate persistence consent, not the existing volatile preview confirmation.
 
 One immutable UTF-8 `.txt`/`.md`/`.markdown` file per session; maximum 262,144 original bytes including BOM; sixteen retained files across the private profile; no eviction or silent overwrite. Attach refuses a second file. No typed/voice/model attachment path or confirmation command is delivered.
 
 **Inspect retained attachment / remove Kora copies** reads full inert historical source and same lexical-lines exact citations after restart, including retained Done sessions. Browsing/search never resume a session, renew activity or trigger cleanup. The snapshot does not watch, refresh or re-read the original file.
+
+### Inspect one retained attachment by exact session address
+
+| Exact typed command | Result |
+|---|---|
+| `session attachment help` | Discover the bounded grammar |
+| `session attachment inspect <session-id>` | Open the addressed session's currently admitted retained historical attachment in the same private native inert viewer used by Sessions |
+
+For voice, use the **current** assistant-name prefix, for example
+`Kora, session attachment inspect 12345678-1234-1234-1234-123456789012`.
+The address must be a complete nonempty canonical lowercase D GUID.
+Names (including same-name sessions), selected windows, paths, URIs, digest-only
+identity, model targets, extra arguments and mutation verbs are not admitted.
+Invalid reserved input never answers a pending question or falls back to a model.
+
+The host observes exact source/revision/item/digest, session generation and
+storage revision, then re-resolves that same provenance before native disclosure.
+A swap or revision change refuses; it never opens a newer/same-name source.
+Active and retained Done sessions are inspectable; Done stays Done.
+Private ownership, original input/call/name admission and source lifetime remain
+live gates. Protected/Unknown voice input, missing/held/corrupt/stale sources or
+current-work/storage holds report unavailable with native recovery, never
+recapture or read-original fallback. Finish or discard an existing native file
+review explicitly first; inspection cannot silently cancel it.
+
+This command opens an **inspection-only** view: no capture, attach, replacement
+or removal controls/consent are granted. Those remain separate reviewed genuine
+native gestures through Sessions. Bytes stay in the native inert viewer, never
+the command response, transcript, speech/readback, model, log or clipboard.
+Opening does not renew meaningful activity, resume, trigger retention/cleanup,
+enqueue work or replay a request. No provider, hardware or installed-native
+qualification is claimed. See the [source-bound route and evidence](../Design/File_And_Folder_Ingestion.md#delivered-exact-session-retained-attachment-inspection-command---2026-10-20).
 
 Removal reviews the exact session/generation, source/revision/item/digest, storage revision and all owned copies, then requires **Confirm: Remove attachment and Kora copies**. Native use is revoked before secure SQLite body/free-page removal and committed-journal verification. Live/Unknown work and uninventoried copies hold completion; inspect durable state after uncertainty. Original files and unrelated/kept sessions/Perpetual grants remain unchanged.
 
@@ -227,144 +403,38 @@ an unexpired explicit deferral under its original deadline.
 
 ## Deterministic local-version queue
 
-Native **Sessions** queue controls and exact typed/current-name activated input
-share one host service. No model, network or audio is required for management
-or the fixed read. Voice commands still require normal activation/consent;
-the queue cannot open a microphone or speak a response.
+Diagnostic-only queue productisation is retired.
+Normal Sessions, Settings and command input cannot enqueue or dispatch the fixed metadata reads, reorder records, configure capacity/deadlines, attach prerequisites or create expired replacements.
+The six direct read-only capability observations remain available; internal scheduler/store/domain contracts are not general task qualification ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
-In native **Sessions**, use **Optional prerequisite**: keep initial **None**, or explicitly select an exact same-session task from at most 50 nonqueue plus 50 already-observed queued metadata rows (pending/running/recent terminal). Rows show task/session IDs, observed generation, actual host task state/revision and UTC host source; queue-entry revision is never substituted. No task body or history is read. Work/question selection never supplies a prerequisite.
+Existing records retain exact IDs, state, receipts and original deadlines. They are not dropped, replayed, automatically dispatched or reinterpreted as success. Shared actual task lifecycle/cancellation controls remain separate ([queue service](../src/Kora.Application/Hosting/SessionQueueService.cs), [task controls](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
 
-Each of the six **Enqueue** buttons applies that one choice through the same route as `[after <task-id>]`. Only exact Succeeded permits later dispatch; pending, failed, cancelled or Unknown can block the FIFO head. Enqueue never runs automatically.
-After enqueue, explicitly choose **None** or select a task again. Refresh/session/private/source changes revoke a choice; stale/missing task revisions require refresh/reselection, never silent None fallback.
-Queued task metadata is optional on the work wire and comes from the same atomic private SQLite read, without changing stored payloads/digests. Missing/conflicting/over-bound metadata makes exact selection unavailable; explicit None uses the original route. The full result still fails explicitly above 64 KiB, without trimming source rows.
-
-Typed syntax and arbitrary exact after-task semantics below are unchanged; no revision token is added to typed enqueue. The native picker is a bounded same-session subset, not cross-session search or existing dependency editing.
-
-| Exact syntax | Result |
+| Retained exact syntax | Result |
 |---|---|
-| `queue help` | Bounded syntax and unavailable scope |
-| `queue list <session-id>` | Current entries/revision plus bounded atomic work snapshot, recent receipts, pending question identities, capacity and eligibility reasons |
-| `queue status <session-id> <task-id>` | Exact retained work receipt and successful fixed-page snapshot; passive, never reruns the read |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> version [after <task-id>]` | Add one fixed local application-version read; dependency requires an existing exact task |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.list [after <task-id>]` | Add the fixed capability-metadata first-page read |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> readiness.get [after <task-id>]` | Add the first page of already-recorded dependency observations, not a fresh check |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.list [after <task-id>]` | Add the first page of recorded runtime metadata; no probe, inference or setup |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> capabilities.get <exact-current-descriptor-id> [after <task-id>]` | Add exactly one current catalogue descriptor read; exact case-sensitive ID required, no arbitrary JSON |
-| `queue enqueue <session-id> <generation> <queue-revision> <request-id> <task-id> runtime.get_status [after <task-id>]` | Add fixed recorded `local.inference` status; no runtime-ID input, probe, inference or setup |
-| `queue cancel <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Cancel only that pending entry, not an admitted worker/effect |
-| `queue remove <session-id> <generation> <queue-revision> <task-id> <entry-revision>` | Remove only that pending entry from dispatch, retaining history |
-| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly confirm clear of this exact pending snapshot; current work/history remain |
-| `queue dispatch <session-id> <generation> <queue-revision>` | Manually process up to 32 already enqueued ready fixed reads fairly across eligible sessions |
-| `queue pause-status <session-id>` | Passive exact-session current-run pause/hold receipt, reason and work eligibility; no effects |
-| `queue pause <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Block new admissions for this exact session in the current host run; committed reads drain normally |
-| `queue resume <session-id> <generation> <queue-revision> <run-id> <pause-revision>` | Withdraw only this exact run's explicit pause after current private authority revalidation; never dispatch |
-| `queue move-up\|move-down <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision>` | Review exactly one displayed adjacent pending pair; no mutation yet |
-| `queue move-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <neighbor-id> <neighbor-revision> <review-id> confirm` | Separately confirm that exact current review through the audited atomic queue service |
-| `queue move-cancel <session-id> <review-id>` | Revoke only the exact review; order and draft unchanged |
-| `queue requeue-expired-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision>` | Review removal of one exact expired current-run pending source and a separately host-issued fresh same-profile tail decision |
-| `queue requeue-expired-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id> <entry-revision> <fresh-request-id> <fresh-task-id> <review-id> confirm` | Confirm all and only the complete host-held proposal atomically; fresh IDs must match the review |
-| `queue requeue-expired-discard <session-id> <review-id>` | Revoke the review and unadmitted fresh IDs without queue mutation |
-| `queue cancel-selected-review <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,<task-id>:<entry-revision>...]` | Review the complete exact pending subset, in displayed dispatch order |
-| `queue cancel-selected-confirm <session-id> <generation> <queue-revision> <run-id> <pause-revision> <task-id>:<entry-revision>[,...] <review-id> confirm` | Cancel all and only that host-reviewed exact pending subset atomically |
-| `queue cancel-selected-discard <session-id> <review-id>` | Revoke review without writes; pending selection and draft unchanged |
+| `queue help` | Current bounded inspection/cancellation syntax |
+| `queue list <session-id>` | Passive bounded exact-session observation |
+| `queue status <session-id> <task-id>` | Inspect an existing retained queue receipt; never rerun it |
+| `queue pause-status <session-id>` | Inspect current pause/hold metadata; no change |
+| `queue cancel` / `queue remove` | Operate only on an exact eligible pending record with displayed generation, queue and entry revisions |
+| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly clear only that exact pending snapshot, retaining history |
 
-**Review selected pending cancellation** uses a separate pending-only multi-selection, never the current work/question selection. Select one to ten current-run pending entries explicitly; no hidden/default select-all. Review shows every ID/revision/profile in current dispatch order with original deadlines and full count; **Cancel these pending entries only** is the separate confirmation.
+Use `queue help` for the complete exact syntax and existing selected-subset review/confirm/discard operations. IDs and conflict tokens are still validated, not inferred from names or the selected window ([grammar](../src/Kora.Core/Commands/SessionCommand.Queue.cs)).
 
-New selected-set syntax uses canonical lowercase D GUIDs and canonical decimal revisions. Repeat the full ordered member list and every displayed authority revision plus the host-issued review ID when confirming.
-Empty/duplicate/over-bound/unlisted/stale members, changed source/private epochs or queue mutations refuse the entire set; refresh and review again. Existing `cancel`, `remove` and `clear` syntax is unchanged.
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]` prepares the existing private native review of an explicit bounded pending subset.
+It does not commit cancellation; inspect the complete original records and separately confirm **Cancel these pending entries only**.
+Missing, stale, previous-run or otherwise ineligible records refuse the whole request without selecting replacements ([preparation](../src/Kora.Application/Hosting/SessionWorkspaceService.QueueCancellationPreparation.cs), [native cancellation](../src/Kora/SessionsViewModel.QueueCancellation.cs)).
 
-Input remains 1024 UTF-8 bytes; complete review/result is bounded to 64 KiB, with explicit refusal rather than partial projection. All six fixed profiles and exactly expired pending rows are supported. Lowering configured capacity does not reduce the maximum existing selectable set or evict entries. Cancel review keeps selection and draft, without mutation or deadline/activity renewal.
+Native cancellation-review opening preserves the original session's unsent input in memory, without saving or a discard decision ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
-Only selected rows/tasks become retained Cancelled history. Unselected relative dispatch order and original metadata/results remain unchanged. Dependents are retained and block if their prerequisite was cancelled; no descendant scan/cascade is claimed. Pause/hold, slots and current callbacks remain unchanged; no automatic dispatch/resume, worker/effect termination or deletion authority is added.
+## Prepare an exact local diagnostics plan
 
-Required requested/terminal typed audit, exact member receipt and readback precede successful confirmation under the existing short physical commit fence. Audit/storage/cancellation/commit uncertainty holds admission for recovery; known commit is not undone by failed delivery. Closure/selection changes revoke proposals. Previous-run/Unknown/nonpending entries refuse, with no restart replay.
-
-Use canonical nonempty D GUIDs and the exact displayed positive session/entry
-revisions. Queue revision is the displayed committed snapshot revision; zero
-is valid only before the first queue mutation. For typed enqueue, supply fresh
-request/task GUIDs; the six explicit native **Enqueue** buttons generate them. Duplicate
-IDs, names, unknown/stale revisions, Done/disposed sessions and full queues
-fail closed. The selected session's ID is visible and never inferred from a
-name, model response or window title.
-
-Only these six closed profiles are accepted. The original four inputs remain host-owned `{}`,
-first page/default count six. `capabilities.get` requires one exact current catalogue descriptor ID;
-native selection has no implicit target and resets after success/stale selection. `runtime.get_status`
-always selects recorded `local.inference`; supplying any runtime ID is invalid. No arbitrary JSON,
-parameters, count/offset or refresh controls are accepted. Each result is limited to six records and 4096 serialized
-UTF-8 bytes. **Inspect selected work** or exact `queue status` shows a retained
-successful page snapshot, not current health. Large manual batches may omit page
-data with `resultAvailableByExactStatus: true`; inspect that exact task instead.
-Work/All work remain metadata-only. Failures, denial, cancellation, stale private
-admission or expired active budgets never deliver successful data. The two targeted reads return only one exact matching descriptor or local recorded runtime, never live qualification. Requeue preserves that exact target with fresh IDs, not replay or retargeting.
-
-Enqueue does not start work. Selecting an exact session passively reads work;
-**Refresh selected work** refreshes that observation. Choose **Inspect selected
-work ID**, **Cancel selected eligible work**, **Remove pending ID** or
-**Confirm clear displayed pending queue** only for displayed exact revisions.
-The native controls call the same exact command workflows. Stale controls refuse
-instead of following another selection or revision. Only the separate genuine
-pre-dispatch local-version question wait can use exact task cancellation;
-admitted/effect work is not cancellable in this delivered slice.
-All/Active/Done filtering affects only the current bounded session page.
-Five-second passive work refresh never dispatches, reprioritizes, extends
-meaningful activity, moves focus or retargets voice/questions/approvals.
-Dispatch is manual, arrival FIFO unless explicitly reordered within a session, and fair across ready sessions;
-the invoking session gains no priority. Default capacity is ten pending entries
-per session and one admitted task per session. The shipped host uses one
-global slot; only the fixed local-read implementation permits a host
-limit of one or two.
-
-**Pause this session's new dispatch** and **Resume this session's dispatch eligibility** use the displayed exact generation, queue revision, run ID and pause revision from **Refresh selected work**/`queue list`/`queue pause-status`.
-Pause does not suspend/cancel active work, mark Done, clear entries, consume grants, change FIFO/fairness or deadlines, or renew meaningful activity/retention. It is not a saved preference; fresh runs start unpaused.
-Pause can be acknowledged while an admitted read is still running: no later admission from that session can commit after acknowledgement, while unrelated eligible sessions remain fair candidates. Resume does not start a batch; use a separate manual dispatch decision.
-Unknown/unconfirmed audit, storage, cancellation or private-epoch state holds admission with an explicit recovery reason, not a claimed rollback/unpause. A private epoch change cannot restore old queued eligibility; inspect/remove/requeue explicitly. Previous-run pending work remains Interrupted, never revived by resume.
-Quiet routine notices and queue pause are independent. General workers/providers, autoscheduling and current-task cancellation remain unavailable; a pause receipt is not a physical-stop receipt.
-
-**Review Move up/down** selects only the displayed previous/next pending neighbor in this exact session. The first/last entry has no move in that direction, with an explicit reason. Review shows both profiles, immutable IDs/revisions, current/proposed order and original deadlines.
-**Confirm exact adjacent move** is separate; **Cancel move review** leaves order and draft unchanged. Typed/activated confirmation must repeat every exact binding plus the returned review ID and `confirm`. A fresh review replaces the prior volatile review, never accumulates replayable authority.
-
-Concurrent admission/removal/enqueue/reorder, changed session/run/private control, selection or closed authority makes confirmation stale: refresh and review again. No name-based retargeting, cross-session shuffle, arbitrary position or automatic reprioritization is accepted.
-Pending prerequisite inversion and expired/private-retired/previous-run/nonpending pairs refuse; remove/requeue requires a separate decision. Unmet cross-session dependencies still block the chosen head.
-
-Only pending dispatch order changes. Original arrival, enqueue/expiry, active deadlines, results, history and fairness remain intact; new enqueue follows the current pending order. No pause/resume/dispatch or activity renewal follows a move.
-Running callbacks remain independent; previous-run Interrupted/Unknown work never replays. Audit/storage/delivery uncertainty holds admission with explicit recovery, never an optimistic success-shaped list.
-Queue snapshots include at most two latest order lineages with `omittedOrders`; older exact move receipts remain in authoritative audit/history, not fabricated current ordering.
+This workflow is retired. `session diagnostics plan` is rejected as reserved session input, not sent to a model, and opens no native plan. Use direct version, capability, readiness or runtime status queries instead ([command parser](../src/Kora.Core/Commands/SessionCommand.cs), [retirement tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.DiagnosticRetirement.cs)).
 
 ## Fixed queue settings
 
-Expired replacement is available in native Sessions as **Review expired removal and NEW tail task**, followed by separate exact confirmation or cancellation. The review shows original IDs/profile/dependency/deadlines and fresh host-issued IDs, captured pending lifetime and deadline. No arguments, name inference, automatic dispatch or probes are accepted.
-
-Only expired stored Pending entries with no dispatch order in this active session/current run and unchanged original private admission qualify. Stale queue/order/pause/settings/source/entry/session revisions reject the whole proposal. One replacement frees one slot atomically, never evicts, and cannot exceed lowered capacity. Original history/deadlines remain; old task is Cancelled with Removed queue outcome, new task is IntentRecorded/Pending at tail.
-
-Prerequisite IDs are preserved and revalidated; dependents on the removed task remain blocked, without cascade or retarget. Cancel admits nothing. Unknown commit/delivery holds admission and requires exact inspection, not retry. Restart never replays either entry; new active budget is captured only at normal later manual dispatch. See [bounded replacement contract](../Design/Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12).
-
-Native Settings > Sessions and exact typed/current-name activated input share
-these future-only controls:
-
-| Option | Range | Default/reset | Takes effect |
-|---|---|---|---|
-| `queue.pending-per-session` | Canonical integer 1-10 | 10 | Future enqueues; no eviction |
-| `queue.execution-slots` | Canonical integer 1-2 | 1 | Future fixed synchronous read admissions; no cancellation |
-| `queue.pending-lifetime-minutes` | Canonical integer 1-120 minutes | 30 | New enqueues only; existing deadlines unchanged |
-| `queue.active-budget-minutes` | Canonical integer 1-60 minutes | 5 | Future admissions, including old pending entries; existing active deadlines unchanged |
-
-Use `list queue settings`, `get <id>`, `status <id>`,
-`set <id> to <integer>` or `reset <id>`. List reports schema 3 and all four
-descriptors. No signs, leading zeros, fractions, extra words or apply-now.
-Native Refresh is required before each unchanged visible draft Save/Reset.
-
-Protected/Unknown original-voice writes and stale/held preferences refuse.
-Inspect/repair receipts before fresh Refresh; it cannot clear unconfirmed writes.
-See [queue settings and recovery](settings.md#sessions-fixed-read-only-local-version-queue).
-
-The [queue workflow](#deterministic-local-version-queue) remains manual.
-Expired heads block later work until removed; a failed batch needs a fresh
-dispatch decision. At/equal-to active deadlines, late results cannot be success.
-Pre-dispatch questions consume neither slot nor active budget. Privacy/call/
-ownership retirement requires inspect/remove/requeue; restart yields
-Interrupted/Unknown status, never replay. General workers/effects/resource
-leases and real two-slot provider/hardware qualification remain unavailable.
+Diagnostic-only capacity, slots and deadline settings are no longer normal Settings or command controls.
+Former fixed-read settings phrases report retirement without changing saved preferences, queued records or captured deadlines.
+Internal configuration parsing and scheduler policy remain fail-closed ([input boundary](../src/Kora.Application/ViewModels/MainViewModel.cs), [internal configuration](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)).
 
 ## In-call feedback override
 
@@ -408,6 +478,7 @@ See [Settings recovery](settings.md#in-call-feedback-override).
 | `search file` / `inspect file` | Focus admitted native query/inspection; no arguments or implicit source |
 | `preview folder` | Native picker and complete immediate-file inventory review |
 | `search folder` / `inspect folder` | Focus exact admitted folder retrieval |
+| `prepare file search for "<query>"` / `prepare folder search for "<query>"` | Prepare the exact current preview's native lexical query only; **REVIEW NEEDED**, then click native Search separately ([raw grammar](../src/Kora.Core/Context/PreparedLocalSearchCommand.cs)) |
 | `clear folder preview` | Discard volatile folder review/revision |
 | `refresh file` / `refresh folder` | Retire old preview, fresh exact metadata review and separate native confirmation |
 
@@ -424,7 +495,7 @@ sources need the picker again, never silent rebinding.
 | Native query | 256 UTF-16 characters / 512 UTF-8 bytes; 32 unique terms, 64 characters/term |
 | Results | Eight exact excerpts / 16 KiB UTF-8; each at most 2,048 UTF-16 characters / 128 lines |
 
-Queries belong only in native search, not conversation. Results carry exact
+Queries execute only in native search, not conversation. Results carry exact
 source/revision/item/digest and end-exclusive line/column/range citations.
 Search never rereads the path. Privacy/ownership/call/source/query retirement
 suppresses late results; clear/cancel/close never modifies originals.
@@ -433,7 +504,19 @@ folder attachment is added. Durable single-file attachments have separate
 consent. See [native file workflow](windows-and-tray.md#native-local-file-inspection)
 and [privacy](privacy-safety-and-logs.md#local-file-inspection).
 
-**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. Exact case/spaces/punctuation, nonoverlapping steps and no wrap apply; only one match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file.
+Preparation accepts original typed input or exact current-name ACTIVATED voice, before shared normalization. Double `"` in the final quoted literal (`"A ""quote"""` means `A "quote"`); case, punctuation, Unicode and interior spaces stay exact.
+Existing lexical/single-line bounds apply; malformed reserved `prepare file/folder` input refuses without question/model/approval fallback ([parser](../src/Kora.Core/Context/PreparedLocalSearchCommand.cs)).
+
+An explicit already-confirmed singleton file or complete folder preview must match the requested kind. Admission freezes its immutable reference, including every folder item, and rechecks source, current name, input, privacy, ownership, call and voice eligibility at queued UI delivery.
+No path, name or selected-window guessing occurs; stale/closed/replaced previews refuse ([host handoff](../src/Kora.Application/ViewModels/MainViewModel.PreparedLocalSearch.cs)).
+
+The existing inspection window opens/focuses with **PREPARED / REVIEW NEEDED**, lexical mode and no result claim. Typing, focus and preparation execute nothing. Only the separate native Search button reaches the existing canonical audited executor; ActivatedVoice is never relabelled LocalUi.
+No read, metadata capture, refresh, Attach, source-use consent, model/provider, clipboard, retention or query persistence is granted ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs), [executor guard](../src/Kora.Application/ViewModels/MainViewModel.Files.cs)).
+
+The query is volatile native input, never a response, transcript, speech, log/audit field or Activity tag. Late/reused handoffs expire and repeated preparation clears old citations without searching. Retained attachments, native Literal Find and existing invalid `search file <query>` / `search folder <query>` forms are unchanged
+([deterministic host tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PreparedLocalSearch.cs), [native tests](../tests/Kora.Windows.IntegrationTests/PreparedLocalSearchWindowTests.cs)).
+
+**Literal Find is native-only**, not a typed/PTT command or model tool. In the inspected original file use **Find first / Find next / Find previous / Clear literal Find**. **Match case** defaults checked (ordinal); unchecked uses ordinal ignore case in this original-file Find only. Changing it clears the result without I/O and requires a separate **Find first**. Exact spaces/punctuation, nonoverlapping steps and no wrap apply; only one original-source match is disclosed. Existing inspect/search phrases still focus ranked inspection, without accepting a query or selecting a new file; model retrieval is unchanged.
 
 See [native Find](windows-and-tray.md#find-a-literal-in-the-currently-inspected-original-file). Shared 256 UTF-16 / 512 strict UTF-8 bounds apply without lexical token rules; unsafe controls, malformed Unicode or empty input reject. Retained Find revalidates the stored original, never its filesystem path. Queries remain native-only, not transcripts/history/model/log/clipboard data.
 
@@ -501,6 +584,20 @@ workflow as **Settings > Speech & audio > Apply name / Reset name to Kora**:
 | `get assistant.name` | Current display/PTT prefix and saved/default provenance, or explicit unavailable recovery |
 | `set assistant.name to Nova Prime` | Validate with the existing name rules and atomically save one device-local value |
 | `reset assistant.name` | Restore Kora only; no durable identity, session-name, grant, approval, data-path or namespace reset |
+
+The [same parser](../src/Kora.Application/Configuration/AssistantNameCommand.cs) also admits these whole-utterance natural commands, case-insensitively with an optional current-name prefix:
+
+| Natural command | Same existing operation |
+|---|---|
+| `what is your name` or `what is your name?` | Get |
+| `call yourself <name>` | Set |
+| `change your name to <name>` | Set |
+| `reset your name` | Reset |
+
+Use the old **currently configured** prefix for the rename, for example **Kora, call yourself Nova Prime**; only after a successful commit use **Nova Prime, what is your name?**. There is no fuzzy, substring, old-prefix or generic agent-identity rename route ([parser and consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AssistantNameConfiguration.cs)).
+
+Natural set grammar uses the literal spaces shown above and preserves the entire raw proposed name, including case, Unicode and whitespace, until the [existing service](../src/Kora.Application/Configuration/AssistantNameConfigurationService.cs) applies authoritative normalization/validation.
+Empty proposals or malformed recognized grammar clarify locally; invalid domain names are audited denials, never repaired or sent to inference. Extra punctuation is not accepted for get/reset except the one optional query `?` ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/AssistantNameCommandTests.cs)).
 
 The spoken target **assistant name** is equivalent to `assistant.name`.
 The active configured prefix is optional: **Kora, set assistant name to Nova**.
@@ -667,8 +764,25 @@ entry use the same request workflow without a model:
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
 
+**clipboard snapshot status {snapshot-id}** reports only whether that exact
+currently admitted immutable snapshot is present, its host snapshot ID and its
+existing UTF-8 byte count. **clipboard snapshot help** shows syntax without
+revealing the current ID. These commands require single ASCII spaces; status
+requires a nonempty lowercase `D` GUID (`xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx`), without
+braces, punctuation repair, extra arguments or trailing whitespace. Command
+words are case-insensitive. Voice requires the current assistant-name prefix.
+Malformed reserved `clipboard snapshot` input is rejected locally before
+questions, approvals or model routing.
+
+Status is transcript-only, with no automatic speech or response/pending-panel
+replacement. Missing, replaced, revoked or ineligible snapshots are explicitly
+unavailable, not an empty-clipboard claim. Status never reads or refreshes the
+system clipboard, reuses/revokes a snapshot, extends review lifetime, or admits
+source use. No source text, excerpt, fingerprint, capture time, native read
+version, source ID or inferred sensitivity is reported.
+
 Configured-name prefixes and the normal exact-command case/punctuation rules
-apply. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
+apply to the older preview/reuse/revoke commands. The preview shows the host source/snapshot IDs, `CF_UNICODETEXT` format,
 read version, capture time and exact UTF-8 byte count. Its **Reuse this exact
 snapshot ID** button uses the displayed ID; **Revoke and clear**, closing the
 preview, cancel, privacy/ownership loss, call-policy change and host exit clear
@@ -716,6 +830,17 @@ descriptor remains unavailable until Kora's parameterized tool/result loop and
 durable approval resumption are qualified. Preapproved address patterns will
 apply through the normal grant model when that route becomes available.
 
+### Open the existing New request composer
+
+- Typed: **open new request**, optionally prefixed by the current assistant name.
+- Activated voice: **Kora, open new request**, replacing Kora with the configured name.
+
+This is navigation into the existing [singleton native composer](windows-and-tray.md#new-request-with-a-fresh-session), not a new conversation or submission. Reopening preserves its exact memory, reviews, held state and active operation; it never selects a target, transfers text, saves, submits, resumes work or renews session activity ([controller](../src/Kora/NewRequestWindowController.cs)).
+
+Use the exact phrase without punctuation or trailing arguments. Malformed reserved input does not become a question answer or model request. A conflicting assistant name such as **New Request** requires explicit renaming ([parser](../src/Kora.Core/Commands/NewRequestOpenCommand.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs)).
+
+Resolve the current question or approval first. Privacy, ownership, call activation and original-input restrictions apply; stale queued opening is refused. Later Create/Submit require their own native gesture/review. Model-facing opening is unavailable: this event is not a registered model tool ([navigation](../src/Kora.Application/ViewModels/MainViewModel.NewRequest.cs)).
+
 ### Inspect existing minimal durable sessions
 
 - **open sessions**
@@ -735,6 +860,16 @@ Native Sessions additionally offers separate
 [preview/confirmation for logical disposition](windows-and-tray.md#logical-session-disposition).
 It removes addressed live authority rows, not recoverable copies or full
 history. No typed/voice `session delete` or model deletion tool is admitted.
+
+### Review one exact session's logical disposition
+
+`review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>` opens the existing private native review for that exact observed identity and revisions. Typed input or voice activated with the **current** assistant name may launch it; names, selected rows and the current question are never selectors ([grammar](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs)).
+
+The complete native preview displays the exact ID, label, generation, metadata revision, all eight inventory counts and the existing logical scope, retained tombstone/provenance and exclusions. The response only reports whether review opened; private inventory is not spoken or sent to a model ([shared preview](../src/Kora/SessionsViewModel.cs), [routing](../src/Kora.Application/ViewModels/MainViewModel.SessionDispositionReview.cs)).
+
+Nothing is removed by the command. **Confirm logical disposition** remains a separate deliberate native action with a fresh native request. `confirm session disposition ...` explains this boundary and never confirms; `session delete` and model deletion tools remain unavailable ([native-only one-shot confirmation](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs)).
+
+Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Review navigation preserves unsent input; the command never saves, submits or discards it ([native launch](../src/Kora/SessionsWindowController.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
 
 ### Bounded exact-ID session commands
 
@@ -792,11 +927,43 @@ queue, scheduler, automatic resume or playback. History does not import volatile
 file previews/shared skills or reconstruct captions. See the
 [native workflow](windows-and-tray.md#bounded-passive-interaction-history).
 
-The separate native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) searches actual retained USER bodies and typed HOST outcomes in the selected exact session. This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search. Conversation query content stays native and adds no typed/voice/model descriptor or transcript entry.
+The separate [exact-conversation search](#search-one-explicitly-addressed-retained-conversation) and native [selected-conversation search](windows-and-tray.md#search-one-exact-retained-conversation) search actual retained USER bodies and typed HOST outcomes.
+This older `session search` command remains Question/Answer/task receipt `HistorySearch`; it is not implicitly remapped to body search.
 
 Native transcript search additionally accepts optional inclusive observed message Generation (positive Int64) and Revision (1-2) min/max, AND with its existing predicates. Empty means Any; strict decimal input is not trimmed or repaired. This adds no command syntax, routing, submission or hidden body read ([range contract](../src/Kora.Core/Conversation/ConversationRangeFilter.cs)).
 
 Search uses the [shared lexical query rules](../src/Kora.Core/Context/LocalFileRetrievalPolicy.cs): 1-256 UTF-16 characters, at most 512 strict UTF-8 bytes, 1-32 distinct words of at most 64 characters, NFC/invariant case and literal whole-word OR matching. Punctuation separates words, not operators, wildcards or regular expressions. Quotes inside the final quoted query are doubled.
+
+### Search one explicitly addressed retained conversation
+
+Typed input and current-name activated voice share the distinct `conversation search` family:
+
+```text
+conversation search <session-id> -- <verbatim query>
+conversation search next <session-id>
+conversation search cancel <session-id>
+Kora, conversation search abcdef12-1234-1234-1234-123456789012 -- café
+```
+
+Use a complete nonempty canonical lowercase D-format session GUID, never a name, selected window, partial ID or model-supplied destination. Voice requires the current assistant-name prefix.
+The query is everything after the single space following `--`, including any additional leading/trailing spaces, case, quotes, Unicode or later `--`. It is not trimmed or repaired.
+The canonical lexical limits above apply; empty/invalid input refuses before body reads, never Browse, a question answer or model fallback.
+
+One original-user action calls the same [canonical search service](../src/Kora.Application/Hosting/SessionConversationService.cs) as native search. Active and retained Done are readable without Resume.
+Native Sessions and compact search additionally retain inclusive submitted-date bounds and an observed task-state choice with explicit Any. These AND-compose with the query and role, bind the continuation, and require explicit fresh Search after editing; typed/voice syntax is unchanged ([native search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
+Results are inert chronological original USER messages and separate typed HOST outcomes with exact session/generation/request/task/sequence/revision provenance, not generated snippets.
+Each page returns at most 25 messages, scans at most the existing 100-message session bound and preserves the complete serialized 64 KiB limit, counters and source-qualified cursor.
+
+`next` accepts only the same exact session ID, not a caller-supplied cursor or JSON. The host holds one memory-only cursor, original query/channel, private control revision, exact lifecycle/generation/metadata snapshot and original admission, expiring 60 seconds after the first page without renewal.
+Zero matches do not imply Browse or unavailable content. Changed source, snapshot, origin, privacy, call revision, voice/name readiness or expiry requires a fresh search. Cancel clears the exact host-held search and cancels its in-flight read.
+
+Search results are visual-only, including in Voice Only mode. No query/body is spoken, captioned, logged, persisted, sent to a model or added to transcript chrome.
+No session navigation occurs: unsent buffers, existing legacy saved text, question/approval/voice targets and retention activity remain unchanged ([conversation search](../src/Kora/SessionsViewModel.ConversationSearch.cs)).
+There is no draft/history/all-session body search, model descriptor, submission, replay or automatic resume.
+
+Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/Commands/ConversationSearchCommandTests.cs) and [source-bound continuation/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ConversationCommands.cs).
+Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
+Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.
@@ -899,7 +1066,7 @@ Windows.
 - **set appearance.theme to dark**
 - **reset appearance.theme**
 
-Substitute one of the eleven exact IDs in [Appearance settings](settings.md#appearance).
+Substitute one of the twelve exact IDs in [Appearance settings](settings.md#appearance).
 The configured assistant-name prefix is supported for typed input and activated
 voice. Exact spoken names also work: replace dots/hyphens in the ID with
 spaces, for example **"Kora, set appearance theme to dark"**.
@@ -907,11 +1074,37 @@ Capitalization is ignored, but this typed value grammar deliberately
 preserves signs and decimal punctuation: `-10` and `1.5` are rejected, never
 normalized into valid integers. Use numeric whole numbers without appended
 units, `system`/`light`/`dark`, or `true`/`false`. Extra words, invented IDs,
-relative changes and invalid ranges produce local clarification, without
+relative changes in this ID grammar and invalid ranges produce local clarification, without
 model/network interpretation. Changes and per-option reset share the direct
 UI service, domain validation, revision check, atomic persistence, audit and
 live notifications. There is no whole-profile reset or undo, model tool
 exposure, arbitrary JSON patch or configuration-file editing authority.
+
+### Natural exact app theme and native reader text scale
+
+Original typed input also accepts these whole-utterance commands; voice requires the **current configured assistant-name prefix**, for example **"Kora, use dark mode"** ([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs)):
+
+- **use dark mode**
+- **use light mode**
+- **use system theme**
+- **get reader text scale**
+- **status reader text scale**
+- **reset reader text scale**
+- **set reader text scale to &lt;integer&gt; percent**
+- **increase reader text scale by &lt;positive integer&gt; percentage points**
+- **decrease reader text scale by &lt;positive integer&gt; percentage points**
+
+Reader scale is inclusive 75–200 percent; reset restores 100. An increase from 150 by 25 percentage points requests 175, not 187.5.
+Relative resolution reads fresh confirmed state at execution, uses checked arithmetic and the registry's validation, then submits the existing revision-bound proposal.
+A concurrent revision refuses instead of overwriting or recalculating ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+Capitalization and outer whitespace are ignored. Number words, signs, decimals, vague pronouns, selected-window inference, extra clauses and substring commands are not accepted as changes.
+Invalid results clarify without clamping. Missing/corrupt/unconfirmed evidence is never guessed; an absent preference uses only the service-confirmed declared default
+([parser](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [confirmed state](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
+
+These aliases use the same admitted service, atomic preference/audit path and live notifications as exact IDs and native controls.
+They change only Kora's app theme or bounded native reader content typography: no OS/global UI scale, new content access, permission, speech/caption enablement or model-derived authority
+([executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs), [reader scope](../Design/Information_Display.md#bounded-native-reader-text-scale)).
 
 ### Inspect or change an exact output choice
 
@@ -937,8 +1130,13 @@ ownership/privacy changes and failed evidence require explicit refresh/recovery.
 - **status speech.playback-volume**
 - **set speech.playback-volume to 30**
 - **reset speech.playback-volume**
+- **speak louder**
+- **speak quieter**
 
 Canonical integer 0-100 (no signs, padding, fractions, percent suffix or leading zeros); default/reset 100. Zero prevents synthesis and retains full visual output. Changes never alter global/call volume, test audio, reopen capture or replay output.
+The exact aliases move the freshly admitted desired volume by **up to 10 percentage points** ([domain step](../src/Kora.Core/Configuration/PlaybackVolume.cs#L21)).
+A final shorter step explicitly reports `saved-upper-boundary` (100) or `saved-lower-boundary` (0); already at that bound reports `unchanged-upper-boundary` or `unchanged-lower-boundary` without writing or auditing a successful change ([shared action](../src/Kora.Application/Configuration/PlaybackVolumeConfigurationService.cs#L86)).
+The complete result includes `adjustment.previousPercent` and `adjustment.currentPercent` alongside exact desired/effective percent and saved source: for example, 95 becomes 100, not 105; 5 becomes 0, not -5. [Boundary-result tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RelativeAudio.cs) check both old/new values and the unchanged follow-up.
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -954,16 +1152,44 @@ See [controls and option-specific recovery](settings.md#kora-playback-volume) an
 - **set speech.windows-rate to 0**
 - **set speech.windows-rate to 10**
 - **reset speech.windows-rate**
+- **speak faster**
+- **speak slower**
 
 Canonical integer **-10..10**, normal/default/reset **0**. Negative nonzero
 signs only; no plus, negative zero, padding, fractions or suffix. Windows
 provider-native rate, not percentage or words/minute.
 **Kokoro is unsupported and unchanged**; no provider switch, trial or replay.
+The exact aliases move the freshly admitted desired Windows rate by **1 native unit** ([domain step](../src/Kora.Core/Configuration/WindowsSpeechRate.cs#L21)).
+The complete relative result includes `adjustment.previousNativeRate` and `adjustment.currentNativeRate`; no-op and denied results disclose the actual unchanged value, not an uncommitted target ([result](../src/Kora.Application/Configuration/WindowsSpeechRateState.cs)).
+Reaching -10/10 explicitly reports `saved-lower-boundary`/`saved-upper-boundary`; already at that bound reports `unchanged-lower-boundary`/`unchanged-upper-boundary`, with no write or successful-change audit ([shared action](../src/Kora.Application/Configuration/WindowsSpeechRateConfigurationService.cs#L118)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#windows-native-speech-rate) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
+
+### Inspect or change Kora's response-window visibility preferences
+
+- **list response window settings**
+- **get response-window.always-show** / **status response window always show**
+- **get response-window.topmost** / **status response window topmost**
+- **set response-window.always-show to true** / **set response-window.always-show to false**
+- **set response-window.topmost to true** / **set response-window.topmost to false**
+- **reset response-window.always-show** / **reset response-window.topmost**
+- **keep responses visible** / **allow responses to hide**
+- **keep response window on top** / **stop keeping response window on top**
+
+These are complete exact utterances, optionally prefixed with the current assistant name: **"Kora, keep responses visible"**. Canonical targets also accept the exact spoken names **response window always show** and **response window topmost**.
+Boolean set accepts only **true** or **false**, not relative/fuzzy targets, implicit selected windows or compound instructions ([grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs)).
+
+Results appear in the transcript without speech, reopening a response, replacing a pending question/approval or sending text to a model. Malformed reserved commands clarify before question/approval/model routing.
+Changes require the owning unlocked host and no pending question/approval or competing preference write ([dispatcher](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs)).
+
+Only Kora's device-local addressed Boolean changes. Reset restores **AlwaysShow=false** or **Topmost=true**, preserving the other Boolean, saved position and response timeout. AlwaysShow prevents inactivity hiding of an already admitted response; it cannot reveal dismissed, private, revoked or retired content.
+Topmost is not a Windows-wide setting or foreground/activation authority ([native window](../src/Kora/ResponseWindow.axaml.cs), [defaults](../src/Kora.Core/Configuration/ResponseWindowSettings.cs)).
+
+Missing preference files use declared defaults without claiming a save. Malformed, externally changed or uncertain saved evidence is explicitly unavailable: inspect the saved state and audit receipts before repair/restart and initiate a fresh request.
+No automatic rewrite, default-save, rollback or retry is claimed ([confirmation and commands](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [audited writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
 
 ### Inspect or change the device-default response mode
 
@@ -975,7 +1201,22 @@ See [controls and option-specific recovery](settings.md#windows-native-speech-ra
 - **set responses.default-mode to VisualOnly**
 - **reset responses.default-mode**
 
+Natural exact aliases use the same SET operation, not a toggle or playback command:
+
+| Exact phrase | Equivalent |
+|---|---|
+| **use visual responses** | `set responses.default-mode to VisualOnly` |
+| **use spoken responses** | `set responses.default-mode to VoiceOnly` |
+| **use spoken and visual responses** | `set responses.default-mode to Hybrid` |
+| **check response mode** | `get responses.default-mode` (desired/effective mode, availability and live output policy) |
+
+Aliases are case-insensitive with an optional current assistant-name prefix, but no extra words, punctuation or internal whitespace repair. Reserved malformed variants clarify locally; they never answer a pending decision or reach the model. **be quiet** and **stop speaking** remain stop-playback commands; **mute** is not a response-mode alias.
+These aliases do not claim the separate `speak louder`, `speak quieter`, `speak faster` or `speak slower` controls.
+See the [exact parser and conflict tests](../tests/Kora.Application.UnitTests/Configuration/ResponseModeCommandTests.cs).
+
 Exact case-insensitive Hybrid / VoiceOnly / VisualOnly; default/reset Hybrid. Save changes only the device default, not queue/task overrides or mandatory call/privacy/full-visual recovery. No autoplay, replay or capture.
+Mode changes affect future eligible responses only: no sample speech, provider/output-device change or global/call volume change. VoiceOnly never overrides call/privacy suppression, speech caps or required visual recovery, and does not establish speaker identity.
+Native selection, enum syntax and aliases retain the same fresh choice/revision, original-origin admission, audit and atomic save/readback. Results disclose desired/effective/outcome; stale or unconfirmed state refuses rather than reporting success ([route and refusal tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalResponseMode.cs)).
 Current-name activated input is supported; protected/Unknown original-voice
 writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
@@ -1012,6 +1253,11 @@ See [the shared native controls](settings.md#speech-provider).
 
 ### Inspect or lower spoken summary caps
 
+- **show spoken summary limits**
+- **set spoken summary sentence limit to 2**
+- **set spoken summary word limit to 40**
+- **reset spoken summary sentence limit**
+- **reset spoken summary word limit**
 - **list speech settings**
 - **get speech.summary-sentences**
 - **get speech.summary-words**
@@ -1019,6 +1265,12 @@ See [the shared native controls](settings.md#speech-provider).
 - **set speech.summary-words to 40**
 - **reset speech.summary-sentences**
 - **reset speech.summary-words**
+
+Natural aliases are exact whole utterances. Typed input accepts an optional current-name prefix; activated voice requires it ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Use canonical decimal integers, without signs, leading zeroes, fractions or word numerals; no relative "be brief" interpretation is added. Malformed reserved aliases clarify locally ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+These commands change future ordinary-speech admission budgets, not the current answer or an instruction to speak now. Pending questions/approvals remain untouched; finish or cancel them first. Discovery and acknowledgements remain visual, with no new speech, regeneration or replay ([shared dispatch](../src/Kora.Application/ViewModels/MainViewModel.SpeechConfiguration.cs)).
 
 The exact spoken names **speech summary sentences** and **speech summary words**
 also work, with the configured-name prefix for activated voice.
@@ -1151,6 +1403,14 @@ command for stopping only speech playback.
 
 **Stop** cancels the active task; it does not mean stop speaking. Use one of
 the speech-playback phrases to stop the voice instead.
+
+### Disable listening for this run
+
+- **stop listening**
+- **disable listening**
+
+The current assistant-name prefix is optional for typed/already activated input. These exact phrases reserve a privacy-reducing stop before pending answers/approvals and use the same action as native/tray Disable listening ([stop action](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+Native release is awaited; uncertain release is explicit. No task is cancelled or decision approved. Saved consent is retained. A new deliberate PTT gesture can capture one command after confirmed release and current gates; native Enable listening restores readiness separately ([stop semantics and evidence](voice-and-audio.md#exact-stop-listening)).
 
 ## Windows session task
 
@@ -1329,11 +1589,13 @@ to three; start a new request with more details if it reaches that limit.
 Type `instructions editor` or `prompts editor`, or say the same control prefixed
 with the current assistant name. Both focus the same native editor with explicit
 Instruction/Prompt kind selection. `list`, `create <id>`, `edit <id>`,
-`inspect <id>`, `validate`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
+`inspect <id>`, `validate`, `compare`, `rebase`, `save`, `copy <new-id>`, `reload`, `discard`, `delete`, `activate`, `disable`, `stop-use` and `cancel`
 are the exact controls after either plural kind name. Only create/edit/inspect/copy
 accept one canonical file ID; other controls target the open original.
 `instructions validate` / `prompts validate` observes the currently open same-kind supported owned draft/new draft using exact Save preparation, including BOM/native-marker overhead and observed structural/namespace checks. It never opens/switches sources, saves or enables.
 The bounded body-free result is historical structural compatibility, not harmlessness, current disk integrity or approval. Source/private/input changes retire it; Save separately revalidates and exactly confirms. No store I/O/reload, revision-preference write/hold, model/network or reference execution is added. See [draft validation](instruction-editor.md#validate-the-open-draft-without-saving).
+`instructions rebase` / `prompts rebase` explicitly observes latest for an already open supported same-kind source and reviews complete old/latest/raw bodies. Confirmation rereads the exact observed revision and adopts only that baseline in memory, preserving the raw draft; it neither merges nor saves/enables.
+Cancel preserves the prior baseline/draft ([source-preserving Rebase](instruction-editor.md#rebase-the-open-draft-without-saving)).
 **Disable reviewed use** / `instructions disable` or `prompts stop-use` separately confirms the clean inspected canonical native v1 owned source/kind/digest/native revision. It durably withdraws new selections without writing/deleting/unregistering the source.
 Disabled files stay inspectable/editable. Dirty drafts remain intact with an explicit Save/Reload prerequisite; current-name activated controls focus the same native confirmation, never voice-only approval.
 Already captured reasoning keeps immutable content; pending unadmitted questions/action choices expire without dispatch or retargeting. Mandatory access/privacy/action/egress checks remain. Reload/restart/restored bytes cannot re-enable use: require fresh exact review. Failed audit/state readback reports held/unavailable recovery, not success or rollback.
@@ -1513,11 +1775,44 @@ For the attempted source, refreshing does not revive its old identity in the
 current host: retry unregistering any remaining saved metadata, then select the
 folder afresh to obtain a new source ID if you want to grant local reading again.
 
-**Enable, disable, invoke, Kora-specific authoring and model exposure are
-unavailable here.** Registration/review grants no execution, egress, approval
-or bundled trust; Kora never writes the shared source, fetches references,
-installs dependencies or executes its scripts. This is not a harmlessness or
-complete dependency-inventory certification.
+Registration and inspection alone grant no invocation, egress, approval or bundled trust.
+Kora never writes the shared source, fetches references, installs dependencies or executes its scripts.
+This is not a harmlessness or complete dependency-inventory certification
+([inspection contract](../src/Kora.Core/Skills/SharedSkillSnapshot.cs)).
+
+### Reviewed instruction-only shared skill invocation
+
+For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
+Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.
+Refresh and explicitly select one existing Active conversation, enter your original request, choose **Review exact invocation** and confirm the exact skill/request/target.
+Only a retained answer or a truthful unavailable/failure/cancelled outcome completes use
+([native controller](../src/Kora/SharedSkillInvocationController.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+Typed and current-name activated voice can perform the same review, enablement and confirmation:
+
+```text
+Kora, review shared skill concise-review
+Kora, shared skill enable
+Kora, shared skill targets
+Kora, shared skill target <exact displayed Active conversation ID>
+Kora, shared skill request <original prose>
+Kora, shared skill review invocation
+Kora, shared skill confirm invocation
+Kora, shared skill close
+```
+
+Use **shared skill next targets** for the next bounded metadata page.
+The exact case-sensitive skill name resolves only within the explicitly listed native source; use `name from source <displayed source ID>` when source qualification is needed.
+No fuzzy match, model selection, reserved alias registration or implicit conversation creation is admitted.
+Initial root registration and discovery remain native-only
+([command parser](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [source selection](../src/Kora/SharedSkillSourcesWindow.Invocation.cs)).
+
+Enablement is memory-only, exact-revision, single-use and expires after two minutes.
+Close, privacy/control/call/ownership changes, changed registration or stale source revoke the review; restored old bytes do not revive an observed revoked review.
+The complete serialized context must fit the existing 32768-byte envelope; nothing is truncated.
+The unchanged original request is retained separately from typed untrusted local-only skill evidence; all tools and hosted fallback are denied.
+Unqualified local providers truthfully report unavailable, without installation, network fallback or replay
+([review lifetime](../src/Kora.Application/Skills/SharedSkillUseReview.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs), [host regression tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SharedSkills.cs)).
 
 **What “run” means**
 

@@ -54,7 +54,10 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
                 .ReadWorkAsync(session, admissionRevision, current, token).AsTask(), token);
 
-    public async Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
+    public Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admission, CancellationToken token) => ExecuteCommandCoreAsync(command, origin, admission, token);
+
+    private async Task<SessionCommandResult> ExecuteCommandCoreAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admission, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(command);
@@ -162,12 +165,16 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                 var generation = new HostRevision(command.Generation);
                 snapshot = command.Operation switch
                 {
-                    SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(current => store.EnqueueAsync(request,
+                    SessionCommandOperation.QueueEnqueue => await WithLimitsAsync(async current =>
+                    {
+                        var committed = await store.EnqueueAsync(request,
                         new(new(command.WorkRequestId ?? throw new InvalidOperationException("An exact request ID is required.")),
                             session, RequireTask(command), origin),
                         generation, command.QueueRevision, revision, command.DependencyTaskId is { } dependency ? new(dependency) : null,
                         current, () => Eligible() && (configuration is null || configuration.IsCurrent(current)), token,
-                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget).AsTask(), token).ConfigureAwait(false),
+                        command.QueueProfile, command.ExpectedDependencyRevision, command.QueueTarget).ConfigureAwait(false);
+                        return committed;
+                    }, token).ConfigureAwait(false),
                     SessionCommandOperation.QueueCancel or SessionCommandOperation.QueueRemove =>
                         await store.RemovePendingAsync(request, generation, command.QueueRevision, RequireTask(command),
                             new(command.TaskRevision), command.Operation == SessionCommandOperation.QueueCancel

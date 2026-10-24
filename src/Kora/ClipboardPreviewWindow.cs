@@ -13,11 +13,13 @@ namespace Kora;
 internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFailure, MainViewModel? typographyHost = null) : Window, IClipboardPreviewView
 {
     private readonly NamedTextBlock source = new() { FontFamily = new FontFamily("Consolas") };
+    private readonly NamedTextBlock explanation = new() { TextWrapping = TextWrapping.Wrap };
 
-    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent)
+    public void Show(ClipboardSnapshot snapshot, Func<Task> reuse, Func<Task> revoke, Func<bool> isCurrent, Func<Task>? explain = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
         ClearFindState();
+        ClearWrappingState();
         Title = "Local clipboard snapshot (untrusted plain text)";
         Width = 760;
         Height = 600;
@@ -42,8 +44,11 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         chrome.Children.Add(identity);
         var disclosure = new NamedTextBlock
         {
-            Text = "Exact local text only. May contain secrets. No inference, egress approval, copy/write or history.\n"
-                + "Explanation unavailable pending qualified local tool-loop/clipboard-answering gates.\n"
+            Text = "Exact local text only. May contain secrets. No inference without explicit review, egress approval, copy/write or history.\n"
+                + "Review and explain locally requests policy-gated use of this complete snapshot by a qualified LOCAL runtime only; review expires 15 minutes after capture. "
+                + "Structural credential screening is best-effort, not a secret-free guarantee. No hosted or bootstrap fallback.\n"
+                + "Production explanation is unavailable: required clipboard secret/sensitive-content source-use classification is not implemented. "
+                + "Review/consent does not bypass that policy.\n"
                 + "Clipboard changes do not update this snapshot. Close revokes it.",
             TextWrapping = TextWrapping.Wrap,
         };
@@ -53,25 +58,51 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         controls.Children.Add(reuseButton);
         controls.Children.Add(revokeButton);
         chrome.Children.Add(controls);
+        if (explain is not null)
+        {
+            var consent = new CheckBox { Content = "I reviewed this exact text and request policy-gated local-only explanation." };
+            AutomationProperties.SetName(consent, "Admit this exact clipboard snapshot to local-only inference");
+            var explainButton = new Button { Content = "Review and explain locally" };
+            AutomationProperties.SetName(explainButton, "Review and explain this exact clipboard snapshot locally");
+            explainButton.Command = new AsyncCommand(async () =>
+            {
+                if (!isCurrent() || consent.IsChecked != true)
+                { throw new InvalidOperationException("Review and explicitly admit the exact current snapshot first."); }
+                consent.IsChecked = false;
+                await explain();
+            }, reportFailure);
+            chrome.Children.Add(consent);
+            chrome.Children.Add(explainButton);
+        }
         AddFind(chrome, snapshot, isCurrent);
         DockPanel.SetDock(chrome, Dock.Top);
         body.Children.Add(chrome);
-        body.Children.Add(new ScrollViewer
+        var content = new StackPanel { Spacing = 12 };
+        content.Children.Add(source);
+        AutomationProperties.SetName(explanation, "Volatile local clipboard explanation; untrusted model response");
+        content.Children.Add(explanation);
+        var sourceScrollViewer = new ScrollViewer
         {
-            Content = source,
+            Content = content,
             HorizontalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
             VerticalScrollBarVisibility = Avalonia.Controls.Primitives.ScrollBarVisibility.Auto,
-        });
+        };
+        AddSourceWrapping(chrome, snapshot, sourceScrollViewer);
+        body.Children.Add(sourceScrollViewer);
         Content = body;
         Closed += OnFindClosed;
         base.Show();
         Activate();
     }
 
+    public void SetExplanation(string? text) => explanation.Text = text;
+
     public void ClearAndClose()
     {
         ClearFindState();
         source.Text = null;
+        ClearWrappingState();
+        explanation.Text = null;
         Content = null;
         Close();
     }
@@ -81,6 +112,8 @@ internal sealed partial class ClipboardPreviewWindow(Action<Exception> reportFai
         Closed -= OnFindClosed;
         ClearFindState();
         source.Text = null;
+        ClearWrappingState();
+        explanation.Text = null;
         Content = null;
     }
 }

@@ -12,6 +12,7 @@ internal sealed partial class LocalFilePreviewWindow
 {
     private LocalFileRevision? findSource;
     private TextBox? findQuery;
+    private CheckBox? findMatchCase;
     private NamedTextBlock? findStatus;
     private Button? findNext;
     private Button? findPrevious;
@@ -22,8 +23,10 @@ internal sealed partial class LocalFilePreviewWindow
 
     private void SetFindSource(LocalFileRevision? file)
     {
+        SetWrappingSource(file);
         ClearFind(clearQuery: true);
         findSource = file;
+        SetMeasurementSource(file);
     }
 
     private void ShowFind(DockPanel body, Func<bool> current,
@@ -36,10 +39,18 @@ internal sealed partial class LocalFilePreviewWindow
                 + $"{LocalFileRetrievalPolicy.MaximumQueryUtf8Bytes} UTF-8 bytes maximum",
         };
         findQuery = query;
-        AutomationProperties.SetName(query, "Case-sensitive literal Find in the currently displayed exact original file only");
+        AutomationProperties.SetName(query, "Literal Find in the currently displayed exact original file only");
         query.PropertyChanged += (_, args) =>
         {
-            if (args.Property == TextBox.TextProperty) { ClearFind(); }
+            if (args.Property == TextBox.TextProperty && ReferenceEquals(findQuery, query)) { ClearFind(); }
+        };
+        var matchCase = new CheckBox { Content = "Match case", IsChecked = true, IsThreeState = false };
+        findMatchCase = matchCase;
+        AutomationProperties.SetName(matchCase, "Match case");
+        ToolTip.SetTip(matchCase, "Checked: ordinal case-sensitive. Unchecked: ordinal ignore case, only in this original-file literal Find. Requires a fresh Find first.");
+        matchCase.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == CheckBox.IsCheckedProperty && ReferenceEquals(findMatchCase, matchCase)) { ClearFind(); }
         };
         var status = new NamedTextBlock { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         findStatus = status;
@@ -47,7 +58,7 @@ internal sealed partial class LocalFilePreviewWindow
         Button Action(string caption, LocalFileFindDirection direction)
         {
             var button = new Button { Content = caption };
-            AutomationProperties.SetName(button, caption + " case-sensitive literal in current original file; no wrap");
+            AutomationProperties.SetName(button, caption + " literal in current original file using Match case; no wrap");
             button.Command = new AsyncCommand(() => FindLiteral(direction, query, current, resolveSource), exception =>
             {
                 if (!ReferenceEquals(findQuery, query)) { return; }
@@ -72,12 +83,15 @@ internal sealed partial class LocalFilePreviewWindow
         var panel = new StackPanel { Spacing = 4 };
         panel.Children.Add(new NamedTextBlock
         {
-            Text = "Literal Find: case-sensitive, unchanged spaces, nonoverlapping, no wrap. First starts at zero; "
-                + "Next starts after the match end; Previous finds the last match ending before or at its start. "
-                + "One exact match only, no occurrence count. Native only; ranked search below is unchanged.",
+            Text = "Literal Find: Match case defaults on (ordinal); off uses ordinal ignore case only here. "
+                + "Unchanged spaces, nonoverlapping, no wrap. Changing Match case requires a fresh Find first. First starts at zero; "
+                + "Next starts after the match end; Previous reverses that same forward sequence. "
+                + "Total and selected ordinal cover this exact immutable original file only, not other files, "
+                + "ranked retrieval or live disk. Native only; ranked search below is unchanged.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(query);
+        panel.Children.Add(matchCase);
         panel.Children.Add(actions);
         panel.Children.Add(status);
         DockPanel.SetDock(panel, Dock.Top);
@@ -89,10 +103,18 @@ internal sealed partial class LocalFilePreviewWindow
     {
         var file = findSource ?? throw new InvalidOperationException("No exact displayed file is available.");
         var query = queryBox.Text ?? string.Empty;
+        var matchCase = findMatchCase ?? throw new InvalidOperationException("Literal Find comparison is unavailable.");
+        var comparison = matchCase.IsChecked switch
+        {
+            true => StringComparison.Ordinal,
+            false => StringComparison.OrdinalIgnoreCase,
+            null => throw new InvalidOperationException("Literal Find comparison is unavailable."),
+        };
         var selected = findMatch;
         ClearNavigation();
         var generation = findGeneration;
         bool Current() => generation == findGeneration && ReferenceEquals(findQuery, queryBox)
+            && ReferenceEquals(findMatchCase, matchCase) && matchCase.IsChecked == (comparison == StringComparison.Ordinal)
             && ReferenceEquals(findSource, file) && string.Equals(queryBox.Text, query, StringComparison.Ordinal)
             && string.Equals(content.Text, file.Text, StringComparison.Ordinal) && current();
         void MarkStale()
@@ -102,8 +124,9 @@ internal sealed partial class LocalFilePreviewWindow
             findStatus!.Text = "Literal Find stale or unavailable; inspect the exact source again. No match or focus claimed.";
         }
         if (!Current()) { throw new InvalidOperationException("The displayed exact source is stale."); }
-        // Validate before any retained read. This scan allocates at most one bounded identity/span, never an index.
-        var match = LocalFileLiteralFind.Find(file, query, direction, selected);
+        // Validate and count the displayed immutable source before any retained read; never retain an occurrence index.
+        var result = LocalFileLiteralFind.FindCounted(file, query, direction, selected, comparison);
+        var match = result.Match;
         using var cancellation = new CancellationTokenSource();
         finding = cancellation;
         try
@@ -121,11 +144,15 @@ internal sealed partial class LocalFilePreviewWindow
             findMatch = match ?? (direction == LocalFileFindDirection.First ? null : selected);
             findNext!.IsEnabled = findMatch is not null;
             findPrevious!.IsEnabled = findMatch is not null;
-            findStatus!.Text = match is null
-                ? direction == LocalFileFindDirection.First ? "No literal match in this exact original file."
-                    : direction == LocalFileFindDirection.Next ? "End of forward direction; no wrap. Earlier matches may remain."
-                        : "End of backward direction; no wrap. Later matches may remain."
-                : "One exact case-sensitive literal match; nonoverlapping; no wrap.";
+            findStatus!.Text = match is not null
+                ? $"Literal match {result.Ordinal} of {result.Count} in this exact immutable original file only; "
+                    + (comparison == StringComparison.Ordinal ? "case-sensitive" : "ordinal ignore case")
+                    + "; nonoverlapping; no wrap."
+                : direction == LocalFileFindDirection.First
+                    ? "No literal match in this exact immutable original file only; total 0; selected ordinal 0. No match or focus claimed."
+                    : (direction == LocalFileFindDirection.Next ? "End of forward direction" : "End of backward direction")
+                        + $"; no wrap. Total {result.Count} in this exact immutable original file only; "
+                        + $"anchor ordinal {result.Ordinal}; no current match selected or focus claimed.";
             if (match is null) { return; }
             citedLocation!.Text = DescribeItem(file) + "\n"
                 + $"Literal match: UTF-16 [{match.Start}, {match.Start + match.Length}) of {file.Text.Length}; end exclusive. "
@@ -135,15 +162,19 @@ internal sealed partial class LocalFilePreviewWindow
                 + $"UTF-16 [{match.Start}, {match.Start + match.Length})");
             literalSpanVisible = true;
             exactSpanPanel!.IsVisible = true;
+            var span = citedSpan;
+            var layoutGeneration = sourceLayoutGeneration;
             UpdateLayout();
             if (!Current())
             {
                 MarkStale();
                 return;
             }
-            citedSpan.BringIntoView();
+            if (!IsSourceLayoutCurrent(layoutGeneration, span, file, Current)) { return; }
+            span.BringIntoView();
             if (!Current()) { MarkStale(); return; }
-            if (!citedSpan.Focus()) { throw new InvalidOperationException("Literal source match focus is unavailable."); }
+            if (!IsSourceLayoutCurrent(layoutGeneration, span, file, Current)) { return; }
+            if (!span.Focus()) { throw new InvalidOperationException("Literal source match focus is unavailable."); }
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
         catch (Exception) when (cancellation.IsCancellationRequested || !Current()) { MarkStale(); }

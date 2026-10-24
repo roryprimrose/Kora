@@ -315,7 +315,7 @@ public sealed partial class MainViewModelTests
             new(new(new(Guid.NewGuid()), new(1), true), null);
         internal List<RequestOrigin> Origins { get; } = [];
         internal Exception? Failure { get; set; }
-        public bool CanInspect => fixture.ViewModel.CanRevealPrivatePresentation;
+        public bool CanInspect => fixture.ViewModel.CanRevealPrivatePresentation && AttachmentInspectionEligible;
         public bool CanControl => CanInspect && !fixture.ViewModel.IsProtectedCall;
         public long ControlRevision => fixture.ViewModel.CallPolicyRevision + (MemoryEnabled ? 1 : 0);
 

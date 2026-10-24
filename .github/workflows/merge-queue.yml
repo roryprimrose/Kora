@@ -1,0 +1,59 @@
+name: Merge queue controller
+
+on:
+  pull_request_target:
+    branches: [main]
+    types: [opened, reopened, synchronize, ready_for_review, converted_to_draft, closed, edited, labeled, unlabeled, auto_merge_enabled, auto_merge_disabled]
+  push:
+    branches: [main]
+  workflow_run:
+    workflows: [CI]
+    types: [requested, completed]
+  schedule:
+    - cron: '*/5 * * * *'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# Events are wakeups, not queue entries. Each short run reconciles durable GitHub state.
+concurrency:
+  group: merge-queue-controller
+  cancel-in-progress: false
+
+jobs:
+  reconcile:
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    environment: merge-queue
+    steps:
+      - name: Check out trusted controller only
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Create repository-scoped queue identity
+        uses: actions/create-github-app-token@64ab729a6294000f5aa4a4bc0b73d1f32bc45510 # v3
+        id: app
+        with:
+          client-id: ${{ vars.KORA_MERGE_QUEUE_CLIENT_ID }}
+          private-key: ${{ secrets.KORA_MERGE_QUEUE_PRIVATE_KEY }}
+          permission-actions: write
+          permission-administration: read
+          permission-checks: write
+          permission-contents: write
+          permission-pull-requests: write
+
+      - name: Reconcile selected candidate
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+        with:
+          github-token: ${{ steps.app.outputs.token }}
+          script: |
+            const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
+            const { reconcile } = require('./eng/merge-queue/controller.cjs');
+            const result = await reconcile(new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID));
+            core.notice(`Merge queue: ${result}.`);

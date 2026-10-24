@@ -16,7 +16,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.CanChangeSessionRetentionNative.Should().BeFalse();
         await fixture.ViewModel.SaveSessionRetentionCommand.ExecuteAsync();
-        fixture.ViewModel.SessionRetentionStatus.Should().Contain("owning unlocked native");
+        fixture.ViewModel.SessionRetentionStatus.Should().Contain("active, unlocked Kora window");
         fixture.ViewModel.BindSessionRetentionNativeLifetime(static () => true);
         fixture.ViewModel.CanChangeSessionRetentionNative.Should().BeFalse();
         fixture.ViewModel.BindDiagnosticRetentionNativeLifetime(static () => true);
@@ -24,15 +24,27 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.RefreshSessionRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SelectedSessionArchiveDays.Should().Be(1);
         fixture.ViewModel.SelectedSessionDeleteDays.Should().Be(30);
+        fixture.ViewModel.SavedSessionArchiveDays.Should().Be(1);
+        fixture.ViewModel.SavedSessionDeleteDays.Should().Be(30);
+        fixture.ViewModel.IsSessionRetentionDraftChanged.Should().BeFalse();
         fixture.ViewModel.SelectedSessionArchiveDays = 2;
         fixture.ViewModel.SelectedSessionDeleteDays = 60;
+        fixture.ViewModel.IsSessionRetentionDraftChanged.Should().BeTrue();
+        fixture.ViewModel.SavedSessionArchiveDays.Should().Be(1);
+        fixture.ViewModel.SavedSessionDeleteDays.Should().Be(30);
         await fixture.ViewModel.SaveSessionRetentionCommand.ExecuteAsync();
         fixture.SessionRetentionPreferences.Value.Should().Be(new SessionRetentionSettings(2, 60));
-        fixture.ViewModel.SessionRetentionStatus.Should().Contain("existing due dates are unchanged");
+        fixture.ViewModel.SavedSessionArchiveDays.Should().Be(2);
+        fixture.ViewModel.SavedSessionDeleteDays.Should().Be(60);
+        fixture.ViewModel.IsSessionRetentionDraftChanged.Should().BeFalse();
+        fixture.ViewModel.SessionRetentionStatus.Should().Contain("Existing dates are not changed immediately");
         await fixture.ViewModel.ResetSessionRetentionCommand.ExecuteAsync();
         fixture.SessionRetentionPreferences.Value.Should().BeNull();
         fixture.ViewModel.SelectedSessionArchiveDays.Should().Be(1);
         fixture.ViewModel.SelectedSessionDeleteDays.Should().Be(30);
+        fixture.ViewModel.SavedSessionArchiveDays.Should().Be(1);
+        fixture.ViewModel.SavedSessionDeleteDays.Should().Be(30);
+        fixture.ViewModel.IsSessionRetentionDraftChanged.Should().BeFalse();
         fixture.DiagnosticPreferences.Value.Should().BeNull();
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.ViewModel.Dispose();
@@ -74,7 +86,7 @@ public sealed partial class MainViewModelTests
         }
         await fixture.ViewModel.SaveSessionRetentionCommand.ExecuteAsync();
         fixture.SessionRetentionPreferences.Value.Should().BeNull();
-        fixture.ViewModel.SessionRetentionStatus.Should().Contain(failure is "revoked" ? "denied" : "unavailable");
+        fixture.ViewModel.SessionRetentionStatus.Should().Contain(failure is "revoked" ? "not allowed" : "unavailable");
         fixture.ViewModel.Dispose();
     }
 

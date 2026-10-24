@@ -110,7 +110,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             else { await operation; comparison.Should().NotBeNull(); }
             var displayed = comparison;
             var panes = comparison?.GetVisualDescendants().OfType<TextBox>().ToArray();
-            var finds = comparison?.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            var finds = comparison?.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
             if (finds is not null)
             {
                 foreach (var pane in finds)

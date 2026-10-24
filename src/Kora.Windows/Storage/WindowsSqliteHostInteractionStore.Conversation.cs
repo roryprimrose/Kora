@@ -23,7 +23,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             using var connection = Open(created: false, token);
             var session = RequireSession(connection, request.SessionId);
             var existing = ReadTask(connection, request.TaskId);
-            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null || session.State != 0
+            if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || request.InvocationId is not null || session.State != 0
                 || session.Authority.Generation != generation || !admitted()
                 || existing is not null && (existing.Request != request || existing.Revision.Value != 1
                     || existing.State != HostTaskState.IntentRecorded)
@@ -32,7 +32,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             var intent = existing ?? new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
             var terminal = intent.Next(HostTaskState.Denied);
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval,
-                "conversation.credential-rejected", SecurityAuditOutcome.Denied, SecurityAuditInitiator.TypedCommand,
+                "conversation.credential-rejected", SecurityAuditOutcome.Denied,
+                request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
                 Id(request.TaskId), reasonCode: "credential-like-content");
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
@@ -69,7 +70,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (command.ExecuteScalar() is not null)
         { throw new InvalidDataException("Missing audited conversation authority cannot be replaced by an empty migration."); }
         token.ThrowIfCancellationRequested();
-        foreach (var table in HostInteractionSchema.ConversationSchema) { Execute(connection, transaction, table); }
+        foreach (var table in HostInteractionSchema.LegacyConversationSchema) { Execute(connection, transaction, table); }
         checkpoint?.BeforeCommit(connection, transaction);
     }
 
@@ -130,7 +131,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                     || expected.ExpectedTarget is { } target
                         && target != new SessionWorkspaceEntry(session.Authority, ReadMetadata(connection, control.SessionId))
                     || expected.Draft.SessionId != control.SessionId || body is null && previous.Body is null)
-                { throw new InvalidOperationException("Review the exact Active session, saved draft body and revision before saving or clearing."); }
+                { throw new ConversationDraftConflictException(); }
                 database.RequireEmptyArtifactInventory();
                 Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
                 var draft = new SavedConversationDraft(control.SessionId, checked(previous.Revision + 1), body);
@@ -170,7 +171,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             using var connection = Open(created: false, token);
             var intent = new HostTaskRecord(request, new(1), HostTaskState.IntentRecorded);
             var session = RequireSession(connection, request.SessionId);
-            if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null || session.State != 0
+            if (request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || request.InvocationId is not null || session.State != 0
                 || session.Authority.Generation != generation
                 || (ReadMetadata(connection, request.SessionId)?.Revision.Value ?? 0) != expectedMetadataRevision || !admitted())
             { throw new InvalidOperationException("Submission requires the exact existing Active session and current private generation."); }
@@ -190,7 +191,9 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
             var message = new ConversationMessage(request, generation, count + 1, 1, time.GetUtcNow().ToUniversalTime(),
                 body, null, null);
             var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "conversation.submit",
-                SecurityAuditOutcome.Succeeded, SecurityAuditInitiator.TypedCommand, Id(request.TaskId));
+                SecurityAuditOutcome.Succeeded,
+                request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.TypedCommand,
+                Id(request.TaskId));
             using var activity = HostActivity.BeginAudit(request, audit);
             using var transaction = connection.BeginTransaction();
             WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent);
@@ -382,12 +385,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (message is null || message.Outcome is not null) { return; }
         var recovered = message with
         {
-            Revision = 2,
+            Revision = checked(message.Revision + 1),
             Outcome = ModelTurnOutcome.Unknown,
             Reason = task.State == HostTaskState.Interrupted ? ModelTurnReason.HostInterrupted : ModelTurnReason.ProviderOutcome,
         };
         var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.SecurityApproval, "conversation.recovery",
-            SecurityAuditOutcome.Denied, SecurityAuditInitiator.System, Id(task.Request.TaskId),
+            task.State == HostTaskState.Unknown ? SecurityAuditOutcome.Unknown : SecurityAuditOutcome.Denied,
+            SecurityAuditInitiator.System, Id(task.Request.TaskId),
             reasonCode: recovered.Reason.ToString()!.ToLowerInvariant());
         using var activity = HostActivity.BeginAudit(task.Request, audit);
         var session = RequireSession(connection, task.Request.SessionId).Authority;
@@ -406,16 +410,16 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         { throw new InvalidDataException("Conversation task source does not match its immutable retained original request."); }
         using var blockers = connection.CreateCommand();
         blockers.CommandText = """
-            SELECT 1 FROM host_tasks WHERE session_id=$session AND task_id<>$task AND state IN (0,1,7)
-            UNION ALL
-            SELECT 1 FROM host_questions WHERE session_id=$session AND json_extract(payload,'$.Status')=0 LIMIT 1;
+            SELECT 1 FROM host_tasks WHERE session_id=$session AND task_id<>$task AND state IN (0,1,7) LIMIT 1;
             """;
         blockers.Parameters.AddWithValue("$session", Id(task.Request.SessionId));
         blockers.Parameters.AddWithValue("$task", Id(task.Request.TaskId));
         return new(task, session.Generation, "conversation.user-request.v1",
             session.IsActive && message.Generation == session.Generation && message.Outcome is null
-                && task.State == HostTaskState.IntentRecorded && task.Revision.Value == 1
-                && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null, null);
+                && task.State == message.ExpectedTaskState
+                && task.Revision.Value == message.Revision
+                && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null
+                && ConversationQuestionsPermitObservation(connection, task, message, session), null);
     }
 
     private static void RemoveConversation(SqliteConnection connection, SqliteTransaction transaction, HostId<SessionIdentity> session) =>

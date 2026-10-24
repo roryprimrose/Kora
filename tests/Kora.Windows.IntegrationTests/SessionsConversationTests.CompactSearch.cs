@@ -48,8 +48,8 @@ public sealed partial class SessionsConversationTests
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
-                await model.ReloadConversationDraftAsync();
-                model.ComposerDirty.Should().BeFalse();
+                await model.RecoverLegacyUnsentAsync();
+                model.ComposerDirty.Should().BeTrue();
                 model.ComposerBody = "dirty independent";
                 var before = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
                 var audit = WindowsSqliteConversationTests.AuditText(f);
@@ -101,7 +101,7 @@ public sealed partial class SessionsConversationTests
                 model.ConversationQuery.Should().Be("marker");
                 Click(survivor, "ClearConversationSearch");
                 model.ComposerBody = "saved baseline";
-                model.ComposerDirty.Should().BeFalse("search must preserve the confirmed save baseline");
+                model.ComposerDirty.Should().BeTrue("nonempty unsent text is never treated as saved");
                 (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().Be("saved baseline");
                 (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(before);
                 WindowsSqliteConversationTests.AuditText(f).Should().Be(audit);
@@ -137,6 +137,9 @@ public sealed partial class SessionsConversationTests
                 await model.RefreshAsync();
                 await model.SelectAsync(model.Sessions.Single());
                 model.ConversationQuery = "marker";
+                model.ConversationSubmittedFrom = f.Time.Now.ToString("O", System.Globalization.CultureInfo.InvariantCulture);
+                model.ConversationSubmittedThrough = model.ConversationSubmittedFrom;
+                model.ConversationTaskStateChoice = model.ConversationTaskStates.Single(option => option.Value == HostTaskState.Unavailable);
                 await model.SearchConversationAsync();
                 model.ConversationSearchMessages.Should().ContainSingle();
                 switch (revoke)
@@ -152,6 +155,9 @@ public sealed partial class SessionsConversationTests
                 }
                 await model.RefreshWorkAsync();
                 model.ConversationQuery.Should().BeEmpty(model.Status);
+                model.ConversationSubmittedFrom.Should().BeEmpty();
+                model.ConversationSubmittedThrough.Should().BeEmpty();
+                model.ConversationTaskStateChoice.Value.Should().BeNull();
                 model.ConversationSearchMessages.Should().BeEmpty();
                 workspace.FindControl<TextBox>("ConversationQuery")!.Text.Should().BeNullOrEmpty();
                 compact.FindControl<TextBox>("ConversationQuery")!.Text.Should().BeNullOrEmpty();
@@ -167,19 +173,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("escape")]
     [InlineData("edit")]
     [InlineData("role")]
-    [InlineData("outcome")]
-    [InlineData("reason")]
+    [InlineData("from")]
+    [InlineData("through")]
     [InlineData("task-state")]
-    [InlineData("minimum-sequence")]
-    [InlineData("maximum-sequence")]
-    [InlineData("minimum-generation")]
-    [InlineData("maximum-generation")]
-    [InlineData("minimum-revision")]
-    [InlineData("maximum-revision")]
-    [InlineData("submitted-from")]
-    [InlineData("submitted-through")]
-    [InlineData("request-id")]
-    [InlineData("task-id")]
     [InlineData("private")]
     [InlineData("control")]
     [InlineData("owner")]
@@ -221,19 +217,6 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
                 model.ComposerBody = "dirty independent";
                 compact.FindControl<TextBox>("ConversationQuery")!.Text = "marker";
-                model.ConversationOutcome = ModelTurnOutcome.Unavailable;
-                model.ConversationReason = ModelTurnReason.UnregisteredModel;
-                model.ConversationTaskState = HostTaskState.Unavailable;
-                model.ConversationMinimumSequence = "1";
-                model.ConversationMaximumSequence = "100";
-                model.ConversationMinimumGeneration = "1";
-                model.ConversationMaximumGeneration = "9223372036854775807";
-                model.ConversationMinimumRevision = "1";
-                model.ConversationMaximumRevision = "2";
-                model.ConversationSubmittedFrom = "0001-01-01T00:00:00.0000000+00:00";
-                model.ConversationSubmittedThrough = "9999-12-31T23:59:59.9999999+00:00";
-                model.ConversationRequestId = snapshot.Messages.Single().Request.RequestId.Value.ToString("D");
-                model.ConversationTaskId = snapshot.Messages.Single().Request.TaskId.Value.ToString("D");
                 reader.Reads.Should().Be(0, "opening and typing never read bodies");
                 Click(compact, "SearchConversation");
                 var pending = compact.ConversationOperation;
@@ -246,19 +229,10 @@ public sealed partial class SessionsConversationTests
                         new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Escape }); break;
                     case "edit": workspace.FindControl<TextBox>("ConversationQuery")!.Text = "new query"; break;
                     case "role": workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem = ConversationSearchRole.HOST; break;
-                    case "outcome": model.ConversationOutcome = ModelTurnOutcome.Denied; break;
-                    case "reason": model.ConversationReason = ModelTurnReason.CallerCancelled; break;
-                    case "task-state": model.ConversationTaskState = HostTaskState.Cancelled; break;
-                    case "minimum-sequence": model.ConversationMinimumSequence = "2"; break;
-                    case "maximum-sequence": model.ConversationMaximumSequence = "99"; break;
-                    case "minimum-generation": model.ConversationMinimumGeneration = "2"; break;
-                    case "maximum-generation": model.ConversationMaximumGeneration = "1"; break;
-                    case "minimum-revision": model.ConversationMinimumRevision = "2"; break;
-                    case "maximum-revision": model.ConversationMaximumRevision = "1"; break;
-                    case "submitted-from": model.ConversationSubmittedFrom = "1970-01-01T00:00:00.0000000+00:00"; break;
-                    case "submitted-through": model.ConversationSubmittedThrough = "1970-01-01T00:00:00.0000000+00:00"; break;
-                    case "request-id": model.ConversationRequestId = "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"; break;
-                    case "task-id": model.ConversationTaskId = "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"; break;
+                    case "from": workspace.FindControl<TextBox>("ConversationSubmittedFrom")!.Text = "2026-10-01T00:00:00.0000000+00:00"; break;
+                    case "through": compact.FindControl<TextBox>("ConversationSubmittedThrough")!.Text = "2026-10-31T00:00:00.0000000+00:00"; break;
+                    case "task-state": workspace.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem =
+                        model.ConversationTaskStates.Single(option => option.Value == HostTaskState.Unavailable); break;
                     case "private": composed.Access.CanInspect = false; break;
                     case "control": composed.Access.ControlRevision++; break;
                     case "owner": owner.Revoke(); break;
@@ -271,9 +245,7 @@ public sealed partial class SessionsConversationTests
                         await model.RefreshWorkAsync();
                         break;
                 }
-                var rangeEdit = revoke is "minimum-sequence" or "maximum-sequence" or "submitted-from" or "submitted-through" or "request-id" or "task-id"
-                    or "minimum-generation" or "maximum-generation" or "minimum-revision" or "maximum-revision";
-                if (rangeEdit || revoke is "cancel" or "escape" or "edit" or "role" or "outcome" or "reason" or "task-state" or "owner" or "selection" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "from" or "through" or "task-state" or "owner" or "selection" or "lifecycle")
                 { observed.IsCancellationRequested.Should().BeTrue(); }
                 reader.Reads.Should().Be(1, "query/filter edits must never schedule another read");
                 release.SetResult(snapshot);
@@ -281,48 +253,14 @@ public sealed partial class SessionsConversationTests
                 model.ConversationSearchMessages.Should().BeEmpty();
                 model.CanNextConversationSearch.Should().BeFalse();
                 model.CanCancelConversationSearch.Should().BeFalse();
-                model.ConversationQuery.Should().Be(rangeEdit ? "marker" : revoke switch { "edit" => "new query", "role" or "outcome" or "reason" or "task-state" => "marker", _ => string.Empty });
+                model.ConversationQuery.Should().Be(revoke switch
+                { "edit" => "new query", "role" or "from" or "through" or "task-state" => "marker", _ => string.Empty });
                 model.ConversationRole.Should().Be(revoke is "role" ? ConversationSearchRole.HOST : ConversationSearchRole.All);
-                var criteriaEdit = rangeEdit || revoke is "edit" or "role" or "outcome" or "reason" or "task-state";
-                model.ConversationMinimumGeneration.Should().Be(revoke is "minimum-generation" ? "2" : criteriaEdit ? "1" : string.Empty);
-                model.ConversationMaximumGeneration.Should().Be(revoke is "maximum-generation" ? "1" : criteriaEdit ? "9223372036854775807" : string.Empty);
-                model.ConversationMinimumRevision.Should().Be(revoke is "minimum-revision" ? "2" : criteriaEdit ? "1" : string.Empty);
-                model.ConversationMaximumRevision.Should().Be(revoke is "maximum-revision" ? "1" : criteriaEdit ? "2" : string.Empty);
-                if (!criteriaEdit)
-                {
-                    model.ConversationRequestId.Should().BeEmpty();
-                    model.ConversationTaskId.Should().BeEmpty();
-                }
-                else
-                {
-                    model.ConversationRequestId.Should().Be(revoke is "request-id" ? "aaaaaaaa-aaaa-aaaa-aaaa-aaaaaaaaaaaa"
-                        : snapshot.Messages.Single().Request.RequestId.Value.ToString("D"));
-                    model.ConversationTaskId.Should().Be(revoke is "task-id" ? "bbbbbbbb-bbbb-bbbb-bbbb-bbbbbbbbbbbb"
-                        : snapshot.Messages.Single().Request.TaskId.Value.ToString("D"));
-                }
-                model.ConversationMinimumSequence.Should().Be(revoke is "minimum-sequence" ? "2" : criteriaEdit ? "1" : string.Empty);
-                model.ConversationMaximumSequence.Should().Be(revoke is "maximum-sequence" ? "99" : criteriaEdit ? "100" : string.Empty);
-                model.ConversationSubmittedFrom.Should().Be(revoke is "submitted-from" ? "1970-01-01T00:00:00.0000000+00:00"
-                    : criteriaEdit ? "0001-01-01T00:00:00.0000000+00:00" : string.Empty);
-                model.ConversationSubmittedThrough.Should().Be(criteriaEdit
-                    ? revoke is "submitted-through" ? "1970-01-01T00:00:00.0000000+00:00" : "9999-12-31T23:59:59.9999999+00:00" : string.Empty);
-                model.ConversationOutcome.Should().Be(revoke is "outcome" ? ModelTurnOutcome.Denied
-                    : criteriaEdit ? ModelTurnOutcome.Unavailable : null);
-                model.ConversationReason.Should().Be(revoke is "reason" ? ModelTurnReason.CallerCancelled
-                    : criteriaEdit ? ModelTurnReason.UnregisteredModel : null);
-                model.ConversationTaskState.Should().Be(revoke is "task-state" ? HostTaskState.Cancelled
-                    : criteriaEdit ? HostTaskState.Unavailable : null);
-                workspace.FindControl<ComboBox>("ConversationOutcome")!.SelectedItem.Should().Be(model.ConversationOutcomeChoice);
-                compact.FindControl<ComboBox>("ConversationOutcome")!.SelectedItem.Should().Be(model.ConversationOutcomeChoice);
-                workspace.FindControl<ComboBox>("ConversationReason")!.SelectedItem.Should().Be(model.ConversationReasonChoice);
-                compact.FindControl<ComboBox>("ConversationReason")!.SelectedItem.Should().Be(model.ConversationReasonChoice);
-                workspace.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem.Should().Be(model.ConversationTaskStateChoice);
-                compact.FindControl<ComboBox>("ConversationTaskState")!.SelectedItem.Should().Be(model.ConversationTaskStateChoice);
                 workspace.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
                 compact.FindControl<ComboBox>("ConversationRole")!.SelectedItem.Should().Be(model.ConversationRole);
                 workspace.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
                 compact.FindControl<TextBox>("ConversationQuery")!.Text.Should().Be(model.ConversationQuery);
-                if (revoke is "cancel" or "escape" or "edit" or "role" or "lifecycle")
+                if (revoke is "cancel" or "escape" or "edit" or "role" or "from" or "through" or "task-state" or "lifecycle")
                 { model.ComposerBody.Should().Be("dirty independent"); }
             }
             finally { owner.Revoke(); }
@@ -344,32 +282,40 @@ public sealed partial class SessionsConversationTests
         await composed.Model.SelectAsync(composed.Model.Sessions.Single());
         composed.Model.ComposerBody = "dirty independent";
         composed.Model.ConversationQuery = "marker";
-        composed.Model.ConversationOutcome = ModelTurnOutcome.Unavailable;
-        composed.Model.ConversationReason = ModelTurnReason.UnregisteredModel;
-        composed.Model.ConversationTaskState = HostTaskState.Unavailable;
         await composed.Model.SearchConversationAsync();
         composed.Model.ConversationSearchMessages.Should().BeEmpty();
         composed.Model.ConversationQuery.Should().BeEmpty();
-        composed.Model.ConversationOutcome.Should().BeNull();
-        composed.Model.ConversationReason.Should().BeNull();
-        composed.Model.ConversationTaskState.Should().BeNull();
         composed.Model.ConversationSearchStatus.Should().Contain(snapshotChanged ? "Snapshot changed" : "unavailable");
         composed.Model.ComposerBody.Should().Be("dirty independent");
     }
 
     private sealed class SearchReader(
-        Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read)
+        Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read,
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null,
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? readMetadata = null)
         : ISessionWorkspaceStore, ISessionConversationStore
     {
         internal int Reads { get; private set; }
+        internal int DraftReads { get; private set; }
+        internal bool DenyReads { get; set; }
+        internal bool DenyDraftReads { get; set; }
+        internal Func<Task>? AfterDraftRead { get; set; }
         public ValueTask<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session, ConversationCursor? cursor,
             int limit, CancellationToken token)
         {
             Reads++;
+            if (DenyReads) { throw new IOException("Synthetic source-read denial."); }
             return read(session, cursor, limit, token);
         }
 
-        public ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) => throw new NotSupportedException();
+        public async ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            DraftReads++;
+            if (DenyReads || DenyDraftReads) { throw new IOException("Synthetic draft-read denial."); }
+            var result = await (readDraft ?? throw new NotSupportedException())(session, token);
+            if (AfterDraftRead is { } after) { await after(); }
+            return result;
+        }
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
@@ -380,7 +326,8 @@ public sealed partial class SessionsConversationTests
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) => throw new NotSupportedException();
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) => throw new NotSupportedException();
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
+            (readMetadata ?? throw new NotSupportedException())(session, cancellationToken);
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation> CancelWaitingTaskAsync(HostRequest control, HostTaskCancellationTarget target, Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();

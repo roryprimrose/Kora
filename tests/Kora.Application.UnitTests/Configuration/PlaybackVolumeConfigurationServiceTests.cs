@@ -25,6 +25,125 @@ public sealed class PlaybackVolumeConfigurationServiceTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Fact]
+    public async Task RelativeProposalCannotReenterAnApplyingOrPublishingAction()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        void AssertRefused() => FluentActions.Invoking(() => fixture.Service.ProposeAdjustment(
+            AudioPreferenceAdjustment.Decrease, fixture.Service.Get().Revision, fixture.Policy.Current.Revision))
+            .Should().Throw<InvalidOperationException>();
+        fixture.Audit.BeforeWrite = _ => AssertRefused();
+        fixture.Service.Changed += (_, _) => AssertRefused();
+        (await fixture.Set("30")).Should().BeTrue();
+        fixture.Preferences.Value.Should().Be(new PlaybackVolume(30));
+    }
+
+    [Theory]
+    [InlineData("2", "30")]
+    [InlineData("1", "101")]
+    [InlineData("1", "01")]
+    [InlineData("1", "")]
+    public async Task RelativeProposalCannotDefaultMalformedPersistedVolume(string version, string scalar)
+    {
+        await using var fixture = new Fixture();
+        var preferences = new LocalPlaybackVolumePreferences(new MalformedAudioPreferenceStore([version, scalar]));
+        var service = new PlaybackVolumeConfigurationService(preferences, fixture.Playback, fixture.Admission, fixture.Audit);
+        await FluentActions.Awaiting(() => service.RefreshAsync(RequestOrigin.LocalUi, static () => true, fixture.Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        FluentActions.Invoking(() => service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, service.Get().Revision, 0))
+            .Should().Throw<InvalidOperationException>();
+        service.Get().Available.Should().BeFalse();
+        service.Get().Desired.Should().BeNull();
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(30, AudioPreferenceAdjustment.Increase, 40)]
+    [InlineData(30, AudioPreferenceAdjustment.Decrease, 20)]
+    [InlineData(95, AudioPreferenceAdjustment.Increase, 100)]
+    [InlineData(5, AudioPreferenceAdjustment.Decrease, 0)]
+    [InlineData(100, AudioPreferenceAdjustment.Increase, 100)]
+    [InlineData(0, AudioPreferenceAdjustment.Decrease, 0)]
+    public async Task RelativeStepsUseHeldExactProposalsAndNeverAuditUnchangedBoundaries(int current, AudioPreferenceAdjustment adjustment, int expected)
+    {
+        await using var fixture = new Fixture();
+        fixture.Preferences.Value = new(current);
+        await fixture.Refresh();
+        var candidate = fixture.Service.ProposeAdjustment(adjustment, fixture.Service.Get().Revision, fixture.Policy.Current.Revision);
+        if (current == expected)
+        {
+            candidate.Should().BeNull();
+            fixture.Audit.Events.Should().BeEmpty();
+            fixture.Preferences.Writes.Should().Be(0);
+        }
+        else
+        {
+            candidate!.Value.Should().Be(new PlaybackVolume(expected));
+            (await fixture.Apply(candidate)).Should().BeTrue();
+            fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        }
+        fixture.Preferences.Value.Should().Be(new PlaybackVolume(expected));
+        fixture.Playback.SpeechCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("unadmitted")]
+    [InlineData("revision")]
+    [InlineData("saved")]
+    [InlineData("corrupt")]
+    [InlineData("pending")]
+    [InlineData("superseded")]
+    [InlineData("apply-saved")]
+    [InlineData("requested-audit")]
+    public async Task RelativeStepsNeverUseStaleOrCorruptDesiredState(string changed)
+    {
+        await using var fixture = new Fixture();
+        if (changed is not "unadmitted") { await fixture.Refresh(); }
+        var revision = fixture.Service.Get().Revision;
+        if (changed is "revision") { revision--; }
+        if (changed is "saved") { fixture.Preferences.Value = new(90); }
+        if (changed is "corrupt") { fixture.Preferences.ReadFailure = new InvalidDataException("corrupt volume"); }
+        if (changed is "pending") { fixture.Preferences.BeginWrite(); }
+        if (changed is "superseded" or "apply-saved" or "requested-audit")
+        {
+            var candidate = fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Decrease, revision, fixture.Policy.Current.Revision)!;
+            if (changed is "superseded") { fixture.Propose("50"); }
+            if (changed is "apply-saved") { fixture.Preferences.Value = new(80); }
+            if (changed is "requested-audit")
+            {
+                fixture.Audit.BeforeWrite = item => { if (item.Outcome == SecurityAuditOutcome.Requested) { fixture.Preferences.Value = new(80); } };
+            }
+            await FluentActions.Awaiting(() => fixture.Apply(candidate)).Should().ThrowAsync<Exception>();
+        }
+        else
+        {
+            FluentActions.Invoking(() => fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Decrease, revision, 0))
+                .Should().Throw<Exception>();
+        }
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        if (changed is "saved") { fixture.Preferences.Value.Should().Be(new PlaybackVolume(90)); }
+        if (changed is "apply-saved" or "requested-audit") { fixture.Preferences.Value.Should().Be(new PlaybackVolume(80)); }
+    }
+
+    [Fact]
+    public async Task RelativeProposalRefusesToOverwriteANewerCommittedVolume()
+    {
+        await using var fixture = new Fixture();
+        fixture.Preferences.Value = new(30);
+        await fixture.Refresh();
+        var stale = fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, fixture.Service.Get().Revision,
+            fixture.Policy.Current.Revision)!;
+        stale.Value.Should().Be(new PlaybackVolume(40));
+        (await fixture.Set("50")).Should().BeTrue();
+        await FluentActions.Awaiting(() => fixture.Apply(stale)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.Preferences.Value.Should().Be(new PlaybackVolume(50));
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Audit.Events.Count(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(1);
+        fixture.Service.Get().Available.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Genuine_audio_admission_atomic_audit_restart_reset_and_zero_have_no_playback_side_effects()
     {
         await using var fixture = new Fixture();

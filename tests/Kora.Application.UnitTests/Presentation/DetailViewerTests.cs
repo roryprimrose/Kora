@@ -8,8 +8,55 @@ using Kora.Core.Presentation;
 namespace Kora.Application.UnitTests.Presentation;
 
 [Collection("Host tracing")]
-public sealed class DetailViewerTests
+public sealed partial class DetailViewerTests
 {
+    [Fact]
+    public void GenuineAssistantAnswerRemainsSeparateFromOriginalSourceHostFindAndClipboardAndIsClearedOnRevocation()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var provenance = new Kora.Core.Dependencies.ModelTurnProvenance(new(Guid.NewGuid()), request,
+            Kora.Core.Dependencies.ModelProviderSelection.OllamaCandidate);
+        var message = new Kora.Core.Conversation.ConversationMessage(request, new(1), 1, 3, DateTimeOffset.UnixEpoch,
+            "original USER only", Kora.Core.Dependencies.ModelTurnOutcome.Succeeded, Kora.Core.Dependencies.ModelTurnReason.ProviderOutcome)
+        {
+            Version = 2, Execution = provenance, ExecutionMetadataRevision = 0,
+            AssistantResponse = new(provenance, "genuine ASSISTANT only"),
+        };
+        var content = new AdmittedDetailContent(new(new(request.RequestId.Value), 3), DetailContentKind.PlainText,
+            DetailContentOrigin.RetainedConversation, DetailSensitivity.DisclosureConfirmationRequired,
+            "Original USER / separate ASSISTANT", "Exact retained original and separately finalized answer", message.Body,
+            conversationMessage: message);
+        var live = true;
+        var state = new DetailViewerState(content, () => live);
+        state.ActiveText.Should().Be(message.Body);
+        state.AssistantText.Should().Be("genuine ASSISTANT only");
+        state.HostText.Should().Contain("Succeeded").And.NotContain("genuine ASSISTANT only");
+        state.TryGetCopySource(true, true, out _).Should().BeFalse();
+        state.Find("only", SnapshotFindDirection.First).Should().BeTrue();
+        state.MatchCount.Should().Be(1, "only the original USER body is counted, not the separately visible ASSISTANT");
+        state.Find("ASSISTANT", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0, "neither the assistant body nor the title enters USER Find");
+        state.SetFindHost(true);
+        state.MatchCount.Should().BeNull();
+        state.FindText.Should().NotContain("genuine ASSISTANT only");
+        state.Find("only", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0);
+        state.Find("Succeeded", SnapshotFindDirection.First).Should().BeTrue();
+        state.MatchCount.Should().Be(2, "the typed HOST observation includes outcome and task status");
+        state.MatchOrdinal.Should().Be(1);
+        state.SetFindHost(false);
+        state.MatchCount.Should().BeNull();
+        state.Find("Succeeded", SnapshotFindDirection.First).Should().BeFalse();
+        state.MatchCount.Should().Be(0);
+        live = false;
+        state.AssistantText.Should().BeEmpty();
+        state.ActiveText.Should().BeEmpty();
+        state.HostText.Should().BeEmpty();
+        state.Content.Should().BeNull();
+        state.MatchCount.Should().BeNull();
+        state.MatchOrdinal.Should().BeNull();
+    }
+
     [Fact]
     public void RetainedConversationDetailsDoNotGrantExactSourceOrSelectionDisclosure()
     {
@@ -26,12 +73,14 @@ public sealed class DetailViewerTests
         selection.Should().BeNull();
         state.Status.Should().Contain("do not grant clipboard");
         state.ActiveText.Should().Be(message.Body);
+        state.AssistantText.Should().BeEmpty();
     }
     [Fact]
     public void Reopening_exact_reference_reuses_state_but_new_revision_is_separate()
     {
         var registry = new DetailViewerRegistry();
         var item = Item();
+        new DetailViewerState(item).AssistantText.Should().BeEmpty();
         var first = registry.Open(item, true);
         registry.Open(item, true).Should().BeSameAs(first);
         var revision = Item(reference: new(item.Reference.ItemId, 2), source: "new answer");

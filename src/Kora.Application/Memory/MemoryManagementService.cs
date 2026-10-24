@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Memory;
 
 /// <summary>Original-user session proposals and management only. No use, model tool or disclosure entry point.</summary>
-internal sealed class MemoryManagementService : IAsyncDisposable
+internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemoryBatchActions
 {
     private readonly SessionWorkspaceService sessions;
     private readonly ManagementAccess access;
@@ -29,6 +29,8 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     {
         this.sessions = sessions;
         this.access = new(access);
+        contextSource = new(sessions, workspace, access, host, store, audit);
+        contextTime = time;
         Admission = new(workspace, this.access, host, new SessionMemoryScopeAccess(store, this.access, host),
             audit, logger, time, store);
         sessions.SessionRetired += ExpireSession;
@@ -42,18 +44,21 @@ internal sealed class MemoryManagementService : IAsyncDisposable
 
     internal void ClearVolatile()
     {
+        contextSource.Invalidate();
         Admission.ClearCache();
         ClearInspection();
     }
 
     internal void ClearSessionDrafts(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ClearSessionCache(session);
         ClearInspection();
     }
 
     internal void ExpireSession(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ExpireSession(session);
         lock (stateGate)
         {
@@ -64,12 +69,14 @@ internal sealed class MemoryManagementService : IAsyncDisposable
 
     private void ClearSession(HostId<SessionIdentity> session)
     {
+        contextSource.Invalidate();
         Admission.ClearSessionCache(session);
         ClearInspection();
     }
 
     internal async Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token)
+        Func<bool> admission, CancellationToken token, MemoryRecord? exactRecord = null,
+        Action<MemoryResult>? completed = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
@@ -90,6 +97,8 @@ internal sealed class MemoryManagementService : IAsyncDisposable
             throw new InvalidOperationException("Memory management requires fresh original local user input.");
         }
         if (command.Operation == MemoryCommandOperation.Invalid) { throw new InvalidOperationException(command.Error); }
+        if (command.Operation is not (MemoryCommandOperation.Help or MemoryCommandOperation.List or MemoryCommandOperation.Inspect))
+        { contextSource.Invalidate(); }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         token = linked.Token;
         await gate.WaitAsync(token).ConfigureAwait(false);
@@ -137,8 +146,16 @@ internal sealed class MemoryManagementService : IAsyncDisposable
                     id.Validate();
                     var revision = new HostRevision(command.Revision);
                     var record = rows.FirstOrDefault(row => row.Id == id);
-                    if (record is null) { result = new("NotFound", "No such memory belongs to the exact active session."); }
-                    else if (record.Revision != revision) { result = new("RevisionConflict", "Inspect the exact current revision before a fresh action."); }
+                    if (record is null)
+                    {
+                        result = new("NotFound", "No such memory belongs to the exact active session.");
+                        completed?.Invoke(new(MemoryOutcome.NotFound, MemoryReason.Missing));
+                    }
+                    else if (record.Revision != revision)
+                    {
+                        result = new("RevisionConflict", "Inspect the exact current revision before a fresh action.");
+                        completed?.Invoke(new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch));
+                    }
                     else if (command.Operation == MemoryCommandOperation.Inspect)
                     {
                         lock (stateGate) { inspections[id] = (record, control); }
@@ -163,11 +180,12 @@ internal sealed class MemoryManagementService : IAsyncDisposable
                             MemoryCommandOperation.Review => Admission.ReviewAsync(id, revision, command.Accept, token),
                             MemoryCommandOperation.Admit => Admission.AdmitAsync(id, revision, token),
                             MemoryCommandOperation.Edit => Admission.EditAsync(id, revision, command.Candidate, token),
-                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token),
-                            MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token),
+                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token, exactRecord),
+                            MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token, exactRecord),
                             _ => throw new InvalidOperationException("Unsupported memory management operation."),
                         };
                         var changed = await mutation.ConfigureAwait(false);
+                        completed?.Invoke(changed);
                         lock (stateGate) { inspections.Remove(id); }
                         result = new(changed.Outcome.ToString(), changed.Reason.ToString())
                         { Memories = changed.Record is { } updated ? [Summary(updated)] : [] };
@@ -194,6 +212,7 @@ internal sealed class MemoryManagementService : IAsyncDisposable
     private async Task CloseAsync()
     {
         disposed = true;
+        contextSource.Close();
         sessions.SessionRetired -= ExpireSession;
         sessions.SessionLifecycleChanged -= ClearSession;
         Admission.Dispose();

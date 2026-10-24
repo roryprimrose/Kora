@@ -21,13 +21,25 @@ public sealed class DiagnosticRetentionConfigurationService(
     private bool publishing;
 
     public event EventHandler? Changed;
+    public event EventHandler? ObservationChanged;
     public DiagnosticRetentionState Get() { lock (gate) { return state; } }
+    // Observation cannot acquire this gate: synchronous Changed callbacks retire the preview.
+    public DiagnosticRetentionObservation GetObservation() => new(Volatile.Read(ref state), policy.Revision);
+    public bool IsCurrentObservation(DiagnosticRetentionObservation observed) =>
+        !Volatile.Read(ref applying) && !Volatile.Read(ref publishing)
+        && ReferenceEquals(Volatile.Read(ref state), observed.State)
+        && observed.State.Effective is { } expected && policy.IsCurrent(expected, observed.PolicyRevision);
 
     public void Observe()
     {
         lock (gate)
         {
             if (applying || publishing) { throw new InvalidOperationException("Diagnostic retention is committing or notifying."); }
+            // Even an unchanged explicit observation retires a prior hypothetical result.
+            state = state with { };
+            publishing = true;
+            try { ObservationChanged?.Invoke(this, EventArgs.Empty); }
+            finally { publishing = false; }
             ObserveConfirmed(preferences.Load());
         }
     }

@@ -75,6 +75,22 @@ public sealed class ClipboardLiteralFindTests
         }
     }
 
+    [Fact]
+    public void SharedCountedExtractionPreservesClipboardReverseAndFirstCursorSemantics()
+    {
+        var snapshot = Snapshot("aaaaaXaa");
+        var last = new ClipboardLiteralMatch(snapshot, new(6, 2));
+        ClipboardLiteralFind.Find(snapshot, "aa", SnapshotFindDirection.Previous, last)!.Span.Start.Should().Be(3);
+        ClipboardLiteralFind.FindCounted(snapshot, "aa", SnapshotFindDirection.Previous, last)
+            .Match!.Span.Start.Should().Be(2);
+        var foreign = new ClipboardLiteralMatch(Snapshot("different"), new(int.MaxValue, int.MaxValue));
+        var result = ClipboardLiteralFind.FindCounted(snapshot, "aa", SnapshotFindDirection.First, foreign);
+        result.Match!.Source.Should().BeSameAs(snapshot);
+        result.Match.Span.Start.Should().Be(0);
+        result.Count.Should().Be(3);
+        result.Ordinal.Should().Be(1);
+    }
+
     [Theory]
     [InlineData("a A a", "A", 2)]
     [InlineData(" a  a ", " a ", 0)]

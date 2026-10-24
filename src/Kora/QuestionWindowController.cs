@@ -1,7 +1,9 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 
 using Kora.Application;
 using Kora.Application.Hosting;
+using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
 
@@ -9,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed partial class QuestionWindowController : IDisposable
+internal sealed partial class QuestionWindowController : IDisposable, IPendingQuestionNavigation
 {
     private readonly MainViewModel main;
     private readonly NativeQuestionHost host;
@@ -21,6 +23,8 @@ internal sealed partial class QuestionWindowController : IDisposable
     private NativeQuestionViewModel? state;
     private bool running;
     private bool disposed;
+    private int ownerUsers;
+    internal bool IsOwnerInUse => running || ownerUsers > 0 || window is not null;
 
     internal QuestionWindowController(MainViewModel main, NativeQuestionHost host, DurableVersionQuery query,
         IApplicationInfo info, NativeDetailRenderer renderer, Func<bool> ownsDesktop,
@@ -35,7 +39,9 @@ internal sealed partial class QuestionWindowController : IDisposable
         host.BindGate(() => !disposed && ownsDesktop() && main.CanRevealPrivatePresentation);
         if (admissionRevision is not null) { host.BindAdmissionRevision(admissionRevision); }
         host.BindCallObservation(() => main.CallObservation);
+        main.BindResponseReadDecisionGate(() => !disposed && !IsOwnerInUse);
         main.PrivacyClosureRequested += OnPrivacyClosure;
+        main.BindPendingQuestionNavigation(this);
     }
 
     internal async Task ReviewVersionAsync(Window owner)
@@ -48,6 +54,7 @@ internal sealed partial class QuestionWindowController : IDisposable
         }
         if (running) { await ReturnToCurrentQuestionAsync(owner); return; }
         window?.Close();
+        main.RetireCurrentResponseSpeech();
         running = true;
         try
         {
@@ -101,6 +108,7 @@ internal sealed partial class QuestionWindowController : IDisposable
     internal async Task ReturnToCurrentQuestionAsync(Window owner)
     {
         if (disposed) { return; }
+        ownerUsers++;
         try
         {
             var model = await host.ReturnToCurrentQuestionAsync(CancellationToken.None);
@@ -120,6 +128,10 @@ internal sealed partial class QuestionWindowController : IDisposable
             }
             QueryFailure(logger, exception.GetType().FullName);
         }
+        finally
+        {
+            ownerUsers--;
+        }
     }
 
     private void OpenExact(Window owner, NativeQuestionViewModel model)
@@ -131,6 +143,7 @@ internal sealed partial class QuestionWindowController : IDisposable
             if (ReferenceEquals(state, model)) { window.Activate(); }
             return;
         }
+
         state = model;
         window = new(model, renderer);
         var opened = window;
@@ -146,6 +159,38 @@ internal sealed partial class QuestionWindowController : IDisposable
         window.Activate();
     }
 
+    public IPendingQuestionFocus? CaptureFocus(Guid sessionId, Guid taskId)
+    {
+        var original = state;
+        var native = window;
+        if (disposed || original is null || native is null
+            || original.Key.Request.SessionId.Value != sessionId || original.Key.Request.TaskId.Value != taskId)
+        { return null; }
+        var eligible = host.CaptureFocusEligibility(original);
+        if (eligible is null) { return null; }
+        var nativeLifetime = native.CaptureFocusLifetime();
+        bool Exact() => !disposed && ReferenceEquals(state, original) && ReferenceEquals(window, native)
+            && eligible() && nativeLifetime() && main.CanRevealPrivatePresentation;
+        return new PendingFocus(async admitted =>
+        {
+            if (!admitted() || !Exact() || !await host.ValidateFocusAsync(original) || !admitted() || !Exact()) { return false; }
+            return await Dispatcher.UIThread.InvokeAsync(async () =>
+            {
+                if (!admitted() || !Exact() || !await host.ValidateFocusAsync(original) || !admitted() || !Exact())
+                { return false; }
+                if (!await native.FocusExistingAsync(() => admitted() && Exact()) || !admitted() || !Exact()) { return false; }
+                return await host.ValidateFocusAsync(original) && admitted() && Exact();
+            });
+        });
+    }
+
+    private sealed class PendingFocus(Func<Func<bool>, Task<bool>> focus) : IPendingQuestionFocus
+    {
+        private int used;
+        public Task<bool> FocusAsync(Func<bool> isAdmitted) =>
+            Interlocked.Exchange(ref used, 1) == 0 ? focus(isAdmitted) : Task.FromResult(false);
+    }
+
     private void OnPrivacyClosure(object? sender, EventArgs args)
     {
         state?.Close("Privacy closed. The original question cannot be answered through this window.");
@@ -158,6 +203,7 @@ internal sealed partial class QuestionWindowController : IDisposable
     {
         if (disposed) { return; }
         disposed = true;
+        main.BindPendingQuestionNavigation(null);
         main.PrivacyClosureRequested -= OnPrivacyClosure;
         host.BindGate(static () => false);
         OnPrivacyClosure(this, EventArgs.Empty);

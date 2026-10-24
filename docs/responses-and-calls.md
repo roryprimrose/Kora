@@ -4,28 +4,149 @@
 
 Kora supports three response modes:
 
-- **Both audible and visual** - show text and speak when speech is available.
-- **Audible only** - prefer speech without ordinary response text.
-- **Visual only** - show text and do not speak.
+- **Text and speech** - show text and speak when speech is available.
+- **Speech only** - prefer speech without ordinary response text.
+- **Text only** - show text and do not speak.
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
 Ordinary speech is additionally admitted only when its complete title/body
 fits the device-local spoken summary caps (default **3 sentences / 80 words**).
 Either cap can be lowered in Speech & audio. Over-cap results retain their full
-visual text, with an explicit **Speech withheld** status even in Audible only
+visual text, with an explicit **Speech withheld** status even in Speech only
 mode; there is no truncation, extra model call or replay.
 Required questions/options and exact security-sensitive readback keep their
 existing mandatory bounds and privacy gates, not ordinary-summary truncation.
 See [the exact counting contract](settings.md#spoken-summary-limits).
 
-The independently stored legacy **Muted speaker fallback** preference remains
+The independently stored **Earlier muted-speaker preference** remains
 outside the delivered mode registry. Its default and storage are unchanged;
 it cannot suppress mandatory complete visual recovery for missing, muted,
 zero-volume, unavailable or failed output. The original response remains available,
 not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
+
+## Exact current-response window actions
+
+`dismiss current response` and `open current response details` use the same native
+controllers as **Dismiss** and **Current response details**. `current response help`
+lists the exact grammar. Activated voice requires the current assistant-name prefix.
+Only the original visible ordinary response is eligible: never a question,
+approval, preview, raw source or a newer response selected while work was queued.
+Native acknowledgement is required; privacy/ownership/input/call changes, source
+retirement or an unavailable native host fail closed. Details retire with that
+response and grant no clipboard authority. These actions do not change topmost,
+always-show or any other saved preference, speak, invoke a model or pin content.
+See [exact commands](commands.md#dismiss-or-inspect-the-exact-current-response).
+
+## Static HTML result boundary
+
+An explicitly host-admitted static HTML result uses a separate `static-html-v1` detail route. This profile is **not qualified or enabled by default**: the existing native viewer shows the complete admitted source with a qualification-unavailable status, not a claimed rich preview.
+Ordinary text and Markdown are not reclassified as HTML ([route and default](../src/Kora/StaticHtmlDetailRenderer.cs), [viewer dispatch](../src/Kora/DetailWindowController.cs)).
+
+The implementation supports only a strict inert fragment subset: headings, paragraphs, lists, quotations, preformatted text and basic inline text. It rejects attributes, document styling, links, forms, scripts, resources and unsupported or malformed markup as a whole; it does not repair arbitrary HTML or silently strip unsafe parts ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+Exact source remains available, subject to the original source/privacy lifetime. Opening or closing details grants no new clipboard, execution, network or file access ([profile limits](../src/Kora.Core/Presentation/StaticHtmlProfile.cs), [viewer lifecycle](../src/Kora/DetailWindowController.cs)).
+
+## Deliberate current-response playback
+
+**Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.
+It retains the complete answer, uses normal speech admission and both summary caps, and refuses VisualOnly and all protected calls; no speak-once call exception is delivered ([native controls](../src/Kora/ResponseWindow.axaml), [host action](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
+Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
+Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+## Reviewed earlier conversation context
+
+In Sessions, explicitly read the selected conversation, then choose **Review earlier messages for a follow-up**. Select whole earlier USER and/or finalized ASSISTANT messages from that observed page, write the new request, and choose **Review complete selection and request**. Read the complete review before separately confirming one local-only tool-free follow-up ([native workflow](../src/Kora/SessionsViewModel.HistoryContext.cs)).
+
+Only selected messages from that exact conversation are admitted, in original order. Shared limits are 16 selected messages and 32,768 UTF-8 bytes for the complete model envelope, including policy, request and framing. Oversized selections fail explicitly; nothing is silently shortened or dropped. Prior text is inert evidence, not instructions, approval or hidden learning ([history policy](../src/Kora.Core/Conversation/ConversationHistoryContext.cs)).
+
+The review expires after 60 seconds. Editing the new request or selection, closing review, privacy/control loss, changed or deleted source, or a changed conversation invalidates the operation. Successful admitted local execution retains a genuine ASSISTANT answer separately; unavailable runtime returns an explicit HOST failure without a provider call. Unknown commits remain held for inspection, never automatic retry ([review and submission](../src/Kora.Application/Hosting/SessionConversationService.History.cs)).
+
+Ordinary **Submit** remains unchanged: it does not implicitly include history, memory or attachments. This opt-in operation adds no tools, hosted transfer, saved drafts or memory creation ([ordinary submission policy](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
+## Return focus to a pending question
+
+[`open pending question <session-id> <task-id>`](commands.md#focus-the-exact-pending-native-question)
+only focuses the exact still-open, current host-owned native question.
+It cannot reopen dismissed or historical questions, select a different session,
+replace a draft answer or answer/approve by command. `pending question help`
+displays constant syntax, not question content or current IDs.
+Navigation status is separate from the current response and transcript;
+question controls retain their existing explicit one-shot answer behavior.
+
+## Conversation clarification
+
+A conversation sent using **Submit with one clarification** in Sessions or
+its compact view can use the existing native question window for **one**
+structured clarification during that exact model turn. Ordinary **Submit exact
+message** keeps its existing final-answer/read-only-tool behavior; it does not
+automatically acquire question continuation. The clarification route is a
+tool-free local request: it does not silently include
+history, memory, attachments or instructions. Models and profiles that are not
+qualified remain explicitly unavailable; this implementation does not enable
+either local inference or hosted egress.
+
+The model must issue a supported structured question, not prose that looks
+like a question or approval. The supported shape is either two to four
+single-choice labels or free text bounded to 500 characters. Other shapes,
+including multi-select proposals, are refused rather than converted to yes/no
+or a different answer shape. The ordinary host question controls keep their
+existing declared multi-select rules for other workflows.
+
+Review the question, then explicitly **Submit answer**, or use **Answer by
+voice** / **Hear then answer** when the one exact foreground question and
+current voice, microphone, privacy and call gates permit it. Saving a draft
+does not submit it. The host retains the original request channel and the
+actual reply channel; voice input is never relabelled as native typed input.
+Clarification cannot approve an action, grant tool permission or collect a
+credential.
+
+The original turn's fixed 15-second deadline is not renewed by opening,
+reviewing or drafting an answer. Only a fresh submitted answer for the same
+session, generation, task and question revision can resume that turn, once.
+**Refresh running work** and **Cancel this running conversation task** inspect
+and cancel that exact turn in Sessions or its compact view, including while
+the clarification is pending. Cancellation acceptance is not terminal success:
+the host joins the question/voice/provider work before retaining a cancelled
+outcome. Once terminal storage owns the outcome, cancellation cannot roll back
+the answer ([canonical lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs),
+[exact cancellation controls](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+Cancellation, expiry, changed ownership, an unavailable audit/store, a foreign
+answer or any uncertain state prevents continuation. There is no replay,
+automatic retry or provider fallback. Inspect the original conversation/task
+outcome and explicitly start a fresh request when recovery is needed.
+
+After a successful continuation, the genuine final ASSISTANT answer is retained
+separately from the original USER message. A refusal or provider failure has an
+explicit HOST terminal outcome, not a fabricated answer. If a privacy/source
+change prevents terminal confirmation, the original request remains
+unconfirmed for inspection; no successful retention is inferred.
+
+## Cancel an exact running conversation
+
+In Sessions, **Refresh running work** observes only the selected exact active conversation.
+When an admitted turn is running, its actual task appears beside **Cancel this running conversation task**.
+This separate control remains available during submission; it does not select work by message text or cancel another session
+([native controls](../src/Kora/SessionsWindow.axaml), [presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+
+Choosing Cancel requests cancellation once. **Cancelling** means the request was accepted, not that the provider has stopped.
+Kora joins its owned provider work and cancellation callbacks before confirming terminal retention; a non-cooperative provider keeps that operation pending.
+Late answers and faults cannot replace the cancelled conversation with success
+([lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [lease](../src/Kora.Application/Hosting/ConversationCancellationLease.cs)).
+
+After a confirmed join and readback, the conversation reports **Cancelled** with no assistant answer.
+Its durable dispatched task remains **Unknown**, not a claimed rollback.
+If terminal storage, audit or private admission cannot be confirmed, inspect the exact original task without retrying.
+If terminal storage wins first, cancellation is refused and the actual committed answer remains
+([task rules](../src/Kora.Core/Conversation/ConversationMessage.cs), [race and failure tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ConversationCancellation.cs)).
+
+Cancellation requires fresh original-user control, exact task/session/generation ownership and trusted audit.
+Private closure clears the displayed target and cannot authorize later controls.
+This does not add a global stop command, provider retry, history deletion or production runtime qualification; bundled unqualified providers remain unavailable
+([cancellation admission](../src/Kora.Application/Hosting/SessionConversationService.Cancellation.cs), [provider gates](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
 
 ## Output precedence
 
@@ -38,14 +159,15 @@ Response selection has this precedence, before all mandatory policy gates:
 4. **Session** - shared resolver seam; no new session control is delivered.
 5. **Device default** - persisted locally.
 
-Choose **Inherit** for the task or queue choice to return to the next broader
+Choose **Use default** for the task or queue choice to return to the next broader
 scope. These presentation controls are outside the admitted device-default
 registry, not delivered durable session/task/queue configuration or execution.
 The device default and independent in-call preference have shared admitted
 native/exact workflows; neither changes call policy or the legacy fallback.
 
-In-call **Voice / UI / Both** map to audible/visual/both preference, never
-speech permission. **Inherit** restores ordinary selection. Unknown/invalid call
+In-call **Speech only / Text only / Text and speech** map to the internal
+Voice/UI/Both preferences, never speech permission. **Use normal response settings**
+(Inherit in typed commands) restores ordinary selection. Unknown/invalid call
 evidence does not activate feedback but always withholds speech and requires
 full visual recovery; Clear/Unavailable uses ordinary output. A Voice/Both choice
 cannot bypass independent call suppression, privacy/lock/capture, mute/zero,
@@ -84,15 +206,14 @@ Drag the response title area to reposition the window. Its last position is
 stored on this device and restored when that position remains on a connected
 display.
 
-Configure these controls under **Settings > Appearance > Visual feedback**:
+Configure these controls in the **Appearance** group under **Settings > Appearance** ([settings layout](../src/Kora/SettingsWindow.axaml)):
 
 - **Always show** - bypass the response timeout until **Dismiss** is selected;
 - **Stay on top** - keep the response above other windows; on by default;
 - **Response timeout** - set the response window's 1-60 second inactivity
   interval, default **5 seconds**.
 
-Presence has a separate **Presence timeout** setting under **Appearance >
-Presence appearance**, default **10 seconds**. It automatically hides after
+Presence has a separate **Presence timeout** setting in the **Presence** group under **Settings > Appearance**, default **10 seconds** ([settings layout](../src/Kora/SettingsWindow.axaml)). It automatically hides after
 inactivity while idle or listening without a pending prompt, but remains
 visible for work, speech, and required attention. **Always show** applies only
 to the response window.
@@ -191,3 +312,20 @@ The current Windows bootstrap reports automatic call detection as unavailable.
 An open communications application alone is not treated as proof of a call.
 Native accessibility, real-call detection, acoustic leakage and output-stop
 timing still require separately approved acceptance.
+
+## Reviewed session memory conversation
+
+In **Sessions > Session memories**, explicitly list the exact active session, select one to sixteen enabled reviewed memories in the conversation subset, and enter a request. Selection reads metadata only.
+**Review selected memory and request** shows every complete value, classification, session scope and request; it does not authorize model use ([native route](../src/Kora/SessionsViewModel.MemoryContext.cs)).
+
+**Confirm ONE local-only tool-free turn** separately authorizes that exact reviewed request. The full serialized input must fit 32768 UTF-8 bytes; nothing is truncated. Reviews expire after two minutes.
+A genuine final answer is displayed as ASSISTANT and retained through the existing conversation path; unavailable or denied HOST status is not an answer. Unqualified providers remain unavailable ([workflow](../src/Kora.Application/Memory/SessionMemoryContext.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.MemoryContext.cs)).
+
+Changed, disabled, forgotten, foreign, stale or unreviewed memory cannot be used. Memory management, private-access loss, navigation, cancellation and expiry retire pending review/use and clear its source bodies; late provider results cannot become a successful answer.
+Inspection/use never changes retention or remembers a new fact ([source admission](../src/Kora.Application/Memory/SessionMemoryContextSource.cs), [review lifecycle](../src/Kora.Application/Memory/SessionMemoryContextReview.cs)).
+
+Private source reads use their own host-owned control intent and confirmed terminal receipt before disclosure. This does not remember content or alter a selected memory's revision ([read admission](../src/Kora.Application/Hosting/SessionWorkspaceService.MemoryContext.cs)).
+The retained turn uses the shared execution/cancellation lifecycle; an accepted running-turn cancellation waits for provider quiescence and retains Cancelled, never a late answer ([canonical execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Ordinary conversation Send remains no-memory. This route does not recall/rank memory automatically, combine other context, promote scopes, invoke tools or transmit to hosted providers.
+Selected source bodies are volatile input, not copied into saved conversation history; retained requests and answers follow normal conversation retention ([default and explicit admission](../src/Kora.Application/Hosting/SessionConversationService.cs)).

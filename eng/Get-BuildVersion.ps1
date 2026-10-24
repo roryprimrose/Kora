@@ -1,7 +1,9 @@
 [CmdletBinding()]
 param(
     [string] $RepositoryPath = (Join-Path $PSScriptRoot '..'),
-    [string] $OutputFile
+    [string] $OutputFile,
+    [string] $ExpectedRevision,
+    [switch] $ValidationOnly
 )
 
 Set-StrictMode -Version Latest
@@ -18,17 +20,22 @@ function Invoke-Git {
 $revision = Invoke-Git -Arguments @('rev-parse', 'HEAD')
 $branch = Invoke-Git -Arguments @('branch', '--show-current')
 $actions = $env:GITHUB_ACTIONS -eq 'true'
-if ($actions -and $env:GITHUB_SHA -ne $revision) { throw 'Checkout revision differs from the workflow source revision.' }
+if ($ExpectedRevision -and (-not $ValidationOnly -or $ExpectedRevision -cnotmatch '^[0-9a-f]{40}$')) {
+    throw 'An explicit source revision requires validation-only mode and an exact SHA.'
+}
+if ($ValidationOnly -and -not $ExpectedRevision) { throw 'Validation-only mode requires an exact expected revision.' }
+$workflowRevision = if ($ExpectedRevision) { $ExpectedRevision } else { $env:GITHUB_SHA }
+if (($actions -or $ExpectedRevision) -and $workflowRevision -ne $revision) { throw 'Checkout revision differs from the workflow source revision.' }
 $isPullRequest = $actions -and $env:GITHUB_EVENT_NAME -eq 'pull_request'
 $isTag = $actions -and $env:GITHUB_REF -like 'refs/tags/*'
-$main = -not $isPullRequest -and (($actions -and $env:GITHUB_REF -eq 'refs/heads/main') -or
+$main = -not $ValidationOnly -and -not $isPullRequest -and (($actions -and $env:GITHUB_REF -eq 'refs/heads/main') -or
     (-not $actions -and $branch -eq 'main'))
 $checkoutTags = @(Invoke-Git -Arguments @('tag', '--points-at', 'HEAD'))
 $stableTags = @($checkoutTags |
     Where-Object { $_ -cmatch '^v?(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$' } |
     ForEach-Object { $_ -creplace '^v', '' } | Sort-Object -Unique)
 
-if ($isTag) {
+if ($isTag -and -not $ValidationOnly) {
     if ($env:GITHUB_REF -cnotmatch '^refs/tags/v(0|[1-9]\d*)\.(0|[1-9]\d*)\.(0|[1-9]\d*)$') {
         throw 'Release tag builds require v<major>.<minor>.<patch>; beta releases are produced by main builds.'
     }

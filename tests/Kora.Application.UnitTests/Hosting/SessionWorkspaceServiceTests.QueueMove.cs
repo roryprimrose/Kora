@@ -43,16 +43,15 @@ public sealed partial class SessionWorkspaceServiceTests
     {
         using var f = new Fixture();
         await using var queue = f.QueueService();
-        var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
         await AddMovePair(f, queue);
         var original = f.QueueRows.ToArray();
         var writes = f.TaskWrites.Count;
-        var review = (await workspace.ExecuteCommandAsync(MoveCommand(f, up), origin, () => true, f.Token)).QueueMoveReview!;
+        var review = (await queue.ExecuteCommandAsync(MoveCommand(f, up), origin, () => true, f.Token)).QueueMoveReview!;
         f.TaskWrites.Should().HaveCount(writes, "reviewing does not acquire a mutation intent or renew activity");
         review.Selected.Should().Be(up ? original[1] : original[0]);
         review.Neighbor.Should().Be(up ? original[0] : original[1]);
         review.ObservedAt.Should().Be(f.QueueTime.GetUtcNow());
-        var result = await workspace.ExecuteCommandAsync(ConfirmMove(review), origin, () => true, f.Token);
+        var result = await queue.ExecuteCommandAsync(ConfirmMove(review), origin, () => true, f.Token);
         result.Outcome.Should().Be("committed");
         result.Queue!.Entries.Should().Equal(original.Reverse());
         f.QueueRows.Should().Equal(original);

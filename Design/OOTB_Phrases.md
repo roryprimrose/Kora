@@ -19,6 +19,9 @@ Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Bundled Skill
 
 ## Invocation and Routing
 
+Delivered bounded Settings navigation has exactly [seven whole-utterance phrases](../docs/commands.md#open-an-exact-settings-tab) for the existing Appearance, Speech & audio, Responses, Sessions and Calls tabs.
+It is navigation only, not a setting, endpoint, consent, capture or approval action; the broader natural-language catalogue below remains proposed ([parser](../src/Kora.Application/Configuration/SettingsSectionCommand.cs), [singleton controller](../src/Kora/SettingsWindowController.cs)).
+
 Prepend any currently active activation name to every phrase below. Examples use the default "Kora", for example "Kora, lock the machine".
 Users can rename activation and choose custom-only or both default/custom through [Custom Activation Names](Activation_Name.md); the application remains Kora.
 Optional PTT supplies activation without the wake word. Typed requests enter
@@ -223,6 +226,12 @@ Speech-setting acknowledgements obey the new policy rather than speaking through
 All voice-setting/in-call-option mutations, including reset/undo and speak-once exceptions, obey the [in-call origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate); rejected requests are not queued or relabeled by a later approval click.
 
 ## Verbal Settings
+
+Delivered spoken-summary budget aliases are **show spoken summary limits**, **set spoken summary sentence limit to 2**, **set spoken summary word limit to 40**, **reset spoken summary sentence limit** and **reset spoken summary word limit**. Use exact whole utterances and canonical integers ([parser](../src/Kora.Application/Configuration/SpeechCommand.cs)).
+
+Activated voice requires the current assistant-name prefix; typed input may omit it ([dispatch](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+These change future ordinary-speech admission only, not output content or an instruction to speak now. Each reset preserves the valid companion cap; unknown saved companion state is refused. Pending questions/approvals remain untouched ([workflow and scope](User_Configuration.md#delivered-bounded-spoken-summary-limits-r10)).
 
 Delivered caption controls are exact `list speech text settings` and
 `get/status/set/reset display.speech-text`, `display.speech-text-placement`,

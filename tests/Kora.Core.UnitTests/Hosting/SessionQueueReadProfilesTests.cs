@@ -16,7 +16,7 @@ public sealed class SessionQueueReadProfilesTests
     [InlineData(SessionQueueReadProfile.Capabilities, ReadOnlyCapabilityCatalog.List, ReadOnlyCapabilityCatalog.List)]
     [InlineData(SessionQueueReadProfile.Readiness, ReadOnlyCapabilityCatalog.Readiness, ReadOnlyCapabilityCatalog.Readiness)]
     [InlineData(SessionQueueReadProfile.Runtimes, ReadOnlyCapabilityCatalog.RuntimeList, ReadOnlyCapabilityCatalog.RuntimeList)]
-    public void Exact_typed_and_current_name_grammar_select_only_a_closed_no_argument_profile(
+    public void InternalClosedProfilesRemainValidWhileTypedQueueAdmissionIsRetired(
         SessionQueueReadProfile profile, string word, string id)
     {
         SessionQueueReadProfiles.CapabilityId(profile).Should().Be(id);
@@ -24,10 +24,9 @@ public sealed class SessionQueueReadProfilesTests
         var prefix = $"queue enqueue {Guid.NewGuid():D} 1 0 {Guid.NewGuid():D} {Guid.NewGuid():D} ";
         foreach (var activation in new[] { "", "Luna, " })
         {
-            SessionCommand.Parse(activation + prefix + word, "Luna")!.QueueProfile.Should().Be(profile);
+            SessionCommand.Parse(activation + prefix + word, "Luna")!.Operation.Should().Be(SessionCommandOperation.Invalid);
             var command = SessionCommand.Parse(activation + prefix + word + $" after {Guid.NewGuid():D}", "Luna")!;
-            command.Operation.Should().Be(SessionCommandOperation.QueueEnqueue);
-            command.QueueProfile.Should().Be(profile);
+            command.Operation.Should().Be(SessionCommandOperation.Invalid);
         }
         foreach (var injection in new[] { " {}", " count 1", " offset 1", " page 2", " after invalid", " {\"id\":\"other\"}" })
         {

@@ -3,6 +3,13 @@
 Status: canonical three-tier qualification policy and capability acceptance
 criteria. Targets are not claims of measured performance.
 
+## Product Admission Before Qualification
+
+The [approved product scope](MVP_Scope.md#product-admission-and-realignment) decides what work belongs in Kora; the tiers below decide whether its implementation, enabled profile or release is proven. Passing tests, coverage or containment does not approve a feature. Product approval likewise does not waive any required test, security boundary or qualification.
+
+For each new feature, state the approved user outcome and demonstrate the useful interaction, including denial, cancellation and unavailable behavior.
+Label navigation/preparation as such; do not claim that filling a field completes the requested task or that a diagnostic-only scaffold proves general execution. Bounded deterministic increments remain admissible toward approved outcomes without unrelated E/Q trials.
+
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md).
 
 The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
@@ -528,6 +535,55 @@ These are proposed release targets, not measured detector capabilities.
 Wake activation is mandatory for Slice A: shipping PTT alone does not pass this gate.
 If the detector fails, change/tune the local implementation or explicitly revisit supported hardware; do not defer activation or switch to cloud listening.
 
+### Configurable Local Speech Input Gate
+
+The [approved input design](Speech_Input.md) adds these affected-profile checks;
+it does not replace or lower the performance, wake, privacy or speaker gates.
+Apply the three-tier policy: deterministic maintained checks gate the consumed
+implementation, actual profile evidence gates enablement, and integrated final
+bytes gate the enabled RC scope.
+
+- Prove zero speech-provider network requests during wake listening, activated
+  transcription and optional verification/learning, including when hosted
+  reasoning is selected. Explicit model download is a separate setup operation;
+  no local failure or resource pressure can enable hosted speech.
+- Test final-only, at-most-once text admission with frozen provider/configuration
+  and generation. Partial, duplicate, stale, cancelled and cross-session results
+  cannot route commands or answer a different question.
+- Test missing/corrupt assets, unsupported CPU/GPU/language/name, unload while
+  busy, failed cleanup, consent withdrawal, profile switching and late callbacks.
+  Selection/presets never clear recovery holds, acquire consent, silently
+  substitute a provider or disable selected speaker protection.
+- Compare exact model/runtime/backend bytes on recorded Windows hardware,
+  reporting cold versus warm latency, configured idle unloading, wake-only cost,
+  peak CPU/GPU/memory and contention with local reasoning. Measure end-of-speech
+  to final text and intended-command outcomes, not word error rate alone.
+- Include silence/noise, short commands, names/numbers/negation, immediate
+  wake-and-command, accents, playback and mixed-speaker handoff. Hallucinated or
+  vocabulary-biased command text must not pass critical wrong-action fixtures;
+  calibrate admission independently per engine, not by reusing Windows scores.
+- Optional local setup comparisons are explicitly started, bounded and inert:
+  phrases cannot execute, approve, collect task context, retain audio or confer
+  ongoing listening. Cancel preserves prior settings; this is not the existing
+  no-transcription microphone test or release qualification.
+- Exercise the [shared optional-component lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle)
+  through both Burn and Settings: unchecked/skip/reuse/install/verify,
+  unavailable/incompatible assets, insufficient resources, failed/cancelled
+  acquisition and retry. Preflight never downloads, loads models or records.
+  Optional failure retains Kora; both entry points use the same pinned catalogue
+  and verification policy, without provider selection or microphone consent.
+  Test current-user/all-users scope with non-elevated asset ownership,
+  shared-component/in-use removal, retained preferences and upgrade/repair/
+  uninstall compatibility. Packaging/native-loader changes require the affected
+  exact-byte evidence; no model-data choice waives launch prerequisites.
+- For every advertised learning mechanism, compare baseline and personalized
+  recognition on held-out eligible utterances without training/test leakage.
+  Record bounded update time/state/resources and regression/drift cases; an
+  accepted transcript/completed command is not a correctness or owner label.
+  Consent loss cancels adaptation, uncertain/playback/mixed/reply samples are
+  excluded, incompatible versions are unavailable and unstable updates cannot
+  silently replace known-good state or an enrolled verification identity.
+
 ### Shared-Space and Optional Speaker-Verification Gate
 
 - With verification absent/disabled, baseline deliberate voice/UI interaction remains available under normal output/privacy policy. With owner-aware privacy enabled but unhealthy/stale/uncertain, private content uses a neutral visual notice rather than silently disabling protection.
@@ -804,6 +860,7 @@ Verify:
 - Advance clocks around 30/90/365-day audit boundaries and different diagnostic/session policies. Search/browse/export/reasoning does not refresh due times; session deletion preserves only independently retained content-minimising audit rows; audit expiry preserves unrelated diagnostics and perpetual grants.
 - Reject audit retention below 30 or above 365 days. The [delivered bounded option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04) defaults/resets to 90 and applies only to NEW committed required authority audit and independently qualified diagnostic audit projections; prior-policy requested/terminal receipts, atomic readback and durable intent outcome precede activation. Existing deadlines, bytes, grants and relationships remain unchanged. Apply-now/immediate deletion/audit pruning are unavailable in that delivery. The broader proposed shortening preview/affected count/time range and separately confirmed apply-now flow remains unimplemented; extending retention cannot resurrect purged rows.
 - Audit expiry leaves a verifiable retention continuation/checkpoint and latest minimal chain anchor without retained action/content payload. Removing, editing, or forging `application_log_events` or daily JSON cannot authorize an action, satisfy an approval, alter a receipt, or conceal an unknown effect in retained `security_audit_events`.
+- For the [read-only ordinary diagnostic shortening preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview), verify exact 1/365-day domain boundaries, original-deadline/newly-due cutoff rules, separately qualified log/span/owned-link counts and timing ranges, retained typed audit exclusion and guarded prefix admission. Malformed irrelevant rows, partial/orphan linkage, unknown private/schema/protected state and row/encoded-byte overflow cannot yield false zero or partial aggregates. Explicit native Preview alone reads; edits, newer observations/configuration or source/control ABA, cancel/timeout/failure, private closure, disposal and monotonic expiry retire results without replay or stale/reentrant publication. Tests must preserve database/journal/authority bytes, validation-cache counters, policy and foreground question/approval state. Authored tests await serial validation; no coverage or READY claim is made.
 
 ## Distribution and Startup Gate
 

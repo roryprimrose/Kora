@@ -136,16 +136,17 @@ public sealed partial class SessionsViewModelTests
             .And.Contain("Mark selected ID _Done").And.Contain("Explicitly res_ume selected ID");
         document.Descendants().Should().NotContain(element =>
             element.Name.LocalName == "WebView" || element.Name.LocalName == "SelectableTextBlock");
-        document.Descendants().Where(element => string.Equals(element.Name.LocalName, "TextBox", StringComparison.Ordinal))
-            .Should().HaveCount(51, "name, exact history ID, metadata/history/conversation queries, three retained receipt correlation IDs, eight receipt provenance bounds, two conversation correlation IDs and eight ranges, six session-list numeric bounds, three local-event correlation IDs and eight range bounds, memory and scope identity GUIDs and four inclusive range filters, memory drafts and the exact-session memory-only composer are independent native inputs");
+        var memoryBatchDetail = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
+            && string.Equals(element.Attribute("Text")?.Value, "{Binding MemoryBatchDetail, Mode=OneWay}", StringComparison.Ordinal));
+        memoryBatchDetail.Attribute("IsReadOnly")!.Value.Should().Be("True");
+        memoryBatchDetail.Attribute("AcceptsReturn")!.Value.Should().Be("True");
+        memoryBatchDetail.Attribute("MaxLength").Should().BeNull("complete reviewed content must not be truncated");
+        memoryBatchDetail.Attribute("AutomationProperties.Name")!.Value.Should().Contain("exact records and classifications")
+            .And.Contain("per-record direct results");
         foreach (var binding in new[] { "HistoryRequestId", "HistoryTaskId", "HistorySourceId" })
         {
-            var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
-                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
-            field.Attribute("MaxLength").Should().BeNull("malformed retained IDs must be rejected, never truncated into valid IDs");
-            field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanRead}");
-            field.Attribute("AutomationProperties.Name")!.Value.Should().Contain("canonical lowercase D GUID")
-                .And.Contain("empty means Any").And.Contain("historical correlation only");
+            document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
+                "{Binding " + binding + ", Mode=TwoWay}", StringComparison.Ordinal));
         }
         var scopeIdentity = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && string.Equals(element.Attribute("Text")?.Value,
@@ -156,29 +157,18 @@ public sealed partial class SessionsViewModelTests
             .Contain("canonical D").And.Contain("Any").And.Contain("snapshot metadata only");
         foreach (var binding in new[] { "ConversationRequestId", "ConversationTaskId" })
         {
-            var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
-                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
-            field.Attribute("MaxLength").Should().BeNull("malformed correlation IDs must be rejected, never truncated into valid IDs");
-            field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReadConversation}");
-            field.Attribute("AutomationProperties.Name")!.Value.Should().Contain("canonical lowercase nonempty D GUID")
-                .And.Contain("empty means Any").And.Contain("AND with all predicates").And.Contain("editing does not read");
+            document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
+                "{Binding " + binding + ", Mode=TwoWay}", StringComparison.Ordinal));
         }
-        foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence",
-            "ConversationSubmittedFrom", "ConversationSubmittedThrough" })
+        foreach (var binding in new[] { "ConversationMinimumSequence", "ConversationMaximumSequence" })
         {
-            var range = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
-                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}, Mode=TwoWay}}", StringComparison.Ordinal));
-            range.Attribute("MaxLength").Should().BeNull("malformed conversation bounds must be rejected, not truncated");
-            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanReadConversation}");
-            range.Attribute("AutomationProperties.Name")!.Value.Should().Contain("Inclusive").And.Contain("editing does not read");
+            document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
+                "{Binding " + binding + ", Mode=TwoWay}", StringComparison.Ordinal));
         }
         foreach (var property in new[] { "LocalEventSessionIdFilter", "LocalEventTaskIdFilter", "LocalEventSubjectIdFilter" })
         {
-            var field = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
-                && element.Attribute("Text")?.Value.Contains(property, StringComparison.Ordinal) == true);
-            field.Attribute("MaxLength").Should().BeNull("invalid IDs must be rejected, never truncated into valid IDs");
-            field.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterLocalEvents}");
-            field.Attribute("AutomationProperties.Name")!.Value.Should().Contain("correlation only, never retargets or authorizes");
+            document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
+                "{Binding " + property + "}", StringComparison.Ordinal));
         }
         foreach (var binding in new[] { "MemoryMinimumRevisionFilter", "MemoryMaximumRevisionFilter",
             "MemoryCreatedFromFilter", "MemoryCreatedUntilFilter" })
@@ -193,12 +183,8 @@ public sealed partial class SessionsViewModelTests
             "LocalEventObservedFromUtcFilter", "LocalEventObservedUntilUtcFilter",
             "LocalEventExpiresFromUtcFilter", "LocalEventExpiresUntilUtcFilter" })
         {
-            var range = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
-                && string.Equals(element.Attribute("Text")?.Value, $"{{Binding {binding}}}", StringComparison.Ordinal));
-            range.Attribute("MaxLength").Should().BeNull("malformed bounds must be rejected, never truncated into valid input");
-            range.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanFilterLocalEvents}");
-            range.Attribute("AutomationProperties.Name")!.Value.Should().Contain("inclusive")
-                .And.Contain("empty Any").And.Contain("AND with all filters").And.Contain("no read").And.Contain("never authority");
+            document.Descendants().Should().NotContain(element => string.Equals((string?)element.Attribute("Text"),
+                "{Binding " + binding + "}", StringComparison.Ordinal));
         }
         var conversationQuery = document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && element.Attribute("Text")?.Value.Contains("ConversationQuery", StringComparison.Ordinal) == true);
@@ -229,8 +215,8 @@ public sealed partial class SessionsViewModelTests
             .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision")
             .And.Contain("!main.CallObservation.IsProtected");
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
-        source.Should().Contain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
-        code.Should().Contain("model.RefreshWorkAsync").And.Contain("model.DispatchQueueAsync")
+        source.Should().NotContain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
+        code.Should().Contain("model.RefreshWorkAsync").And.NotContain("model.DispatchQueueAsync")
             .And.Contain("ClearHistorySearch.Click += (_, _) => { model.ClearHistorySearchInputs(); HistoryQuery.Focus(); }");
         Read("SessionsPresentationOwner.cs").Should().Contain("model.Close()")
             .And.Contain("surface.Close()").And.Contain("refresh.Stop()").And.Contain("refresh.Tick -= Refresh");
@@ -262,8 +248,14 @@ public sealed partial class SessionsViewModelTests
         }
         public ValueTask<SessionHistoryEvent?> ReadHistoryEventAsync(HostId<SessionIdentity> session,
             Guid eventId, CancellationToken cancellationToken) => throw new NotSupportedException();
+        internal TaskCompletionSource<SessionDispositionPreview> DispositionCompletion { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal HostRequest? DispositionRequest { get; private set; }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
-            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken) => throw new NotSupportedException();
+            HostRevision expectedGeneration, long expectedMetadataRevision, CancellationToken cancellationToken)
+        {
+            DispositionRequest = HostActivity.RequireCurrent().Request;
+            return new(DispositionCompletion.Task);
+        }
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,
             Func<bool> canControl, CancellationToken cancellationToken) => throw new NotSupportedException();
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken cancellationToken) =>

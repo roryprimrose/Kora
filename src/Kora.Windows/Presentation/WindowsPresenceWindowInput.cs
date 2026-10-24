@@ -7,13 +7,18 @@ public sealed class WindowsPresenceWindowInput
     private const uint NoActivateStyle = 0x08000000;
     private readonly nint window;
     private readonly IWindowsPresenceInputNative native;
+    private readonly WindowsPresenceRegion? region;
 
     public WindowsPresenceWindowInput(nint window)
         : this(window, new WindowsPresenceInputNative())
     {
     }
 
-    internal WindowsPresenceWindowInput(nint window, IWindowsPresenceInputNative native)
+    public static WindowsPresenceWindowInput CreateForNativeRenderer(nint window) =>
+        new(window, new WindowsPresenceInputNative(), new WindowsPresenceRegionNative());
+
+    internal WindowsPresenceWindowInput(nint window, IWindowsPresenceInputNative native,
+        IWindowsPresenceRegionNative? regionNative = null)
     {
         if (window == nint.Zero)
         {
@@ -22,10 +27,16 @@ public sealed class WindowsPresenceWindowInput
 
         this.window = window;
         this.native = native;
+        if (regionNative is not null)
+        {
+            region = new WindowsPresenceRegion(window, regionNative);
+            region.Initialize();
+        }
         ApplyInputMode(intercept: false);
     }
 
     public bool InterceptsMouse { get; private set; }
+    public bool IsGestureActive => native.IsMouseButtonPressed();
 
     public static uint GetExtendedStyle(uint currentStyle, bool intercept) =>
         intercept
@@ -41,7 +52,7 @@ public sealed class WindowsPresenceWindowInput
             intercept = InterceptsMouse;
         }
 
-        if (intercept != InterceptsMouse)
+        if (region is not null || intercept != InterceptsMouse)
         {
             ApplyInputMode(intercept);
         }
@@ -56,6 +67,11 @@ public sealed class WindowsPresenceWindowInput
 
     private void ApplyInputMode(bool intercept)
     {
+        if (region is not null)
+        {
+            if (region.Apply(intercept)) { InterceptsMouse = intercept; }
+            return;
+        }
         var currentStyle = native.GetExtendedStyle(window);
         var extendedStyle = GetExtendedStyle(currentStyle, intercept);
         if (currentStyle != extendedStyle)

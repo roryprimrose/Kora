@@ -1,10 +1,12 @@
-using Kora.Application.Diagnostics;
+﻿using Kora.Application.Diagnostics;
 using Kora.Core;
 using Kora.Core.Diagnostics;
 using Kora.Core.Platform;
 using Kora.Core.Voice;
 using Kora.Core.Hosting;
 using Kora.Application.Voice;
+using Kora.Core.Auditing;
+using Kora.Core.Commands;
 
 namespace Kora.Application.ViewModels;
 
@@ -16,13 +18,18 @@ public sealed partial class MainViewModel
     private Task privacyClosureTask = Task.CompletedTask;
     private long observedTopologyRevision = -1;
     private bool disposed;
+    private readonly ListeningStopAction listeningStop;
+    private int listeningStopRequests;
     private readonly BoundedMicrophoneCatalog microphoneCatalog;
+    private readonly Lock microphoneRefreshGate = new();
     private CancellationTokenSource? microphoneRefreshCancellation;
     private long catalogPrivacyRevision;
     private bool microphoneCatalogCurrent = true;
     private bool isRefreshingMicrophones;
     private Task microphoneRefreshTask = Task.CompletedTask;
+#pragma warning disable VSTHRD003 // Exposes the owned metadata refresh for asynchronous observation without starting another discovery.
     internal Task MicrophoneRefreshTask => microphoneRefreshTask;
+#pragma warning restore VSTHRD003
 
     public bool IsRefreshingMicrophones => isRefreshingMicrophones;
     public bool IsMicrophoneCatalogCurrent => microphoneCatalogCurrent;
@@ -50,7 +57,12 @@ public sealed partial class MainViewModel
     private Task voiceUnlockRecoveryTask = Task.CompletedTask;
     private Func<bool> voiceOwnershipEligible = static () => false;
 
-    public void BindVoiceOwnershipGate(Func<bool> gate) => voiceOwnershipEligible = gate;
+    private long voiceOwnershipBindingRevision;
+    public void BindVoiceOwnershipGate(Func<bool> gate)
+    {
+        voiceOwnershipEligible = gate;
+        Interlocked.Increment(ref voiceOwnershipBindingRevision);
+    }
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
 
@@ -64,8 +76,11 @@ public sealed partial class MainViewModel
     {
         if (disposed) { return; }
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
+        sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
         RetireQuestionVoiceReply();
         var snapshot = eventArgs.Current;
+        RetireComposerDictation();
         var voicePrivacyChanged = (eventArgs.Reason & (WindowsPrivacyChangeReason.Power
             | WindowsPrivacyChangeReason.MicrophonePermission | WindowsPrivacyChangeReason.InputTopology
             | WindowsPrivacyChangeReason.DefaultMicrophone)) != WindowsPrivacyChangeReason.Unknown
@@ -168,13 +183,13 @@ public sealed partial class MainViewModel
     public Task<bool> OutputRefresh { get; private set; } = Task.FromResult(true);
     private Task outputDiscoveryPersistence = Task.CompletedTask;
 
-    private Task<bool> RefreshOutputEndpointsAsync(CancellationToken token = default)
+    private Task<bool> RefreshOutputEndpointsAsync(bool preserveResponse = false, CancellationToken token = default)
     {
         if (!OutputRefresh.IsCompleted) { return OutputRefresh.WaitAsync(token); }
-        return OutputRefresh = DiscoverOutputEndpointsAsync(token);
+        return OutputRefresh = DiscoverOutputEndpointsAsync(preserveResponse, token);
     }
 
-    private async Task<bool> DiscoverOutputEndpointsAsync(CancellationToken token)
+    private async Task<bool> DiscoverOutputEndpointsAsync(bool preserveResponse, CancellationToken token)
     {
         var topology = privacyObservation.Current.TopologyRevision;
         var previousOutput = selectedOutputDevice;
@@ -230,8 +245,15 @@ public sealed partial class MainViewModel
         {
             if (disposed || lifecycleAdmissionClosed) { return false; }
             InvalidateUnavailableOutput();
-            try { ApplicationLog.Error(logger, exception, "Refreshing Windows output endpoint availability"); }
-            finally { ShowFailure("Audio output is unavailable.", exception.Message); }
+            try { LogSpokenResponseFailure(exception, "Refreshing Windows output endpoint availability", preserveResponse); }
+            finally
+            {
+                if (preserveResponse)
+                {
+                    PreserveSpokenResponseFailure("Audio output discovery is unavailable. Full visual output is retained; explicitly refresh output devices before a fresh read request.");
+                }
+                else { ShowFailure("Audio output is unavailable.", exception.Message); }
+            }
             return false;
         }
         finally
@@ -256,16 +278,43 @@ public sealed partial class MainViewModel
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
             auditImpactPreview.Dispose();
         }
+        if (diagnosticImpactPreview is not null)
+        {
+            diagnosticImpactPreview.Changed -= OnDiagnosticImpactPreviewChanged;
+            diagnosticImpactPreview.Dispose();
+        }
+        PropertyChanged -= OnDiagnosticImpactHostPropertyChanged;
+        if (sessionRetentionPlanner is not null)
+        {
+            sessionRetentionPlanner.Changed -= OnSessionRetentionPlannerChanged;
+            sessionRetentionPlanner.Dispose();
+        }
         RetireWebResultDetails();
+        RetireSessionCommandReviews();
+        PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
+        RetireCurrentResponseSpeech();
         RetireSpeechCaption();
         lifecycleAdmissionClosed = true;
+        if (speechPreparation is not null)
+        {
+            speechPreparation.Changed -= OnSpeechPreparationChanged;
+            speechPreparation.Request(null);
+        }
         questionVoiceReplies?.CloseAdmission();
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
+        PropertyChanged -= ComposerVoiceReadinessChanged;
+        composerDictation?.CloseAdmission();
+        if (dictationQuestions is not null) { dictationQuestions.ReplyTargetChanging -= OnComposerQuestionChanging; }
         // Refresh cancellation can release an awaiting caller before Dispose returns.
         HoldVoiceInput("Microphone closed · host disposed");
-        microphoneRefreshCancellation?.Cancel();
+        RetireMicrophoneRefresh();
         clipboardPreview.Changed -= OnClipboardPreviewChanged;
+        if (clipboardExplanation is not null)
+        {
+            clipboardExplanation.Changed -= OnClipboardPreviewChanged;
+            clipboardExplanation.Dispose();
+        }
         clipboardPreview.Dispose();
         DisposeFilePreview();
         privacyObservation.Changed -= OnWindowsPrivacyChanged;
@@ -279,10 +328,10 @@ public sealed partial class MainViewModel
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
         if (outputConfiguration is not null) { outputConfiguration.Changed -= OnOutputConfigurationChanged; }
-        if (playbackVolumeConfiguration is not null) { playbackVolumeConfiguration.Changed -= OnPlaybackVolumeChanged; }
-        if (windowsSpeechRateConfiguration is not null) { windowsSpeechRateConfiguration.Changed -= OnWindowsSpeechRateChanged; }
+        audioPlaybackSettings.OutputInvalidated -= OnAudioPlaybackOutputInvalidated;
+        audioPlaybackSettings.Changed -= OnAudioPlaybackSettingsChanged;
+        audioPlaybackSettings.Dispose();
         if (diagnosticRetentionConfiguration is not null) { diagnosticRetentionConfiguration.Changed -= OnDiagnosticRetentionChanged; }
-        if (queueConfiguration is not null) { queueConfiguration.Changed -= OnQueueConfigurationChanged; }
         if (auditRetentionConfiguration is not null) { auditRetentionConfiguration.Changed -= OnAuditRetentionChanged; }
         if (responseModeConfiguration is not null) { responseModeConfiguration.Changed -= OnResponseModeConfigurationChanged; }
         if (providerModeConfiguration is not null) { providerModeConfiguration.Changed -= OnProviderModeConfigurationChanged; }
@@ -348,13 +397,19 @@ public sealed partial class MainViewModel
         });
     }
 
+#pragma warning disable VSTHRD003 // Exposes the owned privacy closure; observers await asynchronously while leaving the dispatcher available.
     internal Task PrivacyClosureTask => privacyClosureTask;
+#pragma warning restore VSTHRD003
 
+#pragma warning disable VSTHRD003 // Exposes the event-started recovery for asynchronous observation, not renewed voice admission.
     internal Task VoiceUnlockRecoveryTask => voiceUnlockRecoveryTask;
+#pragma warning restore VSTHRD003
 
     internal void CloseForObservedPrivacyEvent(string reason, bool hidePresentation,
         WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        RetireCurrentResponseSpeech();
+        speechPreparation?.Request(null);
         RetireWebResultDetails();
         speechCaption.Retire();
         uiDispatcher.Post(RetireSpeechCaption);
@@ -449,7 +504,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
-        RetireQuestionVoiceReply();
+        RetireSessionCommandReviews();
         long revision;
         lock (voiceReadinessGate)
         {
@@ -462,6 +517,8 @@ public sealed partial class MainViewModel
         }
         voiceRecognition.InvalidateCapture();
         captureOpenCancellation?.Cancel();
+        RetireQuestionVoiceReply();
+        RetireComposerDictation();
         uiDispatcher.Post(() =>
         {
             if (revision != Interlocked.Read(ref voiceRecoveryRevision))
@@ -488,7 +545,8 @@ public sealed partial class MainViewModel
             && IsVoiceActivationAvailable && !disposed && !lifecycleAdmissionClosed
             && SelectedMicrophone is { } microphone && privacy.CanCaptureFrom(microphone);
 
-    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false)
+    private bool TryEnableVoiceReadiness(long revision, bool requireUnlockRecovery = false,
+        bool explicitListeningRecovery = false)
     {
         lock (voiceReadinessGate)
         {
@@ -498,10 +556,13 @@ public sealed partial class MainViewModel
             }
             if (revision != Interlocked.Read(ref voiceRecoveryRevision) || disposed || lifecycleAdmissionClosed
                 || !IsVoiceReadinessEligible(privacyObservation.Current)
+                || listeningStop.IsHeld && (!explicitListeningRecovery || OriginalOrigin() != RequestOrigin.LocalUi
+                    || Volatile.Read(ref listeningStopRequests) != 0)
                 || requireUnlockRecovery && revision != Interlocked.Read(ref automaticUnlockRecoveryRevision))
             {
                 return false;
             }
+            if (listeningStop.IsHeld && !listeningStop.TryRecover()) { return false; }
             Interlocked.Exchange(ref automaticUnlockRecoveryRevision, -1);
             Interlocked.Exchange(ref voiceEnabled, 1);
             Interlocked.Exchange(ref privacyPresentationHeld, 0);
@@ -630,8 +691,17 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        RetirePromptInputVoice();
+#pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
+        if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
+#pragma warning restore VSTHRD003
+        RetireComposerDictation();
+#pragma warning disable VSTHRD003 // Explicit command activation joins the independently owned native dictation release first.
+        if (composerDictation is not null) { await composerDictation.Quiescence; }
+#pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
-        if (lifecycleAdmissionClosed || IsBusy && !IsSpeaking
+        if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
+            || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())
         {
             if (IsVoiceEnabled)
@@ -640,7 +710,7 @@ public sealed partial class MainViewModel
             }
             ApplicationLog.Information(logger, "Denied push-to-talk without eligible one-shot capture readiness");
             ShowInformation("Push-to-talk is unavailable.",
-                "Review voice consent, microphone availability and Windows privacy, then try again.");
+                "Wait for confirmed microphone release, review voice consent, microphone availability and Windows privacy, then try again.");
             return;
         }
         if (Interlocked.Exchange(ref pushToTalkHeld, 1) != 0)
@@ -668,6 +738,8 @@ public sealed partial class MainViewModel
                 throw new InvalidOperationException("The selected microphone, permission or voice policy is unavailable.");
             }
 
+            RetireResponseReadPlayback();
+            RetireSpeechCaption();
             textToSpeech.InvalidateOutput();
             await textToSpeech.StopAsync(opening.Token);
             IsSpeaking = false;
@@ -685,8 +757,25 @@ public sealed partial class MainViewModel
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
-            PresentResponse(AssistantState.Listening, "Capturing your command.",
-                "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
+            if (HasWebResultDetails)
+            {
+                // Activated input must not replace the exact source before the user can name it.
+                ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");
+            }
+            else if (IsResponseInteractionPending)
+            {
+                Transcript = "Release Push to talk to finish. The pending question or approval remains unchanged.";
+            }
+            else if (Volatile.Read(ref ordinaryResponse) is not null)
+            {
+                State = AssistantState.Listening;
+                Transcript = "Release Push to talk to finish. Only this explicitly activated command is transcribed locally. The current response remains unchanged.";
+            }
+            else
+            {
+                PresentResponse(AssistantState.Listening, "Capturing your command.",
+                    "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
+            }
             generationToAccept = voiceRecognition.Generation;
         }
         catch (OperationCanceledException) when (opening.IsCancellationRequested)
@@ -848,22 +937,86 @@ public sealed partial class MainViewModel
         }
     }
 
-    public Task DisableListeningFromTrayAsync()
+    public Task DisableListeningFromTrayAsync() => disposed ? Task.CompletedTask
+        : Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(), () => DisableListeningAsync());
+
+    private bool IsListeningStopCommand(string text) =>
+        commandRouter.Match(text, AssistantName).Command?.Action == BuiltInAction.DisableListening;
+
+    private async Task DisableListeningAsync(SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
-        if (disposed) { return Task.CompletedTask; }
-        // A stale Disable must never become Enable. Stop remains available during busy work.
-        return DisableListeningAsync();
+        Interlocked.Increment(ref listeningStopRequests);
+        try { await CompleteListeningStopAsync(initiator); }
+        finally
+        {
+            Interlocked.Decrement(ref listeningStopRequests);
+            if (!disposed && !lifecycleAdmissionClosed) { NotifyVoiceEnablementChanged(); }
+        }
     }
 
-    private async Task DisableListeningAsync()
+    private async Task CompleteListeningStopAsync(SecurityAuditInitiator initiator)
     {
-        HoldVoiceInput("Microphone closed · listening was disabled manually");
-        if (!await TryStopFailedCaptureAsync("Disabling voice activation"))
+        if (disposed) { return; }
+        using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, OriginalOrigin(initiator));
+        // Release must not wait for audit storage or be cancelled by an unrelated request.
+        var release = listeningStop.DisableAsync(() =>
+            HoldVoiceInput("Microphone closed · listening was disabled manually"));
+        PresentListeningStop("Listening stop accepted.", "Voice input is disabled. Native capture release is pending.");
+        SecurityAuditEvent? audit = null;
+        var auditFailed = false;
+        try
         {
-            return;
+            audit = await StartAuditAsync(SecurityAuditCategory.ConfigurationWrite,
+                "configuration.listening-disabled", initiator, DeviceLocalPreferencesTarget);
         }
-        ApplicationLog.Information(logger, "Voice activation was disabled by the user");
-        ShowInformation("Listening disabled.", "The microphone capture device has been released.");
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            auditFailed = true;
+            ApplicationLog.Error(logger, exception, "Recording listening stop request");
+        }
+        var outcome = await release;
+        if (audit is not null)
+        {
+            try
+            {
+                await CompleteAuditAsync(audit,
+                    outcome == ListeningStopOutcome.ReleaseUnconfirmed ? SecurityAuditOutcome.Failed : SecurityAuditOutcome.Succeeded,
+                    outcome == ListeningStopOutcome.ReleaseUnconfirmed ? "capture-release-unconfirmed" : null);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                auditFailed = true;
+                ApplicationLog.Error(logger, exception, "Recording listening stop outcome");
+            }
+        }
+        activity.Complete(outcome == ListeningStopOutcome.ReleaseUnconfirmed || auditFailed
+            ? HostOperationOutcome.Failed : HostOperationOutcome.Completed);
+        if (disposed || lifecycleAdmissionClosed) { return; }
+        NotifyVoiceEnablementChanged();
+        var released = outcome != ListeningStopOutcome.ReleaseUnconfirmed;
+        PresentListeningStop(released ? outcome == ListeningStopOutcome.AlreadyDisabled
+                ? "Listening already disabled." : "Listening disabled."
+                : "Listening disabled; microphone release unconfirmed.",
+            (released ? "Native microphone capture release is confirmed."
+                : "Native microphone release could not be confirmed. Restart Kora if native recovery remains unavailable.")
+            + " Saved voice consent is unchanged. A fresh deliberate Push to talk can capture one command after confirmed release. Native Enable listening restores readiness; capture will not reopen automatically."
+            + (auditFailed ? " Required audit evidence is unavailable; this is not an audited success." : string.Empty));
+    }
+
+    private void PresentListeningStop(string title, string body)
+    {
+        if (disposed || lifecycleAdmissionClosed || !sessionController.IsCurrentSessionUnlocked() || IsPrivacyPresentationHeld) { return; }
+        if (IsResponseInteractionPending)
+        {
+            Transcript = title + " " + body;
+        }
+        else
+        {
+            PresentResponse(AssistantState.Information, title, body, requestWindow: false, refreshOutput: false);
+        }
+        forceVisualResponse = true;
+        NotifyOutputPolicyChanged();
+        WindowActionRequested?.Invoke(this, WindowAction.Show);
     }
 
     public Task StopSpeakingFromTrayAsync() => disposed ? Task.CompletedTask : StopSpeakingAsync();
@@ -872,30 +1025,59 @@ public sealed partial class MainViewModel
 
     private Task RefreshInputMetadataAsync(CancellationToken cancellationToken)
     {
-        if (disposed) { return Task.CompletedTask; }
-        if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
-        return microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellationToken);
+        Task refresh;
+        TaskCompletionSource start;
+        lock (microphoneRefreshGate)
+        {
+            if (disposed) { return Task.CompletedTask; }
+            if (IsRefreshingMicrophones) { return microphoneRefreshTask.WaitAsync(cancellationToken); }
+            start = new TaskCompletionSource();
+            var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+            var token = cancellation.Token;
+            microphoneRefreshCancellation = cancellation;
+            isRefreshingMicrophones = true;
+            refresh = microphoneRefreshTask = RefreshMicrophonesCoreAsync(cancellation, start.Task, token);
+        }
+        // Publish the task before synchronous completion can admit a replacement through a UI callback.
+        start.SetResult();
+        return refresh;
     }
 
-    private async Task RefreshMicrophonesCoreAsync(CancellationToken cancellationToken)
+    private void RetireMicrophoneRefresh()
     {
+        CancellationTokenSource? cancellation;
+        lock (microphoneRefreshGate)
+        {
+            cancellation = microphoneRefreshCancellation;
+            microphoneRefreshCancellation = null;
+        }
+        if (cancellation is null) { return; }
+        // Detachment transfers disposal to this caller, including while cancellation callbacks are running.
+        try { cancellation.Cancel(); }
+        finally { cancellation.Dispose(); }
+    }
+
+    private async Task RefreshMicrophonesCoreAsync(CancellationTokenSource cancellation,
+        Task start, CancellationToken cancellationToken)
+    {
+#pragma warning disable VSTHRD003 // The synchronous owner releases this task-publication barrier before returning.
+        await start;
+#pragma warning restore VSTHRD003
         using var activity = HostActivity.Current is not null
             ? HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Recovery)
             : HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
                 HostActivityLayer.Application, HostOperation.Recovery);
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
-        microphoneRefreshCancellation = cancellation;
         var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
-        isRefreshingMicrophones = true;
-        microphoneCatalogCurrent = false;
-        Interlocked.Increment(ref microphoneTopologyRevision);
-        OnPropertyChanged(nameof(IsRefreshingMicrophones));
-        OnPropertyChanged(nameof(MicrophoneTopologyRevision));
-        NotifyVoiceEnablementChanged();
         try
         {
+            cancellationToken.ThrowIfCancellationRequested();
+            microphoneCatalogCurrent = false;
+            Interlocked.Increment(ref microphoneTopologyRevision);
+            OnPropertyChanged(nameof(IsRefreshingMicrophones));
+            OnPropertyChanged(nameof(MicrophoneTopologyRevision));
+            NotifyVoiceEnablementChanged();
             var previousMicrophone = selectedMicrophone;
-            var snapshot = await microphoneCatalog.RefreshAsync(cancellation.Token);
+            var snapshot = await microphoneCatalog.RefreshAsync(cancellationToken);
             if (disposed || recoveryRevision != Interlocked.Read(ref voiceRecoveryRevision))
             {
                 activity.Complete(HostOperationOutcome.Failed);
@@ -942,7 +1124,7 @@ public sealed partial class MainViewModel
             NotifyVoiceEnablementChanged();
             activity.Complete(HostOperationOutcome.Completed);
         }
-        catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
+        catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)
         {
             if (!disposed)
             {
@@ -963,8 +1145,14 @@ public sealed partial class MainViewModel
         }
         finally
         {
-            microphoneRefreshCancellation = null;
-            isRefreshingMicrophones = false;
+            bool ownsCancellation;
+            lock (microphoneRefreshGate)
+            {
+                ownsCancellation = ReferenceEquals(microphoneRefreshCancellation, cancellation);
+                if (ownsCancellation) { microphoneRefreshCancellation = null; }
+                isRefreshingMicrophones = false;
+            }
+            if (ownsCancellation) { cancellation.Dispose(); }
             if (!disposed)
             {
                 OnPropertyChanged(nameof(IsMicrophoneCatalogCurrent));
@@ -983,8 +1171,9 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || IsBusy || IsWebPageRetrievalActive
-            || !clipboardPreview.IsQuiescent || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
+            || !IsHandoffReviewQuiescent || !copilotSetupQuiescent() || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive || IsWebSummaryActive
+            || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
+            || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive
             || activeReasoningTask is { IsCompleted: false } || isModelActionDispatchActive
             || !sessionController.IsCurrentSessionUnlocked())

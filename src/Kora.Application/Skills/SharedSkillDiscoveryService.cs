@@ -10,8 +10,11 @@ public sealed partial class SharedSkillDiscoveryService(
     LocalSharedSkillPreferences preferences, ISharedSkillSourceReader reader, SharedSkillAdmission admission,
     ISecurityAuditLog auditLog, ILogger<SharedSkillDiscoveryService> logger)
 {
-    private bool observationRequired;
+    private volatile bool observationRequired;
+    private readonly Lock consentGate = new();
     private readonly HashSet<Guid> withdrawnIdentities = [];
+    private long consentRevision;
+    internal long ConsentRevision => Interlocked.Read(ref consentRevision);
 
     public Task<IReadOnlyList<SharedSkillSource>> LoadSourcesAsync(Func<bool> eligible, CancellationToken token) =>
         admission.RunAsync(eligible, async (request, session, currentToken) =>
@@ -35,7 +38,7 @@ public sealed partial class SharedSkillDiscoveryService(
             return await admission.CommitAsync(request, session, eligible, () => preferences.WithUnchangedSources(before, () =>
             {
                 RequireObservation();
-                if (withdrawnIdentities.Contains(selected.Id))
+                if (IsWithdrawn(selected.Id))
                 { throw new InvalidOperationException("Fresh native selection must issue a new source identity."); }
                 if (before.Any(source => string.Equals(source.ProfileRelativeRoot, selected.ProfileRelativeRoot,
                         StringComparison.OrdinalIgnoreCase) || string.Equals(source.DirectoryIdentity, selected.DirectoryIdentity, StringComparison.Ordinal)))
@@ -44,6 +47,7 @@ public sealed partial class SharedSkillDiscoveryService(
                     "skills.source.register", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
                     $"shared-source.{selected.Id:N}");
                 auditLog.Write(audit);
+                Interlocked.Increment(ref consentRevision);
                 try
                 {
                     preferences.WithUnchangedSources(before, () =>
@@ -60,6 +64,7 @@ public sealed partial class SharedSkillDiscoveryService(
                 catch
                 {
                     observationRequired = true;
+                    Interlocked.Increment(ref consentRevision);
                     auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed, "registration-failed"));
                     throw;
                 }
@@ -85,7 +90,7 @@ public sealed partial class SharedSkillDiscoveryService(
                 observationRequired = true;
                 // An attempted publication can be durable even when read-back/audit fails.
                 // Retain only the identity fence, never source content or a cached grant.
-                withdrawnIdentities.Add(source.Id);
+                lock (consentGate) { withdrawnIdentities.Add(source.Id); }
                 try
                 {
                     preferences.WithUnchangedSources(expected, () =>
@@ -115,16 +120,10 @@ public sealed partial class SharedSkillDiscoveryService(
     public Task<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, Func<bool> eligible, CancellationToken token) =>
         admission.RunAsync(eligible, async (request, session, currentToken) =>
         {
-            void RequireRegistration()
-            {
-                RequireObservation();
-                if (withdrawnIdentities.Contains(source.Id) || !preferences.Load().Contains(source))
-                { throw new InvalidOperationException("The exact source registration is unavailable."); }
-            }
-            await admission.CommitAsync(request, session, eligible, () => { RequireRegistration(); return true; },
+            await admission.CommitAsync(request, session, eligible, () => { RequireRegistration(source); return true; },
                 currentToken).ConfigureAwait(false);
             var result = await reader.DiscoverAsync(source, currentToken).ConfigureAwait(false);
-            await admission.CommitAsync(request, session, eligible, () => { RequireRegistration(); return true; },
+            await admission.CommitAsync(request, session, eligible, () => { RequireRegistration(source); return true; },
                 currentToken).ConfigureAwait(false);
             DiscoveryCompleted(logger, result.Packages.Count);
             return result;
@@ -134,11 +133,44 @@ public sealed partial class SharedSkillDiscoveryService(
         Func<bool> eligible, CancellationToken token)
     {
         var current = await DiscoverAsync(source, eligible, token).ConfigureAwait(false);
-        return current.Packages.Any(package => string.Equals(package.SourceQualifiedIdentity, snapshot.SourceQualifiedIdentity, StringComparison.Ordinal)
+        return Matches(current, snapshot);
+    }
+
+    internal Task ValidateForUseAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
+        SharedSkillUseAdmission useAdmission, Func<bool> eligible, Kora.Core.Hosting.RequestOrigin origin, CancellationToken token) =>
+        useAdmission.RunAsync(origin, eligible, async (request, session, live, currentToken) =>
+        {
+            await useAdmission.CommitAsync(request, session, live, () => { RequireRegistration(source); return true; },
+                currentToken).ConfigureAwait(false);
+            var current = await reader.DiscoverAsync(source, currentToken).ConfigureAwait(false);
+            await useAdmission.CommitAsync(request, session, live, () =>
+            {
+                RequireRegistration(source);
+                if (current.Source != source || !Matches(current, snapshot))
+                { throw new InvalidOperationException("The exact reviewed shared skill source changed; review and enable again."); }
+                return true;
+            }, currentToken).ConfigureAwait(false);
+            return true;
+        }, token);
+
+    private static bool Matches(SharedSkillCatalogue current, SharedSkillSnapshot snapshot) =>
+        current.Packages.Any(package => string.Equals(package.SourceQualifiedIdentity, snapshot.SourceQualifiedIdentity, StringComparison.Ordinal)
             && string.Equals(package.RelativeFile, snapshot.RelativeFile, StringComparison.Ordinal)
             && string.Equals(package.RevisionDigest, snapshot.RevisionDigest, StringComparison.Ordinal)
+            && package.Bytes.SequenceEqual(snapshot.Bytes)
             && package.UninspectedFiles.SequenceEqual(snapshot.UninspectedFiles, StringComparer.Ordinal)
             && package.UnavailableReasons.SequenceEqual(snapshot.UnavailableReasons, StringComparer.Ordinal));
+
+    private void RequireRegistration(SharedSkillSource source)
+    {
+        RequireObservation();
+        if (IsWithdrawn(source.Id) || !preferences.Load().Contains(source))
+        { throw new InvalidOperationException("The exact source registration is unavailable."); }
+    }
+
+    private bool IsWithdrawn(Guid id)
+    {
+        lock (consentGate) { return withdrawnIdentities.Contains(id); }
     }
 
     private void RequireObservation()

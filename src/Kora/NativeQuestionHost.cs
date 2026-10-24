@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
-internal sealed class NativeQuestionHost : IDisposable
+internal sealed partial class NativeQuestionHost : IDisposable
 {
     private static readonly TimeSpan VersionQuestionLifetime = TimeSpan.FromMinutes(5);
     private readonly WindowsSqliteHostInteractionStore store;
@@ -29,6 +29,8 @@ internal sealed class NativeQuestionHost : IDisposable
     private volatile bool disposed;
     private readonly HostQuestionVoiceReplyService? voiceReplies;
     private Func<long>? privateRevision;
+    private long focusRevision;
+    private long currentFocusRevision;
 
     internal NativeQuestionHost(WindowsSqliteHostInteractionStore store, TimeProvider time,
         ILogger<NativeQuestionViewModel> logger,
@@ -45,12 +47,29 @@ internal sealed class NativeQuestionHost : IDisposable
         voiceReplies = replyFactory?.Invoke(questions);
     }
 
-    internal void BindGate(Func<bool> gate) => canInteract = gate;
-    internal void BindCallObservation(Func<CallPolicyObservation> observe) => callObservation = observe;
-    internal void BindAdmissionRevision(Func<long> observe) => admissionRevision = observe;
-    internal void BindPrivateRevision(Func<long> observe) => privateRevision = observe;
+    internal void BindGate(Func<bool> gate)
+    {
+        Interlocked.Increment(ref focusRevision);
+        canInteract = gate;
+    }
+    internal void BindCallObservation(Func<CallPolicyObservation> observe)
+    {
+        Interlocked.Increment(ref focusRevision);
+        callObservation = observe;
+    }
+    internal void BindAdmissionRevision(Func<long> observe)
+    {
+        Interlocked.Increment(ref focusRevision);
+        admissionRevision = observe;
+    }
+    internal void BindPrivateRevision(Func<long> observe)
+    {
+        Interlocked.Increment(ref focusRevision);
+        privateRevision = observe;
+    }
     internal void BindWorkspace(SessionWorkspaceService service)
     {
+        Interlocked.Increment(ref focusRevision);
         workspace = service;
         service.SessionLifecycleChanged += OnSessionChanged;
         service.SessionRetired += OnSessionChanged;
@@ -59,6 +78,7 @@ internal sealed class NativeQuestionHost : IDisposable
     {
         if (current?.Key.Request.SessionId == session)
         {
+            Interlocked.Increment(ref focusRevision);
             voiceReplies?.Retire("Question session changed. Microphone closed; no target is followed.");
         }
     }
@@ -87,6 +107,7 @@ internal sealed class NativeQuestionHost : IDisposable
     private async Task<HostTaskRecord> AskAdmittedVersionAsync(HostRequest request,
         Func<NativeQuestionViewModel, Task> present, CancellationToken cancellationToken)
     {
+        var admittedFocusRevision = Interlocked.Read(ref focusRevision);
         var admittedRevision = admissionRevision?.Invoke();
         var admittedPrivateRevision = privateRevision?.Invoke();
         bool Eligible() => !disposed && canInteract() && admittedRevision == admissionRevision?.Invoke()
@@ -117,6 +138,7 @@ internal sealed class NativeQuestionHost : IDisposable
             return new(HostInteractionOutcome.Cancelled, "pre-dispatch-work-cancelled", cancelled.Question);
         }, dismissible: true);
         // This one live continuation is the registration; persisted metadata cannot create one.
+        Interlocked.Exchange(ref currentFocusRevision, admittedFocusRevision);
         current = state;
         state.BindVoiceReplies(voiceReplies, () => admittedRevision is not null && admittedPrivateRevision is not null
             && !disposed && ReferenceEquals(current, state) && Eligible());
@@ -125,6 +147,7 @@ internal sealed class NativeQuestionHost : IDisposable
         {
             if (observation.Task.Request == request)
             {
+                Interlocked.Increment(ref focusRevision);
                 voiceReplies?.Retire("Exact question task cancelled. Microphone closed; no late answer is routed.");
                 externallyCancelled.TrySetResult(observation);
             }
@@ -197,6 +220,7 @@ internal sealed class NativeQuestionHost : IDisposable
                 state.Close("Recovery unavailable: the exact original wait is no longer live. Inspect status and start a fresh request.");
                 return null;
             }
+
             if (state.HasPresentation) { await state.RefreshTargetAsync(); }
             else { await state.RestorePresentationAsync(); }
             if (!ReferenceEquals(current, state) || state.Completion.IsCompleted || disposed || !canInteract())
@@ -212,6 +236,22 @@ internal sealed class NativeQuestionHost : IDisposable
             throw;
         }
     }
+
+    internal Func<bool>? CaptureFocusEligibility(NativeQuestionViewModel model)
+    {
+        var original = model.Question;
+        var revision = Interlocked.Read(ref focusRevision);
+        bool Eligible() => !disposed && admissionRevision is not null && privateRevision is not null
+            && currentAdmission?.Invoke() == true && ReferenceEquals(current, model)
+            && revision == Interlocked.Read(ref currentFocusRevision)
+            && revision == Interlocked.Read(ref focusRevision) && ReferenceEquals(model.Question, original)
+            && !model.Completion.IsCompleted && !model.HasPendingOperation
+            && model.HasPresentation && model.IsEditable && !model.IsApproval;
+        return Eligible() ? Eligible : null;
+    }
+
+    internal Task<bool> ValidateFocusAsync(NativeQuestionViewModel model) =>
+        store.ValidateQuestionFocusAsync(model.Question, CancellationToken.None).AsTask();
 
     private async Task<bool> IsCurrentWaitAsync(NativeQuestionViewModel state, CancellationToken token)
     {

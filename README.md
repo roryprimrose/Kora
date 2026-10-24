@@ -4,6 +4,11 @@ A Windows-only, local-first desktop assistant built with .NET 10 and Avalonia.
 Kora accepts typed and explicitly activated voice requests, provides local
 speech and visual responses, and keeps execution and consent under host control.
 
+The [approved product scope](Design/MVP_Scope.md#product-admission-and-realignment)
+prioritizes governed AI interaction and session conversations rather than a
+native utility suite. It distinguishes current implementation from approved
+retirement work and constrains future feature selection.
+
 **Development status:** the runnable bootstrap has bounded commands, local
 inference and native inspection/workspace features. It is not the complete
 design or a qualified release. Script-backed skills, general application

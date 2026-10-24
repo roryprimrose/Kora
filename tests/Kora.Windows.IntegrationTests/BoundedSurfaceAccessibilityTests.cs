@@ -2,12 +2,16 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Headless;
 using Avalonia.Input;
+using Avalonia.Layout;
 using Avalonia.Media;
 using Avalonia.Styling;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Infrastructure;
+using Kora.Controls;
+using Kora.Core.Configuration;
 using Kora.Core.Presentation;
 using Kora.Definitions.Skills;
 using Kora.NativeUxFixture;
@@ -35,20 +39,20 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var editor = window.GetVisualDescendants().OfType<TextBox>()
                     .Single(control => string.Equals(control.Text, "Kora", StringComparison.Ordinal));
                 var peer = ControlAutomationPeer.CreatePeerForElement(editor)!;
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
 
                 await fixture.Main.SetAssistantNameAsync("Nova Ray");
                 window.UpdateLayout();
                 editor.Text.Should().Be("Nova Ray");
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription)
                     .And.Contain("Nova Ray");
 
                 await fixture.Main.ResetAssistantNameCommand.ExecuteAsync();
                 window.UpdateLayout();
                 editor.Text.Should().Be("Kora");
-                peer.GetName().Should().Be("Display and push-to-talk command-prefix name");
+                peer.GetName().Should().Be("Assistant name");
                 peer.GetHelpText().Should().Be(fixture.Main.AssistantNameConfigurationDescription);
                 fixture.Main.IsVoiceEnabled.Should().BeFalse();
             }
@@ -136,13 +140,71 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var cycle = ReadCycle(window, first, reverse);
                 cycle.Select(control => ControlAutomationPeer.CreatePeerForElement(control)!.GetName())
                     .Should().BeEquivalentTo(
-                        "Appearance", "Native reader text scale percentage", "Select an appearance option to inspect or change",
-                        "Reset the selected appearance option to its default", "Show animated presence", "Application theme",
-                        "Always show", "Stay on top", "Response timeout in seconds", "Presence timeout in seconds",
+                        "Appearance", "Reading text size percentage", "Show animated presence", "Application theme",
+                        "Always show", "Stay on top", "Response timeout in seconds", "Animation mode", "Presence timeout in seconds",
                         "Presence size in pixels", "Dot size percent", "Dot density percent", "Movement speed percent",
-                        "Scale presence with speech playback", "Speech scale amount percent");
+                        "Scale presence with speech playback", "Speech scale amount percent",
+                        "Application theme actions", "Reading text size actions", "Always show responses actions",
+                        "Keep responses on top actions", "Response timeout actions", "Show presence actions", "Animation mode actions",
+                        "Presence timeout actions", "Presence size actions", "Dot size actions", "Dot density actions",
+                        "Movement speed actions", "Speech sizing actions", "Speech scale amount actions");
                 cycle.Should().Contain(tab);
                 ReadCycle(window, first, reverse).Should().Equal(cycle);
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(Key.Space, PhysicalKey.Space, " ")]
+    [InlineData(Key.Enter, PhysicalKey.Enter, null)]
+    public async Task AppearanceResetMenuOpensWithKeyboardAndResetsOnlyItsField(
+        Key key, PhysicalKey physicalKey, string? keySymbol)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            fixture.Main.ThemeMode = ApplicationThemeMode.Dark;
+            fixture.Main.PresenceSizePixels = 480;
+            await fixture.Main.AppearanceUpdate;
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.Activate();
+                window.UpdateLayout();
+                var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
+                actions.Should().HaveCount(14);
+                foreach (var action in actions)
+                {
+                    action.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();
+                    action.HorizontalAlignment.Should().Be(HorizontalAlignment.Right);
+                    action.VerticalAlignment.Should().Be(VerticalAlignment.Top);
+                    action.Bounds.Top.Should().BeApproximately(0, 0.1);
+                    action.Bounds.Right.Should().BeApproximately(((Grid)action.Parent!).Bounds.Width, 0.1);
+                    action.ResetCommand.Should().NotBeNull();
+                    var menu = (MenuFlyout)action.Flyout!;
+                    var item = menu.Items.OfType<MenuItem>().Single();
+                    item.Header.Should().Be("Reset setting");
+                    item.Command.Should().BeSameAs(action.ResetCommand);
+                    ControlAutomationPeer.CreatePeerForElement(action)!.GetName().Should().Be($"{action.SettingName} actions");
+                    ControlAutomationPeer.CreatePeerForElement(item)!.GetName().Should().Be($"Reset {action.SettingName} to its default");
+                }
+
+                var theme = actions.Single(action => string.Equals(action.SettingName, "Application theme", StringComparison.Ordinal));
+                theme.Focus().Should().BeTrue();
+                window.KeyPress(key, RawInputModifiers.None, physicalKey, keySymbol);
+                window.KeyRelease(key, RawInputModifiers.None, physicalKey, keySymbol);
+                window.UpdateLayout();
+                var flyout = (MenuFlyout)theme.Flyout!;
+                flyout.IsOpen.Should().BeTrue();
+                fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.Dark);
+                fixture.Main.PresenceSizePixels.Should().Be(480);
+                flyout.Hide();
+                await ((AsyncCommand)flyout.Items.OfType<MenuItem>().Single().Command!).ExecuteAsync();
+                fixture.Main.ThemeMode.Should().Be(ApplicationThemeMode.System);
+                fixture.Main.PresenceSizePixels.Should().Be(480);
             }
             finally { window.Close(); }
         });
@@ -175,12 +237,10 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
                 var order = window.FindControl<ComboBox>("PackageOrder")!;
-                var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
-                var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
                 ReadCycle(window, selector, reverse: false).Select(Describe)
-                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, order, definition, resources, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { selected, reader, query, filter, search, clear, order, selector }.Select(Describe));
                 ReadCycle(window, selector, reverse: true).Select(Describe)
-                    .Should().Equal(new Control[] { resources, definition, order, clear, search, filter, query, reader, selected, selector }.Select(Describe));
+                    .Should().Equal(new Control[] { order, clear, search, filter, query, reader, selected, selector }.Select(Describe));
                 reader.IsReadOnly.Should().BeTrue();
             }
             finally { window.Close(); }
@@ -267,10 +327,8 @@ public sealed class BoundedSurfaceAccessibilityTests
                 var search = window.FindControl<Button>("SearchPackages")!;
                 var clear = window.FindControl<Button>("ClearPackageSearch")!;
                 var order = window.FindControl<ComboBox>("PackageOrder")!;
-                var definition = window.FindControl<TextBox>("PackageDefinitionDigest")!;
-                var resources = window.FindControl<TextBox>("PackageDeclaredResourceDigest")!;
-                var expected = reverse ? new Control[] { resources, definition, order, clear, search, filter, query, source, tab, selector }
-                    : [tab, source, query, filter, search, clear, order, definition, resources, selector];
+                var expected = reverse ? new Control[] { order, clear, search, filter, query, source, tab, selector }
+                    : [tab, source, query, filter, search, clear, order, selector];
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 ReadCycle(window, selector, reverse).Select(Describe).Should().Equal(expected.Select(Describe));
                 source.IsReadOnly.Should().BeTrue();

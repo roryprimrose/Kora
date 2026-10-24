@@ -1,11 +1,13 @@
 ﻿using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 
 using AwesomeAssertions;
 
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
+using Kora.Controls;
 using Kora.Core.Voice;
 
 namespace Kora.Windows.IntegrationTests;
@@ -13,6 +15,52 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed partial class SpeechCaptionDisplayTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Caption_display_cog_preserves_native_reset_scope_and_late_admission(bool revokeWhileOpen)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var caption = new Caption();
+            var primary = Display(0, 0, 1920, 1080, 1, primary: true);
+            var other = Display(-1920, 0, 1920, 1080, 1);
+            var window = new SpeechCaptionWindow(caption);
+            using var controller = new SpeechCaptionWindowController(caption, window, new Displays(primary, other));
+            controller.Refresh();
+            Choose(controller, window, other);
+            var selector = window.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!;
+            var cog = selector.GetLogicalDescendants().OfType<SettingActionsButton>().Single();
+            var menu = (MenuFlyout)cog.Flyout!;
+            try
+            {
+                menu.ShowAt(cog);
+                window.UpdateLayout();
+                menu.IsOpen.Should().BeTrue();
+                AssertContained(window, other);
+                var item = menu.Items.OfType<MenuItem>().Single();
+                item.Header.Should().Be("Use main screen");
+                item.IsEffectivelyEnabled.Should().BeTrue();
+                caption.SpeechCaptionText.Should().Be("Observed private utterance.");
+
+                if (revokeWhileOpen)
+                {
+                    caption.CanChooseSpeechCaptionDisplay = false;
+                    controller.Refresh();
+                    window.UpdateLayout();
+                    item.IsEffectivelyEnabled.Should().BeFalse();
+                }
+                item.RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+
+                AssertContained(window, revokeWhileOpen ? other : primary);
+                caption.SpeechCaptionText.Should().Be("Observed private utterance.");
+                caption.Retirements.Should().Be(0);
+                caption.Failures.Should().BeEmpty();
+            }
+            finally { menu.Hide(); }
+        });
+    }
+
     [Theory]
     [InlineData(SpeechCaptionPlacement.TopLeft, 1)]
     [InlineData(SpeechCaptionPlacement.TopRight, 1.25)]
@@ -390,8 +438,18 @@ public sealed partial class SpeechCaptionDisplayTests
     private static void Click(Window window, bool reset)
     {
         var selector = window.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!;
-        var buttons = ((StackPanel)selector.Content!).Children.OfType<WrapPanel>().Single().Children.OfType<Button>().ToArray();
-        buttons[reset ? 1 : 0].RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        if (reset)
+        {
+            var cog = selector.GetLogicalDescendants().OfType<SettingActionsButton>().Single();
+            var menu = (MenuFlyout)cog.Flyout!;
+            menu.Items.OfType<MenuItem>().Single().RaiseEvent(new RoutedEventArgs(MenuItem.ClickEvent));
+        }
+        else
+        {
+            selector.GetLogicalDescendants().OfType<Button>()
+                .Single(button => string.Equals(button.Content as string, "Use selected display", StringComparison.Ordinal))
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+        }
     }
 
     private static void AssertContained(Window window, CaptionDisplayObservation display)

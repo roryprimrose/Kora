@@ -8,4 +8,5 @@ public sealed record CapabilityReply(
     ApplicationVersionObservation? Version = null,
     ReadinessPage? Readiness = null,
     RuntimePage? Runtimes = null,
-    RuntimeObservation? Runtime = null);
+    RuntimeObservation? Runtime = null,
+    Kora.Core.Network.LocalWebPageResult? WebPage = null);

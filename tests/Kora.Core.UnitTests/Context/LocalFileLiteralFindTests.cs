@@ -7,8 +7,87 @@ using Kora.Core.Hosting;
 
 namespace Kora.Core.UnitTests.Context;
 
-public sealed class LocalFileLiteralFindTests
+public sealed partial class LocalFileLiteralFindTests
 {
+    [Theory]
+    [InlineData("", "a", 0)]
+    [InlineData("alpha", "missing", 0)]
+    [InlineData("alpha", "alpha", 1)]
+    [InlineData("alpha ALPHA alpha", "alpha", 2)]
+    [InlineData("aaaaaaa", "aaa", 2)]
+    [InlineData("aaaaaXaa", "aa", 3)]
+    [InlineData("e\u0301 é é", "é", 2)]
+    [InlineData("\r\n🙂\r\n🙂", "🙂", 2)]
+    [InlineData(" .*?  .*? ", " .*? ", 2)]
+    public void CountedFindTraversesExactForwardSequenceAndItsReverse(string text, string query, int expected)
+    {
+        var file = File(text);
+        var result = LocalFileLiteralFind.FindCounted(file, query, LocalFileFindDirection.First);
+        result.Count.Should().Be(expected);
+        result.Ordinal.Should().Be(expected == 0 ? 0 : 1);
+        if (expected == 0) { result.Match.Should().BeNull(); return; }
+        var matches = new List<LocalFileLiteralMatch>();
+        while (result.Match is not null)
+        {
+            matches.Add(result.Match);
+            result.Match.Source.Should().Be(file.Reference);
+            file.Text.Substring(result.Match.Start, result.Match.Length).Should().Be(query);
+            result.Count.Should().Be(expected);
+            result.Ordinal.Should().Be(matches.Count);
+            result = LocalFileLiteralFind.FindCounted(file, query, LocalFileFindDirection.Next, matches[^1]);
+        }
+        result.Count.Should().Be(expected);
+        result.Ordinal.Should().Be(expected);
+        matches.Should().HaveCount(expected);
+        for (var index = matches.Count - 1; index >= 0; index--)
+        {
+            result = LocalFileLiteralFind.FindCounted(file, query, LocalFileFindDirection.Previous, matches[index]);
+            result.Count.Should().Be(expected);
+            result.Ordinal.Should().Be(index == 0 ? 1 : index);
+            result.Match.Should().Be(index == 0 ? null : matches[index - 1]);
+        }
+        LocalFileLiteralFind.FindCounted(file, query, LocalFileFindDirection.First, matches[^1]).Ordinal.Should().Be(1);
+    }
+
+    [Fact]
+    public void CountedFindReversesCanonicalSequenceWithoutChangingUncountedNavigation()
+    {
+        var file = File("aaaaaXaa");
+        var last = new LocalFileLiteralMatch(file.Reference, 6, 2);
+        LocalFileLiteralFind.Find(file, "aa", LocalFileFindDirection.Previous, last)!.Start.Should().Be(3);
+        LocalFileLiteralFind.FindCounted(file, "aa", LocalFileFindDirection.Previous, last)
+            .Match!.Start.Should().Be(2);
+        var overlapping = new LocalFileLiteralMatch(file.Reference, 3, 2);
+        foreach (var direction in new[] { LocalFileFindDirection.Next, LocalFileFindDirection.Previous })
+        {
+            var find = () => LocalFileLiteralFind.FindCounted(file, "aa", direction, overlapping);
+            find.Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Fact]
+    public void CountedFindCountsCompleteMaximumFileAndSharedMaximumQueryWithoutTruncation()
+    {
+        var file = File(new('a', LocalFilePolicy.MaximumBytes));
+        LocalFileLiteralFind.FindCounted(file, "a", LocalFileFindDirection.First).Count.Should().Be(LocalFilePolicy.MaximumBytes);
+        var query = new string('é', 256);
+        LocalFileLiteralFind.FindCounted(File(query + query), query, LocalFileFindDirection.First).Count.Should().Be(2);
+        var supplementary = string.Concat(Enumerable.Repeat("🙂", 128));
+        LocalFileLiteralFind.FindCounted(File(supplementary), supplementary, LocalFileFindDirection.First)
+            .Match!.Length.Should().Be(256);
+        var nullFile = () => LocalFileLiteralFind.FindCounted(null!, "a", LocalFileFindDirection.First);
+        nullFile.Should().Throw<ArgumentNullException>();
+        var invalidDirection = () => LocalFileLiteralFind.FindCounted(file, "a", (LocalFileFindDirection)99);
+        invalidDirection.Should().Throw<ArgumentOutOfRangeException>();
+        foreach (var invalidQuery in new[] { new string('x', 257), new string('界', 171), new string('\ud800', 1), new string('\udc00', 1) })
+        {
+            var find = () => LocalFileLiteralFind.FindCounted(file, invalidQuery, LocalFileFindDirection.First);
+            find.Should().Throw<InvalidDataException>();
+        }
+        var nullQuery = () => LocalFileLiteralFind.FindCounted(file, null!, LocalFileFindDirection.First);
+        nullQuery.Should().Throw<ArgumentNullException>();
+    }
+
     [Theory]
     [InlineData("a A a", "A", 2)]
     [InlineData(" a  a ", " a ", 0)]
@@ -57,6 +136,8 @@ public sealed class LocalFileLiteralFindTests
         LocalFileLiteralFind.IsValidQuery(query).Should().BeFalse();
         var find = () => LocalFileLiteralFind.Find(File("source"), query, LocalFileFindDirection.First);
         find.Should().Throw<InvalidDataException>();
+        var counted = () => LocalFileLiteralFind.FindCounted(File("source"), query, LocalFileFindDirection.First);
+        counted.Should().Throw<InvalidDataException>();
     }
 
     [Fact]
@@ -82,6 +163,9 @@ public sealed class LocalFileLiteralFindTests
     [Theory]
     [InlineData("missing")]
     [InlineData("foreign")]
+    [InlineData("revision")]
+    [InlineData("item")]
+    [InlineData("digest")]
     [InlineData("length")]
     [InlineData("negative")]
     [InlineData("outside")]
@@ -94,6 +178,9 @@ public sealed class LocalFileLiteralFindTests
         {
             "missing" => null,
             "foreign" => span with { Source = File("abc abc").Reference },
+            "revision" => span with { Source = file.Reference with { RevisionId = Guid.NewGuid() } },
+            "item" => span with { Source = file.Reference with { ItemId = Guid.NewGuid() } },
+            "digest" => span with { Source = file.Reference with { Digest = new('a', 64) } },
             "length" => span with { Length = int.MaxValue },
             "negative" => span with { Start = -1 },
             "outside" => span with { Start = int.MaxValue },
@@ -103,6 +190,8 @@ public sealed class LocalFileLiteralFindTests
         {
             var find = () => LocalFileLiteralFind.Find(file, "abc", direction, selected);
             find.Should().Throw<InvalidDataException>();
+            var counted = () => LocalFileLiteralFind.FindCounted(file, "abc", direction, selected);
+            counted.Should().Throw<InvalidDataException>();
         }
     }
 

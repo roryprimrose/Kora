@@ -45,7 +45,7 @@ public sealed partial class SessionWorkspaceServiceTests
         var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
         var operation = paused ? SessionCommandOperation.QueuePause : SessionCommandOperation.QueueResume;
         var command = f.QueueCommand(operation) with { QueueRunId = f.QueueRun };
-        var result = await workspace.ExecuteCommandAsync(command, origin, () => true, f.Token);
+        var result = await queue.ExecuteCommandAsync(command, origin, () => true, f.Token);
         result.Outcome.Should().Be("committed");
         result.Queue!.DispatchControl!.Paused.Should().Be(paused);
         result.Queue.DispatchControl.ControlRevision.Should().Be(f.ControlRevision);
@@ -248,6 +248,47 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Fact]
+    public async Task NaturalSettingsNeverExecuteOrRewriteRowsAndOnlyFutureEnqueueAdmissionCapturesConfirmedValues()
+    {
+        using var f = new Fixture();
+        await using var settings = new SessionQueueConfigurationTestFixture();
+        settings.Service.Observe();
+        await using var queue = f.QueueService(configuration: settings.Service);
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue), RequestOrigin.LocalUi, () => true, f.Token);
+        var original = f.QueueRows.Single();
+        foreach (var input in new[] { "set fixed read pending capacity to 2", "set fixed read execution slots to 2",
+            "set fixed read pending lifetime to 120 minutes", "set fixed read active budget to 60 minutes" })
+        {
+            var command = SessionQueueConfigurationCommand.Parse(input, "Kora")!;
+            await settings.Refresh();
+            await settings.Set(command.Value, command.Option!.Value);
+            f.QueueRows.Should().Equal(original);
+            f.QueueActions.Should().Be(0);
+        }
+        await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueEnqueue) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        var following = f.QueueRows.Last();
+        original.ExpiresAt.Should().Be(original.EnqueuedAt.AddMinutes(30));
+        following.ExpiresAt.Should().Be(following.EnqueuedAt.AddMinutes(120));
+        f.QueueActions.Should().Be(0);
+        var dispatched = await queue.ExecuteCommandAsync(f.QueueCommand(SessionCommandOperation.QueueDispatch) with { QueueRevision = f.QueueRevision },
+            RequestOrigin.LocalUi, () => true, f.Token);
+        dispatched.QueueDispatch.Should().HaveCount(2).And.OnlyContain(result => result.Entry.ActiveBudgetMinutes == 60
+            && result.Entry.ActiveDeadlineAt == result.Entry.AdmittedAt!.Value.AddMinutes(60));
+        var terminal = f.QueueRows.ToArray();
+        var actions = f.QueueActions;
+        foreach (var phrase in new[] { "pending capacity", "execution slots", "pending lifetime", "active budget" })
+        {
+            var command = SessionQueueConfigurationCommand.Parse("reset fixed read " + phrase, "Kora")!;
+            await settings.Refresh();
+            await settings.Set(null, command.Option!.Value);
+            f.QueueRows.Should().Equal(terminal);
+            f.QueueActions.Should().Be(actions);
+        }
+        settings.Service.Get().Saved!.IsDefault.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task Configured_pending_capacity_feeds_admission_and_native_exact_observation_without_eviction_or_deadline_change()
     {
         using var f = new Fixture();
@@ -346,7 +387,7 @@ public sealed partial class SessionWorkspaceServiceTests
         await using var queue = fixture.QueueService();
         var workspace = new SessionWorkspaceService(fixture, new(fixture), fixture, fixture.Logger, queue);
         var command = fixture.QueueCommand(SessionCommandOperation.QueueEnqueue);
-        var accepted = await workspace.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
+        var accepted = await queue.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
         accepted.Queue!.Entries.Should().ContainSingle().Which.Request.TaskId.Value.Should().Be(command.TaskId!.Value);
         accepted.Queue.Revision.Should().Be(1);
         var listed = await workspace.ExecuteCommandAsync(fixture.QueueCommand(SessionCommandOperation.QueueList),
@@ -363,7 +404,7 @@ public sealed partial class SessionWorkspaceServiceTests
         fixture.ActionRequests.Should().ContainSingle().Which.TaskId.Value.Should().Be(command.TaskId.Value);
         fixture.ActionLinks.Should().ContainSingle().Which.Should().BeGreaterThan(0);
         var unsupported = () => fixture.Service.ExecuteCommandAsync(command, RequestOrigin.LocalUi, () => true, fixture.Token);
-        await unsupported.Should().ThrowAsync<InvalidOperationException>().WithMessage("*unavailable*");
+        await unsupported.Should().ThrowAsync<InvalidOperationException>().WithMessage("*retired*");
     }
 
     [Theory]
@@ -740,13 +781,19 @@ public sealed partial class SessionWorkspaceServiceTests
         public async ValueTask<SessionQueueSnapshot> EnqueueAsync(HostRequest control, HostRequest work, HostRevision generation,
             long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency, SessionQueueLimits limits,
             Func<bool> eligible, CancellationToken token, SessionQueueReadProfile profile = SessionQueueReadProfile.Version,
-            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null)
+            HostRevision? expectedDependencyRevision = null, SessionQueueCapabilityTarget? target = null,
+            SessionQueueDispatchControl? expectedControl = null)
         {
             SessionQueueReadProfiles.Validate(profile, target);
             LastExpectedDependencyRevision = expectedDependencyRevision;
             QueueCheck("enqueue");
             if (BeforeEnqueue is { } before) { await before(limits); }
             if (!eligible()) { throw new InvalidOperationException("Private admission changed."); }
+            if (expectedControl is not null && (expectedRevision != QueueRevision
+                || expectedControl != QueueSnapshot(control.SessionId).DispatchControl))
+            {
+                throw new InvalidOperationException("The reviewed exact queue/control changed.");
+            }
             if (QueueRows.Count(entry => entry.IsPending && entry.Request.SessionId == work.SessionId) >= limits.PendingPerSession)
             { throw new InvalidOperationException("The pending queue is full."); }
             var now = QueueTime.GetUtcNow();
@@ -756,7 +803,8 @@ public sealed partial class SessionWorkspaceServiceTests
                     : profile is SessionQueueReadProfile.Capability or SessionQueueReadProfile.RuntimeStatus
                         ? SessionQueueEntry.TargetedReadRecordVersion : SessionQueueEntry.FixedReadRecordVersion,
                 PendingLifetimeMinutes: limits.PendingLifetimeMinutes, Profile: profile == SessionQueueReadProfile.Version ? null : profile, Target: target));
-            return QueueSnapshot(control.SessionId);
+            var snapshot = QueueSnapshot(control.SessionId);
+            return snapshot;
         }
         public ValueTask<SessionQueueSnapshot> RemovePendingAsync(HostRequest control, HostRevision generation,
             long expectedRevision, HostId<TaskIdentity>? task, HostRevision? entryRevision, SessionQueueState outcome,

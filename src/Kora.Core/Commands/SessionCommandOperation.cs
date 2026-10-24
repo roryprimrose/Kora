@@ -4,4 +4,7 @@ public enum SessionCommandOperation { Help, List, Status, Inspect, Create, Renam
     QueueList, QueueStatus, QueueEnqueue, QueueCancel, QueueRemove, QueueClear, QueueDispatch, HistorySearch,
     QueuePause, QueueResume, QueuePauseStatus, QueueMoveUp, QueueMoveDown, QueueMoveConfirm, QueueMoveCancel,
     QueueCancelSelectedReview, QueueCancelSelectedConfirm, QueueCancelSelectedDiscard,
-    QueueRequeueExpiredReview, QueueRequeueExpiredConfirm, QueueRequeueExpiredDiscard }
+    QueueRequeueExpiredReview, QueueRequeueExpiredConfirm, QueueRequeueExpiredDiscard,
+    RequestReview, RequestConfirm, RequestCancel,
+    RetentionStatus, RetentionReview, RetentionConfirm, RetentionCancel,
+    ConversationSearch, ConversationSearchNext, ConversationSearchCancel, AttachmentInspect }

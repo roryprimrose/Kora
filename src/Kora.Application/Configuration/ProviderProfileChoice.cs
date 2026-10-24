@@ -24,7 +24,7 @@ public sealed class ProviderProfileChoice
     }
 
     public ProviderService Service => Value.Service;
-    public string Label => Service.ToString();
+    public string Label => Presentation.SettingsText.Service(Service);
     internal ProviderProfilePreferences Value { get; }
     internal long Revision { get; }
     internal Guid Owner { get; }

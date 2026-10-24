@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Dependencies;
 
-/// <summary>R04-R08 host boundary. Production profiles remain unavailable; no adapter is composed.</summary>
+/// <summary>Exact host admission and execution boundary. Unqualified production profiles remain unavailable.</summary>
 public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmission
 {
     private readonly Guid owner = Guid.NewGuid();
@@ -26,7 +26,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ProviderModeConfigurationService? providerModeConfiguration;
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private readonly ISessionProviderProfileStore? sessionProfiles;
-    private static readonly TimeSpan Deadline = TimeSpan.FromSeconds(15);
+    private readonly IModelProviderRegistrationSource? registrationSource;
+    private readonly HostedTransmissionReviewService? hostedReviews;
+    private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
     private TaskCompletionSource? quiescence;
@@ -59,7 +61,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
         ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
-        ISessionProviderProfileStore? sessionProfiles = null)
+        ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null,
+        HostedTransmissionReviewService? hostedReviews = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -72,6 +75,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.sessionProfiles = sessionProfiles;
+        this.registrationSource = registrationSource;
+        this.hostedReviews = hostedReviews;
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -80,7 +85,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async Task<ModelTurnAdmission> AdmitSelectionAsync(ModelProviderSelection selection,
         ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken,
-        CopilotTurnAuthorization? hostedAuthorization = null)
+        Kora.Core.Providers.ProviderProfileTuple? profile = null, CopilotTurnAuthorization? hostedAuthorization = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
         var current = HostActivity.Current;
@@ -136,33 +141,45 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 {
                     result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.EnvelopeLimitExceeded, provenance);
                 }
-                else if (registration is null)
-                {
-                    result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, provenance);
-                }
-                else if (!registration.IsQualified(time.GetUtcNow()))
-                {
-                    result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance);
-                }
-                else if (selection.Provider != ModelProviderIdentity.Ollama
-                    && !HostedAuthorized(registration, hostedAuthorization, context, issuer))
-                {
-                    // Hosted eligibility is not an exact destination/content approval. No egress authority exists in this slice.
-                    result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
-                }
                 else
                 {
-                    turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
-                        revision, registration);
-                    if (hostedAuthorization is not null && registration.Adapter is CopilotModelTurnAdapter copilot)
+                    if (profile is not null && registrationSource is not null
+                        && (selection.Provider == ModelProviderIdentity.Ollama || hostedAuthorization is not null))
+                    { registration = await registrationSource.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false); }
+                    cancellationToken.ThrowIfCancellationRequested();
+                    if (!Eligible(revision))
+                    { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, provenance); }
+                    else if (registration is null || registration.Selection != selection)
+                    { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, provenance); }
+                    else if (!registration.IsQualified(time.GetUtcNow()))
+                    { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance); }
+                    else if (selection.Provider != ModelProviderIdentity.Ollama
+                        && !HostedAuthorized(registration, hostedAuthorization, context, issuer))
                     {
-                        var boundTurn = turn;
-                        turn.Registration = registration with
-                        {
-                            Adapter = copilot.Bind(hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
-                        };
+                        // Hosted eligibility is not destination/content approval. Local composition cannot clear this denial.
+                        result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
                     }
-                    result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None, provenance);
+                    else
+                    {
+                        turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
+                            revision, registration);
+                        if (hostedAuthorization is not null && registration.Adapter is CopilotModelTurnAdapter copilot)
+                        {
+                            var boundTurn = turn;
+                            turn.Registration = registration with
+                            {
+                                Adapter = copilot.Bind(hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
+                            };
+                        }
+                        var refreshed = profile is not null && registrationSource is not null
+                            ? await RevalidateAsync(turn, cancellationToken).ConfigureAwait(false) : ModelTurnReason.None;
+                        if (refreshed != ModelTurnReason.None)
+                        {
+                            turn = null;
+                            result = Finish(ModelTurnOutcome.Denied, refreshed, provenance);
+                        }
+                        else { result = Finish(ModelTurnOutcome.Succeeded, ModelTurnReason.None, provenance); }
+                    }
                 }
             }
         }
@@ -200,7 +217,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime);
         Tag(turn.Provenance);
         var requested = StartAudit(turn.Provenance);
-        using var deadline = new CancellationTokenSource(Deadline, time);
+        using var deadline = new CancellationTokenSource(turn.Registration.Adapter is CopilotModelTurnAdapter
+            ? CopilotTurnAuthorization.MaximumDuration : Deadline, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token);
         ModelTurnResult result;
         try
@@ -235,13 +253,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         token.ThrowIfCancellationRequested();
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
-        if (turn.Profile is { } profile)
+        if (turn.Profile is not null)
         {
-            if (sessionProfiles is null || (await sessionProfiles.ReadProviderProfile(
-                turn.Provenance.Request.SessionId, token).ConfigureAwait(false)).Held)
-            { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
-            if (!await providerProfileConfiguration!.ValidateTurnAsync(profile, token).ConfigureAwait(false))
-            { return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, turn.Provenance); }
+            var profileReason = await RevalidateProfileAsync(turn, token).ConfigureAwait(false);
+            if (profileReason != ModelTurnReason.None)
+            { return Finish(ModelTurnOutcome.Unavailable, profileReason, turn.Provenance); }
             reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
             if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         }
@@ -261,8 +277,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         try
         {
             token.ThrowIfCancellationRequested();
-            var pending = turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
-                (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken), token);
+            if (!ConsumerAdmissionCurrent(turn))
+            { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, turn.Provenance); }
+            var pending = RunAdapterAsync(turn, token);
             try { reply = await pending.WaitAsync(token).ConfigureAwait(false); }
             catch (OperationCanceledException) when (token.IsCancellationRequested)
             {
@@ -278,14 +295,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             if (!transferred) { released.TrySetResult(); }
         }
         token.ThrowIfCancellationRequested();
-        reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
+        if (turn.HasForbiddenToolAttempt)
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted, turn.Provenance); }
+        reason = await RevalidateContinuationAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (reply is null || reply.ReportedSelection != turn.Provenance.Selection || !Enum.IsDefined(reply.Outcome)
+            || !Enum.IsDefined(reply.Reason)
             || reply.Outcome == ModelTurnOutcome.Succeeded && !ValidResponse(reply.Response))
         {
             return Finish(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
         }
-        return Finish(reply.Outcome, ModelTurnReason.ProviderOutcome, turn.Provenance,
+        return Finish(reply.Outcome, reply.Reason, turn.Provenance,
             reply.Outcome == ModelTurnOutcome.Succeeded ? reply.Response : null);
     }
 
@@ -294,16 +314,33 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(turnToken, token);
         linked.Token.ThrowIfCancellationRequested();
+        // Refuse before asynchronous source validation so an unawaited callback cannot race a successful answer.
+        if (turn.Owner == owner && turn.Context.ToolMode == ModelToolMode.None)
+        {
+            turn.RejectToolAttempt();
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "model-tools-not-permitted");
+        }
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)
-            || await RevalidateAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+            || await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
         }
-        var reply = tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
-        if (await RevalidateAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+        if (!ModelToolProtocol.GetTools(turn.Context.ToolMode).Any(descriptor =>
+            string.Equals(descriptor.Id, id, StringComparison.Ordinal)))
+        {
+            ToolDenied(logger);
+            return new(CapabilityOutcome.Denied, "tool-not-in-exact-turn-subset");
+        }
+        var reply = turn.Context.ToolMode == ModelToolMode.LocalWebPage
+            ? webPages.TryGetValue(turn, out var webPage)
+                ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
+            : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
+        if (await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
@@ -311,18 +348,44 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         return reply;
     }
 
+    private async ValueTask<ModelTurnReason> RevalidateProfileAsync(ModelTurn turn, CancellationToken token)
+    {
+        if (turn.Profile is not { } profile) { return ModelTurnReason.None; }
+        if (sessionProfiles is null || providerProfileConfiguration is null)
+        { return ModelTurnReason.SessionNotAdmitted; }
+        var observed = await sessionProfiles.ReadProviderProfile(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        if (observed.Held || observed.Session.SessionId != turn.Provenance.Request.SessionId
+            || !observed.Session.IsActive || observed.Session.Generation != turn.SessionGeneration)
+        { return ModelTurnReason.SessionNotAdmitted; }
+        // Later preference edits affect later turns; only the captured tuple's live authority is revalidated.
+        return await providerProfileConfiguration.ValidateTurnAsync(profile, token).ConfigureAwait(false)
+            ? ModelTurnReason.None : ModelTurnReason.UnregisteredModel;
+    }
+
+    private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
+    {
+        var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
+        if (reason != ModelTurnReason.None) { return reason; }
+        reason = await RevalidateProfileAsync(turn, token).ConfigureAwait(false);
+        return reason != ModelTurnReason.None ? reason : await RevalidateAsync(turn, token).ConfigureAwait(false);
+    }
+
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
+        await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
             token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
-        if (!Eligible(turn.ControlRevision)) { return ModelTurnReason.HostAdmissionClosed; }
+        if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (session.Authority.SessionId != turn.Provenance.Request.SessionId || !session.Authority.IsActive
+            || turn.ConversationTarget is { } target && target != session
             || session.Authority.Generation != turn.SessionGeneration
             || !OwnsTask(task, turn.Provenance.Request, turn.SessionGeneration) || task!.Task.Revision != turn.TaskRevision)
         {
@@ -435,6 +498,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (!IsQuiescent)
         { throw new InvalidOperationException("The model runtime has not confirmed resource quiescence."); }
         lock (policyGate) { policies.Clear(); }
-        lifetime.Dispose();
+        try
+        {
+            foreach (var adapter in registrations.Select(item => item.Adapter).OfType<IAsyncDisposable>()
+                .Distinct<IAsyncDisposable>(ReferenceEqualityComparer.Instance))
+            {
+                await adapter.DisposeAsync().ConfigureAwait(false);
+            }
+        }
+        finally { lifetime.Dispose(); }
     }
 }

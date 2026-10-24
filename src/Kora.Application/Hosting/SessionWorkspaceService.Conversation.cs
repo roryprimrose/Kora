@@ -14,6 +14,35 @@ public sealed partial class SessionWorkspaceService
     public Task<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         ReadAsync(() => Conversations.ReadConversationDraftAsync(session, token), token);
 
+    internal Task<ConversationDraftSnapshot> ReadConversationDraftForRecoveryAsync(SessionWorkspaceEntry target,
+        Func<bool> admitted, CancellationToken token) =>
+        ReadAsync(async () =>
+        {
+            var request = HostActivity.RequireCurrent().Request;
+            var control = access.ControlRevision;
+            void RequireCurrent()
+            {
+                token.ThrowIfCancellationRequested();
+                if (request.Origin != RequestOrigin.LocalUi || request.InvocationId is not null
+                    || request.SessionId != target.Authority.SessionId || !access.CanControl
+                    || access.ControlRevision != control || !admitted())
+                { throw new InvalidOperationException("Draft recovery requires unchanged exact-session native private control."); }
+            }
+            RequireCurrent();
+            var before = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            RequireCurrent();
+            if (before != target) { throw new InvalidOperationException("The exact draft recovery session source changed. Refresh explicitly."); }
+            var draft = await Conversations.ReadConversationDraftAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            var after = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+            RequireCurrent();
+            if (after != target) { throw new InvalidOperationException("The draft recovery session generation or metadata changed."); }
+            draft.Draft.Validate();
+            if (draft.Session != target.Authority || draft.Draft.SessionId != target.Authority.SessionId
+                || draft.ExpectedTarget is { } expected && expected != target)
+            { throw new InvalidDataException("Legacy recovery requires the exact session generation and saved source."); }
+            return draft with { ExpectedTarget = target };
+        }, token);
+
     public Task<ConversationPage> ReadConversationPageAsync(HostId<SessionIdentity> session,
         ConversationCursor? cursor, int limit, CancellationToken token) =>
         ReadAsync(() => Conversations.ReadConversationPageAsync(session, cursor, limit, token), token);
@@ -48,12 +77,4 @@ public sealed partial class SessionWorkspaceService
             return content;
         }, token);
 
-    internal Task<ConversationDraftSnapshot> CommitConversationDraftAsync(ConversationDraftSnapshot expected,
-        string? body, Func<bool> admitted, CancellationToken token)
-    {
-        InvalidateWorkOverview(expected.Session.SessionId);
-        return ControlAsync(expected.Session.SessionId, RequestOrigin.LocalUi,
-            (request, live) => Conversations.CommitConversationDraftAsync(request, expected, body, live, token),
-            token, admitted, existingSubject: true, resolveTerminalReceipt: true);
-    }
 }

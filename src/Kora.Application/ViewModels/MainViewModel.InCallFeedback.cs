@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
@@ -37,8 +38,8 @@ public sealed partial class MainViewModel
     public bool CanInspectInCallFeedbackNative => CanInspectInCallFeedback && inCallFeedbackNativeLifetime();
     public bool CanChangeInCallFeedbackNative => CanInspectInCallFeedbackNative && inCallFeedbackConfiguration!.Get().Available;
     public string InCallFeedbackStatus => inCallFeedbackConfiguration is null
-        ? "Call feedback admission is unavailable; the UI default and independent hard speech/privacy gates remain."
-        : InCallFeedbackCommandResult.Serialize(DescribeInCallFeedback());
+        ? "Call response settings are unavailable. Call and privacy protections still apply."
+        : SettingsText.Describe(DescribeInCallFeedback());
 
     private InCallFeedbackMode DesiredInCallFeedback => inCallFeedbackConfiguration?.Get().Desired ?? InCallFeedbackRules.Default;
     public bool IsInCallFeedbackOverrideApplied => communicationPolicy.Current.EffectiveState is CallState.Active or CallState.Suspected

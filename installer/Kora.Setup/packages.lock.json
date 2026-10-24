@@ -42,9 +42,9 @@
       },
       "Microsoft.VisualStudio.Threading.Analyzers": {
         "type": "Direct",
-        "requested": "[18.7.23, )",
-        "resolved": "18.7.23",
-        "contentHash": "dyj6z8m+LFjpeH69hdnciCcRCmD0YgMlvuQEywiEshjqj/blgQ+PuWX8Vd5gkWQFoBN4e+TFxx6DvGNSv/gIKg=="
+        "requested": "[18.12.1, )",
+        "resolved": "18.12.1",
+        "contentHash": "sQt7NpnselT1gP1a7bTfhmfHYV0jbavst/8mOoWTMSjXhXzWPssqgBoIwrxNsgJUa7XQzD2raSRMAFfmlepxNw=="
       },
       "WixToolset.BootstrapperApplicationApi": {
         "type": "Direct",
@@ -282,14 +282,6 @@
         "resolved": "5.0.0-pre.13",
         "contentHash": "65qbZS49AfrTM6jtZ2RDTWAzLe13ywCXIiSP5QrAJLmZT6sQqHGd1LfFXLhx8Ccp77qy7qh/LHsxpUOlkgZTCg=="
       },
-      "SkiaSharp": {
-        "type": "Transitive",
-        "resolved": "3.119.4",
-        "contentHash": "53NOSUZ1Us+91Sm0uCkIivh/k7jOowRErZT2sIWwPFN9mLUvdxnE6rS4sWo4255+Rd2MWUSF+j0NMZHD6Cke+Q==",
-        "dependencies": {
-          "SkiaSharp.NativeAssets.Win32": "3.119.4"
-        }
-      },
       "SkiaSharp.NativeAssets.Linux": {
         "type": "Transitive",
         "resolved": "3.119.4",
@@ -342,10 +334,25 @@
         "resolved": "0.94.1",
         "contentHash": "11YMr7FnAbL83bQmVxlhbIKHvSLxjO81D12Ej0QMSGXMDTxNA9MTOa4MQxx43nv5el/efuPHwzyrj6a5ha2gug=="
       },
+      "kora.application": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )",
+          "Kora.Tools": "[0.1.0, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
       "kora.core": {
         "type": "Project",
         "dependencies": {
           "Microsoft.Data.Sqlite": "[10.0.12, )",
+          "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
+        }
+      },
+      "kora.tools": {
+        "type": "Project",
+        "dependencies": {
+          "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )"
         }
       },
@@ -360,6 +367,7 @@
           "Microsoft.Win32.SystemEvents": "[10.0.12, )",
           "MisakiSharp": "[2.2.0, )",
           "NAudio": "[3.1.0, )",
+          "SkiaSharp": "[3.119.4, )",
           "System.Speech": "[10.0.12, )"
         }
       },
@@ -441,6 +449,15 @@
           "NAudio.Wasapi": "3.1.0",
           "NAudio.WinForms": "3.1.0",
           "NAudio.WinMM": "3.1.0"
+        }
+      },
+      "SkiaSharp": {
+        "type": "CentralTransitive",
+        "requested": "[3.119.4, )",
+        "resolved": "3.119.4",
+        "contentHash": "53NOSUZ1Us+91Sm0uCkIivh/k7jOowRErZT2sIWwPFN9mLUvdxnE6rS4sWo4255+Rd2MWUSF+j0NMZHD6Cke+Q==",
+        "dependencies": {
+          "SkiaSharp.NativeAssets.Win32": "3.119.4"
         }
       },
       "System.Speech": {

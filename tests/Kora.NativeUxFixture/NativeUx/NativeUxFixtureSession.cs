@@ -46,12 +46,16 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     private MainViewModel? main;
     private AssistantNameConfigurationService? assistantNameConfiguration;
     private SessionQueueService? queue;
+    internal SessionQueueService Queue => queue ?? throw new InvalidOperationException("The fixture queue is not initialized.");
     private SessionWorkspaceService? sessions;
     private readonly EvidenceLoggerProvider? evidenceProvider;
+    private readonly Serilog.Core.Logger? dailyEvidenceLogger;
     private AudioControlAdmission? captionAdmission;
 
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
-        bool exactGrants = false, bool allWork = false)
+        bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
+        ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
+        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null)
     {
         if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
         {
@@ -75,13 +79,23 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             identity.User ?? throw new InvalidOperationException("A loaded Windows user profile is required."));
         try
         {
-            var sink = new WindowsSqliteEvidenceSink(this);
+            var sink = new WindowsSqliteEvidenceSink(this, null, null, evidenceCheckpoint);
             sink.Initialize();
-            evidenceProvider = new([sink], new FixtureEvidenceGaps());
+            if (bufferedEvidence)
+            {
+                var health = new FileEvidenceHealth();
+                dailyEvidenceLogger = DailyFileLoggerFactory.Create(this, health);
+                var copy = new FileEvidenceSink(dailyEvidenceLogger, health);
+                evidenceProvider = new([copy, sink], copy, bufferDiagnostics: true, requiredOrdinaryCopy: copy);
+            }
+            else
+            {
+                evidenceProvider = new([sink], new FixtureEvidenceGaps());
+            }
             Loggers = LoggerFactory.Create(builder => builder.AddProvider(evidenceProvider));
             Audit = new LoggerSecurityAuditLog(Loggers.CreateLogger<LoggerSecurityAuditLog>());
             Tasks = new(this);
-            Interactions = new(this, Tasks);
+            Interactions = new(this, Tasks, TimeProvider.System, interactionCheckpoint);
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
             Evidence = new(new WindowsSqliteEvidenceReader(sink), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
             SharedAdmission = new(Interactions, Interactions, new(Tasks));
@@ -92,6 +106,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         {
             Loggers?.Dispose();
             evidenceProvider?.Dispose();
+            dailyEvidenceLogger?.Dispose();
             cancellation.Dispose();
             Directory.Delete(LocalRoot, recursive: true);
             throw;
@@ -129,7 +144,10 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     internal Task InitializeAsync() => InitializeAsync(null);
 
-    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet)
+    internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
+        Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
+        Kora.Core.Communication.ICallStateService? callState = null,
+        IUiDispatcher? dispatcher = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -182,17 +200,21 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
             new LocalCallAwarePreferences(this, NullLogger<LocalCallAwarePreferences>.Instance),
-            new FixtureCallState(SilentSpeech is null ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
-            Access, execution, new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
+            callState ?? new FixtureCallState(SilentSpeech is null ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
+            Access, execution, dispatcher ?? new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
             NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard), new AuditedPreferenceWriter(Audit),
+            clipboard, new(clipboard), new(clipboard), new(clipboard), new(new DeniedClipboardExplanation()),
+            new AuditedPreferenceWriter(Audit),
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
+            new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
+                NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
             webPageGet: webPageGet);
+        if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);
         await Main.InitializeAsync();
@@ -216,6 +238,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         if (ExactGrants) { await InitializeExactGrantsAsync(); }
         if (AllWork) { await InitializeAllWorkAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
+    }
+
+    private sealed class DeniedClipboardExplanation : Kora.Core.Context.IClipboardExplanationWorkflow
+    {
+        public Task<Kora.Core.Context.ClipboardExplanationResult> ExplainAsync(
+            Guid? reviewedSnapshotId, Func<bool> eligible, CancellationToken token) =>
+            Task.FromResult(new Kora.Core.Context.ClipboardExplanationResult(Kora.Core.Context.ClipboardExplanationOutcome.Denied));
     }
 
     internal async Task<WorkSessionAuthorization> AdvanceLifecycleTargetAsync()
@@ -339,6 +368,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Access.Dispose();
         Loggers.Dispose();
         evidenceProvider?.Dispose();
+        dailyEvidenceLogger?.Dispose();
         cancellation.Dispose();
         // Delete only the uniquely created fixture child, never the supplied parent or user data.
         if (File.GetAttributes(LocalRoot).HasFlag(FileAttributes.ReparsePoint))

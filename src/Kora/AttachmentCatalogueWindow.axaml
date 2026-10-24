@@ -18,6 +18,13 @@
     <ScrollViewer Grid.Row="1" MaxHeight="380" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="6">
       <WrapPanel>
+        <ComboBox x:Name="AttachmentPageOrder" ItemsSource="{Binding PageOrders}" SelectedItem="{Binding PageOrder, Mode=TwoWay}"
+                  IsEnabled="{Binding CanOrderPage}" AutomationProperties.Name="Order this loaded page: Source order, retained byte count ascending or descending (unknown last); metadata only; no read" />
+        <Button x:Name="ClearAttachmentPageOrder" Content="Clear _order (Source order)" IsEnabled="{Binding CanOrderPage}"
+                AutomationProperties.Name="Clear loaded-page order to Source order without a read; retires selection, details, Find and open readiness" />
+      </WrapPanel>
+      <controls:NamedTextBlock x:Name="AttachmentPageOrderDisclosure" Text="{Binding PageOrderHint}" TextWrapping="Wrap" />
+      <WrapPanel>
         <ComboBox x:Name="AttachmentSessionFilter" ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored session lifecycle: All, Active, Done or Removed; independent of removed attachment slots" />
         <ComboBox x:Name="AttachmentMediaType" ItemsSource="{Binding MediaTypes}" SelectedItem="{Binding MediaType, Mode=TwoWay}"
@@ -40,74 +47,6 @@
                  AutomationProperties.Name="Inclusive maximum retained stored bytes; empty means Any; unsigned invariant digits only; typing performs no read" />
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding CopyAndBytesHint}" TextWrapping="Wrap" />
-      <TextBox x:Name="AttachmentMetadataText" Text="{Binding MetadataText, Mode=TwoWay}" Width="700"
-               PlaceholderText="Optional literal metadata (IDs, digest or media type)"
-               HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
-               AutomationProperties.Name="Optional private volatile literal metadata query: exposed IDs, digest or media type; case sensitive; typing performs no read" />
-      <controls:NamedTextBlock Text="{Binding MetadataHint}" TextWrapping="Wrap" />
-      <TextBox x:Name="AttachmentDigest" Text="{Binding DigestText, Mode=TwoWay}" Width="700"
-               PlaceholderText="Optional exact SHA-256 (Any when empty)"
-               HorizontalAlignment="Left" IsEnabled="{Binding CanEdit}"
-               AutomationProperties.Name="Optional exact SHA-256 of a Confirmed retained copy; 64 lowercase hexadecimal characters, not all zero; typing performs no read" />
-      <controls:NamedTextBlock Text="{Binding DigestHint}" TextWrapping="Wrap" />
-      <WrapPanel>
-        <TextBox x:Name="AttachmentFileSourceId" Text="{Binding FileSourceIdText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Exact local-file source GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional exact retained local-file source ID; nonempty canonical lowercase D-format GUID; correlation only, not source consent or file-read authority; typing performs no read" />
-        <TextBox x:Name="AttachmentFileRevisionId" Text="{Binding FileRevisionIdText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Exact local-file revision GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional exact retained local-file revision ID; nonempty canonical lowercase D-format GUID; correlation only, not current file identity or body integrity; typing performs no read" />
-        <TextBox x:Name="AttachmentFileItemId" Text="{Binding FileItemIdText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Exact local-file item GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional exact retained local-file item ID; nonempty canonical lowercase D-format GUID; correlation only, not path disclosure or proof a copy exists; typing performs no read" />
-      </WrapPanel>
-      <controls:NamedTextBlock Text="{Binding FileReferenceHint}" TextWrapping="Wrap" />
-      <WrapPanel>
-        <TextBox x:Name="AttachmentObservationSource" Text="{Binding ObservationSourceText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Exact observation-source GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional exact retained observation-source GUID; lowercase D format; correlation only, not source consent; typing performs no read" />
-        <TextBox x:Name="AttachmentDeviceProfile" Text="{Binding DeviceProfileText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Exact device-profile GUID (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional exact retained device-profile GUID; lowercase D format; correlation only, not ownership; typing performs no read" />
-      </WrapPanel>
-      <WrapPanel>
-        <TextBox x:Name="AttachmentCapturedFrom" Text="{Binding CapturedFromText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Captured From UTC (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive retained Captured From canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
-        <TextBox x:Name="AttachmentCapturedUntil" Text="{Binding CapturedUntilText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Captured Until UTC (Any when empty)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive retained Captured Until canonical UTC; yyyy-MM-ddTHH:mm:ss.fffffff+00:00; typing performs no read" />
-      </WrapPanel>
-      <controls:NamedTextBlock Text="{Binding CorrelationHint}" TextWrapping="Wrap" />
-      <ComboBox x:Name="AttachmentGenerationRelationship" ItemsSource="{Binding GenerationRelationships}"
-                SelectedItem="{Binding GenerationRelationship, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
-                AutomationProperties.Name="Retained captured to observed session generation relationship: Any, Same observed generation or Earlier observed generation; passive historical metadata only; changing performs no read" />
-      <controls:NamedTextBlock Text="{Binding GenerationRelationshipHint}" TextWrapping="Wrap" />
-      <WrapPanel>
-        <TextBox x:Name="AttachmentMinimumSessionGeneration" Text="{Binding MinimumSessionGenerationText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Minimum session generation (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive minimum retained session generation; positive invariant digits; typing performs no read" />
-        <TextBox x:Name="AttachmentMaximumSessionGeneration" Text="{Binding MaximumSessionGenerationText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Maximum session generation (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive maximum retained session generation; positive invariant digits; typing performs no read" />
-      </WrapPanel>
-      <WrapPanel>
-        <TextBox x:Name="AttachmentMinimumCapturedGeneration" Text="{Binding MinimumCapturedGenerationText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Minimum captured generation (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive minimum retained captured generation; positive invariant digits; typing performs no read" />
-        <TextBox x:Name="AttachmentMaximumCapturedGeneration" Text="{Binding MaximumCapturedGenerationText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Maximum captured generation (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive maximum retained captured generation; positive invariant digits; typing performs no read" />
-      </WrapPanel>
-      <WrapPanel>
-        <TextBox x:Name="AttachmentMinimumStorageRevision" Text="{Binding MinimumStorageRevisionText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Minimum storage revision (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive minimum retained storage revision; positive invariant digits; typing performs no read" />
-        <TextBox x:Name="AttachmentMaximumStorageRevision" Text="{Binding MaximumStorageRevisionText, Mode=TwoWay}" Width="460"
-                 PlaceholderText="Maximum storage revision (Any)" IsEnabled="{Binding CanEdit}"
-                 AutomationProperties.Name="Optional inclusive maximum retained storage revision; positive invariant digits; typing performs no read" />
-      </WrapPanel>
-      <controls:NamedTextBlock Text="{Binding VersionHint}" TextWrapping="Wrap" />
     </StackPanel>
     </ScrollViewer>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
@@ -136,6 +75,9 @@
       <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
       <StackPanel x:Name="MetadataFindPanel" Spacing="6">
         <controls:NamedTextBlock Text="Find only in selected displayed metadata: exact case/spaces, one nonoverlapping match, no wrap. Enter: First; F3: Next; Shift+F3: Previous; Escape: Clear. No file/body/clipboard read or copy." TextWrapping="Wrap" />
+        <controls:NamedTextBlock x:Name="MetadataFindSpan" Text="{Binding MetadataFindMatch}" TextWrapping="Wrap"
+                                IsVisible="{Binding HasMetadataFindMatch}" Focusable="True"
+                                AutomationProperties.Name="Exact inert selected metadata literal match" />
         <TextBox x:Name="MetadataFindQuery" Text="{Binding MetadataFindQuery, Mode=TwoWay}"
                  PlaceholderText="Private one-line Find"
                  AcceptsReturn="False" IsUndoEnabled="False" IsEnabled="{Binding CanFindMetadata}"
@@ -152,9 +94,6 @@
         </WrapPanel>
         <controls:NamedTextBlock x:Name="MetadataFindStatus" Text="{Binding MetadataFindStatus}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Metadata literal Find outcome and exact UTF-16 coordinates" />
-        <controls:NamedTextBlock x:Name="MetadataFindSpan" Text="{Binding MetadataFindMatch}" TextWrapping="Wrap"
-                                IsVisible="{Binding HasMetadataFindMatch}" Focusable="True"
-                                AutomationProperties.Name="Exact inert selected metadata literal match" />
         <controls:NamedTextBlock x:Name="MetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
           AutomationProperties.Name="Selected exact session generation, storage revision, source, revision, item and digest headers; no body integrity claim" />
       </StackPanel>

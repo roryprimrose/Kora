@@ -29,7 +29,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var items = f.Editor.Files.ItemsSource;
             f.Store.DenyAccess = true;
             var dialog = await OpenFindComparison(f);
-            var panes = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            var panes = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
             var baseline = panes[0];
             var draft = panes[1];
             var original = FindSource(baseline).Text;
@@ -111,7 +111,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         {
             await using var f = await DraftValidationFixture.Create(ArtifactKind.Instruction, false);
             var dialog = await OpenFindComparison(f);
-            var pane = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().Last();
+            var pane = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().Last();
             FindQuery(pane).Text = "PRIVATE";
             FindClick(pane, "Find first");
             FindSpan(pane).Text.Should().Be("PRIVATE");
@@ -152,7 +152,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             f.Editor!.Source.Text = "\U0001f642e\u0301 \u00e9 aaaa\r\nfinal\rline\n";
             var raw = f.Editor.Source.Text;
             var dialog = await OpenFindComparison(f);
-            var pane = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().Last();
+            var pane = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().Last();
             FindQuery(pane).Text = literal;
             FindClick(pane, "Find first");
             FindOutcome(pane).Text.Should().Contain($"UTF-16 [{start}, {start + length})");
@@ -185,7 +185,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var raw = f.Editor.Source.Text;
             var dialog = await OpenFindComparison(f);
             dialog.Width = 640; dialog.Height = 500;
-            var pane = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().Last();
+            var pane = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().Last();
             FindQuery(pane).Text = literal;
             FindClick(pane, "Find first");
             FindOutcome(pane).Text.Should().Contain($"UTF-16 [{raw.Length - literal.Length}, {raw.Length})");
@@ -208,7 +208,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await using var f = await DraftValidationFixture.Create(ArtifactKind.Prompt, true);
             f.Editor!.Source.Text = "alpha alpha";
             var dialog = await OpenFindComparison(f);
-            var panes = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            var panes = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
             FindSource(panes[0]).Text.Should().BeEmpty();
             FindQuery(panes[0]).IsEnabled.Should().BeFalse();
             FindButton(panes[0], "Find first").IsEnabled.Should().BeFalse();
@@ -241,13 +241,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         return dialog ?? throw new InvalidOperationException("Expected passive comparison.");
     }
 
-    private static TextBox FindQuery(OwnedComparisonFindPane pane) => pane.GetVisualDescendants().OfType<TextBox>().Single(box => !box.IsReadOnly);
-    private static TextBox FindSource(OwnedComparisonFindPane pane) => pane.GetVisualDescendants().OfType<TextBox>().Single(box => box.IsReadOnly);
-    private static NamedTextBlock FindSpan(OwnedComparisonFindPane pane) => pane.GetVisualDescendants().OfType<NamedTextBlock>().Single(block => block.Focusable);
-    private static NamedTextBlock FindOutcome(OwnedComparisonFindPane pane) => pane.GetVisualDescendants().OfType<NamedTextBlock>()
+    private static TextBox FindQuery(SnapshotComparisonFindPane pane) => pane.GetVisualDescendants().OfType<TextBox>().Single(box => !box.IsReadOnly);
+    private static TextBox FindSource(SnapshotComparisonFindPane pane) => pane.GetVisualDescendants().OfType<TextBox>().Single(box => box.IsReadOnly);
+    private static NamedTextBlock FindSpan(SnapshotComparisonFindPane pane) => pane.GetVisualDescendants().OfType<NamedTextBlock>().Single(block => block.Focusable);
+    private static NamedTextBlock FindOutcome(SnapshotComparisonFindPane pane) => pane.GetVisualDescendants().OfType<NamedTextBlock>()
         .Single(block => AutomationProperties.GetName(block)?.Contains("Find outcome", StringComparison.Ordinal) == true);
-    private static Button FindButton(OwnedComparisonFindPane pane, string caption) => pane.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, caption));
-    private static void FindClick(OwnedComparisonFindPane pane, string caption) => FindButton(pane, caption).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+    private static Button FindButton(SnapshotComparisonFindPane pane, string caption) => pane.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, caption));
+    private static void FindClick(SnapshotComparisonFindPane pane, string caption) => FindButton(pane, caption).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
     private static KeyEventArgs FindKey(Key key, KeyModifiers modifiers = KeyModifiers.None) =>
         new() { RoutedEvent = InputElement.KeyDownEvent, Key = key, KeyModifiers = modifiers };
 }

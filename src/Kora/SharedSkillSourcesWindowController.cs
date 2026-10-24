@@ -18,24 +18,46 @@ internal sealed partial class SharedSkillSourcesWindowController(
     private CancellationTokenSource? activeOperation;
     private bool busy;
     private bool disposed;
+    private bool opening;
+    private bool closeAfterOpening;
 
-    internal void Open()
+    internal void Open() => TryOpen(static () => true);
+
+    internal bool TryOpen(Func<bool> eligible)
     {
-        if (!Eligible()) { main.ReportHostInteractionFailure("Shared skill inspection requires the owning unlocked host."); return; }
-        if (window is not null) { window.Activate(); return; }
+        if (opening || !eligible() || !Eligible()) { main.ReportHostInteractionFailure("Shared skill inspection requires the owning unlocked host and a known call policy."); return false; }
+        if (window is not null) { window.Activate(); return true; }
         lifetime = new();
+        var revision = main.CallPolicyRevision;
         window = new(() => RunAsync(RegisterAsync), () => RunAsync(RefreshAsync),
             () => RunAsync(DiscoverAsync, fenceCatalogue: true), () => RunAsync(VerifyAsync, fenceCatalogue: true),
-            () => RunAsync(UnregisterAsync, supersede: true));
+            () => RunAsync(UnregisterAsync, supersede: true),
+            () => Eligible() && main.CallPolicyRevision == revision);
+        window.BindInvocation(() => RunAsync(ReviewInvocationAsync));
         window.Closed += OnClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainChanged;
-        window.Show();
-        window.Activate();
+        var opened = window;
+        opening = true;
+        try { opened.Show(); }
+        catch (InvalidOperationException) { Close(); throw; }
+        finally
+        {
+            opening = false;
+            if (closeAfterOpening) { closeAfterOpening = false; Close(); }
+        }
+        if (!ReferenceEquals(window, opened) || !eligible() || !Eligible())
+        {
+            opened.Close();
+            return false;
+        }
+        opened.Activate();
         _ = RunAsync(RefreshAsync);
+        return true;
     }
 
-    private bool Eligible() => !disposed && isCurrentHost() && main.CanRevealPrivatePresentation;
+    private bool Eligible() => !closeAfterOpening && !disposed && isCurrentHost()
+        && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible;
 
     private bool CurrentWindow(SharedSkillSourcesWindow opened, CancellationToken token) =>
         Eligible() && ReferenceEquals(window, opened) && !token.IsCancellationRequested;
@@ -172,11 +194,11 @@ internal sealed partial class SharedSkillSourcesWindowController(
         }
     }
 
-    private void OnPrivacyClosed(object? sender, EventArgs args) => window?.Close();
+    private void OnPrivacyClosed(object? sender, EventArgs args) => Close();
 
     private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
     {
-        if (string.Equals(args.PropertyName, nameof(MainViewModel.CallPolicyRevision), StringComparison.Ordinal)) { window?.Close(); }
+        if (string.Equals(args.PropertyName, nameof(MainViewModel.CallPolicyRevision), StringComparison.Ordinal)) { Close(); }
     }
 
     private void OnClosed(object? sender, EventArgs args)
@@ -195,6 +217,18 @@ internal sealed partial class SharedSkillSourcesWindowController(
     public void Dispose()
     {
         disposed = true;
+        Close();
+    }
+
+    private void Close()
+    {
+        // Clear private state now, but do not dispose native controls inside their Show callback.
+        if (opening)
+        {
+            closeAfterOpening = true;
+            window?.ClearPrivateContent();
+            return;
+        }
         window?.Close();
     }
 }

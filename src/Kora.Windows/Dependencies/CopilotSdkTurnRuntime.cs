@@ -20,6 +20,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
     private readonly Func<HttpMessageHandler> createTransport;
     private int occupied;
     private ICopilotSdkClient? unreleasedClient;
+    private Task? unreleasedSend;
     private bool stopFailed;
     private bool disposed;
     public bool IsQuiescent => Volatile.Read(ref occupied) == 0;
@@ -35,7 +36,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
         this.time = time;
         this.logger = logger;
         this.createClient = createClient;
-        this.createTransport = createTransport ?? (() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false });
+        this.createTransport = createTransport ?? (() => new SocketsHttpHandler { AllowAutoRedirect = false, UseCookies = false, UseProxy = false });
     }
 
 #pragma warning disable GHCP001 // Pinned SDK final-request interception; the unsupported transport paths remain explicitly denied.
@@ -170,6 +171,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                         else
                         {
                             pending = session.SendAsync(new UTF8Encoding(false, true).GetString(context.Span), callbacks.Token);
+                            unreleasedSend = pending;
                             var answer = await pending.WaitAsync(callbacks.Token).ConfigureAwait(false);
                             callbacks.Token.ThrowIfCancellationRequested();
                             var accountCurrent = ReferenceEquals(await accounts.ResolveAsync(profile, callbacks.Token).ConfigureAwait(false), account);
@@ -225,6 +227,7 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
                         {
                             LateOutputDiscarded(logger, exception.GetType().Name);
                         }
+                        unreleasedSend = null;
                     }
                 }
             }
@@ -294,6 +297,12 @@ public sealed partial class CopilotSdkTurnRuntime : ICopilotTurnRuntime, IAsyncD
             { throw new InvalidOperationException("The active Copilot turn must stop before runtime disposal."); }
             await failed.StopAsync().ConfigureAwait(false);
             await failed.DisposeAsync().ConfigureAwait(false);
+            if (unreleasedSend is { } send)
+            {
+                try { await send.ConfigureAwait(false); }
+                catch (Exception exception) { LateOutputDiscarded(logger, exception.GetType().Name); }
+                unreleasedSend = null;
+            }
             unreleasedClient = null;
             Volatile.Write(ref occupied, 0);
         }

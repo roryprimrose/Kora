@@ -12,6 +12,20 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Fact]
+    public async Task Explicit_copilot_context_route_resolves_current_profile_but_never_inherits_transmission_consent()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var runtime = new HostedRuntime();
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var host = f.CopilotProfiles(runtime, reviews);
+        var admission = await ((ICopilotTurnAdmission)host).AdmitCopilotAsync(f.Context(), Token);
+        admission.Turn.Should().NotBeNull();
+        (await host.RunAsync(admission.Turn!, Token)).Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
+        runtime.Transmissions.Should().Be(0);
+    }
+
+    [Fact]
     public async Task Copilot_requires_host_issued_turn_intent_and_separate_exact_final_transmission_confirmation()
     {
         using var f = new Fixture();
@@ -146,13 +160,14 @@ public sealed partial class ModelTurnHostTests
     {
         internal ModelTurnHost CopilotProfiles(HostedRuntime runtime, HostedTransmissionReviewService reviews)
         {
+            Time.ExpectedDeadline = CopilotTurnAuthorization.MaximumDuration;
             ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
             ProfilePreferences.Value = new(ProviderService.Copilot, [Profile(ProviderService.Copilot)]);
             ProviderPreferences.Mode = ModelProviderMode.HostedPreferred;
             var selection = ModelProviderSelection.OllamaCandidate with { Provider = ModelProviderIdentity.Copilot };
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(selection, Gates(selection), Time.Now.AddMinutes(5), new CopilotModelTurnAdapter(runtime, reviews))],
-                ProviderConfiguration, ProfileConfiguration, this);
+                ProviderConfiguration, ProfileConfiguration, this, hostedReviews: reviews);
             ownedHosts.Add(host);
             return host;
         }

@@ -1,5 +1,6 @@
 ﻿using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -15,7 +16,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class NewRequestControllerTests
+public sealed partial class NewRequestControllerTests
 {
     [WindowsFact]
     public async Task TrayAndWorkspaceShareOneIsolatedWindowAndExactNavigationProtectsDirtyNamedBufferBeforePrivacyAndLifecycleRevocation()
@@ -31,7 +32,8 @@ public sealed class NewRequestControllerTests
             using var sessions = new SessionsWindowController(fixture.Main, fixture.Sessions, fixture.Evidence,
                 fixture.Access, NullLogger<SessionsViewModel>.Instance, conversation: conversation);
             using var controller = new NewRequestWindowController(fixture.Main, fixture.Sessions, fixture.Access,
-                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions);
+                () => new(fixture.Sessions, conversation, fixture.Access, NullLogger<NewRequestComposer>.Instance), sessions,
+                new AvaloniaUiDispatcher());
             controller.Bind();
             sessions.Bind();
             sessions.OpenNewRequest = controller.Open;
@@ -50,18 +52,27 @@ public sealed class NewRequestControllerTests
             opens.Should().Be(1);
             var state = ((NewRequestViewModel)window!.DataContext!).Composer;
             state.Body = "isolated native memory";
+            var query = window.GetVisualDescendants().OfType<TextBox>().Single(control => control.Name is "DraftFindQuery");
+            query.Text = "native";
+            window.GetVisualDescendants().OfType<Button>().Single(control => control.Name is "DraftFindFirst")
+                .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            window.FindControl<TextBox>("NewRequestBody")!.SelectedText.Should().Be("native");
+            query.Text.Should().Be("native");
             controller.Open();
             opens.Should().Be(1);
             ((NewRequestViewModel)window.DataContext!).Composer.Should().BeSameAs(state);
             state.Body.Should().Be("isolated native memory");
             window.FindControl<Button>("CreateTarget")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;
+            query.Text.Should().BeEmpty("target creation retires current draft Find");
             var exact = state.Target!.Authority.SessionId;
             named.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
             window.FindControl<Button>("OpenNewRequestSession")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;
-            named.SelectedSessionRecord!.Authority.SessionId.Should().Be(original.Authority.SessionId);
-            named.ComposerBody.Should().Be("dirty named-session memory");
+            named.SelectedSessionRecord!.Authority.SessionId.Should().Be(exact);
+            named.ComposerBody.Should().BeEmpty();
+            await sessions.NavigateAsync(original.Authority.SessionId, () => true, fixture.Token);
+            named.ComposerBody.Should().Be("dirty named-session memory", "navigation preserves the original topic buffer without asking to discard");
             named.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Discard);
             window.FindControl<Button>("OpenNewRequestSession")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await window.Operation;
@@ -99,7 +110,7 @@ public sealed class NewRequestControllerTests
     }
 
     [Fact]
-    public void TrayEntryHasExactNativeCallbackAndDoesNotExpandLegacyVoiceOrTypedRouting()
+    public void TrayEntryAndWorkspaceKeepTheSameNativeNavigationCallback()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))

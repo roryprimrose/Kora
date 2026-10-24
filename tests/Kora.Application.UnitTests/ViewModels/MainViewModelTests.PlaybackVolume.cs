@@ -46,8 +46,10 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("status speech.playback-volume");
         fixture.ViewModel.ResponseBody.Should().Contain("\"source\":\"saved\"");
         fixture.ViewModel.SelectedPlaybackVolume = 0;
+        fixture.ViewModel.SavedPlaybackVolume.Should().Be(1);
         await fixture.ViewModel.SavePlaybackVolumeCommand.ExecuteAsync();
         fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(0));
+        fixture.ViewModel.SavedPlaybackVolume.Should().Be(0);
         fixture.ViewModel.PlaybackVolumeChoices.Should().HaveCount(101);
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
@@ -55,7 +57,8 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResetPlaybackVolumeCommand.ExecuteAsync();
         fixture.VolumePreferences.Value.Should().BeNull();
         fixture.ViewModel.SelectedPlaybackVolume.Should().Be(100);
-        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.SavedPlaybackVolume.Should().Be(100);
+        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("Using the default");
         fixture.Voice.StartCalls.Should().Be(microphones);
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -87,6 +90,9 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
         fixture.ViewModel.ResponseBody.Should().Contain("Kora playback volume is zero or unavailable");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        await fixture.RunAsync("speak louder");
+        fixture.VolumePreferences.Value.Should().Be(new PlaybackVolume(10));
         fixture.TextToSpeech.SpokenText.Should().BeNull();
         await fixture.RunAsync("set speech.playback-volume to 100");
         await fixture.RunAsync("reset speech.playback-volume");
@@ -151,7 +157,7 @@ public sealed partial class MainViewModelTests
         cancelled.Cancel();
         await fixture.ViewModel.ExecutePlaybackVolumeCommandAsync(new(AppearanceCommandOperation.Get),
             SecurityAuditInitiator.TypedCommand, cancelled.Token);
-        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("\"source\":\"unavailable\"");
+        fixture.ViewModel.PlaybackVolumeStatus.Should().Contain("Setting unavailable");
     }
 
     [Fact]
@@ -235,7 +241,7 @@ public sealed partial class MainViewModelTests
         {
             if (item.Outcome == SecurityAuditOutcome.Requested && string.Equals(item.ActionId, "configuration.playback-volume", StringComparison.Ordinal))
             {
-                fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshPlaybackVolumeCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
         };
         await fixture.RunAsync("set speech.playback-volume to 1");

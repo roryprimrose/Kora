@@ -182,7 +182,7 @@ public sealed partial class SessionFileAttachmentService(
     public Task<SessionFileAttachment?> Read(HostId<SessionIdentity> session, CancellationToken token) =>
         Inspect(session, "session.file.read", async cancellation =>
     {
-        RequireNative();
+        SessionWorkspaceService.RequireRetainedFileInput();
         lock (sync)
         {
             if (replacementControls.Contains(session))
@@ -199,7 +199,7 @@ public sealed partial class SessionFileAttachmentService(
             throw new InvalidOperationException("Snapshot disclosure was revoked during passive inspection.");
         }
         return result;
-    }, token);
+    }, token, retainedRead: true);
 
     public Task<LocalFileSearchResult> Search(SessionFileAttachment exact, string query, CancellationToken token) =>
         Search(exact, query, LocalFileRetrievalMode.LexicalLines, token);
@@ -327,15 +327,17 @@ public sealed partial class SessionFileAttachmentService(
     }
 
     private async Task<T> Inspect<T>(HostId<SessionIdentity> session, string actionId,
-        Func<CancellationToken, Task<T>> operation, CancellationToken token)
+        Func<CancellationToken, Task<T>> operation, CancellationToken token, bool retainedRead = false)
     {
-        RequireNative();
+        if (!retainedRead) { RequireNative(); }
+        var origin = SessionWorkspaceService.RequireRetainedFileInput();
         var cause = HostActivity.Current?.Activity!.Context;
-        var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        var request = new HostRequest(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin);
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request,
             cause is { } context ? [new ActivityLink(context)] : []);
         var auditEvent = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation, actionId,
-            SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, "session.file.local");
+            SecurityAuditOutcome.Requested, origin == RequestOrigin.ActivatedVoice
+                ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser, "session.file.local");
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
         lock (sync)
         {

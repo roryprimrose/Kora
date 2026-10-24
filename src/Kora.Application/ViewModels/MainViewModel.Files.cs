@@ -218,6 +218,12 @@ public sealed partial class MainViewModel
             FileInspectionRequested?.Invoke(this, EventArgs.Empty);
             return;
         }
+        if (command.Operation == LocalFileOperation.Answer)
+        {
+            if (FileRevision is null) { PresentFileOutcome(LocalFileOutcome.Stale); return; }
+            FileAnswerRequested?.Invoke(this, EventArgs.Empty);
+            return;
+        }
         if (command.Operation == LocalFileOperation.Refresh)
         {
             if (FileRevision is not { } exact) { PresentFileOutcome(LocalFileOutcome.Stale); return; }
@@ -248,18 +254,21 @@ public sealed partial class MainViewModel
             "Select one fixed-drive UTF-8 .txt, .md or .markdown file (256 KiB maximum). "
             + "The native metadata review requires exact confirmation before content is read. "
             + "Paths supplied in speech/text are proposals only: use the native picker. "
-            + "Untrusted plain text may contain secrets; no rendering, execution, clipboard, model, egress, persistence or automatic refresh. "
+            + "Untrusted plain text may contain secrets; preview alone grants no rendering, execution, clipboard, model, egress, persistence or automatic refresh. "
             + "A failed selection admits nothing: resolve access/policy and select a fresh supported file. Unverified native release blocks clean handoff/exit and requires restart. "
             + "Close, clear, cancel, privacy closure or ownership loss discards the preview. "
             + "Search/inspect file opens bounded native lexical search of this exact admitted revision only. "
             + $"Preview folder reviews all immediate files only: {LocalFolderPolicy.MaximumFiles} files / "
             + $"{LocalFolderPolicy.MaximumCombinedBytes} combined bytes maximum; 256 KiB per file. "
             + "Any subdirectory, unsupported file or failed item rejects the whole selection. Search/inspect folder focuses native lexical search. "
+            + PreparedLocalSearchCommand.Syntax + " "
             + "Refresh file/folder reopens only the exact admitted physical source for a fresh metadata review; confirm again before reads. "
             + "Starting refresh retires the old preview and citations. Failure/cancel leaves no preview; use the native picker again. "
             + "Missing/replaced or aliased original roots cannot be rebound by refresh. Original files are never modified. "
             + "Durable single-file Session attachment requires separate native metadata/durable-copy consent in Sessions; this preview never persists. "
-            + "Managed knowledge sources, durable folders/versions, persistent/vector indexes and reasoning are unavailable.");
+            + "Answer file opens a separate native single-file question and explicit local-model-use request. "
+            + "Preview consent alone never admits model use; source-use policy and qualified local runtime are separately required. "
+            + "Managed knowledge sources, durable folders/versions and persistent/vector indexes are unavailable.");
     }
 
     private void DisposeFilePreview()

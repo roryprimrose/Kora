@@ -1,8 +1,8 @@
 # Skill Sources, Profile Reuse, and Roaming Storage
 
-Status: bounded bundled catalogue and R21 explicit shared-profile read-only
-inspection delivered. Shared enable/disable/invoke/model exposure and
-Kora-specific authoring remain proposed Slice B/C work.
+Status: bounded bundled catalogue and explicit shared-profile native inspection delivered.
+The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation.
+General tool-dependent invocation and Kora-specific authoring remain proposed.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
@@ -16,7 +16,7 @@ does not expand the delivered R21 read-only boundary below.
 | Partition | Location | Kora access |
 |---|---|---|
 | Bundled | Embedded resources in the first-party `Kora.Definitions` binary | Current: immutable catalogue and read-only inspection only. Invocation unavailable; no user/agent editing, loose-file overrides, or writable extraction. Installed protection remains a separate admission gate. |
-| Shared profile | User-selected registered roots below the Windows profile known folder | Current R21: bounded local discovery and exact immutable inspection only. No enablement, invocation, execution or model exposure. |
+| Shared profile | User-selected registered roots below the Windows profile known folder | Bounded native discovery/inspection; separate [single-file instruction-only use](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) requires reviewed volatile enablement and exact Active-conversation confirmation. No scripts, tools or hosted egress. |
 | Kora-specific | `%APPDATA%\Kora\Skills` | Create/update validated declarative skills through the authoring writer |
 
 Resolve Roaming AppData and the user profile through Windows Known Folder APIs, not model-provided paths or hard-coded user names.
@@ -47,6 +47,20 @@ Credentials remain in the protected credential facility, never either skill part
 ## Shared Profile Discovery
 
 ### Delivered bounded R21 native inspection
+
+#### Selected displayed identity metadata literal Find - 2026-10-18
+
+The [bundled inspector](../src/Kora/SkillPackagesWindow.axaml.cs) and [shared inspector](../src/Kora/SharedSkillSourcesWindow.axaml.cs) freeze only their already displayed `PackageIdentity` / `SharedIdentity` text after selection. Shared identity includes only the path already explicitly displayed; no additional filename, path or content is disclosed by Find.
+
+The [private controls](../src/Kora/Controls/IdentityMetadataFindPane.axaml) expose query, First/Next/Previous/Clear, outcome with exact UTF-16 half-open location and one inert exact match. Enter finds First; F3/Shift+F3 navigate; Escape clears within Find without closing. Transfer/context gestures are blocked. Source tabs/bodies, uninspected entries, hidden fields, other packages and live files are not searched.
+
+The [authoritative state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) is the attachment state renamed without behavior changes. It consumes unchanged [Core matching](../src/Kora.Core/Context/SnapshotLiteralFind.cs): strict bounded well-formed one-line literals, case/space-sensitive ordinal comparison, no normalization/count/wrap. Invalid input is rejected explicitly; zero match claims only absence within that frozen identity text.
+
+Selection, filter/search/order/catalogue replacement, source changes, operation/busy start, cancellation/failure, admission/privacy/control revision change and close retire private Find state ([native tests](../tests/Kora.Windows.IntegrationTests/SkillIdentityMetadataFindTests.cs)).
+
+Busy completion never readmits an old Find snapshot. A catalogue delivered while busy leaves selection empty for explicit inspection. After rechecking an existing selection, use catalogue **Clear**, then select again to admit Find; retained stale controls alone cannot recover text ([window](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [control](../src/Kora/Controls/IdentityMetadataFindPane.axaml.cs)).
+
+This bounded I increment adds no read/recheck/write, invocation, activation, model/tool/egress/session authority, activity renewal or catalogue filter change. Matches do not establish live validity, integrity, approval or execution readiness. Existing invocation remains unavailable; E/Q and unqualified runtime/provider/wake/profile writers remain unchanged ([inspector controllers](../src/Kora/SharedSkillSourcesWindowController.cs)).
 
 The tray **Skill packages > Shared profile sources (read only)** is a separate
 host-only route, not a model tool, slash artifact, import or executable loader.
@@ -128,7 +142,7 @@ than silently showing it as current. No content-bearing snapshot is persisted.
 
 Search is a literal ordinal-ignore-case substring over admitted declared name, metadata-qualified identity when name exists, and valid declared description, not bodies, path-fallback identities, files or roots. Queries share strict bounded validation; search exclusion clears private panes and requires explicit reselection, never opening the next row. Refresh/failure/source replacement/withdrawal/private close reset volatile navigation and fence late reads ([native controls](../src/Kora/SharedSkillSourcesWindow.axaml.cs), [controller](../src/Kora/SharedSkillSourcesWindowController.cs)); see [management search semantics](Definition_Management.md#delivered-native-skill-metadata-navigation).
 
-The same [authoritative snapshot query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) accepts optional exact bundled `DefinitionDigest` / `DeclaredResourceDigest` and shared `RevisionDigest`, AND-composed with every existing predicate. Empty means Any; nonempty input uses [canonical lowercase SHA-256 validation](../src/Kora.Core/ArtifactInvocation/ArtifactDigest.cs), not normalization or an unfiltered fallback.
+Ordinary bundled/shared digest-filter widgets are removed in [#422](https://github.com/roryprimrose/Kora/pull/422). Internal canonical digests, complete catalogue admission and exact source validation remain; literal name/metadata and meaningful compatibility/availability navigation remain the [ordinary UI](Definition_Management.md#delivered-native-skill-metadata-navigation).
 
 [Labelled native fields](../src/Kora/SharedSkillSourcesWindow.axaml) are volatile. Edits retire selected identity/text/hex and result mappings immediately; Clear restores empty/All without selection, and Escape closes privately. Generation fences reject stale discovery/recheck callbacks, including same-snapshot reselection ([window/controller](../src/Kora/SharedSkillSourcesWindowController.cs), [headless tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)).
 
@@ -184,6 +198,11 @@ remain unavailable. The remaining sections describe future work, not powers
 granted by this delivered registration/review slice.
 
 ### Future discovery and enablement
+
+The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
+Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
+The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
+Broader catalogue/model selection, tools, additional files, executable requirements and hosted transmission below remain future work.
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.

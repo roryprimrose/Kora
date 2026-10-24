@@ -34,6 +34,9 @@ internal sealed class CopilotModelTurnAdapter(ICopilotTurnRuntime runtime, Hoste
             (transmission, token) => ReferenceEquals(transmission.Provenance, provenance) && transmission.Profile == profile
                 ? reviews.ReviewAsync(authorization, transmission, current, token) : ValueTask.FromResult(false),
             cancellationToken).ConfigureAwait(false);
+        if (reply.Outcome == ModelTurnOutcome.Succeeded
+            && (!reviews.Current(authorization) || !await current(cancellationToken).ConfigureAwait(false)))
+        { return new(ModelTurnOutcome.DeniedEgress, provenance.Selection); }
         return new(reply.Outcome, provenance.Selection,
             reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null);
     }

@@ -1,6 +1,3 @@
-using System.Text;
-using System.Text.Json;
-
 using Kora.Core.Diagnostics;
 using Kora.Core.Tools;
 using Kora.Tools.Application;
@@ -100,72 +97,26 @@ public sealed class ReadOnlyCapabilityRegistry(
 
     private CapabilityReply Dispatch(CapabilityDescriptor descriptor, string input)
     {
-        if (Encoding.UTF8.GetByteCount(input) > descriptor.Limits.MaximumInputUtf8Bytes)
+        var parsed = CapabilityInputPolicy.Read(descriptor, input);
+        if (parsed.DenialReason is { } denial)
         {
-            return new(CapabilityOutcome.Denied, "input-limit-exceeded");
-        }
-        using var document = Parse(input);
-        if (document is null || document.RootElement.ValueKind != JsonValueKind.Object)
-        {
-            return new(CapabilityOutcome.Denied, "invalid-input");
-        }
-        var fields = document.RootElement.EnumerateObject().ToArray();
-        if (fields.Select(field => field.Name).Distinct(StringComparer.Ordinal).Count() != fields.Length)
-        {
-            return new(CapabilityOutcome.Denied, "duplicate-input-field");
+            return new(CapabilityOutcome.Denied, denial);
         }
         if (descriptor.Input == CapabilityInputShape.None)
         {
-            if (fields.Length != 0)
-            {
-                return new(CapabilityOutcome.Denied, "unknown-input-field");
-            }
             return getVersion.Execute();
         }
         if (descriptor.Input == CapabilityInputShape.Id)
         {
-            if (fields.Length != 1 || !string.Equals(fields[0].Name, "id", StringComparison.Ordinal)
-                || fields[0].Value.ValueKind != JsonValueKind.String)
-            {
-                return new(CapabilityOutcome.Denied, "invalid-id-input");
-            }
-            var id = new CapabilityIdInput(fields[0].Value.GetString()!);
             return string.Equals(descriptor.Id, ReadOnlyCapabilityCatalog.Get, StringComparison.Ordinal)
-                ? getCapability.Execute(id) : getRuntimeStatus.Execute(id);
-        }
-        if (fields.Any(field => field.Name is not ("offset" or "count")
-            || field.Value.ValueKind != JsonValueKind.Number
-            || !field.Value.TryGetInt32(out _)))
-        {
-            return new(CapabilityOutcome.Denied, "invalid-page-input");
-        }
-        var page = new CapabilityPageInput(
-            fields.FirstOrDefault(field => string.Equals(field.Name, "offset", StringComparison.Ordinal)).Value is { ValueKind: JsonValueKind.Number } offset
-                ? offset.GetInt32() : 0,
-            fields.FirstOrDefault(field => string.Equals(field.Name, "count", StringComparison.Ordinal)).Value is { ValueKind: JsonValueKind.Number } count
-                ? count.GetInt32() : descriptor.Limits.MaximumRecords);
-        if (page.Offset < 0 || page.Count < 1 || page.Count > descriptor.Limits.MaximumRecords)
-        {
-            return new(CapabilityOutcome.Denied, "page-out-of-range");
+                ? getCapability.Execute(parsed.Id!) : getRuntimeStatus.Execute(parsed.Id!);
         }
         return descriptor.Id switch
         {
-            ReadOnlyCapabilityCatalog.List => listCapabilities.Execute(page),
-            ReadOnlyCapabilityCatalog.Readiness => getReadiness.Execute(page),
-            _ => listRuntimes.Execute(page),
+            ReadOnlyCapabilityCatalog.List => listCapabilities.Execute(parsed.Page!),
+            ReadOnlyCapabilityCatalog.Readiness => getReadiness.Execute(parsed.Page!),
+            _ => listRuntimes.Execute(parsed.Page!),
         };
-    }
-
-    private static JsonDocument? Parse(string input)
-    {
-        try
-        {
-            return JsonDocument.Parse(input, new JsonDocumentOptions { MaxDepth = 4 });
-        }
-        catch (JsonException)
-        {
-            return null;
-        }
     }
 
     private CapabilityReply Finish(string id, CapabilityReply reply)

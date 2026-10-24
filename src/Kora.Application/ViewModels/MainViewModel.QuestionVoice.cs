@@ -4,6 +4,9 @@ using Kora.Application.Voice;
 using Kora.Core.Communication;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging;
+using Kora.Core.Auditing;
+using Kora.Core.Commands;
+using Kora.Core.Hosting;
 
 namespace Kora.Application.ViewModels;
 
@@ -11,6 +14,7 @@ public sealed partial class MainViewModel
 {
     private HostQuestionVoiceReplyService? questionVoiceReplies;
     private bool questionSpeech;
+    private HostQuestionService? dictationQuestions;
 
     public HostQuestionVoiceReplyService? BindQuestionVoiceReplies(HostQuestionService questions,
         TimeProvider time, ILogger<HostQuestionVoiceReplyService> replyLogger)
@@ -21,15 +25,32 @@ public sealed partial class MainViewModel
         }
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
-            SpeakExactQuestionAsync, replyLogger);
+            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases);
         PropertyChanged += OnQuestionVoiceReadinessChanged;
+        dictationQuestions = questions;
+        questions.ReplyTargetChanging += OnComposerQuestionChanging;
         return questionVoiceReplies;
     }
 
-    private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission()
+    private IEnumerable<string> GetListeningStopPhrases() => commandCatalog.GetCommands(AssistantName)
+        .Single(command => command.Action == BuiltInAction.DisableListening).AllPhrases
+        .SelectMany(phrase => new[] { phrase, $"{AssistantName} {phrase}" });
+
+    private async Task<bool> TryStopQuestionListeningAsync(string transcript)
+    {
+        if (!IsListeningStopCommand(transcript)) { return false; }
+        await Kora.Application.Hosting.HostRequestRunner.RunAsync(RequestOrigin.ActivatedVoice,
+            () => DisableListeningAsync(SecurityAuditInitiator.VoiceCommand));
+        return true;
+    }
+
+    private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission() =>
+        promptInputVoice?.IsActive != true ? ObserveActivatedInputVoiceAdmission() : null;
+
+    private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission()
     {
         var privacy = privacyObservation.Current;
-        return IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+        return composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
@@ -41,8 +62,17 @@ public sealed partial class MainViewModel
     private void OnQuestionVoiceReadinessChanged(object? sender, PropertyChangedEventArgs args) =>
         questionVoiceReplies!.Revalidate();
 
-    public void RetireQuestionVoiceReply() =>
+    public void RetireQuestionVoiceReply()
+    {
+        RetirePromptInputVoice();
         questionVoiceReplies?.Retire("Voice admission changed. Microphone closed; native question remains answerable.");
+    }
+
+    private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key)
+    {
+        RetirePromptInputVoice();
+        RetireComposerDictation();
+    }
 
     private async Task SpeakExactQuestionAsync(string text, Func<bool> eligible, CancellationToken token)
     {

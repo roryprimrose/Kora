@@ -14,7 +14,7 @@ using Microsoft.Data.Sqlite;
 
 namespace Kora.Windows.Storage;
 
-public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
+public sealed partial class WindowsSqliteEvidenceSink : IBatchedEvidenceSink
 {
     internal const string PartitionName = "EvidenceStorageV1";
     internal const int MaximumEnvelopeBytes = 65536;
@@ -52,7 +52,9 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
     private readonly AuditRetentionPolicy? auditPolicy;
     private readonly TimeProvider timeProvider;
     private readonly ISqliteTransactionCheckpoint? checkpoint;
-    private readonly EnvelopeValidationCache validationCache = new();
+    private readonly int? maximumPages;
+    private readonly TimeProvider? integrityTimeProvider;
+    private EnvelopeValidationCache validationCache = new();
     private byte[]? validatedDatabaseDigest;
 
     internal long PersistedEnvelopeDecodeCount => validationCache.DecodeCount;
@@ -69,8 +71,16 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
     internal WindowsSqliteEvidenceSink(IApplicationDataPaths paths,
         EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint,
         DiagnosticRetentionPolicy? diagnosticPolicy = null, AuditRetentionPolicy? auditPolicy = null)
+        : this(paths, PartitionName, retentionPolicy, timeProvider, checkpoint, diagnosticPolicy, auditPolicy, null)
     {
-        database = new RestrictedSqliteDatabase(paths, PartitionName, "evidence.db", ApplicationId, Schema,
+    }
+
+    internal WindowsSqliteEvidenceSink(IApplicationDataPaths paths, string partition,
+        EvidenceRetentionPolicy? retentionPolicy, TimeProvider? timeProvider, ISqliteTransactionCheckpoint? checkpoint,
+        DiagnosticRetentionPolicy? diagnosticPolicy, AuditRetentionPolicy? auditPolicy, int? maximumPages,
+        TimeProvider? integrityTimeProvider = null)
+    {
+        database = new RestrictedSqliteDatabase(paths, partition, "evidence.db", ApplicationId, Schema,
             new(1, 2, Schema, (connection, _, token) =>
             {
                 token.ThrowIfCancellationRequested();
@@ -81,6 +91,8 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         this.auditPolicy = auditPolicy;
         this.timeProvider = timeProvider ?? TimeProvider.System;
         this.checkpoint = checkpoint;
+        this.maximumPages = maximumPages;
+        this.integrityTimeProvider = integrityTimeProvider;
     }
 
     public string Name => "windows-sqlite";
@@ -94,7 +106,9 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
 
     public void WriteDiagnostic(DiagnosticEnvelope envelope) => PrepareDiagnostic(envelope)();
 
-    public Action PrepareDiagnostic(DiagnosticEnvelope envelope)
+    public Action PrepareDiagnostic(DiagnosticEnvelope envelope) => PrepareDiagnosticWrite(envelope).Write;
+
+    public IPreparedEvidenceWrite PrepareDiagnosticWrite(DiagnosticEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateDiagnostic(envelope);
@@ -104,51 +118,41 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         }
         var values = DiagnosticProjection(envelope);
         var payload = Serialize(envelope);
-        return () => CommitEvidence(() => Write("application_log_events", values, payload, audit: false));
+        return new PreparedWrite(this, envelope.EvidenceId, "application_log_events", values, payload, null);
     }
 
     public void WriteAudit(AuditEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
+        var timeAudit = PresenceSwitchTiming.IsRendererAudit(envelope.Audit);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditAdmissionStarted); }
+        AdmitAudit(envelope);
+        var values = AuditProjection(envelope);
+        var payload = Serialize(envelope);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditAdmissionReturned); }
+        CommitEvidence(() => Write("security_audit_events", values, payload, audit: true, timeAudit));
+    }
+
+    internal static void AdmitAudit(AuditEnvelope envelope)
+    {
+        ArgumentNullException.ThrowIfNull(envelope);
         ValidateAudit(envelope);
         ValidateLiveContext(envelope.Diagnostic.Host!, envelope.Diagnostic.Trace,
             envelope.Audit.CorrelationId, envelope.Audit.ApprovalId);
-        var values = AuditProjection(envelope);
-        var payload = Serialize(envelope);
-        CommitEvidence(() => Write("security_audit_events", values, payload, audit: true));
     }
 
     public void WriteActivity(CompletedActivityEnvelope envelope) => PrepareActivity(envelope)();
 
-    public Action PrepareActivity(CompletedActivityEnvelope envelope)
+    public Action PrepareActivity(CompletedActivityEnvelope envelope) => PrepareActivityWrite(envelope).Write;
+
+    public IPreparedEvidenceWrite PrepareActivityWrite(CompletedActivityEnvelope envelope)
     {
         ArgumentNullException.ThrowIfNull(envelope);
         ValidateActivity(envelope);
         var values = ActivityProjection(envelope);
         var payload = Serialize(envelope);
         var snapshot = envelope with { Links = envelope.Links.ToArray() };
-        return () => CommitEvidence(() => WriteActivityCore(snapshot, values, payload));
-    }
-
-    private void WriteActivityCore(CompletedActivityEnvelope envelope, Dictionary<string, object> values, string payload)
-    {
-        using var lease = database.AcquireLease(out var created);
-        using var connection = OpenDatabase(created);
-        using var transaction = connection.BeginTransaction();
-        checkpoint?.BeforeWrite(connection, transaction);
-        var committed = timeProvider.GetUtcNow().UtcTicks;
-        var due = DiagnosticDue(new DateTimeOffset(committed, TimeSpan.Zero)).UtcTicks;
-        Insert(connection, transaction, "activity_spans", values, payload, committed, due);
-        for (var ordinal = 0; ordinal < envelope.Links.Count; ordinal++)
-        {
-            var link = envelope.Links[ordinal];
-            Insert(connection, transaction, "activity_links", LinkProjection(envelope, link, ordinal),
-                Serialize(link), committed, due);
-        }
-        checkpoint?.BeforeCommit(connection, transaction);
-        database.VerifyFiles();
-        transaction.Commit();
-        TrustCommittedDatabase();
+        return new PreparedWrite(this, envelope.EvidenceId, "activity_spans", values, payload, snapshot);
     }
 
     private static void CommitEvidence(Action commit)
@@ -163,19 +167,36 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         }
     }
 
-    private void Write(string table, Dictionary<string, object> values, string payload, bool audit)
+    private void Write(string table, Dictionary<string, object> values, string payload, bool audit, bool timeAudit = false) =>
+        CommitTransaction((connection, transaction, committed) =>
+        {
+            var due = audit ? AuditDue(committed) : DiagnosticDue(committed);
+            Insert(connection, transaction, table, values, payload, committed.UtcTicks, due.UtcTicks);
+        }, timeAudit);
+
+    private void CommitTransaction(Action<SqliteConnection, SqliteTransaction, DateTimeOffset> insert, bool timeAudit = false)
     {
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditLeaseStarted); }
         using var lease = database.AcquireLease(out var created);
-        using var connection = OpenDatabase(created);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditLeaseReturned); }
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditOpenStarted); }
+        using var connection = OpenDatabase(created, timeAudit: timeAudit);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditOpenReturned); }
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditBeginTransactionStarted); }
         using var transaction = connection.BeginTransaction();
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditBeginTransactionReturned); }
         checkpoint?.BeforeWrite(connection, transaction);
-        var committed = timeProvider.GetUtcNow();
-        var due = audit ? AuditDue(committed) : DiagnosticDue(committed);
-        Insert(connection, transaction, table, values, payload, committed.UtcTicks, due.UtcTicks);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditInsertStarted); }
+        insert(connection, transaction, timeProvider.GetUtcNow());
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditInsertReturned); }
         checkpoint?.BeforeCommit(connection, transaction);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditFileCheckStarted); }
         database.VerifyFiles();
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditFileCheckReturned); }
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditCommitStarted); }
         transaction.Commit();
-        TrustCommittedDatabase();
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditCommitReturned); }
+        TrustCommittedDatabase(timeAudit);
     }
 
     private static void Insert(SqliteConnection connection, SqliteTransaction transaction, string table,
@@ -196,13 +217,17 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         command.ExecuteNonQuery();
     }
 
-    private SqliteConnection OpenDatabase(bool created, TimeSpan? integrityTimeout = null)
+    private SqliteConnection OpenDatabase(bool created, TimeSpan? integrityTimeout = null, bool timeAudit = false)
     {
-        var connection = integrityTimeout is { } timeout ? database.Open(created, timeout) : database.Open(created);
+        var connection = timeAudit ? database.OpenForRendererAudit(created, integrityTimeout)
+            : integrityTimeout is { } timeout ? database.Open(created, timeout) : database.Open(created);
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditDigestBeforeStarted); }
         var observedDigest = database.ComputeDatabaseDigest();
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditDigestBeforeReturned); }
         if (validatedDatabaseDigest is null
             || !CryptographicOperations.FixedTimeEquals(validatedDatabaseDigest, observedDigest))
         {
+            if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditHistoryStarted); }
             ValidateDatabase(connection, cache: validationCache, validationTime: timeProvider);
             var validatedDigest = database.ComputeDatabaseDigest();
             if (!CryptographicOperations.FixedTimeEquals(observedDigest, validatedDigest))
@@ -211,18 +236,44 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
                 throw new InvalidDataException("The evidence database changed while its persisted envelopes were being validated.");
             }
             validatedDatabaseDigest = validatedDigest;
+            if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditHistoryReturned); }
         }
         RestrictedSqliteDatabase.ResetProgressBudget(connection);
+        if (maximumPages is { } limit)
+        {
+            using var capacity = connection.CreateCommand();
+            capacity.CommandText = "PRAGMA page_size;";
+            if ((long)capacity.ExecuteScalar()! != 4096)
+            {
+                connection.Dispose();
+                throw new InvalidDataException("The bounded evidence segment has an unrecognized page size.");
+            }
+            capacity.CommandText = $"PRAGMA max_page_count={limit};";
+            if ((long)capacity.ExecuteScalar()! != limit)
+            {
+                connection.Dispose();
+                throw new InvalidDataException("The bounded evidence segment exceeds its admitted page capacity.");
+            }
+        }
         return connection;
     }
 
-    private void TrustCommittedDatabase() => validatedDatabaseDigest = database.ComputeDatabaseDigest();
+    private void TrustCommittedDatabase(bool timeAudit = false)
+    {
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditDigestAfterStarted); }
+        validatedDatabaseDigest = database.ComputeDatabaseDigest();
+        if (timeAudit) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SqliteAuditDigestAfterReturned); }
+    }
 
     internal FileStream AcquireReadLease(CancellationToken cancellationToken) => database.AcquireReadLease(cancellationToken);
 
-    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken)
+    internal SqliteConnection OpenReadOnly(CancellationToken cancellationToken) =>
+        OpenReadOnly(initialAdmission: false, cancellationToken);
+
+    internal SqliteConnection OpenReadOnly(bool initialAdmission, CancellationToken cancellationToken)
     {
-        var connection = ValidateDatabase(database.OpenReadOnly(cancellationToken),
+        var integrityTimeout = initialAdmission ? InitialIntegrityTimeout : RestrictedSqliteDatabase.DefaultProgressTimeout;
+        var connection = ValidateDatabase(database.OpenReadOnly(integrityTimeout, integrityTimeProvider, cancellationToken),
             cancellationToken: cancellationToken, validationTime: timeProvider);
         RestrictedSqliteDatabase.ResetProgressBudget(connection, cancellationToken);
         return connection;
@@ -317,20 +368,14 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
                 ValidateLinks(rows, activity, links, ref hasLink, connection, validationTime, cancellationToken);
             }
 
-            foreach (var pair in validated.Projection)
-            {
-                if (!Equals(rows.GetValue(rows.GetOrdinal(pair.Key)), pair.Value))
-                {
-                    throw new InvalidDataException("Typed evidence correlation disagrees with its persisted envelope.");
-                }
-            }
+            ValidateProjectionColumns(rows, validated.Projection);
             var committed = ReadTimestamp(rows, "committed_utc");
             var due = ReadTimestamp(rows, "due_utc");
             var days = (due - committed).TotalDays;
             if (string.Equals(table, "security_audit_events", StringComparison.Ordinal)
                 ? !AuditRetentionDays.IsValidDeadline(committed, due)
                 : legacy ? days != EvidenceRetentionPolicy.DiagnosticDays
-                    : days is < DiagnosticRetentionDays.Minimum or > DiagnosticRetentionDays.Maximum || days != Math.Truncate(days))
+                    : !DiagnosticRetentionDays.IsValidDeadline(committed, due))
             {
                 throw new InvalidDataException("The persisted effective retention due date is invalid.");
             }
@@ -338,6 +383,17 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         if (hasLink)
         {
             throw new InvalidDataException("The evidence store contains orphan activity links.");
+        }
+    }
+
+    private static void ValidateProjectionColumns(SqliteDataReader row, Dictionary<string, object> projection)
+    {
+        foreach (var pair in projection)
+        {
+            if (!Equals(row.GetValue(row.GetOrdinal(pair.Key)), pair.Value))
+            {
+                throw new InvalidDataException("Typed evidence correlation disagrees with its persisted envelope.");
+            }
         }
     }
 
@@ -488,25 +544,7 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         while (hasLink && string.Equals(links.GetString(links.GetOrdinal("evidence_id")),
             envelope.EvidenceId.Value.ToString("D"), StringComparison.Ordinal))
         {
-            if (index >= envelope.Links.Count || links.GetInt64(links.GetOrdinal("ordinal")) != index
-                || links.GetInt64(links.GetOrdinal("committed_utc")) != row.GetInt64(row.GetOrdinal("committed_utc"))
-                || links.GetInt64(links.GetOrdinal("due_utc")) != row.GetInt64(row.GetOrdinal("due_utc")))
-            {
-                throw new InvalidDataException("An activity link disagrees with its bounded envelope or retention date.");
-            }
-            var payload = links.GetString(links.GetOrdinal("envelope"));
-            if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes
-                || JsonSerializer.Deserialize<ActivityLinkEnvelope>(payload, Serialization) != envelope.Links[index])
-            {
-                throw new InvalidDataException("A persisted activity link envelope is malformed or inconsistent.");
-            }
-            foreach (var pair in LinkProjection(envelope, envelope.Links[index], index))
-            {
-                if (!Equals(links.GetValue(links.GetOrdinal(pair.Key)), pair.Value))
-                {
-                    throw new InvalidDataException("Typed activity link correlation disagrees with its owning envelope.");
-                }
-            }
+            ValidateOwnedLink(row, envelope, links, index);
             index++;
             hasLink = ReadValidationRow(links, connection, validationTime, cancellationToken);
         }
@@ -514,6 +552,25 @@ public sealed partial class WindowsSqliteEvidenceSink : IDeferredEvidenceSink
         {
             throw new InvalidDataException("A persisted activity link is missing.");
         }
+    }
+
+    private static void ValidateOwnedLink(SqliteDataReader row, CompletedActivityEnvelope envelope,
+        SqliteDataReader links, int index)
+    {
+        if (index >= envelope.Links.Count || links.GetInt64(links.GetOrdinal("ordinal")) != index
+            || links.GetInt64(links.GetOrdinal("committed_utc")) != row.GetInt64(row.GetOrdinal("committed_utc"))
+            || links.GetInt64(links.GetOrdinal("due_utc")) != row.GetInt64(row.GetOrdinal("due_utc")))
+        {
+            throw new InvalidDataException("An activity link disagrees with its bounded envelope or retention date.");
+        }
+        var payload = links.GetString(links.GetOrdinal("envelope"));
+        using (var document = JsonDocument.Parse(payload, new() { MaxDepth = 16 })) { RequireUnique(document.RootElement); }
+        if (Encoding.UTF8.GetByteCount(payload) > MaximumEnvelopeBytes
+            || JsonSerializer.Deserialize<ActivityLinkEnvelope>(payload, Serialization) != envelope.Links[index])
+        {
+            throw new InvalidDataException("A persisted activity link envelope is malformed or inconsistent.");
+        }
+        ValidateProjectionColumns(links, LinkProjection(envelope, envelope.Links[index], index));
     }
 
     private static DateTimeOffset ReadTimestamp(SqliteDataReader row, string name)

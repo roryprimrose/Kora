@@ -260,6 +260,27 @@ public sealed class CopilotSdkTurnRuntimeTests : IDisposable
         finally { await registration.DisposeAsync(); }
     }
 
+    [Fact]
+    public async Task Retried_failed_stop_cannot_release_ownership_before_its_late_send_has_ended()
+    {
+        var fixture = new Fixture();
+        var pending = new TaskCompletionSource<string?>(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.Client.Send = _ => pending.Task;
+        fixture.Client.Stop = () => Task.FromException(new IOException("synthetic-stop-failure"));
+        using var root = fixture.Root();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var running = fixture.Run(cancellation.Token);
+        await cancellation.CancelAsync();
+        await Assert.ThrowsAsync<IOException>(() => running);
+        fixture.Client.Stop = () => Task.CompletedTask;
+        var disposal = fixture.Runtime.DisposeAsync().AsTask();
+        disposal.IsCompleted.Should().BeFalse();
+        fixture.Runtime.IsQuiescent.Should().BeFalse();
+        pending.SetResult("late-answer");
+        await disposal;
+        fixture.Runtime.IsQuiescent.Should().BeTrue();
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

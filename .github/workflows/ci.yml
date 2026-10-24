@@ -1,4 +1,5 @@
 name: CI
+run-name: "${{ inputs.queue_ticket && format('Merge queue PR #{0} [{1}]', inputs.queue_pr, inputs.queue_ticket) || format('CI {0}', github.ref_name) }}"
 
 on:
   push:
@@ -9,32 +10,105 @@ on:
   pull_request:
   # Allows maintainers to run the same CI checks manually from the Actions page.
   workflow_dispatch:
+    inputs:
+      compare_portable_tests:
+        description: Compare sequential and parallel portable tests on one runner
+        type: boolean
+        default: false
+      compare_native_evidence:
+        description: Compare synchronous and buffered headless fixture evidence
+        type: boolean
+        default: false
+      queue_pr:
+        description: Controller-owned candidate PR number; leave empty for ordinary manual CI
+        type: string
+      queue_head:
+        description: Controller-owned candidate source SHA
+        type: string
+      queue_base:
+        description: Controller-owned main SHA
+        type: string
+      queue_ticket:
+        description: Controller-owned admission ticket
+        type: string
 
 permissions:
   contents: read
 
 concurrency:
-  group: ci-${{ github.event.pull_request.head.ref || github.ref_name }}
-  cancel-in-progress: true
+  group: ci-${{ inputs.queue_ticket && 'merge-queue-candidate' || github.event.pull_request.head.ref || github.ref_name }}${{ (inputs.compare_portable_tests || inputs.compare_native_evidence) && '-test-comparison' || '' }}
+  cancel-in-progress: ${{ !inputs.queue_ticket }}
 
 env:
   DOTNET_CLI_TELEMETRY_OPTOUT: true
   DOTNET_NOLOGO: true
 
 jobs:
+  admission:
+    name: Admit CI execution
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    outputs:
+      full: ${{ steps.admit.outputs.full }}
+      source: ${{ steps.admit.outputs.source }}
+      candidate: ${{ steps.admit.outputs.candidate }}
+    steps:
+      - name: Check out trusted candidate admission policy
+        if: vars.KORA_MERGE_QUEUE_MODE == 'enabled'
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: refs/heads/main
+          persist-credentials: false
+
+      - name: Admit ordinary or selected validation
+        id: admit
+        uses: actions/github-script@3a2844b7e9c422d3c10d287c895573f7108da1b3 # v9.0.0
+        env:
+          QUEUE_MODE: ${{ vars.KORA_MERGE_QUEUE_MODE }}
+          QUEUE_INPUTS: ${{ toJSON(inputs) }}
+          QUEUE_APP_ID: ${{ vars.KORA_MERGE_QUEUE_APP_ID }}
+        with:
+          script: |
+            const mode = process.env.QUEUE_MODE;
+            if (!['', 'disabled', 'enabled'].includes(mode)) throw new Error('Unknown merge queue mode.');
+            const inputs = JSON.parse(process.env.QUEUE_INPUTS);
+            const candidate = ['queue_pr', 'queue_head', 'queue_base', 'queue_ticket'].some(key => inputs[key]);
+            let source = context.sha;
+            let full = true;
+            if (mode === 'enabled') {
+              const { execution } = require('./eng/merge-queue/policy.cjs');
+              full = execution({ modeValue: mode, eventName: context.eventName,
+                ref: context.ref, sha: context.sha, inputs }).full;
+              if (candidate) {
+                const { admit } = require('./eng/merge-queue/github.cjs');
+                source = await admit({ github, context, inputs: { ...inputs, app_id: process.env.QUEUE_APP_ID } });
+              }
+            } else if (candidate) {
+              throw new Error('Candidate dispatch requires the enabled queue.');
+            }
+            core.setOutput('full', String(full));
+            core.setOutput('source', source);
+            core.setOutput('candidate', String(candidate));
+            if (!full) core.notice('Full validation waits for GitHub merge queue admission.');
+
   version:
     name: Resolve build version
     runs-on: ubuntu-latest
     timeout-minutes: 5
+    needs: admission
+    if: needs.admission.outputs.full == 'true'
     outputs:
       version: ${{ steps.version.outputs.version }}
       product-version: ${{ steps.version.outputs.product-version }}
-      publish: ${{ steps.version.outputs.publish }}
+      publish: ${{ needs.admission.outputs.candidate != 'true' && steps.version.outputs.publish || 'false' }}
       already-published: ${{ steps.publication.outputs.already-published }}
+      source-revision: ${{ needs.admission.outputs.source }}
     steps:
       - name: Check out complete version history
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
+          ref: ${{ needs.admission.outputs.source }}
+          persist-credentials: false
           fetch-depth: 0
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -48,14 +122,19 @@ jobs:
             dotnet tool restore
             if ($LASTEXITCODE -ne 0) { throw 'Local tool restore failed.' }
           }
-          $resolved = ./eng/Get-BuildVersion.ps1
+          $parameters = @{}
+          if ('${{ needs.admission.outputs.candidate }}' -eq 'true') {
+            $parameters.ExpectedRevision = '${{ needs.admission.outputs.source }}'
+            $parameters.ValidationOnly = $true
+          }
+          $resolved = ./eng/Get-BuildVersion.ps1 @parameters
           "version=$($resolved.Version)" >> $env:GITHUB_OUTPUT
           "product-version=$($resolved.ProductVersion)" >> $env:GITHUB_OUTPUT
           "publish=$($resolved.Publish.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
 
       - name: Check exact-version release before rebuilding
         id: publication
-        if: steps.version.outputs.publish == 'true'
+        if: steps.version.outputs.publish == 'true' && needs.admission.outputs.candidate != 'true'
         shell: pwsh
         env:
           GH_TOKEN: ${{ github.token }}
@@ -63,6 +142,82 @@ jobs:
         run: |
           $state = ./eng/Publish-GitHubRelease.ps1 -Action Check -Version "$env:BUILD_VERSION" -SourceRevision "$env:GITHUB_SHA"
           "already-published=$($state.AlreadyPublished.ToString().ToLowerInvariant())" >> $env:GITHUB_OUTPUT
+
+  portable-test-comparison:
+    name: Compare portable test scheduling
+    if: github.event_name == 'workflow_dispatch' && inputs.compare_portable_tests
+    runs-on: ubuntu-latest
+    timeout-minutes: 15
+    needs: version
+    env:
+      Version: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore Kora.slnx --locked-mode
+
+      - name: Build the same Release solution as portable CI once
+        run: dotnet build Kora.slnx --configuration Release --no-restore
+
+      - name: Compare sequential and parallel execution
+        shell: pwsh
+        run: ./eng/Compare-PortableTestScheduling.ps1 -ResultsDirectory (Join-Path $env:RUNNER_TEMP 'kora-portable-test-scheduling')
+
+      - name: Upload scheduling comparison
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: portable-test-scheduling-comparison
+          path: ${{ runner.temp }}/kora-portable-test-scheduling
+          if-no-files-found: error
+
+  native-evidence-comparison:
+    name: Compare native fixture evidence
+    if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence
+    runs-on: windows-latest
+    timeout-minutes: 30
+    needs: version
+    env:
+      Version: ${{ needs.version.outputs.version }}
+    steps:
+      - name: Check out source
+        uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+
+      - name: Install .NET SDK
+        uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
+        with:
+          global-json-file: global.json
+          cache: true
+          cache-dependency-path: |
+            **/packages.lock.json
+
+      - name: Restore locked dependencies
+        run: dotnet restore tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --locked-mode
+
+      - name: Build the same Windows integration tests once
+        run: dotnet build tests/Kora.Windows.IntegrationTests/Kora.Windows.IntegrationTests.csproj --configuration Release --runtime win-x64 --no-restore
+
+      - name: Compare native fixture evidence modes
+        shell: pwsh
+        run: .\eng\Compare-NativeFixtureEvidence.ps1 -ResultsDirectory (Join-Path $env:RUNNER_TEMP 'kora-native-fixture-evidence')
+
+      - name: Upload native fixture evidence comparison
+        if: always()
+        uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: native-fixture-evidence-comparison
+          path: ${{ runner.temp }}/kora-native-fixture-evidence
+          if-no-files-found: error
 
   portable:
     name: Portable build, tests, coverage, and package
@@ -72,12 +227,16 @@ jobs:
     if: needs.version.outputs.already-published != 'true'
     env:
       Version: ${{ needs.version.outputs.version }}
+      SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
 
     steps:
       # Pin third-party actions to immutable commits to prevent a moved tag from changing trusted CI code.
       # Dependabot still tracks the version comments and proposes reviewed commit updates.
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -111,6 +270,13 @@ jobs:
         shell: pwsh
         run: ./eng/Test-WindowsIntegrationScheduling.ps1
 
+      - name: Test portable test scheduling contracts
+        shell: pwsh
+        run: ./eng/Test-PortableTestScheduling.ps1
+
+      - name: Test hosted merge queue policy and workflow contracts
+        run: node --test eng/merge-queue/*.test.cjs
+
       - name: Test static immutable source-tool distribution
         shell: pwsh
         run: ./eng/Test-SourceToolsContracts.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-tool-contracts')
@@ -123,53 +289,22 @@ jobs:
           path: ${{ runner.temp }}/kora-source-tool-contracts/tests.json
           if-no-files-found: error
 
-      - name: Test portable core with coverage
+      - name: Test portable projects with coverage
         run: >
           dotnet test
-          --project tests/Kora.Core.UnitTests/Kora.Core.UnitTests.csproj
+          --solution Kora.UnitTests.slnx
           --configuration Release
           --no-build
-          --results-directory .net-test-artifacts/core
+          --results-directory .net-test-artifacts/unit
+          --results-directory-layout per-module
           --report-trx
           --coverlet
           --coverlet-output-format cobertura
-          --coverlet-file-prefix core
+          --coverlet-file-prefix unit
 
-      - name: Test application orchestration with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Application.UnitTests/Kora.Application.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/application
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix application
-
-      - name: Test built-in tools with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Tools.UnitTests/Kora.Tools.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/tools
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix tools
-
-      - name: Test bundled definitions with coverage
-        run: >
-          dotnet test
-          --project tests/Kora.Definitions.UnitTests/Kora.Definitions.UnitTests.csproj
-          --configuration Release
-          --no-build
-          --results-directory .net-test-artifacts/definitions
-          --report-trx
-          --coverlet
-          --coverlet-output-format cobertura
-          --coverlet-file-prefix definitions
+      - name: Test coverage evidence contracts
+        shell: pwsh
+        run: ./eng/Test-CodeCoverage.ps1
 
       - name: Generate and enforce coverage report
         run: >
@@ -184,6 +319,7 @@ jobs:
         run: >
           ./eng/Assert-CodeCoverage.ps1
           -ReportPath .net-test-artifacts/coverage-report/Cobertura.xml
+          -InputDirectory .net-test-artifacts/unit
           -MinimumLine 100
           -MinimumBranch 100
 
@@ -192,7 +328,17 @@ jobs:
         uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
           name: test-results
-          path: .net-test-artifacts/**/*.trx
+          path: |
+            .net-test-artifacts/**/*.trx
+            .net-test-artifacts/**/*.coverage.cobertura.*.xml
+            src/Kora.Core/bin/Release/net10.0/Kora.Core.dll
+            src/Kora.Core/bin/Release/net10.0/Kora.Core.pdb
+            src/Kora.Application/bin/Release/net10.0/Kora.Application.dll
+            src/Kora.Application/bin/Release/net10.0/Kora.Application.pdb
+            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.dll
+            src/Kora.Tools/bin/Release/net10.0/Kora.Tools.pdb
+            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.dll
+            src/Kora.Definitions/bin/Release/net10.0/Kora.Definitions.pdb
           if-no-files-found: error
           include-hidden-files: true
 
@@ -210,7 +356,7 @@ jobs:
         env:
           BUILD_VERSION: ${{ needs.version.outputs.version }}
         run: >
-          ./eng/Build-SourceTools.ps1 -Revision "$env:GITHUB_SHA"
+          ./eng/Build-SourceTools.ps1 -Revision "$env:SOURCE_REVISION"
           -Version "$env:BUILD_VERSION" -OutputDirectory artifacts/source-tools
 
       - name: Retain main source-tool candidate
@@ -255,7 +401,7 @@ jobs:
         shell: pwsh
         run: |
           foreach ($rid in @('win-x64', 'win-x86')) {
-            ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:GITHUB_SHA" -WriteManifest
+            ./eng/Test-InstallerPayload.ps1 -PayloadPath "artifacts/Kora-$rid" -Version "$env:Version" -SourceRevision "$env:SOURCE_REVISION" -WriteManifest
           }
 
       - name: Inspect approved Windows native and runtime payloads
@@ -264,7 +410,7 @@ jobs:
           foreach ($rid in @('win-x64', 'win-x86')) {
             $evidence = "artifacts/publish-inspection/$rid"
             ./eng/Test-EmbeddedSkillResources.ps1 -AssemblyPath "artifacts/Kora-$rid/Kora.Definitions.dll"
-            ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:GITHUB_SHA" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
+            ./eng/Inspect-Publish.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Revision "$env:SOURCE_REVISION" -EvidenceDirectory $evidence -BuildOrigin "GitHub Actions $env:GITHUB_RUN_ID/$env:GITHUB_RUN_ATTEMPT; Linux cross-publish; static-only"
             $tests = Join-Path $env:RUNNER_TEMP "kora-publish-contracts-$rid"
             ./eng/Test-PublishContracts.ps1 -Payload "artifacts/Kora-$rid" -Rid $rid -Inspection "$evidence/payload.json" -OutputDirectory $tests
             Copy-Item -LiteralPath (Join-Path $tests 'tests.json') -Destination "$evidence/contract-tests.json"
@@ -302,6 +448,19 @@ jobs:
           if-no-files-found: error
           include-hidden-files: true
 
+  queue-feedback:
+    name: Queue policy feedback
+    if: vars.KORA_MERGE_QUEUE_MODE == 'enabled' && github.event_name == 'pull_request'
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - run: node --test eng/merge-queue/*.test.cjs
+      - shell: pwsh
+        run: ./eng/Test-WindowsIntegrationScheduling.ps1
+
   windows-integration-shards:
     name: Windows integration shard (${{ matrix.shard }})
     runs-on: windows-latest
@@ -315,11 +474,15 @@ jobs:
         shard: [storage-heavy, storage-other, ui-definitions, native-ux, ui-platform]
     env:
       Version: ${{ needs.version.outputs.version }}
+      KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == 'native-ux' && 'buffered' || 'synchronous' }}
 
     steps:
       # Keep the Windows job on the same reviewed action revisions as the portable job.
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -372,8 +535,8 @@ jobs:
     name: Windows integration tests
     runs-on: ubuntu-latest
     timeout-minutes: 5
-    needs: [version, windows-integration-shards]
-    if: always() && needs.version.outputs.already-published != 'true'
+    needs: [admission, version, windows-integration-shards]
+    if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')
     steps:
       - name: Require every Windows shard to succeed
         shell: pwsh
@@ -389,9 +552,14 @@ jobs:
     runs-on: windows-latest
     timeout-minutes: 20
     needs: [version, portable]
+    env:
+      SOURCE_REVISION: ${{ needs.version.outputs.source-revision }}
     steps:
       - name: Check out source
         uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          ref: ${{ needs.version.outputs.source-revision }}
+          persist-credentials: false
 
       - name: Install .NET SDK
         uses: actions/setup-dotnet@a98b56852c35b8e3190ac28c8c2271da59106c68 # v6.0.0
@@ -415,7 +583,7 @@ jobs:
           .\eng\Test-InstallerPayload.ps1
           -PayloadPath .\artifacts\Kora-win-x64
           -Version "$env:BUILD_VERSION"
-          -SourceRevision "$env:GITHUB_SHA"
+          -SourceRevision "$env:SOURCE_REVISION"
 
       - name: Restore locked installer dependencies
         shell: pwsh
@@ -452,7 +620,7 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 15
     needs: [version, portable, windows-integration, installer]
-    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true'
+    if: needs.version.outputs.publish == 'true' && needs.version.outputs.already-published != 'true' && inputs.queue_ticket == ''
     permissions:
       contents: write
     concurrency:

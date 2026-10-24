@@ -4,6 +4,15 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(122, LogLevel.Warning, "Exact retained attachment inspection unavailable; exception type {ExceptionType}.")]
+    private static partial void RetainedAttachmentInspectionFailed(ILogger logger, string exceptionType);
+
+    [LoggerMessage(630, LogLevel.Error, "Local web summary was not admitted: {FailureKind}")]
+    private partial void WebSummaryFailed(string failureKind);
+
+    [LoggerMessage(119, LogLevel.Error, "Current-response one-shot unavailable; exception type {ExceptionType}.")]
+    private static partial void ResponseReadFailed(ILogger logger, string exceptionType);
+
     [LoggerMessage(118, LogLevel.Warning, "Original-user web-result presentation failed; exception type {ExceptionType}.")]
     private static partial void WebPagePresentationFailed(ILogger logger, string exceptionType);
 

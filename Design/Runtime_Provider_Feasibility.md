@@ -72,12 +72,25 @@ this continuation.
 
 The [D-014/R04-R08 host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
 adds a maintained provider-neutral admission/envelope consumer, but no Copilot
-SDK/runtime or MG1 operating envelope. Its production registrations contain no
-adapter or qualification evidence. Shared numerical UTF-8 limits, fake typed
+SDK/runtime or MG1 operating envelope. That increment's registrations contained
+no adapter or qualification evidence. The later native Ollama transport still
+adds no qualification evidence. Shared numerical UTF-8 limits, fake typed
 results and host cancellation/link tests are not subject/assertion equivalence
 for actual SDK final-request, transport, retry, session-I/O, resource, account
 or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
 remain retained with no assertions marked migrated or unique evidence removed.
+
+The [2026-10-20 bounded provider-neutral continuation engine](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+adds a maintained Application model/tool/result consumer over the portable
+`IModelToolTransport` seam. It uses the live admitted host and the closed six-ID
+registry, not a copied experiment, a new provider selection or a qualifier.
+Deterministic fake transport tests are authored; their execution and exact
+coverage remain pending serial admission. This consumer does not establish
+native Ollama, Copilot SDK, all-path lifecycle, account, containment or
+installed-profile evidence. No experiment assertion is marked migrated and
+no RT1/RT2/MG1/PV1 proof is removed or requested as an implementation prerequisite.
+Production exposure still requires the applicable exact runtime/profile E/Q
+gates, with explicit unavailable behavior until they pass.
 
 The [provider policy/exact-review workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
 now consumes that host boundary and existing question transactions. It adds no
@@ -131,8 +144,8 @@ host disposal may report resource release from a cancelled await alone.
 
 **I / E / Q boundary:** deterministic tests compile against the real package
 and fake only the SDK/process and HTTP boundaries. They are not live-account,
-installed-runtime or paid-provider evidence. The default execution account
-source is unavailable; no account is inferred from ambient login and no
+installed-runtime or paid-provider evidence. The default runtime/account-use
+deployment approval source is unavailable; no account is inferred from ambient login and no
 runtime is automatically installed or bundled. Terms/cost/account approval,
 an exact current profile and admitted runtime deployment remain E. Live
 offering stays unavailable without those inputs. Generic hosted admission
@@ -142,19 +155,46 @@ gain a hosted fallback. Historical RT1/RT2 qualification is not an
 implementation prerequisite or lifecycle authority for these new bytes.
 See [dependency provenance and licensing](../DEPENDENCY-LICENSES.md).
 
-**Remaining consumed I integration:** this boundary alone is not the complete
-desktop scenario. This checkout still has
+**Composed original-request path:** Settings exposes explicit volatile token
+entry, gated before accepting credentials by
+[`ICopilotDeploymentApprovalSource`](../src/Kora.Windows/Dependencies/ICopilotDeploymentApprovalSource.cs).
+This source must revalidate the exact approved deployment, private paths and
+account-use terms/cost policy; user preferences and a typed executable path
+cannot supply that authority. The shipped source returns unavailable.
+[`CopilotAccountBroker`](../src/Kora.Windows/Dependencies/CopilotAccountBroker.cs)
+verifies the exact entered login/token with a fresh SDK authentication and
+enabled model catalogue. Setup cannot create an inference session or send
+an inference request. It stops and disposes the management runtime before
+publishing the account; cancellation joins late operations before reporting
+quiescence. Tokens are kept only in managed volatile memory, not preferences,
+logs or review content. Revocation, expiry and privacy closure remove the
+account/catalogue; managed memory is not a secure-zeroing guarantee.
+
+Refresh services/models, choose the current account-bound model and save its
+exact tuple, with a policy that admits hosted use. In Sessions, the separate
+**Submit explicitly with Copilot** action invokes
 [`SessionConversationService`](../src/Kora.Application/Hosting/SessionConversationService.cs)
-returning `GenerationNotEnabled` rather than executing and retaining an answer.
-It also has no composed private final-request presenter for `Offered` /
-`Confirm`, and no approved-account-to-current-catalogue setup implementation.
-These are concrete production integration gaps, not account terms or installed
-runtime qualification. The single shared composition owner retains the exact
-Program and catalogue integration hunks; the new adapter
-must not be advertised as a working selected-account desktop path until those
-consumed contracts and wiring are integrated and deterministically tested.
+under the original retained request. A private native window displays every
+final body byte and noncredential header as inert text. No affirmative default
+is selected; closing, privacy loss, cancellation, stale authority or missing
+presentation denies transmission. The entire explicitly prepared Copilot turn,
+including human review and subsequent tool-result reviews, has a two-minute
+deadline; local turns keep their existing deadline. Successful bounded answers
+are committed to that same request as distinct ASSISTANT data in the existing
+private conversation store. Failed/denied turns retain no assistant answer.
+Ordinary submission and all local-only reviewed-source flows remain separate
+and cannot select hosted execution implicitly. Composition preserves the
+existing local resolver/factory and uses the same shared host admission gate.
+Deterministic tests cover account setup, final transport, host authorization,
+and original-request answer/refusal retention without live inference.
 
 ### RT1 .NET outcome: selected source-built profile passes
+
+The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)
+consumes the host-owned portable tool protocol, not the Copilot SDK. Its
+strict native JSON, fake HTTP/lifecycle tests and unavailable candidate
+composition do not qualify a local runtime or migrate any RT1/RT2/MG1/Node
+experiment assertion. Exact-profile enablement remains a separate gate.
 
 The [RT1 disposition](../experiments/r02-dotnet-control-proof/evidence/disposition.json)
 records **PASS for the reviewed exact-tag source-built minimal HTTP/stdio

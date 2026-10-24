@@ -13,7 +13,6 @@ using Kora.Controls;
 using Kora.Core.Context;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
-using Kora.NativeUxFixture;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -30,7 +29,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var source = "# Heading\n\n" + string.Concat(Enumerable.Repeat("α 🙂 literal needle long line\n\n", 80));
             var content = new AdmittedDetailContent(new(new(Guid.NewGuid()), 1), DetailContentKind.Markdown,
@@ -123,7 +122,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var text = string.Concat(Enumerable.Repeat("α 🙂 needle " + new string('x', 200) + "\r\n", 80));
             var request = HostRequest.Create(RequestOrigin.LocalUi);
@@ -151,7 +150,7 @@ public sealed class NativeReaderTextScaleTests
                 var baseline = fileReader.FontSize;
                 var chromeFont = identity.FontSize;
                 var find = fileWindow.GetVisualDescendants().OfType<TextBox>().Single(control =>
-                    AutomationProperties.GetName(control)?.StartsWith("Case-sensitive literal Find", StringComparison.Ordinal) == true);
+                    AutomationProperties.GetName(control)?.StartsWith("Literal Find in", StringComparison.Ordinal) == true);
                 find.Text = "needle";
                 var findButton = fileWindow.GetVisualDescendants().OfType<Button>().Single(control =>
                     string.Equals(control.Content as string, "Find first", StringComparison.Ordinal));
@@ -199,10 +198,9 @@ public sealed class NativeReaderTextScaleTests
                     clipboardFind.FontSize.Should().Be(clipboardQueryFont);
                     fileReader.Text.Should().Be(text);
                     clipboardReader.Text.Should().Be(text);
-                    foreach (var window in new Window[] { fileWindow, clipboardWindow })
+                    foreach (var reader in new[] { fileReader, clipboardReader })
                     {
-                        var viewport = window.GetVisualDescendants().OfType<ScrollViewer>()
-                            .Single(scroll => ReferenceEquals(scroll.Content, window == fileWindow ? fileReader : clipboardReader));
+                        var viewport = reader.GetVisualAncestors().OfType<ScrollViewer>().First();
                         viewport.Bounds.Height.Should().BeGreaterThan(0);
                         viewport.Extent.Height.Should().BeGreaterThan(viewport.Viewport.Height);
                     }
@@ -220,7 +218,7 @@ public sealed class NativeReaderTextScaleTests
     {
         await HeadlessSession.RunAsync(async () =>
         {
-            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            using var fixture = NativeUxTestFixture.Create(Path.GetTempPath());
             await fixture.InitializeAsync();
             var window = new SettingsWindow(fixture.Main);
             window.Show();
@@ -229,7 +227,7 @@ public sealed class NativeReaderTextScaleTests
             try
             {
                 var spinner = window.GetVisualDescendants().OfType<NumericUpDown>().Single(control =>
-                    string.Equals(AutomationProperties.GetName(control), "Native reader text scale percentage", StringComparison.Ordinal));
+                    string.Equals(AutomationProperties.GetName(control), "Reading text size percentage", StringComparison.Ordinal));
                 spinner.Minimum.Should().Be(75);
                 spinner.Maximum.Should().Be(200);
                 spinner.Increment.Should().Be(1);

@@ -16,13 +16,10 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed partial class WindowsSqliteSessionAttachmentTests
 {
     [Theory]
-    [InlineData(false, false, false, false)]
-    [InlineData(true, false, false, false)]
-    [InlineData(true, true, false, false)]
-    [InlineData(true, true, true, false)]
-    [InlineData(true, true, true, true)]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task ExactCatalogueValidatesNonmatchingSlotsAndFindsMatchBeyondFirstBoundedScanWithoutGlobalCap(
-        bool includeRemoved, bool correlation, bool versions, bool fileIds)
+        bool includeRemoved)
     {
         using var fixture = await Initialize();
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -37,24 +34,7 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         var target = new HostId<SessionIdentity>(Guid.Parse("ffffffff-ffff-ffff-ffff-ffffffffffff"));
         await NewSession(fixture, target);
         var retained = await Attach(fixture, Encoding.UTF8.GetBytes("PRIVATE_EXACT_BODY_NOT_SEARCHED"));
-        var useDigest = !includeRemoved;
-        var observation = correlation
-            ? (await fixture.Store.ReadAttachmentPage(new(true), null, () => true, fixture.Token)).Records[0] : null;
-        var query = new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"),
-            exactDigest: useDigest ? retained.File.Digest : null,
-            exactObservationSource: observation?.ObservationSource.ToString("D"),
-            exactDeviceProfile: observation?.Profile.Value.ToString("D"),
-            capturedFromUtc: correlation ? retained.File.AdmittedAt : null,
-            capturedUntilUtc: correlation ? retained.File.AdmittedAt : null,
-            minimumSessionGeneration: versions ? retained.Generation.Value : null,
-            maximumSessionGeneration: versions ? retained.Generation.Value : null,
-            minimumCapturedGeneration: versions ? retained.Generation.Value : null,
-            maximumCapturedGeneration: versions ? retained.Generation.Value : null,
-            minimumStorageRevision: versions ? retained.StorageRevision.Value : null,
-            maximumStorageRevision: versions ? retained.StorageRevision.Value : null,
-            exactFileSourceId: fileIds ? retained.File.Reference.SourceId.ToString("D") : null,
-            exactFileRevisionId: fileIds ? retained.File.Reference.RevisionId.ToString("D") : null,
-            exactFileItemId: fileIds ? retained.File.Reference.ItemId.ToString("D") : null);
+        var query = new SessionAttachmentQuery(includeRemoved, target.Value.ToString("D"));
         var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
         var tasks = fixture.Count("host_tasks");
         var audit = fixture.Count("security_audit_events");
@@ -98,8 +78,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         await staleSelection.Should().ThrowAsync<InvalidOperationException>();
         var fresh = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         var removed = await fixture.Store.ReadAttachmentPage(query, fresh.Next, () => true, fixture.Token);
-        removed.Records.Length.Should().Be(includeRemoved && !useDigest && !correlation ? 1 : 0);
-        if (includeRemoved && !useDigest && !correlation) { removed.Records.Single().CopyStatus.Should().Be(AttachmentCopyStatus.Unavailable); }
+        removed.Records.Length.Should().Be(includeRemoved ? 1 : 0);
+        if (includeRemoved) { removed.Records.Single().CopyStatus.Should().Be(AttachmentCopyStatus.Unavailable); }
         // Even an excluded predecessor must be decoded and validated; exact ID never jumps over corruption.
         fixture.Mutate("UPDATE session_file SET descriptor=json_set(descriptor,'$.Format',99) WHERE session_id=(SELECT MIN(session_id) FROM session_file);");
         var corrupt = () => fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token).AsTask();
@@ -115,8 +95,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
     [InlineData("query-changed-filter")]
     [InlineData("query-unknown")]
     [InlineData("query-noncanonical")]
-    [InlineData("metadata-missing")]
-    [InlineData("metadata-changed")]
+    [InlineData("version-missing")]
+    [InlineData("version-retired")]
     [InlineData("signature")]
     [InlineData("source")]
     [InlineData("profile")]
@@ -127,11 +107,11 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         await Attach(fixture, Encoding.UTF8.GetBytes("private exact source"));
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
-        var query = new SessionAttachmentQuery(false, fixture.Request.SessionId.Value.ToString("D"), metadataText: "text/");
+        var query = new SessionAttachmentQuery(false, fixture.Request.SessionId.Value.ToString("D"));
         var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.AuthorityValidationPending.Should().BeTrue();
         var cursor = first.Next!;
-        if (boundary.StartsWith("query-", StringComparison.Ordinal) || boundary.StartsWith("metadata-", StringComparison.Ordinal))
+        if (boundary.StartsWith("query-", StringComparison.Ordinal) || boundary.StartsWith("version-", StringComparison.Ordinal))
         {
             var payload = JsonNode.Parse(Convert.FromBase64String(cursor.Split('.')[0]))!;
             switch (boundary)
@@ -144,8 +124,8 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
                 case "query-changed-filter": payload["Query"]!["Filter"] = (int)SessionAttachmentFilter.Done; break;
                 case "query-unknown": payload["Query"]!["NameSubstring"] = "not admitted"; break;
                 case "query-noncanonical": payload["Query"]!["ExactSessionId"] = query.ExactSessionId!.ToUpperInvariant(); break;
-                case "metadata-missing": payload.AsObject().Remove("MetadataBinding"); break;
-                case "metadata-changed": payload["MetadataBinding"] = new string('a', 64); break;
+                case "version-missing": payload.AsObject().Remove("Version"); break;
+                case "version-retired": payload["Version"] = 2; break;
             }
             var bytes = Encoding.UTF8.GetBytes(payload.ToJsonString());
             var key = (byte[])typeof(Windows.Storage.WindowsSqliteHostInteractionStore)

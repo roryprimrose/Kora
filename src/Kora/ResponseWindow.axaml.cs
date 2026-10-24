@@ -81,7 +81,10 @@ public sealed partial class ResponseWindow : Window
         Deactivated += OnPushToTalkSurfaceUnavailable;
     }
 
-    private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs)
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
+    private async void OnDismissClicked(object? sender, RoutedEventArgs eventArgs) =>
+        await RunResponseActionAsync(async () =>
     {
         if (!await viewModel.RejectPendingModelActionAsync())
         {
@@ -90,25 +93,36 @@ public sealed partial class ResponseWindow : Window
 
         await viewModel.RejectPendingGrantChangeAsync();
         await viewModel.CancelModelQuestionAsync();
-        viewModel.HideApplication();
-    }
+        await viewModel.HideApplicationAsync();
+    });
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
+    private async void OnCurrentResponseDetailsClicked(object? sender, RoutedEventArgs eventArgs) =>
+        await RunResponseActionAsync(viewModel.OpenCurrentResponseDetailsAsync);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCancelTaskClicked(object? sender, RoutedEventArgs eventArgs) =>
-        await viewModel.CancelCurrentTaskAsync();
+        await RunResponseActionAsync(viewModel.CancelCurrentTaskAsync);
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnQuestionChoiceClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (sender is Button { Tag: ModelQuestionChoice choice })
         {
-            await viewModel.SelectModelQuestionChoiceAsync(choice);
+            await RunResponseActionAsync(() => viewModel.SelectModelQuestionChoiceAsync(choice));
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnResponseActionClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (sender is Button { Tag: ResponseAction action })
         {
-            await viewModel.ExecuteResponseActionAsync(action);
+            await RunResponseActionAsync(() => viewModel.ExecuteResponseActionAsync(action));
         }
     }
 
@@ -127,8 +141,47 @@ public sealed partial class ResponseWindow : Window
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; failures route to ReportWebSummaryFailure.")]
+    private async void OnWebSummaryClicked(object? sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            if (sender is Button { Tag: DetailContentReference reference })
+            { await viewModel.PrepareWebSummaryAsync(reference); }
+            else { viewModel.ReportWebResultDetailStatus("Local web summary unavailable: the exact source control was retired."); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { viewModel.ReportWebSummaryFailure(exception); }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; failures route to ReportWebSummaryFailure.")]
+    private async void OnWebSummaryConfirmed(object? sender, RoutedEventArgs eventArgs)
+    {
+        try
+        {
+            if (sender is Button { Tag: Kora.Application.Network.WebSummaryReview review })
+            { await viewModel.ConfirmWebSummaryAsync(review.Id); }
+            else { viewModel.ReportWebResultDetailStatus("Local web summary unavailable: the exact confirmation control was retired."); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        { viewModel.ReportWebSummaryFailure(exception); }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCancelQuestionClicked(object? sender, RoutedEventArgs eventArgs) =>
-        await viewModel.CancelModelQuestionAsync();
+        await RunResponseActionAsync(viewModel.CancelModelQuestionAsync);
+
+    private async Task RunResponseActionAsync(Func<Task> operation)
+    {
+        try { await operation(); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            viewModel.ReportHostInteractionFailure("The response action could not be completed. " + exception.Message);
+        }
+    }
 
     private void OnArtifactCommandClicked(object? sender, RoutedEventArgs eventArgs)
     {
@@ -230,6 +283,8 @@ public sealed partial class ResponseWindow : Window
         viewModel.RunTypedCommand.Execute(null);
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia KeyDown requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCancelTaskKeyDown(object? sender, KeyEventArgs eventArgs)
     {
         if (eventArgs.Key == Key.S && eventArgs.KeyModifiers == (KeyModifiers.Control | KeyModifiers.Shift))
@@ -245,7 +300,7 @@ public sealed partial class ResponseWindow : Window
 
         eventArgs.Handled = true;
         viewModel.NotifyPresenceInteraction();
-        await viewModel.CancelCurrentTaskAsync();
+        await RunResponseActionAsync(viewModel.CancelCurrentTaskAsync);
     }
 
     private void OnInteraction(object? sender, PointerPressedEventArgs eventArgs)
@@ -284,6 +339,7 @@ public sealed partial class ResponseWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        viewModel.RetireCurrentResponseSpeech();
         viewModel.EndPushToTalkCommand.Execute(null);
         viewModel.RetireWebResultDetails();
         responseTimeoutTimer.Stop();
@@ -301,6 +357,7 @@ public sealed partial class ResponseWindow : Window
             responseInactivity.Stop();
             viewModel.EndPushToTalkCommand.Execute(null);
             Hide();
+            viewModel.RetireCurrentResponseSpeech();
             return;
         }
 
@@ -319,6 +376,10 @@ public sealed partial class ResponseWindow : Window
             || string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.HasResponseActions),
+                StringComparison.Ordinal)
+            || string.Equals(
+                eventArgs.PropertyName,
+                nameof(MainViewModel.IsCurrentResponseReadActive),
                 StringComparison.Ordinal))
         {
             RestartResponseTimeout();
@@ -334,7 +395,7 @@ public sealed partial class ResponseWindow : Window
             return;
         }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
-            && !viewModel.HasResponseActions)
+            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive)
         {
             if (!responseInactivity.TryExpire())
             {
@@ -343,6 +404,7 @@ public sealed partial class ResponseWindow : Window
                 return;
             }
             Hide();
+            viewModel.RetireCurrentResponseSpeech();
             viewModel.EndPushToTalkCommand.Execute(null);
         }
         else
@@ -381,6 +443,7 @@ public sealed partial class ResponseWindow : Window
 
     internal void HideResponse()
     {
+        viewModel.RetireCurrentResponseSpeech();
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
         viewModel.EndPushToTalkCommand.Execute(null);
@@ -393,7 +456,7 @@ public sealed partial class ResponseWindow : Window
         responseInactivity.Stop();
         if (!IsVisible || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
-            || viewModel.HasResponseActions)
+            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive)
         {
             return;
         }

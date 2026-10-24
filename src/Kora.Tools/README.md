@@ -114,6 +114,8 @@ session/task/privacy/generation/cancellation boundary. See
 
 ## Contribute a new tool
 
+Apply [product admission](../../Design/MVP_Scope.md#feature-admission) first: name the approved user outcome and why the host owns this capability rather than an extension. This implementation checklist does not approve new native utilities or require exposing helper methods as tools.
+
 1. Consult the [canonical tool inventory](../../Design/Internal_Model_Tools.md)
    and [roadmap](../../Design/Implementation_Roadmap.md). Define an explicit
    ID/schema version, typed inputs/results, host-assigned effect, availability,

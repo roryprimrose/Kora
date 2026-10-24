@@ -122,8 +122,9 @@ the recovery prompt. The Windows speech provider remains the default.
 
 1. Confirm the microphone shown in Settings.
 2. Review and grant ongoing voice consent, or continue without voice.
-3. Hold **Push to talk** in Speech & audio, say a supported phrase such as
-   **"Kora, what can you do?"**, then release to finish.
+3. Enter commands in the response window, not Settings. When the response
+   window offers its **Push to talk** microphone control, hold it, say a
+   supported phrase such as **"Kora, what can you do?"**, then release to finish.
 4. Select **Disable listening** when you want to release the microphone.
 5. Select **Enable listening** to re-arm push-to-talk after a recovery hold.
 

@@ -5,11 +5,31 @@ privacy, isolated scratch SQLite stores and preferences. It never starts the
 production host, reads normal profile sources, captures audio, runs models,
 performs network requests, or uses the shared clipboard.
 
-Evidence capture serializes sink delivery and provider disposal waits for active
-callbacks before scratch cleanup. Removing the process-wide activity listener
+Evidence capture serializes delivery per sink and provider disposal waits for active
+callbacks and joins accepted writes before scratch cleanup. The buffered presence
+fixture uses the desktop's independent bounded required-file/SQLite-projection
+policy; projection backpressure records explicit per-evidence-ID file gaps without
+weakening typed audit commits or actual sink/integrity failure handling.
+Removing the process-wide activity listener
 alone is not sufficient to release database handles. Headless tests remain in
 the exclusive UI collection so unrelated test activities do not enter fixture
 storage.
+
+Pending-question navigation tests retire their controller/window and join the
+original wait and any pending presentation operation before disposing scratch
+storage, including setup failure before the window becomes editable. A timed
+setup assertion is not a resource-quiescence receipt. The held-transaction
+regression uses the existing internal interaction checkpoint; no real provider,
+device or additional authority is admitted
+([test lifecycle](../Kora.Windows.IntegrationTests/PendingQuestionNavigationTests.cs)).
+Presentation readiness waits for the original operation or its terminal failure,
+not a fixed hosted-runner latency threshold. Test cancellation still applies.
+Definition-editor privacy tests separately await `PrivacyClosureTask` before
+asserting native text erasure or deleting scratch storage. The synchronous
+authority hold and dispatched native closure have distinct completion receipts;
+the delayed-dispatch regression preserves immediate rejection and eventual
+complete clearing without assuming editor admission waits for UI delivery
+([privacy receipt regression](../Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
 
 The pending proof is the **screen-reader/text-scale/physical-display slice of
 R05/R12/R14/A4**, not a repeat of the already recorded
@@ -446,3 +466,34 @@ listed synthetic observations on these payload bytes and recorded display
 conditions**. Full qualification and actual privacy/audio/installed boundaries
 remain open. Share only a reviewed, sanitized receipt if it is later needed in
 the deferred-validation register; publishing or committing evidence is separate.
+
+## Presence renderer reveal regression
+
+The `--native-presence-fixture` mode runs on an unswitched private desktop with
+scratch-only services. Its production-window replacement sequence keeps the
+modeless Settings window open, switches each hidden renderer, and reveals it
+through the actual first-click tray handler. The replacement must remain hidden
+until that request, then restore full shell opacity and a positive presence frame
+within one second, including while scratch SQLite delivery is deliberately blocked.
+The test does not manually restore a visible replacement state before revealing.
+It awaits the tracked appearance-persistence task before replacement, measures
+the selector callback and joined retirement/replacement separately, and requires
+each UI stage to complete within 500 ms in the scratch fixture. Durable preference
+commit time is not represented as render time.
+
+Visible replacement also samples submitted opacity: the old renderer must
+produce intermediate frames and reach zero before retirement, and the new
+renderer must still be below full opacity at controller return and produce
+intermediate frames before full opacity. Headless/worker tests assert the exact
+zero-opacity initial and fresh-admission frames; synchronous layout/input wakes
+can already advance that fade slightly before the replacement call returns.
+Fade time is recorded separately from selector and joined replacement time.
+The fixture checks cancellation without replacing the old owner, hide/minimize
+during the outgoing fade, privacy closure during cancellation, and stop during
+the fade without a new renderer. Hidden/minimized replacements skip cosmetic
+waiting. Both backends retain the shared 220 ms visibility animation; reduced
+motion does not remove fades.
+
+This covers the hidden-replacement zero-opacity regression for both Avalonia and
+Native. It does not measure Explorer event delivery or composed physical pixels,
+qualify microphone/provider behavior, or authorize a real application launch.

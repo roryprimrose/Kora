@@ -45,7 +45,10 @@ public sealed partial class DetailWindow : Window, IDetailView
         disclosure = Required<CheckBox>("DisclosureConfirmation");
         renderedDocument = Required<StackPanel>("RenderedDocument");
         renderedViewport = Required<ScrollViewer>("RenderedViewport");
-        var renderedControls = MarkdownDocumentRenderer.CreateControls(result, selectable: false);
+        var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
+        var renderedControls = content.Kind == DetailContentKind.StaticHtml
+            ? StaticHtmlDocumentRenderer.CreateControls(result)
+            : MarkdownDocumentRenderer.CreateControls(result, selectable: false);
         foreach (var control in renderedControls)
         {
             if (typographyHost is not null && control is TextBlock text
@@ -57,7 +60,6 @@ public sealed partial class DetailWindow : Window, IDetailView
         }
         if (typographyHost is not null) { NativeReaderTypography.Bind(reader, typographyHost); }
         if (typographyHost is not null) { NativeReaderTypography.Bind(findSpan, typographyHost); }
-        var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
         Title = $"{content.Title} — details — revision {content.Reference.Revision}";
         Required<TextBlock>("DetailTitle").Text = content.Title;
         Required<TextBlock>("ProvenanceLabel").Text =
@@ -75,6 +77,10 @@ public sealed partial class DetailWindow : Window, IDetailView
             var host = Required<TextBlock>("ConversationHostLabel");
             host.IsVisible = true;
             host.Text = state.HostText;
+            var assistant = Required<TextBlock>("ConversationAssistantLabel");
+            assistant.IsVisible = message.AssistantResponse is not null;
+            assistant.Text = message.AssistantResponse is not { } answer ? string.Empty
+                : $"ASSISTANT - finalized local answer | host turn {answer.Provenance.Turn.Value:D}\n" + state.AssistantText;
             Required<CheckBox>("FindHostToggle").IsVisible = true;
             Required<TextBlock>("CopyPolicyLabel").Text = "Passive retained conversation Details grant no clipboard/export disclosure authority. Exact-source and selection copy are blocked.";
             Required<Button>("CopySource").IsEnabled = false;
@@ -143,6 +149,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         if (!string.Equals(search.Text ?? string.Empty, state.SearchQuery, StringComparison.Ordinal)) { search.Text = state.SearchQuery; }
         findSpan.Text = state.MatchStart < 0 ? null : state.FindText.Substring(state.MatchStart, state.MatchLength);
         findSpan.IsVisible = state.MatchStart >= 0;
+        Required<NamedTextBlock>("FindSummary").Text = state.FindSummary;
         Required<Button>("NextMatch").IsEnabled = state.CanNavigateFind;
         Required<Button>("PreviousMatch").IsEnabled = state.CanNavigateFind;
         var structured = !state.IsSource && readingText.IsChecked != true
@@ -178,33 +185,44 @@ public sealed partial class DetailWindow : Window, IDetailView
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; CopyAsync reports failures without claiming a clipboard write.")]
     private async void OnCopyRequested(object? sender, RoutedEventArgs eventArgs)
     {
         await CopyAsync();
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; CopyAsync reports failures without claiming a clipboard write.")]
     private async void OnCopySelectionRequested(object? sender, RoutedEventArgs eventArgs) =>
         await CopyAsync(selection: true);
 
     private async Task CopyAsync(bool selection = false)
     {
-        if (cleared) { return; }
-        if (selection)
+        try
         {
-            if (!reader.IsVisible)
+            if (cleared) { return; }
+            if (selection)
             {
-                state.ReportStatus("Use Continuous text or Exact source to select a range before copying.");
-                return;
+                if (!reader.IsVisible)
+                {
+                    state.ReportStatus("Use Continuous text or Exact source to select a range before copying.");
+                    return;
+                }
+                var start = Math.Min(reader.SelectionStart, reader.SelectionEnd);
+                var length = Math.Abs(reader.SelectionEnd - reader.SelectionStart);
+                await copySource(disclosure.IsChecked == true, start, length);
             }
-            var start = Math.Min(reader.SelectionStart, reader.SelectionEnd);
-            var length = Math.Abs(reader.SelectionEnd - reader.SelectionStart);
-            await copySource(disclosure.IsChecked == true, start, length);
+            else
+            {
+                await copySource(disclosure.IsChecked == true, null, 0);
+            }
+            disclosure.IsChecked = false;
         }
-        else
+        catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            await copySource(disclosure.IsChecked == true, null, 0);
+            state.ReportStatus("Copy failed or is unconfirmed; no successful clipboard write is claimed.");
         }
-        disclosure.IsChecked = false;
     }
 
     private void OnKeyDown(object? sender, KeyEventArgs eventArgs)
@@ -276,7 +294,7 @@ public sealed partial class DetailWindow : Window, IDetailView
         findSpan.Text = null;
         findSpan.IsVisible = false;
         disclosure.IsChecked = false;
-        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "RendererStatus", "RenderStatus" })
+        foreach (var name in new[] { "DetailTitle", "ProvenanceLabel", "ReferenceLabel", "DigestLabel", "ConversationHostLabel", "ConversationAssistantLabel", "RendererStatus", "RenderStatus", "FindSummary" })
         {
             Required<TextBlock>(name).Text = string.Empty;
         }

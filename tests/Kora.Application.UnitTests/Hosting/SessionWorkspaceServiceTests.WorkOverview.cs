@@ -15,6 +15,31 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class SessionWorkspaceServiceTests
 {
+    [Fact]
+    public async Task SmallerQueryContractStillEnforcesTheExactCompletePageByteCeilingWithoutSkippingRows()
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var entries = Enumerable.Range(1, SessionWorkOverviewPage.MaximumSessions).Select(id => ListEntry(id)).ToImmutableArray();
+        OverviewReader(f, entries);
+        f.OverviewReader = (id, _) =>
+        {
+            var snapshot = OverviewSnapshot(entries.Single(entry => entry.Authority.SessionId == id));
+            return Task.FromResult(snapshot with { Tasks = [.. Enumerable.Repeat(snapshot.Tasks[0], 50)] });
+        };
+        var page = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, f.Token);
+        page.OutputLimited.Should().BeTrue();
+        page.Records.Length.Should().BeInRange(1, SessionWorkOverviewPage.MaximumSessions - 1);
+        page.Scanned.Should().Be(page.Records.Length);
+        SessionWorkOverviewPage.Serialize(page).Length.Should().BeLessThanOrEqualTo(SessionWorkOverviewPage.MaximumResultBytes);
+        var observed = page.Records.ToList();
+        while (page.Next is { } next)
+        {
+            page = await f.Service.ReadWorkOverviewAsync(SessionListFilter.All, false, next, f.Token);
+            observed.AddRange(page.Records);
+        }
+        observed.Select(row => row.Session).Should().Equal(entries);
+    }
     [Theory]
     [InlineData(SessionListSearchKind.NameSubstring, SessionListFilter.All, false, 1)]
     [InlineData(SessionListSearchKind.NameSubstring, SessionListFilter.Active, true, 1)]
@@ -162,18 +187,11 @@ public sealed partial class SessionWorkspaceServiceTests
     }
 
     [Theory]
-    [InlineData("timeout", false)]
-    [InlineData("cancel", false)]
-    [InlineData("cancel-timeout", false)]
-    [InlineData("source", false)]
-    [InlineData("timeout", true)]
-    [InlineData("cancel", true)]
-    [InlineData("cancel-timeout", true)]
-    [InlineData("source", true)]
-    [InlineData("task-query-timeout", false)]
-    [InlineData("task-query-cancel", false)]
-    [InlineData("task-query-source", false)]
-    public async Task OverviewFencesDeterministicInFlightCancellationTimeoutAndSourceRevocation(string mode, bool ranged)
+    [InlineData("timeout")]
+    [InlineData("cancel")]
+    [InlineData("cancel-timeout")]
+    [InlineData("source")]
+    public async Task OverviewFencesDeterministicInFlightCancellationTimeoutAndSourceRevocation(string mode)
     {
         using var f = new Fixture();
         using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
@@ -186,11 +204,7 @@ public sealed partial class SessionWorkspaceServiceTests
         var service = new SessionWorkspaceService(f, new(f), f, f.Logger, overviewTime: clock);
         using var cancellation = new CancellationTokenSource();
         var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
-        var taskQuery = mode.StartsWith("task-query-", StringComparison.Ordinal)
-            ? new SessionWorkOverviewTaskQuery(OverviewTaskA, OverviewRequestA) : default;
-        mode = mode.Replace("task-query-", "", StringComparison.Ordinal);
-        var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token, query,
-            ranges: ranged ? new(OmittedTasks: new(9, 9)) : default, taskQuery: taskQuery);
+        var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token, query);
         await entered.Task.WaitAsync(f.Token);
         if (mode is "source")
         {

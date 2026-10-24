@@ -2,6 +2,7 @@ using System.Text.Json;
 using Kora.Application.Configuration;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Storage;
 
 namespace Kora;
 
@@ -10,6 +11,8 @@ internal sealed partial class SessionsViewModel
     private SessionProviderDraft? providerDraft;
     private SessionProviderProposal? providerProposal;
     private long providerEpoch;
+    private long providerReviewRevision;
+    private SessionWorkspaceEntry? providerCopySource;
     private ProviderService providerService;
     private ProviderCatalogueModel? providerModel;
     private ProviderProfileOption? providerReasoning;
@@ -59,13 +62,32 @@ internal sealed partial class SessionsViewModel
     public bool CanReviewProviderReasoningField => CanSelectProviderField && ProviderFieldReasoning is not null;
     public bool CanReviewProviderContextField => CanSelectProviderField && ProviderFieldContext is not null;
     public bool CanInspectProviders => CanRead && providers is not null && selected is not null;
+    public IReadOnlyList<SessionWorkspaceEntry> ProviderCopySources => closed || !access.CanInspect ? [] : sessions?.Records ?? [];
+    public SessionWorkspaceEntry? ProviderCopySource
+    {
+        get => closed || !access.CanInspect ? null : providerCopySource;
+        set
+        {
+            if (ReferenceEquals(providerCopySource, value)) { return; }
+            ClearProviderReview();
+            providerCopySource = value is not null && ProviderCopySources.Any(entry => ReferenceEquals(entry, value)) ? value : null;
+            OnPropertyChanged();
+            OnPropertyChanged(nameof(CanReviewProviderCopy));
+        }
+    }
+    public bool CanReviewProviderCopy => CanRead && ProviderCopyAdmitted;
+    private bool ProviderCopyAdmitted => !closed && access.CanInspect && providers is not null && providerSurfaceOpen && access.CanControl
+        && selected?.Authority.IsActive == true && providerCopySource is not null
+        && providerCopySource.Authority.SessionId != selected.Authority.SessionId
+        && ProviderCopySources.Any(entry => ReferenceEquals(entry, providerCopySource));
     public bool CanReviewProviders => CanInspectProviders && access.CanControl && selected?.Authority.IsActive == true
         && providerDraft is { Saved.Held: false } && providerEpoch == selectionEpoch && providerDraft.Saved.Session == selected.Authority;
     public bool CanConfirmProviders => CanReviewProviders && providerProposal is not null;
     public bool CanSelectProviderModel => CanReviewProviders && ProviderModels.Count != 0;
     public bool CanReviewProviderModel => CanReviewProviders && ProviderModels.Count != 0 && ProviderModel is not null
         && ProviderReasoning is not null && ProviderContext is not null;
-    public string ProviderStatus => providerEpoch == selectionEpoch && providerDraft?.Saved.Session == selected?.Authority
+    public string ProviderStatus => !closed && providerSurfaceOpen && access.CanInspect
+        && providerEpoch == selectionEpoch && providerDraft?.Saved.Session == selected?.Authority
         ? providerStatus : "Provider review unavailable/stale: select an exact existing session and Refresh; no app fallback.";
 
     public Task RefreshProviders() => RunAsync(async () =>
@@ -74,9 +96,12 @@ internal sealed partial class SessionsViewModel
         var target = RequireSelected().Authority;
         providerEpoch = selectionEpoch;
         var epoch = providerEpoch;
+        var reviewRevision = providerReviewRevision;
         var draft = await providers!.Inspect(target.SessionId, RequestOrigin.LocalUi,
-            () => !closed && providerSurfaceOpen && access.CanInspect && selectionEpoch == epoch && selected?.Authority == target, lifetime.Token);
-        if (closed || selectionEpoch != epoch || selected?.Authority != target) { providers.Discard(draft); return; }
+            () => !closed && providerSurfaceOpen && access.CanInspect && providerReviewRevision == reviewRevision
+                && selectionEpoch == epoch && selected?.Authority == target, lifetime.Token);
+        if (closed || !providerSurfaceOpen || providerReviewRevision != reviewRevision
+            || selectionEpoch != epoch || selected?.Authority != target) { providers.Discard(draft); return; }
         providerDraft = draft;
         ProviderService = draft.EffectiveService;
         ProviderModel = null;
@@ -90,6 +115,41 @@ internal sealed partial class SessionsViewModel
             draft.App, draft.Effective, draft.Status, catalogue = Provenance(draft),
         });
         OnPropertyChanged(nameof(ProviderModels));
+        NotifyProviderReview();
+    });
+
+    public Task ReviewProviderCopy() => RunAsync(async () =>
+    {
+        if (!ProviderCopyAdmitted) { throw new InvalidOperationException("Choose an admitted source and a distinct active destination from the exact session metadata."); }
+        var source = providerCopySource!;
+        var destination = RequireSelected().Authority;
+        ClearProviderReview();
+        var epoch = selectionEpoch;
+        var reviewRevision = providerReviewRevision;
+        bool Eligible() => !closed && providerSurfaceOpen && access.CanControl && access.CanInspect
+            && selectionEpoch == epoch && providerReviewRevision == reviewRevision && selected?.Authority == destination
+            && ReferenceEquals(providerCopySource, source) && ProviderCopySources.Any(entry => ReferenceEquals(entry, source));
+        var proposal = await providers!.ReviewCopy(source.Authority.SessionId, destination.SessionId,
+            RequestOrigin.LocalUi, Eligible, lifetime.Token);
+        if (!Eligible() || proposal.Source!.Saved.Session != source.Authority || proposal.Draft.Saved.Session != destination)
+        {
+            providers.Discard(proposal.Draft);
+            providers.Retire(proposal);
+            throw new InvalidOperationException("The source or destination metadata generation changed. Refresh and review exact sessions again.");
+        }
+        providerEpoch = epoch;
+        providerDraft = proposal.Draft;
+        providerProposal = proposal;
+        providerStatus = JsonSerializer.Serialize(new
+        {
+            scope = "Review exact sparse copy: only this explicit active destination changes; source supplies no authority.",
+            source = proposal.Source!.Saved, destination = proposal.Draft.Saved,
+            previous = proposal.Draft.Saved.Desired, proposed = proposal.Desired,
+            sourceEffective = proposal.Source.Effective, sourceStatus = proposal.Source.Status,
+            proposal.PreviousEffective, proposal.ResultingEffective, destinationStatus = proposal.Draft.Status,
+            proposal.AppRevision, proposal.ExpiresAt, sourceCatalogue = Provenance(proposal.Source),
+            destinationCatalogue = Provenance(proposal.Draft),
+        });
         NotifyProviderReview();
     });
 
@@ -126,6 +186,8 @@ internal sealed partial class SessionsViewModel
         var epoch = selectionEpoch;
         var saved = await providers!.Confirm(proposal, RequestOrigin.LocalUi,
             () => !closed && providerSurfaceOpen && access.CanControl && selectionEpoch == epoch && selected?.Authority == target, lifetime.Token);
+        if (closed || !providerSurfaceOpen || !access.CanInspect || selectionEpoch != epoch || selected?.Authority != target)
+        { ClearProviderReview(); return; }
         ClearProviderReview();
         status = "Exact session provider override committed; app defaults unchanged, no authentication, network, generation or egress. Refresh for saved/effective status.";
         Detail = JsonSerializer.Serialize(saved);
@@ -133,6 +195,8 @@ internal sealed partial class SessionsViewModel
 
     public void ClearProviderReview()
     {
+        providerReviewRevision++;
+        if (providerProposal is { } proposal) { providers?.Retire(proposal); }
         if (providerDraft is { } draft) { providers?.Discard(draft); }
         providerDraft = null;
         providerProposal = null;
@@ -147,6 +211,8 @@ internal sealed partial class SessionsViewModel
 
     private void InvalidateProviderProposal()
     {
+        if (providerDraft is null || providerProposal?.Source is not null) { providerReviewRevision++; }
+        if (providerProposal is { } proposal) { providers?.Retire(proposal); }
         providerProposal = null;
         OnPropertyChanged(nameof(CanConfirmProviders));
     }
@@ -155,6 +221,9 @@ internal sealed partial class SessionsViewModel
     {
         OnPropertyChanged(nameof(ProviderStatus));
         OnPropertyChanged(nameof(CanInspectProviders));
+        OnPropertyChanged(nameof(ProviderCopySources));
+        OnPropertyChanged(nameof(ProviderCopySource));
+        OnPropertyChanged(nameof(CanReviewProviderCopy));
         OnPropertyChanged(nameof(CanReviewProviders));
         OnPropertyChanged(nameof(CanConfirmProviders));
         OnPropertyChanged(nameof(CanReviewProviderModel));

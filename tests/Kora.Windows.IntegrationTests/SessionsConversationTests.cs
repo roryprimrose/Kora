@@ -60,13 +60,9 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task DirtySessionSwitchUsesSaveDiscardCancelAndNeverPostsToAnotherSession(int choice)
+    [Fact]
+    public async Task DirtySessionSwitchRetainsSeparateExactBuffersWithoutDecisionSaveOrSubmission()
     {
-        var decision = (ComposerDraftDecision)choice;
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
@@ -80,20 +76,17 @@ public sealed partial class SessionsConversationTests
         await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == original));
         await model.ReadConversationAsync();
         model.ComposerBody = "unsaved original-session buffer";
-        model.DecideComposerDraft = () => Task.FromResult(decision);
+        model.DecideComposerDraft = () => throw new InvalidOperationException("Switching topics must not prompt.");
         await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId != original));
-        if (decision == ComposerDraftDecision.Cancel)
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().Be(original);
-            model.ComposerBody.Should().Be("unsaved original-session buffer");
-        }
-        else
-        {
-            model.SelectedSessionRecord!.Authority.SessionId.Should().NotBe(original);
-            model.ComposerBody.Should().BeEmpty();
-        }
+        model.SelectedSessionRecord!.Authority.SessionId.Should().NotBe(original);
+        model.ComposerBody.Should().BeEmpty();
+        model.ComposerBody = "second topic input";
+        await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId == original));
+        model.ComposerBody.Should().Be("unsaved original-session buffer");
+        await model.SelectAsync(model.Sessions.Single(entry => entry.Authority.SessionId != original));
+        model.ComposerBody.Should().Be("second topic input");
         var saved = await f.Store.ReadConversationDraftAsync(original, f.Token);
-        saved.Draft.Body.Should().Be(decision == ComposerDraftDecision.Save ? "unsaved original-session buffer" : null);
+        saved.Draft.Body.Should().BeNull();
         f.Count("conversation_messages").Should().Be(0);
         model.Close();
     }
@@ -123,28 +116,32 @@ public sealed partial class SessionsConversationTests
     }
 
     [Fact]
-    public async Task ExplicitDraftSaveClearAndReloadUseExactNativeRevisionAndCannotAnswerQuestionsOrImplicitlySubmit()
+    public async Task LegacyRecoveryReadsOnlyExactExistingTextIntoEmptyInputWithoutWritesOrSubmission()
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
+        var legacy = await WindowsSqliteConversationTests.Save(f,
+            await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token), "existing legacy text");
+        var audits = WindowsSqliteConversationTests.AuditText(f);
+        var retention = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
         await using var composed = new Composition(f);
         var model = composed.Model;
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
         await model.ReadConversationAsync();
-        model.ComposerBody = "only explicitly saved draft";
-        await model.SaveConversationDraftAsync();
-        model.ComposerDirty.Should().BeFalse();
-        model.DiscardComposerBuffer();
-        await model.ReloadConversationDraftAsync();
-        model.ComposerBody.Should().Be("only explicitly saved draft");
-        model.CanClearConversationDraft.Should().BeFalse();
-        model.ReviewClearConversationDraft();
-        model.SavedConversationDraftReview.Should().Be("only explicitly saved draft");
-        await model.ClearSavedConversationDraftAsync();
-        (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Draft.Body.Should().BeNull();
-        model.ComposerBody.Should().Be("only explicitly saved draft", "clearing saved storage never discards current memory edits");
+        model.ComposerBody.Should().BeEmpty("reading history never imports legacy input");
+        model.CanRecoverConversationDraft.Should().BeTrue();
+        await model.RecoverLegacyUnsentAsync();
+        model.ComposerBody.Should().Be("existing legacy text");
+        model.ComposerDirty.Should().BeTrue();
+        model.CanRecoverConversationDraft.Should().BeFalse();
+        model.ComposerBody = "new unsent input";
+        await model.RecoverLegacyUnsentAsync();
+        model.ComposerBody.Should().Be("new unsent input", "legacy recovery must never overwrite dirty text");
+        (await f.Store.ReadConversationDraftAsync(f.Request.SessionId, f.Token)).Should().Be(legacy);
+        (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(retention);
+        WindowsSqliteConversationTests.AuditText(f).Should().Be(audits);
         f.Count("conversation_messages").Should().Be(0);
         f.Count("host_questions").Should().Be(0);
         model.Close();
@@ -184,7 +181,6 @@ public sealed partial class SessionsConversationTests
         await model.ReadConversationAsync();
         const string candidate = "password=synthetic-native-correction-only";
         model.ComposerBody = candidate;
-        await model.SaveConversationDraftAsync();
         model.ComposerBody.AsSpan().SequenceEqual(candidate.AsSpan()).Should().BeTrue();
         model.CanCompose.Should().BeTrue();
         f.Count("conversation_drafts").Should().Be(0);
@@ -209,7 +205,7 @@ public sealed partial class SessionsConversationTests
         await WindowsSqliteConversationTests.FinishInitial(f);
         SessionsViewModel? subject = null;
         Kora.Core.Storage.SessionWorkspaceEntry? other = null;
-        f.Reopen(new SelectionCheckpoint(() => subject!.SelectAsync(other).GetAwaiter().GetResult()));
+        f.Reopen(new SelectionCheckpoint(() => subject!.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue()));
         await f.Store.InitializeAsync(f.Token);
         await using var composed = new Composition(f);
         subject = composed.Model;
@@ -234,18 +230,26 @@ public sealed partial class SessionsConversationTests
     {
         private readonly AudioControlAdmission admission;
         private readonly ModelTurnHost turns;
+        private readonly Kora.Application.Memory.MemoryManagementService? memories;
         internal WindowsSqliteSessionWorkspaceTests.Access Access { get; } = new();
         internal AuditLog Audit { get; } = new();
         internal SessionsViewModel Model { get; }
         internal SessionWorkspaceService Workspace { get; }
         internal SessionConversationService Conversation { get; }
+        internal ModelTurnHost Turns => turns;
+        internal Kora.Application.Memory.MemoryManagementService Memories =>
+            memories ?? throw new InvalidOperationException("Memory context was not composed for this fixture.");
         internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
 
         internal Composition(InteractionStorageFixture f,
             Func<Kora.Core.Presentation.AdmittedDetailContent, Func<bool>,
                 Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? openDetail = null,
             ISessionWorkspaceStore? conversationReader = null,
-            Action<HostId<SessionIdentity>>? revokeDetails = null)
+            Action<HostId<SessionIdentity>>? revokeDetails = null,
+            Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
+            IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
+            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null, bool memoryContext = false,
+            Kora.Core.Network.IWebPageTransport? pageTransport = null, CopilotConversationRuntime? copilot = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -253,28 +257,57 @@ public sealed partial class SessionsConversationTests
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);
             mode.Observe();
             var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Paths),
-                new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time), admission, Audit, f.Time);
+                copilot is null ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f),
+                admission, Audit, f.Time);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var boundary = new HostBoundary();
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(boundary, new(), new(), new(boundary), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
-            turns = new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance,
-                f.Time, mode, profiles, f.Store);
+            if (copilot is not null)
+            {
+                new LocalModelProviderModePreferences(f.Paths).Save(ModelProviderMode.HostedPreferred);
+                mode.Observe();
+                new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Copilot, [CopilotCatalogue.Profile]));
+            }
+            Reviews = new(Audit, f.Time);
+            turns = copilot is not null
+                ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.CopilotCandidate,
+                        ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
+                            | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), new CopilotModelTurnAdapter(copilot, Reviews))],
+                    mode, profiles, f.Store, hostedReviews: Reviews)
+                : adapter is null
+                ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time, mode, profiles, f.Store)
+                : new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.OllamaCandidate,
+                        ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), adapter)], mode);
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
-                NullLogger<SessionConversationService>.Instance);
+                NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
+                webPageAction: pageTransport is null ? null : new(pageTransport, Audit));
             Conversation = conversation;
+            memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
+                NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
             sink.Initialize();
             Model = new(workspace, new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), Access, f.Time,
                 NullLogger<DurableEvidenceQuery>.Instance), Access, NullLogger<SessionsViewModel>.Instance,
-                conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails);
+                memories: memories, conversation: conversation, openConversationDetail: openDetail, revokeConversationDetails: revokeDetails,
+                reviewOriginalMessageReuse: reuseOriginal,
+                reviewAppearanceSuggestion: appearance is null ? null : (message, eligible, validate, token) =>
+                    AppearanceSuggestionReview.ReviewAsync(appearance, message, eligible, validate, token),
+                confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token),
+                instructionUse: instructionFactory?.Invoke(Access));
         }
+        internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()
         {
             Model.Close();
+            if (memories is not null) { await memories.DisposeAsync(); }
             await turns.DisposeAsync();
             await admission.DisposeAsync();
         }

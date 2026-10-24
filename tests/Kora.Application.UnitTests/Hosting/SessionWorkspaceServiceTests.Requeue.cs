@@ -20,14 +20,13 @@ public sealed partial class SessionWorkspaceServiceTests
         var old = ExpiredEntry(f);
         f.QueueRows.Add(old);
         await using var queue = f.QueueService();
-        var workspace = new SessionWorkspaceService(f, new(f), f, f.Logger, queue);
         var snapshot = await f.ReadQueueAsync(f.Request.SessionId, f.Token);
-        var reviewed = await workspace.ExecuteCommandAsync(RequeueReviewCommand(snapshot, old), origin, () => true, f.Token);
+        var reviewed = await queue.ExecuteCommandAsync(RequeueReviewCommand(snapshot, old), origin, () => true, f.Token);
         f.TaskWrites.Should().BeEmpty();
         var review = reviewed.QueueRequeueReview!;
         reviewed.Outcome.Should().Be("reviewed");
         f.AfterMove = () => { if (cancelLate) { cancel.Cancel(); } };
-        var result = await workspace.ExecuteCommandAsync(RequeueConfirmCommand(review), origin, () => true, cancel.Token);
+        var result = await queue.ExecuteCommandAsync(RequeueConfirmCommand(review), origin, () => true, cancel.Token);
         result.Outcome.Should().Be("committed");
         result.QueueRequeueReceipt!.Original.Should().Be(old);
         result.QueueRequeueReceipt.Fresh.Request.Should().Be(review.FreshRequest);

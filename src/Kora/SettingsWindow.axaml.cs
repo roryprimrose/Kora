@@ -1,5 +1,4 @@
 ﻿using Avalonia.Controls;
-using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.Markup.Xaml;
 using Avalonia.Layout;
@@ -7,6 +6,7 @@ using Avalonia.Layout;
 using Kora.Application.ViewModels;
 using Kora.Application.Infrastructure;
 using Kora.Core.Commands;
+using Kora.Application.Presentation;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -15,11 +15,15 @@ namespace Kora;
 public sealed partial class SettingsWindow : Window
 {
     private readonly TabControl settingsTabs;
-    private readonly Button pushToTalkButton;
     private readonly TabItem readinessTab;
     private readonly TabItem speechAudioTab;
+    private readonly TabItem appearanceTab;
+    private readonly TabItem responsesTab;
+    private readonly TabItem sessionsTab;
+    private readonly TabItem callsTab;
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
+    private readonly MainViewModel model;
 
     public SettingsWindow()
         : this(App.Services.GetRequiredService<MainViewModel>())
@@ -29,38 +33,24 @@ public sealed partial class SettingsWindow : Window
     public SettingsWindow(MainViewModel viewModel, Action? chooseMicrophone = null,
         SpeechCaptionWindowController? captionDisplay = null)
     {
+        model = viewModel;
         AvaloniaXamlLoader.Load(this);
         settingsTabs = this.FindControl<TabControl>("SettingsTabs")
             ?? throw new InvalidOperationException("The settings tab control is unavailable.");
-        pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
-            ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
         readinessTab = this.FindControl<TabItem>("ReadinessTab")
             ?? throw new InvalidOperationException("The readiness settings tab is unavailable.");
         speechAudioTab = this.FindControl<TabItem>("SpeechAudioTab")
             ?? throw new InvalidOperationException("The speech and audio settings tab is unavailable.");
-#pragma warning disable MA0147 // Avalonia routed events require void event handlers.
-        pushToTalkButton.AddHandler(
-            PointerPressedEvent,
-            OnPushToTalkPressed,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            PointerReleasedEvent,
-            OnPushToTalkReleased,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyDownEvent,
-            OnPushToTalkKeyDown,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyUpEvent,
-            OnPushToTalkKeyUp,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-#pragma warning restore MA0147
+        appearanceTab = this.FindControl<TabItem>("AppearanceTab")
+            ?? throw new InvalidOperationException("The appearance settings tab is unavailable.");
+        responsesTab = this.FindControl<TabItem>("ResponsesTab")
+            ?? throw new InvalidOperationException("The response settings tab is unavailable.");
+        sessionsTab = this.FindControl<TabItem>("SessionsTab")
+            ?? throw new InvalidOperationException("The session settings tab is unavailable.");
+        callsTab = this.FindControl<TabItem>("CallsTab")
+            ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {
             this.FindControl<CaptionDisplaySelector>("CaptionDisplaySelector")!.Bind(captionDisplay);
@@ -69,79 +59,35 @@ public sealed partial class SettingsWindow : Window
             ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
         recovery.IsEnabled = chooseMicrophone is not null;
         recovery.Click += (_, _) => chooseMicrophone?.Invoke();
-        Deactivated += OnCaptureSurfaceUnavailable;
-        Closed += OnCaptureSurfaceUnavailable;
-    }
-
-    private void OnCaptureSurfaceUnavailable(object? sender, EventArgs eventArgs)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
     }
 
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
 
     public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
 
+    public void ShowSection(SettingsSection section)
+    {
+        var tab = section switch
+        {
+            SettingsSection.Appearance => appearanceTab,
+            SettingsSection.SpeechAudio => speechAudioTab,
+            SettingsSection.Responses => responsesTab,
+            SettingsSection.Sessions => sessionsTab,
+            SettingsSection.Calls => callsTab,
+            _ => throw new ArgumentOutOfRangeException(nameof(section), section, "Unknown Settings section."),
+        };
+        settingsTabs.SelectedItem = tab;
+        if (!ReferenceEquals(settingsTabs.SelectedItem, tab))
+        { throw new InvalidOperationException("The native Settings section was not selected."); }
+    }
+
     private void OnMaintenanceClicked(object? sender, RoutedEventArgs eventArgs)
     {
         if (DataContext is MainViewModel viewModel) { viewModel.ShowMaintenance(); }
     }
 
-    private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
-        OnCaptureSurfaceUnavailable(sender, eventArgs);
-
-    private void OnPushToTalkPressed(object? sender, Avalonia.Input.PointerPressedEventArgs eventArgs)
-    {
-        if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            eventArgs.Pointer.Capture(control);
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkReleased(object? sender, Avalonia.Input.PointerReleasedEventArgs eventArgs)
-    {
-        eventArgs.Handled = true;
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
-        eventArgs.Pointer.Capture(null);
-    }
-
-    private void OnPushToTalkCaptureLost(object? sender, Avalonia.Input.PointerCaptureLostEventArgs eventArgs)
-    {
-        if (DataContext is MainViewModel viewModel)
-        {
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkKeyDown(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkKeyUp(object? sender, Avalonia.Input.KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Avalonia.Input.Key.Space or Avalonia.Input.Key.Enter
-            && DataContext is MainViewModel viewModel)
-        {
-            eventArgs.Handled = true;
-            viewModel.EndPushToTalkCommand.Execute(null);
-        }
-    }
-
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; dialog/setup failures are explicitly reported to the supplied model.")]
     private async void OnInstallLocalModelClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)
     {
         if (isLocalModelReviewOpen || isPowerShellReviewOpen)
@@ -166,7 +112,7 @@ public sealed partial class SettingsWindow : Window
                     {
                         new TextBlock
                         {
-                            Text = "Install Ollama 0.35.1 for this Windows user via the winget Ollama.Ollama package if needed, then download qwen3:1.7b (about 1.36 GB) from the Ollama registry. The Qwen3 model is Apache-2.0 licensed. Kora will verify the model digest and run a local inference check. This uses network, disk space and CPU. Existing models will not be replaced.",
+                            Text = "Install Ollama 0.35.1 for your Windows account if needed, then download the Qwen3 1.7B AI model (about 1.36 GB) from Ollama. The model uses the Apache 2.0 license. Kora will check the download and test the model on this device. This uses internet access, disk space and processing power. Existing models will not be replaced.",
                             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                         },
                         new StackPanel
@@ -192,12 +138,18 @@ public sealed partial class SettingsWindow : Window
                 await viewModel.InstallLocalModelAsync();
             }
         }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportHostInteractionFailure("Local model setup could not be completed. " + exception.Message);
+        }
         finally
         {
             isLocalModelReviewOpen = false;
         }
     }
 
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Avalonia Click requires void; dialog/setup failures are explicitly reported to the supplied model.")]
     private async void OnInstallPowerShellClicked(object? sender, Avalonia.Interactivity.RoutedEventArgs eventArgs)
     {
         if (isPowerShellReviewOpen || isLocalModelReviewOpen)
@@ -224,7 +176,7 @@ public sealed partial class SettingsWindow : Window
                     {
                         new TextBlock
                         {
-                            Text = "Kora will reuse a healthy PowerShell 7 (pwsh.exe) installation, or install Microsoft.PowerShell for this Windows user through winget. Installation may use the network and disk space. Kora verifies the runtime in a no-profile process afterward. No skill script is run or granted by this setup.",
+                            Text = "Kora will use an existing working PowerShell 7 installation, or install it from Microsoft's package using Windows Package Manager for your Windows account. Installation may use internet access and disk space. Kora will check that PowerShell starts correctly. This setup does not run skill scripts or give them permission to run.",
                             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
                         },
                         new StackPanel
@@ -243,6 +195,10 @@ public sealed partial class SettingsWindow : Window
             {
                 await viewModel.InstallPowerShellAsync();
             }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            model.ReportHostInteractionFailure("PowerShell setup could not be completed. " + exception.Message);
         }
         finally
         {

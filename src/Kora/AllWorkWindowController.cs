@@ -1,4 +1,4 @@
-using Avalonia.Threading;
+﻿using Avalonia.Threading;
 
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -22,9 +22,10 @@ internal sealed class AllWorkWindowController(
         main.PrivacyClosureRequested += OnPrivacyClosure;
         service.WorkOverviewInvalidated += OnInvalidated;
     }
-    internal void Open()
+    internal void Open() => Open(static () => true);
+    internal void Open(Func<bool> admitted)
     {
-        if (disposed || !access.CanInspect)
+        if (disposed || !access.CanInspect || !admitted())
         {
             window?.Close();
             main.ReportHostInteractionFailure("All work unavailable: live private desktop ownership is required.");
@@ -40,13 +41,13 @@ internal sealed class AllWorkWindowController(
             openedRevision = revision;
             opened.Show();
         }
-        if (!access.CanInspect || access.ControlRevision != revision)
+        if (!access.CanInspect || access.ControlRevision != revision || !admitted())
         {
-            window.Close();
+            window?.Close();
             main.ReportHostInteractionFailure("All work unavailable: private ownership changed while opening.");
             return;
         }
-        window.Activate();
+        window?.Activate();
     }
     private void OnInvalidated(HostId<SessionIdentity> session)
     {

@@ -4,6 +4,7 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application;
 using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Application.Hosting;
@@ -232,12 +233,13 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             controller.Bind();
         }
 
-        internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft)
+        internal static async Task<DraftValidationFixture> Create(ArtifactKind kind, bool newDraft,
+            IUiDispatcher? dispatcher = null)
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
             var session = new NativeUxFixtureSession(parent);
-            await session.InitializeAsync();
+            await session.InitializeAsync(null, dispatcher: dispatcher);
             var fixture = new DraftValidationFixture(session, kind);
             if (newDraft) { await fixture.Run(fixture.Prefix + " create example"); }
             else
@@ -255,8 +257,16 @@ public sealed partial class OwnedDefinitionEditorWindowTests
 
         internal async Task Run(string command)
         { Session.Main.CommandText = command; await Session.Main.RunTypedCommand.ExecuteAsync(); }
+        internal void DisposeController() => controller.Dispose();
         public async ValueTask DisposeAsync()
-        { controller.Dispose(); opened.Dispose(); reload.Dispose(); await Admission.DisposeAsync(); Session.Dispose(); }
+        {
+            controller.Dispose();
+            opened.Dispose();
+            reload.Dispose();
+            await Admission.DisposeAsync();
+            await Session.Main.PrivacyClosureTask;
+            Session.Dispose();
+        }
     }
 
     private sealed class ValidationSessionFence(IInstructionControlSessionStore inner) : IInstructionControlSessionStore
@@ -280,6 +290,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
 
     private sealed class ValidationStore(IOwnedInstructionStore inner) : IOwnedInstructionStore
     {
+        internal Func<string, CancellationToken, Task<OwnedInstructionSnapshot?>>? ReadOverride;
         internal bool DenyAccess;
         internal int Reads;
         internal int Lists;
@@ -289,7 +300,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         public Task<IReadOnlyList<string>> List(CancellationToken token)
         { Lists++; RequireAccess(); return inner.List(token); }
         public Task<OwnedInstructionSnapshot?> Read(string name, CancellationToken token)
-        { Reads++; RequireAccess(); return inner.Read(name, token); }
+        { Reads++; RequireAccess(); return ReadOverride is { } read ? read(name, token) : inner.Read(name, token); }
         public Task<InstructionWriteResult> Write(string name, OwnedInstructionSnapshot? expected, ArtifactFileDocument? replacement,
             Func<bool> eligible, Func<Func<InstructionWriteResult>, Task<InstructionWriteResult>> commit, CancellationToken token)
         { Writes++; RequireAccess(); return inner.Write(name, expected, replacement, eligible, commit, token); }

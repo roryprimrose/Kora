@@ -1,5 +1,19 @@
 # Voice, microphone, and speakers
 
+## Speech input profile preference
+
+In **Settings > Speech & audio > Speech input profile**, choose the profile, resource preference and residency, then select **Save speech input**. Changing a selector alone does not save. **Inspect speech input** reports saved preference, desired tuple, effective selection and unavailability separately ([native controls](../src/Kora/SettingsWindow.axaml), [shared action](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs)).
+
+Typed input and already activated voice use the same action: `get speech.input`, `status speech.input`, or `set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime`. A current assistant-name prefix is supported by the existing input admission. Protected/unknown calls retain their original-channel restrictions; a voice request is not relabelled as native input ([parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs), [host route](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs)).
+
+The profile setting `speech.input` and microphone setting `speech.input-device` remain separate exact options. Profile commands never intercept microphone inspection, selection or recovery ([profile parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs), [microphone commands](../src/Kora.Application/ViewModels/MainViewModel.InputConfiguration.cs)).
+
+The only catalogued adapter is the existing installed-English Windows activated recognizer. `WindowsManaged` and `CaptureLifetime` preserve its existing resource lifetime; actual installed recognizer, microphone and permission availability is still checked at explicit capture. `Cpu`, `Gpu` and `KeepLoaded` are requested preferences only: they may be saved but remain explicitly **unavailable**, without Windows/hosted fallback. No new engine or measured Low resource/Balanced/Accuracy profile is offered ([catalogue](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs), [Windows factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)).
+
+Saving retires active capture, clears its buffers and waits for owned resource cleanup before publishing an immutable configuration generation. Old, late and duplicate final events cannot become commands in the new generation. Start PTT again explicitly afterward. Selection itself never opens capture, downloads anything, enables name activation, changes consent/learning/verification or changes reasoning/speech output ([cutover](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.Profiles.cs), [activated capture](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs)).
+
+A failed or unconfirmed write does not advance the profile generation and does not enable new capture. Invalid/unknown saved tuples and unconfirmed audit/write markers are unavailable rather than defaults. Inspect the local preference and audit evidence before explicit repair/restart; do not remove an evidence hold merely to retry. Typed/native recovery remains available. This bounded implementation does not qualify any additional runtime/resource/residency profile or acoustic behaviour ([typed persistence](../src/Kora.Application/Configuration/LocalSpeechInputPreferences.cs), [selection action](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs), [qualification boundary](../Design/Speech_Input.md#delivery-and-open-decisions)).
+
 ## Microphone selection
 
 [Windows-native speech rate](settings.md#windows-native-speech-rate) is a
@@ -99,12 +113,43 @@ startup enables push-to-talk. **Enable listening** explicitly releases a
 current-run recovery hold, but does not open the microphone. **Disable
 listening** closes input for the current run without withdrawing saved consent.
 
+### Exact stop listening
+
+The separate [New request literal dictation gesture](windows-and-tray.md#new-request-with-a-fresh-session)
+does not use the command router. In that explicitly armed buffer, even "stop
+listening" is inert draft content; use native Cancel dictation or Disable
+listening to revoke capture. Literal dictation remains unavailable until its
+capture/transcriber is qualified and does not change consent or listening.
+
+Type exact `stop listening` or `disable listening`, optionally prefixed by the current assistant name. Already activated voice accepts the same phrases; this does not add ambient listening or a wake detector ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [recognition phrases](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+These commands, native Settings and tray Disable listening share one run-only [stop action](../src/Kora.Application/Voice/ListeningStopAction.cs).
+Acceptance disables input immediately; completion awaits native release and confirms quiescence. Unconfirmed release is reported explicitly, never as a released microphone. Repeated stops remain disabled ([release contract](../src/Kora.Core/Voice/IActivatedVoiceRecognitionService.cs)).
+
+Exact stop is reserved before pending questions, grants and approvals. It is not an answer, approval, task cancellation or model fallback; pending visual decisions remain available ([command reservation](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Native question voice replies also reserve exact stop before parsing an answer ([native reply reservation](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+
+Manual disable retires queued capture/transcription and unlock-recovery generations. Refresh, endpoint/default changes, consent updates and unlock cannot restore readiness or restart capture automatically ([lifecycle integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+A **new deliberate Push to talk** gesture remains available after confirmed release and current consent/privacy/readiness checks, without enabling listening readiness ([PTT regression tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.VoicePrivacy.cs)).
+Old results cannot feed the new activation ([retired-callback tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+Fresh native **Enable listening** restores readiness without opening capture ([readiness action](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+Both PTT and native recovery refuse while the stop's terminal receipt is still finishing; unconfirmed capture quiescence blocks a new capture ([request fence](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+This is not Stop speaking, Cancel task, hiding, exit, stored-consent withdrawal or global microphone mute ([stop integration](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+Protected-call stop remains available without authorizing voice recovery or weakening other mutations ([call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs)).
+There is no enable/unmute command or qualified model stop lane, and the six read-only capabilities remain observations ([catalogue](../src/Kora.Core/Commands/BuiltInCommandCatalog.cs), [model exclusion](../src/Kora.Windows/Dependencies/WindowsOllamaReasoner.cs), [read-only registry](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+Deterministic fake-lifecycle tests cover exact typed/current-prefix activation, pending decisions, release failure, queued input and explicit recovery ([stop tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ListeningStop.cs)).
+They do not claim physical microphone, acoustic or installed-native qualification ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.cs)).
+
 The production wake engine is not selected or integrated. The previous ambient
 phrase grammar is not production wake and is no longer run on ambient audio.
 The microphone stays closed until explicit push-to-talk or an admitted native
-question reply action. Hold **Push to talk**
-in the native Speech & audio settings (mouse, Space or Enter), speak one
-command, then release to finish. Losing the capture control/window also ends
+question reply action. When the response window offers its **Push to talk**
+microphone control, hold it (mouse, Space or Enter), speak one command, then
+release to finish. Settings manages consent, readiness and device preferences
+only; it has no push-to-talk button or command-capture entrypoint.
+Losing the capture control/window also ends
 capture. Each answer or approval requires a new activation. Transcripts use the
 same deterministic command pipeline as typed input; activation alone approves
 nothing.
@@ -240,6 +285,26 @@ or unexpected download is rejected rather than activated. After preparation,
 Kokoro's voices become selectable immediately without an application restart. Synthesis
 then runs on this device and continues to use the selected Windows audio output.
 
+The voice picker lists all installed voices matching the profile language without
+loading their embedding data. Speech and previews load only the requested voice,
+retain it for repeated use, and replace it when another voice is requested. Trying
+another voice in Settings reuses the same loaded neural model; returning to a
+previous voice reloads that voice's data rather than retaining every tried voice.
+After eligible startup and speech selection changes, Kora prepares the installed,
+selected Kokoro model, voice, and language processing in the background. Preparation
+does not download assets, synthesize speech, play audio, or open the microphone.
+Settings shows preparation progress or an explicit failure; Preview can retry a
+failed preparation through the ordinary speech path. A preview requested before
+preparation finishes still waits for the outstanding work. Preparation does not
+eliminate normal inference latency.
+
+Unknown or ineligible ownership/session state does not start preparation. Privacy
+closure, protected call output, selection changes, asset operations, and exit retire
+pending preparation. Already-running native initialization is joined before removal
+or exit; handoff remains unavailable until resource quiescence. Diagnostic phase
+timings distinguish voice loading, model loading, language preparation, and synthesis
+without recording speech text, voice identifiers, or asset paths.
+
 Selecting a provider that still needs to be downloaded does not interrupt the
 working speech provider. Kora continues using the current installed voice for
 download results and failures. A successful installation does not silently
@@ -254,7 +319,8 @@ Windows provider intact.
 Kora never silently downloads or substitutes a provider or voice. Without a
 saved voice choice it uses the selected provider's advertised default.
 The **Speech voice** selector combines ready voices from all installed providers;
-there is no separate provider selection in that card. **Reset speech voice**
+there is no separate provider selection in that card. The card's top-right cog
+menu offers **Reset speech voice**, which
 keeps the current provider and restores only its advertised compatible default.
 For Windows that default ranks installed Windows voices in this order:
 

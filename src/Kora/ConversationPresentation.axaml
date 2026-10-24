@@ -7,12 +7,24 @@
       <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
       <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+      <StackPanel IsVisible="{Binding HasAssistantResponse}">
+        <TextBlock Text="ASSISTANT - finalized admitted local-model answer (not original USER or effect evidence)" />
+        <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
+        <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
+        <Button Name="ReviewAppearanceSuggestion" Content="Review appearance suggestion..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewAppearanceSuggestion}"
+            AutomationProperties.Name="Review this exact assistant answer as an inert theme or native reader text scale suggestion; never applies without separate local confirmation" />
+      </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />
       <TextBlock Text="{Binding ExpectedTaskState, StringFormat='HOST task status: {0}'}" />
       <Button Name="OpenConversationDetail" Content="Details - exact original USER / separate HOST"
           IsEnabled="{Binding $parent[Window].DataContext.CanOpenConversationDetails}"
           AutomationProperties.Name="Explicit passive Details for this exact retained original USER record and separate typed HOST outcome; no clipboard authority" />
+      <Button Name="ReviewOriginalMessageReuse" Content="Review reuse of this original USER text in a New request"
+          IsEnabled="{Binding $parent[Window].DataContext.CanReviewOriginalMessageReuse}"
+          AutomationProperties.Name="Review complete exact retained original USER text and historical attribution; separate confirmation copies to New request memory only, never replay, HOST output, Save or Submit" />
     </StackPanel>
   </DataTemplate>
 </ResourceDictionary>

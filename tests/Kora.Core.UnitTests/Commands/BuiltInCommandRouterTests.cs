@@ -17,6 +17,8 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("Kora, reboot this machine", BuiltInAction.ProposeRestart)]
     [InlineData("Kora, what is the current task status", BuiltInAction.ShowCurrentTaskProgress)]
     [InlineData("how far along is the current task", BuiltInAction.ShowCurrentTaskProgress)]
+    [InlineData("stop listening", BuiltInAction.DisableListening)]
+    [InlineData("Kora, disable listening.", BuiltInAction.DisableListening)]
     public void Match_recognizes_exact_built_in_phrases(string transcript, BuiltInAction expectedAction)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -70,6 +72,11 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("how do I lock my screen?")]
     [InlineData("please turn off my computer")]
     [InlineData("tell me how to restart my PC")]
+    [InlineData("please stop listening")]
+    [InlineData("explain stop listening")]
+    [InlineData("stop listening and exit")]
+    [InlineData("enable listening")]
+    [InlineData("voice unmute")]
     public void Match_rejects_ambiguous_or_non_command_text(string transcript)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -129,6 +136,34 @@ public sealed class BuiltInCommandRouterTests
         customMatch.Command?.Action.Should().Be(BuiltInAction.ShowHelp);
         customMatch.NormalizedTranscript.Should().Be("what can you do");
         oldNameMatch.IsMatch.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("Nova, stop listening", true)]
+    [InlineData("NOVA, DISABLE LISTENING!", true)]
+    [InlineData("Kora, stop listening", false)]
+    [InlineData("Nova, please stop listening", false)]
+    public void Listening_stop_uses_only_the_exact_current_prefix(string text, bool matched)
+    {
+        var result = new BuiltInCommandRouter(catalog).Match(text, "Nova");
+
+        result.IsMatch.Should().Be(matched);
+        if (matched) { result.Command!.Action.Should().Be(BuiltInAction.DisableListening); }
+    }
+
+    [Theory]
+    [InlineData("Stop")]
+    [InlineData("Disable")]
+    [InlineData("Stop Listening")]
+    [InlineData("Disable Listening")]
+    public void Listening_stop_remains_reserved_when_the_current_name_overlaps_a_stop_phrase(string name)
+    {
+        var router = new BuiltInCommandRouter(catalog);
+        foreach (var phrase in new[] { "stop listening", "disable listening" })
+        {
+            router.Match(phrase, name).Command!.Action.Should().Be(BuiltInAction.DisableListening);
+            router.Match($"{name}, {phrase}", name).Command!.Action.Should().Be(BuiltInAction.DisableListening);
+        }
     }
 
     [Fact]

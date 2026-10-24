@@ -21,6 +21,7 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         var preferences = CreatePreferences();
 
         preferences.LoadThemeMode().Should().BeNull();
+        preferences.LoadNativePresenceRendererEnabled().Should().BeNull();
         preferences.LoadPresenceDisplayEnabled().Should().BeNull();
         preferences.LoadPresenceTimeoutSeconds().Should().BeNull();
         preferences.LoadResponseTimeoutSeconds().Should().BeNull();
@@ -32,6 +33,32 @@ public sealed class LocalAppearancePreferencesTests : IDisposable
         preferences.LoadPresenceSpeechScaleAmountPercent().Should().BeNull();
         preferences.LoadPresencePosition().Should().BeNull();
         preferences.LoadResponseWindowSettings().Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Native_renderer_preference_round_trips_and_replaces_only_its_own_file(bool value)
+    {
+        var preferences = CreatePreferences();
+        preferences.SaveNativePresenceRendererEnabled(!value);
+        preferences.SaveNativePresenceRendererEnabled(value);
+        CreatePreferences().LoadNativePresenceRendererEnabled().Should().Be(value);
+        Directory.GetFiles(Path.Combine(root, "Preferences")).Should().ContainSingle();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("native")]
+    [InlineData("1")]
+    [InlineData("unknown")]
+    public void Invalid_native_renderer_preference_is_not_reinterpreted_as_a_default(string value)
+    {
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "presence-native-renderer-enabled.txt"), value);
+        var load = CreatePreferences().LoadNativePresenceRendererEnabled;
+        load.Should().Throw<InvalidDataException>();
     }
 
     [Theory]

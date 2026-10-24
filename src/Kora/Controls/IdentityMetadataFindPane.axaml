@@ -1,0 +1,25 @@
+<UserControl
+    x:Class="Kora.Controls.IdentityMetadataFindPane"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
+  <StackPanel Spacing="6">
+    <TextBlock Text="Find only in the selected displayed identity metadata. After operations, clear catalogue search then explicitly select a package to admit Find again. Literal, case/space-sensitive; no wrap or count. No live validity, integrity, authority or invocation claim." TextWrapping="Wrap" />
+    <WrapPanel>
+      <TextBox x:Name="IdentityFindQuery" MinWidth="220" IsUndoEnabled="False"
+               AutomationProperties.Name="Private identity Find query; one line, at most 256 UTF-16 units and 512 UTF-8 bytes; Enter finds first" />
+      <Button x:Name="IdentityFindFirst" Content="First" AutomationProperties.Name="Find first exact identity metadata match" />
+      <Button x:Name="IdentityFindNext" Content="Next" AutomationProperties.Name="Find next identity metadata match, F3, no wrap" />
+      <Button x:Name="IdentityFindPrevious" Content="Previous" AutomationProperties.Name="Find previous identity metadata match, Shift F3, no wrap" />
+      <Button x:Name="IdentityFindClear" Content="Clear" AutomationProperties.Name="Clear private identity Find, Escape" />
+    </WrapPanel>
+    <controls:NamedTextBlock x:Name="IdentityFindStatus" TextWrapping="Wrap"
+                            AutomationProperties.Name="Identity Find outcome" />
+    <controls:NamedTextBlock x:Name="IdentityFindLocation" TextWrapping="Wrap"
+                            AutomationProperties.Name="Exact identity Find UTF-16 location, end exclusive" />
+    <ScrollViewer MaxHeight="90" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+      <controls:NamedTextBlock x:Name="IdentityFindMatch" Focusable="True" TextWrapping="NoWrap"
+                              AutomationProperties.Name="One exact inert identity metadata match" />
+    </ScrollViewer>
+  </StackPanel>
+</UserControl>

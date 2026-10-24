@@ -3,8 +3,11 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:configuration="clr-namespace:Kora.Core.Configuration;assembly=Kora.Core"
+    xmlns:hosting="clr-namespace:Kora.Core.Hosting;assembly=Kora.Core"
+    xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
     xmlns:controls="using:Kora.Controls"
     xmlns:local="using:Kora"
+    xmlns:viewModels="using:Kora.Application.ViewModels"
     Title="{Binding SettingsWindowTitle}"
     Icon="/Assets/Kora.ico"
     Width="1040"
@@ -15,6 +18,7 @@
     Foreground="{DynamicResource KoraForegroundBrush}"
     WindowStartupLocation="CenterScreen">
   <Window.Styles>
+    <StyleInclude Source="/Controls/SettingsEditorStyles.axaml" />
     <Style Selector="NumericUpDown /template/ TextBox#PART_TextBox">
       <Setter Property="AutomationProperties.Name"
               Value="{Binding (AutomationProperties.Name), RelativeSource={RelativeSource TemplatedParent}}" />
@@ -28,7 +32,7 @@
               Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Decrease {0}'}" />
     </Style>
   </Window.Styles>
-  <Grid RowDefinitions="72,Auto,*">
+  <Grid RowDefinitions="72,*">
     <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
         <Border Width="34" Height="34" Background="{DynamicResource KoraAccentBrush}" CornerRadius="9">
@@ -51,21 +55,13 @@
       </Grid>
     </Border>
 
-    <TextBlock
-        Grid.Row="1"
-        Margin="30,12,30,0"
-        Text="{Binding LocalStorageDisclosure}"
-        Classes="muted"
-        FontSize="11"
-        TextWrapping="Wrap" />
-
     <controls:NavigableTabControl
         x:Name="SettingsTabs"
-        Grid.Row="2"
+        Grid.Row="1"
         TabStripPlacement="Left"
         Margin="22"
         Background="Transparent">
-      <TabItem Header="Appearance">
+      <TabItem x:Name="AppearanceTab" Header="Appearance">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -78,49 +74,18 @@
             </StackPanel>
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
-            <Border Classes="settings-card">
-              <StackPanel Spacing="8">
-                <TextBlock Text="Native reader text scale" Classes="settings-title" />
-                <TextBlock Text="Integer percent: 75–200; default 100. Applies only to detail Rendered/Source/continuous text and native file/clipboard source bodies. Chrome, consent, errors, captions and other surfaces do not scale."
-                           TextWrapping="Wrap" Classes="settings-description" />
-                <NumericUpDown Value="{Binding ReaderTextScalePercent}" Minimum="{Binding ReaderTextScaleMinimum}" Maximum="{Binding ReaderTextScaleMaximum}" Increment="1"
-                               FormatString="0" Width="160" HorizontalAlignment="Left"
-                               AutomationProperties.Name="Native reader text scale percentage" />
-              </StackPanel>
-            </Border>
-            <StackPanel Orientation="Horizontal" Spacing="12">
-              <ComboBox ItemsSource="{Binding AppearanceOptions}" SelectedItem="{Binding SelectedAppearanceOption}" Width="340"
-                        AutomationProperties.Name="Select an appearance option to inspect or change">
-                <ComboBox.ItemTemplate>
-                  <DataTemplate>
-                    <TextBlock Text="{Binding Description}" />
-                  </DataTemplate>
-                </ComboBox.ItemTemplate>
-              </ComboBox>
-              <Button Content="Reset selected option" Command="{Binding ResetAppearanceOptionCommand}"
-                      AutomationProperties.Name="Reset the selected appearance option to its default" />
+
+            <StackPanel Spacing="5" Margin="0,8,0,0">
+              <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock
+                  Text="Choose the theme, reading text size and response window behavior."
+                  Classes="muted"
+                  FontSize="12"
+                  TextWrapping="Wrap" />
             </StackPanel>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
-                <StackPanel Spacing="4">
-                  <TextBlock Text="Show presence" Classes="settings-title" />
-                  <TextBlock
-                      Text="{Binding PresenceDisplayDescription}"
-                      Classes="settings-description"
-                      TextWrapping="Wrap" />
-                </StackPanel>
-                <CheckBox
-                    Grid.Column="1"
-                    Content="Show presence"
-                    IsChecked="{Binding IsPresenceDisplayEnabled}"
-                    VerticalAlignment="Center"
-                    AutomationProperties.Name="Show animated presence" />
-              </Grid>
-            </Border>
-
-            <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Application theme" Classes="settings-title" />
                   <TextBlock
@@ -134,20 +99,28 @@
                     SelectedItem="{Binding ThemeMode}"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Application theme" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Application theme"
+                                               ResetCommand="{Binding ResetThemeCommand}" />
               </Grid>
             </Border>
 
-            <StackPanel Spacing="5" Margin="0,8,0,0">
-              <TextBlock Text="Visual feedback" FontSize="18" FontWeight="SemiBold" />
-              <TextBlock
-                  Text="Control how the presence and response window remain visible."
-                  Classes="muted"
-                  FontSize="12"
-                  TextWrapping="Wrap" />
-            </StackPanel>
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="8">
+                  <TextBlock Text="Reading text size" Classes="settings-title" />
+                  <TextBlock Text="Set reading text size from 75% to 200% (default 100%). Applies to detailed responses, files, clipboard content, diagnostic records and caption text. Menus, buttons and safety messages keep their normal size."
+                             TextWrapping="Wrap" Classes="settings-description" />
+                  <NumericUpDown Value="{Binding ReaderTextScalePercent}" Minimum="{Binding ReaderTextScaleMinimum}" Maximum="{Binding ReaderTextScaleMaximum}" Increment="1"
+                                 FormatString="0" Width="160" HorizontalAlignment="Left"
+                                 AutomationProperties.Name="Reading text size percentage" />
+                </StackPanel>
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Reading text size"
+                                               ResetCommand="{Binding ResetReaderTextScaleCommand}" />
+              </Grid>
+            </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Always show responses" Classes="settings-title" />
                   <TextBlock
@@ -160,11 +133,13 @@
                     Content="Always show"
                     IsChecked="{Binding IsResponseAlwaysVisible}"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Always show responses"
+                                               ResetCommand="{Binding ResetResponseAlwaysVisibleCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Keep responses on top" Classes="settings-title" />
                   <TextBlock
@@ -177,11 +152,13 @@
                     Content="Stay on top"
                     IsChecked="{Binding IsResponseWindowTopmost}"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Keep responses on top"
+                                               ResetCommand="{Binding ResetResponseWindowTopmostCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Response timeout" Classes="settings-title" />
                   <TextBlock
@@ -198,11 +175,13 @@
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Response timeout"
+                                               ResetCommand="{Binding ResetResponseTimeoutCommand}" />
               </Grid>
             </Border>
 
             <StackPanel Spacing="5" Margin="0,8,0,0">
-              <TextBlock Text="Presence appearance" FontSize="18" FontWeight="SemiBold" />
+              <TextBlock Text="Presence" FontSize="18" FontWeight="SemiBold" />
               <TextBlock
                   Text="Animated dots that communicate the assistant's current state."
                   Classes="muted"
@@ -211,7 +190,54 @@
             </StackPanel>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Show presence" Classes="settings-title" />
+                  <TextBlock
+                      Text="{Binding PresenceDisplayDescription}"
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                </StackPanel>
+                <CheckBox
+                    Grid.Column="1"
+                    Content="Show presence"
+                    IsChecked="{Binding IsPresenceDisplayEnabled}"
+                    VerticalAlignment="Center"
+                    AutomationProperties.Name="Show animated presence" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Show presence"
+                                               ResetCommand="{Binding ResetPresenceDisplayCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
+                <StackPanel Spacing="4">
+                  <TextBlock Text="Animation mode" Classes="settings-title" />
+                  <TextBlock
+                      Text="Choose how Kora draws the animated dots. Both modes look the same. Changes wait until startup, dragging and open dialogs have finished."
+                      Classes="settings-description"
+                      TextWrapping="Wrap" />
+                  <TextBlock Text="{Binding PresenceRendererStatus}"
+                      Classes="settings-description" TextWrapping="Wrap" />
+                </StackPanel>
+                <ComboBox Grid.Column="1"
+                    AutomationProperties.Name="Animation mode"
+                    ItemsSource="{Binding PresenceRenderers}"
+                    SelectedItem="{Binding SelectedPresenceRenderer}"
+                    VerticalAlignment="Center" HorizontalAlignment="Stretch">
+                  <ComboBox.ItemTemplate>
+                    <DataTemplate x:DataType="viewModels:PresenceRendererChoice">
+                      <TextBlock Text="{Binding Name}" />
+                    </DataTemplate>
+                  </ComboBox.ItemTemplate>
+                </ComboBox>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Animation mode"
+                                               ResetCommand="{Binding ResetPresenceRendererCommand}" />
+              </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence timeout" Classes="settings-title" />
                   <TextBlock
@@ -228,11 +254,13 @@
                     Increment="1"
                     FormatString="0"
                     VerticalAlignment="Center" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Presence timeout"
+                                               ResetCommand="{Binding ResetPresenceTimeoutCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Presence size" Classes="settings-title" />
                   <TextBlock
@@ -249,11 +277,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Presence size in pixels" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Presence size"
+                                               ResetCommand="{Binding ResetPresenceSizeCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot size" Classes="settings-title" />
                   <TextBlock
@@ -270,11 +300,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Dot size percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Dot size"
+                                               ResetCommand="{Binding ResetPresenceDotSizeCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Dot density" Classes="settings-title" />
                   <TextBlock
@@ -291,11 +323,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Dot density percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Dot density"
+                                               ResetCommand="{Binding ResetPresenceDotDensityCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Movement speed" Classes="settings-title" />
                   <TextBlock
@@ -312,11 +346,13 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Movement speed percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Movement speed"
+                                               ResetCommand="{Binding ResetPresenceMovementSpeedCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech sizing" Classes="settings-title" />
                   <TextBlock
@@ -330,11 +366,13 @@
                     IsChecked="{Binding IsPresenceSpeechScalingEnabled}"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Scale presence with speech playback" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech sizing"
+                                               ResetCommand="{Binding ResetPresenceSpeechScalingCommand}" />
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,240,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech scale amount" Classes="settings-title" />
                   <TextBlock
@@ -352,6 +390,8 @@
                     IsSnapToTickEnabled="True"
                     VerticalAlignment="Center"
                     AutomationProperties.Name="Speech scale amount percent" />
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech scale amount"
+                                               ResetCommand="{Binding ResetPresenceSpeechScaleAmountCommand}" />
               </Grid>
             </Border>
           </StackPanel>
@@ -362,17 +402,28 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <TextBlock Text="Speech &amp; audio" FontSize="28" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <TextBlock Text="Speech &amp; audio" FontSize="28" FontWeight="SemiBold" />
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Speech and audio">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh devices and readiness" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
+              </Grid>
               <TextBlock
                   Text="{Binding SpeechAudioSettingsDescription}"
                   Classes="muted"
                   FontSize="13" />
             </StackPanel>
 
+            <StackPanel x:Name="SpeechComponentsPanel" Spacing="8" />
+
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Display / PTT command-prefix name" Classes="settings-title" />
+                  <TextBlock Text="Assistant name" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding AssistantNameSettingStatus}"
                       Classes="settings-description"
@@ -386,23 +437,26 @@
                   <TextBox
                       Text="{Binding AssistantNameInput, Mode=TwoWay}"
                       PlaceholderText="Assistant name"
-                      AutomationProperties.Name="Display and push-to-talk command-prefix name"
+                      AutomationProperties.Name="Assistant name"
                       AutomationProperties.HelpText="{Binding AssistantNameConfigurationDescription}" />
                   <Button
                       Classes="primary"
                       Content="Apply name"
                       Command="{Binding ApplyAssistantNameCommand}"
                       HorizontalAlignment="Stretch" />
-                  <Button
-                      Content="Reset name to Kora"
-                      Command="{Binding ResetAssistantNameCommand}"
-                      HorizontalAlignment="Stretch" />
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Assistant name">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Reset name to Kora" Command="{Binding ResetAssistantNameCommand}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Microphone" Classes="settings-title" />
                   <TextBlock
@@ -417,43 +471,63 @@
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
                   <Button x:Name="ChooseMicrophone"
-                      Content="Choose microphone (native recovery)"
+                      Content="Choose microphone"
                       HorizontalAlignment="Stretch" />
                   <Button
                       Content="Open Windows microphone settings"
                       Command="{Binding OpenMicrophonePrivacySettingsCommand}"
                       HorizontalAlignment="Stretch" />
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Microphone">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshMicrophonesCommand}" AutomationProperties.Name="Refresh microphones" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Voice consent and activation" Classes="settings-title" />
+                  <TextBlock Text="Listening permission" Classes="settings-title" />
                   <TextBlock Text="{Binding ListeningStatus}" Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding VoiceConsentDescription}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8" VerticalAlignment="Center">
-                  <Button Classes="primary" Content="Enable voice (save consent)" Command="{Binding EnableVoiceConsentCommand}" IsVisible="{Binding !HasVoiceConsent}" />
+                  <Button Classes="primary" Content="Allow listening on this device" Command="{Binding EnableVoiceConsentCommand}" IsVisible="{Binding !HasVoiceConsent}" />
                   <Button Content="Continue without voice" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding !HasVoiceConsent}" />
-                  <Button Content="Refresh microphones" Command="{Binding RefreshMicrophonesCommand}" />
                   <Button Classes="primary" Content="{Binding ListeningButtonText}" Command="{Binding ToggleListeningCommand}" IsVisible="{Binding HasVoiceConsent}" />
-                  <Button Content="Withdraw voice consent" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding HasVoiceConsent}" />
-                  <Button
-                      x:Name="PushToTalkButton"
-                      Content="Push to talk (hold)"
-                      IsEnabled="{Binding CanPushToTalk}"
-                      PointerCaptureLost="OnPushToTalkCaptureLost"
-                      LostFocus="OnPushToTalkFocusLost" />
+                  <Button Content="Remove listening permission" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding HasVoiceConsent}" />
                 </StackPanel>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Speech input profile" Classes="settings-title" />
+                <TextBlock Text="{Binding SpeechInputStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="Selection never opens the microphone, downloads assets, enables name activation or changes voice permission, learning, verification, reasoning or speech output. Switching stops and joins active capture; start push-to-talk again explicitly. Other resource and residency combinations are not yet available and do not select another engine."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <ComboBox ItemsSource="{Binding SpeechInputProfiles}" SelectedItem="{Binding SelectedSpeechInputProfile}"
+                          DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding CanChangeSpeechInputNative}"
+                          AutomationProperties.Name="Speech input profile" />
+                <ComboBox ItemsSource="{Binding SpeechInputResources}" SelectedItem="{Binding SelectedSpeechInputResource}"
+                          IsEnabled="{Binding CanChangeSpeechInputNative}" AutomationProperties.Name="Speech input resource preference" />
+                <ComboBox ItemsSource="{Binding SpeechInputResidencies}" SelectedItem="{Binding SelectedSpeechInputResidency}"
+                          IsEnabled="{Binding CanChangeSpeechInputNative}" AutomationProperties.Name="Speech input residency preference" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Save speech input" Command="{Binding SaveSpeechInputCommand}" IsEnabled="{Binding CanChangeSpeechInputNative}" />
+                  <Button Content="Inspect speech input" Command="{Binding InspectSpeechInputCommand}" IsEnabled="{Binding CanChangeSpeechInputNative}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Speech provider assets (review only)" Classes="settings-title" />
+                  <TextBlock Text="Speech downloads" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding SpeechProviderAvailabilityMessage}"
                       Classes="settings-description"
@@ -491,7 +565,7 @@
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech voice" Classes="settings-title" />
                   <TextBlock
@@ -508,43 +582,56 @@
                       <DataTemplate>
                         <StackPanel>
                           <TextBlock Text="{Binding Name}" />
-                          <TextBlock Text="{Binding ConfigurationId}" Classes="muted" FontSize="10" />
+                          <TextBlock Text="{Binding ProviderId, StringFormat='Voice source: {0}'}" Classes="muted" FontSize="10" />
                           <TextBlock Text="{Binding Culture}" Classes="muted" FontSize="10" />
                         </StackPanel>
                       </DataTemplate>
                     </ComboBox.ItemTemplate>
                   </ComboBox>
                   <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
-                  <Button Content="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                  <TextBlock Text="{Binding SpeechPreparationStatus}" TextWrapping="Wrap" Classes="settings-description" />
                   <Grid ColumnDefinitions="*,*" ColumnSpacing="8">
                     <Button Content="Preview" Command="{Binding PreviewVoiceCommand}" />
                     <Button Grid.Column="1" Content="Stop" Command="{Binding StopSpeechCommand}" />
                   </Grid>
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech voice">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Reset speech voice" Command="{Binding ResetSpeechVoiceCommand}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Spoken summary limits" Classes="settings-title" />
-                  <TextBlock Text="Ordinary results must fit both caps, including the spoken title. Over-cap results remain fully visual; no truncation or extra model call. Exact approval/question readback keeps its existing bounds."
+                  <TextBlock Text="Speak a summary only when it fits both limits, including its title. Longer results appear in full on screen instead. Questions and approval prompts have separate limits."
                              TextWrapping="Wrap" Classes="settings-description" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
                   <TextBlock Text="Maximum sentences (1-3)" Classes="settings-description" />
-                  <ComboBox ItemsSource="{Binding SummarySentenceChoices}" SelectedItem="{Binding SelectedSummarySentences}" PlaceholderText="Invalid saved limits; repair and refresh" />
-                  <Button Content="Reset sentence cap" Command="{Binding ResetSummarySentencesCommand}" />
+                  <ComboBox ItemsSource="{Binding SummarySentenceChoices}" SelectedItem="{Binding SelectedSummarySentences}" PlaceholderText="Saved limit unavailable" />
                   <TextBlock Text="Maximum words (1-80)" Classes="settings-description" />
-                  <ComboBox ItemsSource="{Binding SummaryWordChoices}" SelectedItem="{Binding SelectedSummaryWords}" PlaceholderText="Invalid saved limits; repair and refresh" />
-                  <Button Content="Reset word cap" Command="{Binding ResetSummaryWordsCommand}" />
+                  <ComboBox ItemsSource="{Binding SummaryWordChoices}" SelectedItem="{Binding SelectedSummaryWords}" PlaceholderText="Saved limit unavailable" />
                   <TextBlock Text="{Binding SpeechSettingStatus}" TextWrapping="Wrap" Classes="settings-description" />
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Spoken summary limits">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Reset sentence limit" Command="{Binding ResetSummarySentencesCommand}" />
+                      <MenuItem Header="Reset word limit" Command="{Binding ResetSummaryWordsCommand}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Audio output" Classes="settings-title" />
                   <TextBlock
@@ -557,59 +644,79 @@
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox ItemsSource="{Binding OutputDeviceChoices}" SelectedItem="{Binding SelectedOutputChoice}"
+                  <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <ComboBox Width="215" ItemsSource="{Binding OutputDeviceChoices}" SelectedItem="{Binding SelectedOutputChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeAudioOutputDevice}"
-                      PlaceholderText="Refresh and choose exact output" />
-                  <Button Content="Refresh output metadata only" Command="{Binding RefreshOutputDevicesCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
-                  <Button Content="Save output preference only" Command="{Binding SaveOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
-                  <Button Content="Reset output to System" Command="{Binding ResetOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                      PlaceholderText="Choose a speaker" />
+                  <Button Content="Save" Command="{Binding SaveOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" AutomationProperties.Name="Save speaker" />
+                  </WrapPanel>
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Audio output"
+                                               IsEnabled="{Binding CanChangeAudioOutputDevice}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshOutputDevicesCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" AutomationProperties.Name="Refresh speakers" />
+                      <Separator />
+                      <MenuItem Header="Use system default speaker" Command="{Binding ResetOutputDeviceCommand}" IsEnabled="{Binding CanChangeAudioOutputDevice}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Kora playback volume (0-100%)" Classes="settings-title" />
-                  <TextBlock Text="Kora-owned speech only. 100 is the original unscaled level. Zero prevents synthesis and keeps the full response visual. Saving stops old output; raising/resetting never replays it. Windows, call volume, microphone and consent are unchanged."
+                  <TextBlock Text="Adjust Kora's speech volume without changing Windows or call volume. At 0%, responses appear on screen without speech. Saving stops current speech; changing the volume does not replay it."
                              TextWrapping="Wrap" Classes="settings-description" />
                   <TextBlock Text="{Binding PlaybackVolumeStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <controls:SettingsNumberField Label="Volume" Unit="%" Value="{Binding SelectedPlaybackVolume}" SavedValue="{Binding SavedPlaybackVolume}"
+                      Minimum="0" Maximum="{x:Static configuration:PlaybackVolume.MaximumPercent}"
+                      ActionCommand="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox ItemsSource="{Binding PlaybackVolumeChoices}" SelectedItem="{Binding SelectedPlaybackVolume}" IsEnabled="{Binding CanChangePlaybackVolume}" />
-                  <Button Content="Refresh volume preference only" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
-                  <Button Content="Save Kora volume only" Command="{Binding SavePlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
-                  <Button Content="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
-                </StackPanel>
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Kora playback volume"
+                                               IsEnabled="{Binding CanChangePlaybackVolume}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" AutomationProperties.Name="Refresh volume" />
+                      <Separator />
+                      <MenuItem Header="Reset volume to 100%" Command="{Binding ResetPlaybackVolumeCommand}" IsEnabled="{Binding CanChangePlaybackVolume}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Windows-native speech rate (-10 through 10)" Classes="settings-title" />
-                  <TextBlock Text="Windows provider only; 0 is engine-normal/default/reset. Native units are not percent or words per minute. Kokoro is unsupported and unchanged. Saving retires active/queued speech; only future eligible Windows synthesis uses the rate. No replay, preview, microphone or global Windows setting change."
+                  <TextBlock Text="Windows voice speed (-10 to 10)" Classes="settings-title" />
+                  <TextBlock Text="Negative values are slower; positive values are faster; 0 is normal. Applies only to Windows voices used by Kora, not Kokoro or other apps. Saving stops current and waiting speech without replaying it."
                              TextWrapping="Wrap" Classes="settings-description" />
                   <TextBlock Text="{Binding WindowsSpeechRateStatus}" TextWrapping="Wrap" Classes="settings-description" />
+                  <controls:SettingsNumberField Label="Voice speed" Value="{Binding SelectedWindowsSpeechRate}" SavedValue="{Binding SavedWindowsSpeechRate}"
+                      Minimum="{x:Static configuration:WindowsSpeechRate.Minimum}" Maximum="{x:Static configuration:WindowsSpeechRate.Maximum}"
+                      ActionCommand="{Binding SaveWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
                 </StackPanel>
-                <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox ItemsSource="{Binding WindowsSpeechRateChoices}" SelectedItem="{Binding SelectedWindowsSpeechRate}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
-                  <Button Content="Refresh Windows rate preference only" Command="{Binding RefreshWindowsSpeechRateCommand}" IsEnabled="{Binding CanInspectWindowsSpeechRateNative}" />
-                  <Button Content="Save Windows-native rate only" Command="{Binding SaveWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
-                  <Button Content="Reset Windows rate to normal (0)" Command="{Binding ResetWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
-                </StackPanel>
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Windows voice speed"
+                                               IsEnabled="{Binding CanInspectWindowsSpeechRateNative}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshWindowsSpeechRateCommand}" IsEnabled="{Binding CanInspectWindowsSpeechRateNative}" AutomationProperties.Name="Refresh voice speed" />
+                      <Separator />
+                      <MenuItem Header="Reset voice speed to normal (0)" Command="{Binding ResetWindowsSpeechRateCommand}" IsEnabled="{Binding CanChangeWindowsSpeechRateNative}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
-            <Button
-                Content="Refresh devices and readiness"
-                Command="{Binding RefreshCommand}"
-                HorizontalAlignment="Left" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Responses">
+      <TabItem x:Name="ResponsesTab" Header="Responses">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
@@ -621,51 +728,74 @@
             </StackPanel>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,260,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Device default" Classes="settings-title" />
                   <TextBlock
-                      Text="The persisted response mode used when no narrower override is active."
+                      Text="How Kora responds unless you choose a different mode for a queue, task or call."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox ItemsSource="{Binding ResponseModeChoices}" SelectedItem="{Binding SelectedResponseModeChoice}"
+                  <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <ComboBox Width="174" ItemsSource="{Binding ResponseModeChoices}" SelectedItem="{Binding SelectedResponseModeChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeResponseMode}"
-                      PlaceholderText="Inspect and choose exact mode" />
-                  <Button Content="Inspect response mode" Command="{Binding RefreshResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
-                  <Button Content="Save device-default mode" Command="{Binding SaveResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
-                  <Button Content="Reset device default to Hybrid" Command="{Binding ResetResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                      PlaceholderText="Choose a response mode" />
+                  <Button Content="Save" Command="{Binding SaveResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" AutomationProperties.Name="Save default response mode" />
+                  </WrapPanel>
                   <TextBlock Text="{Binding ResponseModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Device-default response mode"
+                                               IsEnabled="{Binding CanChangeResponseMode}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" AutomationProperties.Name="Refresh response mode" />
+                      <Separator />
+                      <MenuItem Header="Reset to text and speech" Command="{Binding ResetResponseModeCommand}" IsEnabled="{Binding CanChangeResponseMode}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
             <Border Classes="settings-card">
-              <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
+              <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Local speech text (off by default)" Classes="settings-title" />
-                  <TextBlock Text="Optional exact utterance after playback starts. Normal completion retains observed text for 0-30 seconds (default 5), or until unpinned. Stop, replacement and privacy retirement still clear immediately. Placement selects a primary-screen corner. No speech, replay, capture, model request or response/call policy changes. Sentence alignment is unavailable."
+                  <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />
+                  <TextBlock Text="Show the words Kora speaks once playback starts. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately. Choose a corner of the main screen. Captions do not highlight individual sentences."
                       Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>
                 <StackPanel Grid.Column="1" Spacing="8">
-                  <ComboBox ItemsSource="{Binding SpeechTextChoices}" SelectedItem="{Binding SelectedSpeechTextChoice}"
+                  <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <ComboBox Width="215" ItemsSource="{Binding SpeechTextChoices}" SelectedItem="{Binding SelectedSpeechTextChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
-                      PlaceholderText="Inspect and choose exact speech text mode"
-                      AutomationProperties.Name="Local speech text mode" />
-                  <Button Content="Inspect speech text" Command="{Binding RefreshSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
-                  <Button Content="Save speech text only" Command="{Binding SaveSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
-                  <Button Content="Reset speech text to Off" Command="{Binding ResetSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
-                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionsList}" SelectedItem="{Binding SelectedSpeechCaptionOption}"
+                      PlaceholderText="Choose a caption mode"
+                      AutomationProperties.Name="Speech caption mode" />
+                  <Button Content="Save" Command="{Binding SaveSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Save captions" />
+                  </WrapPanel>
+                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionsList}" SelectedItem="{Binding SelectedSpeechCaptionOptionChoice}"
+                      DisplayMemberBinding="{Binding Label}"
                       IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Speech caption option" />
-                  <ComboBox ItemsSource="{Binding SpeechCaptionOptionChoices}" SelectedItem="{Binding SelectedSpeechCaptionChoice}"
+                  <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <ComboBox Width="215" ItemsSource="{Binding SpeechCaptionOptionChoices}" SelectedItem="{Binding SelectedSpeechCaptionChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeSpeechText}"
-                      PlaceholderText="Inspect and choose exact caption option" AutomationProperties.Name="Speech caption option value" />
-                  <Button Content="Save caption option only" Command="{Binding SaveSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
-                  <Button Content="Reset selected caption option" Command="{Binding ResetSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                      PlaceholderText="Choose a caption option" AutomationProperties.Name="Speech caption option value" />
+                  <Button Content="Save" Command="{Binding SaveSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Save caption option" />
+                  </WrapPanel>
                   <local:CaptionDisplaySelector x:Name="CaptionDisplaySelector" />
                 </StackPanel>
+                <controls:SettingActionsButton Grid.Column="2" SettingName="Speech captions"
+                                               IsEnabled="{Binding CanChangeSpeechText}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" AutomationProperties.Name="Refresh captions" />
+                      <Separator />
+                      <MenuItem Header="Turn captions off" Command="{Binding ResetSpeechTextCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                      <MenuItem Header="Reset selected caption option" Command="{Binding ResetSpeechCaptionOptionCommand}" IsEnabled="{Binding CanChangeSpeechText}" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
               </Grid>
             </Border>
 
@@ -674,7 +804,7 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Current queue" Classes="settings-title" />
                   <TextBlock
-                      Text="A temporary override for work in the current queue. Choose Inherit to use the device default."
+                      Text="Use a different response mode for this queue, or use the device default."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
@@ -692,7 +822,7 @@
                 <StackPanel Spacing="4">
                   <TextBlock Text="Current task" Classes="settings-title" />
                   <TextBlock
-                      Text="The highest-precedence temporary output override. Choose Inherit to use the queue override or device default."
+                      Text="Use a different response mode for this task, or use the queue's mode. Call protections still apply."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
@@ -708,15 +838,15 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,260" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Muted speaker fallback" Classes="settings-title" />
+                  <TextBlock Text="Earlier muted-speaker preference" Classes="settings-title" />
                   <TextBlock
-                      Text="Retained legacy preference. Unavailable, muted, zero-volume or failed output always keeps the complete visual response."
+                      Text="Saved for compatibility only; this no longer changes behavior. If speech is muted or unavailable, Kora always shows the full response on screen."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox
                     Grid.Column="1"
-                    Content="Stored legacy preference"
+                    Content="Previously saved preference"
                     IsChecked="{Binding FallbackToVisualWhenOutputMuted}"
                     VerticalAlignment="Center" />
               </Grid>
@@ -724,7 +854,7 @@
 
             <Border Classes="settings-card" Background="{DynamicResource KoraSurfaceAltBrush}">
               <StackPanel Spacing="4">
-                <TextBlock Text="Effective output" Classes="settings-title" />
+                <TextBlock Text="Current response mode" Classes="settings-title" />
                 <TextBlock
                     Text="{Binding ResponseOutputStatus}"
                     Classes="settings-description"
@@ -735,54 +865,65 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Sessions">
+      <TabItem x:Name="SessionsTab" Header="Sessions">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
-            <TextBlock Text="Session inactivity retention" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Sessions" FontSize="28" FontWeight="SemiBold" />
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="Fixed read-only local-version queue" Classes="settings-title" />
-                <TextBlock Text="Manual fair dispatch only. Defaults: 10 pending per session, 1 global slot, 30 pending minutes and 5 active minutes. Confirmed edits affect future enqueue/admission only, not existing pending metadata or admitted deadlines. Active budget 1-60 integer minutes is captured at future admission, including old pending entries. Apply-now, current-task extension, automatic dispatch and general/provider/effect execution are unavailable. Refresh before each Save or Reset."
-                           Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="{Binding QueueConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <Button Content="Refresh fixed queue settings" Command="{Binding RefreshQueueConfigurationCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <TextBlock Text="Pending capacity per session (1-10)" />
-                <ComboBox ItemsSource="{Binding QueuePendingChoices}" SelectedItem="{Binding SelectedQueuePending}"
-                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue pending capacity per session" />
-                <Button Content="Save pending capacity" Command="{Binding SaveQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <Button Content="Reset pending capacity to 10" Command="{Binding ResetQueuePendingCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <TextBlock Text="Synchronous read-only slots (1-2; not general two-slot qualification)" />
-                <ComboBox ItemsSource="{Binding QueueSlotChoices}" SelectedItem="{Binding SelectedQueueSlots}"
-                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue synchronous read-only slots" />
-                <Button Content="Save fixed read-only slots" Command="{Binding SaveQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <Button Content="Reset fixed read-only slots to 1" Command="{Binding ResetQueueSlotsCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <TextBlock Text="Pending lifetime for future new entries (integer minutes, 1-120; default 30)" Classes="settings-description" />
-                <ComboBox ItemsSource="{Binding QueueLifetimeMinuteChoices}" SelectedItem="{Binding SelectedQueueLifetimeMinutes}"
-                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue future pending lifetime in minutes" />
-                <Button Content="Save future pending lifetime" Command="{Binding SaveQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <Button Content="Reset future pending lifetime to 30 minutes" Command="{Binding ResetQueueLifetimeCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <TextBlock Text="Active budget for future admissions, including old pending entries (integer minutes, 1-60; default 5). Existing admitted deadlines never change; late results are suppressed, not physically terminated." Classes="settings-description" />
-                <ComboBox ItemsSource="{Binding QueueActiveBudgetMinuteChoices}" SelectedItem="{Binding SelectedQueueActiveBudgetMinutes}"
-                          IsEnabled="{Binding CanChangeQueueConfigurationNative}" AutomationProperties.Name="Fixed queue future active budget in minutes" />
-                <Button Content="Save future active budget" Command="{Binding SaveQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-                <Button Content="Reset future active budget to 5 minutes" Command="{Binding ResetQueueActiveBudgetCommand}" IsEnabled="{Binding CanChangeQueueConfigurationNative}" />
-              </StackPanel>
-            </Border>
-            <Border Classes="settings-card">
-              <StackPanel Spacing="8">
-                <TextBlock Text="Archive and delete on the same meaningful-activity clock" Classes="settings-title" />
-                <TextBlock Text="Default: archive after 24 hours; delete after 30 idle days. Choose whole days from 1 to 365, with deletion later than archive. Changes apply only to new sessions or subsequent meaningful activity; existing due dates stay unchanged. No apply-now or execution integration. Perpetual sessions and live or uncertain work are held."
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Archive and delete inactive sessions" Classes="settings-title" TextWrapping="Wrap" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Session inactivity retention"
+                                                 IsEnabled="{Binding CanChangeSessionRetentionNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Refresh archive and deletion settings" />
+                        <Separator />
+                        <MenuItem Header="Reset archive to 1 day and deletion to 30 days" Command="{Binding ResetSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="By default, sessions are archived after 1 inactive day and deleted after 30. Choose 1-365 days, with deletion later than archiving. Changes apply to new sessions or after activity in an existing session; existing dates stay unchanged until then. Sessions marked to keep, with ongoing work, or whose work status is unknown are protected."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding SessionRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="Archive after idle days" />
-                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionArchiveDays}"
-                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session archive inactivity days" />
-                <TextBlock Text="Delete after idle days" />
-                <ComboBox ItemsSource="{Binding SessionRetentionChoices}" SelectedItem="{Binding SelectedSessionDeleteDays}"
-                          IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Session deletion inactivity days" />
-                <Button Content="Refresh session retention" Command="{Binding RefreshSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
-                <Button Content="Save future session retention" Command="{Binding SaveSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
-                <Button Content="Reset future session retention to 1 / 30 days" Command="{Binding ResetSessionRetentionCommand}" IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <controls:SettingsNumberField x:Name="ArchiveDaysField" Label="Archive after inactivity" Unit="days"
+                    Value="{Binding SelectedSessionArchiveDays}" SavedValue="{Binding SavedSessionArchiveDays}" Minimum="1" Maximum="{x:Static configuration:SessionRetentionSettings.MaximumDays}"
+                    IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <controls:SettingsNumberField x:Name="DeleteDaysField" Label="Delete after inactivity" Unit="days"
+                    Value="{Binding SelectedSessionDeleteDays}" SavedValue="{Binding SavedSessionDeleteDays}" Minimum="1" Maximum="{x:Static configuration:SessionRetentionSettings.MaximumDays}"
+                    IsEnabled="{Binding CanChangeSessionRetentionNative}" />
+                <Button Content="Save" Command="{Binding SaveSessionRetentionCommand}" Classes.pending="{Binding IsSessionRetentionDraftChanged}"
+                        AutomationProperties.Name="Save archive and deletion settings">
+                  <Button.IsEnabled>
+                    <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                      <Binding Path="CanChangeSessionRetentionNative" />
+                      <Binding ElementName="ArchiveDaysField" Path="IsInputValid" />
+                      <Binding ElementName="DeleteDaysField" Path="IsInputValid" />
+                    </MultiBinding>
+                  </Button.IsEnabled>
+                </Button>
+                <TextBlock Text="Preview different time limits" Classes="settings-title" />
+                <TextBlock Text="Choose Refresh from the cog menu, choose proposed limits below, then preview which sessions would be affected. Previewing does not save settings or change any session. Sessions with unknown work status are excluded. If the preview is incomplete or unavailable, no count is shown."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <controls:SettingsNumberField x:Name="ProposedArchiveDaysField" Label="Proposed archive period" Unit="days"
+                    Value="{Binding ProposedSessionArchiveDays}" Minimum="1" Maximum="{x:Static configuration:SessionRetentionSettings.MaximumDays}"
+                    IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Proposed session archive days for read-only preview" />
+                <controls:SettingsNumberField x:Name="ProposedDeleteDaysField" Label="Proposed deletion period" Unit="days"
+                    Value="{Binding ProposedSessionDeleteDays}" Minimum="1" Maximum="{x:Static configuration:SessionRetentionSettings.MaximumDays}"
+                    IsEnabled="{Binding CanChangeSessionRetentionNative}" AutomationProperties.Name="Proposed session deletion days for read-only preview" />
+                <Button Content="Preview affected sessions" Command="{Binding PreviewSessionRetentionCommand}"
+                        AutomationProperties.Name="Preview affected sessions without saving or changing sessions">
+                  <Button.IsEnabled>
+                    <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                      <Binding Path="CanPreviewSessionRetention" />
+                      <Binding ElementName="ProposedArchiveDaysField" Path="IsInputValid" />
+                      <Binding ElementName="ProposedDeleteDaysField" Path="IsInputValid" />
+                    </MultiBinding>
+                  </Button.IsEnabled>
+                </Button>
+                <TextBlock Text="{Binding SessionRetentionPlanStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Read-only session retention impact result" />
               </StackPanel>
             </Border>
           </StackPanel>
@@ -791,39 +932,75 @@
       <TabItem Header="Logging">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
-            <TextBlock Text="Future-only retention" FontSize="28" FontWeight="SemiBold" />
+            <TextBlock Text="Log storage" FontSize="28" FontWeight="SemiBold" />
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="Ordinary SQLite diagnostic days (integer 1–365; default/reset 30)" Classes="settings-title" />
-                <TextBlock Text="Future newly committed ordinary SQLite logs and spans only. Existing deadlines never change. Apply-now and immediate deletion are unavailable. Independently configured audit retention, daily files 30 days/30 files, session/history, all grants/approvals and cleanup triggers are unchanged."
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Keep diagnostic records (1-365 days; default 30)" Classes="settings-title" TextWrapping="Wrap" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Diagnostic record storage"
+                                                 IsEnabled="{Binding CanChangeDiagnosticRetentionNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" AutomationProperties.Name="Refresh diagnostic settings" />
+                        <Separator />
+                        <MenuItem Header="Reset diagnostic storage to 30 days" Command="{Binding ResetDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Diagnostic records help troubleshoot problems. This limit applies to new records only and does not delete anything immediately. Existing records keep their scheduled dates. Security records, daily log files, sessions and approvals are unchanged."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding DiagnosticRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <ComboBox ItemsSource="{Binding DiagnosticRetentionChoices}" SelectedItem="{Binding SelectedDiagnosticRetentionDays}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
-                <Button Content="Refresh SQLite retention only" Command="{Binding RefreshDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
-                <Button Content="Save future SQLite retention only" Command="{Binding SaveDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
-                <Button Content="Reset future SQLite retention to 30 days" Command="{Binding ResetDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <controls:SettingsNumberField Label="Keep diagnostic records" Unit="days" Value="{Binding SelectedDiagnosticRetentionDays}" SavedValue="{Binding SavedDiagnosticRetentionDays}"
+                    Minimum="{x:Static configuration:DiagnosticRetentionDays.Minimum}" Maximum="{x:Static configuration:DiagnosticRetentionDays.Maximum}"
+                    ActionCommand="{Binding SaveDiagnosticRetentionCommand}" IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" />
+                <TextBlock Text="Preview a shorter diagnostic storage period" Classes="settings-title" />
+                <TextBlock Text="Choose fewer days, then preview how many existing diagnostic records would become due for deletion. Choosing a value does not start a scan. This does not save settings or delete records, and excludes security records and sessions. If the check cannot finish safely, no count is shown. The preview expires after 30 seconds and does not guarantee complete conversations or permanent removal from storage. Save and Reset above still apply only to new records."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <controls:SettingsNumberField Label="Proposed diagnostic period" Unit="days" Value="{Binding ProposedDiagnosticImpactDays}"
+                          Minimum="{x:Static configuration:DiagnosticRetentionDays.Minimum}" Maximum="{x:Static configuration:DiagnosticRetentionDays.Maximum}"
+                          IsEnabled="{Binding CanChangeDiagnosticRetentionNative}" ActionCommand="{Binding PreviewDiagnosticImpactCommand}" ActionText="Preview"
+                          AutomationProperties.Name="Proposed diagnostic record storage days"
+                          AutomationProperties.HelpText="Choose 1 to 365 days, shorter than the current limit. Choosing does not scan or save." />
+                <WrapPanel Orientation="Horizontal">
+                <Button Classes="toolbar" Content="Cancel preview" Command="{Binding CancelDiagnosticImpactCommand}"
+                        IsEnabled="{Binding CanCancelDiagnosticImpact}" AutomationProperties.Name="Cancel read-only diagnostic preview" />
+                <Button Classes="toolbar" Content="Clear preview" Command="{Binding ClearDiagnosticImpactCommand}"
+                        IsEnabled="{Binding CanClearDiagnosticImpact}" AutomationProperties.Name="Clear read-only diagnostic preview" />
+                </WrapPanel>
+                <TextBlock Text="{Binding DiagnosticImpactPreviewStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="Diagnostic storage preview result" />
               </StackPanel>
             </Border>
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="Audit metadata days (integer 30–365; default/reset 90)" Classes="settings-title" />
-                <TextBlock Text="Only NEW committed required authority audit and independently qualified diagnostic audit projections. Existing deadlines and payloads never change. Requested/terminal preference receipts use the prior policy; confirmed activation affects later commits only. Apply-now, immediate deletion and audit pruning are unavailable. No grant expiry/retention/eviction, session/history, ordinary SQLite, file or cleanup-schedule changes."
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Keep security records (30-365 days; default 90)" Classes="settings-title" TextWrapping="Wrap" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Security record storage"
+                                                 IsEnabled="{Binding CanChangeAuditRetentionNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" AutomationProperties.Name="Refresh security record settings" />
+                        <Separator />
+                        <MenuItem Header="Reset security record storage to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Security records track permissions and important actions. This limit sets storage dates for new records only; existing dates stay unchanged. Automatic deletion of security records is not yet available, so records may remain longer. This does not change permissions, approvals or session history."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <TextBlock Text="{Binding AuditRetentionStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding SelectedAuditRetentionDays}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
-                <Button Content="Refresh audit retention only" Command="{Binding RefreshAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
-                <Button Content="Save future audit retention only" Command="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
-                <Button Content="Reset future audit retention to 90 days" Command="{Binding ResetAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
-                <TextBlock Text="Read-only shortening impact preview" Classes="settings-title" />
-                <TextBlock Text="Explicitly select shorter proposed days. Preview counts only committed records newly due at its fixed cutoff, separately by source. A preview lasts at most 30 seconds; edits, refresh, source or host changes retire it. It never saves, renews activity or changes any record. Apply-now and deletion remain unavailable."
+                <controls:SettingsNumberField Label="Keep security records" Unit="days" Value="{Binding SelectedAuditRetentionDays}" SavedValue="{Binding SavedAuditRetentionDays}"
+                    Minimum="{x:Static configuration:AuditRetentionDays.Minimum}" Maximum="{x:Static configuration:AuditRetentionDays.Maximum}"
+                    ActionCommand="{Binding SaveAuditRetentionCommand}" IsEnabled="{Binding CanChangeAuditRetentionNative}" />
+                <TextBlock Text="Preview a shorter storage period" Classes="settings-title" />
+                <TextBlock Text="Choose fewer days to preview how many existing security records would become due for deletion. This does not save settings or delete records. The preview expires after 30 seconds or when settings or access change."
                            Classes="settings-description" TextWrapping="Wrap" />
-                <ComboBox ItemsSource="{Binding AuditRetentionChoices}" SelectedItem="{Binding ProposedAuditImpactDays}"
-                          IsEnabled="{Binding CanChangeAuditRetentionNative}"
-                          AutomationProperties.Name="Proposed audit retention days for read-only preview"
-                          AutomationProperties.HelpText="Select 30 through 365 days, shorter than current saved or default retention. Selecting does not save." />
-                <Button Content="Preview audit shortening impact only" Command="{Binding PreviewAuditImpactCommand}"
-                        IsEnabled="{Binding CanPreviewAuditImpact}"
-                        AutomationProperties.Name="Preview audit shortening impact only" />
+                <controls:SettingsNumberField Label="Proposed security record period" Unit="days" Value="{Binding ProposedAuditImpactDays}"
+                          Minimum="{x:Static configuration:AuditRetentionDays.Minimum}" Maximum="{x:Static configuration:AuditRetentionDays.Maximum}"
+                          IsEnabled="{Binding CanChangeAuditRetentionNative}" ActionCommand="{Binding PreviewAuditImpactCommand}" ActionText="Preview"
+                          AutomationProperties.Name="Proposed security record storage days"
+                          AutomationProperties.HelpText="Choose 30 to 365 days, shorter than the current limit. This does not save." />
                 <TextBlock Text="{Binding AuditImpactPreviewStatus}" Classes="settings-description" TextWrapping="Wrap"
                            AutomationProperties.Name="Read-only audit impact preview status" />
               </StackPanel>
@@ -832,13 +1009,13 @@
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Calls">
+      <TabItem x:Name="CallsTab" Header="Calls">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <TextBlock Text="Calls" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Use run-scoped manual call mode. Enabled automatic observations remain independent."
+                  Text="Tell Kora when you're in a call. Manual call mode resets when Kora restarts and does not change automatic call detection."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -858,14 +1035,23 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="Manual call mode" Classes="settings-title" />
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Manual call mode" Classes="settings-title" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Manual call mode" TabIndex="2">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" AutomationProperties.Name="Show last known call status" TabIndex="3" Command="{Binding GetManualCallStatusCommand}" />
+                        <Separator />
+                        <MenuItem Header="Reset call mode" AutomationProperties.Name="Reset manual call mode to off" TabIndex="2" Command="{Binding ResetManualCallCommand}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
                 <controls:NamedTextBlock Text="{Binding CallManualStatus}" AutomationProperties.Name="Manual call status" AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
-                <controls:NamedTextBlock Text="{Binding ManualCallConfigurationStatus}" AutomationProperties.Name="Cached manual and automatic call policy status" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:NamedTextBlock Text="{Binding ManualCallConfigurationStatus}" AutomationProperties.Name="Manual and automatic call settings" Classes="settings-description" TextWrapping="Wrap" />
                 <StackPanel Orientation="Horizontal" Spacing="8">
                   <Button Content="I'm in a call" AutomationProperties.Name="Enable manual call mode for this run" TabIndex="0" Command="{Binding EnableManualCallCommand}" />
                   <Button Content="Clear manual call mode" AutomationProperties.Name="Clear only manual call mode" TabIndex="1" Command="{Binding ClearManualCallCommand}" />
-                  <Button Content="Reset manual off" AutomationProperties.Name="Reset manual call layer off for this run" TabIndex="2" Command="{Binding ResetManualCallCommand}" />
-                  <Button Content="Cached call status" AutomationProperties.Name="Inspect cached call status without effects" TabIndex="3" Command="{Binding GetManualCallStatusCommand}" />
                 </StackPanel>
                 <TextBlock Text="{Binding CallProtectionLimitations}" Classes="settings-description" TextWrapping="Wrap" />
               </StackPanel>
@@ -874,7 +1060,7 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Call speech suppression (independent of feedback)" Classes="settings-title" />
+                  <TextBlock Text="Keep Kora quiet during calls" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding CallVisualOverrideStatus}"
                       Classes="settings-description"
@@ -891,19 +1077,29 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="In-call feedback override" Classes="settings-title" />
-                <TextBlock Text="UI by default. Active/Suspected calls select this before ordinary response modes; Inherit restores ordinary precedence. Voice/Both never permit suppressed speech. Unknown or unconfirmed state retains full visual recovery. Input, consent and grants are unchanged."
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Responses during calls" Classes="settings-title" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Responses during calls"
+                                                 IsEnabled="{Binding CanInspectInCallFeedbackNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshInCallFeedbackCommand}"
+                                  IsEnabled="{Binding CanInspectInCallFeedbackNative}" AutomationProperties.Name="Inspect in-call feedback preference only" />
+                        <Separator />
+                        <MenuItem Header="Reset to on-screen responses" Command="{Binding ResetInCallFeedbackCommand}"
+                                  IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Remove saved in-call feedback override only" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="By default, responses appear on screen during detected or suspected calls. Choose a different mode or use your normal response settings. Choosing speech does not bypass call protections that keep Kora quiet. If the call or audio status is unknown, the full response remains on screen."
                     Classes="settings-description" TextWrapping="Wrap" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
                 <ComboBox ItemsSource="{Binding InCallFeedbackChoices}" SelectedItem="{Binding SelectedInCallFeedbackChoice}"
                     DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeInCallFeedbackNative}"
-                    AutomationProperties.Name="In-call feedback draft: Voice UI Both or Inherit" />
-                <WrapPanel Orientation="Horizontal">
-                  <Button Content="Refresh call feedback" Command="{Binding RefreshInCallFeedbackCommand}"
-                      IsEnabled="{Binding CanInspectInCallFeedbackNative}" AutomationProperties.Name="Inspect in-call feedback preference only" />
-                  <Button Content="Save call feedback only" Command="{Binding SaveInCallFeedbackCommand}"
+                    AutomationProperties.Name="Response mode during calls" />
+                  <Button Content="Save" Command="{Binding SaveInCallFeedbackCommand}"
                       IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Save selected in-call feedback only" />
-                  <Button Content="Reset call feedback to UI" Command="{Binding ResetInCallFeedbackCommand}"
-                      IsEnabled="{Binding CanChangeInCallFeedbackNative}" AutomationProperties.Name="Remove saved in-call feedback override only" />
                 </WrapPanel>
                 <controls:NamedTextBlock Text="{Binding InCallFeedbackStatus}" AutomationProperties.Name="In-call feedback saved effective policy and recovery status"
                     AutomationProperties.LiveSetting="Polite" Classes="settings-description" TextWrapping="Wrap" />
@@ -935,9 +1131,9 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <TextBlock Text="Model execution" FontSize="28" FontWeight="SemiBold" />
+              <TextBlock Text="AI models" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Choose which model locations Kora may use for free-form commands. Exact built-in commands remain available when every model is disabled."
+                  Text="Choose whether Kora may use AI models on this device or online to understand requests. Built-in commands still work when all models are turned off."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -946,15 +1142,15 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Local models" Classes="settings-title" />
+                  <TextBlock Text="On-device models" Classes="settings-title" />
                   <TextBlock
-                      Text="Allow requests to use the verified Ollama model on this device. Turning this off cancels a running local request."
+                      Text="Use the installed and checked Ollama model on this device. Turning this off cancels any current on-device request."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox
                     Grid.Column="1"
-                    Content="Allow local models"
+                    Content="Allow on-device models"
                     IsChecked="{Binding LocalModelsEnabled}"
                     VerticalAlignment="Center" />
               </Grid>
@@ -963,19 +1159,19 @@
             <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,240" ColumnSpacing="24">
                 <StackPanel Spacing="4">
-                  <TextBlock Text="Hosted models" Classes="settings-title" />
+                  <TextBlock Text="Online models" Classes="settings-title" />
                   <TextBlock
                       Text="{Binding HostedModelExecutionDescription}"
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                   <TextBlock
-                      Text="No hosted provider or credentials are included in this build. Enabling this permission does not send data by itself."
+                      Text="No online AI service or sign-in is included in this version. Turning this on does not send data by itself."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                 </StackPanel>
                 <CheckBox
                     Grid.Column="1"
-                    Content="Allow hosted models"
+                    Content="Allow online models"
                     IsChecked="{Binding HostedModelsEnabled}"
                     VerticalAlignment="Center" />
               </Grid>
@@ -988,9 +1184,18 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <TextBlock Text="Preapproved addresses" FontSize="28" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <TextBlock Text="Preapproved addresses" FontSize="28" FontWeight="SemiBold" />
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Preapproved addresses">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshPreapprovedUrisCommand}" AutomationProperties.Name="Refresh preapproved addresses" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
+              </Grid>
               <TextBlock
-                  Text="Allow model-originated retrieval of matching HTTP or HTTPS addresses without a per-address permission grant. This does not enable a network provider or a general retrieval tool."
+                  Text="Let AI requests read matching web addresses without asking permission for each address. This does not enable web access by itself."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -998,28 +1203,28 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
-                <TextBlock Text="URI pattern" Classes="settings-title" />
+                <TextBlock Text="Web address pattern" Classes="settings-title" />
                 <TextBlock
-                    Text="Use an absolute HTTP or HTTPS URI. An asterisk in a host must occupy a whole DNS label, such as https://*.example.com/*. Path and query wildcards are supported. Credentials and fragments are not allowed."
+                    Text="Enter a full address starting with http:// or https://. Use * to match part of an address, for example https://*.example.com/*. In a website name, * must replace a whole part between dots. Do not include usernames, passwords or a # section."
                     Classes="settings-description"
                     TextWrapping="Wrap" />
-                <TextBox
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <TextBox Width="340"
                     Text="{Binding PreapprovedUriInput}"
                     PlaceholderText="https://*.example.com/*"
-                    AutomationProperties.Name="Preapproved URI pattern" />
-                <StackPanel Orientation="Horizontal" Spacing="8">
-                  <Button Content="Add pattern"
+                    AutomationProperties.Name="Preapproved web address pattern" />
+                  <Button Content="Add" AutomationProperties.Name="Add web address pattern"
                           Command="{Binding AddPreapprovedUriCommand}" />
-                  <Button Content="Refresh"
-                          Command="{Binding RefreshPreapprovedUrisCommand}" />
-                  <Button Content="Remove selected"
+                </WrapPanel>
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <Button Classes="toolbar" Content="Remove selected"
                           Command="{Binding RemovePreapprovedUriCommand}" />
-                  <Button Content="Clear all"
+                  <Button Classes="toolbar" Content="Clear all"
                           Command="{Binding ClearPreapprovedUrisCommand}" />
-                </StackPanel>
+                </WrapPanel>
                 <controls:NamedTextBlock
                     Text="{Binding PreapprovedUriStatus}"
-                    AutomationProperties.Name="Preapproved URI configuration status"
+                    AutomationProperties.Name="Preapproved web address status"
                     AutomationProperties.LiveSetting="Polite"
                     Classes="settings-description"
                     TextWrapping="Wrap" />
@@ -1029,19 +1234,31 @@
             <ListBox
                 ItemsSource="{Binding PreapprovedUriPatterns}"
                 SelectedItem="{Binding SelectedPreapprovedUri}"
-                MinHeight="120"
-                AutomationProperties.Name="Preapproved URI patterns" />
+                MinHeight="84"
+                MaxHeight="220"
+                AutomationProperties.Name="Preapproved web address patterns" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
 
-      <TabItem Header="Artifacts">
+      <TabItem Header="Custom content">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <TextBlock Text="Additional artifact sources" FontSize="28" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <TextBlock Text="Custom content sources" FontSize="28" FontWeight="SemiBold" />
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Custom content sources"
+                                               IsEnabled="{Binding CanChangeArtifactDirectories}">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshArtifactDirectoriesCommand}"
+                                IsEnabled="{Binding CanChangeArtifactDirectories}" AutomationProperties.Name="Refresh custom content sources" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
+              </Grid>
               <TextBlock
-                  Text="Add absolute directories containing prompts, instructions, skills, or agent profiles, or an MCP server configuration file. Kora validates all configured sources before publishing them."
+                  Text="Add folders with prompts, instructions, skills or agent profiles, or a configuration file for external tools (MCP). Kora checks each source before making it available."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
@@ -1049,64 +1266,65 @@
 
             <Border Classes="settings-card">
               <StackPanel Spacing="10">
-                <TextBlock Text="Source kind" Classes="settings-title" />
+                <TextBlock Text="Content type" Classes="settings-title" />
                 <ComboBox
                     ItemsSource="{Binding ArtifactDirectoryKinds}"
                     SelectedItem="{Binding SelectedArtifactDirectoryKind}"
                     IsEnabled="{Binding CanChangeArtifactDirectories}"
-                    AutomationProperties.Name="Kind for additional artifact or MCP sources" />
+                    AutomationProperties.Name="Custom content type" />
                 <TextBlock
-                    Text="Skills use nested SKILL.md packages. Prompts, instructions, and agents use *.prompt.md, *.instructions.md, and *.agent.md files in a directory. MCP configuration uses one JSON file."
+                    Text="Choose a folder containing SKILL.md files for skills, *.prompt.md files for prompts, *.instructions.md files for instructions, or *.agent.md files for agent profiles. For external tools (MCP), choose a JSON configuration file."
                     Classes="settings-description"
                     TextWrapping="Wrap" />
-                <TextBox
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                <TextBox Width="340"
                     Text="{Binding ArtifactDirectoryInput}"
                     PlaceholderText="C:\Absolute\Path\To\Source"
                     IsEnabled="{Binding CanChangeArtifactDirectories}"
-                    AutomationProperties.Name="Absolute additional artifact or MCP source path" />
-                <WrapPanel Orientation="Horizontal">
+                    AutomationProperties.Name="Full path to custom content" />
                   <Button
                       Content="{Binding ArtifactPathKind, StringFormat='Add {0}'}"
                       Command="{Binding AddArtifactDirectoryCommand}"
                       IsEnabled="{Binding CanChangeArtifactDirectories}" />
+                </WrapPanel>
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
                   <Button
+                      Classes="toolbar"
                       Content="Remove selected"
                       Command="{Binding RemoveArtifactDirectoryCommand}"
-                      IsEnabled="{Binding CanChangeArtifactDirectories}" />
-                  <Button
-                      Content="Refresh"
-                      Command="{Binding RefreshArtifactDirectoriesCommand}"
                       IsEnabled="{Binding CanChangeArtifactDirectories}" />
                 </WrapPanel>
                 <ListBox
                     ItemsSource="{Binding AdditionalArtifactDirectories}"
                     SelectedItem="{Binding SelectedArtifactDirectory}"
-                    MinHeight="100"
+                    MinHeight="84"
                     MaxHeight="220"
-                    AutomationProperties.Name="Configured additional artifact and MCP source paths" />
+                    AutomationProperties.Name="Custom content sources" />
                 <controls:NamedTextBlock
                     Text="{Binding ArtifactDirectoryStatus}"
-                    AutomationProperties.Name="Additional artifact directory status"
+                    AutomationProperties.Name="Custom content status"
                     AutomationProperties.LiveSetting="Polite"
                     Classes="settings-description"
                     TextWrapping="Wrap" />
                 <StackPanel IsVisible="{Binding IsMcpConfigurationSelected}" Spacing="8">
-                  <TextBlock Text="Configured MCP servers" Classes="settings-title" />
+                  <TextBlock Text="External tool servers (MCP)" Classes="settings-title" />
                   <TextBlock
-                      Text="Server command arguments, URLs, headers, environment values, and credentials are not displayed or sent to a model. Inclusion records app-level intent only; live capability discovery and invocation remain unavailable until an admitted MCP runtime is configured."
+                      Text="Connection details and credentials are not displayed or sent to AI models. Including a server saves your choice but does not connect to it or run tools. MCP connections are not yet available."
                       Classes="settings-description"
                       TextWrapping="Wrap" />
                   <ListBox
                       ItemsSource="{Binding McpServers}"
                       SelectedItem="{Binding SelectedMcpServer}"
                       DisplayMemberBinding="{Binding Display}"
-                      MinHeight="100"
+                      MinHeight="84"
                       MaxHeight="220"
-                      AutomationProperties.Name="Discovered MCP servers and inclusion state" />
-                  <WrapPanel Orientation="Horizontal">
-                    <Button Content="Include selected server" Command="{Binding IncludeMcpServerCommand}"
+                      AutomationProperties.Name="External tool servers and whether they are included" />
+                  <WrapPanel ItemSpacing="8" LineSpacing="6">
+                    <Button Classes="toolbar" Content="Include" Command="{Binding IncludeMcpServerCommand}"
+                            AutomationProperties.Name="Include selected external tool server"
                             IsEnabled="{Binding CanChangeArtifactDirectories}" />
-                    <Button Content="Exclude selected server" Command="{Binding ExcludeMcpServerCommand}"
+                    <Button Classes="toolbar" Content="Exclude" Command="{Binding ExcludeMcpServerCommand}"
+                            AutomationProperties.Name="Exclude selected external tool server"
                             IsEnabled="{Binding CanChangeArtifactDirectories}" />
                   </WrapPanel>
                 </StackPanel>
@@ -1119,59 +1337,82 @@
       <TabItem Header="Providers">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
-            <TextBlock Text="Device-local provider mode" FontSize="28" FontWeight="SemiBold" />
-            <TextBlock Text="LocalOnly is the unsaved/reset default. This preference seeds subsequent sessions; existing session policies and per-turn choices are unchanged. No provider adapter, account, network or egress permission is enabled."
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+              <TextBlock Text="AI service preferences" FontSize="28" FontWeight="SemiBold" />
+              <controls:SettingActionsButton Grid.Column="1" SettingName="AI service preferences"
+                                             IsEnabled="{Binding CanChangeProviderMode}">
+                <controls:SettingActionsButton.Flyout>
+                  <MenuFlyout>
+                    <MenuItem Header="Refresh" Command="{Binding RefreshProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" AutomationProperties.Name="Refresh service mode" />
+                    <Separator />
+                    <MenuItem Header="Reset to on-device only" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+                  </MenuFlyout>
+                </controls:SettingActionsButton.Flyout>
+              </controls:SettingActionsButton>
+            </Grid>
+            <TextBlock Text="New sessions use on-device models only by default. This choice applies to future sessions, not existing sessions or individual requests. Saving it does not sign in, connect to a service or grant permission to send data."
                        Classes="settings-description" TextWrapping="Wrap" />
+            <WrapPanel ItemSpacing="8" LineSpacing="6">
             <ComboBox ItemsSource="{Binding ProviderModeChoices}" SelectedItem="{Binding SelectedProviderModeChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderMode}"
-                      AutomationProperties.Name="Device-local provider mode" />
-            <Button Content="Inspect provider mode" Command="{Binding RefreshProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
-            <Button Content="Save provider mode" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
-            <Button Content="Reset provider mode to LocalOnly" Command="{Binding ResetProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" />
+                      AutomationProperties.Name="AI service mode for new sessions" />
+            <Button Content="Save" Command="{Binding SaveProviderModeCommand}" IsEnabled="{Binding CanChangeProviderMode}" AutomationProperties.Name="Save service mode" />
+            </WrapPanel>
             <TextBlock Text="{Binding ProviderModeConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
-            <TextBlock Text="App default service and per-service desired profile" FontSize="24" FontWeight="SemiBold" />
-            <TextBlock Text="Initially Local only when a supported Ollama installation is observed; otherwise Unset. Installation is not model/runtime readiness or generation consent. Explicit saved choices never fall back. LocalOnly safety mode remains independent."
+            <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+              <TextBlock Text="Default service and model" FontSize="24" FontWeight="SemiBold" TextWrapping="Wrap" />
+              <controls:SettingActionsButton Grid.Column="1" SettingName="Default service and model"
+                                             IsEnabled="{Binding CanChangeProviderProfile}">
+                <controls:SettingActionsButton.Flyout>
+                  <MenuFlyout>
+                    <MenuItem Header="Refresh" Command="{Binding RefreshProviderProfileCommand}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Refresh services and models" />
+                    <Separator />
+                    <MenuItem Header="Reset default service" Command="{Binding ResetProviderServiceCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
+                    <MenuItem Header="Clear model settings for this service" Command="{Binding ResetProviderProfileCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
+                  </MenuFlyout>
+                </controls:SettingActionsButton.Flyout>
+              </controls:SettingActionsButton>
+            </Grid>
+            <TextBlock Text="Kora initially chooses the on-device service if a supported Ollama installation is found; otherwise no service is selected. Installation alone does not mean a model is ready or permitted to run. Kora will not silently replace a saved choice. The on-device-only restriction above still applies."
                        Classes="settings-description" TextWrapping="Wrap" />
-            <Button Content="Inspect app provider settings and current catalogue" Command="{Binding RefreshProviderProfileCommand}"
-                    IsEnabled="{Binding CanChangeProviderProfile}" />
+            <WrapPanel ItemSpacing="8" LineSpacing="6">
             <ComboBox ItemsSource="{Binding ProviderServiceChoices}" SelectedItem="{Binding SelectedProviderServiceChoice}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}"
-                      AutomationProperties.Name="Draft desired app default provider service; selection is not authentication" />
-            <Button Content="Save desired app service only" Command="{Binding SaveProviderServiceCommand}" IsEnabled="{Binding CanSaveProviderService}" />
-            <Button Content="Reset app service using installed-or-Unset rule" Command="{Binding ResetProviderServiceCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
-            <TextBlock Text="Picking a service changes its tuple draft without erasing other services. Save service only, or explicitly save the selected app service and complete tuple together. No advertised catalogue means no model choices; dependent choices are never substituted."
+                      AutomationProperties.Name="Default AI service" />
+            <Button Content="Save" Command="{Binding SaveProviderServiceCommand}" IsEnabled="{Binding CanSaveProviderService}" AutomationProperties.Name="Save default AI service" />
+            </WrapPanel>
+            <TextBlock Text="Choose a service, then a model and its thinking and conversation-size options. Save just the service or all choices together. Other services keep their saved settings. Models appear only when the service supplies a current list."
                        Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileDraftStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Configure Copilot account (volatile token)" Click="OnCopilotAccountClicked"
+                    IsEnabled="{Binding CanChangeProviderProfile}" />
             <ComboBox ItemsSource="{Binding ProviderProfileModels}" SelectedItem="{Binding SelectedProviderProfileModel}"
-                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact account-bound model" />
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Model for the selected account" />
             <ComboBox ItemsSource="{Binding ProviderReasoningChoices}" SelectedItem="{Binding SelectedProviderReasoning}"
-                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact reasoning option or advertised provider-managed value" />
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Thinking level" />
             <ComboBox ItemsSource="{Binding ProviderContextChoices}" SelectedItem="{Binding SelectedProviderContext}"
-                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Exact context preset or advertised provider-managed value" />
-            <TextBlock Text="{Binding SelectedProviderContext.InputTokenLimit, StringFormat='Advertised maximum input tokens: {0}'}" />
-            <TextBlock Text="{Binding SelectedProviderContext.ProviderManaged, StringFormat='Context is provider managed: {0}'}" />
-            <TextBlock Text="{Binding SelectedProviderReasoning.ProviderManaged, StringFormat='Reasoning is provider managed: {0}'}" />
-            <Button Content="Save selected app service and exact model/reasoning/context tuple" Command="{Binding SaveProviderProfileCommand}" IsEnabled="{Binding CanSaveProviderProfile}" />
-            <TextBlock Text="Individual app field review preserves the saved complete tuple and app default service. Model review retains exact reasoning/context IDs only if supported; otherwise use the complete tuple draft/save above. No missing field is defaulted."
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Conversation size" />
+            <TextBlock Text="{Binding SelectedProviderContext.InputTokenLimit, StringFormat='Maximum input size (tokens): {0}'}" />
+            <Button Content="Save model settings" Command="{Binding SaveProviderProfileCommand}" IsEnabled="{Binding CanSaveProviderProfile}" AutomationProperties.Name="Save service and model settings" />
+            <TextBlock Text="To change one saved option, review it below and confirm. Other options stay unchanged. If a new model does not support the saved options, choose and save all model settings above instead."
                        Classes="settings-description" TextWrapping="Wrap" />
-            <Button Content="Review only model from the model draft above" Command="{Binding ReviewProviderModelCommand}" IsEnabled="{Binding CanReviewProviderModel}" />
+            <Button Content="Review model change" Command="{Binding ReviewProviderModelCommand}" IsEnabled="{Binding CanReviewProviderModel}" />
             <ComboBox ItemsSource="{Binding ProviderReasoningFieldChoices}" SelectedItem="{Binding SelectedProviderReasoningField}"
-                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Individual exact reasoning edit for saved model" />
-            <Button Content="Review only reasoning; retain saved model and context" Command="{Binding ReviewProviderReasoningCommand}" IsEnabled="{Binding CanReviewProviderReasoning}" />
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Thinking level for the saved model" />
+            <Button Content="Review thinking level change" Command="{Binding ReviewProviderReasoningCommand}" IsEnabled="{Binding CanReviewProviderReasoning}" />
             <ComboBox ItemsSource="{Binding ProviderContextFieldChoices}" SelectedItem="{Binding SelectedProviderContextField}"
-                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Individual exact context edit for saved model" />
-            <Button Content="Review only context; retain saved model and reasoning" Command="{Binding ReviewProviderContextCommand}" IsEnabled="{Binding CanReviewProviderContext}" />
+                      DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Conversation size for the saved model" />
+            <Button Content="Review conversation size change" Command="{Binding ReviewProviderContextCommand}" IsEnabled="{Binding CanReviewProviderContext}" />
             <TextBlock Text="{Binding ProviderFieldPreviewStatus}" Classes="settings-description" TextWrapping="Wrap" />
-            <Button Content="Confirm reviewed app field and whole complete tuple" Command="{Binding ConfirmProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
-            <Button Content="Cancel reviewed app field; no write" Command="{Binding CancelProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
-            <Button Content="Reset selected service tuple to unresolved; retain other services" Command="{Binding ResetProviderProfileCommand}" IsEnabled="{Binding CanChangeProviderProfile}" />
-            <Button Content="Sign in to selected service (Unavailable: no qualified adapter)" Command="{Binding ProviderSignInCommand}" IsEnabled="{Binding CanSignInProvider}" />
-            <TextBlock Text="Hosted selection never signs in or authorizes egress. No machine credentials, authentication, provider network call, model acquisition or generation occurs here. Exact session overrides use separate review; one-turn directives remain unavailable. These controls are explicitly app scoped."
+            <Button Content="Confirm model settings change" Command="{Binding ConfirmProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
+            <Button Content="Cancel change" Command="{Binding CancelProviderFieldCommand}" IsEnabled="{Binding CanConfirmProviderField}" />
+            <Button Content="Sign in (not yet available)" Command="{Binding ProviderSignInCommand}" IsEnabled="{Binding CanSignInProvider}" />
+            <TextBlock Text="These are app defaults. Changing them does not sign in, send data, download a model or run a request. Session-specific choices are reviewed separately; changes for a single request are not yet available."
                        Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
-            <Button Content="Review pending exact provider handoff" Click="OnReviewHandoffClicked"
-                    AutomationProperties.Name="Open original-user exact provider handoff review" />
-            <TextBlock Text="Local volatile review only. No pending qualified host offer means unavailable; no sample, send, execution or provider enablement is offered."
+            <Button Content="Review pending service change" Click="OnReviewHandoffClicked"
+                    AutomationProperties.Name="Review pending AI service change" />
+            <TextBlock Text="Available only when Kora has a service change ready for your review. Opening the review does not send data or run a request."
                        Classes="settings-description" TextWrapping="Wrap" />
           </StackPanel>
         </ScrollViewer>
@@ -1181,7 +1422,16 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <TextBlock Text="Readiness" FontSize="28" FontWeight="SemiBold" />
+              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                <TextBlock Text="Readiness" FontSize="28" FontWeight="SemiBold" />
+                <controls:SettingActionsButton Grid.Column="1" SettingName="Readiness">
+                  <controls:SettingActionsButton.Flyout>
+                    <MenuFlyout>
+                      <MenuItem Header="Refresh" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh readiness" />
+                    </MenuFlyout>
+                  </controls:SettingActionsButton.Flyout>
+                </controls:SettingActionsButton>
+              </Grid>
               <TextBlock
                   Text="{Binding ReadinessSettingsDescription}"
                   Classes="muted"
@@ -1189,7 +1439,7 @@
             </StackPanel>
 
             <TextBlock Text="Setup tasks" Classes="settings-title" />
-            <TextBlock Text="Local model inference (Ollama)" Classes="settings-title" />
+            <TextBlock Text="On-device AI model (Ollama)" Classes="settings-title" />
             <TextBlock Text="{Binding LocalModelSetupStatus}" Classes="muted" TextWrapping="Wrap" />
             <Button Content="Review local model setup"
                     IsEnabled="{Binding CanInstallLocalModel}"
@@ -1201,7 +1451,7 @@
                          Value="{Binding LocalModelSetupProgress}"
                          IsIndeterminate="{Binding IsLocalModelSetupProgressIndeterminate}"
                          IsVisible="{Binding IsLocalModelSetupActive}" />
-            <TextBlock Text="PowerShell 7 (pwsh)" Classes="settings-title" />
+            <TextBlock Text="PowerShell 7" Classes="settings-title" />
             <TextBlock Text="{Binding PowerShellSetupStatus}" Classes="muted" TextWrapping="Wrap" />
             <Button Content="Review PowerShell 7 setup"
                     IsEnabled="{Binding CanInstallPowerShell}"
@@ -1253,9 +1503,6 @@
 
             <StackPanel Orientation="Horizontal" Spacing="10">
               <Button
-                  Content="Refresh readiness"
-                  Command="{Binding RefreshCommand}" />
-              <Button
                   Content="Open Windows microphone settings"
                   Command="{Binding OpenMicrophonePrivacySettingsCommand}" />
             </StackPanel>
@@ -1267,7 +1514,7 @@
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />
             <TextBlock
-                Text="A model can suggest one named Kora action. Once applies only to that request; session lasts until Kora exits, restarts, or locks Windows through Kora; always persists until revoked. Every approval card is visible, including in VoiceOnly mode."
+                Text="AI models can suggest Kora actions for you to approve. Once allows only that request. Session lasts until Kora exits, restarts or locks Windows through Kora. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode."
                 TextWrapping="Wrap" Classes="muted" />
             <Border Classes="settings-card">
               <StackPanel Spacing="5">
@@ -1286,7 +1533,7 @@
                 <DataTemplate>
                   <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                    <Button Grid.Column="1" Content="Revoke" Tag="{Binding Action}"
+                    <Button Grid.Column="1" Content="Remove approval" Tag="{Binding Action}"
                             Click="OnRevokeSessionApprovalClicked" />
                   </Grid>
                 </DataTemplate>
@@ -1298,7 +1545,7 @@
                 <DataTemplate>
                   <Grid ColumnDefinitions="*,Auto" Margin="0,0,0,8">
                     <TextBlock Text="{Binding Description}" TextWrapping="Wrap" />
-                    <Button Grid.Column="1" Content="Revoke" Tag="{Binding Action}"
+                    <Button Grid.Column="1" Content="Remove approval" Tag="{Binding Action}"
                             Click="OnRevokeAlwaysApprovalClicked" />
                   </Grid>
                 </DataTemplate>
@@ -1309,10 +1556,10 @@
       </TabItem>
       <TabItem Header="Maintenance">
         <StackPanel Margin="30" Spacing="16" MaxWidth="700">
-          <TextBlock Text="Release maintenance (notify-only)" FontSize="24" FontWeight="SemiBold" />
+          <TextBlock Text="App updates" FontSize="24" FontWeight="SemiBold" />
           <TextBlock Text="{Binding MaintenanceStatus}" TextWrapping="Wrap" />
-          <TextBlock Text="Canonical GitHub Releases metadata only. Network access is off until explicitly permitted for this run. Replacement is manual and unsigned; Kora has no updater." TextWrapping="Wrap" />
-          <Button Content="Review / check / open canonical release" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
+          <TextBlock Text="Check Kora's official GitHub releases after allowing network access for this run. Updates must be installed manually and are not digitally signed. Kora does not install updates automatically." TextWrapping="Wrap" />
+          <Button Content="Review update options" Click="OnMaintenanceClicked" HorizontalAlignment="Left" />
         </StackPanel>
       </TabItem>
     </controls:NavigableTabControl>

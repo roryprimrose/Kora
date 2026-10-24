@@ -54,7 +54,6 @@ public sealed class SystemTrayController : IDisposable
         Func<Task>? returnToCurrentQuestion = null,
         Action? inspectRetainedAttachments = null,
         Action? editOwnedInstructions = null,
-        Action? inspectSavedDrafts = null,
         Action? newRequest = null,
         Action? compactConversation = null)
     {
@@ -84,12 +83,6 @@ public sealed class SystemTrayController : IDisposable
             var newRequestItem = new NativeMenuItem("New request (fresh session only)");
             newRequestItem.Click += (_, _) => RunAfterNativeMenuCloses(newRequest);
             menu.Add(newRequestItem);
-        }
-        if (inspectSavedDrafts is not null)
-        {
-            var draftsItem = new NativeMenuItem("Saved conversation drafts (metadata only)");
-            draftsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSavedDrafts);
-            menu.Add(draftsItem);
         }
         if (editOwnedInstructions is not null)
         {
@@ -254,6 +247,9 @@ public sealed class SystemTrayController : IDisposable
     }
 
     private void OnTrayIconClicked(object? sender, EventArgs eventArgs)
+        => HandlePrimaryClick();
+
+    internal void HandlePrimaryClick()
     {
         if (disposed) { return; }
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Desktop, HostOperation.Presentation,
@@ -262,6 +258,7 @@ public sealed class SystemTrayController : IDisposable
         {
             case ClickSequenceOutcome.Pending:
                 trayClickTimer.Start();
+                ShowWindow();
                 break;
             case ClickSequenceOutcome.DoubleClick:
                 trayClickTimer.Stop();
@@ -278,9 +275,9 @@ public sealed class SystemTrayController : IDisposable
     {
         if (disposed) { return; }
         trayClickTimer.Stop();
-        if (clickSequence.ResolvePendingClick() == ClickSequenceOutcome.SingleClick)
+        if (clickSequence.ResolvePendingClick() is not (ClickSequenceOutcome.None or ClickSequenceOutcome.SingleClick))
         {
-            ShowWindow();
+            throw new InvalidOperationException("The tray click sequence returned an invalid delayed outcome.");
         }
     }
 

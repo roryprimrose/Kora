@@ -12,8 +12,13 @@ namespace Kora;
 internal sealed partial class PromptParameterController(
     MainViewModel main, ArtifactCatalogue catalogue, PromptRequestConsumer consumer,
     PromptConversationSubmission submission,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<PromptParameterController> logger) : IDisposable, IAsyncDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<PromptParameterController> logger,
+    PromptInputVoiceController? inputVoice = null, Func<bool>? nativeFocus = null) : IDisposable, IAsyncDisposable
 {
+    private readonly PromptInputVoiceController? voice = inputVoice;
+    private Task voiceOperation = Task.CompletedTask;
+    private long voiceFocusRevision;
+    private int promptWindowFocused;
     private PromptParameterWindow? window;
     private PromptParameterDraft? draft;
     private CancellationTokenSource? lifetime;
@@ -28,10 +33,14 @@ internal sealed partial class PromptParameterController(
     private long reviewRevision;
     private PreparedPromptConversation? reviewed;
     private bool submissionHeld;
+#pragma warning disable VSTHRD003 // Exposes this controller's owned operation for asynchronous observation without duplicating submission.
     internal Task ActiveOperation => activeOperation;
+    internal Task ActiveVoiceOperation => voiceOperation;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {
+        if (voice is not null) { voice.Changed += VoiceChanged; }
         main.PromptPreparationRequested += Open;
         main.PromptPreparationSuperseded += OnPrivacyClosed;
         main.PrivacyClosureRequested += OnPrivacyClosed;
@@ -56,12 +65,14 @@ internal sealed partial class PromptParameterController(
         window = new(proposed, Edit, action =>
         {
             if (!busy) { activeOperation = Run(action); }
-        }, SelectTarget);
-        window.Deactivated += (_, _) => RetireReview();
-        window.Activated += (_, _) => EnableReview();
+        }, SelectTarget, voice is null ? null : SpeakInput, CancelVoice);
+        window.VoiceStatus.Text = voice?.Status ?? "Voice input unavailable. Current activated reply capture is not supported; native inputs remain available.";
+        window.Deactivated += (_, _) => { Volatile.Write(ref promptWindowFocused, 0); CancelVoice(); RetireReview(); };
+        window.Activated += (_, _) => { Volatile.Write(ref promptWindowFocused, 1); EnableReview(); };
         var opened = window;
         window.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { Clear(); } };
         window.Show();
+        Volatile.Write(ref promptWindowFocused, (nativeFocus?.Invoke() ?? window.IsActive) && window.IsVisible ? 1 : 0);
         return Task.CompletedTask;
     }
 
@@ -70,6 +81,7 @@ internal sealed partial class PromptParameterController(
 
     private void Edit(string name, string value)
     {
+        CancelVoice();
         RetireReview();
         window?.RetirePreview();
         if (draft is null) { return; }
@@ -80,6 +92,7 @@ internal sealed partial class PromptParameterController(
 
     private void SelectTarget(SessionWorkspaceEntry? selected)
     {
+        CancelVoice();
         RetireReview();
         Volatile.Write(ref target, selected);
         Interlocked.Increment(ref targetRevision);
@@ -108,6 +121,10 @@ internal sealed partial class PromptParameterController(
         opened.ReviewSubmit.IsEnabled = false;
         try
         {
+            CancelVoice();
+#pragma warning disable VSTHRD003 // Existing preview/submission waits for this prompt's exact capture release, not a new voice operation.
+            if (voice is not null) { await voice.Quiescence; }
+#pragma warning restore VSTHRD003
             if (!Eligible(captured)) { Close(); return; }
             if (submissionHeld) { throw new InvalidOperationException("Submission is held. Inspect its exact receipts; no replay from this form."); }
             if (string.Equals(action, "Preview", StringComparison.Ordinal))
@@ -175,7 +192,8 @@ internal sealed partial class PromptParameterController(
                     + "private readable SQLite authority (not an encryption claim), with a fresh host task and required audit. Existing retention applies. "
                     + "Local best-effort reject-only credential screening cannot guarantee secret-free text. No Save anyway or silent redaction. "
                     + "Source provenance shown here is volatile; only the approved expanded user body is retained. No hidden form values/template/source path are saved. "
-                    + "Generation is unavailable; no model, network, authentication, tool execution or rejected-local fallback. "
+                    + "A separately qualified local host turn may execute admitted read-only tools and retain its genuine ASSISTANT answer. "
+                    + "Unqualified production runtime remains unavailable; no setup, authentication, side effects or rejected-local fallback. "
                     + "Existing saved drafts and unsaved Sessions composer buffers are unchanged. Cancel writes no conversation message.\n\n"
                     + prepared.Expanded.UserRequest;
                 opened.ConfirmSubmit.IsEnabled = true;
@@ -201,10 +219,13 @@ internal sealed partial class PromptParameterController(
                 opened.RefreshTargets.IsEnabled = false;
                 opened.NextTargets.IsEnabled = false;
                 opened.Targets.IsEnabled = false;
-                opened.Status.Text = $"Message retained; model generation unavailable. HOST {receipt.Message.Outcome} / {receipt.Message.Reason}. "
+                opened.Status.Text = $"Original USER message retained. HOST {receipt.Message.Outcome} / {receipt.Message.Reason}. "
                     + $"Session {receipt.Message.Request.SessionId.Value:D}; message sequence {receipt.Message.Sequence}; "
                     + $"request {receipt.Message.Request.RequestId.Value:D}; task {receipt.Task.Request.TaskId.Value:D}. "
-                    + "Inspect this exact session through Sessions > Read conversation and task receipts. No assistant answer; no replay.";
+                    + "Inspect this exact session through Sessions > Read conversation and task receipts. No replay."
+                    + (receipt.Message.AssistantResponse is not null
+                        ? " Genuine ASSISTANT answer retained separately in that exact session; this source form does not copy its private body."
+                        : " No assistant answer retained.");
             }
         }
         catch (ConversationSubmissionUnconfirmedException exception)
@@ -235,6 +256,51 @@ internal sealed partial class PromptParameterController(
     }
 
     private void OnPrivacyClosed(object? sender, EventArgs args) => DispatchClose();
+    private void SpeakInput(string name)
+    {
+        if (busy || submissionHeld || draft is not { } captured || window is not { } opened || lifetime is null || voice is null) { return; }
+        if (!(nativeFocus?.Invoke() ?? opened.IsActive))
+        { CancelVoice(); opened.VoiceStatus.Text = "Focus this exact private prompt form before speaking an input."; return; }
+        if (voice.IsActive) { opened.VoiceStatus.Text = "Cancel the current spoken input before choosing another declared name."; return; }
+        RetireReview();
+        opened.RetirePreview();
+        var focus = Interlocked.Read(ref voiceFocusRevision);
+        bool Focused() => Eligible(captured) && ReferenceEquals(window, opened) && Volatile.Read(ref promptWindowFocused) != 0
+            && Interlocked.Read(ref voiceFocusRevision) == focus
+            && (nativeFocus?.Invoke() ?? true)
+            && !busy && !submissionHeld;
+        voiceOperation = BeginVoice(captured, name, opened, Focused, lifetime.Token);
+    }
+
+    private async Task BeginVoice(PromptParameterDraft captured, string name, PromptParameterWindow opened,
+        Func<bool> focused, CancellationToken token)
+    {
+        try
+        {
+            await voice!.Begin(captured, name, focused, (declared, text) =>
+            {
+                if (!focused()) { throw new InvalidOperationException("The exact prompt input focus changed."); }
+                opened.Inputs[declared].Text = text;
+            }, token);
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            PreparationFailed(logger, exception.GetType().Name);
+            CancelVoice();
+            if (ReferenceEquals(window, opened))
+            { opened.VoiceStatus.Text = "Prompt voice input failed. Capture retired; use native fields or close and reselect."; }
+        }
+    }
+
+    private void CancelVoice()
+    {
+        Interlocked.Increment(ref voiceFocusRevision);
+        voice?.Retire("Spoken prompt input retired. No late text or automatic submission.");
+    }
+    private void VoiceChanged(object? sender, EventArgs args)
+    {
+        if (window is { } opened) { opened.VoiceStatus.Text = voice!.Status; }
+    }
     private void OnInputChanged(object? sender, PropertyChangedEventArgs args)
     {
         if (args.PropertyName is nameof(MainViewModel.CommandText) or nameof(MainViewModel.CallPolicyRevision))
@@ -266,6 +332,8 @@ internal sealed partial class PromptParameterController(
             else { await Dispatcher.UIThread.InvokeAsync(Close); }
 #pragma warning disable VSTHRD003 // Join only this controller's cancelled callback; asynchronous awaiting leaves its Avalonia dispatcher free.
             await activeOperation;
+            await voiceOperation;
+            if (voice is not null) { await voice.Quiescence; }
 #pragma warning restore VSTHRD003
         }
         finally { activeOperation = Task.CompletedTask; closing = false; }
@@ -273,6 +341,8 @@ internal sealed partial class PromptParameterController(
 
     private void Clear()
     {
+        Volatile.Write(ref promptWindowFocused, 0);
+        CancelVoice();
         var cancellation = lifetime;
         lifetime = null;
         draft?.Dispose();
@@ -300,6 +370,9 @@ internal sealed partial class PromptParameterController(
         catalogue.Changed -= OnCatalogueChanged;
         catalogue.ReloadFailed -= OnReloadFailed;
         main.BindPromptPreparationShutdown(null);
+        if (voice is not null) { voice.Changed -= VoiceChanged; }
+        main.UnbindPromptInputVoice(voice);
+        voice?.CloseAdmission();
         Close();
     }
 
@@ -307,5 +380,6 @@ internal sealed partial class PromptParameterController(
     {
         Dispose();
         await CloseAndWait();
+        if (voice is not null) { await voice.DisposeAsync(); }
     }
 }

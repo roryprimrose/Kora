@@ -101,8 +101,12 @@ stable upstream API guarantees.
 
 An approved explicit execution account, current account-bound catalogue,
 runtime provenance/terms, usage/cost approval and private host-owned runtime
-paths remain live enablement requirements. The default account source returns
-unavailable. Kora never treats the developer agent's Copilot login, `gh`
+paths remain live enablement requirements. The default deployment-approval
+source returns unavailable, and token-entry controls stay disabled without
+that approval. The account broker stores an explicitly verified token only
+in volatile managed memory and publishes a finite account-bound catalogue;
+it does not persist the token or securely zero immutable managed strings.
+Kora never treats the developer agent's Copilot login, `gh`
 credentials, saved provider preferences or this dependency licence review as
 execution-account or hosted-disclosure approval.
 

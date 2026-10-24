@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -15,10 +16,14 @@ public sealed partial class MainViewModel
     private bool diagnosticRetentionControlActive;
     private Func<bool> diagnosticRetentionNativeLifetime = static () => false;
 
+    public int? SavedDiagnosticRetentionDays => diagnosticRetentionConfiguration?.Get().Effective?.Days;
     public void BindDiagnosticRetentionNativeLifetime(Func<bool> lifetime)
     {
         diagnosticRetentionNativeLifetime = lifetime;
+        Interlocked.Increment(ref diagnosticImpactControlRevision);
+        diagnosticImpactPreview?.Retire("Native Settings lifetime changed; preview retired.");
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        NotifyDiagnosticImpactPreview();
     }
 
     public IReadOnlyList<int> DiagnosticRetentionChoices { get; } =
@@ -26,7 +31,15 @@ public sealed partial class MainViewModel
     public int SelectedDiagnosticRetentionDays
     {
         get => selectedDiagnosticRetentionDays;
-        set => SetProperty(ref selectedDiagnosticRetentionDays, new DiagnosticRetentionDays(value).Days);
+        set
+        {
+            var days = new DiagnosticRetentionDays(value).Days;
+            if (selectedDiagnosticRetentionDays == days) { return; }
+            selectedDiagnosticRetentionDays = days;
+            Interlocked.Increment(ref diagnosticImpactControlRevision);
+            diagnosticImpactPreview?.Retire("Future-only diagnostic draft edited; preview retired.");
+            OnPropertyChanged(nameof(SelectedDiagnosticRetentionDays));
+        }
     }
     public AsyncCommand RefreshDiagnosticRetentionCommand { get; }
     public AsyncCommand SaveDiagnosticRetentionCommand { get; }
@@ -35,18 +48,24 @@ public sealed partial class MainViewModel
         && !diagnosticRetentionControlActive && !auditRetentionControlActive && !IsResponseInteractionPending;
     public bool CanChangeDiagnosticRetentionNative => CanChangeDiagnosticRetention && diagnosticRetentionNativeLifetime();
     public string DiagnosticRetentionStatus => diagnosticRetentionConfiguration is null
-        ? "SQLite diagnostic-retention admission unavailable; no preference change. Apply-now unavailable."
-        : DiagnosticRetentionState.Serialize(diagnosticRetentionConfiguration.Get(), CallPolicyRevision, "observed");
+        ? "Diagnostic storage settings are unavailable. No settings were changed."
+        : SettingsText.Describe(diagnosticRetentionConfiguration.Get());
 
-    private void OnDiagnosticRetentionChanged(object? sender, EventArgs args) => uiDispatcher.Post(SynchronizeDiagnosticRetention);
+    private void OnDiagnosticRetentionChanged(object? sender, EventArgs args)
+    {
+        diagnosticImpactPreview?.Retire("Confirmed configuration changed; preview retired.");
+        uiDispatcher.Post(SynchronizeDiagnosticRetention);
+    }
 
     private void SynchronizeDiagnosticRetention()
     {
         if (disposed) { return; }
         if (diagnosticRetentionConfiguration!.Get().Desired is { } days) { SelectedDiagnosticRetentionDays = days.Days; }
         OnPropertyChanged(nameof(DiagnosticRetentionStatus));
+        OnPropertyChanged(nameof(SavedDiagnosticRetentionDays));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetentionNative));
+        NotifyDiagnosticImpactPreview();
     }
 
     internal async Task ExecuteDiagnosticRetentionCommandAsync(DiagnosticRetentionCommand command,
@@ -68,6 +87,8 @@ public sealed partial class MainViewModel
         bool Eligible() => hostEligible() && (initiator != SecurityAuditInitiator.LocalUser
             || ReferenceEquals(nativeLifetime, diagnosticRetentionNativeLifetime) && nativeLifetime());
         Func<bool> eligible = Eligible;
+        Interlocked.Increment(ref diagnosticImpactControlRevision);
+        diagnosticImpactPreview?.Retire("Retention control request changed; preview retired.");
         diagnosticRetentionControlActive = true;
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
         try

@@ -3,70 +3,52 @@
 ## Product and architecture
 
 - Kora is a Windows-only, local-first Avalonia desktop assistant targeting .NET 10.
-- Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Tools` contains host-owned C# actions; `Kora.Definitions` contains bundled behavior definitions/resources; `Kora.Application` contains application orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` is the composition and desktop presentation layer. Tools and Definitions reference Core, never Application/Windows/desktop.
-- Keep Windows APIs, native handles, registry access, device APIs, and OS-specific exceptions out of `Kora.Core`, `Kora.Tools`, `Kora.Definitions` and `Kora.Application`.
-- Treat privacy, consent, instance ownership, approval, audit, and resource-quiescence checks as security boundaries. Do not weaken or bypass them to simplify a workflow.
-- Unknown session, device, permission, or ownership state must fail closed.
+- Preserve the dependency direction: `Kora.Core` contains portable contracts and domain rules; `Kora.Tools` contains host-owned C# actions; `Kora.Definitions` contains bundled behavior definitions/resources; `Kora.Application` contains orchestration and presentation state; `Kora.Windows` contains Windows integrations; `Kora` composes the desktop. Tools and Definitions reference Core, never Application/Windows/desktop. Keep Windows APIs, handles, registry/device APIs and OS-specific exceptions out of Core, Tools, Definitions and Application.
+- Before proposing or starting a feature, apply [product admission](../Design/MVP_Scope.md#product-admission-and-realignment): name the approved outcome, concrete scenario, host-versus-extension rationale and complete interaction. Source layout, dependencies, tests and spare capacity are not product approval. Repairs, accessibility, reliability and proportionate usability within approved outcomes do not need a new decision; material expansion or retired-work revival does.
+- Prefer bounded increments toward approved voice/model interaction, shared settings proposals, governed tools/MCP/skills/agents/instructions, presence/readable results and permissioned session conversations. An unavailable provider is not permission to invent unrelated utilities. Do not recreate retired features or fill slots with variants; report a shortage of approved work.
+- Completion means the approved operation, not navigation or field preparation. Preserve equivalent voice/UI review where permitted and mandatory authentication/privacy/channel exceptions. Keep identity/revision/digest mechanics internal unless explicitly needed for diagnostics.
+- Unsent conversation text is per-session composer state, not a saved-document product: preserve legacy-data recovery, privacy and retention; do not add disk autosave or confuse it with question/definition-editing drafts.
 
-## Design and implementation
+## Implementation and scoped guidance
 
-- Follow SOLID and DRY pragmatically. Prefer small, cohesive services and consumer-focused interfaces over broad managers, god objects, or speculative abstractions.
-- Put each policy or serialization rule in one authoritative location. Reuse existing domain validation rather than duplicating limits or parsing rules.
-- Keep view models focused on presentation state and delegation. Move device operations, persistence, setup workflows, and policy decisions into injected collaborators.
-- Implement built-in tool actions in `Kora.Tools/<CapabilityGroup>/<Action>.cs`, with matching `Kora.Tools.<CapabilityGroup>` namespaces and one class per registered action, not a broad class with a method per tool. Share cohesive policy/broker services; keep contracts/domain rules in Core, native mechanisms in Windows, and presentation in Application/desktop. All admitted command/UI/model routes call the same action. See [built-in tool implementation guidance](../Design/Commands_Tools_And_Skills.md#built-in-tool-source-layout-and-implementation).
-- Keep bundled skills, prompt templates, shared instructions and future agent profiles in one `Kora.Definitions` project, grouped by content kind; keep each skill's own instructions/fixtures/scripts together. Preserve explicit resource IDs, exact bytes and package digests when relocating content. Definitions are not execution, approval, egress or session authority; agent profiles remain gated until qualified runtime/host support exists. See [definition and agent guidance](../Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles).
-- Add abstractions only at real seams: platform integration, persistence, time/process/network dependencies, or a cohesive workflow with independent tests.
-- Preserve strong types and nullable analysis. Do not use `dynamic`, `object`, or unsafe casts to avoid defining the correct contract.
-- Surface failures explicitly with repository-standard logging and user-facing recovery. Do not silently fall back after invalid persisted state or failed security-sensitive work.
-- Use asynchronous APIs for I/O and lifecycle work. `async void` is allowed only at framework event or `ICommand` boundaries, where failures must be routed to an explicit error handler.
-- Dispose owned native, stream, timer, cancellation, and synchronization resources deterministically.
-- Keep comments for non-obvious invariants, privacy guarantees, concurrency rules, or platform constraints; prefer clear names for ordinary behavior.
+- Use small cohesive owners, strong types and nullable analysis. Keep policy/serialization authoritative in one place; reuse domain validation and shared admitted actions. Surface failures with repository-standard diagnostics and recovery, never silent defaults or success-shaped fallbacks.
+- Use asynchronous I/O/lifecycle APIs and deterministic disposal. Allow `async void` only at framework event or `ICommand` boundaries with explicit failure handling.
+- Follow the applicable scoped guidance for matching edits and cross-cutting work:
+  - [Architecture and clean implementation](instructions/architecture.instructions.md): pragmatic SOLID, readable code, layers, ownership, shared routes and lifecycle.
+  - [Behavioral testing](instructions/testing.instructions.md): deterministic regressions, typed outcomes and forbidden effects.
+  - [Security boundaries](instructions/security.instructions.md): authority, revalidation, audit and resource quiescence.
+  - [Automation evidence](instructions/automation.instructions.md): complete module/shard evidence, analyzers and CI.
+- Use the [design topic owners](../Design/README.md#topic-owners) and [extension placement guide](../EXTENDING-KORA.md) for canonical contracts. Instructions guide agents; maintained automated gates enforce requirements. Do not claim a guard exists or a client loaded instructions without evidence.
 
-## Delivery, readiness, and proof policy
+## Safety, persistence and retention
 
-- Apply the [three-tier delivery policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy) before declaring work blocked. Determine the minimum consumed **I - Implementation** subset for the requested behavior; a broad Rxx package or its remaining completion gap is not a monolithic prerequisite.
-- Retired, historical, optional, physical, lab, hardware, acoustic, provider, containment, installed-native, accessibility, or experiment evidence is not an implementation prerequisite. Do not create, rerun, or wait for that evidence unless the change is enabling, advertising, packaging, or materially changing the exact affected capability/profile and its owning contract requires the evidence.
-- **E - Enablement** and **Q - RC** gates do not block implementation, deterministic validation, pull-request creation, or merge of a bounded fail-closed feature. Keep the unqualified capability disabled or explicitly unavailable and document that boundary truthfully.
-- A feature may be classified as implementation-blocked only by a concrete missing consumed production contract/service, a directly applicable failing maintained check, an unresolved material security/consent/authority decision, or conflicting live ownership. Cite the exact symbol, test, decision, or owner; do not cite an Rxx label, experiment, future proof, or qualification category alone.
-- When runtime readiness is missing or unknown, implement the production path with explicit unavailable/fail-closed behavior and deterministic fakes at the platform seam. Do not substitute success-shaped fallbacks, speculative enablement, real hardware/network calls, or an open-ended proof harness.
-- Include this distinction in delegated peer prompts and reviews. A peer owns implementation through deterministic tests, documentation, PR, CI/review repair and merge without waiting for unrelated or retired proofs.
+- Treat privacy, consent, instance ownership, approval, audit and resource quiescence as security boundaries. Unknown session, device, permission or ownership state fails closed; do not weaken a boundary to simplify work.
+- Preserve [security/data-flow policy](../Design/Security_Data_Flows.md), including [independent retention domains](../Design/Security_Data_Flows.md#retention-defaults). Session history, diagnostics, audit, grants and definitions have different lifetimes; retained content is not renewed authority. Never put raw audio, transcripts, response/speech content, credentials or secrets in diagnostic/audit sinks.
+- Store device-local preferences under `IApplicationDataPaths` using the shared atomic preference store. Domain types own validation/format semantics; the store owns paths, directory creation, unique temporary files, replacement and cleanup. Reject malformed saved values with `InvalidDataException`, not default reinterpretation. Security/privacy/model-approval/device writes retain their audit outcomes.
 
-## Instrumentation and activity correlation
+## Delivery, readiness and proof
 
-- Always define `ILogger<T>` diagnostic messages with source-generated `[LoggerMessage]` partial methods; do not use `LogDebug`, `LogInformation`, other `Log*` extension methods, or `LoggerMessage.Define` delegates.
-- Put all `[LoggerMessage]` declarations in a `{ClassName}.Logging.cs` file beside the class's other source files, using the same namespace and a matching partial class declaration. Logging-only helper classes also use this filename convention; reuse the existing layer helpers for shared events.
-- When moving logging declarations, preserve event IDs, levels, templates, structured property names, exception parameters, and callers.
-- Use structured `ILogger<T>` templates and typed named properties; do not use string interpolation or rendered-message parsing for query, correlation, outcome, or authorization data. Keep events compatible with both the daily JSON and SQLite providers.
-- Emit security audit events through the trusted typed audit path. `SecurityAudit=true` routes to the dedicated authoritative audit table as well as the file sink; an arbitrary property or lookalike message must never acquire audit authority. Preserve correlated request and terminal outcomes around consequential operations.
-- Use the layer's versioned `System.Diagnostics.ActivitySource` and W3C IDs at meaningful request, policy, runtime, tool, storage, presentation, evidence, retention, and recovery boundaries. Use stable low-cardinality activity names, end activities with truthful status, and do not instrument every method.
-- Activities represent causal operations, not durable business identity. A session spans many traces. Add host-owned session, task, invocation, approval, and audit correlation IDs to admitted activity tags and logging scopes; never put user text, paths, titles, model output, credentials, or secrets in activity names or tags, and do not propagate Kora identities or content through `Activity.Baggage`.
-- Preserve normal parentage through asynchronous calls. Capture admitted context when queueing work and use `ActivityLink` for deferred work, fan-out, reconciliation, restart-related work, or multiple causes rather than reusing a completed activity or fabricating a parent. Logging providers must capture `Activity.Current` when the log call occurs, before asynchronous sink buffering.
-- Treat incoming trace headers and model/provider correlation fields as untrusted correlation only. They cannot select a Kora session or establish identity, intent, permission, approval, or authority. Session-bound work and audit commits require valid host-resolved activity/session context; only explicitly classified pre-host bootstrap diagnostics may be uncorrelated.
-- Add focused tests for trace propagation and termination, queue/link behavior, cross-session isolation, hostile incoming context, structured log/audit correlation, and missing or expired trace segments.
+- Apply the [I - Implementation / E - Enablement / Q - RC policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy). Determine the minimum consumed implementation subset; an Rxx label or its remaining completion gap is not a monolithic prerequisite.
+- Retired, historical, optional, physical, lab, hardware, acoustic, provider, containment, installed-native, accessibility or experiment evidence is not an implementation prerequisite. Require it only when enabling, advertising, packaging or materially changing the exact capability/profile and its owning contract requires it.
+- E/Q gates do not block bounded fail-closed implementation, deterministic tests, PR creation or merge. Missing/unknown runtime readiness remains explicitly disabled or unavailable, with deterministic fakes at the platform seam; no speculative enablement, success fallback, real hardware/network substitute or open-ended proof harness.
+- Claim implementation-blocked only for a concrete missing consumed production contract/service, directly applicable failing maintained check, unresolved material security/consent/authority decision or conflicting live ownership. Cite the exact symbol, test, decision or owner. Delegated owners retain implementation, tests, documentation, PR, CI/review repair and merge without waiting for unrelated proofs.
 
-## Persistence and configuration
+## Instrumentation and correlation
 
-- Store device-local preferences under the application data paths supplied by `IApplicationDataPaths`; never hard-code user profile paths.
-- Use the shared atomic preference store for preference files. Domain preference classes own validation and format semantics, while the store owns paths, directory creation, unique temporary files, replacement, and cleanup.
-- Reject malformed saved values with `InvalidDataException`; do not reinterpret corrupted or unknown values as defaults.
-- Configuration writes that affect security, privacy, model approvals, or device behavior must retain their audit outcomes.
+- Follow [contributor logging conventions](../CONTRIBUTING.md#logging-conventions): source-generated `[LoggerMessage]` partial methods only, in sibling `{ClassName}.Logging.cs` files with matching namespace/partial class, including logging helpers. No `Log*` extensions or `LoggerMessage.Define`. Preserve event IDs, levels, templates, typed property names, exceptions and callers; no interpolation or rendered-text parsing.
+- Follow [activity tracing and evidence correlation](../Design/Architecture.md#activity-tracing-and-evidence-correlation): versioned layer `ActivitySource`, W3C IDs, stable low-cardinality operation names, truthful terminal status and host-owned correlation. No content/secrets in activity names/tags or Kora identities/content in `Activity.Baggage`.
+- Preserve async parentage; capture admitted context at enqueue and use `ActivityLink` for deferred/fan-out/reconciliation/restart/multiple-cause work, not fabricated parents. Capture `Activity.Current` at log-call time before buffering. Activities are causal operations, not durable session identity.
+- Use the trusted typed audit path for correlated request/terminal outcomes in the authoritative audit table and file sink. Lookalike `SecurityAudit=true` properties, provider fields, scopes and incoming trace headers are not authority. Session work/audit commits require valid host-resolved context; only explicitly classified pre-host bootstrap diagnostics may be uncorrelated.
 
-## Testing and validation
+## Validation and documentation
 
-- Add focused tests for behavior changes, failure paths, cancellation, invalid persisted data, and privacy/resource-lifecycle invariants.
-- Use xUnit v3 and AwesomeAssertions, following nearby test naming and fixture patterns.
-- Keep tests deterministic and independent of installed devices, user settings, network access, or timing where a fake can model the boundary.
-- Restore with locked dependencies and validate from the repository root:
+- Identify the changed invariant and owning contract. Supply focused behavioral regressions, exact commands/results and unrun checks; distinguish inspection, executed tests, implementation readiness and enablement/qualification. Never weaken tests, analyzers, 100% portable line/branch coverage or security boundaries to obtain green checks.
+- Use [contributor development checks](../CONTRIBUTING.md#development-checks) for pinned SDK, locked restore, build, MTP/xUnit v3/AwesomeAssertions and scheduling commands. Run the smallest covering checks; documentation-only work needs links/headings, exact examples and availability checks, not unnecessary builds or device/provider trials.
+- Do not modify `experiments` as production code or treat experimental evidence as a production contract unless explicitly tasked. Markdown directly under `docs` is embedded end-user guidance; keep developer/CI guidance beside engineering scripts or in contributor documentation.
 
-```powershell
-dotnet restore .\Kora.slnx --locked-mode
-dotnet build .\Kora.slnx --configuration Release --no-restore
-dotnet test --project .\tests\Kora.Core.UnitTests\Kora.Core.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Application.UnitTests\Kora.Application.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Tools.UnitTests\Kora.Tools.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Definitions.UnitTests\Kora.Definitions.UnitTests.csproj --configuration Release --no-build
-dotnet test --project .\tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj --configuration Release --no-build
-```
+## Pull requests and merge admission
 
-- Treat warnings as errors and keep analyzer suppressions narrowly scoped with a concrete justification.
-- Do not modify files under `experiments` as production code or treat experiment evidence as a production contract unless the task explicitly targets an experiment.
+- Follow the [account-safe PR skill](skills/kora-github-pr/SKILL.md) and [merge admission client protocol](../eng/merge-queue/README.md#copilot-and-other-pr-clients). Verify publisher, owned worktree/branch/head, repository and live queue mode before writes; failed/unknown reads confer no authority.
+- Keep one owned same-repository PR to main per ready feature, preserving an explicit draft request. Protected squash Auto-merge needs user/workflow merge authorization, not merely PR-creation authority.
+- When hosted mode is enabled, GitHub owns candidate selection, branch updates, dispatch and stale-work cancellation. No main-chasing rebases/force-pushes, manual candidate dispatch or old-ticket reruns. When disabled, retain ordinary protected CI/integration.
+- Inspect current candidate-head App checks and PR/review state; skipped waiting jobs or successful main checks are not admission. Repair the same PR, incorporating App updates. Verify actual merged state and reachability before claiming completion. Never claim unsupported background monitoring or change App installation, secrets, environments, protection, queue mode or durable queue state without separate administrator authorization.

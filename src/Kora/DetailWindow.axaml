@@ -16,9 +16,11 @@
       <TextBlock x:Name="ReferenceLabel" FontSize="11" TextWrapping="Wrap" />
       <TextBlock x:Name="DigestLabel" FontSize="11" TextWrapping="Wrap" />
       <TextBlock x:Name="ConversationHostLabel" TextWrapping="Wrap" IsVisible="False" />
+      <TextBlock x:Name="ConversationAssistantLabel" TextWrapping="Wrap" IsVisible="False"
+          AutomationProperties.Name="Complete separately retained finalized ASSISTANT answer; not original USER, HOST status or execution authority" />
       <controls:NamedTextBlock x:Name="RendererStatus" TextWrapping="Wrap"
                  AutomationProperties.Name="Native renderer and source fallback status" />
-      <TextBlock Text="native-text-v1 · 256 KiB UTF-8 · 512 blocks · 4096 nodes/controls · depth 32 · 8 viewers · search 256"
+      <TextBlock Text="Shared native bounds · 256 KiB UTF-8 · 512 blocks · 4096 nodes/controls · depth 32 · 8 viewers · search 256"
                  FontSize="11" TextWrapping="Wrap" />
     </StackPanel>
     <StackPanel Grid.Row="1" Spacing="8">
@@ -47,6 +49,9 @@
                 AutomationProperties.Name="Clear literal Find query and match" />
       </WrapPanel>
       <TextBlock Text="Literal Find: exact case and spaces; one line, 256 UTF-16 characters / 512 UTF-8 bytes maximum; nonoverlapping, no wrap. Searches only current admitted text, never reads a source." TextWrapping="Wrap" />
+      <controls:NamedTextBlock x:Name="FindSummary" TextWrapping="Wrap"
+                              AutomationProperties.Name="Literal Find count and selected ordinal in current admitted text only"
+                              AutomationProperties.LiveSetting="Off" />
       <ScrollViewer MaxHeight="100" VerticalScrollBarVisibility="Auto"
                     AutomationProperties.Name="Bounded inert literal match viewport">
         <controls:NamedTextBlock x:Name="FindSpan" Focusable="True" IsVisible="False" TextWrapping="Wrap" TabIndex="14"

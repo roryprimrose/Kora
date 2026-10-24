@@ -157,14 +157,16 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         using var root = fixture.Root();
         var proposal = await fixture.Propose();
         var reviewed = (await fixture.Service.ReviewAsync(proposal.Id, proposal.Revision, true, Token)).Record!;
-        MemoryRecord? forgotten = null;
+        Task<MemoryResult>? forgetting = null;
         fixture.OnAfterStoreCommit = () =>
         {
             fixture.OnAfterStoreCommit = null;
-            forgotten = fixture.Service.ForgetAsync(reviewed.Id, new(reviewed.Revision.Value + 1), Token)
-                .GetAwaiter().GetResult().Record!;
+            forgetting = fixture.Service.ForgetAsync(reviewed.Id, new(reviewed.Revision.Value + 1), Token);
+            forgetting.IsCompletedSuccessfully.Should().BeTrue();
         };
         var admitted = (await fixture.Service.AdmitAsync(reviewed.Id, reviewed.Revision, Token)).Record!;
+        forgetting.Should().NotBeNull();
+        var forgotten = (await forgetting!).Record!;
         forgotten.Should().NotBeNull();
         fixture.Stored.Single().Value.Should().Be(forgotten);
         (await fixture.Service.UseAsync(forgotten!.Id, forgotten.Revision, MemoryDestination.Local, Token)).Reason
@@ -663,6 +665,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         internal bool FailTerminalAudit { get; set; }
         internal bool FailRequestedAudit { get; set; }
         internal Action? OnTerminalAudit { get; set; }
+        internal Action? OnRequestedAudit { get; set; }
         internal int Writes { get; private set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
         internal List<string> Messages { get; } = [];
@@ -765,6 +768,7 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             if (FailTerminalAudit && auditEvent.Outcome != SecurityAuditOutcome.Requested) { throw new IOException("audit unavailable"); }
             HostActivity.RequireCurrent().Request.Should().BeSameAs(Request);
             Audits.Add(auditEvent);
+            if (auditEvent.Outcome == SecurityAuditOutcome.Requested) { OnRequestedAudit?.Invoke(); }
             if (auditEvent.Outcome != SecurityAuditOutcome.Requested) { OnTerminalAudit?.Invoke(); }
         }
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;

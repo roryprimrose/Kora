@@ -1,19 +1,29 @@
 <UserControl
     x:Class="Kora.CaptionDisplaySelector"
     xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
   <StackPanel Spacing="4">
-    <TextBlock Text="Caption display — this run only" TextWrapping="Wrap" />
+    <Grid ColumnDefinitions="*,Auto" ColumnSpacing="8">
+      <TextBlock Text="Caption screen — until Kora restarts" TextWrapping="Wrap" />
+      <controls:SettingActionsButton Grid.Column="1" SettingName="Caption screen"
+                                     IsEnabled="{Binding CanSelect}">
+        <controls:SettingActionsButton.Flyout>
+          <MenuFlyout>
+            <MenuItem Header="Use main screen" Click="OnReset" IsEnabled="{Binding CanSelect}"
+                AutomationProperties.HelpText="Return captions to the main screen. Previous captions are not restored. Other caption settings are unchanged." />
+          </MenuFlyout>
+        </controls:SettingActionsButton.Flyout>
+      </controls:SettingActionsButton>
+    </Grid>
     <ComboBox x:Name="DisplayChoice" ItemsSource="{Binding Choices}"
         SelectedItem="{Binding SelectedChoice}" IsEnabled="{Binding CanSelect}"
-        HorizontalAlignment="Stretch" PlaceholderText="Inspect and choose a current display"
+        HorizontalAlignment="Stretch" PlaceholderText="Choose a connected screen"
         AutomationProperties.Name="Current caption display"
-        AutomationProperties.HelpText="Live native displays only. Choosing never enables captions, speaks, captures or extends pinning or dismissal." />
+        AutomationProperties.HelpText="Choose a connected screen for captions. This does not turn captions on, start speech or recording, or change how long captions stay visible." />
     <WrapPanel>
       <Button Content="Use selected display" Click="OnSelect" IsEnabled="{Binding CanSelect}"
           AutomationProperties.Name="Use selected display for captions this run only" />
-      <Button Content="Return to primary" Click="OnReset" IsEnabled="{Binding CanSelect}"
-          AutomationProperties.HelpText="Explicitly return to the current primary display. Does not restore retired text or repair caption preferences." />
     </WrapPanel>
     <TextBlock Text="{Binding DisplayStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Caption display status and recovery" />

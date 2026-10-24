@@ -10,6 +10,27 @@ The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
 
+The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
+Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
+
+Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to display additions. Readable complex data, Markdown, admitted browser content, ordinary Find, wrapping and accessibility support the product. Standalone content-analysis buttons and engineering-only normal-workspace filters are not justified by the existence of a viewer or immutable snapshot.
+
+## Delivered bounded response-window preference commands
+
+The [exact response-window grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs) admits inspect/set/per-option reset for existing device-local AlwaysShow and Topmost, plus four explicit natural on/off phrases.
+Typed and current-name activated voice routes delegate to the same native setters and trusted audited preference writer; they add no tool/model/external-content or arbitrary window authority
+([command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [native setters](../src/Kora.Application/ViewModels/MainViewModel.cs)).
+
+Results use transcript status rather than response presentation: no immediate speech, response reveal, source restoration, question answer/cancellation or security-panel replacement. Reserved malformed commands clarify before those routes.
+Mutation requires the original owning unlocked host admission; the existing writer rechecks privacy/owner/call/voice epochs around commit and suppresses stale success
+([command workflow](../src/Kora.Application/ViewModels/MainViewModel.ResponseWindowCommands.cs), [writer](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
+
+AlwaysShow suppresses inactivity hiding only; dismissal and private/source/call revocation still win. Topmost changes only Kora's response preference, never OS-wide state, activation, foreground consent, geometry, retention or speech/caption mode.
+Each off/reset preserves the companion Boolean, saved position and separate timeout ([defaults](../src/Kora.Core/Configuration/ResponseWindowSettings.cs), [native notifications](../src/Kora/ResponseWindow.axaml.cs), [show admission](../src/Kora/ResponseWindowController.cs)).
+
+Unknown/malformed or externally changed saved state cannot be overwritten using cached defaults; failures and uncertain commits require explicit saved-state/audit inspection and a fresh request after repair/restart.
+[Deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseWindowCommands.cs) are implementation evidence only: no new hardware, installed UI/accessibility, acoustic, provider or RC qualification is claimed.
+
 ## Delivered retained original USER / typed HOST Details - 2026-10-14
 
 After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.
@@ -26,9 +47,11 @@ This route grants no clipboard/export authority: exact-source, selection and aut
 
 The existing Detail window now exposes **Find first / Next / Previous / Cancel Find / Clear literal Find** over only its frozen in-memory displayed text. Exact source and continuous semantic text remain distinct projections; switching source resets navigation. Retained original USER is unchanged, with a separate explicit **Find separate typed HOST observation** target for the already displayed native observation, never a combined or generated body.
 
-[Viewer state](../src/Kora.Application/Presentation/DetailViewerState.cs) uses the canonical [SnapshotLiteralFind](../src/Kora.Core/Context/SnapshotLiteralFind.cs) policy shared by clipboard/local-file Find: case-sensitive unchanged spaces, nonempty well-formed one-line query, at most 256 UTF-16 characters / 512 strict UTF-8 bytes, nonoverlapping steps and **no wrap**. Invalid queries are rejected visibly, not normalized or shortened. One inert bounded span and end-exclusive UTF-16 location are exposed, without indexing/counting all occurrences. Direction exhaustion hides the match but retains its cursor for reverse navigation.
+[Viewer state](../src/Kora.Application/Presentation/DetailViewerState.cs) uses the canonical [SnapshotLiteralFind.FindCounted](../src/Kora.Core/Context/SnapshotLiteralFind.cs) policy shared by clipboard/local-file Find: case-sensitive unchanged spaces, nonempty well-formed one-line query, at most 256 UTF-16 characters / 512 strict UTF-8 bytes, complete nonoverlapping count and **no wrap**. Previous follows the same forward nonoverlapping sequence, not an overlapping alternative. Invalid queries are rejected visibly, not normalized or shortened. One inert bounded span, end-exclusive UTF-16 location and selected ordinal (for example, **Match 2 of 5**) are exposed. Direction exhaustion hides the match but retains its cursor and ordinal for reverse navigation.
 
-Query edits, projection/target changes, Cancel and Clear retire the cursor; Cancel retains the query, Clear releases it. Close, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale and accessible names/status.
+Counts are volatile presentation state over only the exact currently admitted bounded reader text, or only the separate typed HOST observation when explicitly selected. They do not claim complete source, corpus or historical coverage and never combine USER, ASSISTANT, HOST, hidden metadata, source and rendered projections. A completed zero-match search exposes **0 matches**; edited, cancelled, invalid, unavailable or retired searches expose no count/ordinal. All native Details origins share this state contract and their existing Find admission; no unavailable profile is enabled. The count is computed on an explicit Find action, never a property read or idle refresh, and requires no new source read.
+
+Query edits, projection/target changes, render/load completion, Cancel and Clear retire the cursor, count and ordinal; Cancel retains the query, Clear releases it. Close, disposal, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus, including reentrant retirement. Focus failure also retires the result rather than claiming success. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale. A separate native accessible count status exposes the displayed count/ordinal without duplicating it in the match or outcome names, and is not a live region announcing each keystroke.
 
 Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
 
@@ -49,6 +72,14 @@ Only one exact bounded match is focused in the existing inert `NamedTextBlock` p
 
 See [semantics, private source admission and maintained evidence](File_And_Folder_Ingestion.md#delivered-native-current-source-literal-find---2026-10-12). Existing lexical/Markdown retrieval and citation limits are unchanged; native fixtures do not qualify installed/accessibility, model grounding or broader display/source authority.
 
+## Delivered Preparation-Only Local Search - 2026-10-20
+
+Original typed/current-name ACTIVATED `prepare file search for "<query>"` / `prepare folder search for "<query>"` pre-populates the existing exact volatile inspection window, not this viewer's Literal Find or a retained attachment.
+It resets run-only lexical mode and clears old citations, with **PREPARED / REVIEW NEEDED** and no search/result claim ([native hook](../src/Kora/LocalFilePreviewWindow.PreparedSearch.cs)).
+
+Raw final-quoted input preserves query characters. The scoped handoff freezes the admitted immutable source and rechecks queued admission; stale, closed, replaced or wrong-kind sources refuse. Only a separate native Search gesture executes the existing LocalUi-only audited path.
+No read/search/refresh/metadata capture, provider, clipboard, persistence, Attach or consent authority is added ([owning contract](File_And_Folder_Ingestion.md#delivered-preparation-only-native-lexical-query---2026-10-20)).
+
 ## Delivered Immutable Volatile Web-Result Details - 2026-10-10
 
 An actual successful original-user `get web page <URI>` result now offers **Open exact web-result details** in the compact response. It opens or activates the same immutable host-issued item/revision in the existing native-text-v1 viewer.
@@ -67,10 +98,44 @@ Only one current volatile web snapshot is retained. Replacing/dismissing/closing
 A removed old control cannot retarget the latest result. Closing only the detail viewer permits explicit reopening of the same still-current source. Eight native viewers remain the shared limit. Retirement also clears the compact response's matching web body, never an unrelated later response or required question/card.
 
 Rendering is strictly inert plain text: no HTML, active links/images/scripts/styles, resource loading, browser, autodownload or further network. Private source/selection copy retains explicit native disclosure confirmation and fresh admission to that original snapshot.
-There is no persistence, export, speech/caption creation, diagnostic content, model context or provider transmission. Existing admitted session-history copy and passive retention semantics remain separate and unchanged.
+Fetch/details create no persistence, export, speech/caption, diagnostic content, model context or provider transmission. Explicit local summary below is not an implicit consequence of retrieval or viewing. Existing session-history copy and passive retention stay separate ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs)).
 
 Maintained Core/Application/native fake and headless-binding tests cover provenance/digests/empty/truncation/bounds, actual response-to-viewer reuse, zero additional transport calls, retired controls and private/late/native-failure paths.
 They do not qualify installed visual/accessibility/DPI, transport security, durable conversation/knowledge, general details or the unavailable parameterized model tool loop.
+
+### Explicit Local Summary Of One Current Web Snapshot
+
+`summarize current web result`, optionally prefixed by the current assistant name, and the exact-source native button prepare a review, not a model call. Confirmation names its one-use ID or uses its native control. Retrieval consent is not model source-use consent ([parser](../src/Kora.Application/Network/WebSummaryCommand.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
+
+The [web action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and inert provenance as LocalOnly evidence and refuses complete serialized envelopes above 32,768 UTF-8 bytes. Its shared credential screening is narrow reject-only assistance, not comprehensive sensitivity detection or source-use approval. Addresses confer no authority.
+
+The [view model](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs) preserves the original response/details and displays admitted model text separately with fixed attribution. It adds no automatic inference, retrieval, speech, history, hosted fallback or model action. Source/reference, response/control/presentation, privacy/recovery/call epochs and review expiry fence late publication.
+
+The [review](../src/Kora.Application/Network/WebSummaryReview.cs) discloses the exact fresh `Local context` session and source-free receipt retention. Confirmation preserves the original-input channel; it cannot silently select or retarget another session ([target](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs)).
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) consumes the shared [Core runner](../src/Kora.Core/Dependencies/IModelContextRunner.cs). Review stores no envelope. A distinct exact target receives durable admission before evidence is bound to its [lease](../src/Kora.Core/Dependencies/IAdmittedModelContextTurn.cs), never to the volatile fetch/source request.
+
+The [shared workflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs) owns source-free durable receipts and quiescence. The [web action](../src/Kora.Tools/Network/WebResultSummarize.cs) owns credential screening and complete-envelope construction, not sensitivity approval. The local-only envelope disables tools; shared source-current checks fence dispatch and late return.
+
+[IWebResultModelUsePolicy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) supplies a separate affirmative source-specific sensitivity/use decision over the complete exact snapshot. Retrieval consent, user confirmation, LocalOnly classification and narrow credential heuristics cannot replace it. Unknown or denied decisions prevent context/provider dispatch.
+
+No production web-source sensitivity/use service is delivered. The composed [unavailable policy](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) returns Unavailable before durable admission or envelope construction, including for ordinary prose without recognized credentials. This is an incomplete production source-policy requirement, independent of model qualification.
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) rechecks policy after asynchronous admission, through the shared execution validator and before late presentation. A denied/unknown observation permanently closes that use; later allowance cannot revive it. No retry, fallback, source rewrite or secret-free claim is introduced.
+
+Unqualified production registrations stay unavailable; denied/uncertain results disclose no answer or fallback ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs)).
+
+The [protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Context.cs) and [native framing](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserve `ModelToolMode.None`. Tool requests are denied before registry execution. Fake success is not provider qualification.
+
+[Push-to-talk](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs) reports capture status without replacing an existing exact web response. Activated summary and confirmation can therefore name that same current snapshot; other response replacement still retires it ([voice/source tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WebSummaryBoundaries.cs)).
+
+[Tool tests](../tests/Kora.Tools.UnitTests/Network/WebResultSummarizeTests.cs), [workflow tests](../tests/Kora.Application.UnitTests/Network/WebSummaryWorkflowTests.cs) and [presentation tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.WebSummary.cs) use deterministic sources/adapters.
+
+[Lifecycle](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.WebSummary.cs), [tool denial](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.WebSummary.cs) and [native binding](../tests/Kora.Windows.IntegrationTests/WebResultDetailsBindingTests.cs) cover production seams. They do not qualify providers, offline/containment or summary quality.
+
+[Lease-first web tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs) prove evidence is bound only after admitted target resolution, foreign leases receive no source, and overflow/cancellation/source closure disposes the lease without model dispatch.
+
+[Policy tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs) use explicit allowed/denied/unavailable fakes; [shared tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.WebSummary.cs) exercise production unavailability and policy revocation. Fake success demonstrates workflow behavior, not real source classification.
 
 ## Delivered Exact Native Provider-Handoff Review - 2026-10-10
 
@@ -175,6 +240,54 @@ See [the R07 security boundary](Security_Data_Flows.md#delivered-r07-local-clipb
 full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
+
+#### Exact native Evidence trace preparation
+
+Original typed/current-name ACTIVATED `prepare evidence trace <trace-id>` uses a
+[dedicated parser](../src/Kora.Core/Commands/EvidenceTraceCommand.cs), the
+authoritative `TraceSnapshot.IsValidW3CId(value, 32)` validator and an
+[Application-only handoff](../src/Kora.Application/ViewModels/MainViewModel.EvidenceTrace.cs).
+The original value is exactly 32 nonzero lowercase ASCII hex characters, never
+trimmed, repaired, case-folded or inferred from GUIDs, spans, headers or links.
+The reserved malformed family is handled before question/model routing.
+`evidence trace help` is constant syntax, never current trace/source metadata.
+
+The [existing singleton controller](../src/Kora/EvidenceWindowController.cs)
+queues a native-only open/focus and
+[exact filter preparation](../src/Kora/EvidenceWindow.axaml.cs), requiring native
+focus and exact original value readback before success. Original input, assistant
+name, host/privacy, ownership binding/revision, call policy, activated voice
+generation, native controller/window, selected source and all filter/control
+revisions remain fenced through dispatcher opening and preparation. Unbound,
+disposed, denied, changed or unconfirmed presentation is explicitly unavailable,
+not a latest/unfiltered or alternative-source fallback.
+
+Only `TraceFilter` changes; **all other filters and the selected source remain
+unchanged and AND-composed**. New-window defaults are unchanged. The
+[same no-read filter invalidation](../src/Kora/EvidenceViewModel.Filters.cs)
+retires rows, selection/details, Find, actions, cursors and pending pages, even
+when preparing the same trace value. Late pages and old segment opens cannot
+restore retired content. Separate explicit Search / refresh and Next alone use
+the existing bounded retained reader under host-resolved admission; signed
+continuations, full-record validation before exclusion, budgets, privacy and
+cancellation are unchanged.
+
+No read/probe/count/scan, retention/cleanup/export, source capture, session
+selection, permission/approval response, audit promotion, model/provider/network,
+clipboard/persistence or meaningful activity renewal is introduced. Trace
+correlation remains untrusted diagnostic data, not Kora session/task/user
+identity, ownership or authority. It never selects AuthorityAudit or supplies
+an Activity parent, baggage, host session or current context. Existing admitted
+content-free host correlation remains separate from the trace-filter value.
+
+The consumed **I - Implementation** subset is the existing native Evidence
+singleton, exact trace validator, filter retirement and bounded retained reader.
+[Deterministic preparation tests](../tests/Kora.Windows.IntegrationTests/EvidenceTracePreparationTests.cs)
+cover no-read native acknowledgment, preserved filters/source and retired/late
+state. Portable parser/Application tests, maintained Release/analyzers and raw
+100% portable line **and** branch coverage remain required for readiness.
+Unrelated E/Q, providers, hardware, installed accessibility and retired
+experiments are not implementation prerequisites or newly qualified here.
 
 **Find first / Find next / Find previous / Clear literal Find** inspect only
 the exact immutable serialized `ResultText` page already returned by an explicit
@@ -544,6 +657,20 @@ acquire a renderer; links are inert display text, not arbitrary navigation.
 Semantic expansion is UTF-8-budgeted while building, including repeated
 reference-link destinations, before any control or joined projection is
 published.
+
+### Separately gated display-only Markdown checklists
+
+The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.
+
+The profile preserves strict source/semantic UTF-8, block, node and nesting bounds from [native-text-v1](../src/Kora.Core/Presentation/NativeDetailProfile.cs). Escaped markers and inline/fenced/indented code remain literal. Images, raw HTML, tables and unsupported extensions retain the entire admitted exact source; no partial checklist is published ([maintained parser/accessibility contracts](../tests/Kora.Windows.IntegrationTests/NativeMarkdownChecklistTests.cs)).
+
+[Native projection](../src/Kora/MarkdownDocumentRenderer.cs) uses inert text with explicit state in the accessible name, not toggle/invoke automation patterns. Original source and ordinary literal Find remain distinct, bounded in-memory projections. Source/privacy/session retirement and the existing no-copy policy for finalized responses remain enforced by [controller contracts](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Checklists.cs).
+
+[Details dispatch](../src/Kora/DetailWindowController.cs) selects this profile only for already host-classified Markdown finalized responses, never by inspecting model markup. Plain-text current responses and retained original USER records stay literal; embedded/history Markdown retain the independently gated table profile. Neither legacy profile acquires checklist support.
+
+The [validated final-answer producer](../src/Kora.Application/ViewModels/MainViewModel.cs) freezes the exact original answer in host-typed state alongside the current ordinary response. Existing native, typed and activated-voice current-response Details pass only that answer body as Markdown, retaining the local-generation warning in native provenance. Visible response/speech and ordinary status PlainText remain unchanged ([actual-route tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MarkdownAnswerDetails.cs)).
+
+Implementation and deterministic headless contracts do not enable composition: checklist availability defaults to false, returning labelled entire-source fallback for an explicitly requested unqualified profile. This delivers the frozen **current** model-answer source route, not persisted retained assistant-answer Details; retained original USER remains PlainText. No public switch, provider/hardware/browser/resource access or installed accessibility/Enablement/RC qualification is added.
 
 Native chrome contains provenance, revision/digest, sensitivity, renderer
 status, Rendered/Source, continuous text, search, selection/exact-source copy
@@ -1041,7 +1168,7 @@ and display lifetimes.
 **Current sentence** and word alignment remain open: the actual adapter supplies
 utterance segment 0 only, so estimated boundaries are not advertised as
 host-admitted playback alignment. Arbitrary coordinates and
-broader natural caption/navigation commands below remain proposed. Native
+caption/navigation commands outside the [bounded natural grammar](#bounded-natural-speech-caption-commands) remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed
 accessibility, installed multimonitor or acoustic qualification. Rich HTML/browser/diagram rendering is
 not delivered. The acoustic experiment remains maintained and is not retired.
@@ -1114,6 +1241,24 @@ Present source/provenance and a visible static-preview limitation.
 Malformed/unsupported content offers escaped source/plain text, explicitly labelled rather than falsely reported as a successful rich preview.
 Dynamic model-generated JavaScript applications are outside initial scope; they need a separate containment proof, not an "enable scripts" preference.
 Saving/exporting HTML is an exact user-selected write outside protected roots; opening exported content outside Kora is separately requested with limitations disclosed.
+
+### Strict Native Static HTML Implementation Boundary
+
+The additive `static-html-v1` implementation consumes only an explicitly admitted `DetailContentKind.StaticHtml` snapshot. It is **unqualified and unavailable by default**; production composition does not enable it ([renderer](../src/Kora/StaticHtmlDetailRenderer.cs), [composition](../src/Kora/App.axaml.cs)).
+The actual detail controller uses the existing immutable viewer, privacy/access/generation and source-copy boundaries and returns labelled complete-source fallback, not a helper-only preview or inferred HTML classification ([routing](../src/Kora/DetailWindowController.cs)).
+
+The approved initial grammar is an XML-compatible fragment, not HTML5 error recovery: lowercase `div`, `p`, `h1`-`h6`, `ul`, `ol`, `li`, `blockquote`, `pre`, `code`, `strong`, `em`, `b`, `i`, `span`, and self-closed `br`/`hr` ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+All other elements, every attribute (including namespaces), comments, processing instructions and CDATA are unsupported. Lists require direct `li` children; block content inside phrasing containers is rejected ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs)).
+Inline emphasis becomes semantic plain text, lists/quotes receive inert textual labels, and headings retain levels in labelled native text controls ([controls](../src/Kora/StaticHtmlDocumentRenderer.cs)).
+
+One authoritative profile limits parsing to 65,536 strict UTF-8 source bytes, 65,536 semantic UTF-8 bytes, 256 block-element starts, 2,048 element/text nodes (including whitespace text, excluding closing tags), element depth 16, zero attributes and 2,048 entity-reference introducers ([limits](../src/Kora.Core/Presentation/StaticHtmlProfile.cs)).
+Bounds are inclusive; separators and list/quote labels count toward semantic bytes. Only XML predefined and numeric entities are decoded, once; DTDs and resolvers are disabled. No additional public dependency or browser is used ([bounded parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [exact-boundary tests](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+Entity introducers are counted directly in source before decoding, independently of nodes. The immutable result records both counts; predefined and numeric references coalescing into one reader text node cannot bypass the separate 2,048-reference bound ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [measured boundaries](../tests/Kora.Core.UnitTests/Presentation/StaticHtmlParserTests.cs)).
+
+Unsupported, malformed, oversize-for-profile, unknown-profile and unqualified results never publish partial semantics. They retain the entire admitted Unicode source, including original line endings; rendering may collapse XML whitespace and normalize preformatted XML line endings without changing that source ([fallback](../src/Kora/StaticHtmlDetailRenderer.cs)).
+The existing 256 KiB admission ceiling still applies: content above admission is explicitly refused, never truncated ([admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+This increment adds no byte-ingestion route, asset resolver, rich clipboard serializer, active navigation or default content producer; existing byte decoders and source admission remain responsible for valid Unicode ([parser](../src/Kora.Core/Presentation/StaticHtmlParser.cs), [composition](../src/Kora/App.axaml.cs)).
+Native/accessibility/theme/DPI qualification and complete rich-clipboard behavior remain separate enablement work, not implementation claims ([source/privacy tests](../tests/Kora.Windows.IntegrationTests/StaticHtmlDetailRendererTests.cs), [qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy)).
 
 ## Markdown and Extensions
 
@@ -1283,13 +1428,45 @@ Delivered caption options use [User Configuration](User_Configuration.md):
 
 All also have exact get/status/reset and `list speech text settings` discovery.
 
+### Bounded natural speech-caption commands
+
+Original typed input and current-name activated voice accept only the following whole utterances, case-insensitively, with an optional current assistant-name prefix. They map to the existing exact commands, not model inference; all phrases are included in recognition discovery and the configuration syntax help ([parser](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
+
+| Whole utterance | Existing action and scope |
+|---|---|
+| `turn on speech captions`, `show speech captions`, `show speech text`, `show the words you're saying` | Save device-local `CurrentUtterance`; this is persistent opt-in, not immediate display or replay |
+| `turn off speech captions`, `hide speech captions`, `hide speech text` | Save device-local `Off`; this is persistent opt-out, not one-shot hiding |
+| `list speech caption settings`, `inspect speech caption settings`, `status speech captions` | Inspect existing saved/effective settings and recovery |
+| `reset speech captions` | Save `Off` only; preserve placement and dismissal delay |
+| `get/status/reset speech caption placement` | Inspect or reset only placement |
+| `get/status/reset speech caption dismissal delay` | Inspect or reset only dismissal delay |
+| `put speech captions in the bottom-right/bottom-left/top-right/top-left` | Save one of the four existing working-area corners; no automatic display selection |
+| `keep speech text visible for <seconds> seconds` | Save canonical integer 0-30 seconds; use `1 second` for one, not number words |
+| `pin current speech caption`, `unpin current speech caption` | Run-only pin/unpin of the eligible host-owned current caption; never a content selector |
+
+The table abbreviates alternatives with `/`; a command contains one complete alternative. Unknown settings, trailing clauses, number words, noncanonical/out-of-range delays and vague `pin that text`/`unpin that text` clarify rather than falling through to inference or approval/question handling. Embedded or quoted instructions do not match ([grammar tests](../tests/Kora.Application.UnitTests/Configuration/NaturalSpeechCaptionCommandTests.cs)).
+
+Aliases retain original input origin, saved-preference confirmation, session/generation/choice identity, ownership/privacy/call admission and typed audit/atomic/readback outcomes. Configuration does not speak, stop listening or change response mode; options do not opt in. Pinning uses the existing observed playback identity and never restores retired speech ([execution](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs), [configuration service](../src/Kora.Application/Configuration/SpeechTextConfigurationService.cs)).
+
+New speech, replacement, cancellation/failure, call/privacy/source/voice-generation changes and late callbacks retain the existing retirement rules. Activated input still uses the existing capture/interruption lifecycle; a caption retired by that lifecycle cannot be pinned afterward. No new playback, capture, re-reading, arbitrary response targeting, model/external-content authority or display-choice route is added ([caption lifetime](../src/Kora.Application/Voice/SpeechCaption.cs), [consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.NaturalSpeechCaptions.cs)).
+
+This is bounded Implementation command parity only. Installed-native/accessibility/display/DPI, hardware/acoustic/provider and Enablement/RC qualification remain separate; deterministic tests do not qualify those capabilities ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ### Bounded native reader text scale
 
 Appearance persistence runs off the dispatcher. During a known in-process save, new reader admission remains unavailable; existing Evidence content retains only its last confirmed typography and current private-content admission ([Evidence](../src/Kora/EvidenceWindow.axaml.cs)).
 
 Captions temporarily hide until confirmation and independent source eligibility, without resetting retirement/failure state ([captions](../src/Kora/SpeechCaptionWindowController.cs)).
 
-The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor. Relative or natural-language examples below remain proposed, not inferred commands ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+The delivered native reader preference is `appearance.reader-text-scale`: an absolute integer percentage, default **100**, inclusive **75–200**. It uses the appearance registry, exact `get`/`status`/`set`/`reset` and `list appearance settings`, and the native Settings Appearance editor ([registry](../src/Kora.Core/Configuration/AppearanceOptionRegistry.cs), [ID parser](../src/Kora.Application/Configuration/AppearanceCommand.cs)).
+
+Delivered natural exact commands are `use dark mode`, `use light mode`, `use system theme`, `get/status reader text scale`, `reset reader text scale`, and `set reader text scale to <integer> percent`.
+Original typed input or current-name-prefixed activated voice uses the same admitted appearance executor, not model interpretation
+([grammar](../src/Kora.Application/Configuration/NaturalAppearanceCommand.cs), [executor](../src/Kora.Application/ViewModels/MainViewModel.Appearance.cs)).
+
+`increase/decrease reader text scale by <positive integer> percentage points` reads fresh confirmed service state at execution and uses checked arithmetic plus registry validation.
+The existing revision-bound proposal refuses concurrent changes rather than overwriting or recalculating. No clamp, guessed value, selected-window inference or new policy layer is introduced
+([proposal](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs), [exact examples](../docs/commands.md#natural-exact-app-theme-and-native-reader-text-scale)).
 
 Only content typography scales: shared DetailWindow Rendered blocks, exact Source and continuous text; native original file/folder and retained attachment source bodies; exact source citation/literal-match spans; native volatile clipboard snapshot source body; admitted complete immutable serialized Evidence page body and its inert focused literal-Find span; currently observed native speech-caption content text. Newly created windows inherit the confirmed preference. Repeated changes apply against each control's original font/line-height, never cumulatively ([binding](../src/Kora/NativeReaderTypography.cs), [detail](../src/Kora/DetailWindow.axaml.cs), [file](../src/Kora/LocalFilePreviewWindow.cs), [span](../src/Kora/LocalFilePreviewWindow.Citations.cs), [clipboard](../src/Kora/ClipboardPreviewWindow.cs), [Evidence](../src/Kora/EvidenceWindow.axaml.cs), [caption](../src/Kora/SpeechCaptionWindow.axaml.cs)).
 
@@ -1297,22 +1474,22 @@ Trusted chrome, consent/approval/question controls, search inputs/results, prove
 
 The preference is device-local atomic state under application data paths, with strict integer validation and pending evidence until exact readback and successful audit. Malformed, unknown, externally changed or unconfirmed evidence fails explicitly; it is not silently treated as 100. Existing preference files/migrations remain unchanged ([store](../src/Kora.Application/Configuration/LocalReaderTextScalePreferences.cs), [workflow](../src/Kora.Application/Configuration/AppearanceConfigurationService.cs)).
 
-Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and voice-command inference. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
+Excluded: inline guide/grant previews, compact response/conversation lists, Evidence filters/query fields/result navigation/provenance/status and incomplete pages, search/attachment catalogues, caption labels/Pin/Unpin/display selector/status/chrome, browser/generated HTML/Mermaid/PDF/image renderers, model/runtime interfaces and inferred voice commands. Caption scaling preserves exact text, response/playback/generation/segment identity, native geometry/display selection, original pin/dismissal lifetime and retirement. Preference/privacy/source/call/window closure, replacement, interruption, failure/cancellation and late callbacks clear stale scaled content. This is **not global text scaling**. Full accessibility, real hardware, Windows DPI/display and assistive-technology acceptance remain open; deterministic headless checks qualify only these bounded native readers.
 
 The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|
-| Speech text | Off / sentence / utterance | "Show the words you're saying" |
-| Speech-text dismissal | 5 seconds; 0-30 seconds | "Keep speech text visible for ten seconds" |
-| Caption placement | Working-area corner/display; 24-DIP margin initially | "Put speech text in the top-left" |
+| Speech text | Sentence/word alignment remains proposed; bounded Off/CurrentUtterance aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Show the current sentence" (proposed) |
+| Speech-text dismissal | Number-word parsing remains proposed; canonical integer 0-30 commands are [delivered above](#bounded-natural-speech-caption-commands) | "Keep speech text visible for ten seconds" (proposed) |
+| Caption placement | Arbitrary placement and voice display selection remain proposed; four corner aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Put speech text on another display" (proposed) |
 | Text scale | 100%; 75-200% | "Make result text twenty percent larger" |
 | Detailed result opening | Offer (default) / Open automatically / Link only | "Always open detailed results" |
 | Browser target | Embedded when verified; external only by explicit selection | "Use my default browser for websites" |
 | Markdown mode | Rendered / source | "Show Markdown source by default" |
 | Mermaid | Enabled only after integration gate; source alternative always available | "Show Mermaid diagrams as source" |
 
-Content commands include "show the full answer", "hide speech text", "pin that text", "unpin that text", "show this page", "preview that HTML", "show the source", "show the diagram", "zoom in", "go back", and "close the content viewer".
+Broader proposed content commands include "show the full answer", "show this page", "preview that HTML", "show the source", "show the diagram", "zoom in", "go back", and "close the content viewer". `hide speech text` is a delivered persistent opt-out; caption pinning requires the explicit current-caption phrases above, never "pin that text" or "unpin that text" ([parser](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 Remote assets remain blocked by default; "load the images for this page" initiates an exact reviewed asset operation, not a blanket setting or approval for future documents.
 Ambiguous "that" or multiple viewer targets requires clarification.
 Scrolling/diagram zoom/navigation operate on displayed content only; they cannot automate page forms or execute webpage instructions.

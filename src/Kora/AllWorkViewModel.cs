@@ -13,16 +13,15 @@ namespace Kora;
 
 internal sealed partial class AllWorkViewModel(
     SessionWorkspaceService service, ISessionWorkspaceAccess access, ILogger<AllWorkViewModel> logger,
-    Func<HostId<SessionIdentity>, Func<bool>, CancellationToken, Task> navigate) : ObservableObject
+    Func<HostId<SessionIdentity>, Func<bool>, CancellationToken, Task> navigate) : ObservableObject, IDisposable
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
     private CancellationTokenSource? operation;
     private SessionWorkOverviewPage? page;
+    private long pageControlRevision;
     private SessionWorkOverviewRow? selected;
     private SessionListFilter filter;
-    private SessionWorkOverviewAvailability? availability;
-    private SessionWorkOverviewContent content;
     private HostTaskState? taskState;
     private string queryText = string.Empty;
     private SessionListSearchKind queryKind;
@@ -34,34 +33,11 @@ internal sealed partial class AllWorkViewModel(
     private long epoch;
     private string status = "Refresh manually to inspect a bounded page. Opening grants nothing. " + SessionWorkOverviewPage.Scope;
 
-    public IReadOnlyList<SessionWorkOverviewRow> Records => page?.Records ?? [];
+    public IReadOnlyList<SessionWorkOverviewRow> Records => orderedRecords;
     public SessionWorkOverviewRow? SelectedRecord => selected;
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } =
         [SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId];
-    public sealed record AvailabilityChoice(SessionWorkOverviewAvailability? Value, string Label)
-    {
-        public override string ToString() => Label;
-    }
-    public IReadOnlyList<AvailabilityChoice> AvailabilityChoices { get; } =
-    [
-        new(null, "Any"),
-        new(SessionWorkOverviewAvailability.Observed, "Observed"),
-        new(SessionWorkOverviewAvailability.SourceChanged, "Source changed"),
-        new(SessionWorkOverviewAvailability.ReadUnavailable, "Read unavailable"),
-        new(SessionWorkOverviewAvailability.OutputBound, "Output bound")
-    ];
-    public sealed record ContentChoice(SessionWorkOverviewContent Value, string Label)
-    {
-        public override string ToString() => Label;
-    }
-    public IReadOnlyList<ContentChoice> ContentChoices { get; } =
-    [
-        new(SessionWorkOverviewContent.Any, "Any"),
-        new(SessionWorkOverviewContent.QueueReceipt, "At least one observed queue receipt"),
-        new(SessionWorkOverviewContent.Task, "At least one observed task"),
-        new(SessionWorkOverviewContent.PendingQuestion, "At least one observed pending question")
-    ];
     public sealed record TaskStateChoice(HostTaskState? Value, string Label)
     {
         public override string ToString() => Label;
@@ -71,12 +47,11 @@ internal sealed partial class AllWorkViewModel(
     public string Status => status;
     public bool CanRead => !closed && !busy && access.CanInspect;
     public bool CanEdit => !closed && access.CanInspect;
-    public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText))
-        && TryRanges(out _, out _) && TryTaskQuery(out _, out _);
+    public bool CanSearch => CanEdit && (queryText.Length == 0 || SessionListSearch.IsValid(queryKind, filter, queryText));
     public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
-    public string SelectedDetails => selected is null ? string.Empty : Describe(selected);
+    public string SelectedDetails => selectedDetails;
     public string QueryHint => queryText.Length == 0
         ? "No query: bounded overview scan. Typing never reads; Search/Refresh starts a fresh scan."
         : SessionListSearch.IsValid(queryKind, filter, queryText)
@@ -139,52 +114,6 @@ internal sealed partial class AllWorkViewModel(
             Notify();
         }
     }
-    public SessionWorkOverviewAvailability? Availability
-    {
-        get => availability;
-        set
-        {
-            SessionWorkOverviewFilter.Validate(value);
-            if (!CanEdit || availability == value) { return; }
-            Invalidate();
-            availability = value;
-            status = "Observation availability filter changed. No read performed; Refresh. Unavailable is not empty work.";
-            Notify();
-        }
-    }
-    public AvailabilityChoice SelectedAvailabilityChoice
-    {
-        get => AvailabilityChoices.Single(choice => choice.Value == availability);
-        set
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            Availability = value.Value;
-        }
-    }
-    public SessionWorkOverviewContent Content
-    {
-        get => content;
-        set
-        {
-            SessionWorkOverviewFilter.Validate(value);
-            if (!CanEdit || content == value) { return; }
-            Invalidate();
-            content = value;
-            status = "Observed-content filter changed. No read performed; Refresh. Only retained observed records match; "
-                + "unavailable or omitted records prove no absence, completion or permission.";
-            Notify();
-        }
-    }
-    public ContentChoice SelectedContentChoice
-    {
-        get => ContentChoices.Single(choice => choice.Value == content);
-        set
-        {
-            ArgumentNullException.ThrowIfNull(value);
-            Content = value.Value;
-        }
-    }
-
     public HostTaskState? TaskState
     {
         get => taskState;
@@ -211,36 +140,34 @@ internal sealed partial class AllWorkViewModel(
 
     public void Select(SessionWorkOverviewRow? row)
     {
-        if (closed || busy || row is not null && !Records.Contains(row)) { return; }
+        if (closed || busy || notifyingOrder || row is not null && !Records.Any(current => ReferenceEquals(current, row))) { return; }
+        RetireFind();
         selected = row;
+        selectedDetails = row is null ? string.Empty : Describe(row);
+        AdmitFind();
         Notify();
     }
-    public void Cancel() => operation?.Cancel();
+    public void Cancel()
+    {
+        RetireFind();
+        operation?.Cancel();
+        NotifyFind();
+    }
 
     public Task RefreshAsync(bool next = false)
     {
-        if (!TryTaskQuery(out var taskQuery, out _))
-        {
-            Invalidate();
-            status = TaskQueryHint;
-            Notify();
-            return Task.CompletedTask;
-        }
-        if (!TryRanges(out var ranges, out _))
-        {
-            Invalidate();
-            status = RangeHint;
-            Notify();
-            return Task.CompletedTask;
-        }
         return RunAsync(async token =>
         {
             var cursor = next ? page?.Next ?? throw new InvalidOperationException("Refresh before Next.") : null;
             var query = queryText.Length == 0 ? null : new SessionListSearch(queryKind, filter, queryText);
             ClearPage();
-            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, availability, content, ranges, taskState, taskQuery);
+            var revision = access.ControlRevision;
+            var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, taskState: taskState);
             token.ThrowIfCancellationRequested();
+            var projection = ProjectRows(result, order);
             page = result;
+            pageControlRevision = revision;
+            orderedRecords = projection;
             status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
                 + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
                 + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
@@ -273,6 +200,7 @@ internal sealed partial class AllWorkViewModel(
         var revision = access.ControlRevision;
         var admittedEpoch = epoch;
         hadNext = page?.Next is not null;
+        RetireFind();
         busy = true;
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
         operation = cancellation;
@@ -290,8 +218,12 @@ internal sealed partial class AllWorkViewModel(
         }
         catch (OperationCanceledException)
         {
-            ClearPage();
-            if (!closed) { status = "Overview cancelled/source changed. No late or partial page is current; Refresh."; }
+            if (orderRetirementEpoch != epoch || admittedEpoch == epoch || page is null || closed
+                || !access.CanInspect || revision != access.ControlRevision)
+            {
+                ClearPage();
+                if (!closed) { status = "Overview cancelled/source changed. No late or partial page is current; Refresh."; }
+            }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -317,7 +249,14 @@ internal sealed partial class AllWorkViewModel(
         status = "Session lifecycle, disposition or retention source changed. Page and continuation revoked; Refresh.";
         Notify();
     }
-    private void ClearPage() { page = null; selected = null; }
+    private void ClearPage()
+    {
+        RetireFind();
+        page = null;
+        orderedRecords = [];
+        selected = null;
+        selectedDetails = string.Empty;
+    }
     private void Invalidate() { epoch++; hadNext = false; operation?.Cancel(); ClearPage(); }
     public void Close()
     {
@@ -326,16 +265,12 @@ internal sealed partial class AllWorkViewModel(
         closing = true;
         epoch++;
         ClearPage();
+        order = SessionWorkOverviewPageOrder.Source;
         filter = SessionListFilter.All;
-        availability = null;
-        content = SessionWorkOverviewContent.Any;
         taskState = null;
-        taskIdText = string.Empty;
-        requestIdText = string.Empty;
         queryText = string.Empty;
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
-        foreach (var input in RangeInputs) { input.Clear(); }
         status = string.Empty;
         lifetime.Cancel();
         closing = false;
@@ -343,25 +278,27 @@ internal sealed partial class AllWorkViewModel(
         Notify();
     }
 
+    public void Dispose()
+    {
+        Close();
+        GC.SuppressFinalize(this);
+    }
+
     private void Notify()
     {
+        if (find is not null && !FindCurrent()) { RetireFind(); }
         OnPropertyChanged(nameof(Records));
+        OnPropertyChanged(nameof(Order));
+        OnPropertyChanged(nameof(SelectedOrderChoice));
         OnPropertyChanged(nameof(SelectedRecord));
         OnPropertyChanged(nameof(SelectedDetails));
+        NotifyFind();
         OnPropertyChanged(nameof(Filter));
-        OnPropertyChanged(nameof(Availability));
-        OnPropertyChanged(nameof(SelectedAvailabilityChoice));
-        OnPropertyChanged(nameof(Content));
-        OnPropertyChanged(nameof(SelectedContentChoice));
         OnPropertyChanged(nameof(TaskState));
         OnPropertyChanged(nameof(SelectedTaskStateChoice));
-        OnPropertyChanged(nameof(TaskIdText));
-        OnPropertyChanged(nameof(RequestIdText));
-        OnPropertyChanged(nameof(TaskQueryHint));
         OnPropertyChanged(nameof(QueryText));
         OnPropertyChanged(nameof(QueryKind));
         OnPropertyChanged(nameof(QueryHint));
-        OnPropertyChanged(nameof(RangeHint));
         OnPropertyChanged(nameof(CanSearch));
         OnPropertyChanged(nameof(NeedsAnswer));
         OnPropertyChanged(nameof(Status));

@@ -7,7 +7,9 @@
     <IsPackable>false</IsPackable>
     <IsTestProject>false</IsTestProject>
     <EnableWindowsTargeting>true</EnableWindowsTargeting>
+    <AllowUnsafeBlocks>true</AllowUnsafeBlocks>
     <StartupObject>Kora.NativeUxFixture.Program</StartupObject>
+    <ApplicationManifest>..\..\src\Kora\app.manifest</ApplicationManifest>
   </PropertyGroup>
   <ItemGroup>
     <ProjectReference Include="..\..\src\Kora\Kora.csproj" />

@@ -4,8 +4,39 @@ public static class LocalFileLiteralFind
 {
     public static bool IsValidQuery(string query) => SnapshotLiteralFind.IsValidQuery(query);
 
+    public static (LocalFileLiteralMatch? Match, int Count, int Ordinal) FindCounted(
+        LocalFileRevision file, string query, LocalFileFindDirection direction, LocalFileLiteralMatch? selected = null,
+        StringComparison comparison = StringComparison.Ordinal)
+    {
+        var navigation = ValidateSource(file, query, direction, selected);
+        var result = SnapshotLiteralFind.FindCounted(file.Text, query, navigation,
+            ToSpan(selected), comparison);
+        return (ToMatch(file, result.Match),
+            result.Count, result.Ordinal);
+    }
+
     public static LocalFileLiteralMatch? Find(LocalFileRevision file, string query,
-        LocalFileFindDirection direction, LocalFileLiteralMatch? selected = null)
+        LocalFileFindDirection direction, LocalFileLiteralMatch? selected = null,
+        StringComparison comparison = StringComparison.Ordinal)
+    {
+        var navigation = ValidateSource(file, query, direction, selected);
+        var span = SnapshotLiteralFind.Find(file.Text, query, navigation,
+            ToSpan(selected), comparison);
+        return ToMatch(file, span);
+    }
+
+    private static SnapshotLiteralSpan? ToSpan(LocalFileLiteralMatch? selected) => selected is null ? null
+        : selected.ComparisonSpan is { } span ? span with { Start = selected.Start, Length = selected.Length }
+        : new(selected.Start, selected.Length);
+
+    private static LocalFileLiteralMatch? ToMatch(LocalFileRevision file, SnapshotLiteralSpan? span) =>
+        span is null ? null : new(file.Reference, span.Start, span.Length)
+        {
+            ComparisonSpan = span.Comparison == StringComparison.Ordinal ? null : span,
+        };
+
+    private static SnapshotFindDirection ValidateSource(LocalFileRevision file, string query,
+        LocalFileFindDirection direction, LocalFileLiteralMatch? selected)
     {
         ArgumentNullException.ThrowIfNull(file);
         if (!IsValidQuery(query))
@@ -20,14 +51,11 @@ public static class LocalFileLiteralFind
         {
             throw new InvalidDataException("The selected literal span is not current for this exact source and query.");
         }
-        var navigation = direction switch
+        return direction switch
         {
             LocalFileFindDirection.First => SnapshotFindDirection.First,
             LocalFileFindDirection.Next => SnapshotFindDirection.Next,
             _ => SnapshotFindDirection.Previous,
         };
-        var span = SnapshotLiteralFind.Find(file.Text, query, navigation,
-            selected is null ? null : new(selected.Start, selected.Length));
-        return span is null ? null : new(file.Reference, span.Start, span.Length);
     }
 }

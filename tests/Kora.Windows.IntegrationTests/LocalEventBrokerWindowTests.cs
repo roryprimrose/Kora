@@ -135,7 +135,7 @@ public sealed partial class LocalEventBrokerWindowTests
                 await viewer.QuietRoutineNoticesAsync();
                 broker.RoutineQuiet.Enabled.Should().BeTrue();
                 var current = await f.Storage.Store.ReadQueueAsync(f.Storage.Request.SessionId, f.Token);
-                await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
+                await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
                 { QueueRevision = current.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() },
                     RequestOrigin.LocalUi, () => true, f.Token);
                 var before = await f.Storage.Store.ReadRetentionAsync(f.Storage.Request.SessionId, f.Token);
@@ -231,7 +231,7 @@ public sealed partial class LocalEventBrokerWindowTests
         await using var queue = f.Queue();
         var service = f.Service(queue);
         var snapshot = await f.Storage.Store.ReadQueueAsync(f.Storage.Request.SessionId, f.Token);
-        await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
+        await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, f.Storage.Request.SessionId.Value, 1)
         { QueueRevision = snapshot.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() },
             RequestOrigin.LocalUi, () => true, f.Token);
         var source = f.Source();
@@ -306,7 +306,7 @@ public sealed partial class LocalEventBrokerWindowTests
         async Task EnqueueAsync(HostId<SessionIdentity> session)
         {
             var current = await f.Storage.Store.ReadQueueAsync(session, f.Token);
-            await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.Value, 1)
+            await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, session.Value, 1)
             { QueueRevision = current.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() },
                 RequestOrigin.LocalUi, () => true, f.Token);
         }

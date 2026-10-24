@@ -1,5 +1,7 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Application.Infrastructure;
+using Kora.Application.ViewModels;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -11,28 +13,104 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Renderer_get_distinguishes_unsaved_startup_choice_from_a_domain_default()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.RunAsync("get appearance.native-presence-renderer");
+        fixture.ViewModel.ResponseBody.Should().Contain("Startup choice is effective; no saved preference.");
+        await fixture.ViewModel.DisposeAsync();
+    }
+
+    [Fact]
+    public async Task Renderer_selection_after_disposal_does_not_persist_or_change_the_choice()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.DisposeAsync();
+        fixture.ViewModel.IsNativePresenceRenderer = true;
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RendererStartupReadHonorsSavedChoiceBeforeHostInitialization(bool native)
+    {
+        var fixture = new Fixture();
+        fixture.AppearancePreferences.SaveNativePresenceRendererEnabled(native);
+        fixture.ViewModel.IsNativePresenceRenderer.Should().Be(native);
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().Be(native);
+        fixture.Audit.Events.Should().NotContain(item =>
+            string.Equals(item.ActionId, "configuration.native-presence-renderer", StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public async Task Renderer_selector_uses_the_shared_audited_setting_and_does_not_claim_activation()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        fixture.ViewModel.PresenceRenderers.Select(item => item.Name).Should()
+            .Equal("Standard", "Experimental");
+        var notifications = new List<string?>();
+        fixture.ViewModel.PropertyChanged += (_, args) => notifications.Add(args.PropertyName);
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[1];
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeTrue();
+        fixture.AppearancePreferences.NativePresenceRendererEnabled.Should().BeTrue();
+        notifications.Should().Contain(nameof(MainViewModel.IsNativePresenceRenderer))
+            .And.Contain(nameof(MainViewModel.SelectedPresenceRenderer));
+        fixture.ViewModel.PresenceRendererStatus.Should().NotContain("active.");
+        fixture.ViewModel.ReportPresenceRendererStatus("Native renderer active.");
+        fixture.ViewModel.PresenceRendererStatus.Should().Be("Native renderer active.");
+        fixture.AppearancePreferences.SaveException = new IOException("fixture save failure");
+        fixture.ViewModel.SelectedPresenceRenderer = fixture.ViewModel.PresenceRenderers[0];
+        await fixture.ViewModel.AppearanceUpdate;
+        fixture.ViewModel.SelectedPresenceRenderer.IsNative.Should().BeTrue();
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        fixture.Audit.Events.Should().Contain(item => item.ActionId == "configuration.native-presence-renderer"
+            && item.Outcome == SecurityAuditOutcome.Failed);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task Actual_typed_commands_share_all_direct_appearance_controls_and_live_notifications_without_reasoning()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var notified = new HashSet<string?>(StringComparer.Ordinal);
         fixture.ViewModel.PropertyChanged += (_, args) => notified.Add(args.PropertyName);
+        var resets = new Dictionary<AppearanceOption, AsyncCommand>
+        {
+            [AppearanceOption.Theme] = fixture.ViewModel.ResetThemeCommand,
+            [AppearanceOption.ReaderTextScale] = fixture.ViewModel.ResetReaderTextScaleCommand,
+            [AppearanceOption.ResponseTimeout] = fixture.ViewModel.ResetResponseTimeoutCommand,
+            [AppearanceOption.PresenceDisplay] = fixture.ViewModel.ResetPresenceDisplayCommand,
+            [AppearanceOption.NativePresenceRenderer] = fixture.ViewModel.ResetPresenceRendererCommand,
+            [AppearanceOption.PresenceTimeout] = fixture.ViewModel.ResetPresenceTimeoutCommand,
+            [AppearanceOption.PresenceSize] = fixture.ViewModel.ResetPresenceSizeCommand,
+            [AppearanceOption.DotSize] = fixture.ViewModel.ResetPresenceDotSizeCommand,
+            [AppearanceOption.DotDensity] = fixture.ViewModel.ResetPresenceDotDensityCommand,
+            [AppearanceOption.MovementSpeed] = fixture.ViewModel.ResetPresenceMovementSpeedCommand,
+            [AppearanceOption.SpeechScaling] = fixture.ViewModel.ResetPresenceSpeechScalingCommand,
+            [AppearanceOption.SpeechScaleAmount] = fixture.ViewModel.ResetPresenceSpeechScaleAmountCommand,
+        };
         foreach (var descriptor in fixture.ViewModel.AppearanceOptions)
         {
             var text = descriptor.Default switch
             {
                 AppearanceValue.Theme => "dark",
-                AppearanceValue.Toggle => "false",
+                AppearanceValue.Toggle toggle => toggle.Value ? "false" : "true",
                 _ => descriptor.Maximum!.Value.ToString(System.Globalization.CultureInfo.InvariantCulture),
             };
             await fixture.RunAsync($"Kora, set {descriptor.Id} to {text}");
             fixture.ViewModel.State.Should().Be(AssistantState.Success);
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {text}");
-            fixture.ViewModel.SelectedAppearanceOption = descriptor;
-            await fixture.ViewModel.ResetAppearanceOptionCommand.ExecuteAsync();
+            await resets[descriptor.Option].ExecuteAsync();
             fixture.ViewModel.ResponseBody.Should().Contain($"{descriptor.Id} = {AppearanceCommand.Format(descriptor.Default)}");
         }
         notified.Should().Contain(nameof(fixture.ViewModel.ThemeMode))
             .And.Contain(nameof(fixture.ViewModel.IsPresenceDisplayEnabled))
+            .And.Contain(nameof(fixture.ViewModel.IsNativePresenceRenderer))
             .And.Contain(nameof(fixture.ViewModel.PresenceTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.ResponseTimeoutSeconds))
             .And.Contain(nameof(fixture.ViewModel.PresenceSizePixels))
@@ -43,14 +121,15 @@ public sealed partial class MainViewModelTests
             .And.Contain(nameof(fixture.ViewModel.PresenceSpeechScaleAmountPercent));
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
+        fixture.ViewModel.IsNativePresenceRenderer.Should().BeFalse();
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.ViewModel.PresenceSizePixels.Should().Be(PresenceSettings.DefaultSizePixels);
-        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show the animated presence");
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Show animated dots");
         fixture.ViewModel.IsPresenceDisplayEnabled = false;
         await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeFalse();
-        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("hidden");
+        fixture.ViewModel.PresenceDisplayDescription.Should().Contain("Hide the animated dots");
         fixture.AppearancePreferences.SavedPresenceDisplayEnabled.Should().BeFalse();
         fixture.ViewModel.SetPresenceDisplayEnabled(true).Should().BeTrue();
         fixture.ViewModel.IsPresenceDisplayEnabled.Should().BeTrue();
@@ -147,7 +226,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
         fixture.ViewModel.AppearanceSettingStatus.Should().Contain("unlocked local host");
         fixture.ViewModel.SetThemeMode(ApplicationThemeMode.Dark).Should().BeFalse();
-        await fixture.ViewModel.ResetAppearanceOptionCommand.ExecuteAsync();
+        await fixture.ViewModel.ResetThemeCommand.ExecuteAsync();
         await fixture.ViewModel.ExecuteAppearanceCommandAsync(
             new AppearanceCommand(AppearanceCommandOperation.List), SecurityAuditInitiator.TypedCommand);
         fixture.AppearancePreferences.SavedMode.Should().BeNull();
@@ -157,5 +236,47 @@ public sealed partial class MainViewModelTests
         closing.ViewModel.SetThemeMode(ApplicationThemeMode.Dark).Should().BeTrue();
         closing.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Dark);
         closing.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResponseResetChangesOnlyItsOwnField(bool resetAlwaysShow)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var position = new ResponseWindowPosition(120, 240);
+        await fixture.ViewModel.SetResponseAlwaysVisibleAsync(true);
+        await fixture.ViewModel.SetResponseWindowTopmostAsync(false);
+        await fixture.ViewModel.SetResponseWindowPositionAsync(position);
+        var reset = resetAlwaysShow
+            ? fixture.ViewModel.ResetResponseAlwaysVisibleCommand
+            : fixture.ViewModel.ResetResponseWindowTopmostCommand;
+
+        await reset.ExecuteAsync();
+
+        fixture.ViewModel.IsResponseAlwaysVisible.Should().Be(!resetAlwaysShow);
+        fixture.ViewModel.IsResponseWindowTopmost.Should().Be(!resetAlwaysShow);
+        fixture.ViewModel.ResponseWindowPosition.Should().Be(position);
+        fixture.AppearancePreferences.SavedResponseWindowSettings.Should().Be(
+            new ResponseWindowSettings(!resetAlwaysShow, !resetAlwaysShow, position));
+    }
+
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ResponseResetReportsPersistenceFailureWithoutChangingValues(bool resetAlwaysShow)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        await fixture.ViewModel.SetResponseAlwaysVisibleAsync(true);
+        await fixture.ViewModel.SetResponseWindowTopmostAsync(false);
+        fixture.AppearancePreferences.SaveException = new IOException("Reset could not be saved.");
+
+        await (resetAlwaysShow
+            ? fixture.ViewModel.ResetResponseAlwaysVisibleCommand
+            : fixture.ViewModel.ResetResponseWindowTopmostCommand).ExecuteAsync();
+
+        fixture.ViewModel.IsResponseAlwaysVisible.Should().BeTrue();
+        fixture.ViewModel.IsResponseWindowTopmost.Should().BeFalse();
+        fixture.ViewModel.ResponseBody.Should().Contain("Reset could not be saved.");
     }
 }

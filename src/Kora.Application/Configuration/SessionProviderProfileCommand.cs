@@ -9,17 +9,19 @@ namespace Kora.Application.Configuration;
 public sealed record SessionProviderProfileCommand(AppearanceCommandOperation Operation, Guid? Session = null,
     SessionProviderField? Field = null, ProviderService? Service = null, string? Model = null,
     string? Reasoning = null, string? Context = null, string? Account = null, long CatalogueRevision = 0,
-    Guid? Confirmation = null, string? Error = null, string? Choice = null)
+    Guid? Confirmation = null, string? Error = null, string? Choice = null, Guid? SourceSession = null)
 {
     public const string Syntax = "get providers.session.profile for <session-id> | "
         + "set providers.session.service for <session-id> to Unset|Local|Copilot|Claude|Codex | "
         + "set providers.session.<model|reasoning|context> for <session-id> to <exact-option-id> for <account-id> at <catalogue-revision> | "
         + "set providers.session.<model|reasoning|context|profile> for <session-id> to <model-id> <reasoning-id> <context-id> for <account-id> at <catalogue-revision> | "
         + "reset providers.session.<service|model|reasoning|context|profile> for <session-id> | "
+        + "copy providers.session.profile from <source-session-id> to <destination-session-id> | "
         + "confirm providers.session.profile <host-issued-confirmation-id>. "
         + "Session scope only; profile reset means Use app defaults for this session. "
         + "No selected/exact session means select one; never app fallback. Generic multi-action language, one-turn choices and sign-in are unavailable.";
-    public static IReadOnlyList<string> FixedPhrases { get; } = ["get providers.session.profile", "status providers.session.profile"];
+    public static IReadOnlyList<string> FixedPhrases { get; } =
+        ["get providers.session.profile", "status providers.session.profile", "copy providers.session.profile"];
 
     public static SessionProviderProfileCommand? Parse(string input, string assistantName)
     {
@@ -32,6 +34,11 @@ public sealed record SessionProviderProfileCommand(AppearanceCommandOperation Op
         static SessionProviderProfileCommand Invalid() => new(AppearanceCommandOperation.Clarify, Error: Syntax);
         if (Encoding.UTF8.GetByteCount(input) > SessionCommand.MaximumInputBytes || input.Any(char.IsControl)) { return Invalid(); }
         var parts = text.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length == 6 && parts[0].Equals("copy", StringComparison.OrdinalIgnoreCase)
+            && parts[1].Equals("providers.session.profile", StringComparison.OrdinalIgnoreCase)
+            && parts[2].Equals("from", StringComparison.OrdinalIgnoreCase) && parts[4].Equals("to", StringComparison.OrdinalIgnoreCase)
+            && ExactId(parts[3]) is { } source && ExactId(parts[5]) is { } destination && source != destination)
+        { return new(AppearanceCommandOperation.Set, destination, SourceSession: source); }
         if (parts.Length == 3 && parts[0].Equals("confirm", StringComparison.OrdinalIgnoreCase)
             && parts[1].Equals("providers.session.profile", StringComparison.OrdinalIgnoreCase) && ExactId(parts[2]) is { } confirmation)
         { return new(AppearanceCommandOperation.Set, Confirmation: confirmation); }

@@ -227,6 +227,16 @@ Production catalogues still advertise **no models**; model-dependent native save
 
 The following broader natural-language/one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
 
+#### Exact sparse session-provider copy implementation - 2026-10-19
+
+Native **Review exact sparse provider copy** and exact `copy providers.session.profile from <source-session-id> to <destination-session-id>` both invoke `SessionProviderProfileConfigurationService.ReviewCopy`, then the existing separately admitted `Confirm`. The source is passive configuration data from exact admitted metadata; only a distinct, explicit, active destination receives a fresh host-owned original-user request. Reviews disclose both complete sparse policies, both session/generation/policy observations, current app revision and source/destination effective/unavailable state with account/catalogue provenance. Confirmation tokens are reference-owned, single-use and expire after five minutes or relevant catalogue expiry.
+
+The action copies the original immutable `SessionProviderOverrides`, never `Effective`. Every null/inherit flag and explicit field/binding is preserved. Service-only/all-inherit unavailable policy can be reviewed honestly; a bound dependent policy must still resolve against the exact current service/account/catalogue. Matching IDs/labels never rebind stale policy. There is no source credential/grant/approval/identity transfer, app write, login, provider execution, network or enablement.
+
+Confirmation rereads both exact saved policies/lifecycles and reobserves catalogue/account/installation/app-policy/private-control state. Revision ABA, source/destination lifecycle drift, private/control changes, edits/selections/cancel/close, expired or forged/reused tokens fail closed. The existing `ISessionProviderProfileStore.CommitProviderProfile` accepts the optional reviewed source fence: the same private destination transaction/audit writer rereads that source on its owned connection at every requested/save/terminal commit boundary. Its revision, lifecycle, sparse bytes and nonheld state must still match; no source control/audit mutation occurs. Even an identical-value copy uses the existing destination revision and terminal receipt.
+
+Storage/audit/readback uncertainty keeps the existing destination durable hold and inspection-only recovery; no retry or rollback claim is added. [Portable workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderProfileConfigurationTests.Copy.cs), [typed/activated consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SessionProviderCopy.cs), [private SQLite boundary tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionProviderProfileTests.Copy.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsProviderProfileTests.Copy.cs) are authored. Current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge; this implements only the existing configuration I subset and makes no broader E/Q claim.
+
 A Kora work session may store a sparse override of hosted service, model,
 reasoning level, and context size. Each field is either **Inherit app setting**
 or an exact catalogue-backed value. The effective profile for a new hosted turn
@@ -436,6 +446,70 @@ The [command-level transition matrix and mutation-boundary tests](../tests/Kora.
 
 Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
+
+### Bounded Selected-Subset Session Memory Disable - 2026-10-18
+
+The [shared Application workflow](../src/Kora.Application/Memory/MemoryBatchWorkflow.cs) adds original-user review and separate one-shot confirmation of a finite, explicitly selected subset, bounded by the existing [memory identity limit](../src/Kora.Core/Memory/MemoryPolicy.cs). Only enabled admitted records in one exact active session qualify for disable; there is no automatic Select All.
+
+The [native memory region](../src/Kora/SessionsWindow.axaml) retains the existing single-record controls. A separate keyboard Ctrl/Shift multi-selector is passive. Explicit Review inspects every selected exact ID/revision and displays the complete content, classification and count before Confirm becomes available. Reviewing does not accept candidates or grant retention/disclosure authority.
+
+Confirmation re-inspects the entire exact subset before any disable. Every step then revalidates admission and the complete reviewed record at the authoritative transaction, using the [existing per-record disable/action/audit](../src/Kora.Application/Memory/MemoryAdmissionService.cs). No direct storage writes or new batch commit bypass exist.
+
+Application is sequential, **not atomic-all**. The [typed results](../src/Kora.Application/Memory/MemoryBatchOutcome.cs) report each selected ID/revision as Succeeded, Conflict, Unavailable, Cancelled or NotAttempted, retaining the individual action result where confirmed. The first conflict or uncertain operation stops the sequence; earlier committed disables cannot roll back.
+
+An unavailable commit result is not proof that nothing changed. A returned committed success remains Succeeded even if a later cancellation or presentation fence fails. No automatic retry or rollback follows; inspect durable state manually before any fresh selection/review ([orchestration and failure tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchDisable.cs)).
+
+The [presentation delegate](../src/Kora/SessionsViewModel.MemoryBatch.cs) retires review on reselection, memory edits, filters/order/source refresh, session/generation/privacy/control changes, cancellation and closure. Cancel also stops remaining steps; it cannot erase a committed action. Outcome text is content-free, and private/source closure suppresses stale content rather than reviving a prior review.
+
+This consumes the existing management/admission/store I subset only. The initial disable delivery did not include forget; the bounded extension below supersedes that gap only. Batch admit, candidate acceptance, broader scope, recall, provider/model disclosure, retention deletion, grants and export remain absent. E/Q and unqualified provider/runtime/egress/wake/profile writers remain separate and unavailable ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
+The [portable workflow regressions](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchDisable.cs) passed local deterministic validation on 2026-10-19 under the serial permit. Release/analyzers reported zero warnings/errors; all four portable suites and five serial Windows shards passed.
+
+The complete local full-suite run passed 14,338 tests with no failures/skips. Portable aggregate coverage was exactly 28,393/28,393 lines and 19,772/19,772 branches, raw rates 1/1, without new exclusions or reduced thresholds. Earlier compiler/analyzer, native keyboard-focus and additive native field-count failures were retained and repaired; this is not hosted/integrated-main, E/Q or release acceptance.
+
+### Reviewed Selected-Subset Session Memory Forget - 2026-10-19
+
+**Sessions > Session memories** now offers an explicit **Disable / Forget** operation choice
+using the same passive Ctrl/Shift selector, complete original-user review and separate one-shot confirmation.
+Disable still requires admitted Enabled records. Forget permits only admitted Enabled or Disabled records
+whose complete current bodies, classifications and provenance validate under the existing memory policy.
+Proposed, Reviewed, Rejected, Pending, Forgotten, corrupt, unseen, duplicate or foreign selections fail closed;
+single-record management remains unchanged. There is no default Select All or hidden filtered selection.
+
+The [shared typed policy](../src/Kora.Application/Memory/MemoryBatchPolicy.cs) and
+[workflow](../src/Kora.Application/Memory/MemoryBatchWorkflow.cs) bind the operation, exact session and
+entire ordered selected subset. Review displays every complete exact record/classification and count.
+Confirmation re-inspects the **whole** selection before the first effect, then calls the same
+[authoritative individual forget action](../src/Kora.Application/Memory/MemoryManagementService.Batch.cs)
+and `MemoryAdmissionService.ForgetAsync` for each unchanged record.
+The full-row fence at each transaction detects same-revision content/classification changes as well as
+revision, scope, source, session/generation, private-control and lifecycle changes.
+Authoritative observation cannot revive a missing durable row from an old inspection cache.
+No direct SQL deletion or new batch commit authority is introduced.
+
+**Forget is irreversible application content removal**, not merely Disable.
+It clears Candidate and Receipt while retaining the existing non-reusable identity tombstone.
+This is logical application removal, **not physical or forensic erasure** of SQLite pages, backups or copies.
+The complete review states these limits before the separately labelled **Confirm sequential FORGET**.
+Actions remain sequential, **not atomic-all**: stop at the first conflict, cancellation, unavailable read/audit
+or uncertain commit. Earlier confirmed tombstones remain committed; subsequent IDs are NotAttempted.
+An unknown commit remains Unavailable, not proof of no change; there is no automatic retry or rollback.
+
+Operation changes, selection, filters/order/list refresh, memory edits/classification, source/session/generation,
+privacy/control loss, close, cancellation and stale/reentrant confirmation retire review authority.
+Cancel before confirmation makes no mutation. Cancel in flight stops remaining steps without undoing commits.
+Consumed or retired receipts release their private bodies; Forget outcomes retain only confirmed tombstones
+and content-free per-record status, including malformed/uncertain readback.
+Private-source closure suppresses review and results instead of exposing removed old content.
+
+Only the already-merged management/admission/store I subset is consumed. There is no batch acceptance/admission,
+recall, scope promotion, provider/network action, retention-policy change, forensic-erasure claim or new E/Q dependency.
+[Portable workflow tests](../tests/Kora.Application.UnitTests/Memory/MemoryBatchForgetWorkflowTests.cs),
+[authoritative action tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchForget.cs),
+[native controls](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchForget.cs) and
+[private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.BatchForget.cs)
+are authored. Current-head maintained builds, full checks and exact portable line/branch coverage are required
+before merge; the disable-only historical proof above does not validate this extension.
 
 ### Delivered Original-User Session Memory Proposals - 2026-10-10
 

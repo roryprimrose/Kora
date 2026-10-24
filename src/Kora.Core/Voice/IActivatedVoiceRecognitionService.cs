@@ -22,6 +22,9 @@ public interface IActivatedVoiceRecognitionService : IVoiceRecognitionService
 
     bool IsAmbientListeningAvailable { get; }
 
+    /// <summary>Explicit qualification for literal composer input; installed recognition alone grants no readiness.</summary>
+    bool IsLiteralDictationAvailable => false;
+
     /// <summary>True only when recording, native opens/starts and owned cleanup are confirmed quiescent.</summary>
     bool IsCaptureQuiescent { get; }
 

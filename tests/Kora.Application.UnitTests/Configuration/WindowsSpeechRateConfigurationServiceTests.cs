@@ -27,6 +27,126 @@ public sealed class WindowsSpeechRateConfigurationServiceTests : IDisposable
     public void Dispose() => listener.Dispose();
 
     [Fact]
+    public async Task RelativeProposalCannotReenterAnApplyingOrPublishingAction()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        void AssertRefused() => FluentActions.Invoking(() => fixture.Service.ProposeAdjustment(
+            AudioPreferenceAdjustment.Increase, fixture.Service.Get().Revision, fixture.Policy.Current.Revision))
+            .Should().Throw<InvalidOperationException>();
+        fixture.Audit.BeforeWrite = _ => AssertRefused();
+        fixture.Service.Changed += (_, _) => AssertRefused();
+        (await fixture.Set("1")).Should().BeTrue();
+        fixture.Preferences.Value.Should().Be(new WindowsSpeechRate(1));
+    }
+
+    [Theory]
+    [InlineData("2", "0")]
+    [InlineData("1", "11")]
+    [InlineData("1", "-0")]
+    [InlineData("1", "")]
+    public async Task RelativeProposalCannotDefaultMalformedPersistedRate(string version, string scalar)
+    {
+        await using var fixture = new Fixture();
+        var preferences = new LocalWindowsSpeechRatePreferences(new MalformedAudioPreferenceStore([version, scalar]));
+        var service = new WindowsSpeechRateConfigurationService(preferences, fixture.Playback, fixture.Speech, fixture.Admission, fixture.Audit, fixture.Logger);
+        await FluentActions.Awaiting(() => service.RefreshAsync(RequestOrigin.LocalUi, static () => true, fixture.Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        FluentActions.Invoking(() => service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, service.Get().Revision, 0))
+            .Should().Throw<InvalidOperationException>();
+        service.Get().Available.Should().BeFalse();
+        service.Get().Desired.Should().BeNull();
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(0, AudioPreferenceAdjustment.Increase, 1)]
+    [InlineData(0, AudioPreferenceAdjustment.Decrease, -1)]
+    [InlineData(9, AudioPreferenceAdjustment.Increase, 10)]
+    [InlineData(-9, AudioPreferenceAdjustment.Decrease, -10)]
+    [InlineData(10, AudioPreferenceAdjustment.Increase, 10)]
+    [InlineData(-10, AudioPreferenceAdjustment.Decrease, -10)]
+    public async Task RelativeStepsUseExactNativeProposalsWithoutBoundaryWrites(int current, AudioPreferenceAdjustment adjustment, int expected)
+    {
+        await using var fixture = new Fixture();
+        fixture.Preferences.Value = new(current);
+        await fixture.Refresh();
+        var candidate = fixture.Service.ProposeAdjustment(adjustment, fixture.Service.Get().Revision, fixture.Policy.Current.Revision);
+        if (current == expected)
+        {
+            candidate.Should().BeNull();
+            fixture.Audit.Events.Should().BeEmpty();
+            fixture.Preferences.Writes.Should().Be(0);
+        }
+        else
+        {
+            candidate!.Value.Should().Be(new WindowsSpeechRate(expected));
+            (await fixture.Apply(candidate)).Should().BeTrue();
+            fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+            fixture.Audit.Traces.Should().OnlyContain(context => context.TraceId != default && context.SpanId != default);
+        }
+        fixture.Preferences.Value.Should().Be(new WindowsSpeechRate(expected));
+    }
+
+    [Theory]
+    [InlineData("unadmitted")]
+    [InlineData("revision")]
+    [InlineData("saved")]
+    [InlineData("corrupt")]
+    [InlineData("pending")]
+    [InlineData("kokoro")]
+    [InlineData("superseded")]
+    [InlineData("apply-saved")]
+    [InlineData("requested-audit")]
+    public async Task RelativeStepsRefuseStaleCorruptAndUnsupportedState(string changed)
+    {
+        await using var fixture = new Fixture();
+        if (changed is "kokoro") { fixture.Selection.Provider = SpeechProviderIds.Kokoro; }
+        if (changed is not "unadmitted") { await fixture.Refresh(); }
+        var revision = fixture.Service.Get().Revision;
+        if (changed is "revision") { revision--; }
+        if (changed is "saved") { fixture.Preferences.Value = new(9); }
+        if (changed is "corrupt") { fixture.Preferences.ReadFailure = new InvalidDataException("corrupt rate"); }
+        if (changed is "pending") { fixture.Preferences.BeginWrite(); }
+        if (changed is "superseded" or "apply-saved" or "requested-audit")
+        {
+            var candidate = fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, revision, fixture.Policy.Current.Revision)!;
+            if (changed is "superseded") { fixture.Propose("5"); }
+            if (changed is "apply-saved") { fixture.Preferences.Value = new(8); }
+            if (changed is "requested-audit")
+            {
+                fixture.Audit.BeforeWrite = item => { if (item.Outcome == SecurityAuditOutcome.Requested) { fixture.Preferences.Value = new(8); } };
+            }
+            await FluentActions.Awaiting(() => fixture.Apply(candidate)).Should().ThrowAsync<Exception>();
+        }
+        else
+        {
+            FluentActions.Invoking(() => fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, revision, 0))
+                .Should().Throw<Exception>();
+        }
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
+        if (changed is "saved") { fixture.Preferences.Value.Should().Be(new WindowsSpeechRate(9)); }
+        if (changed is "apply-saved" or "requested-audit") { fixture.Preferences.Value.Should().Be(new WindowsSpeechRate(8)); }
+    }
+
+    [Fact]
+    public async Task RelativeProposalRefusesToOverwriteANewerCommittedRate()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        var stale = fixture.Service.ProposeAdjustment(AudioPreferenceAdjustment.Increase, fixture.Service.Get().Revision,
+            fixture.Policy.Current.Revision)!;
+        stale.Value.Should().Be(new WindowsSpeechRate(1));
+        (await fixture.Set("2")).Should().BeTrue();
+        await FluentActions.Awaiting(() => fixture.Apply(stale)).Should().ThrowAsync<InvalidOperationException>();
+        fixture.Preferences.Value.Should().Be(new WindowsSpeechRate(2));
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Audit.Events.Count(item => item.Outcome == SecurityAuditOutcome.Succeeded).Should().Be(1);
+        fixture.Service.Get().Available.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Confirmed_native_rate_reset_and_restart_have_correlated_receipts_and_no_synthesis()
     {
         await using var fixture = new Fixture();

@@ -1,5 +1,6 @@
 using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
+using Kora.Application.Presentation;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
@@ -11,11 +12,10 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private readonly WindowsSpeechRateConfigurationService? windowsSpeechRateConfiguration;
-    private int selectedWindowsSpeechRate;
     private bool rateControlActive;
     private Func<bool> windowsSpeechRateNativeLifetime = static () => false;
 
+    public int? SavedWindowsSpeechRate => audioPlaybackSettings.RateState?.Effective?.Value;
     public void BindWindowsSpeechRateNativeLifetime(Func<bool> lifetime)
     {
         windowsSpeechRateNativeLifetime = lifetime;
@@ -23,39 +23,36 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
     }
 
-    public IReadOnlyList<int> WindowsSpeechRateChoices { get; } =
-        Enumerable.Range(WindowsSpeechRate.Minimum, WindowsSpeechRate.Maximum - WindowsSpeechRate.Minimum + 1).ToArray();
+    public IReadOnlyList<int> WindowsSpeechRateChoices => audioPlaybackSettings.WindowsSpeechRateChoices;
     public int SelectedWindowsSpeechRate
     {
-        get => selectedWindowsSpeechRate;
-        set => SetProperty(ref selectedWindowsSpeechRate, new WindowsSpeechRate(value).Value);
+        get => audioPlaybackSettings.SelectedWindowsSpeechRate;
+        set
+        {
+            var previous = audioPlaybackSettings.SelectedWindowsSpeechRate;
+            audioPlaybackSettings.SelectedWindowsSpeechRate = value;
+            if (previous != value) { OnPropertyChanged(); }
+        }
     }
     public AsyncCommand RefreshWindowsSpeechRateCommand { get; }
     public AsyncCommand SaveWindowsSpeechRateCommand { get; }
     public AsyncCommand ResetWindowsSpeechRateCommand { get; }
-    public bool CanInspectWindowsSpeechRate => windowsSpeechRateConfiguration is not null && IsCallMutationHostEligible
+    public bool CanInspectWindowsSpeechRate => audioPlaybackSettings.RateState is not null && IsCallMutationHostEligible
         && !rateControlActive && !IsResponseInteractionPending;
-    public bool CanChangeWindowsSpeechRate => CanInspectWindowsSpeechRate && windowsSpeechRateConfiguration!.Get().Available;
+    public bool CanChangeWindowsSpeechRate => CanInspectWindowsSpeechRate && audioPlaybackSettings.RateState!.Available;
     public bool CanInspectWindowsSpeechRateNative => CanInspectWindowsSpeechRate && windowsSpeechRateNativeLifetime();
     public bool CanChangeWindowsSpeechRateNative => CanChangeWindowsSpeechRate && windowsSpeechRateNativeLifetime();
-    public string WindowsSpeechRateStatus => windowsSpeechRateConfiguration is null
-        ? "Windows-native rate admission is unavailable; Kokoro synthesis is unchanged."
-        : WindowsSpeechRateState.Serialize(windowsSpeechRateConfiguration.Get(), CallPolicyRevision, "observed");
+    public string WindowsSpeechRateStatus => audioPlaybackSettings.WindowsSpeechRateStatus;
 
-    private bool IsWindowsSpeechRateOutputEligible => windowsSpeechRateConfiguration is null
-        || windowsSpeechRateConfiguration.Get().AllowsProviderOutput(activeSpeechVoice!.ProviderId);
-
-    private void OnWindowsSpeechRateChanged(object? sender, EventArgs args)
-    {
-        if (IsSpeaking) { forceVisualResponse = true; }
-        uiDispatcher.Post(SynchronizeWindowsSpeechRate);
-    }
+    private bool IsWindowsSpeechRateOutputEligible => audioPlaybackSettings.RateState is null
+        || audioPlaybackSettings.RateState.AllowsProviderOutput(activeSpeechVoice!.ProviderId);
 
     private void SynchronizeWindowsSpeechRate()
     {
         if (disposed) { return; }
-        if (windowsSpeechRateConfiguration!.Get().Desired is { } rate) { SelectedWindowsSpeechRate = rate.Value; }
+        OnPropertyChanged(nameof(SelectedWindowsSpeechRate));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
+        OnPropertyChanged(nameof(SavedWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRate));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
@@ -93,20 +90,12 @@ public sealed partial class MainViewModel
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRate));
         try
         {
-            await windowsSpeechRateConfiguration!.RefreshAsync(origin, eligible, cancellationToken);
-            var saved = false;
-            if (command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset)
-            {
-                var proposal = windowsSpeechRateConfiguration.Propose(command.Operation == AppearanceCommandOperation.Reset ? null
-                    : command.Value ?? throw new InvalidOperationException("An exact Windows-native rate is required."),
-                    windowsSpeechRateConfiguration.Get().Revision, CallPolicyRevision);
-                saved = await windowsSpeechRateConfiguration.ApplyAsync(proposal, origin, initiator, communicationPolicy, eligible, cancellationToken);
-            }
+            var change = await audioPlaybackSettings.ExecuteRateAsync(command, origin, initiator,
+                communicationPolicy, eligible, cancellationToken);
             if (!eligible()) { return; }
-            if (saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
+            if (change.Saved && IsSpeaking) { await textToSpeech.StopAsync(CancellationToken.None); }
             if (!eligible()) { return; }
-            var result = WindowsSpeechRateState.Serialize(windowsSpeechRateConfiguration.Get(), CallPolicyRevision,
-                command.Operation is AppearanceCommandOperation.Set or AppearanceCommandOperation.Reset ? saved ? "saved" : "denied" : "observed");
+            var result = WindowsSpeechRateState.Serialize(audioPlaybackSettings.RateState!, CallPolicyRevision, change.Outcome, change.PreviousDesired);
             if (preserveResponse)
             {
                 Transcript = result;
@@ -129,7 +118,7 @@ public sealed partial class MainViewModel
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException
             or OperationCanceledException or TimeoutException)
         {
-            windowsSpeechRateConfiguration!.HoldUnavailable();
+            audioPlaybackSettings.HoldRateUnavailable();
             if (disposed) { return; }
             if (preserveResponse || IsResponseInteractionPending)
             {

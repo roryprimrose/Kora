@@ -44,6 +44,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             editor.Source.Text.Should().Be(draft);
             f.Session.Main.CloseForObservedPrivacyEvent("Synthetic inventory cancellation", hidePresentation: true);
             await pending;
+            await f.Session.Main.PrivacyClosureTask;
             editor.IsVisible.Should().BeFalse();
             editor.Source.Text.Should().BeEmpty();
             editor.QueryInput.Text.Should().BeEmpty();

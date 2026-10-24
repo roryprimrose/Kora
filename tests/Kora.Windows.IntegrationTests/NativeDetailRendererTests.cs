@@ -116,6 +116,28 @@ public sealed class NativeDetailRendererTests
         MarkdownDocumentRenderer.CreateControls(result).Should().ContainSingle();
     });
 
+    [Theory]
+    [InlineData(2, false)]
+    [InlineData(2, true)]
+    [InlineData(-1, false)]
+    [InlineData(-1, true)]
+    [InlineData(int.MaxValue, false)]
+    [InlineData(int.MaxValue, true)]
+    public void RendererRejectsUnadmittedContentKindsBeforeParsing(int kind, bool tables)
+    {
+        const string source = "<h1>Exact source</h1>\r\n\n| Header |\n| --- |\n| value |";
+        var renderer = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance, pipeTablesAvailable: true);
+        var result = renderer.Render(source, (DetailContentKind)kind,
+            format: tables ? NativeDetailFormat.PipeTablesV2 : NativeDetailFormat.TextV1);
+        result.IsFallback.Should().BeTrue();
+        result.Status.Should().Be("Unsupported content kind; exact source fallback.");
+        result.Source.Should().Be(source);
+        result.SemanticText.Should().Be(source);
+        result.Sections.Should().BeEmpty();
+        result.BlockCount.Should().Be(0);
+        result.NodeCount.Should().Be(0);
+    }
+
     [Fact]
     public void SemanticProjectionIsUtf8BoundedAndEmptyRenderingIsNotReportedAsSuccess()
     {
@@ -292,17 +314,27 @@ public sealed class NativeDetailRendererTests
         ((SelectableTextBlock)MarkdownDocumentRenderer.CreateControls(result)[1]).Text.Should().Be(source);
     });
 
-    [Fact]
-    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public void FailureLogsHaveFixedTemplatesAndNoContentOrExceptionPayload(int profile)
     {
         const string secret = "<script>NEVER_LOG_THIS_SECRET</script>";
         var logger = new RecordingLogger();
-        var renderer = new NativeDetailRenderer(logger);
-        renderer.Render(secret).IsFallback.Should().BeTrue();
+        var renderer = new NativeDetailRenderer(logger, pipeTablesAvailable: true, checklistsAvailable: true);
+        renderer.Render(secret, format: (NativeDetailFormat)profile)
+            .IsFallback.Should().BeTrue();
         logger.Messages.Should().ContainSingle();
         logger.Messages[0].Should().Contain("Native detail source fallback:").And.Contain("Structure")
             .And.NotContain(secret).And.NotContain("NEVER_LOG");
         logger.Exceptions.Should().OnlyContain(exception => exception == null);
+        logger.Messages[0].Should().Contain(profile switch
+        {
+            2 => NativeMarkdownChecklistProfile.Name,
+            1 => NativeMarkdownTableProfile.Name,
+            _ => NativeDetailProfile.Name,
+        });
     }
 
     private sealed class UnsupportedTestBlock() : LeafBlock(null);

@@ -47,12 +47,15 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("status " + DiagnosticRetentionCommand.OptionId);
         fixture.ViewModel.ResponseBody.Should().Contain("\"source\":\"saved\"");
         fixture.ViewModel.SelectedDiagnosticRetentionDays = 365;
+        fixture.ViewModel.SavedDiagnosticRetentionDays.Should().Be(1);
         await fixture.ViewModel.SaveDiagnosticRetentionCommand.ExecuteAsync();
         fixture.DiagnosticPreferences.Value.Should().Be(new DiagnosticRetentionDays(365));
+        fixture.ViewModel.SavedDiagnosticRetentionDays.Should().Be(365);
         await fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync();
         await fixture.ViewModel.ResetDiagnosticRetentionCommand.ExecuteAsync();
         fixture.ViewModel.SelectedDiagnosticRetentionDays.Should().Be(30);
-        fixture.ViewModel.DiagnosticRetentionStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.SavedDiagnosticRetentionDays.Should().Be(30);
+        fixture.ViewModel.DiagnosticRetentionStatus.Should().Contain("Using the default");
         await fixture.RunAsync("set assistant.name to Nova");
         var starts = fixture.Voice.StartCalls;
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -175,7 +178,7 @@ public sealed partial class MainViewModelTests
             if (string.Equals(item.ActionId, "configuration.sqlite-diagnostic-retention", StringComparison.Ordinal)
                 && item.Outcome == SecurityAuditOutcome.Requested)
             {
-                fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshDiagnosticRetentionCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
             if (string.Equals(item.ActionId, "configuration.sqlite-diagnostic-retention", StringComparison.Ordinal)
                 && item.Outcome == SecurityAuditOutcome.Succeeded) { fixture.ViewModel.Dispose(); }

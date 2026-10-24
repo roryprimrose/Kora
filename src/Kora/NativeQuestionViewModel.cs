@@ -26,6 +26,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     // Terminal state and its receipt share one boundary. No I/O, gates or notifications run under it.
     private readonly Lock stateGate = new();
     private readonly TaskCompletionSource<HostInteractionDecision> completion = new(TaskCreationOptions.RunContinuationsAsynchronously);
+    private TaskCompletionSource? pendingOperation;
     private HostQuestionRecord question;
     private HostQuestionKey? reviewedKey;
     private HostQuestionKey? displayedReviewKey;
@@ -164,7 +165,13 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
         }
     }
+#pragma warning disable VSTHRD003 // Exposes the owned interaction receipt; asynchronous observers leave the dispatcher available for completion.
     internal Task<HostInteractionDecision> Completion => completion.Task;
+#pragma warning restore VSTHRD003
+    internal Task OperationQuiescence
+    {
+        get { lock (stateGate) { return pendingOperation?.Task ?? Task.CompletedTask; } }
+    }
 
     internal void Edit(QuestionAnswer value)
     {
@@ -274,10 +281,12 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         StopVoiceReply();
         if (!IsEditable) { RefreshEligibility(); return; }
+        var operation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (stateGate)
         {
             if (closed || cleared || busy || question.Key != target) { return; }
             busy = true;
+            pendingOperation = operation;
         }
         Notify();
         using var activity = HostActivity.BeginRoot(target.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
@@ -347,7 +356,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         finally
         {
             lock (stateGate) { busy = false; }
-            Notify();
+            try { Notify(); }
+            finally { operation.TrySetResult(); }
         }
     }
 
@@ -428,12 +438,14 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         RefreshEligibility();
         HostQuestionRecord target;
         long revision;
+        var operation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         lock (stateGate)
         {
             if (!dismissible || closed || busy || !cleared) { return; }
             target = question;
             revision = presentationRevision;
             busy = true;
+            pendingOperation = operation;
         }
         using var activity = HostActivity.BeginRoot(target.Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
         try
@@ -471,7 +483,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         finally
         {
             lock (stateGate) { busy = false; }
-            Notify();
+            try { Notify(); }
+            finally { operation.TrySetResult(); }
         }
     }
 

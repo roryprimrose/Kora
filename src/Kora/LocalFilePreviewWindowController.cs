@@ -2,6 +2,7 @@
 using Avalonia.Platform.Storage;
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
+using Kora.Application.Presentation;
 using Kora.Core.Context;
 
 namespace Kora;
@@ -9,18 +10,27 @@ namespace Kora;
 internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserFolderPicker, IDisposable
 {
     private readonly MainViewModel host;
-    private readonly Window owner;
+    private readonly Func<Window> getOwner;
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private LocalFilePreviewWindow? window;
     private Guid showing;
     private bool disposed;
+    private bool selecting;
+    internal bool IsOwnerInUse => selecting || window is not null;
 
     internal LocalFilePreviewWindowController(MainViewModel host, Window owner)
+        : this(host, () => owner)
+    {
+    }
+
+    internal LocalFilePreviewWindowController(MainViewModel host, Func<Window> getOwner)
     {
         this.host = host;
-        this.owner = owner;
+        this.getOwner = getOwner;
         host.FilePreviewChanged += OnChanged;
         host.FileInspectionRequested += OnInspectionRequested;
+        host.FileAnswerRequested += OnAnswerRequested;
+        host.LocalSearchPreparationRequested += OnSearchPreparationRequested;
         timer.Tick += OnChanged;
         timer.Start();
     }
@@ -28,53 +38,73 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
     public async Task<string?> SelectAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (disposed || !Dispatcher.UIThread.CheckAccess() || !owner.StorageProvider.CanOpen)
+        if (disposed || selecting || !Dispatcher.UIThread.CheckAccess())
         {
             throw new InvalidOperationException("Trusted native file selection is unavailable.");
         }
-        var selected = await owner.StorageProvider.OpenFilePickerAsync(new()
-        {
-            Title = "Select one UTF-8 text or Markdown file for local review",
-            AllowMultiple = false,
-            FileTypeFilter = [new("Plain text / Markdown") { Patterns = ["*.txt", "*.md", "*.markdown"] }],
-        });
+        var owner = getOwner();
+        if (!owner.StorageProvider.CanOpen) { throw new InvalidOperationException("Trusted native file selection is unavailable."); }
+        selecting = true;
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (selected.Count == 0) { return null; }
-            if (selected.Count != 1) { throw new InvalidOperationException("Exactly one local file must be selected."); }
-            return selected[0].TryGetLocalPath()
-                ?? throw new InvalidOperationException("Only a native fixed-drive local selection is supported.");
+            var selected = await owner.StorageProvider.OpenFilePickerAsync(new()
+            {
+                Title = "Select one UTF-8 text or Markdown file for local review",
+                AllowMultiple = false,
+                FileTypeFilter = [new("Plain text / Markdown") { Patterns = ["*.txt", "*.md", "*.markdown"] }],
+            });
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (selected.Count == 0) { return null; }
+                if (selected.Count != 1) { throw new InvalidOperationException("Exactly one local file must be selected."); }
+                return selected[0].TryGetLocalPath()
+                    ?? throw new InvalidOperationException("Only a native fixed-drive local selection is supported.");
+            }
+            finally
+            {
+                foreach (var file in selected) { file.Dispose(); }
+            }
         }
         finally
         {
-            foreach (var file in selected) { file.Dispose(); }
+            selecting = false;
         }
     }
 
     public async Task<string?> SelectFolderAsync(CancellationToken cancellationToken)
     {
         cancellationToken.ThrowIfCancellationRequested();
-        if (disposed || !Dispatcher.UIThread.CheckAccess() || !owner.StorageProvider.CanPickFolder)
+        if (disposed || selecting || !Dispatcher.UIThread.CheckAccess())
         {
             throw new InvalidOperationException("Trusted native folder selection is unavailable.");
         }
-        var selected = await owner.StorageProvider.OpenFolderPickerAsync(new()
-        {
-            Title = "Select one folder of immediate UTF-8 text/Markdown files (no subdirectories)",
-            AllowMultiple = false,
-        });
+        var owner = getOwner();
+        if (!owner.StorageProvider.CanPickFolder) { throw new InvalidOperationException("Trusted native folder selection is unavailable."); }
+        selecting = true;
         try
         {
-            cancellationToken.ThrowIfCancellationRequested();
-            if (selected.Count == 0) { return null; }
-            if (selected.Count != 1) { throw new InvalidOperationException("Exactly one local folder must be selected."); }
-            return selected[0].TryGetLocalPath()
-                ?? throw new InvalidOperationException("Only a native fixed-drive local folder selection is supported.");
+            var selected = await owner.StorageProvider.OpenFolderPickerAsync(new()
+            {
+                Title = "Select one folder of immediate UTF-8 text/Markdown files (no subdirectories)",
+                AllowMultiple = false,
+            });
+            try
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                if (selected.Count == 0) { return null; }
+                if (selected.Count != 1) { throw new InvalidOperationException("Exactly one local folder must be selected."); }
+                return selected[0].TryGetLocalPath()
+                    ?? throw new InvalidOperationException("Only a native fixed-drive local folder selection is supported.");
+            }
+            finally
+            {
+                foreach (var folder in selected) { folder.Dispose(); }
+            }
         }
         finally
         {
-            foreach (var folder in selected) { folder.Dispose(); }
+            selecting = false;
         }
     }
 
@@ -111,7 +141,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 () => !disposed && ReferenceEquals(window, view) && ReferenceEquals(host.FileRevision, revision),
                 () => !disposed && ReferenceEquals(window, view) && host.FileRevision?.Reference == exactSource
                     ? host.RefreshFilePreviewAsync(exactSource)
-                    : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")));
+                    : Task.FromException(new InvalidOperationException("The exact file preview is stale; no refresh was authorized.")),
+                (question, target, current, token) => host.AnswerFileAsync(exactSource, question, target, current, token));
         }
         else if (folderRevision is not null)
         {
@@ -136,7 +167,7 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 ? host.ConfirmFilePreviewAsync(exactId)
                 : Task.FromException(new InvalidOperationException("The exact file review is stale; no read was authorized.")));
         }
-        view.Show(owner);
+        view.Show(getOwner());
         view.Activate();
         if (disposed || (host.FileRevision?.RevisionId ?? host.FileReview?.ReviewId
             ?? host.FolderRevision?.Reference.RevisionId ?? host.FolderReview?.ReviewId ?? Guid.Empty) != id) { CloseView(); }
@@ -154,6 +185,21 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         window?.FocusSearch();
     }
 
+    private void OnAnswerRequested(object? sender, EventArgs args)
+    {
+        Refresh();
+        window?.FocusAnswer();
+    }
+
+    private void OnSearchPreparationRequested(object? sender, PreparedLocalSearchEventArgs request)
+    {
+        if (disposed || !Dispatcher.UIThread.CheckAccess() || !request.IsCurrent) { return; }
+        Refresh();
+        var view = window;
+        if (view is null || showing != (request.File?.RevisionId ?? request.Folder!.RevisionId)) { return; }
+        request.TryPrepare(query => ReferenceEquals(window, view) && view.PrepareSearch(query));
+    }
+
     private void CloseView()
     {
         var view = window;
@@ -169,6 +215,8 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
         disposed = true;
         host.FilePreviewChanged -= OnChanged;
         host.FileInspectionRequested -= OnInspectionRequested;
+        host.FileAnswerRequested -= OnAnswerRequested;
+        host.LocalSearchPreparationRequested -= OnSearchPreparationRequested;
         timer.Stop();
         timer.Tick -= OnChanged;
         CloseView();

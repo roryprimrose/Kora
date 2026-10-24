@@ -8,8 +8,41 @@ those references.
 **No script-backed built-in skill executor ships in the current release.**
 Exact commands run host-owned C# actions. A verified local model can answer,
 ask a clarification question or propose an existing action/grant change; this
-is not a generic model tool/result loop. Selecting artifact instructions does
+does not grant a general execution or browsing capability. Selecting artifact instructions does
 not execute their scripts or grant permission.
+
+### Retrieve and summarize one public page locally
+
+In **Sessions** or the compact conversation window, select an exact Active
+session and enter `get web page https://example.com/` in the conversation
+composer. Choose **Retrieve and summarize one page locally** (not ordinary
+Submit). The address must be an absolute HTTP or HTTPS address without
+credentials or a fragment.
+
+If the local model is admitted, its one-page request opens the existing native
+approval window. Review the exact destination and action, choose **Approve
+once**, and submit the approval. Closing/cancelling, expiry, revoked authority,
+or changed ownership/private presentation prevents continuation. Ordinary
+questions and model text cannot approve the operation. No preapproved address
+or reusable grant automatically authorizes this workflow.
+
+Kora retrieves bounded inert text through its existing public-address/DNS
+policy. A redirect to another address is denied, not silently followed or
+approved. At most one page action is dispatched. The result includes the exact
+requested/final address, retrieval time, content type, local-only provenance
+and truthful truncation; the complete result is limited to 2 KiB. Page text
+cannot enable tools or supply instructions. The same local turn summarizes
+that result, and the genuine final answer is retained in the original session.
+Cancel uses the exact running conversation task and waits for owned resources;
+no late response is presented as success.
+
+**Unavailable boundary:** this requires a separately admitted usable local model.
+Missing runtime/profile/approval composition reports unavailable or denied;
+it never fetches a page as a fallback. The existing finite turn deadline and
+cumulative byte budgets still apply, including approval time. There are no
+live-provider or hardware qualification claims here. Hosted providers cannot
+consume this tool or its result. This is not arbitrary browsing, SDK-native
+network access, or a change to the separate local-only web-result summary policy.
 
 ## Asking Kora to do something
 
@@ -23,7 +56,7 @@ A clarification answer is not approval. See
 select source-qualified instructions for a local-model request. Compatible
 disk instructions remain untrusted. Shared-profile skills use separate native
 registration/inspection, not startup model exposure. See
-[artifact commands](commands.md#run-skills-and-future-artifacts).
+[artifact commands](commands.md#run-skills-and-artifacts).
 
 ## 1. Application and help
 
@@ -48,14 +81,11 @@ reasoning. Existing receipts do not establish those capabilities.
 
 ## 3. Work management and conversation
 
-**Current bounded:** fixed read-only local-version queues with exact IDs,
-manual dispatch, expiry, fair ordering, revisioned receipts and no-replay
-recovery. See [queue commands](commands.md#deterministic-local-version-queue).
-Cancellation covers only its documented scope, not arbitrary running effects.
+Sessions retain real work observation, exact lifecycle controls and scoped cancellation.
+Diagnostic-only fixed-read queue admission, dispatch and management product controls are retired; existing records remain inspectable/cancellable with original authority and deadlines.
+Useful direct status queries and internal scheduler/store tests remain ([queue boundary](commands.md#deterministic-local-version-queue), [work controls](../src/Kora/SessionsViewModel.Work.cs)).
 
-**Planned:** resource-leased concurrent workers and general task scheduling.
-The design starts with two independently executing sessions within qualified
-provider/hardware budgets; the fixed version queue does not qualify them.
+General concurrent workers/provider scheduling remain unqualified; retiring diagnostic product surfaces does not enable them ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
 
 ## 4. Audio, listening, calls, and notifications
 
@@ -100,9 +130,9 @@ changes require a new eligible UI request, not a later approval click.
 selection, and bounded native shared-profile registration/inspection/recheck/
 withdrawal. See [shared-profile commands](commands.md#inspect-shared-profile-skills-locally).
 
-The passive inspectors offer exact **Definition digest** / **Declared resource digest** (bundled) and **Revision digest** (shared) filters alongside literal metadata and availability/compatibility filters. Empty means Any; otherwise enter exactly 64 lowercase hexadecimal characters. Invalid input is rejected, not trimmed or treated as an unfiltered search ([filter contract](../Design/Definition_Management.md#delivered-native-skill-metadata-navigation)).
-
-Editing a filter clears selection/details without reading sources; choose **Search**, then explicitly select a result. **Clear** resets all filters without selecting; **Escape** closes and clears private fields. A digest match observes an admitted snapshot only: no live verification, reload, hidden-name search, execution or grant, and no freshness/integrity/authority promotion ([inspection contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
+The passive inspectors retain name/description search, availability/compatibility and ordinary loaded metadata order.
+Digest query fields are retired.
+Source identity, exact digests, provenance and integrity are still displayed and validated internally; browsing does not grant execution or trust ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs), [bundled inspector](../src/Kora/SkillPackagesWindow.axaml.cs), [shared inspector](../src/Kora/SharedSkillSourcesWindow.axaml.cs)).
 
 **Order** defaults to **Source order**. Choose **Name ascending (ordinal)** or **Name descending (ordinal)** for ordinal names, unknown names last in both directions, with exact canonical identity ascending as the tie-break. All existing filters still apply; incompatible rows are not hidden by ordering ([ordering contract](../Design/Skill_Storage.md#delivered-bounded-r21-native-inspection)).
 
@@ -112,7 +142,9 @@ Order edits clear selection/private source panes without reading, discovering or
 exact Save/Delete review, Reload/Overwrite/Cancel conflicts and separate reviewed
 explicit use of the saved revision. Profile originals and other kinds remain read-only.
 
-**Planned:** skill enablement/invocation, conversational skill/instruction
+**Current bounded:** [reviewed instruction-only shared skill invocation](commands.md#reviewed-instruction-only-shared-skill-invocation) separately enables one exact compatible single-file revision for a volatile local-only, zero-tool request in one existing Active conversation. Registration/inspection alone grants no invocation authority ([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
+
+**Planned:** general tool-dependent skill enablement/invocation, conversational skill/instruction
 authoring and agent profiles. Saving or loading a definition is not executable
 trust. [Execution design](skill-and-task-execution-design.md) describes the
 future boundary.

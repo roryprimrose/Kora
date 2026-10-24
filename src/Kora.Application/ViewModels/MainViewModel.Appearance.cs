@@ -16,20 +16,48 @@ public sealed partial class MainViewModel
         // A forced desktop close need not pump UI continuations to join the owned storage write.
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
         await Task.WhenAll(appearancePersistence, preferencePersistence, consentPersistence,
-            AuditPersistence, outputDiscoveryPersistence, outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
+            appearanceSuggestionPersistence, AuditPersistence, outputDiscoveryPersistence,
+            outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
 #pragma warning restore VSTHRD003
     }
 
     private readonly AppearanceConfigurationService appearanceConfiguration;
     private string appearanceSettingStatus = AppearanceCommand.Syntax;
-    private AppearanceOptionDescriptor selectedAppearanceOption = AppearanceOptionRegistry.Options[0];
     private int readerTextScalePercent = ReaderTextScaleSettings.DefaultPercent;
     private readonly Dictionary<AppearanceOption, PendingAppearance> pendingAppearance = [];
     private bool applyingAppearance;
     private Task appearancePersistence = Task.CompletedTask;
+    private Task appearanceSuggestionPersistence = Task.CompletedTask;
+
+    public async Task<AppearanceApplyResult> ConfirmAppearanceSuggestionAsync(AppearanceSuggestionReview review, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(review);
+        if (disposed || !appearanceSuggestionPersistence.IsCompleted)
+        { throw new InvalidOperationException("Appearance confirmation is unavailable while the host is closing or another confirmation is pending."); }
+        var work = review.ConfirmAsync(token);
+        appearanceSuggestionPersistence = work;
+        try { return await work; }
+        finally { appearanceSuggestionPersistence = Task.CompletedTask; }
+    }
+
+    public Task<AppearanceSuggestionReview> ReviewAppearanceSuggestionAsync(
+        Kora.Core.Conversation.ConversationMessage message, Func<bool> sourceCurrent,
+        Func<CancellationToken, Task> validateSource, CancellationToken token)
+    {
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var call = CallPolicyRevision;
+        var ownership = settingsOwnershipRevision();
+        var binding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        bool Eligible() => !disposed && IsCallMutationHostEligible && !IsProtectedCall
+            && !IsBusy && !IsResponseInteractionPending && !applyingAppearance
+            && privacyObservation.Current.TopologyRevision == privacy && CallPolicyRevision == call
+            && settingsOwnershipRevision() == ownership
+            && Interlocked.Read(ref settingsOwnershipBindingRevision) == binding && sourceCurrent();
+        return AppearanceSuggestionReview.ReviewAsync(appearanceConfiguration, message, Eligible, validateSource, token);
+    }
 
     public Task AppearanceUpdate { get; private set; } = Task.CompletedTask;
-    public bool IsReaderTypographyUpdatePending => applyingAppearance;
+    public bool IsReaderTypographyUpdatePending => applyingAppearance || !appearanceSuggestionPersistence.IsCompleted;
 
     private sealed record PendingAppearance(AppearanceValue Value, SecurityAuditInitiator Initiator,
         string PropertyName, Func<bool> Eligible, Func<HostActivity> Begin);
@@ -42,7 +70,7 @@ public sealed partial class MainViewModel
 
     public void EnsureReaderTypographyAvailable()
     {
-        if (applyingAppearance)
+        if (IsReaderTypographyUpdatePending)
         {
             throw new InvalidOperationException("Native reader text scale is being saved. Wait for the preference result before opening a reader.");
         }
@@ -64,13 +92,20 @@ public sealed partial class MainViewModel
     public int ReaderTextScaleMaximum => ReaderTextScaleSettings.MaximumPercent;
 
     public IReadOnlyList<AppearanceOptionDescriptor> AppearanceOptions => AppearanceOptionRegistry.Options;
-    public AsyncCommand ResetAppearanceOptionCommand { get; }
-
-    public AppearanceOptionDescriptor SelectedAppearanceOption
-    {
-        get => selectedAppearanceOption;
-        set => SetProperty(ref selectedAppearanceOption, value);
-    }
+    public AsyncCommand ResetThemeCommand { get; }
+    public AsyncCommand ResetReaderTextScaleCommand { get; }
+    public AsyncCommand ResetResponseTimeoutCommand { get; }
+    public AsyncCommand ResetResponseAlwaysVisibleCommand { get; }
+    public AsyncCommand ResetResponseWindowTopmostCommand { get; }
+    public AsyncCommand ResetPresenceDisplayCommand { get; }
+    public AsyncCommand ResetPresenceRendererCommand { get; }
+    public AsyncCommand ResetPresenceTimeoutCommand { get; }
+    public AsyncCommand ResetPresenceSizeCommand { get; }
+    public AsyncCommand ResetPresenceDotSizeCommand { get; }
+    public AsyncCommand ResetPresenceDotDensityCommand { get; }
+    public AsyncCommand ResetPresenceMovementSpeedCommand { get; }
+    public AsyncCommand ResetPresenceSpeechScalingCommand { get; }
+    public AsyncCommand ResetPresenceSpeechScaleAmountCommand { get; }
 
     public string AppearanceSettingStatus
     {
@@ -90,6 +125,15 @@ public sealed partial class MainViewModel
         {
             switch (descriptor.Option, appearanceConfiguration.Get(descriptor.Option).Value)
             {
+                case (AppearanceOption.NativePresenceRenderer, AppearanceValue.Toggle boolean):
+                    nativePresenceRendererObserved = true;
+                    if (isNativePresenceRenderer != boolean.Value)
+                    {
+                        PresenceSwitchTiming.Mark(PresenceSwitchPhase.RendererNotification);
+                    }
+                    if (SetProperty(ref isNativePresenceRenderer, boolean.Value, nameof(IsNativePresenceRenderer)))
+                        OnPropertyChanged(nameof(SelectedPresenceRenderer));
+                    break;
                 case (AppearanceOption.ReaderTextScale, AppearanceValue.Number integer):
                     SetProperty(ref readerTextScalePercent, integer.Value, nameof(ReaderTextScalePercent)); break;
                 case (AppearanceOption.Theme, AppearanceValue.Theme theme):
@@ -132,8 +176,15 @@ public sealed partial class MainViewModel
 
     private void QueueAppearance(AppearanceOption option, AppearanceValue value, string propertyName)
     {
+        var timeRenderer = option == AppearanceOption.NativePresenceRenderer;
+        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.Selection); }
         if (option != AppearanceOption.ReaderTextScale) { AppearanceOptionRegistry.Validate(option, value); }
-        if (disposed || !AdmitAppearanceRequest()) { OnPropertyChanged(propertyName); return; }
+        if (disposed || !AdmitAppearanceRequest())
+        {
+            if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.SelectionDenied); }
+            OnPropertyChanged(propertyName);
+            return;
+        }
         var privacy = privacyObservation.Current.TopologyRevision;
         var recovery = Interlocked.Read(ref voiceRecoveryRevision);
         var pending = new PendingAppearance(value, SecurityAuditInitiator.LocalUser, propertyName,
@@ -142,6 +193,7 @@ public sealed partial class MainViewModel
             HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Storage, RequestOrigin.LocalUi));
         // A slider may change faster than storage can commit. Retain only its latest absolute value.
         pendingAppearance[option] = pending;
+        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.Queued); }
         if (!applyingAppearance) { AppearanceUpdate = DrainAppearanceAsync(); }
     }
 
@@ -162,27 +214,35 @@ public sealed partial class MainViewModel
                     using var activity = next.Value.Begin();
                     var work = Task.Run(() =>
                     {
+                        var timeRenderer = next.Key == AppearanceOption.NativePresenceRenderer;
+                        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.WorkerStarted); }
                         if (!next.Value.Eligible())
                         {
                             throw new InvalidOperationException("The original appearance input is no longer eligible. Initiate a fresh change.");
                         }
+                        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ConfigurationReadStarted); }
                         var optionState = appearanceConfiguration.Get(next.Key);
-                        return appearanceConfiguration.Apply(appearanceConfiguration.Propose(next.Key, next.Value.Value,
+                        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ConfigurationReadReturned); }
+                        var applied = appearanceConfiguration.Apply(appearanceConfiguration.Propose(next.Key, next.Value.Value,
                             optionState.Revision, next.Value.Initiator, RequestOrigin.LocalUi, next.Value.Eligible));
+                        if (timeRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.ApplyReturned); }
+                        return applied;
                     });
                     appearancePersistence = work;
                     var result = await work;
+                    if (next.Key == AppearanceOption.NativePresenceRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.UiContinuation); }
                     activity.Complete(result.Succeeded ? Kora.Core.Diagnostics.HostOperationOutcome.Completed
                         : Kora.Core.Diagnostics.HostOperationOutcome.Failed);
                     if (!disposed && next.Value.Eligible())
                     {
-                        AppearanceSettingStatus = result.Succeeded ? DescribeAppearanceState(result.State) : result.Error!;
+                        AppearanceSettingStatus = result.Succeeded ? Presentation.SettingsText.Describe(result.State) : result.Error!;
                         if (!result.Succeeded) { ShowFailure("The appearance setting was not saved.", result.Error!); }
                     }
                 }
                 catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException
                     or InvalidOperationException or ArgumentOutOfRangeException or AggregateException)
                 {
+                    if (next.Key == AppearanceOption.NativePresenceRenderer) { PresenceSwitchTiming.Mark(PresenceSwitchPhase.AppearanceFailed); }
                     if (disposed) { return; }
                     try { ApplicationLog.Error(logger, exception, "Saving an appearance preference"); }
                     finally
@@ -237,7 +297,7 @@ public sealed partial class MainViewModel
         return result.Succeeded;
     }
 
-    private async Task ResetSelectedAppearanceOptionAsync()
+    private async Task ResetAppearanceOptionAsync(AppearanceOption option)
     {
 #pragma warning disable VSTHRD003 // Serialize against the owned appearance workflow without blocking the dispatcher.
         await AppearanceUpdate;
@@ -246,13 +306,22 @@ public sealed partial class MainViewModel
         {
             return;
         }
-        var optionState = appearanceConfiguration.Get(SelectedAppearanceOption.Option);
+        var optionState = appearanceConfiguration.Get(option);
         await ApplyAppearanceProposalAsync(appearanceConfiguration.ProposeReset(
             optionState.Descriptor.Option, optionState.Revision, SecurityAuditInitiator.LocalUser,
             RequestOrigin.LocalUi, () => IsHostInputEligible));
     }
 
     internal async Task ExecuteAppearanceCommandAsync(AppearanceCommand command, SecurityAuditInitiator initiator)
+    {
+        try { await ExecuteAdmittedAppearanceCommandAsync(command, initiator); }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+        {
+            ReportUnconfirmedAppearance(exception);
+        }
+    }
+
+    private async Task ExecuteAdmittedAppearanceCommandAsync(AppearanceCommand command, SecurityAuditInitiator initiator)
     {
 #pragma warning disable VSTHRD003 // Serialize against the owned appearance workflow without blocking the dispatcher.
         await AppearanceUpdate;
@@ -273,7 +342,25 @@ public sealed partial class MainViewModel
                     $"{item.Id} (spoken: {item.SpokenName}): {item.Description}; {item.Type}, {item.Units}; default {AppearanceCommand.Format(item.Default)}"
                     + (item.Minimum is { } minimum ? $"; range {minimum}-{item.Maximum}" : string.Empty)
                     + $"; {item.Scope}, {item.Effect}, {item.Availability}, {item.ApplicationTiming}."))
-                + Environment.NewLine + AppearanceCommand.Syntax);
+                + Environment.NewLine + AppearanceCommand.Syntax
+                + Environment.NewLine + NaturalAppearanceCommand.Syntax);
+            return;
+        }
+        if (command.ReaderTextScaleAdjustment is { } percentagePoints)
+        {
+            AppearanceProposal adjustment;
+            try
+            {
+                adjustment = appearanceConfiguration.ProposeReaderTextScaleAdjustment(percentagePoints, initiator,
+                    OriginalOrigin(initiator), () => IsHostInputEligible);
+            }
+            catch (Exception exception) when (exception is OverflowException or ArgumentOutOfRangeException)
+            {
+                ShowInformation("Clarify the appearance setting.",
+                    "The reader text scale adjustment is outside the admitted range. " + NaturalAppearanceCommand.Syntax);
+                return;
+            }
+            await ApplyAppearanceProposalAsync(adjustment);
             return;
         }
         var descriptor = command.Descriptor ?? throw new InvalidOperationException("An appearance option is required.");
@@ -309,11 +396,25 @@ public sealed partial class MainViewModel
                 {
                     appearancePersistence = Task.CompletedTask;
                     applyingAppearance = false;
-                    if (!disposed) { SynchronizeAppearance(); }
+                    if (!disposed)
+                    {
+                        try { SynchronizeAppearance(); }
+                        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException)
+                        {
+                            ReportUnconfirmedAppearance(exception);
+                        }
+                    }
                     if (pendingAppearance.Count > 0) { AppearanceUpdate = DrainAppearanceAsync(); }
                 }
             }
         });
+
+    private void ReportUnconfirmedAppearance(Exception exception)
+    {
+        ApplicationLog.Error(logger, exception, "Confirming an appearance command");
+        AppearanceSettingStatus = "Appearance preference not confirmed. Inspect saved preference evidence and audit receipts before explicit repair.";
+        ShowFailure("Appearance settings are unavailable.", AppearanceSettingStatus);
+    }
 
     private bool AdmitAppearanceRequest()
     {
@@ -329,11 +430,11 @@ public sealed partial class MainViewModel
 
     private void PresentAppearanceResult(AppearanceApplyResult result)
     {
-        AppearanceSettingStatus = result.Succeeded ? DescribeAppearanceState(result.State) : result.Error!;
+        AppearanceSettingStatus = result.Succeeded ? Presentation.SettingsText.Describe(result.State) : result.Error!;
         if (result.Succeeded)
         {
             ShowSuccess(result.Outcome == AppearanceApplyOutcome.Unchanged
-                ? "Appearance setting unchanged." : "Appearance setting saved.", AppearanceSettingStatus);
+                ? "Appearance setting unchanged." : "Appearance setting saved.", DescribeAppearanceState(result.State));
         }
         else
         {
@@ -343,6 +444,8 @@ public sealed partial class MainViewModel
 
     private static string DescribeAppearanceState(AppearanceOptionState state) =>
         $"{state.Descriptor.Id} = {AppearanceCommand.Format(state.Value)} {state.Descriptor.Units}; revision {state.Revision}. "
-        + (state.IsSaved ? "Saved preference is effective on this device." : "Domain default is effective; no saved preference.")
+        + (state.IsSaved ? "Saved preference is effective on this device."
+            : state.Descriptor.Option == AppearanceOption.NativePresenceRenderer
+                ? "Startup choice is effective; no saved preference." : "Domain default is effective; no saved preference.")
         + $" {state.Descriptor.ApplicationTiming}.";
 }

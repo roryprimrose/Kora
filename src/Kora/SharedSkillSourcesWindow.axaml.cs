@@ -6,6 +6,7 @@ using Avalonia.Input;
 using Avalonia.Markup.Xaml;
 
 using Kora.Application.Skills;
+using Kora.Controls;
 using Kora.Core.Skills;
 
 namespace Kora;
@@ -17,13 +18,16 @@ public sealed partial class SharedSkillSourcesWindow : Window
     private bool closed;
     private IReadOnlyList<SharedSkillSnapshot> results = [];
     private bool updatingResults;
+    private readonly Func<bool> current;
+    private bool busy;
     internal long CatalogueGeneration { get; private set; }
 
     public SharedSkillSourcesWindow() => throw new InvalidOperationException("Use the admitted local shared source inspection route.");
 
     internal SharedSkillSourcesWindow(Func<Task> register, Func<Task> refresh, Func<Task> discover, Func<Task> verify,
-        Func<Task> unregister)
+        Func<Task> unregister, Func<bool>? current = null)
     {
+        this.current = current ?? (() => false);
         AvaloniaXamlLoader.Load(this);
         this.FindControl<TextBox>("SharedSource")!.ContextMenu = null;
         this.FindControl<TextBox>("SharedSource")!.ContextFlyout = null;
@@ -45,23 +49,22 @@ public sealed partial class SharedSkillSourcesWindow : Window
         {
             RetireSearch();
             this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-            this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
             filter.SelectedIndex = 0;
             order.SelectedIndex = 0;
             Search();
         };
-        foreach (var name in new[] { "SharedQuery", "SharedRevisionDigest" })
+        foreach (var name in new[] { "SharedQuery" })
         {
             this.FindControl<TextBox>(name)!.PropertyChanged += (_, change) =>
             { if (change.Property == TextBox.TextProperty) { RetireSearch(); } };
         }
         filter.SelectionChanged += (_, _) => RetireSearch();
         order.SelectionChanged += (_, _) => RetireSearch();
-        KeyDown += (_, args) => { if (args.Key == Key.Escape) { Close(); args.Handled = true; } };
+        KeyDown += (_, args) => { if (args.Key == Key.Escape && !args.Handled) { Close(); args.Handled = true; } };
         this.FindControl<ComboBox>("SourceSelector")!.SelectionChanged += (_, _) => ClearCatalogue();
         this.FindControl<ComboBox>("SharedPackageSelector")!.SelectionChanged += (_, _) =>
         { if (!updatingResults) { ShowSelectedPackage(); } };
-        Closed += (_, _) => { closed = true; ClearPrivateContent(); };
+        Closed += (_, _) => { closed = true; ClearPrivateContent(); IdentityFinder.Dispose(); };
     }
 
     internal IReadOnlyList<SharedSkillSource> RegisteredSources => Array.AsReadOnly(sources.ToArray());
@@ -102,13 +105,12 @@ public sealed partial class SharedSkillSourcesWindow : Window
         catalogue = value;
         CatalogueGeneration++;
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         SetResults(value.Packages, null);
         var selector = this.FindControl<ComboBox>("SharedPackageSelector")!;
-        selector.SelectedIndex = value.Packages.Count == 0 ? -1 : 0;
-        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"{value.Packages.Count} admitted snapshots; All includes unavailable entries. All invocation unavailable.";
+        selector.SelectedIndex = busy || value.Packages.Count == 0 ? -1 : 0;
+        this.FindControl<TextBlock>("SharedSearchStatus")!.Text = $"{value.Packages.Count} admitted snapshots; All includes unavailable entries. Inspection alone cannot invoke.";
         Report($"{value.Packages.Count} pinned local snapshots. No scripts or references read. Live sources can change; recheck before relying on the displayed revision.");
     }
 
@@ -116,17 +118,22 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     internal void SetBusy(bool busy)
     {
+        this.busy = busy;
+        if (busy) { IdentityFinder.Retire(); }
         foreach (var name in new[] { "RegisterSource", "RefreshSources", "DiscoverSource", "VerifyRevision", "SearchSharedPackages", "ClearSharedSearch" })
         { this.FindControl<Button>(name)!.IsEnabled = !busy; }
         this.FindControl<ComboBox>("SourceSelector")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedPackageSelector")!.IsEnabled = !busy;
         this.FindControl<TextBox>("SharedQuery")!.IsEnabled = !busy;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedFilter")!.IsEnabled = !busy;
         this.FindControl<ComboBox>("SharedOrder")!.IsEnabled = !busy;
     }
 
-    internal void SetWithdrawalBusy(bool busy) => this.FindControl<Button>("UnregisterSource")!.IsEnabled = !busy;
+    internal void SetWithdrawalBusy(bool busy)
+    {
+        if (busy) { IdentityFinder.Retire(); }
+        this.FindControl<Button>("UnregisterSource")!.IsEnabled = !busy;
+    }
 
     internal void ClearCatalogue()
     {
@@ -134,7 +141,6 @@ public sealed partial class SharedSkillSourcesWindow : Window
         catalogue = null;
         results = [];
         this.FindControl<TextBox>("SharedQuery")!.Text = string.Empty;
-        this.FindControl<TextBox>("SharedRevisionDigest")!.Text = string.Empty;
         this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex = 0;
         this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex = 0;
         this.FindControl<TextBlock>("SharedSearchStatus")!.Text = string.Empty;
@@ -145,6 +151,7 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     private void ClearSelection()
     {
+        IdentityFinder.Retire();
         this.FindControl<TextBlock>("SharedIdentity")!.Text = string.Empty;
         this.FindControl<TextBox>("SharedSource")!.Text = string.Empty;
         this.FindControl<TextBox>("UninspectedEntries")!.Text = string.Empty;
@@ -161,7 +168,8 @@ public sealed partial class SharedSkillSourcesWindow : Window
 
     private void ShowSelectedPackage()
     {
-        if (SelectedPackage is not { } package) { ClearSelection(); return; }
+        ClearSelection();
+        if (closed || SelectedPackage is not { } package) { return; }
         this.FindControl<TextBlock>("SharedIdentity")!.Text =
             $"{JsonSerializer.Serialize(package.SourceQualifiedIdentity)}\nSource: "
             + $"{JsonSerializer.Serialize(catalogue!.Source.ProfileRelativeRoot + '\\' + package.RelativeFile)}\n"
@@ -176,11 +184,21 @@ public sealed partial class SharedSkillSourcesWindow : Window
             || package.UnavailableReasons.Contains("invalid-control-text")
             ? "No safe text projection. Exact original bytes in hexadecimal:\n" + Convert.ToHexString(package.Bytes)
             : package.Text;
+        if (!busy)
+        {
+            var generation = CatalogueGeneration;
+            IdentityFinder.Admit(this.FindControl<TextBlock>("SharedIdentity")!.Text!,
+                () => !closed && !busy && current() && CatalogueGeneration == generation
+                    && ReferenceEquals(SelectedPackage, package));
+        }
     }
+
+    private IdentityMetadataFindPane IdentityFinder => this.FindControl<IdentityMetadataFindPane>("IdentityFind")!;
 
     private void Search()
     {
         if (closed) { return; }
+        IdentityFinder.Retire();
         if (catalogue is null)
         {
             ClearCatalogue();
@@ -193,11 +211,10 @@ public sealed partial class SharedSkillSourcesWindow : Window
             var matching = SkillCatalogueSearch.Shared(catalogue,
                 this.FindControl<TextBox>("SharedQuery")!.Text ?? string.Empty,
                 (SkillInstructionFilter)this.FindControl<ComboBox>("SharedFilter")!.SelectedIndex,
-                this.FindControl<TextBox>("SharedRevisionDigest")!.Text ?? string.Empty,
                 (SkillCatalogueOrder)this.FindControl<ComboBox>("SharedOrder")!.SelectedIndex);
             SetResults(matching, selected);
             this.FindControl<TextBlock>("SharedSearchStatus")!.Text =
-                $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. All invocation unavailable."
+                $"{results.Count} of {catalogue.Packages.Count} admitted snapshots from the exact selected source. Inspection alone cannot invoke."
                 + (selected is not null && SelectedPackage is null ? " Selection excluded; private source panes cleared. Select a result explicitly." : string.Empty);
         }
         catch (Exception exception) when (exception is InvalidDataException or ArgumentException)

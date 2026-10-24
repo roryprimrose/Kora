@@ -238,6 +238,100 @@ Declining/failing verification leaves confidence `Unavailable`, not an authentic
 Both capabilities discard transient sample audio and keep derived templates device-local, protected, and absent from roaming, logs, diagnostics, and model-accessible stores.
 Provide status/test/correct/reset/delete recovery; protected-call changes require new UI initiation under the origin gate.
 
+## Optional Local Speech Component Lifecycle
+
+The [approved speech-input design](Speech_Input.md#optional-installation-and-runtime-lifecycle)
+requires future qualified wake/VAD/ASR and optional verifier assets to be
+available through both explicit WiX/Burn install-time preparation and later
+Settings setup. Current installer choices remain PowerShell, Ollama/Qwen and
+Kokoro. The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+now implements exact review, consent, verification, removal and retry orchestration,
+with [private atomic data storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs).
+The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
+is empty: D-002 has not supplied an authoritative qualified input backend/model
+offer. Settings and Burn therefore report no optional input offers, not fake
+installation success; no speech profile is enabled.
+
+The [catalogue metadata](../src/Kora.Core/Dependencies/SpeechComponentDefinition.cs)
+pins an exact model and immutable installed runtime-profile identity, source
+bytes/digests, licence, qualification and resource costs. The installed host
+adapter owns exact native/backend/hardware compatibility, all consumers,
+exclusive quiescence and inert functional checks through
+[the runtime seam](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs).
+The production unavailable adapter denies those operations. A release adding
+an offer must supply and qualify that adapter; component setup cannot install
+native code or launch prerequisites.
+
+Readiness remains a cohesive setup observation, not a runtime-profile selection
+contract. An inspection failure returns no storage snapshot and an explicit
+**Unknown** reason rather than false/missing/ready. Installed-adapter observations
+distinguish unknown, unavailable and incompatible state; functional evidence is
+not-checked, verified, failed, unknown or unavailable. Inspection reads only
+existing authoritative evidence and never performs a functional probe
+([readiness](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs),
+[runtime port](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs)).
+The exclusive mutation port returns a
+[typed admission](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs):
+acquired ownership carries a real owned lease, while unavailable, busy, unknown,
+shared/user-owned and policy-denied states carry distinct status/audit reasons.
+Denied states cannot become a successful no-op lease.
+
+[Settings](../src/Kora/SettingsWindow.SpeechComponents.cs) and
+[Burn choices](../installer/Kora.Setup/SpeechComponentInstallChoice.cs)
+consume the same one-use, expiring exact review and shared service. Inspection
+hashes existing data without downloads or model loading. Mutation rechecks the
+reviewed content, host admission and exclusive ownership; preparation publishes
+a complete verified directory without overwriting existing data. Interrupted
+removal retains an exact recovery record. A failed/uncertain operation requires
+inspection and a new explicit review rather than automatic replay
+([deterministic tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsSpeechComponentStoreTests.cs)).
+
+Extend one versioned host catalogue and existing setup seams, rather than
+implementing independent installer and application download policies. Each
+component records exact engine/runtime/model identities, supported
+Windows/architecture/CPU/GPU, trusted source, byte/hash verification, licence
+and redistribution disposition, download and staged/installed disk estimates,
+RAM/VRAM estimates, dependencies, scope/ownership, health checks and removal
+rules. Bundled native code/launch dependencies remain distinct from optional
+data; a new adapter/runtime must arrive through admitted application delivery.
+
+Both entry points must:
+
+1. Inspect existing assets and compatibility without starting capture, learning,
+   inference or downloads during read-only preflight. Unknown is not Missing or
+   Ready. Show install/reuse/verify needs and retain a continue-without path.
+2. Present only actionable qualified choices, unchecked at install time, with
+   source/licence, download/storage/resource costs and any external prerequisite
+   before exact consent. Required shared runtimes/elevation stay under
+   distribution policy; never silently install GPU drivers or SDKs.
+3. Prepare only selected assets using the common bounded service. Follow the
+   existing non-elevated interactive-user asset scope even for all-users Kora
+   installation, with production paths supplied by `IApplicationDataPaths`.
+   Isolate staging and verify bytes before atomic publication; preserve
+   pre-existing/shared assets and report partial or uncertain outcomes.
+4. Re-probe after preparation. A verified download or installed record is not
+   functional readiness, capability qualification or selected provider state.
+   Functional checks use inert fixtures, never microphone capture or commands.
+   The app revalidates readiness on use; no installer receipt grants host
+   authority, microphone consent, enrollment, learning or future downloads.
+5. Surface progress, cancellation, failures and retry/reconciliation in Settings.
+   Optional failure/cancellation does not roll back Kora or remove user-owned
+   components. Offline users can decline acquisition or explicitly verify
+   supported already-present assets without hidden network fallback.
+6. Keep installation/removal, active profile choice, compute/residency and
+   learning/protection settings separate. Join owned capture/model work before
+   replacing/removing in-use assets; check shared consumers, preserve saved
+   selections as unavailable if their assets are removed, and never select
+   another provider or disable protection implicitly.
+
+App upgrade/repair/uninstall follows the existing ownership/retention policy,
+not automatic removal of model data or derived voice profiles. Version or
+backend incompatibility reports unavailable pending explicit reconciliation.
+Explicit derived-profile deletion also clears bounded candidate/recovery
+revisions and cached features; deleting a model is not implied biometric-data
+deletion. Installer versus Settings paths need equivalent detection,
+verification, failure/cancel/retry and existing-asset preservation coverage.
+
 ## Setup Flow
 
 1. Launch Kora's setup shell and initialise its own local storage.

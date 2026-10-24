@@ -32,16 +32,14 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         foreach (var filter in Enum.GetValues<SessionAttachmentFilter>())
         foreach (var includeRemoved in new[] { false, true })
         foreach (var exact in new[] { false, true })
-        foreach (var literal in new string?[] { null, "text/", "TEXT/" })
         {
             var query = new SessionAttachmentQuery(includeRemoved, exact ? retained.Session.Value.ToString("D") : null,
-                filter, literal, mediaType);
+                filter, mediaType);
             var page = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
             page.ScannedRows.Should().Be(1);
             page.Next.Should().BeNull();
             page.Records.Length.Should().Be((mediaType is null || string.Equals(mediaType, type, StringComparison.Ordinal))
-                && filter is SessionAttachmentFilter.All or SessionAttachmentFilter.Active
-                && !string.Equals(literal, "TEXT/", StringComparison.Ordinal) ? 1 : 0);
+                && filter is SessionAttachmentFilter.All or SessionAttachmentFilter.Active ? 1 : 0);
             if (!page.Records.IsEmpty) { page.Records[0].MediaType.Should().Be(type); }
         }
         fixture.Count("host_tasks").Should().Be(tasks);
@@ -68,26 +66,25 @@ public sealed partial class WindowsSqliteSessionAttachmentTests
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         var retained = await Attach(fixture, Encoding.UTF8.GetBytes("private source"));
         AppendCatalogueAuditReceipts(fixture, SessionAttachmentPage.MaximumAuditRows + 1);
-        var query = new SessionAttachmentQuery(true, retained.Session.Value.ToString("D"), SessionAttachmentFilter.Active, "text/", type,
+        var query = new SessionAttachmentQuery(true, retained.Session.Value.ToString("D"), SessionAttachmentFilter.Active, type,
             AttachmentCopyStatus.Confirmed, 0, 262144);
         var first = await fixture.Store.ReadAttachmentPage(query, null, () => true, fixture.Token);
         first.AuthorityValidationPending.Should().BeTrue();
         first.Records.Should().BeEmpty();
         foreach (var changed in new[]
         {
-            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, query.MetadataText, type, null, 0, 262144),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, AttachmentCopyStatus.Held, 0, 262144),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, null, 262144),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 1, 262144),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 0, null),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText, type, query.CopyStatus, 0, 262143),
-            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, query.MetadataText),
-            new(true, query.ExactSessionId, query.Filter, query.MetadataText,
+            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter, type, null, 0, 262144),
+            new(true, query.ExactSessionId, query.Filter, type, AttachmentCopyStatus.Held, 0, 262144),
+            new(true, query.ExactSessionId, query.Filter, type, query.CopyStatus, null, 262144),
+            new(true, query.ExactSessionId, query.Filter, type, query.CopyStatus, 1, 262144),
+            new(true, query.ExactSessionId, query.Filter, type, query.CopyStatus, 0, null),
+            new(true, query.ExactSessionId, query.Filter, type, query.CopyStatus, 0, 262143),
+            new SessionAttachmentQuery(true, query.ExactSessionId, query.Filter),
+            new(true, query.ExactSessionId, query.Filter,
                 string.Equals(type, "text/plain", StringComparison.Ordinal) ? "text/markdown" : "text/plain"),
-            new(false, query.ExactSessionId, query.Filter, query.MetadataText, type),
-            new(true, null, query.Filter, query.MetadataText, type),
-            new(true, query.ExactSessionId, SessionAttachmentFilter.All, query.MetadataText, type),
-            new(true, query.ExactSessionId, query.Filter, "text", type)
+            new(false, query.ExactSessionId, query.Filter, type),
+            new(true, null, query.Filter, type),
+            new(true, query.ExactSessionId, SessionAttachmentFilter.All, type),
         })
         {
             var mismatch = () => fixture.Store.ReadAttachmentPage(changed, first.Next, () => true, fixture.Token).AsTask();

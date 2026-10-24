@@ -14,7 +14,16 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ProviderProfileConfigurationService>();
         services.AddSingleton<SessionProviderProfileConfigurationService>();
         services.AddSingleton<ISessionProviderProfileStore>(provider => provider.GetRequiredService<WindowsSqliteHostInteractionStore>());
-        services.AddSingleton<IProviderCapabilityCatalogue, UnavailableProviderCapabilityCatalogue>();
+        services.AddSingleton<IWindowsOllamaQualificationSource, UnqualifiedOllamaQualificationSource>();
+        services.AddSingleton<WindowsOllamaRuntimeResolver>();
+        services.AddSingleton<ICopilotDeploymentApprovalSource, UnavailableCopilotDeploymentApprovalSource>();
+        services.AddSingleton<CopilotAccountBroker>();
+        services.AddSingleton<ICopilotExecutionAccountSource>(provider => provider.GetRequiredService<CopilotAccountBroker>());
+        services.AddSingleton<CopilotSdkTurnRuntime>();
+        services.AddSingleton<Kora.Application.Dependencies.HostedTransmissionReviewService>();
+        services.AddSingleton<IProviderCapabilityCatalogue, CopilotProviderCatalogue>();
+        services.AddSingleton<CopilotModelProviderFactory>();
+        services.AddSingleton<OllamaModelProviderFactory>();
         services.AddSingleton<ILocalProviderInstallationObservation, WindowsOllamaInstallationObservation>();
         services.AddSingleton<IProviderProfilePreferences>(provider =>
             new LocalProviderProfilePreferences(provider.GetRequiredService<IPreferenceStore>()));

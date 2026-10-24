@@ -7,8 +7,9 @@
     Icon="/Assets/Kora.ico" Width="1050" Height="800" MinWidth="700" MinHeight="500"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
+  <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
   <Grid Margin="20" RowDefinitions="Auto,Auto,Auto,Auto,Auto,Auto,Auto,*" RowSpacing="10">
-    <TextBlock Text="Registration authorizes only bounded local reading. No enable/disable/invoke, model exposure, execution, egress, approval, source editing or trust promotion."
+    <TextBlock Text="Registration authorizes only bounded local reading. Compatible single-file zero-tool instructions have a separate reviewed local-only invocation. No automatic enablement, execution, egress, approval, source editing or trust promotion."
                TextWrapping="Wrap" />
     <StackPanel Grid.Row="1" Orientation="Horizontal" Spacing="10">
       <Button x:Name="RegisterSource" Content="Choose and register profile root (read only)" />
@@ -20,6 +21,7 @@
       <ComboBox x:Name="SourceSelector" MinWidth="360" AutomationProperties.Name="Registered exact shared profile roots" />
       <Button x:Name="DiscoverSource" Content="List selected source" />
       <Button x:Name="VerifyRevision" Content="Recheck selected revision" />
+      <Button x:Name="ReviewInstructionUse" Content="Review selected instruction-only use" />
     </StackPanel>
     <controls:NamedTextBlock x:Name="SharedStatus" Grid.Row="3" TextWrapping="Wrap"
                             AutomationProperties.Name="Source availability and immutable revision status" />
@@ -36,28 +38,25 @@
         <ComboBox x:Name="SharedOrder" Grid.Column="1" HorizontalAlignment="Stretch"
                   AutomationProperties.Name="Shared metadata order; source default, ordinal names, unknown names last" />
       </Grid>
-      <TextBlock Text="Exact snapshot revision digest: empty means Any; otherwise 64 lowercase hexadecimal characters. This does not recheck live content, inspect additional names or grant authority." TextWrapping="Wrap" />
-      <Grid ColumnDefinitions="Auto,*" ColumnSpacing="8">
-        <Label Content="Revision digest" Target="{Binding #SharedRevisionDigest}" />
-        <TextBox x:Name="SharedRevisionDigest" Grid.Column="1" IsUndoEnabled="False"
-                 AutomationProperties.Name="Exact shared RevisionDigest, empty means Any, lowercase SHA-256" />
-      </Grid>
     </StackPanel>
     <controls:NamedTextBlock x:Name="SharedSearchStatus" Grid.Row="5" TextWrapping="Wrap"
                             AutomationProperties.Name="Shared metadata search results and validation" />
     <ComboBox x:Name="SharedPackageSelector" Grid.Row="6" HorizontalAlignment="Stretch"
               AutomationProperties.Name="Compatible and unavailable shared skill snapshots" />
-    <Grid Grid.Row="7" RowDefinitions="Auto,Auto,*" RowSpacing="10">
+    <Grid Grid.Row="7" RowDefinitions="Auto,Auto,Auto,*" RowSpacing="10">
       <controls:NamedTextBlock x:Name="SharedIdentity" TextWrapping="Wrap"
                               AutomationProperties.Name="Exact source-qualified identity, digest and compatibility" />
-      <Expander x:Name="UninspectedDisclosure" Grid.Row="1" Header="Additional entries (names only; incompatible, no contents read)">
+      <controls:IdentityMetadataFindPane x:Name="IdentityFind" Grid.Row="1"
+                                       AutomationProperties.Name="Find in selected displayed shared identity metadata only" />
+      <Expander x:Name="UninspectedDisclosure" Grid.Row="2" Header="Additional entries (names only; incompatible, no contents read)">
         <TextBox x:Name="UninspectedEntries" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
                  MaxHeight="140" FontFamily="Consolas" TextWrapping="NoWrap"
                  AutomationProperties.Name="Uninspected additional entry paths, not a dependency closure" />
       </Expander>
-      <TextBox x:Name="SharedSource" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True"
-               IsUndoEnabled="False" FontFamily="Consolas" TextWrapping="NoWrap"
+      <TextBox x:Name="SharedSource" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True"
+               IsUndoEnabled="False" FontFamily="Consolas" TextWrapping="NoWrap" MinHeight="160" MaxHeight="360"
                AutomationProperties.Name="Exact immutable untrusted SKILL.md source, inert plain text" />
     </Grid>
   </Grid>
+  </ScrollViewer>
 </Window>

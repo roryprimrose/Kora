@@ -9,6 +9,17 @@ owns delivered status; [Commands](../docs/commands.md) owns current exact syntax
 Native delivery or instruction selection never grants model, execution,
 approval, session or egress authority.
 
+Apply the [product-admission and retirement decision](MVP_Scope.md#product-admission-and-realignment) before adding or exposing an action. The current calculator/clock delivery sections below describe implementations approved for retirement, not continuing approval for utility expansion.
+
+Pending-queue cancellation preparation uses
+`session queue cancellation review <session-id> <task-id>[,<task-id>...]`
+and explicit `session queue cancellation help`. This reserved exact-session
+family opens the existing private native pending subset selector/review; it
+does not confirm cancellation or introduce a model descriptor. The
+[command guide](../docs/commands.md) owns grammar and
+[Work Management](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) owns the
+complete-subset/revision and separate native-confirmation boundary.
+
 For capability-specific limits, use [configuration](User_Configuration.md),
 [source storage](Skill_Storage.md), [file ingestion](File_And_Folder_Ingestion.md),
 [providers/memory](Model_Providers_Memory_And_Knowledge.md) and
@@ -74,9 +85,32 @@ authority established for an earlier or unrelated proposal.
 
 ### Owned metadata inventory navigation
 
+The existing skill inspectors have exact typed/current-name activated navigation: `open skill packages` / `show skill package review`, or `open shared skill sources` / `show shared skill sources`. See [exact syntax and review-only limits](../docs/commands.md#open-existing-skill-reviews).
+
+They activate the same singleton native controllers, not artifact `run`/`use`/`apply`, a model tool or a selector ([owning definition boundary](Definition_Management.md#delivered-native-skill-metadata-navigation)).
+
 The delivered owned native editor also provides literal metadata search, observed-use filters and exact stale-safe row inspection for its existing Instruction/Prompt filename inventories only.
+Its independent [native Go to line](../docs/instruction-editor.md#go-to-a-line-in-the-displayed-source)
+is a local caret gesture over the exact currently displayed owned source,
+including dirty/invalid drafts. It has no command/model/voice route, source I/O,
+validation, writer or use authority and does not depend on literal Find.
+One bounded portable logical-line index preserves exact UTF-16 offsets and
+CRLF/CR/LF separators. Explicit Go consumes an ownership/private/buffer/lifetime
+fence before synchronous native focus/caret acknowledgement; stale requests
+require explicit retry. Each native Go control binds its request epoch so
+delayed retired-control clicks cannot navigate an explicitly reopened buffer;
+native source detachment also retires the request.
+Profile/bundled/read-only/unknown sources stay unavailable.
+The consumed I subset is the existing owned editor and host/privacy admission;
+unrelated provider, hardware, installed or experiment E/Q evidence is not a
+prerequisite for deterministic native navigation validation.
 Explicit List/Refresh uses existing admission/reconciliation; filtering remains in-memory and model-free, with no source writes, activation or first-result loading. Typed/current-name activated List/Inspect opens the same native route; no new model tool or typed search grammar is registered.
 Observed catalogue state is not current disk integrity. Unavailable/stale choices require Refresh/reselection while the original/draft stays open. See [owned inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata); profile-original editing and the full definition source matrix stay deferred.
+
+The editor's separate [displayed-buffer literal Find](../docs/instruction-editor.md#find-in-the-displayed-owned-buffer)
+is native-only (Ctrl+F, first/next/previous/clear), not an inventory query, typed/activated command,
+dictation route or model tool. It searches only the exact owned memory buffer, including dirty text,
+without source reads, selection retargeting, save/validation/rebase, enablement or execution.
 
 ### Proposed Instruction Authoring
 
@@ -173,6 +207,8 @@ Conversely, selecting a skill does not execute a script or create a grant.
 
 ### Action exposure is the default
 
+This rule applies only after a user-visible capability has passed [feature admission](MVP_Scope.md#feature-admission). It does not require exposing every helper, metadata field or intermediate preparation step as a command, native control or model tool.
+
 For every new user-visible Kora action, design review must consider three
 entry points backed by the same registered host action:
 
@@ -205,6 +241,8 @@ action, that both routes apply the same policy, and that unavailable,
 unauthorized, ambiguous, or invented actions fail closed. Catalogue tests must
 also detect conflicting normalized phrases and descriptors that advertise an
 action with no registered dispatcher.
+
+Report completion against the approved user operation. Merely opening a surface or filling a field is navigation/preparation, not completion of Find, rename, request submission or task management. Provide equivalent voice/UI review and confirmation where permitted; mandatory OS/provider authentication and documented privacy/channel exceptions remain intact.
 
 An executable task here means a registered effect; a scheduled user task in the work ledger can contain several such invocations.
 Keep their identities distinct in proposals, approvals, and receipts.
@@ -451,6 +489,26 @@ Native SDK function/tool calling and typed inference responses are alternative t
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.
+
+The [bounded read-only continuation implementation](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+now supplies that host-owned loop over a provider-neutral portable transport.
+Its default discovery mode consumes the existing six read-only capabilities through the admitted
+host callback. A separate explicit `LocalWebPage` mode exposes only
+`network.get_web_page`, classified as bounded network read rather than discovery.
+The original user supplies one exact destination and approves its host-resolved
+once-only proposal in the native grant workflow. The existing `WebPageGet`
+action performs retrieval; another redirect destination requires a fresh request.
+An inert, local-only, provenance-bearing result (2 KiB including framing) resumes
+the same admitted local turn and original retained conversation task. Hosted
+turns, tool-free flows, absent approval composition and unqualified local profiles
+cannot acquire this capability. See the [complete user operation](../docs/tools-and-built-in-skills.md#retrieve-and-summarize-one-public-page-locally).
+Complete-message validation precedes serial one-use calls;
+genuine correlated results remain inert data, and a final answer uses the
+existing response contract. Live host revalidation, complete cumulative byte,
+call/round and deadline limits, no retries and actual transport termination
+remain mandatory. This is not a running provider, a skill/agent executor or
+permission to use the legacy action selector as a tool loop. Production
+qualification and default enablement remain unavailable.
 
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 

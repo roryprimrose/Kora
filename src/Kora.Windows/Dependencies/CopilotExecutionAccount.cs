@@ -15,9 +15,7 @@ public sealed class CopilotExecutionAccount
         ArgumentException.ThrowIfNullOrWhiteSpace(token);
         if (profile.Service != ProviderService.Copilot || !Path.IsPathFullyQualified(executablePath)
             || !Path.IsPathFullyQualified(workingDirectory) || !Path.IsPathFullyQualified(baseDirectory)
-            || expiresAt == DateTimeOffset.MaxValue
-            || environment.Any(item => item.Key is not ("SystemRoot" or "WINDIR" or "TEMP" or "TMP")
-                || string.IsNullOrWhiteSpace(item.Value) || item.Value.Length > 4096))
+            || expiresAt == DateTimeOffset.MaxValue)
         {
             throw new InvalidDataException("Copilot enablement requires an exact profile and host-owned absolute runtime paths.");
         }
@@ -27,7 +25,7 @@ public sealed class CopilotExecutionAccount
         ExecutablePath = executablePath;
         WorkingDirectory = workingDirectory;
         BaseDirectory = baseDirectory;
-        Environment = new Dictionary<string, string>(environment, StringComparer.OrdinalIgnoreCase);
+        Environment = CopilotExecutionEnvironment.Copy(environment);
         ExpiresAt = expiresAt;
     }
 

@@ -2,6 +2,7 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
+    xmlns:local="using:Kora"
     Title="All work / attention overview - passive observations" Icon="/Assets/Kora.ico"
     Width="1120" Height="760" MinWidth="850" MinHeight="600"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
@@ -13,18 +14,6 @@
       <Button x:Name="CancelRead" Content="_Cancel read" IsEnabled="{Binding CanCancel}" />
       <ComboBox ItemsSource="{Binding Filters}" SelectedItem="{Binding Filter, Mode=TwoWay}"
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Stored lifecycle filter, independent of task and queue state" />
-      <ComboBox x:Name="ObservationAvailability" ItemsSource="{Binding AvailabilityChoices}"
-                SelectedItem="{Binding SelectedAvailabilityChoice, Mode=TwoWay}"
-                IsEnabled="{Binding CanEdit}"
-                AutomationProperties.Name="Observation availability filter: Any, Observed, Source changed, Read unavailable, Output bound; changing performs no read; unavailable is not empty work">
-        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-      </ComboBox>
-      <ComboBox x:Name="ObservedContent" ItemsSource="{Binding ContentChoices}"
-                SelectedItem="{Binding SelectedContentChoice, Mode=TwoWay}"
-                IsEnabled="{Binding CanEdit}"
-                AutomationProperties.Name="Observed content filter: Any, at least one observed queue receipt, task, or pending question; changing performs no read; unavailable never matches positive choices; omissions prove no absence or completion">
-        <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
-      </ComboBox>
       <StackPanel>
         <TextBlock Text="Observed task state" />
         <ComboBox x:Name="ObservedTaskState" ItemsSource="{Binding TaskStateChoices}"
@@ -38,6 +27,18 @@
                 IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Pending-question metadata in scanned snapshots only; unavailable sources remain explicit, never a fresh reply target" />
     </WrapPanel>
     <StackPanel Grid.Row="1" Spacing="6">
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <TextBlock Text="Order this loaded page" VerticalAlignment="Center" />
+        <ComboBox x:Name="LoadedPageOrder" ItemsSource="{Binding OrderChoices}"
+                  SelectedItem="{Binding SelectedOrderChoice, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
+                  AutomationProperties.Name="Order this loaded page only; Source, canonical session ID ascending or descending, Observed rows first category only, session name ascending or descending Ordinal with unnamed last; no read; Observed grants no navigation authority, selection or permission">
+          <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+        </ComboBox>
+        <Button x:Name="ClearLoadedPageOrder" Content="Clear page order" IsEnabled="{Binding CanEdit}"
+                AutomationProperties.Name="Restore Source order only; no read; preserve all filters and raw Next; retire selection and navigation" />
+      </StackPanel>
+      <controls:NamedTextBlock Text="{x:Static local:AllWorkViewModel.OrderScope}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Loaded page ordering scope; no global ordering or Observed authority" />
       <Grid ColumnDefinitions="Auto,*,Auto,Auto" ColumnSpacing="8">
         <ComboBox ItemsSource="{Binding QueryKinds}" SelectedItem="{Binding QueryKind, Mode=TwoWay}"
                   IsEnabled="{Binding CanEdit}" AutomationProperties.Name="Private metadata query mode: literal saved name substring or exact session ID" />
@@ -49,47 +50,6 @@
       </Grid>
       <controls:NamedTextBlock Text="{Binding QueryHint}" TextWrapping="Wrap"
                               AutomationProperties.Name="Metadata query validation and passive search scope" />
-      <Grid ColumnDefinitions="*,*,Auto" ColumnSpacing="8">
-        <StackPanel>
-          <TextBlock Text="Retained TaskId (Any when empty)" />
-          <TextBox x:Name="RetainedTaskId" Text="{Binding TaskIdText, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
-                   PlaceholderText="Optional exact retained TaskId"
-                   AutomationProperties.Name="Exact retained TaskId; empty means Any; lowercase D GUID; typing performs no read; Escape clears both correlation IDs" />
-        </StackPanel>
-        <StackPanel Grid.Column="1">
-          <TextBlock Text="Retained RequestId (Any when empty)" />
-          <TextBox x:Name="RetainedRequestId" Text="{Binding RequestIdText, Mode=TwoWay}" IsEnabled="{Binding CanEdit}"
-                   PlaceholderText="Optional exact retained RequestId"
-                   AutomationProperties.Name="Exact retained RequestId; empty means Any; lowercase D GUID; typing performs no read; Escape clears both correlation IDs" />
-        </StackPanel>
-        <Button x:Name="ClearTaskQuery" Grid.Column="2" Content="Clear task correlation" IsEnabled="{Binding CanEdit}"
-                AutomationProperties.Name="Clear both retained task correlation IDs without reading; preserve independent filters" />
-      </Grid>
-      <controls:NamedTextBlock Text="{Binding TaskQueryHint}" TextWrapping="Wrap"
-                              AutomationProperties.Name="Same retained task correlation validation and passive scope; omissions prove no absence or authority" />
-      <Expander x:Name="WorkRanges" Header="Optional inclusive observed work metadata ranges" HorizontalAlignment="Stretch">
-        <StackPanel Spacing="6" IsEnabled="{Binding CanEdit}">
-          <controls:NamedTextBlock Text="{Binding RangeHint}" TextWrapping="Wrap"
-                                  AutomationProperties.Name="Work range validation; unavailable never matches ranges; omissions prove no absence, completeness, success or authority" />
-          <ScrollViewer MaxHeight="210" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                        AutomationProperties.Name="Nine optional inclusive work metadata ranges">
-            <ItemsControl ItemsSource="{Binding RangeInputs}">
-              <ItemsControl.ItemTemplate>
-                <DataTemplate>
-                  <Grid ColumnDefinitions="240,*,*" ColumnSpacing="8" Margin="0,4">
-                    <TextBlock Text="{Binding Label}" VerticalAlignment="Center" />
-                    <TextBox Grid.Column="1" Text="{Binding Minimum, Mode=TwoWay}" PlaceholderText="Minimum (Any)"
-                             AutomationProperties.Name="{Binding MinimumLabel}" />
-                    <TextBox Grid.Column="2" Text="{Binding Maximum, Mode=TwoWay}" PlaceholderText="Maximum (Any)"
-                             AutomationProperties.Name="{Binding MaximumLabel}" />
-                  </Grid>
-                </DataTemplate>
-              </ItemsControl.ItemTemplate>
-            </ItemsControl>
-          </ScrollViewer>
-          <Button x:Name="ClearRanges" Content="Clear work metadata _ranges" />
-        </StackPanel>
-      </Expander>
     </StackPanel>
     <controls:NamedTextBlock Grid.Row="2" Text="{Binding Status}" TextWrapping="Wrap"
                             AutomationProperties.Name="Bounded overview scope, scanned and omission markers; no global totals or all-clear" />
@@ -103,8 +63,6 @@
               <TextBlock Text="{Binding Session.Authority.SessionId.Value}" FontFamily="Cascadia Mono,Consolas,monospace" TextWrapping="Wrap" />
               <TextBlock Text="{Binding Availability}" />
               <TextBlock Text="{Binding Session.Authority.IsActive, StringFormat='Stored Active: {0} (false means Done)'}" />
-              <TextBlock Text="{Binding Work.ExecutionSlots, StringFormat='Confirmed fixed-profile slots: {0}'}" />
-              <TextBlock Text="{Binding Work.ObservedCurrentFixedReads, StringFormat='Observed current fixed reads here: {0}'}" />
               <TextBlock Text="{Binding Work.PendingQuestions.Length, StringFormat='Observed pending questions: {0}'}" />
               <ItemsControl ItemsSource="{Binding Work.QueueRecords}">
                 <ItemsControl.ItemTemplate>
@@ -132,11 +90,30 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
-                    AutomationProperties.Name="Complete bounded selected group work metadata and policy reasons">
-        <controls:NamedTextBlock Text="{Binding SelectedDetails}" TextWrapping="Wrap"
-                             AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
-      </ScrollViewer>
+      <Grid Grid.Column="1" RowDefinitions="Auto,*" RowSpacing="8">
+        <StackPanel Spacing="6">
+          <TextBlock Text="Find only in the selected displayed metadata details. Literal, case-sensitive, nonoverlapping; no wrap. Counts are not inventory, completeness, trust, safety or authority." TextWrapping="Wrap" />
+          <WrapPanel>
+            <TextBox x:Name="DetailsFindQuery" MinWidth="180" IsUndoEnabled="False"
+                     AutomationProperties.Name="Private selected metadata Find query; Ctrl F; one line, at most 256 UTF-16 units and 512 UTF-8 bytes; Enter finds first; typing performs no read" />
+            <Button x:Name="DetailsFindFirst" Content="First" AutomationProperties.Name="Find first exact selected metadata match" />
+            <Button x:Name="DetailsFindNext" Content="Next" AutomationProperties.Name="Find next exact selected metadata match; F3; no wrap" />
+            <Button x:Name="DetailsFindPrevious" Content="Previous" AutomationProperties.Name="Find previous exact selected metadata match; Shift F3; no wrap" />
+            <Button x:Name="DetailsFindClear" Content="Clear" AutomationProperties.Name="Clear private selected metadata Find query, count and match; Escape" />
+          </WrapPanel>
+          <controls:NamedTextBlock x:Name="DetailsFindStatus" Text="{Binding FindStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Selected metadata Find result, complete nonoverlapping count and selected ordinal; no inventory or authority claim" />
+          <ScrollViewer MaxHeight="70" HorizontalScrollBarVisibility="Auto" VerticalScrollBarVisibility="Auto">
+            <controls:NamedTextBlock x:Name="DetailsFindMatch" Text="{Binding FindMatch}" Focusable="True"
+                                    AutomationProperties.Name="Exact inert selected metadata Find match; not a row selection or action target" />
+          </ScrollViewer>
+        </StackPanel>
+        <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto"
+                      AutomationProperties.Name="Complete bounded selected group work metadata and policy reasons">
+          <controls:NamedTextBlock x:Name="SelectedMetadataDetails" Text="{Binding SelectedDetails}" TextWrapping="Wrap"
+                                 AutomationProperties.Name="Exact observation provenance, stored lifecycle, queue/task states, deadlines and pending-question metadata; no bodies or authority" />
+        </ScrollViewer>
+      </Grid>
     </Grid>
     <WrapPanel Grid.Row="4">
       <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"

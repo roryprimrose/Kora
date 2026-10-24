@@ -2,23 +2,15 @@
 
 ## Private retained attachment metadata search boundary
 
-The [retained-slot catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) permits native bounded literal search only over already exposed Session/source/revision/item IDs, digest and media type. It does not search hidden descriptor filenames/paths or removed-slot metadata. The shared strict literal policy preserves exact case/spaces and fails closed on malformed/oversized input.
-The query remains volatile and excluded from query/page serialization, audit/logging, tags/Baggage, persistence, export, transcripts and model/network context. Run-local authenticated continuations contain only a keyed query fingerprint; source/profile/viewer/authority/expiry bounds and full validation of irrelevant records remain mandatory. No content read, original-path access, index, permission, consent, activity renewal or authority expansion is added. Query/source/private changes and cancellation/close fence late results and exact navigation; unknown/corrupt/unsupported state is not empty success.
+The [retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) exposes bounded metadata Browse/exact-session navigation and meaningful lifecycle/type/copy-status/byte filters, not engineering source/profile/revision/digest queries. Selected displayed-text Find remains volatile and inert.
 
-Native attachment revocation is nonblocking and bound to the originating inspection lifetime; body invalidation additionally binds its exact view revision. Delayed notifications cannot cancel a newly admitted explicit inspection or close its new retained/recovery view. Current-lifetime session/private revocation still clears all its views and pending work; changing views alone does not supersede that revocation.
+Internal source identity, complete row/audit-prefix validation, keyed continuations and exact retained-copy verification remain mandatory. Query edits/source/privacy closure retire observations and late callbacks; metadata matching is not file-read, model-source-use, egress or execution authority.
 
-Optional exact local-file source/revision/item IDs use the shared nonempty
-canonical lowercase D-GUID policy and match only Confirmed retained copies.
-Every complete summary is validated before exclusion. Exact predicates cannot
-reconstruct or expose former IDs from unavailable/removed tombstones; Held
-copies never match. These volatile IDs are keyed-continuation-bound correlation
-metadata only, never source consent, current file identity, path disclosure,
-body integrity, file-read authority or proof a copy exists. Existing provenance
-and separately admitted full-byte navigation remain unchanged.
+Revocation remains bound to its originating inspection lifetime and exact body view. Delayed notifications cannot cancel a newer independent admitted inspection. Removed/Held/Unavailable copies never acquire content authority through a query or display field.
 
 ## All work private metadata query boundary
 
-The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the authoritative Sessions/saved-draft metadata query policy, never content search. Literal saved-name substrings and canonical exact GUIDs are private navigation data, not intent, identity or authority. Typing performs no read; explicit Search/Refresh/Next uses existing private metadata admission and independently admitted per-session work observations. Ten-session scans, fifty task/question records per session, complete 64 KiB projection, canonical-ID ordering, timeout/cancellation and explicit unavailable/nonmatch/omission counts remain unchanged.
+The [bounded All work overview](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) reuses the Sessions metadata query policy, never content search. Names/IDs are private navigation data, not authority. Explicit Search/Refresh/Next retains bounded scans, full validation and truthful unavailable/omitted status; typing reads nothing.
 Only the query digest enters a volatile host/admission/source-epoch/filter-bound continuation; query text never enters persistence, logs, Activity tags/Baggage or model context. Edits clear stale selection/page/continuation and fence late results; private closure clears text too. Empty pages with Next are not all-clear, and mutable keysets are not atomic global snapshots. Exact navigation repeats private admission and grants no resume, activity renewal, queue action, question/voice retarget, provider/worker/resource, network or execution authority. This does not qualify global work/body search or installed accessibility.
 
 ## Owned definition metadata navigation boundary
@@ -36,18 +28,24 @@ Queries and one exact match are volatile presentation only: no persistence, logg
 ## Exact-session conversation retention boundary
 
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
-stores exact explicitly submitted user content and explicitly saved drafts
-only in the private session authority. One saved draft per exact session and
-100 submitted messages/session are initial UX bounds, **not aggregate stored
-session/draft/message quotas**. Nothing evicts unexpired content or required
-audit to meet capacity.
+stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
+The 100-message session bound is not an aggregate storage quota. Nothing silently evicts unexpired content or required audit ([unsent input](../src/Kora/SessionsViewModel.Unsent.cs), [read-only recovery](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
 
 Frozen body/source and fresh task intent share one physical COMMIT with typed
 requested/terminal audit and content digests; raw bodies are not audit/log/tag/
 baggage/preference/Work/AllWork fields. Explicit native input, exact generation/
 revision, ownership/privacy/call/control and final commit fences fail closed.
 The configured provider-neutral admission consumer preserves unavailable
-outcomes without fallback, HTTP, authentication, egress or execution.
+outcomes without fallback, HTTP, authentication or hosted egress. A separately
+qualified local turn may use only the existing host-owned single-use execution
+and read-only registry callbacks. Exact consumer source/private lifetime and
+session metadata are revalidated around model/tool continuations, alongside
+existing owner/issuer/task/generation/context/policy/qualification/quiescence
+fences. Raw model text cannot select a handler, approve, grant or become USER.
+Only a strict bounded answer-only final result with the original host provenance
+may be atomically retained as ASSISTANT with the original terminal task and typed
+audit. Readback/source/cancellation uncertainty cannot become answer publication
+or automatic retry. Production qualification remains unchanged and unavailable.
 
 Saved data is never replay/approval/source-use authority. Passive read/Done
 inspection does not renew activity or trigger cleanup; private/source closure
@@ -55,6 +53,12 @@ revokes draft/page callbacks. Disposition/retention inventory actual cells,
 free pages and committed journal with existing Unknown-work and uninventoried
 copy holds. Required audit remains content-minimised and independently
 retained; disk/write/receipt failures cannot become an unaudited success.
+Optional versioned assistant data shares the existing original message cell,
+audit digest, complete-page byte limit and disposition/retention/copy inventory.
+Legacy canonical payloads remain unchanged; unknown/malformed/foreign response
+provenance is rejected. USER/HOST lexical search and original-text reuse do not
+search or promote assistant output. Private native details show it separately
+without adding source-copy/export authority.
 
 The bounded native composer uses shared Core local structural credential-like
 checks, not a model, network call or entropy-based DLP. Detected or malformed
@@ -109,84 +113,15 @@ remain intact; cached maintenance Check/Open stays separately native.
 
 ## Deterministic fixed local-version queue boundary
 
-The [native optional prerequisite](Work_Management.md#delivered-optional-native-enqueue-prerequisite---2026-10-12) captures only exact same-session immutable ID and real revision from existing bounded host task metadata. It adds an optional optimistic enqueue guard, not durable policy/schema or authority.
-The original audited transaction rechecks task existence/session/revision and private source eligibility before COMMIT; missing/changed source refuses without None fallback. Typed after-task remains unchanged, and normal dispatch reevaluates Succeeded independently of the original observation.
+Public diagnostic scheduling/preparation/settings are removed. Exact retained-work inspection/cancellation/removal/clear remains without replay or new authority ([workspace boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [compatibility](Work_Management.md#delivered-deterministic-local-version-queue)).
 
-The [expired current-run removal/new-decision transaction](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) binds the exact stored Pending source/task/run/private epoch and host-issued fresh same-profile request/task IDs to a separate user confirmation.
-Queue/order/pause/settings/source revisions and actual original UTC expiry are checked under the same short private SQLite admission fence. Typed original/fresh audit lineage and old Removed/Cancelled plus new Pending/IntentRecorded changes commit all-or-none, without new grants, replay, dependency retarget or side-file authority. Unknown commit/delivery holds admission.
+The maintained internal scheduler/store retains original host-issued identities, private admission, FIFO/dependencies, full-row validation, no-replay restart handling and typed requested/terminal audit. Malformed/corrupt/unconfirmed state never falls back to defaults or apparent success ([queue service](../src/Kora.Application/Hosting/SessionQueueService.cs)).
 
-The [selected pending cancellation](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12) admits only a complete host-reviewed same-session current-run set of at most the shared ten pending IDs/revisions. No arbitrary payload/path/model selection enters it.
-Original native/typed/activated input, private epoch, generation, queue/run/control and full ordered membership bind review and physical commit.
+Pending cancellation binds the complete reviewed same-session/current-run set and original provenance to final membership/source/private fences. Revisions/audit/receipt commit atomically; one stale member refuses all. Uncertainty holds without rollback or retry ([contract](Work_Management.md#delivered-atomic-selected-pending-cancellation---2026-10-12)).
 
-All selected queue/task revisions, optional existing order-lineage append, requested/terminal typed audit and terminal control receipt commit together under the existing exclusive SQLite lease.
-Audit provenance retains each exact original member, not parsed rendered messages or an arbitrary SecurityAudit property. Existing canonical bytes/digests, storage inventory and retention/disposition authority are preserved.
+Internal configuration compatibility preserves existing saved values and admitted clocks. Retiring its editor never changes captured budgets or grants dispatch ([configuration service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs)). Direct version/capability/readiness actions retain their separate exact routes and authority.
 
-One stale member or concurrent mutation refuses all without skipping. Required write/audit/readback/commit uncertainty holds admission; known commit is not undone after failed delivery. No automatic retry, rollback claim, history deletion, provider/worker termination, grant consumption or new persistence authority is introduced.
-
-The original [four fixed no-argument profiles](Work_Management.md#delivered-fixed-first-page-read-profiles---2026-10-12)
-share the original queue admission fence and freshly admitted Native registry
-caller. New page rows retain only bounded typed catalogue/recorded-readiness/
-runtime metadata, with terminal digest/profile binding. Raw probe details,
-user content, paths, dumps, arbitrary arguments and provider/model authority
-are excluded. Exact private status retrieves the saved observation; Work/AllWork
-and local events exclude result data. Format 4 is explicit; legacy version
-bytes/digests/clocks stay unchanged. No grants, permission levels, egress,
-automatic dispatch or replay are introduced.
-
-The [two targeted profiles](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) use the same fences and actual actions: one exact current-catalogue descriptor selection or host-fixed recorded `local.inference` status. Explicit format 5 alone carries the new closed metadata; runtime targets cannot be overridden.
-Matching single-record wire validation is shared with the registry. No arbitrary request/JSON/parameters, egress, probe, inference or new authority is admitted.
-
-The [bounded queue preferences](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) preserve original-input admission through the existing independent configuration-control session.
-Host-held option/configuration/call revisions and native visible-lifetime identity bind proposals.
-Protected original-voice writes deny without channel relabelling or deferred application.
-Required typed audit, atomic save/readback and durable completed intent precede activation; unknown/corrupt/unconfirmed storage holds new admissions without defaulting ([service](../src/Kora.Application/Configuration/SessionQueueConfigurationService.cs), [failure fixtures](../tests/Kora.Application.UnitTests/Configuration/SessionQueueConfigurationServiceTests.cs)).
-
-Only pending capacity 1-10, synchronous read-only slots 1-2, future-enqueue pending lifetime 1-120 minutes/default 30 and future-admission active budget 1-60 minutes/default 5 are configurable.
-Short consuming transactions serialize with edits and revalidate confirmed storage at reads/commits, but active callbacks do not hold that configuration gate.
-Lowering limits never removes pending records or revokes existing admissions; existing pending metadata and admitted deadlines remain unchanged. Original dispatch authority binds format-3 active budget/precise UTC deadline and same-run monotonic enforcement; legacy admissions retain five minutes. Cancellation/elapsed budgets suppress late output without termination/rollback authority.
-No grant, execution token, schema migration, automatic dispatch, model configuration tool or general effect/provider authority is created ([queue consumer](../src/Kora.Application/Hosting/SessionQueueService.cs), [durable invariants](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.cs)).
-
-The native selected-session work surface is a passive consumer of one bounded
-validated authority snapshot. It adds no store/schema, egress, authority grant
-or model-facing tool. IDs/revisions/selection epoch bind admitted controls to
-the same exact command services and commit checks. Background observations
-neither extend meaningful activity nor dispatch/renew/retarget questions.
-No session name, question text, history/evidence content, path, preview/skill
-body or caption enters queue payloads, diagnostics or activity tags/baggage.
-Close/privacy loss cancels and clears live presentation; disposed subjects
-fail closed while exact redacted history remains independently readable.
-
-The schema-v5 queue is host-only metadata over the existing qualified local
-version action. Original native/typed/current-name activated user routes share
-one service; no model or provider receives queue bodies, IDs or observations.
-Only exact session/request/task identities and explicit expected revisions
-admit mutation. Name, focus, incoming trace, model text, grant or selected
-window cannot create dispatch authority.
-
-Private ownership, call/privacy epoch, existing Active session generation,
-capacity/dependencies and fair slots are checked before and under the
-transactional commit lease. Lock/unlock and handoff epochs retire eligibility;
-no ambient resume occurs. Queue admission/terminal task state and required
-typed audit are one COMMIT. Generic task writes cannot bypass the queue
-gateway; only truthful no-replay Interrupted/Unknown recovery is permitted.
-Audit/storage failures expose uncertainty and stop dispatch without retry.
-
-Only the fixed read-only registry action is callable, with fresh host-bound
-Native authority. No arbitrary resource/effect descriptors, scripts, power,
-write connectors, hosted/local-model reasoning or audio are admitted.
-Unknown/unclassified effects quarantine the addressed session and dependent
-work, while unrelated fixed local reads remain eligible. No SDK callback or
-cancel acknowledgement certifies an effect's termination.
-
-Queue rows retain content-free identity/revision/timing/state metadata.
-They contain no label, utterance, path, skill body, file/clipboard preview,
-caption or model output. Deferred work uses fresh activities and causal links,
-not a retired parent or Baggage; logs contain only fixed structured failure
-type. Ordered history still derives from committed task receipts, never from
-logs or queue contents. Logical disposition retains these minimal audited
-identities while redacting existing history content; it is not forensic erasure.
-Perpetual grants remain independent. Restart restores observation only,
-projects interrupted/unknown tasks and never dispatches a saved queue.
+Work/All Work are bounded independent observations, not global completeness or physical-stop claims. Names, selection, event/model text and incoming traces cannot supply control authority. Privacy/source loss retires volatile display ([workspace contract](UI_Workspace_And_Windows.md#delivered-authoritative-sessions-work-surface---2026-10-09)).
 
 ## Passive Committed Authority Audit Inspection
 
@@ -341,8 +276,10 @@ The UI always shows the effective processing mode and runtime.
 
 ## Wake-Listening Privacy
 
-"Kora" activation is included from Slice A and runs locally in both data modes.
-It is the default name, not a permanently enabled alias: users explicitly choose custom-only or default-plus-custom under [Custom Activation Names](Activation_Name.md).
+"Kora" activation is a Slice A1 design requirement and runs locally in both
+data modes; production wake remains unavailable. It is the default name, not
+a permanently enabled alias: the current name is custom-only under
+[Assistant and Activation Name](Activation_Name.md).
 Name changes never authenticate a speaker, modify embedded skills/code, expand ambient capture, or bypass output/action policy.
 Setup requires explicit microphone/wake-listening consent; once enabled, verbal activation requires no click or keypress.
 Distinguish Wake Listening, Awaiting Conversational Reply, Capturing
@@ -362,6 +299,13 @@ Microphone enumeration is not recording consent; first-run and failure recovery 
 Device reconnection cannot reopen capture, and stale pre-failure input cannot approve actions.
 Detection of "Kora" is neither authentication nor approval; all commands still pass existing policy and approval checks.
 Playback echo rejection must prevent spoken answers and activation cues from becoming user input.
+
+The [speech-input contract](Speech_Input.md) keeps wake detection, endpointing,
+transcription and optional verification local, with zero hosted speech requests
+or billed token/audio-duration usage. Hosted reasoning preferences cannot grant
+microphone egress; asset downloads are separate explicit setup. No failure or
+hardware/performance choice enables hosted transcription, silently substitutes
+an input profile or disables selected speaker protection.
 
 ### Microphone Consent and Enablement Matrix
 
@@ -477,6 +421,16 @@ Missing assets, failure, consent withdrawal, or changed user/device binding paus
 Benchmark predominant-speaker attribution, correction/drift, voice variation, supported microphones, mixed speakers, and playback contamination before claiming quality.
 Do not advertise inferred frequent-speaker confidence as authenticated-owner confidence; any optional privacy use needs separate explicit policy and verifier evidence.
 
+The [learning mechanisms and resource policy](Speech_Input.md#optional-learning-and-calibration)
+distinguish wake calibration, speaker features, vocabulary personalization and
+actual acoustic adaptation. An accepted transcript or completed command is not
+a correctness/owner label. Bound and validate updates between utterances;
+exclude uncertain/mixed/playback samples and stop/defer optional updates for
+cancellation, consent withdrawal or interactive resource pressure.
+Performance presets cannot change consent, enroll a verifier or disable an
+existing selected protection. General owner-only command admission is not
+introduced by this learning direction.
+
 ### Explicit Verification and Output Privacy
 
 Speaker verification must fail closed to `Unavailable` on missing assets, stale enrollment, changed user/device binding, microphone changes requiring revalidation, verifier failure, uncertain audio, suspected replay/synthesis, or policy denial.
@@ -539,8 +493,10 @@ See [Call-Aware Speech](Call_Aware_Speech.md).
 
 ### Delivered R07 Local Clipboard Preview - 2026-10-07
 
-Exact deliberate voice/typed preview/snapshot/explain commands and the native
-tray preview action share a composed local plain-text broker. Eligibility is
+Exact deliberate voice/typed preview/snapshot commands and the native
+tray preview action share a composed local plain-text broker. Explanation requests use the
+[clipboard explanation action](../src/Kora.Tools/Clipboard/ClipboardExplain.cs).
+Eligibility is
 resolved before a request-owned STA read and revalidated before publication,
 presentation and same-ID reuse. Current unlocked privacy, instance capability
 ownership, original input origin and call generation are mandatory. No
@@ -562,6 +518,40 @@ callbacks. Clearing releases references, not a managed-memory zeroization
 claim. Logs retain content-minimizing typed outcomes/failure types under host
 correlation, never text/digest/excerpts or raw native exception messages.
 
+Exact `clipboard snapshot status <snapshot-id>` and `clipboard snapshot help`
+use a dedicated raw-input parser before question/approval/model routing; they
+do not inherit normalized GUID repair from reuse. The nonempty lowercase `D`
+ID must name only the current immutable capture. The shared
+[metadata policy](../src/Kora.Core/Context/ClipboardSnapshotStatusResult.cs)
+exposes only presence, that exact host ID and the already admitted UTF-8 byte
+count; help exposes no current ID. No new content-derived counts or timestamps,
+history, retention, native clipboard status or source-use admission is added.
+The host-owned [status action](../src/Kora.Tools/Clipboard/ClipboardSnapshotStatus.cs)
+publishes under the broker's source lock after original source eligibility,
+current input/ownership/privacy/call checks and cancellation/generation checks.
+It does not call the broker's retiring `Current` getter, read native state,
+capture, reuse, revoke or renew source/review lifetime. Missing, replaced,
+revoked or ineligible is explicitly unavailable. Presentation changes only the
+transcript, not pending question/approval/security preview or response/speech.
+Logs contain only a typed presence outcome under host correlation; no ID,
+count, source text, excerpt, digest or provenance is logged or tagged.
+Clipboard explanation and its source-use policy remain unchanged.
+
+Native **Wrap snapshot text** is source-only soft wrapping, initially unchecked
+to preserve the actual `NamedTextBlock` NoWrap default. The
+[presentation partial](../src/Kora/ClipboardPreviewWindow.Wrapping.cs) changes only
+source wrapping and horizontal viewport measurement; it does not rewrite the
+snapshot or change logical UTF-16 spans, Find counts/navigation, explanation
+consent or source-use policy. The choice is volatile per exact source/view.
+Existing controller eligibility (privacy, input, owner, call and lifetime) and
+native generation are revalidated around property/layout publication, including
+reentrancy. Retirement resets the control and releases content; late controls
+cannot retarget a replacement. No read/write, parsing, model call, grant,
+persistence, history, activity renewal or TTL extension is added.
+[Headless wrapping tests](../tests/Kora.Windows.IntegrationTests/ClipboardSourceWrappingTests.cs)
+cover layout, immutable text and retirement; installed-native qualification
+remains separate.
+
 Native **Find first / Find next / Find previous / Clear literal Find** navigates only this already captured immutable snapshot.
 Exact case/spaces and original UTF-16 offsets use the [shared pure literal policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs); the [clipboard adapter](../src/Kora.Core/Context/ClipboardLiteralFind.cs) binds directional spans to the exact capture object, without file/session identities.
 Queries wholly fit the existing 256 UTF-16 / 512 strict UTF-8 limits and are nonempty, well-formed, one-line text without unsafe controls; invalid input is visibly rejected, never truncated or normalized ([query policy](../src/Kora.Core/Context/SnapshotLiteralFind.cs)).
@@ -572,15 +562,39 @@ Query edits retire matches and counts without I/O; clear, close, replacement, re
 Keyboard access remains native-only and blocks built-in cut/copy/paste/context routes. Find adds no clipboard reads/writes, reuse/revoke dispatch, typed/voice/model/tool query, provider/egress/context/persistence/history, activity renewal or timer.
 [Portable policy tests](../tests/Kora.Core.UnitTests/Context/ClipboardLiteralFindTests.cs) and [headless lifecycle/transfer tests](../tests/Kora.Windows.IntegrationTests/ClipboardLiteralFindWindowTests.cs) are consumer evidence, not installed-native/privacy qualification.
 
-Text remains untrusted and potentially secret. All inference/egress is
-unavailable, including for apparently safe text: preview is not approval and
-there is no secret-detection/redaction-correctness claim. The existing JSON
-selector and every local/remote provider receive none of this content.
-The complete qualified local tool loop, secret/destination classification,
-approved envelope budgeting, actual offline clipboard-answering quality and
-live native trials remain R07/R02-L6 gates. This delivery does not close A0/A2.
+The [explicit clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) separates review from explanation.
+Exact `explain the clipboard` requests review of the current immutable snapshot, capturing once only when none is selected; preview/reuse/Find never run inference.
+The [native review control](../src/Kora/ClipboardPreviewWindow.cs) requires a deliberate checkbox and button gesture requesting admission of the exact shown snapshot ID; review alone does not admit inference, and closing/replacing/revoking fences old callbacks ([controller](../src/Kora/ClipboardPreviewWindowController.cs)).
+The owning clipboard rule requires secret/sensitive-content source-use classification before envelope construction. No authoritative production rule is implemented: [IClipboardSourceUsePolicy](../src/Kora.Core/Context/IClipboardSourceUsePolicy.cs) is composed with [UnavailableClipboardSourceUsePolicy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs).
+Production returns `SourceUsePolicyUnavailable` before creating a model envelope, durable source-turn session/task or provider request, including for apparently ordinary or explicitly reviewed text ([workflow gate](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [deterministic unavailable/deny tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Review expires 15 minutes after capture; a [clipboard context](../src/Kora.Core/Context/ClipboardExplanationContext.cs) binds its one evidence item to the new content-free host request, exact snapshot ID/native sequence and `LocalOnly` disclosure, with a maximum 15-second model envelope.
+The complete existing `ModelContextEnvelope` serialization, including policy and tool overhead, must fit 32768 UTF-8 bytes without truncation ([boundary tests](../tests/Kora.Core.UnitTests/Context/ClipboardExplanationContextTests.cs)).
+Existing structural credential screening remains an additional refusal check, not the missing source-use rule; it is best-effort, not comprehensive classification, redaction or a secret-free guarantee ([screening policy](../src/Kora.Core/Conversation/ConversationCredentialScreening.cs)).
+Content-free task authority is separate from conversation retention, preserving original input origin; the exact capture object retains its original request/source identity while model evidence belongs to the newly admitted task ([clipboard admission](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs), [workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+Only a deterministic fake source-policy acceptance reaches the implementation's `ModelTurnChoice.Local` and host admission/`RunAsync` path in tests. Production explanations are not delivered, and no production runtime is qualified or enabled by this change ([host registration](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [fake-boundary tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Only a successful admitted host response can become a volatile answer in that exact native preview, after terminal task evidence and current-source/eligibility checks; source/answer are not generic responses, transcripts, speech, saved clipboard history or conversation bodies ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs), [presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
+Source revocation and cancellation suppress late output while actual adapter quiescence remains mandatory for exit/handoff; deterministic fake-provider tests cover these boundaries without clipboard/model/network calls ([workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs)).
+Invalid presentation reads retire volatile answer/source references, so restored eligibility cannot resurrect a retired answer; model-envelope expiry is checked again after terminal task evidence before publication ([workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+Integration boundary: the current [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplanationAdmission.cs) delegates to the existing `HostControlAdmission` and workspace/task stores; source-independent context execution owns its extraction, not a second clipboard tasking policy.
+The current [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) does not consume a clipboard/source-current predicate after its asynchronous revalidation reads. Shared integration must carry that predicate to the exact adapter-dispatch boundary and tool callbacks; clipboard-side before/after checks alone are not that stronger guarantee ([workflow call site](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs)).
+These implementation checks do not qualify local answering quality, physical/native operation, containment, offline or hardware performance and do not close A0/A2; those E/Q gates do not block this fail-closed implementation ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
+
+The [web-summary workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs) requires one-use source/local-model confirmation over one exact current snapshot. Fetch/view/search grants no inference permission; URLs confer no context or retrieval authority ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs), [summary](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs)).
+
+The [action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and provenance as LocalOnly untrusted evidence. Its [credential checks](../src/Kora.Core/Conversation/ConversationText.cs) are narrow reject-only heuristics, not sensitivity classification. Page content grants no approvals, actions, tools or network authority.
+
+The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific sensitivity/use admission before context construction. Its production [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) blocks before durable/model admission; no general detector or permissive default is claimed.
+
+Policy decisions are rechecked through the shared execution fence and before late disclosure; denial/unknown state permanently closes that use. Deterministic admitted/denied fakes do not establish production detection readiness ([bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs), [tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) consumes shared durable admission for a reviewed exact fresh `Local context` session. Only host session/task receipts persist; creation is disclosed before confirmation ([target](../src/Kora.Core/Dependencies/LocalContextSessionTarget.cs)).
+
+The volatile source request is lineage only. The [Core runner](../src/Kora.Core/Dependencies/IModelContextRunner.cs) resolves the separate reviewed durable request before evidence/envelope binding. An unknown/foreign lease receives no source; disposal waits for shared physical quiescence ([bridge tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
+
+The envelope disables tools, the shared host denies tool callbacks, and no adapter registration or bootstrap fallback is enabled. Review expiry, replacement, private/owner/call closure and cancellation suppress stale presentation ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
+
 The delivered `native-text-v1` viewer is passive native text/Markdown, entered
 only through the explicit Documentation **Open details** action for a host
 admitted immutable embedded page. Host reference/revision/digest, origin,
@@ -650,7 +664,7 @@ cancelled/declined or audit-failed review returns no disclosure authority.
 An approved one-use confirmation still encounters the independent unavailable
 production qualification and missing final-request egress gates.
 
-The [R02 outcomes](Runtime_Provider_Feasibility.md#evidence-baseline-and-interpretation)
+The [R02 outcomes](Runtime_Provider_Feasibility.md#historical-node-baseline-and-interpretation)
 reject prompt/tool-hook-only mediation: failed tool output bypassed the
 successful-result hook. Every result status and exception must be host-bounded
 and sanitized before SDK submission, without inventing success or changing
@@ -1377,6 +1391,14 @@ their independent rules. Unavailable ordinary policy reports explicit
 independent delivery gaps without waiving mandatory trusted audit. This is logical
 row pruning, not recoverable-copy disposal or forensic erasure. Audit expiry
 and its continuation/checkpoint requirements remain independently unimplemented.
+The independent [ordinary diagnostic impact preview](User_Configuration.md#read-only-ordinary-diagnostic-shortening-impact-preview)
+only observes hypothetically newly-due ordinary logs/spans/owned links at one
+fixed cutoff. It never counts security audit; bounded protected-prefix and
+private ownership/schema validation qualify the observation without granting
+authority. Unknown/incomplete sources expose no counts, and host/configuration/
+source/control changes or expiry retire results without automatic replay.
+No policy, session, question/approval, grant, database, cache or marker is written.
+
 The subsequent [future-only audit option](User_Configuration.md#delivered-bounded-future-only-audit-retention-r10r04)
 admits canonical 30–365/default-reset90 through independent original-user audit
 session/generation/source/policy revision checks and protected-call/native

@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Hosting;
 
-/// <summary>One native intent, one fresh target attempt, and distinct reviewed draft saving and submission.</summary>
+/// <summary>One memory-only native input, one fresh target attempt, and separately reviewed submission.</summary>
 public sealed partial class NewRequestComposer(
     SessionWorkspaceService workspace, SessionConversationService conversation, ISessionWorkspaceAccess access,
     ILogger<NewRequestComposer> logger) : ObservableObject, IDisposable
@@ -27,6 +27,7 @@ public sealed partial class NewRequestComposer(
     private NewRequestCreationAttempt? creation;
     private HostRequest? submission;
     private SessionWorkspaceEntry? target;
+    private ConversationResponse? assistantResponse;
     private ActivityLink[] creationLinks = [];
     private string status = "Relatedness inference is unavailable. Explicitly create a fresh New conversation; no selected, named, recent or Done session is inferred.";
 
@@ -46,11 +47,12 @@ public sealed partial class NewRequestComposer(
     public NewRequestCreationAttempt? Creation => creation;
     public HostRequest? Submission => submission;
     public SessionWorkspaceEntry? Target => target;
-    public bool Dirty => !string.Equals(body, baseline, StringComparison.Ordinal);
+    public ConversationResponse? AssistantResponse => !closed && access.CanInspect ? assistantResponse : null;
+    public bool Dirty => body.Length != 0;
     public bool Busy => busy;
     public bool CanEdit => !closed && access.CanInspect && !submitted;
     public bool CanCreate => CanEdit && access.CanControl && !busy && creation is null;
-    public bool CanReview => CanEdit && access.CanControl && !busy && target?.Authority.IsActive == true && !creationHeld && !saveHeld && submission is null;
+    public bool CanReview => CanEdit && access.CanControl && !busy && target?.Authority.IsActive == true && !creationHeld && submission is null;
     public bool CanSubmit => CanReview && reviewed is not null && access.ControlRevision == reviewControl;
     public bool CanInspectAttempt => !closed && access.CanInspect && !busy && creation is not null;
 
@@ -58,8 +60,6 @@ public sealed partial class NewRequestComposer(
     {
         Interlocked.Increment(ref epoch);
         reviewed = null;
-        saveReview = null;
-        saveBody = null;
     }
 
     public void Review()
@@ -85,7 +85,6 @@ public sealed partial class NewRequestComposer(
     {
         if (!CanCreate) { return Task.CompletedTask; }
         creation = new();
-        targetControl = access.ControlRevision;
         return Run(async live =>
         {
             var accepted = await workspace.CreateAsync(creation, live, lifetime.Token);
@@ -109,10 +108,12 @@ public sealed partial class NewRequestComposer(
             submission = receipt.Message.Request;
             if (!live()) { throw new OperationCanceledException("Submission presentation changed after retention; inspect the exact request."); }
             submitted = true;
+            assistantResponse = receipt.Message.AssistantResponse;
             body = string.Empty;
-            baseline = string.Empty;
             status = "Exact USER message retained; HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
-                + " | task " + receipt.Task.State + ". No assistant answer, fallback, dispatch or automatic retry.";
+                + " | task " + receipt.Task.State
+                + (assistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately.")
+                + " No fallback or automatic retry.";
         }, true);
     }
 
@@ -131,7 +132,7 @@ public sealed partial class NewRequestComposer(
             + ". Observation grants no submission authority and changes no activity. Unconfirmed writes remain held; no retry or rollback.";
     }, CanInspectAttempt, inspecting: true);
 
-    private async Task Run(Func<Func<bool>, Task> operation, bool allowed, bool creating = false, bool inspecting = false, bool saving = false)
+    private async Task Run(Func<Func<bool>, Task> operation, bool allowed, bool creating = false, bool inspecting = false)
     {
         if (!allowed) { return; }
         var admittedEpoch = Volatile.Read(ref epoch);
@@ -152,7 +153,6 @@ public sealed partial class NewRequestComposer(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             creationHeld |= creating || inspecting;
-            saveHeld |= saving && exception is not ConversationCredentialException;
             if (exception is ConversationSubmissionUnconfirmedException uncertain) { submission = uncertain.Request; }
             if (!closed && access.CanInspect)
             {
@@ -175,9 +175,8 @@ public sealed partial class NewRequestComposer(
     private void Notify()
     {
         foreach (var name in new[] { nameof(Body), nameof(ReviewedBody), nameof(Status), nameof(Creation), nameof(Submission),
-            nameof(Target), nameof(Dirty), nameof(Busy), nameof(CanEdit), nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspectAttempt),
-            nameof(CanReviewSave), nameof(CanSave), nameof(SavedRevision), nameof(SavedBodyReview), nameof(ProposedSavedBody),
-            nameof(BaselineBody), nameof(CanCloseSaved) })
+            nameof(Target), nameof(AssistantResponse), nameof(Dirty), nameof(Busy), nameof(CanEdit), nameof(CanCreate), nameof(CanReview), nameof(CanSubmit), nameof(CanInspectAttempt),
+            nameof(DraftMeasurement) })
         { OnPropertyChanged(name); }
     }
 
@@ -185,9 +184,8 @@ public sealed partial class NewRequestComposer(
     {
         RetireReview();
         body = string.Empty;
-        baseline = string.Empty;
-        savedDraft = null;
         target = null;
+        assistantResponse = null;
         status = "Private presentation revoked. No implicit Save, Submit, Done or delete.";
     }
 

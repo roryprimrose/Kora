@@ -44,20 +44,15 @@ internal sealed partial class AttachmentCatalogueWindow : Window
         NextPage.Click += async (_, _) => await (Operation = model.Refresh(next: true));
         CancelRead.Click += (_, _) => model.Cancel();
         ClearQuery.Click += (_, _) => model.ClearQuery();
+        ClearAttachmentPageOrder.Click += (_, _) => model.ClearPageOrder();
         SlotRecords.SelectionChanged += (_, _) => model.Select(SlotRecords.SelectedItem as SessionAttachmentSummary);
         OpenExact.Click += async (_, _) => await (Operation = model.Navigate());
         CloseView.Click += (_, _) => Close();
         Closed += (_, _) => model.Dispose();
         KeyDown += (_, args) =>
         {
-            if (args.Key == Key.Enter && (AttachmentQueryText.IsFocused || AttachmentMetadataText.IsFocused
-                || AttachmentMinimumBytes.IsFocused || AttachmentMaximumBytes.IsFocused || AttachmentDigest.IsFocused
-                || AttachmentObservationSource.IsFocused || AttachmentDeviceProfile.IsFocused
-                || AttachmentFileSourceId.IsFocused || AttachmentFileRevisionId.IsFocused || AttachmentFileItemId.IsFocused
-                || AttachmentMinimumSessionGeneration.IsFocused || AttachmentMaximumSessionGeneration.IsFocused
-                || AttachmentMinimumCapturedGeneration.IsFocused || AttachmentMaximumCapturedGeneration.IsFocused
-                || AttachmentMinimumStorageRevision.IsFocused || AttachmentMaximumStorageRevision.IsFocused
-                || AttachmentCapturedFrom.IsFocused || AttachmentCapturedUntil.IsFocused) && model.CanSearch)
+            if (args.Key == Key.Enter && (AttachmentQueryText.IsFocused
+                || AttachmentMinimumBytes.IsFocused || AttachmentMaximumBytes.IsFocused) && model.CanSearch)
             {
                 Operation = model.Refresh();
                 args.Handled = true;
@@ -82,4 +77,21 @@ internal sealed partial class AttachmentCatalogueWindow : Window
     }
 
     private static void BlockTransfer(object? sender, RoutedEventArgs args) => args.Handled = true;
+
+    internal void PrepareExactSession(Guid sessionId, Func<bool> admitted)
+    {
+        if (!IsVisible || !admitted() || DataContext is not AttachmentCatalogueViewModel model)
+        { throw new InvalidOperationException("The original native catalogue is unavailable."); }
+        model.PrepareExactSession(sessionId);
+        UpdateLayout();
+        AttachmentQueryText.BringIntoView();
+        if (!IsVisible || !admitted() || !AttachmentQueryText.Focus() || !AttachmentQueryText.IsFocused
+            || !ReferenceEquals(DataContext, model) || model.Mode != AttachmentCatalogueMode.ExactId
+            || !string.Equals(model.QueryText, sessionId.ToString("D"), StringComparison.Ordinal)
+            || !string.Equals(AttachmentQueryText.Text, model.QueryText, StringComparison.Ordinal) || !admitted())
+        {
+            model.PreparationUnavailable();
+            throw new InvalidOperationException("Native exact-session query focus was not acknowledged.");
+        }
+    }
 }

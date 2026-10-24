@@ -12,20 +12,111 @@ namespace Kora.Application.UnitTests.Documentation;
 
 public sealed class EmbeddedUserDocumentationProviderTests
 {
+    [Theory]
+    [InlineData("commands")]
+    [InlineData("windows-and-tray")]
+    [InlineData("tools-and-built-in-skills")]
+    public void EmbeddedGuideDoesNotAdvertiseRetiredUtilities(string pageId)
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, pageId, StringComparison.Ordinal)).Markdown;
+
+        guide.Should().NotContain("calculate <expression>")
+            .And.NotContain("calculate help")
+            .And.NotContain("what time is it")
+            .And.NotContain("help local clock")
+            .And.NotContain("host-local-date-and-time")
+            .And.NotContain("Validate this snapshot as JSON")
+            .And.NotContain("Validate this snapshot as XML");
+    }
+
     [Fact]
-    public void Embedded_all_work_guide_explains_inclusive_ranges_and_unavailable_omission_boundaries()
+    public void Embedded_owned_editor_guide_distinguishes_private_displayed_buffer_find_from_metadata_and_mutations()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("## Find in the displayed owned buffer")
+            .And.Contain("**Ctrl+F**").And.Contain("**Shift+F3**").And.Contain("**no wrap**")
+            .And.Contain("complete count, current ordinal").And.Contain("including unsaved changes")
+            .And.Contain("case-sensitive ordinal literal").And.Contain("256 UTF-16 units /")
+            .And.Contain("512 UTF-8 bytes").And.Contain("never opens")
+            .And.Contain("not search the").And.Contain("metadata inventory, disk")
+            .And.Contain("queries and body text are not logged, transcribed or spoken")
+            .And.Contain("read-only sources gain no edit or use authority");
+    }
+
+    [Fact]
+    public void ConversationGuideRetiresSavedDraftManagementAndExplainsReadOnlyLegacyRecovery()
+    {
+        var commands = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("Unsent input stays separately in memory for each exact session")
+            .And.Contain("no ordinary draft Save/Reload/Clear")
+            .And.Contain("Recover existing legacy text into empty input")
+            .And.Contain("cannot overwrite nonempty unsent input")
+            .And.Contain("no silent migration or purge")
+            .And.Contain("Switching topics preserves text without prompting")
+            .And.NotContain("open saved conversation drafts");
+    }
+
+    [Fact]
+    public void Embedded_owned_editor_metadata_find_is_displayed_details_only_without_read_or_use_authority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("Find in selected metadata")
+            .And.Contain("never searches the")
+            .And.Contain("complete nonoverlapping sequence without wrapping")
+            .And.Contain("source editor, unsaved draft, other rows, hidden paths")
+            .And.Contain("It does not open or inspect a file")
+            .And.Contain("focus failure explicitly clears")
+            .And.Contain("not logged, persisted, copied, sent to a model or spoken")
+            .And.Contain("Ctrl+F is not");
+    }
+
+    [Fact]
+    public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        foreach (var phrase in new[] { "use visual responses", "use spoken responses", "use spoken and visual responses", "check response mode" })
+        {
+            commands.Should().Contain("**" + phrase + "**");
+            settings.Should().Contain("**" + phrase + "**");
+        }
+        commands.Should().Contain("future eligible responses only").And.Contain("stale or unconfirmed state refuses")
+            .And.Contain("they never answer a pending decision or reach the model");
+        settings.Should().Contain("VoiceOnly cannot override call/privacy suppression or speech caps");
+    }
+
+    [Fact]
+    public void EmbeddedAllWorkGuideRetiresEngineeringQueriesAndPreservesUnavailableBoundaries()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
-        guide.Should().Contain("Optional inclusive observed work metadata ranges")
-            .And.Contain("authority revision, queue revision, pending count/capacity")
-            .And.Contain("execution slots, observed current fixed reads")
-            .And.Contain("omitted queue-receipt/task/pending-question counts")
-            .And.Contain("minimum must not exceed maximum")
-            .And.Contain("queue revision and counts may be zero")
-            .And.Contain("Source changed, Read unavailable and Output bound never do")
-            .And.Contain("proves no absence, completeness, success or authority")
-            .And.Contain("Clear work metadata ranges");
+        guide.Should().Contain("Authority/queue/count ranges and retained task/request-ID query machinery are retired")
+            .And.Contain("unavailable observations remain explicit rather than an empty success")
+            .And.Contain("preserving complete-record byte limits, omissions and continuation")
+            .And.Contain("Order affects only the loaded page")
+            .And.Contain("Neither grants navigation or execution authority")
+            .And.NotContain("Optional inclusive observed work metadata ranges");
+    }
+
+    [Fact]
+    public void EmbeddedWorkspaceSearchGuideKeepsOrdinaryDatesAndReceiptStatesWithoutEngineeringPredicates()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("submitted-date bounds, observed task state")
+            .And.Contain("UTC bounds are inclusive; empty means Any")
+            .And.Contain("USER-only with a state yields zero")
+            .And.Contain("receipt kind, task state, decision, question status and answer-channel choices")
+            .And.Contain("Engineering receipt/task/request/source-ID predicates and revision/generation/sequence ranges remain retired")
+            .And.NotContain("generation/revision/sequence/time");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("inclusive submitted-date bounds and an observed task-state choice with explicit Any")
+            .And.Contain("typed/voice syntax is unchanged");
     }
 
     [Fact]
@@ -65,6 +156,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "commands",
             "tools-and-built-in-skills",
             "instruction-editor",
+            "conversation-instructions",
             "windows-and-tray",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
@@ -89,7 +181,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("### Read-only integration skill");
         page.Markdown.Should().Contain("## 14. Persistent sessions, history, and shared questions");
         page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
-        page.Markdown.Should().Contain("two independently executing sessions");
+        page.Markdown.Should().Contain("General concurrent workers/provider scheduling remain unqualified");
         page.Markdown.Should().Contain("combined script-set hash");
         page.Markdown.Should().Contain("Ignore reusable grants during calls");
     }
@@ -108,7 +200,35 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 14);
+        sections.Should().HaveCount(commands.Count + 21);
+        var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
+        disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
+            .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
+            .And.Contain("confirm session disposition").And.Contain("never confirms")
+            .And.Contain("all eight inventory counts").And.Contain("current").And.Contain("never saves");
+        var conversationSearch = sections.Single(section => section.StartsWith("Search one explicitly addressed retained conversation", StringComparison.Ordinal));
+        conversationSearch.Should().Contain("conversation search <session-id> -- <verbatim query>")
+            .And.Contain("conversation search next <session-id>")
+            .And.Contain("conversation search cancel <session-id>")
+            .And.Contain("current assistant-name prefix")
+            .And.Contain("not a caller-supplied cursor or JSON")
+            .And.Contain("unsent buffers")
+            .And.Contain("visual-only")
+            .And.Contain("same")
+            .And.Contain("canonical search service");
+        var responseWindow = sections.Single(section => section.StartsWith(
+            "Inspect or change Kora's response-window visibility preferences", StringComparison.Ordinal));
+        var responseWindowPhrases = Regex.Matches(responseWindow[..responseWindow.IndexOf("These are complete", StringComparison.Ordinal)],
+            @"\*\*(?<phrase>[^*]+)\*\*", RegexOptions.None, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        responseWindowPhrases.Should().HaveCount(15).And.OnlyContain(phrase =>
+            ResponseWindowCommand.Parse(phrase, "Kora") != null
+            && ResponseWindowCommand.Parse(phrase, "Kora")!.Operation != AppearanceCommandOperation.Clarify);
+        responseWindow.Should().Contain("No automatic rewrite").And.Contain("pending question/approval")
+            .And.Contain("AlwaysShow=false").And.Contain("Topmost=true");
+        var attachment = sections.Single(section => section.StartsWith("Inspect one retained attachment by exact session address", StringComparison.Ordinal));
+        attachment.Should().Contain("session attachment inspect <session-id>").And.Contain("inspection-only")
+            .And.Contain("never answers a pending question");
         var editor = sections.Single(section => section.StartsWith("Edit an owned instruction or literal prompt without a model", StringComparison.Ordinal));
         editor.Should().Contain("instructions editor").And.Contain("prompts editor")
             .And.Contain("same").And.Contain("Reload/Overwrite/Cancel").And.Contain("No paths or body dictation");
@@ -120,8 +240,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("network.get_web_page")
             .And.Contain("remains unavailable");
         var sharedSkills = sections.Single(section => section.StartsWith("Inspect shared profile skills locally", StringComparison.Ordinal));
-        sharedSkills.Should().Contain("immutable").And.Contain("model exposure")
+        sharedSkills.Should().Contain("immutable").And.Contain("inspection alone grant no invocation")
             .And.Contain("unavailable").And.Contain("removed/replaced/busy sources fail closed");
+        var sharedInvocation = sections.Single(section => section.StartsWith("Reviewed instruction-only shared skill invocation", StringComparison.Ordinal));
+        sharedInvocation.Should().Contain("shared skill enable").And.Contain("shared skill confirm invocation")
+            .And.Contain("unchanged original request").And.Contain("two minutes")
+            .And.Contain("all tools and hosted fallback are denied").And.Contain("existing Active conversation");
         var skillSearch = sections.Single(section => section.StartsWith("Search admitted skill package metadata", StringComparison.Ordinal));
         skillSearch.Should().Contain("ordinal-ignore-case").And.Contain("256 UTF-16 units / 512 strict UTF-8 bytes")
             .And.Contain("at most eight packages").And.Contain("at most 32 snapshots")
@@ -134,6 +258,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         sessionPhrases.Should().Equal("open sessions");
+        var newRequest = sections.Single(section => section.StartsWith(
+            "Open the existing New request composer", StringComparison.Ordinal));
+        newRequest.Should().Contain("open new request").And.Contain("Activated voice")
+            .And.Contain("current question or approval").And.Contain("Model-facing opening is unavailable");
         var appearance = sections.Single(section => section.StartsWith(
             "Inspect or change an admitted appearance option", StringComparison.Ordinal));
         var appearancePhrases = Regex.Matches(appearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -143,6 +271,25 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "status appearance.reader-text-scale", "set appearance.reader-text-scale to 200",
             "set appearance.theme to dark", "reset appearance.theme");
         appearancePhrases.Should().OnlyContain(phrase => AppearanceCommand.Parse(phrase, "Kora") != null);
+        var naturalAppearance = sections.Single(section => section.StartsWith(
+            "Natural exact app theme and native reader text scale", StringComparison.Ordinal));
+        var naturalPhrases = Regex.Matches(naturalAppearance, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
+            RegexOptions.Multiline, TimeSpan.FromSeconds(1))
+            .Select(match => match.Groups["phrase"].Value).ToArray();
+        naturalPhrases.Should().Equal("use dark mode", "use light mode", "use system theme",
+            "get reader text scale", "status reader text scale", "reset reader text scale",
+            "set reader text scale to &lt;integer&gt; percent",
+            "increase reader text scale by &lt;positive integer&gt; percentage points",
+            "decrease reader text scale by &lt;positive integer&gt; percentage points");
+        foreach (var phrase in naturalPhrases)
+        {
+            var example = phrase.Replace("&lt;integer&gt;", "125", StringComparison.Ordinal)
+                .Replace("&lt;positive integer&gt;", "25", StringComparison.Ordinal);
+            NaturalAppearanceCommand.Parse(example, "Kora")!.Operation.Should().NotBe(AppearanceCommandOperation.Clarify);
+        }
+        naturalAppearance.Should().Contain("current configured assistant-name prefix")
+            .And.Contain("fresh confirmed state").And.Contain("percentage points")
+            .And.Contain("revision-bound proposal").And.Contain("no OS/global UI scale");
         var output = sections.Single(section => section.StartsWith(
             "Inspect or change an exact output choice", StringComparison.Ordinal));
         var outputPhrases = Regex.Matches(output, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
@@ -157,7 +304,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         volumePhrases.Should().Equal("list volume settings", "get speech.playback-volume", "status speech.playback-volume",
-            "set speech.playback-volume to 30", "reset speech.playback-volume");
+            "set speech.playback-volume to 30", "reset speech.playback-volume", "speak louder", "speak quieter");
         volumePhrases.Should().OnlyContain(phrase => PlaybackVolumeCommand.Parse(phrase, "Kora") != null);
         var rate = sections.Single(section => section.StartsWith(
             "Inspect or change Windows-native speech rate", StringComparison.Ordinal));
@@ -165,7 +312,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
         ratePhrases.Should().Equal("list rate settings", "get speech.windows-rate", "status speech.windows-rate",
-            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate");
+            "set speech.windows-rate to -10", "set speech.windows-rate to 0", "set speech.windows-rate to 10", "reset speech.windows-rate",
+            "speak faster", "speak slower");
         ratePhrases.Should().OnlyContain(phrase => WindowsSpeechRateCommand.Parse(phrase, "Kora") != null);
         rate.Should().Contain("Kokoro is unsupported and unchanged").And.Contain("default/reset **0**");
         var responseMode = sections.Single(section => section.StartsWith(
@@ -191,7 +339,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var summaryPhrases = Regex.Matches(summaries, @"^- \*\*(?<phrase>.+?)\*\*\r?$",
             RegexOptions.Multiline, TimeSpan.FromSeconds(1))
             .Select(match => match.Groups["phrase"].Value).ToArray();
-        summaryPhrases.Should().Equal("list speech settings", "get speech.summary-sentences", "get speech.summary-words",
+        summaryPhrases.Should().Equal("show spoken summary limits", "set spoken summary sentence limit to 2",
+            "set spoken summary word limit to 40", "reset spoken summary sentence limit", "reset spoken summary word limit",
+            "list speech settings", "get speech.summary-sentences", "get speech.summary-words",
             "set speech.summary-sentences to 2", "set speech.summary-words to 40",
             "reset speech.summary-sentences", "reset speech.summary-words");
         summaryPhrases.Should().OnlyContain(phrase => SpeechCommand.Parse(phrase, "Kora") != null);
@@ -206,6 +356,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("session inspect").And.Contain("session create").And.Contain("session rename")
             .And.Contain("session done").And.Contain("session resume");
         sections = sections.Where(section => !ReferenceEquals(section, appearance)
+            && !ReferenceEquals(section, naturalAppearance)
+            && !ReferenceEquals(section, disposition)
+            && !ReferenceEquals(section, responseWindow)
             && !ReferenceEquals(section, output)
             && !ReferenceEquals(section, volume)
             && !ReferenceEquals(section, rate)
@@ -213,7 +366,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
-            && !ReferenceEquals(section, webPage)).ToArray();
+            && !ReferenceEquals(section, sharedInvocation)
+            && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
+            && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();
         for (var index = 0; index < commands.Count; index++)
         {
             var phrases = Regex.Matches(

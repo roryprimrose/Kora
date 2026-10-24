@@ -11,7 +11,7 @@ namespace Kora.Windows.Coordination;
 /// Main-thread ownership surrounds the entire desktop/service lifetime. After a handoff,
 /// that thread becomes a lifecycle-only supervisor; it never composes assistant services again.
 /// </summary>
-public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
+public sealed partial class WindowsInstanceCoordinator : IInstanceCoordinator
 {
     private static readonly TimeSpan StartupTimeout = TimeSpan.FromSeconds(10);
     private readonly IInstanceHostCallbacks callbacks;
@@ -91,6 +91,10 @@ public sealed class WindowsInstanceCoordinator : IInstanceCoordinator
 
     public InstanceStartupDisposition Enter()
     {
+        if (evidenceRecoveryReserved)
+        {
+            return Deny("An offline evidence-recovery reservation cannot start an assistant.");
+        }
         try
         {
 #if DEBUG

@@ -51,7 +51,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResetWindowsSpeechRateCommand.ExecuteAsync();
         fixture.RatePreferences.Value.Should().BeNull();
         fixture.ViewModel.SelectedWindowsSpeechRate.Should().Be(0);
-        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("\"source\":\"default\"");
+        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("Using the default");
         fixture.Voice.StartCalls.Should().Be(microphones);
         await fixture.RunAsync("set assistant.name to Nova");
         fixture.TextToSpeech.ClearSpokenResponse();
@@ -88,6 +88,8 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("get speech.windows-rate");
         fixture.ViewModel.ResponseBody.Should().Contain("\"available\":false").And.Contain("Kokoro synthesis is unchanged");
         await fixture.RunAsync("set speech.windows-rate to 4");
+        await fixture.RunAsync("speak faster");
+        await fixture.RunAsync("speak slower");
         fixture.RatePreferences.Value.Should().Be(new WindowsSpeechRate(3));
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
         await fixture.RunAsync("what power action is pending");
@@ -154,7 +156,7 @@ public sealed partial class MainViewModelTests
         using var cancelled = new CancellationTokenSource();
         cancelled.Cancel();
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Get), SecurityAuditInitiator.TypedCommand, cancelled.Token);
-        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("\"source\":\"unavailable\"");
+        fixture.ViewModel.WindowsSpeechRateStatus.Should().Contain("Setting unavailable");
     }
 
     [Fact]
@@ -245,7 +247,7 @@ public sealed partial class MainViewModelTests
         {
             if (item.Outcome == SecurityAuditOutcome.Requested && string.Equals(item.ActionId, "configuration.windows-speech-rate", StringComparison.Ordinal))
             {
-                fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync().GetAwaiter().GetResult();
+                fixture.ViewModel.RefreshWindowsSpeechRateCommand.ExecuteAsync().IsCompletedSuccessfully.Should().BeTrue();
             }
         };
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set, "1"),
@@ -347,7 +349,7 @@ public sealed partial class MainViewModelTests
             if (changed is "topology") { fixture.PrivacyObservation.Current = fixture.PrivacyObservation.Current with { TopologyRevision = 100 }; }
             if (changed is "native") { visible = false; }
             if (changed is "native-replaced") { fixture.ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
-            if (changed is "name") { fixture.ViewModel.SetAssistantNameAsync("Nova").GetAwaiter().GetResult(); }
+            if (changed is "name") { fixture.ViewModel.SetAssistantNameAsync("Nova").IsCompletedSuccessfully.Should().BeTrue(); }
             if (changed is "voice-generation") { fixture.Voice.AdvanceGeneration(); }
         };
         await fixture.ViewModel.ExecuteWindowsSpeechRateCommandAsync(new(AppearanceCommandOperation.Set, "1"),

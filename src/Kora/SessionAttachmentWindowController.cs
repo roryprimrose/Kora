@@ -8,7 +8,7 @@ using Kora.Core.Storage;
 
 namespace Kora;
 
-internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisposable
+internal sealed class SessionAttachmentWindowController : IUserFilePicker, IRetainedAttachmentViewer, IDisposable
 {
     private readonly Action<string> reportFailure;
     private readonly SessionFileAttachmentService service;
@@ -19,6 +19,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     private readonly DispatcherTimer timer = new() { Interval = TimeSpan.FromMilliseconds(250) };
     private LocalFilePreviewWindow? window;
     private CancellationTokenSource? lifetime;
+    private CancellationTokenRegistration inspectionCancellation;
     private Func<bool>? eligible;
     private HostId<SessionIdentity>? session;
     private SessionAttachmentSummary? catalogueSelection;
@@ -46,8 +47,22 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
     public async Task<string?> SelectAsync(CancellationToken cancellationToken) =>
         await Dispatcher.UIThread.InvokeAsync(() => picker.SelectAsync(cancellationToken));
 
+    public async Task Open(SessionWorkspaceEntry target, SessionAttachmentSummary exact,
+        Func<bool> admitted, CancellationToken token) =>
+        await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            var previousLifetime = lifetime;
+            try { await Open(target, attach: false, admitted, token, exact, inspectionOnly: true); }
+            catch
+            {
+                if (!ReferenceEquals(lifetime, previousLifetime) && ReferenceEquals(catalogueSelection, exact))
+                { Close(revokeService: false); }
+                throw;
+            }
+        });
+
     internal async Task Open(SessionWorkspaceEntry target, bool attach, Func<bool> admission,
-        CancellationToken token, SessionAttachmentSummary? expected = null)
+        CancellationToken token, SessionAttachmentSummary? expected = null, bool inspectionOnly = false)
     {
         if (expected is not null && !service.IsQuiescent)
         {
@@ -59,10 +74,13 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
         catalogueSelection = expected;
         var control = access.ControlRevision;
         lifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
+        var openingLifetime = lifetime;
         var cancellation = lifetime.Token;
+        if (inspectionOnly) { inspectionCancellation = cancellation.Register(() => PostForCurrentInspection(CloseInspection)); }
         session = target.Authority.SessionId;
         bool Current() => !disposed && !cancellation.IsCancellationRequested && access.CanInspect
-            && access.ControlRevision == control && admission() && session == target.Authority.SessionId;
+            && access.ControlRevision == control && admission() && session == target.Authority.SessionId
+            && ReferenceEquals(lifetime, openingLifetime);
         eligible = Current;
         if (!Current()) { throw new InvalidOperationException("The exact selected session is stale."); }
         var view = new LocalFilePreviewWindow(reportFailure, typographyHost);
@@ -73,7 +91,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             var result = await service.Select(target, this, Current, cancellation);
             if (result != LocalFileOutcome.Reviewed || !Current() || service.Review is not { } review)
             {
-                Close();
+                if (ReferenceEquals(lifetime, openingLifetime)) { Close(); }
                 throw new InvalidOperationException("The exact native file was not reviewed. No attachment admitted.");
             }
             view.ShowAttachmentReview(review, target.Authority.Generation, async () =>
@@ -89,14 +107,24 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             });
             reviewing = review.ReviewId;
         }
-        else { await ShowRetained(view, target, Current, cancellation, expected); }
-        if (!Current()) { Close(); return; }
+        else { await ShowRetained(view, target, Current, cancellation, expected, inspectionOnly); }
+        if (inspectionOnly)
+        {
+            var resolved = await service.ResolveInspection(expected!, Current, cancellation);
+            if (resolved.Authority != target.Authority)
+            { throw new InvalidOperationException("The exact session generation changed before native disclosure."); }
+        }
+        if (!Current())
+        {
+            if (ReferenceEquals(lifetime, openingLifetime)) { Close(); }
+            return;
+        }
         window?.Show();
         window?.Activate();
     }
 
     private async Task ShowRetained(LocalFilePreviewWindow view, SessionWorkspaceEntry target,
-        Func<bool> current, CancellationToken token, SessionAttachmentSummary? expected = null)
+        Func<bool> current, CancellationToken token, SessionAttachmentSummary? expected = null, bool inspectionOnly = false)
     {
         var exactSession = target.Authority.SessionId;
         SessionFileAttachment? retained;
@@ -123,10 +151,10 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, searchToken);
             return await service.Search(retained, query, mode, cancellation.Token);
         },
-            () => current() && ReferenceEquals(window, view), async () =>
+            () => current() && ReferenceEquals(window, view), inspectionOnly ? null : async () =>
         {
             await ShowRemoval(view, exactSession, current, token);
-        }, target.Authority.IsActive && access.CanControl ? async () =>
+        }, !inspectionOnly && target.Authority.IsActive && access.CanControl ? async () =>
         {
             if (!current()) { throw new InvalidOperationException("The selected active session changed. Inspect again."); }
             var outcome = await service.SelectReplacement(target, retained, this, current, token);
@@ -265,6 +293,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
         session = null;
         reviewing = Guid.Empty;
         lifetime?.Cancel();
+        inspectionCancellation.Dispose();
         lifetime?.Dispose();
         lifetime = null;
     }
@@ -291,6 +320,7 @@ internal sealed class SessionAttachmentWindowController : IUserFilePicker, IDisp
             view.ClearAndClose();
         }
         lifetime?.Cancel();
+        inspectionCancellation.Dispose();
         lifetime?.Dispose();
         lifetime = null;
         if (revokeService) { service.Revoke(); }

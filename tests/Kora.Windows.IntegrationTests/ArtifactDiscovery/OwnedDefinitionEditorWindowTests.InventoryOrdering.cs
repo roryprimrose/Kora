@@ -113,6 +113,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (privacy) { f.Session.Main.CloseForObservedPrivacyEvent("Synthetic order cancellation", hidePresentation: true); }
             f.Sessions.Release.TrySetResult();
             await pending;
+            if (privacy) { await f.Session.Main.PrivacyClosureTask; }
             comparison.Should().BeNull();
             editor.Files.SelectedItem.Should().BeNull();
             editor.ReviewUse.IsEnabled.Should().BeFalse();

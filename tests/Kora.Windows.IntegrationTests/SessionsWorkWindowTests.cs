@@ -95,7 +95,6 @@ public sealed class SessionsWorkWindowTests
         viewer.WorkRecords.Should().BeEmpty();
         viewer.PendingQuestions.Should().BeEmpty();
         viewer.CanCancelWork.Should().BeFalse();
-        viewer.CanEnqueueVersion.Should().BeFalse();
         viewer.CanRefreshWork.Should().BeFalse();
         viewer.ReferencesSession(session).Should().BeFalse();
     }
@@ -140,8 +139,7 @@ public sealed class SessionsWorkWindowTests
                     .GetName().Should().Contain("exact selected pending queue ID");
                 foreach (var name in FixedProfileButtons)
                 {
-                    ControlAutomationPeer.CreatePeerForElement(window.FindControl<Button>(name)!)!
-                        .GetName().Should().StartWith("Enqueue");
+                    window.FindControl<Button>(name).Should().BeNull();
                 }
                 fixture.Time.Now = question.ExpiresAt;
                 await viewer.RefreshWorkAsync();
@@ -217,12 +215,14 @@ public sealed class SessionsWorkWindowTests
         var viewer = CreateViewer(fixture, access, service);
         await viewer.RefreshAsync();
         await viewer.SelectAsync(viewer.Sessions.Single());
-        await viewer.EnqueueVersionAsync();
+        await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, fixture.Request.SessionId.Value, 1)
+        { WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() }, RequestOrigin.LocalUi, () => true, fixture.Token);
+        await viewer.RefreshWorkAsync();
         var row = viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending);
         viewer.SelectWorkRecord(row);
         using var root = HostActivity.BeginRoot(fixture.Request, HostActivityLayer.Application, HostOperation.Request);
         var prior = (await service.ReadWorkAsync(fixture.Request.SessionId, fixture.Token)).Queue;
-        await service.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, fixture.Request.SessionId.Value, 1)
+        await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, fixture.Request.SessionId.Value, 1)
         {
             QueueRevision = prior.Revision, WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid(),
         }, RequestOrigin.ActivatedVoice, () => true, fixture.Token);
@@ -236,7 +236,7 @@ public sealed class SessionsWorkWindowTests
         viewer.WorkRecords.Should().Contain(record => record.TaskId == row.TaskId && record.Queue!.Entry.State == SessionQueueState.Removed);
         viewer.PendingQuestions.Should().BeEmpty();
         viewer.Close();
-        await viewer.DispatchQueueAsync();
+        await viewer.RefreshWorkAsync();
         (await fixture.Store.ReadQueueAsync(fixture.Request.SessionId, fixture.Token)).Entries.Should().ContainSingle();
     }
 
@@ -291,9 +291,11 @@ public sealed class SessionsWorkWindowTests
         var viewer = CreateViewer(fixture, access, service);
         await viewer.RefreshAsync();
         await viewer.SelectAsync(viewer.Sessions.Single(record => record.Authority.SessionId == fixture.Request.SessionId));
-        await viewer.EnqueueVersionAsync();
+        await queue.ExecuteCommandAsync(new(SessionCommandOperation.QueueEnqueue, fixture.Request.SessionId.Value, 1)
+        { WorkRequestId = Guid.NewGuid(), TaskId = Guid.NewGuid() }, RequestOrigin.LocalUi, () => true, fixture.Token);
+        await viewer.RefreshWorkAsync();
         viewer.SelectWorkRecord(viewer.WorkRecords.Single(record => record.Queue?.Entry.State == SessionQueueState.Pending));
-        checkpoint.Commit = (_, _) => viewer.SelectAsync(other).GetAwaiter().GetResult();
+        checkpoint.Commit = (_, _) => viewer.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue();
         try { await viewer.CancelWorkAsync(); }
         finally { checkpoint.Commit = null; viewer.Close(); }
         (await fixture.Store.ReadQueueAsync(fixture.Request.SessionId, fixture.Token)).Entries.Should().ContainSingle()

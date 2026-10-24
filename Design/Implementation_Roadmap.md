@@ -10,6 +10,15 @@ contracts; [Acceptance Criteria](Acceptance_Criteria.md) owns qualification;
 [Deferred Validation](Deferred_Validation.md) owns outstanding environment
 trials. Update those owners rather than copying status narratives between them.
 
+## Product Realignment and Delivery Priority
+
+Apply the [product owner's approved scope](MVP_Scope.md#product-admission-and-realignment) before selecting work from this inventory. Dated delivery entries record what was implemented, not approval to keep extending it.
+The [completed realignment](#completed-product-realignment) removes native utilities, saved-draft document management, engineering-only normal browsing filters and public diagnostic scheduling. Existing read-only legacy recovery, data/audit compatibility and internal security/scheduler contracts remain.
+
+Prioritize the approved removals and compatibility safeguards, then complete useful conversation/model turns, shared setting proposals, governed tool/result and MCP/skill/agent workflows, voice interaction, coordinated sessions and readable results. Choose a bounded increment toward one of those outcomes, not an unrelated convenience feature because a dependency is available.
+
+Retired PRs must not be re-enrolled or recreated without a new explicit product decision. Deferred preparation-only work needs an approved complete interaction before resumption. Bug fixes and proportionate usability within retained outcomes remain valid. The existing I/E/Q distinction below continues to govern implementation and enablement independently of product admission.
+
 ## Delivery and Qualification Dependency Policy
 
 Follow the [three-tier qualification policy](Acceptance_Criteria.md#three-tier-qualification-policy):
@@ -32,7 +41,120 @@ provider, containment and installed trials are E/Q for their affected profile.
 Clipboard preview does not depend on model explanation, deterministic queues
 do not depend on hosted management, and speech preferences do not qualify wake.
 
+## Approved Speech-Input Direction - 2026-10-22
+
+The [local speech-input contract](Speech_Input.md) records approved configurable
+wake detection, activated local ASR, resource/residency choices and optional
+bounded personalization, without changing text-to-action routing or adding
+hosted audio. D-002 engine selection, D-006 learning/verifier qualification and
+D-007 hardware evidence remain open. New profiles/settings and production wake
+are not delivered or enabled by this documentation.
+Future qualified optional speech components must support both WiX/Burn
+install-time preparation and runtime Settings through shared setup services;
+application/native payload, model data and input consent remain distinct.
+
+Implement only the consumed provider/settings/generation/quiescence subset
+with deterministic seams; do not wait for unrelated R09/R24 physical evidence.
+Exact offered speech profiles still need applicable E evidence, and the final
+enabled manifest needs Q evidence. Optional learning is not a baseline voice
+dependency and does not authorize a blanket owner-only command policy.
+
+## Completed product realignment
+
+- Product-admission rules are merged in [#419](https://github.com/roryprimrose/Kora/pull/419); native calculator/clock/clipboard-analysis utilities are removed in [#420](https://github.com/roryprimrose/Kora/pull/420).
+- Memory-only unsent input and read-only legacy recovery replace draft documents in [#421](https://github.com/roryprimrose/Kora/pull/421). Read separation, composer chrome and shutdown protection follow in [#424](https://github.com/roryprimrose/Kora/pull/424), [#425](https://github.com/roryprimrose/Kora/pull/425) and [#426](https://github.com/roryprimrose/Kora/pull/426).
+- Engineering-only normal browsing predicates and public diagnostic scheduling are retired in [#422](https://github.com/roryprimrose/Kora/pull/422); historical link correction is [#423](https://github.com/roryprimrose/Kora/pull/423). Internal scheduler/domain/audit/schema compatibility, safe existing-work controls and Evidence/grant diagnostics remain.
+- [#428](https://github.com/roryprimrose/Kora/pull/428) corrects ordinary submitted-date/task-state and interaction-receipt filters without restoring technical IDs/ranges. Its final hosted admission is tracked separately; this section does not claim provider, hardware or installed qualification.
+
+The earlier detailed retirement slices are superseded by these current contracts, not pending implementation requirements. Historical archives remain historical. Broader aligned voice/model/tool/session/rich-display work is still subject to its own implementation and enablement gates.
+
 ## Current Delivery
+
+### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
+
+The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+adds immutable Core protocol/transport contracts, one strict shared input
+policy, finite complete/cumulative byte/call/round/deadline budgets and an
+Application engine behind `IModelTurnAdapter`. Its only tool dispatch is the
+existing `ModelTurnHost` callback; additional host-owned continuation
+revalidation closes every send on stale session/task/generation/policy,
+privacy, expiry or qualification. Exact successful results continue as inert
+data, and only a genuine final answer enters the existing response contract.
+
+The consumed I subset is the existing host admission/single-use/caller/audit/
+quiescence foundation and six read-only catalogue actions. Production
+transport composition belongs to its native adapter owner, and conversation
+retention/presentation to its session owner; neither is replaced here.
+Deterministic real-host/fake-transport tests and related documentation are
+authored. [Maintained build/test execution and exact raw 100% portable line **and** branch
+coverage](../CONTRIBUTING.md#development-checks) remain mandatory before READY.
+Qualified fake evidence cannot qualify production. Runtime/profile
+enablement and RC E/Q remain unavailable, independent of this bounded I
+implementation; no provider/hardware/network/experiment is executed.
+
+### Bounded admitted session model answer implementation - 2026-10-20
+
+The [exact-session execution contract](Interaction_And_Sessions.md#bounded-admitted-local-answer-execution---2026-10-20)
+connects original USER retention to configured turn admission, the same
+ModelTurnHost single-use run and host registry callback, validated final
+ASSISTANT output and atomic original-task/answer/audit completion with exact
+readback. Sessions/compact, New request, expanded-prompt submit and passive
+Details share the path. Legacy USER/search/draft/reuse semantics remain distinct.
+
+Consumed I is the existing admitted host execution, read-only registry and
+private original conversation/task/audit store, not complete R11/R12/R14 or an
+installed provider. Additive response format 1 / message format 2 reuse existing
+cells, cursor revisions and private retention/removal lifecycle, with a
+[transactional schema-11-to-12 migration](Interaction_And_Sessions.md#bounded-admitted-local-answer-execution---2026-10-20)
+for terminal message revision 3.
+Unknown dispatch/cancellation/commit/source state fails closed without an answer,
+provider fallback, replay or automatic session Done.
+
+Implementation, deterministic real-host/fake-adapter, private SQLite and headless
+native tests are authored. This lane is **IMPLEMENTED_AWAITING_VALIDATION**, not
+READY until [exact-head maintained checks and raw 100% portable line AND branch proof](../CONTRIBUTING.md#development-checks)
+pass. E/Q runtime/provider/installed/hardware evidence is unchanged;
+production unqualified profiles remain unavailable. No experiment is a prerequisite.
+
+### Bounded exact sparse session-provider copy implementation - 2026-10-19
+
+The [session-provider copy contract](Model_Providers_Memory_And_Knowledge.md#exact-sparse-session-provider-copy-implementation---2026-10-19) adds explicit native/typed/current-name activated review of a source's exact sparse overrides for a distinct active destination. Complete old/new policy and effective/unavailable disclosure precedes separate expiring one-shot confirmation; null inheritance is never flattened into a source effective tuple.
+
+The existing Application review action, strict sparse/domain rules and private destination audit/save/readback/terminal writer remain authoritative. Both policy/lifecycle/app/private/account/catalogue snapshots are fenced; each destination transaction boundary rereads the exact source, and uncertain outcomes retain destination-only holds without retry. Source authority, credentials/grants/identities, app defaults, runtime/provider execution and network are not transferred or enabled.
+
+Deterministic workflow, command, native and private SQLite tests are authored. Current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge; authored tests and incomplete validation are not READY or passing proof. This consumes the merged session-provider configuration I subset only. Broader provider/runtime/egress E/Q qualification remains unavailable and is not an implementation prerequisite.
+
+### Bounded retained original USER text reuse implementation — 2026-10-19
+
+The [explicit original-text reuse contract](Interaction_And_Sessions.md#explicit-retained-original-user-text-reuse--2026-10-19) adds actual admitted USER-row review and separate one-shot confirmation into the single New request memory buffer. Complete source/body/provenance rereads, explicit dirty-buffer replacement, inert panes and private/source/buffer/native-opening fences preserve immutable originals and fresh eventual submission lineage. No task replay, HOST/model promotion, target creation, Save/Submit, queue/approval, clipboard, activity renewal or provider operation is implicit.
+
+Implementation and deterministic tests are authored, including cancellation during synchronous memory handoff. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. Only the existing canonical original-reader/New request/private-pane I subset is consumed; runtime/provider/egress/wake/profile-original writers remain unavailable and unrelated E/Q or physical/installed qualification is not claimed.
+
+### Bounded exact immutable LocalFile Find count and ordinal - 2026-10-18
+
+The existing [native current-source Find](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18) reports an accessible exact total and selected ordinal only for its admitted displayed immutable file, never corpus/retrieval/live disk.
+Both LocalFile and clipboard counted adapters consume the [shared forward nonoverlapping sequence](../src/Kora.Core/Context/SnapshotLiteralFind.cs); Previous reverses that sequence without changing ordinary uncounted Find.
+Exhaustion preserves total/anchor ordinal without wrap or a current-match/focus claim; invalid input rejects before retained read, and async exact-source/privacy/generation/cancellation fences still gate disclosure ([portable tests](../tests/Kora.Core.UnitTests/Context/LocalFileLiteralFindTests.cs), [native tests](../tests/Kora.Windows.IntegrationTests/LocalFileLiteralFindWindowTests.cs)).
+This consumes only the merged immutable-source/shared-Find/native I subset. No extra read, persisted count/index, model/provider/device/clipboard-write/authority change is added; E/Q and installed accessibility remain separate, and unqualified runtime/provider/egress/wake/profile-original writers remain unavailable ([contract](File_And_Folder_Ingestion.md#exact-immutable-localfile-occurrence-count-and-ordinal---2026-10-18)).
+
+### Bounded owned draft source-preserving Rebase - 2026-10-18
+
+The [owned definition contract](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds explicit Rebase of an already open instruction/prompt draft, not an automatic merge or source writer.
+The [typed admitted workflow](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Rebase.cs) freezes the old baseline, explicitly observed latest source and complete raw draft, reuses shared structural validation, and rereads the exact source revision on confirmation.
+The [private native review](../src/Kora/OwnedInstructionRebaseReviewWindow.cs) discloses all three bodies and exact identity/byte truth; Cancel retains the previous baseline/draft. Confirmation adopts only latest baseline in memory, preserves raw text and retires old editor validation/use-review eligibility ([lifecycle](../src/Kora/OwnedInstructionEditorController.Rebase.cs)).
+Missing/incompatible sources, changed identity/private/control/editor epochs and uncertain publication fail closed. Ordinary Save remains separate with full exact confirmation and can conflict again
+([portable cases](../tests/Kora.Application.UnitTests/Definitions/InstructionEditorTests.Rebase.cs), [native cases](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Rebase.cs)).
+This consumes only the existing owned reader, parser, admission and editor I subset. Deterministic builds/tests and exact portable line/branch coverage gate implementation readiness; current-head receipts record their outcomes separately. No runtime/profile-original writer enablement or E/Q qualification is claimed.
+
+### Bounded selected-subset session memory disable implementation - 2026-10-18
+
+The [memory contract](Model_Providers_Memory_And_Knowledge.md#bounded-selected-subset-session-memory-disable---2026-10-18) adds explicit complete-content review/count and separate one-shot confirmation of a bounded selected enabled subset in one exact active session. Full preflight precedes sequential authoritative per-record disables; partial/unknown outcomes stop without retry or rollback.
+
+The [Application orchestration](../src/Kora.Application/Memory/MemoryBatchWorkflow.cs) and [memory-only native region](../src/Kora/SessionsWindow.axaml) preserve single-record actions and retire stale private/session/source/edit receipts. [Deterministic tests](../tests/Kora.Application.UnitTests/Memory/MemoryBatchDisableWorkflowTests.cs) passed local serial validation on 2026-10-19: zero-warning/error Release builds, 14,338 full-suite passes, exact portable 28,393/28,393 lines and 19,772/19,772 branches (raw 1/1).
+
+The orchestration is now shared with [reviewed selected-subset Forget](Model_Providers_Memory_And_Knowledge.md#reviewed-selected-subset-session-memory-forget---2026-10-19). That extension removes content through the existing per-record action, retains non-reusable tombstones, and discloses partial commits and logical/physical/forensic limits. Current-head maintained builds, deterministic/native/SQLite tests and exact portable line-and-branch coverage are required before merge; the preceding disable-only figures are historical, not proof for the extension.
+
+This is an existing management I-subset increment, not batch admission/review acceptance, scope promotion, recall, model disclosure, retention-policy deletion, grants or export. No E/Q or installed/hardware/provider qualification is claimed; unqualified capability profiles remain unavailable ([policy](#delivery-and-qualification-dependency-policy)).
 
 ### Bounded native Evidence retained due ranges - 2026-10-18
 
@@ -48,14 +170,6 @@ pruning, expiry/lifecycle, capture, body/path read or authority change. Due is
 deadline metadata, not deletion/current-expiry/policy/permission proof.
 E/Q, installed accessibility and unqualified providers/egress/wake/executors/
 profile writers remain separate and unavailable.
-
-### Bounded All Work same-retained-task correlation - 2026-10-18
-
-The [All Work contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) adds optional exact retained TaskId/RequestId with strict canonical GUID admission.
-The [portable rule](../src/Kora.Core/Storage/SessionWorkOverviewFilter.cs) requires both IDs and constrained task state on the same validated retained task, AND with all existing predicates. Omissions/unavailable work prove no absence, exhaustive search or authority.
-The [reader](../src/Kora.Application/Hosting/SessionWorkspaceService.WorkOverview.cs) retains bounded scans/pages/counters/timeouts and complete cursor/source/private/cancellation fences; named [native fields](../src/Kora/AllWorkWindow.axaml) retire results and stale callbacks without reading on edit/Clear/Escape.
-This consumes existing observation/query/reader/native I contracts, with [deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskQuery.cs), not broad Rxx or physical qualification.
-No schema/read authority or task/body/network/device/dispatch operation is added; unqualified runtime/provider/egress/wake/profile writers remain unavailable and no E/Q enablement is claimed ([boundary](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
 
 ### Bounded exact-grant collateral count ranges - 2026-10-18
 
@@ -73,9 +187,15 @@ This consumes only the existing ExactGrants I subset; no service/schema/source,
 logging/audit mutation or runtime/provider/egress/wake/profile-writer enablement
 is added. Broader installed/native/hardware/provider E/Q qualification is unchanged.
 
+### Bundled and shared skill selected-identity metadata literal Find - 2026-10-18
+
+The [bounded inspection increment](Skill_Storage.md#selected-displayed-identity-metadata-literal-find---2026-10-18) adds private First/Next/Previous/Clear over only frozen, already displayed selected identity text. It shares the renamed [attachment navigation state](../src/Kora.Application/Presentation/AdmittedMetadataFindState.cs) and unchanged Core Find, with read-free retirement and no catalogue filtering or source discovery.
+
+The [native tests](../tests/Kora.Windows.IntegrationTests/SkillIdentityMetadataFindTests.cs) cover identity-only scope, private controls and retirement; existing [portable state tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) retain attachment behavior. I consumes only merged inspection and literal-Find contracts; no runtime/model/provider/egress/wake/profile writer enablement or E/Q qualification is claimed.
+
 ### Retained attachment selected-metadata literal Find - 2026-10-18
 
-The [retained catalogue](File_And_Folder_Ingestion.md#selected-displayed-metadata-literal-find---2026-10-18) adds private First/Next/Previous/Clear over only the frozen displayed selected metadata. Shared Core matching is unchanged. Read-free edits, tombstone suppression and selection/operation/privacy/control/source/close retirement preserve authority and filters.
+The [retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds private First/Next/Previous/Clear over only the frozen displayed selected metadata. Shared Core matching is unchanged. Read-free edits, tombstone suppression and selection/operation/privacy/control/source/close retirement preserve authority and filters.
 
 This I increment has [portable tests](../tests/Kora.Application.UnitTests/Presentation/AttachmentMetadataFindStateTests.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Find.cs). No schema, capture, retention mutation, body/path/clipboard read or new authority is added. E/Q is separate; unqualified runtime/providers/egress/wake/profile writers stay unavailable.
 
@@ -84,12 +204,6 @@ This I increment has [portable tests](../tests/Kora.Application.UnitTests/Presen
 The [owned inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor) adds ordinal filename/display-name ascending/descending order before bounded pagination; filename ascending stays default. Keys/ties use extensionless owned filename IDs for prefix compatibility; missing display names stay last. Order binds continuation identity ([tests](../tests/Kora.Application.UnitTests/Definitions/OwnedDefinitionInventoryTests.Ordering.cs)).
 The accessible native selector/Clear/Escape reuses no-read retirement while retaining exact unsaved draft/frozen baseline and separately admitted historical Compare ([native tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.InventoryOrdering.cs)). This consumes only existing inventory/editor I contracts; no persisted preference/schema, writer, runtime, model/provider/device or new authority is added.
 Unqualified runtime/agent/profile writers, providers, egress and wake remain unavailable. Installed/physical/hardware/acoustic/provider/containment and retired experiment evidence is not a prerequisite for this bounded implementation; E/RC qualification remains separate and unclaimed.
-
-### Bounded original-conversation observed provenance ranges - 2026-10-18
-
-The [transcript search](Interaction_And_Sessions.md) adds optional inclusive observed message Generation/Revision min/max, using shared message-domain validation and strict decimal admission. All predicates AND-compose; the versioned full-query digest and range identity bind continuation.
-Complete source pages, including beyond-limit rows and final snapshot pages, validate before publication. Shared accessible native fields retain read-free edit/Clear/Escape retirement without draft mutation ([tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationRanges.cs)).
-I consumes only existing admitted transcript search, not older interaction-receipt HistorySearch. E/Q remain separate: no runtime, model/provider, egress, wake or profile writer is enabled or qualified; unrelated hardware/installed/acoustic/containment and retired proofs are not implementation prerequisites.
 
 ### Bounded exact-grant committed request correlation predicates - 2026-10-17
 
@@ -109,26 +223,6 @@ added. Unavailable runtime/provider/egress/wake/profile-original writers stay di
 The [admitted catalogue query](../src/Kora.Application/Skills/SkillCatalogueSearch.cs) adds Source-default and ordinal name ascending/descending views, unknown names last and exact canonical identity ascending ties. Existing literal/availability/compatibility/digest predicates compose unchanged after complete domain admission.
 
 [Native selectors and lifecycle tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs) cover read-free edits, private pane retirement, shared generation fences, Clear/Escape and layout. This consumes only existing I contracts; no persistence, resource/digest-byte change, authority/completeness or E/Q runtime claim is added ([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
-
-### Passive skill catalogue exact immutable digest filters - 2026-10-17
-
-The [existing skill metadata contract](Definition_Management.md#delivered-native-skill-metadata-navigation)
-adds optional exact bundled definition/declared-resource digests and shared
-revision digest, AND-composed with literal and availability/compatibility filters.
-Empty means Any; canonical lowercase SHA-256 admission and ordinal equality
-reject malformed input without normalization or unfiltered fallback.
-
-The consumed I subset is the existing admitted immutable catalogue/query/native
-inspectors. Read-free edits/Clear, private selection/source retirement, Escape
-and generation/closure fencing have
-[portable](../tests/Kora.Application.UnitTests/Skills/SkillCatalogueSearchTests.cs)
-and [headless](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs)
-tests. No service/schema, resource-byte changes, hidden-name inspection, live
-reads/recheck, activation, invocation, grants or model/egress route is added;
-digest equality is observation only. Unqualified runtime/model/profile-original
-writers remain unavailable; no installed/hardware/acoustic/provider/containment
-E/Q qualification is claimed
-([storage boundary](Skill_Storage.md#delivered-bounded-r21-native-inspection)).
 
 ### Bounded native Evidence observed parent kind - 2026-10-18
 
@@ -156,20 +250,7 @@ Broader E/Q qualification remains separate ([native lifecycle](../tests/Kora.Win
 
 ### Bounded native session-list ExactName - 2026-10-16
 
-Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
-The [passive session-list contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
-adds ExactName as a fourth native mode. Canonical SessionName admission and
-whole-name ordinal case-sensitive equality compose with lifecycle, observed
-name availability and inclusive generation/name-revision ranges. Kind, value
-and every predicate bind the semantic query digest and continuation identity.
-Full candidate validation, 50-row scans, 25 native matches, 64-KiB pages,
-cancellation/source-admission fences and exact selection/detail/action
-retirement remain unchanged. Names are volatile passive navigation metadata,
-never session identity, ownership, authority, approval, routing or mutation.
-This consumes the existing metadata-reader I subset with deterministic
-portable/private SQLite/headless accessibility tests; installed accessibility
-and broader E/Q qualification remain separate and unclaimed. No schema,
-external operation, experiment or sibling catalogue controls are added.
+Native Browse/name substring/ExactName/ExactId retain bounded source validation and duplicate-name disambiguation. Engineering generation/name-revision/name-length widgets are gone; names are never action authority ([current session contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)).
 
 ### Bounded exact-grant committed correlation metadata predicates - 2026-10-16
 
@@ -192,27 +273,6 @@ device/provider action or experiment is required; E/Q and installed accessibilit
 remain separate and unclaimed. Saved drafts #282, Presence/native presenter,
 build/performance, attachment file identities, memory scope identity and Evidence
 trace metadata are unchanged.
-
-### R26 retained attachment exact local-file reference predicates - 2026-10-16
-
-Built on freshly fetched canonical main
-`afdee7f508bc2e186bf56ef5f65cb27711e83bd1`, the
-[retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
-adds optional exact local-file source/revision/item IDs, AND-composed with every
-merged predicate. Strict canonical nonempty lowercase D GUID admission, complete
-candidate validation and full authenticated continuation identity fail closed.
-Only Confirmed retained copies match; exact predicates cannot disclose or
-reconstruct former IDs from unavailable/removed tombstones. IDs are retained
-correlation only, never consent, current file identity, path disclosure, body
-integrity, file-read authority or proof a copy exists.
-Explicit accessible native fields preserve no-read edits, selection/detail
-retirement, bounded pages, revocation/cancellation and stale-result fences.
-Portable, private SQLite and headless tests cover this consumed I subset.
-No schema, source/body read, provider, experiment or enabled runtime profile
-changes; broader R26, installed accessibility and E/Q remain unclaimed.
-Saved-draft provenance (#282), Presence/native presenter, memory scope identity,
-exact-grant audit/approval, Evidence trace metadata and independent build/
-performance work are outside this increment.
 
 ### Bounded native Evidence exact trace metadata predicates - 2026-10-16
 
@@ -258,69 +318,6 @@ remain separate and unclaimed. Saved drafts (#282), Presence/native presenter,
 unknown build/performance work and sibling attachment file identities,
 exact-grant audit correlation/approval and Evidence trace metadata are unchanged.
 
-### Bounded selected-conversation exact correlation predicates - 2026-10-16
-
-Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
-The [passive selected-conversation contract](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
-adds optional exact request/task IDs AND-composed with lexical, USER/HOST,
-typed terminal and sequence/submitted-time ranges. One portable policy admits
-canonical lowercase nonempty D GUIDs only; empty means Any, invalid input is
-never repaired. Both predicates bind digest/page/cursor identity; complete
-message and request validation precedes exclusion. Shared accessible Sessions/
-Compact controls preserve no-read edit, selection/detail retirement, cancellation,
-stale/private/source fences, original USER privacy and separate typed HOST status.
-Existing bounded scans/pages and host-resolved selected session remain unchanged.
-Correlation metadata cannot retarget a session/task or establish identity,
-intent, ownership, permission, approval or execution authority.
-This consumes the existing admitted conversation-page I subset and deterministic
-portable/private-storage/headless tests; exact portable coverage and Release
-analyzers gate delivery. No saved-draft, attachment, memory, grant, Evidence,
-Presence, All Work, local-event or session-name ownership is extended. No
-network/device/provider/experiment or unrelated proof is required or claimed;
-installed accessibility and broader E/Q qualification remain separate.
-
-### Bounded exact-session interaction-receipt metadata predicates - 2026-10-16
-
-The [retained receipt correlation increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09) adds optional exact RequestId/TaskId/SourceId predicates to older receipt HistorySearch, AND-composed with all merged lexical OR, typed metadata and provenance ranges.
-It consumes only the existing private exact-session reader I subset. Shared strict canonical GUID parsing, complete-page validation, bound semantic cursors, native no-read retirement and final snapshot admission remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs).
-Historical IDs add no session/permission/ownership/approval/task/replay/source authority, timestamp or current state. Providers, egress, wake, executors and profile-original writers remain unavailable; no unqualified enablement or broader E/Q/installed-accessibility claim is made ([owning boundary](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)).
-
-The [receipt provenance range increment](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09), implemented from main `d6d249d06f16db8d18636e4a0a4a3257d69896bc`, adds inclusive sequence/generation/source-revision/audit-sequence bounds through the existing matcher, Application command path and labelled native fields.
-It consumes only the existing passive exact-session reader I subset: no timestamps, schema/service/profile, source read, current authority, task management, retry/replay, approval or external operation ([range policy](../src/Kora.Core/Storage/SessionHistoryRangeFilter.cs)).
-Strict shared parsing/domain validation, complete-page-before-exclusion validation, semantic cursor binding, counters and lifecycle re-resolution remain in the [production path](../src/Kora.Application/Hosting/SessionWorkspaceService.Search.cs). Installed accessibility, broader E/Q and unrelated experiments remain separate.
-
-Built from freshly fetched main `72fcebc7e44fb043a6a9c9d4cb89ee693eea2d8e`.
-The [older receipt HistorySearch](Interaction_And_Sessions.md#delivered-passive-exact-session-lexical-history-search---2026-10-09)
-AND-composes optional exact kind, task state, decision, question status and
-answer channel with its unchanged lexical OR query. Strict enum admission,
-complete-page validation before exclusion, canonical digest-bound continuations,
-truthful counters, bounded scan/whole-result bytes and final re-resolution remain
-fail-closed. Native explicit Any controls use no-read edits and retire stale
-selection/details/cursors on query, subject, source/privacy or closure changes.
-This consumes the existing private receipt reader I subset with deterministic
-portable/private SQLite/headless checks and exact portable coverage. Historical
-values gain no selection, identity, answer, approval, mutation or replay authority.
-Shared lexical/conversation behavior and sibling-owned search scopes are unchanged.
-No new runtime/provider, schema/index, experiment or enabled profile is added;
-broader R12/R14, installed accessibility and E/Q remain separate and unclaimed.
-
-### R26 retained attachment inclusive generation/revision predicates - 2026-10-16
-
-From canonical main `74cd8517e5b5412deea706d1125a9b6e156a49e9`, the
-[retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
-adds optional inclusive session-generation, captured-generation and storage-
-revision ranges AND-composed with every existing predicate, including the
-merged digest/source/profile/captured-time behavior. Positive `HostRevision`
-admission, range ordering, validation before exclusion and complete cursor
-identity fail closed. Only Confirmed copies match; tombstone rows/details/
-serialization suppress former versions. No version grants consent, session/
-file-read authority, currentness or proof of current copy existence.
-No-read edits, selection retirement, cancellation/revocation and bounded
-complete-page behavior retain deterministic portable/SQLite/headless checks.
-This consumed I subset changes no other catalogue/domain, storage schema,
-source read, provider or enabled runtime profile. Installed accessibility,
-broader R26 and E/Q remain separate and unclaimed; no experiment is required.
-
 ### Bounded exact-grant committed history retention and UTC ranges - 2026-10-16
 
 Built on freshly fetched main `aee89d2380a25cd89c77ec032eafd2d7e5ecbc31`.
@@ -339,163 +336,9 @@ execution authority, schema, retention policy, model/device/provider/network
 operation or experiment is added. Broader R05 and installed accessibility/E/Q
 qualification remain separate and unclaimed; excluded peer scopes are unchanged.
 
-### Bounded native owned-definition revision and observation-time predicates - 2026-10-16
-
-The [owned metadata inventory](Definition_Management.md#bounded-owned-instruction-and-prompt-editor)
-AND-composes optional exact native owned-instruction revision and inclusive canonical
-UTC Observed From/Until with literal filename/display/source-ID query, use state and
-exact digest for Instructions and Prompts. Complete mapped candidates and revision
-syntax are validated before exclusion; unknown/unmapped rows gain no revision.
-Continuations bind every predicate and the immutable inventory; bounded complete
-UTF-8 pages, no-read edit/selection/review retirement, dirty draft preservation,
-late-callback cancellation fences and accessible Clear remain mandatory.
-Observation time is snapshot metadata only, never freshness, trust, approval,
-ownership or use authority. This consumes the existing inventory/editor I subset;
-no new execution, provider, persistence, source matrix or Definitions authority
-is enabled. Deterministic portable/headless checks cover this increment; full
-Definitions management, installed accessibility and unrelated E/Q qualification
-remain separate and unclaimed. Saved drafts, Evidence, attachment, session Browse,
-Presence and peer conversation/grant/local-event predicates are unchanged.
-
-### Bounded selected-conversation sequence and submitted-time ranges - 2026-10-16
-
-The existing [passive exact-session conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13)
-adds optional inclusive original message-sequence and canonical UTC Submitted
-ranges, AND-composed with lexical, USER/HOST and typed terminal predicates.
-One portable policy owns strict parsing, ordered authoritative bounds and
-matching after complete candidate validation. Every bound joins semantic
-query/page/cursor identity; admitted bounded scans, whole-row byte budgets,
-snapshot revalidation and cancellation/stale-result fences remain unchanged.
-Sessions and Compact share volatile accessible controls with no-read edits,
-selection/detail retirement and private/source reset, not new authority,
-assistant output, body sources, persistence, SQL/indexes or egress.
-The consumed I subset is existing admitted conversation pages and deterministic
-portable/private-storage/headless tests. No excluded saved-draft, Evidence,
-attachment, Browse, Presence, grant-history, local-event or owned-definition
-scope is extended. No provider/device/experiment work or unrelated Rxx proof
-is required; installed accessibility and broader E/Q remain separate and
-unclaimed.
-
-### Bounded native session-list Unicode-scalar name-length ranges - 2026-10-18
-
-**I - Implementation:** [Session-list query policy](../src/Kora.Core/Storage/SessionListSearch.cs) appends optional inclusive name-length minimum/maximum bounds to Browse, NameSubstring, ExactName and ExactId, AND-composed with lifecycle, name availability and existing generation/name-revision ranges.
-The count and maximum come from [SessionName admission](../src/Kora.Core/Hosting/SessionName.cs); empty means Any, positive ASCII decimal values within that domain are valid, and unnamed never matches a constrained length. Unset callers and result serialization remain unchanged.
-Both predicates join the semantic authenticated continuation; bounded scan/page/byte/counter and complete-candidate validation stay in the [existing workflow](../src/Kora.Application/Hosting/SessionWorkspaceService.ListSearch.cs).
-Two accessible [session-list-only native fields](../src/Kora/SessionsWindow.axaml) retire stale search rows/detail/selection/actions/cursor without reads, reset through Clear/Escape and suppress late publication through the [existing native lifecycle](../src/Kora/SessionsViewModel.ListSearch.cs).
-Maintained evidence:
-
-- [Scalar edges and combinations](../tests/Kora.Core.UnitTests/Storage/SessionListSearchTests.cs) and [workflow bounds/corruption/cancellation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.ListSearch.cs).
-- [Private SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionListSearchTests.cs) and [late callbacks/no-I/O](../tests/Kora.Windows.IntegrationTests/SessionsViewModelTests.ListSearch.cs).
-- [Native accessibility/retirement](../tests/Kora.Windows.IntegrationTests/SessionsListSearchTests.cs).
-
-**E - Enablement / Q - Qualification:** This is passive metadata navigation only, not name-based identity, ownership, permission, currentness or action authority.
-No runtime, model, provider, egress or hardware capability is enabled; installed-native/accessibility qualification and broad Rxx evidence remain separate and unclaimed ([owning boundary](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)).
-All Work, saved drafts, conversation/history search, memory and sibling regions are unchanged.
-
 ### Bounded native session-list Browse and name availability - 2026-10-16
 
-The [passive session-list contract](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
-adds explicit empty-text Browse and Any/Named/Unnamed name-metadata availability,
-AND-composed with lifecycle and the merged generation/name-revision ranges.
-Browse reuses the canonical-ID ordered 50-row source scan, native 25-result and
-64 KiB page bounds and complete semantic digest-bound continuations; it never
-selects implicitly or becomes an unbounded inventory. NameSubstring remains
-nonempty literal search; revision bounds require Named metadata. Unnamed is not
-empty name, revision zero, missing authority or historical deletion.
-Full candidate validation, exact-ID mismatch rejection, cancellation,
-stale-admission fences and selection retirement remain mandatory.
-This is the consumed I subset of volatile passive metadata navigation, not
-ownership, permission, freshness, completeness or action authority. Deterministic
-portable/private-store/headless accessibility checks gate implementation; no
-device, network, provider, experiment or installed-native qualification is added.
-Saved drafts, Evidence, All Work, attachment ranges and sibling work remain
-unchanged; broader capability enablement and E/Q qualification remain separate.
-
-### Bounded local-event retained queue profile and target predicates - 2026-10-16
-
-Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
-The [native loaded-event contract](Proactive_Interaction.md#native-content-free-loaded-event-filters)
-adds explicit Any/Absent/exact canonical fixed-read profile and optional exact
-catalogue capability target, AND-composed with all existing category/reason/
-source/type/origin/queue-reason/identity/revision/generation/lifetime predicates.
-Complete event/profile/target validation precedes exclusion; unknown/partial
-state fails closed, and absence is never inferred from source omissions or
-truncated output. Every predicate joins a versioned continuation digest and
-monotonic presentation epochs. Accessible volatile controls preserve no-read
-edits, selection/detail retirement, cancellation and stale/private-source
-fences. Exact target requires retained target metadata; no runtime target is
-inferred. This consumed I subset is historical presentation only, not session
-selection, queue admission, readiness, ownership, permission or dispatch.
-Deterministic portable/headless tests, exact portable coverage and Release
-analyzers gate implementation. Installed accessibility, broader R18 and E/Q
-qualification remain separate; no external runtime, authority expansion or
-experiment is added. All work and sibling metadata domains are unchanged.
-
-### Bounded native local-event revision/generation/lifetime ranges - 2026-10-16
-
-The existing [loaded-event filter](Proactive_Interaction.md#native-content-free-loaded-event-filters)
-adds independent optional inclusive event revision, generation, observed-at
-and original expires-at ranges, AND-composed with category/reason/source/type/
-origin/queue-reason and exact session/task/subject IDs. Portable strict positive
-Int64/canonical UTC admission and per-range ordering reject malformed input
-without repair; complete event/view validation precedes exclusion. Native
-accessible fields only filter the loaded at-most-eight-row snapshot, without
-broker reads, and preserve selection/detail/action retirement, cancellation,
-revocation and stale-generation fences. These are correlation/lifecycle
-metadata, never navigation, dispatch, retry, review or maintenance authority.
-This bounded consumed I subset uses deterministic portable/headless tests;
-no real device, network, provider, experiment or new runtime profile is enabled.
-Installed accessibility, broader proactive functionality and E/Q qualification
-remain separate and unclaimed. Saved drafts, Evidence, attachments, session
-Browse, Presence/presenter and sibling metadata scopes are unchanged.
-
-### Bounded saved-draft observed-provenance ranges - 2026-10-16
-
-The [saved-draft metadata catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
-adds optional inclusive session-generation, named metadata-revision,
-control-revision and authority-ceiling bounds, AND-composed with the existing
-Browse/name/exact-ID, lifecycle, saved revision, bytes, scalars and merged exact
-source/profile predicates. Portable strict positive/nonnegative decimal
-admission, ordered ranges, validation before exclusion and complete signed
-continuation identity retain unnamed semantics and bounded metadata pages.
-Native accessible scrollable fields preserve no-read edit revocation, exact
-selection retirement, privacy/source/control fences and cancellation.
-This bounded I subset consumes existing catalogue contracts, not broad Rxx
-completion or unrelated proofs. Provenance never grants current authority,
-permission, body integrity, device ownership or navigation. No schema, body
-read, provider, network, device or experiment path is added. Full conversation,
-installed accessibility and broader E/Q qualification remain separate and unclaimed.
-
-### R26 retained attachment exact correlation and captured-time predicates - 2026-10-16
-
-The [retained catalogue contract](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
-adds optional exact observation-source/device-profile GUIDs and inclusive
-canonical UTC Captured bounds, AND-composed with Browse/literal/exact-session/
-lifecycle/type/copy-status/bytes/digest predicates. Shared canonical parsing,
-validation before exclusion, complete query-bound authenticated continuations,
-no-read edits and stale/cancellation/selection retirement remain mandatory.
-Only Confirmed copies match; unavailable/removed projections suppress prior
-source/profile/time, and no correlation field grants consent, ownership,
-session/file-read authority or current availability.
-Deterministic portable, private SQLite and headless native tests cover this
-bounded I subset. No unrelated Rxx completion, physical/provider/experiment
-proof or installed accessibility is required or claimed; broader R26/E/Q
-remain separate. No schema, body/path read, persistence or egress is added.
-
-### Bounded native session-list numeric metadata ranges - 2026-10-16
-
-The existing [passive metadata search](Interaction_And_Sessions.md#delivered-passive-session-list-name-and-exact-id-search---2026-10-10)
-now AND-composes optional inclusive positive authority-generation and named
-metadata-revision ranges with name/exact-ID and lifecycle predicates.
-Portable admission/order rules, full candidate validation and semantic
-digest-bound cursors preserve exact-ID mismatch rejection, canonical ordering,
-bounded scans/serialized pages and unnamed semantics. Native accessible fields
-retain cancellation, stale-admission/result fences and selection retirement.
-This consumed I subset is deterministic metadata navigation only, not ownership,
-permission, freshness, historical completeness or action authority. Saved drafts,
-Evidence, All Work and other excluded peer scopes are not extended. No device,
-network, provider, experiment or new runtime capability is enabled; installed
-accessibility and broader E/Q qualification remain separate and unclaimed.
+Ordinary Browse, lifecycle and named/unnamed navigation remain useful without engineering range controls. Edits perform no read, exact source changes invalidate continuation, and each complete candidate is validated before exclusion ([native presenter](../src/Kora/SessionsViewModel.ListSearch.cs)).
 
 ### Bounded native Evidence diagnostic names and sequence ranges - 2026-10-16
 
@@ -512,20 +355,6 @@ headless tests gate this consumed I subset. No storage schema, capture, provider
 network/device, experiment, content restoration or execution route is added;
 Ask Evidence, installed accessibility and E/Q qualification remain separate.
 
-### Bounded native local-event exact correlation-ID filters - 2026-10-16
-
-The existing [loaded-event filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
-now compose optional exact session, task and subject IDs with the six existing
-metadata predicates. Complete lowercase `D` GUID admission reuses host-ID
-parsing; invalid text fails closed, all candidates are validated before
-exclusion, and missing tasks never match exact task IDs. Native edits and clear
-operate on the loaded snapshot without reads, retire exact selection/details,
-and retain cancellation, revocation and stale-generation fences. Correlation
-does not retarget work or grant ownership, navigation or action authority.
-Deterministic portable and headless native checks are I evidence only.
-Installed accessibility, broader proactive functionality and E/Q qualification
-remain separate; no network, device, provider or experiment path is enabled.
-
 ### Bounded selected-session memory metadata ranges - 2026-10-16
 
 The [native frozen memory filter](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14)
@@ -540,48 +369,7 @@ unqualified recall/global catalogue/model consumers remain unavailable.
 
 ### Bounded All Work exact observed task state - 2026-10-17
 
-The [All Work observation contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
-also adds optional exact observed `HostTaskState`: explicit native Any plus defined
-states, AND-composed with all existing filters/ranges and bound to continuation.
-Only validated retained task records match; omitted/unavailable work proves no
-absence, completion, current dispatch, ownership or authority. Read-free edit
-retirement and existing bounded/private/source fences remain intact.
-[Deterministic tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.WorkOverviewTaskState.cs)
-cover this consumed I subset; no model/runtime/provider/egress/wake/profile writer
-is enabled, and E/Q or installed qualification is not claimed.
-
-### Bounded All Work retained observation metadata ranges - 2026-10-16
-
-Built on freshly fetched main `afdee7f508bc2e186bf56ef5f65cb27711e83bd1`.
-The [passive All Work contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
-adds optional inclusive authority/queue revision, pending count/capacity,
-execution-slot/current-fixed-read and explicit queue/task/question omission
-count ranges, AND-composed with lifecycle, Browse/name/exact-ID, Needs answer,
-availability and positive observed content. Portable positive/nonnegative
-Int64 admission, ordered endpoints, complete consumed-observation validation
-and exact continuation identity fail closed. Unavailable/output-bound work
-never matches active ranges; omission counts cannot become records, absence,
-completeness, success or authority. Accessible volatile no-read edits/Clear,
-selection retirement, cancellation/source/private fences and existing
-ten-session/64-KiB/ten-second budgets are preserved. Deterministic portable,
-private-store and headless accessibility checks gate this consumed I subset.
-No storage/schema, provider/device/external operation, experiment or sibling
-conversation/local-event/session-name/attachment/memory/grant/Evidence/Presence
-scope is extended. Full work management, installed accessibility and E/Q
-qualification remain separate and unclaimed.
-
-### Bounded positive All Work observation predicates - 2026-10-16
-
-The [passive All Work observation](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)
-adds one native positive-content choice for retained queue receipts, tasks or
-pending questions, independently AND-composed with existing availability,
-Browse/name/exact-ID/lifecycle/Needs answer. Unavailable and omitted-only sources
-never satisfy positive predicates or establish absence, completion or authority.
-Existing bounded reads, exact continuations, private cancellation/source fences,
-selection retirement and explicit non-null Any accessibility remain authoritative.
-Portable and deterministic headless/private-store checks gate this consumed I
-subset; no storage/model/provider/execution capability is enabled and full work
-management, installed-accessibility and existing E/Q qualification remain separate.
+All Work retains Any or actual observed task state with lifecycle, names and Needs answer. Missing/omitted records are not positive evidence or all-clear. Raw task/request queries and authority/queue/count ranges are removed ([window](../src/Kora/AllWorkWindow.axaml), [overview contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11)).
 
 ### Bounded native Evidence retained metadata predicates - 2026-10-15
 
@@ -623,8 +411,8 @@ descriptors; native delivery does not make a model tool available.
 | Local reasoning | Consented pinned Ollama/model setup, verified loopback bootstrap, bounded answers/questions/action proposals | Generic tool/result iteration, CPU-floor/context/offline qualification and physical server-stop proof | [Local inference](Local_Inference.md), [model inventory](Internal_Model_Tools.md#implemented-bootstrap-surface) |
 | Discovery and actions | Six-ID read-only registry; shared C# clipboard/file/network actions and bounded exact/native workflows | Qualified generic model adapter; parameterized web model route | [Tools](../src/Kora.Tools/README.md), [catalogue](Internal_Model_Tools.md) |
 | Authority and storage | Private standard SQLite, typed task/question/grant/audit transactions, no-replay recovery, exact native grant inspection/revocation | General worker/effect admission, audit anchors/pruning/whole-store rollback and managed-copy/installed qualification | [Security](Security_Data_Flows.md), [grant controls](User_Configuration.md) |
-| Sessions and work | Durable identity/lifecycle/history/retention, six closed metadata queue profiles with retained snapshots, current-run pause and question recovery | Full conversation execution, arbitrary queues/effects, concurrent workers and model tools | [Sessions](Interaction_And_Sessions.md), [workspace](UI_Workspace_And_Windows.md), [work](Work_Management.md) |
-| Native workspace and evidence | Selected work and passive cross-session attention overview, metadata/history search, saved-composer catalogue with native name/exact-ID metadata queries, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection and native filters | General Ask Evidence/model retrieval/export; full screen-reader/readability/physical-DPI acceptance | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
+| Sessions and work | Durable conversation/lifecycle/history/retention, session-local unsent input and safe retained-work inspection/cancellation | Qualified production conversation execution, arbitrary effects, concurrent workers and model tools | [Sessions](Interaction_And_Sessions.md), [work](Work_Management.md) |
+| Native workspace and evidence | Conversation/history search, passive cross-session attention, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection | General Ask Evidence/model retrieval/export and full installed accessibility | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown, exact citations and native current-file literal Find | Managed sources, model grounding/egress, indexes, screen/OCR context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage with [native frozen-list GUID/Scope/Review/Retention metadata filters and portable full-row validation](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14); host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, memory content search/global catalogue/model recall or automatic handoff; full memory and installed-accessibility qualification | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
@@ -663,39 +451,6 @@ snapshots and omission remain unchanged. No ParentSpanId filter, new navigation,
 model/tool/speech/export/clipboard route, storage/schema/index/cache, persistence,
 filter-value telemetry, activity renewal or generated content is delivered.
 
-### Bounded native saved-draft revision/UTF-8 metadata filters - 2026-10-15
-
-The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
-now composes optional exact positive revision and inclusive UTF-8 byte and Unicode scalar bounds
-with Browse/name/exact-ID and All/Active/Done. One portable contract owns strict
-parsing and matching; validated metadata scans and signed continuations retain
-full private/source/authority binding. Edits revoke observations without I/O;
-invalid input refuses reads and zero matches remain truthful. This consumes only
-the existing catalogue I subset. Scalar bounds use only validated exposed summary
-metadata, with the authoritative conversation maximum and the same strict numeric
-parser. No code-unit filter, body import/inference, schema,
-index/cache, aggregate quota/count, mutation, activity renewal, model/tool/speech
-route, new source authority or installed accessibility/E/Q qualification is added.
-
-### Bounded saved-draft exact source/profile metadata predicates - 2026-10-15
-
-The [saved-draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13)
-adds optional exact observation-source and device-profile GUID fields, ANDed with
-Browse/name/exact session-ID, lifecycle, saved revision and both length ranges.
-One portable policy accepts empty Any or complete nonempty canonical lowercase
-`D` GUIDs, never repaired input. Filter digests and signed continuations bind every
-predicate under existing source/private/control/head/authority fences. Every
-scanned summary/name and authority prefix is validated before exclusion; edits
-perform no read and immediately revoke observations and delayed callbacks.
-This consumes only the existing catalogue I subset. IDs grant no ownership,
-identity or authority. No body read, aggregate total, autosave/reload/mutation/
-submit, schema/index/cache, persisted filter, filter logging/tags/audit payload,
-model/tool/speech/clipboard/export route or activity renewal is added.
-Headless accessible controls and deterministic tests are implementation evidence,
-not installed-accessibility or E/Q qualification. Presence/native-presenter,
-All Work follow-up, memory, attachment, Evidence and independent build/review
-work remain outside this boundary.
-
 ### Bounded native speech-caption reader text scale - 2026-10-15
 
 The confirmed device-local [reader scale](Information_Display.md#bounded-native-reader-text-scale)
@@ -720,6 +475,12 @@ This consumes the existing preference/typography/Evidence I subset; no global
 UI scaling, model/runtime route, voice inference, installed accessibility or
 broader E/Q qualification is claimed.
 
+### Bounded native session retention impact planner implementation - 2026-10-18
+
+The [read-only session planner](User_Configuration.md#read-only-hypothetical-session-retention-planner) adds explicit proposal/preview controls, content-free hypothetical-versus-recorded due counts and conservative exclusions. Bounded metadata and exact source/preference/policy/admission revisions fence results; incomplete/unavailable observations expose no aggregate.
+
+Consumed I is existing policy/private authority and native lifetime. No apply-now, mutation, cleanup, revocation, schema/index/cache/scanner or broader runtime is enabled. Deterministic tests cover policy, budgets, exclusions, currentness and lifecycle; exact-head validation receipts remain separate from E/Q qualification ([planner source](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
+
 ### Bounded read-only audit shortening impact preview - 2026-10-15
 
 [Native Settings preview](User_Configuration.md#read-only-audit-shortening-impact-preview)
@@ -737,21 +498,7 @@ unqualified, not implementation prerequisites.
 
 ### Bounded native Sessions local-event filters - 2026-10-14
 
-[Category, exact reason, authoritative source/type, request-origin and queue-reason filters](Proactive_Interaction.md#native-content-free-loaded-event-filters)
-compose over only the existing already-loaded bounded content-free rows.
-The 2026-10-15 Source/Type increment preserves exact AND and zero matches
-for impossible pairs, with no new source read or normalized choice.
-The bounded Origin/QueueReason increment adds exact `RequestOrigin` and explicit
-portable Any/None/Exact eligibility predicates. None means not applicable for
-questions/maintenance, never success or authority; all six predicates are AND
-and full row/view validation precedes exclusion.
-Edits immediately retire exact selection; source/privacy/workspace changes,
-refresh, failure/cancellation and stale callbacks remain fail closed.
-Matching/empty counts do not replace broker omissions or quiet status.
-No read/index/persistence, event body, logging, route, authority, dispatch or
-activity renewal is added. This consumes the delivered local broker's I
-subset; hardware, experiments and installed accessibility/E/Q qualification
-are not implementation prerequisites or claimed by this increment.
+Normal event browsing retains category and reason. Technical source/profile/correlation/generation/lifetime predicates are no longer user controls; internal broker contracts and source validation remain ([event boundary](Proactive_Interaction.md#native-content-free-loaded-event-filters)).
 
 ### Bounded native Evidence page literal Find — 2026-10-14
 
@@ -773,9 +520,9 @@ No schema/pruning/retention change, authority expansion, diagnostic-mirror recon
 
 ### R14 bounded All work private metadata query - 2026-10-14
 
-The [passive overview contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) now composes the authoritative Sessions/saved-draft literal saved-name or canonical exact-GUID query with All/Active/Done and Needs answer. Explicit Search/Refresh/Next retains ten-session canonical-ID scans, fifty task/question records per session, complete 64 KiB pages, truthful zero-match continuations, independent unavailable sources and private admission/source invalidation. Query text is volatile; typing performs no read and close clears it. Focused portable and headless/private-SQLite tests exercise the delivered boundary. No global/body search, atomic all-clear, model context, execution/provider authority or installed-accessibility/full R14 qualification is claimed.
+The [overview contract](Work_Management.md#delivered-passive-cross-session-work-observation---2026-10-11) retains name/exact-session navigation, lifecycle, observed task state and Needs answer. Explicit Search/Refresh/Next uses bounded validated independent snapshots; edits read nothing and retire stale selection.
 
-The same bounded All Work path adds exact native observation availability: Any / Observed / Source changed / Read unavailable / Output bound, AND-composed with lifecycle/query/Needs answer. Portable matching refuses undefined availability; all scanned metadata and admitted observations retain validation before exclusion. Exact availability is continuation-bound, edits read nothing and revoke private rows/selection/late callbacks, and unavailable never means empty work. No schema, cache, persistence, telemetry payload, mutation, runtime authority or aggregation is added. Deterministic portable and headless native/private-source checks are the implementation gate; installed-accessibility/full work-management qualification remains separate.
+Technical availability/content query widgets are removed. Source changed/read unavailable/output-bound and omitted/nonmatch states remain truthful displayed observations, never an all-clear or authority. Internal full-source/continuation validation remains ([All Work](UI_Workspace_And_Windows.md#delivered-bounded-passive-all-work--attention-overview---2026-10-11)).
 
 ### Bounded native admitted Detail literal Find - 2026-10-14
 
@@ -788,55 +535,11 @@ No schema/index, authority, execution, egress, scan-budget or qualification boun
 
 ### R12/R14 exact-session conversation/composer foundation — 2026-10-12
 
-The bounded [R04/R05 retained original USER / typed HOST detail handoff](Information_Display.md#delivered-retained-original-user--typed-host-details---2026-10-14) is delivered through canonical exact-record admission and the existing native viewer. Explicit shared-row actions preserve body bytes, typed provenance, immutable reference/revision/digest, private/source revocation and passive Done. No generated response, new copy/export authority, provider/egress or full R12/R14/runtime/hardware/accessibility qualification is claimed.
+The [session conversation contract](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12) now uses per-session memory-only unsent input, shared Sessions/compact views and explicit submission. Switching topics retains independent buffers; last-view/voluntary application closure uses Discard/Cancel, not Save.
 
-The [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) adds explicit tray/workspace single-instance access to the same selection, memory draft and canonical conversation actions.
-Shared lifetime, dirty decisions, source revocation and truthful USER/HOST/work observations preserve the workspace and standalone question/voice presenters. This is not generation, routing or full R14/installed qualification.
+Existing saved text has only exact-session read-only recovery into empty input. Historical schema, audit, retention and deletion stay compatible; ordinary saved-draft writers, catalogue, Compare and rebase UI are removed ([buffers](../src/Kora/SessionsViewModel.Unsent.cs), [shutdown guard](../src/Kora/ConversationShutdownGuard.cs)).
 
-The [native untargeted New request fallback](Interaction_And_Sessions.md#delivered-native-new-request-fresh-session-fallback--2026-10-13) is delivered from tray and Sessions with single-instance activation and an isolated memory draft. Unavailable relatedness inference offers only explicit fresh generic **New conversation**; no selected/Done/named/recent reuse or body-derived title.
-Audited exact-target creation is acknowledged before a separate frozen-body review/Submit through the canonical conversation admission service. Physical COMMIT fences, one-shot review, private close, dirty-buffer protection and exact passive inspection preserve truthful partial success without retry/rollback/Done/delete or body transfer. Production generation, relatedness/voice/compact routing, installed qualification and the paused storage/profile scopes remain unavailable.
-
-The same confirmed created Active target now supports a distinct explicit revision-reviewed draft Save through canonical draft authority. Complete old/new body and confirmed-baseline review, exact metadata/revision COMMIT fencing and separately confirmed eligible close Save/Discard/Cancel preserve named-window concurrency and all unknown holds. No target is created just to save or close.
-Saving is not submission, provider admission, conversation execution, approval or meaningful activity. Saved-draft discovery and explicit Sessions Reload stay unchanged. Portable/private SQLite/headless tests are implementation evidence, not installed accessibility, comprehensive credential detection, physical-storage, profile-original or full R12/R14 qualification.
-
-The native [saved composer draft catalogue](Interaction_And_Sessions.md#saved-conversation-draft-catalogue--2026-10-13) delivers explicit bounded metadata-only discovery across uncapped retained sessions and stale-refusing exact Sessions navigation.
-No automatic body load/save/overwrite/Submit, global count/quota, schema/index/file-copy change or body authority duplication is added. Reload remains a separate existing Sessions action.
-Private metadata/SQL/headless checks do not qualify generated conversation, provider/hardware/installed accessibility, profile-original editing, hidden import, physical storage or STOP. Existing required audit, retention, source privacy and deferred capability gates remain unchanged.
-
-The [passive selected-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) now searches actual retained USER words and typed HOST status in one explicitly selected Active or retained Done session.
-Shared lexical policy, bounded complete chronological results and exact query/generation/ceiling/head continuation reuse admitted conversation pages.
-The [compact projection](UI_Workspace_And_Windows.md#delivered-selected-conversation-lexical-search--2026-10-13) now exposes the same authoritative private Search/Next/Cancel/Clear state as Sessions, with no automatic reads, second composer baseline, provider/runtime enablement or installed/physical qualification.
-
-Native Search/Next/Cancel/Clear preserve composer drafts, saved revisions, question/voice focus and meaningful-activity/retention authority. Final source/private validation fences late publication; query/result text is not persisted, logged or sent as model context.
-This is not older receipt `HistorySearch`, global body search, an index, retrieval upload, runtime/inference or full R12/R14/installed-native/physical-storage qualification.
-
-The next bounded integration is delivered: a reviewed native owned-v2 expansion can be separately confirmed as exact USER text for one explicitly selected existing Active session, through the same conversation screening/store/task/audit/admission service. Preview and old Use still do not retain form bodies. There is no auto-routing, draft overwrite, template mutation or generation/auth/network/egress enablement.
-Headless/native private-store tests cover exact body, changed source/target/privacy, credential rejection, one-shot admission and uncertain COMMIT inspection. They do not qualify installed accessibility, hardware, inference or the remaining RT1/RT2/MG1/PV1/physical-storage/STOP gates. See [prompt delivery](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
-
-The [native composer and private authority](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
-deliver memory-only editing, explicit revision-bound saved draft operations,
-immutable submitted original user messages and truthful unavailable HOST/task
-terminals through the real configured provider-neutral admission consumer.
-Schema 10→11 preserves old task/history/queue/provider/audit bytes and uses
-the existing atomic authority/copy/deletion domain. Body/page limits and
-100 messages/session do not cap retained sessions or aggregate drafts/messages.
-No unexpired content/audit eviction, auto-save/replay, provider/bootstrap
-fallback, HTTP/authentication or assistant-output claim is added.
-
-The approved follow-up adds one Core local structural credential-like
-reject-only rule at service/store boundaries, before any body persistence or
-admission. Content-free required rejection audit retains no candidate/hash;
-accepted text remains exact. Known placeholders remain inert, and limitations/
-false positives are disclosed without comprehensive DLP qualification.
-Physical files stay unchanged; canonical IDs/source hashes/clocks and strict
-versioned migrations/copy/journal inventories remain the storage contract.
-
-This substantive host/UI increment follows #217's
-[engineering progression policy](Deferred_Validation.md#engineering-progression-policy).
-Rejected Ollama candidates and the retired manual proof harness are not
-prerequisites or restored validation. Full generated conversation, history
-context assembly, global/voice routing, general execution, provider/hardware,
-installed-native/accessibility and R12/R14/RC qualification remain gated.
+The admitted answer path is implemented but an unqualified provider remains explicitly unavailable. Retained USER, optional ASSISTANT and typed HOST outcomes remain distinct; reopening history neither runs a model nor renews authority.
 
 ### R14 native question terminal-publication correctness - 2026-10-12
 
@@ -869,38 +572,9 @@ diagnostic/audit payload, model/tool/speech/export or activity renewal is added.
 This bounded I increment does not advance broader R26 or E/Q qualification;
 Presence/native-presenter and unrelated filter/review work remain separate.
 
-### R26 retained attachment observed-generation relationship - 2026-10-17
-
-The bounded [retained attachment generation relationship](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit Any / Same observed generation / Earlier observed generation, AND-composed with all existing predicates.
-Constrained choices require Confirmed copies; complete bounded validation, versioned authenticated continuations and native no-read retirement preserve the consumed I seam.
-[Core](../tests/Kora.Core.UnitTests/Storage/SessionAttachmentGenerationRelationshipTests.cs), [SQLite](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionAttachmentTests.GenerationCatalogue.cs) and [headless native](../tests/Kora.Windows.IntegrationTests/AttachmentCatalogueWindowTests.Generation.cs) checks cover this passive historical metadata only.
-No currentness, authority, body/path read, schema/index, runtime/profile enablement, experiment or broader R26/E/Q qualification is claimed.
-
-### R26 exact retained attachment SHA-256 predicate - 2026-10-16
-
-The [retained metadata catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11)
-adds an optional exact canonical original-byte digest predicate composed with
-Browse/literal/exact session ID/lifecycle/media type/copy status/stored-byte
-bounds. One portable strict syntax rule is shared with file-reference validation.
-Only Confirmed copies match; unavailable/removed provenance never displays or
-serializes a prior digest, even from malformed objects. Fully validated finite
-scans, keyed signed-continuation binding, stale/cancellation fences and native
-no-read edits/selection retirement remain mandatory.
-Deterministic Core/Application/private SQLite/headless accessible-control tests
-qualify this bounded I consumer. No schema/index/cache, body/path/hash read,
-mutation, aggregate, persistence, audit/diagnostic payload, model/network/device
-or authority expansion is introduced. Broader R26, installed accessibility,
-physical storage and E/Q gates remain unchanged; no experiment evidence is
-required, rerun or retired, and unrelated live ownership scopes remain separate.
-
 ### R26 exact retained attachment media-type filter - 2026-10-15
 
 The bounded exact retained media-type increment adds All / `text/plain` / `text/markdown`, composed with exact ID, lifecycle, removed-slot and literal filters inside the existing fully validated scan. One extracted Core strict type rule, authenticated query/authority digest continuations and immediate native edit revocation preserve fail-closed nonmatch/corruption admission; tombstones match only All. Deterministic portable/private SQLite/headless control checks cover this consumer only. No schema/index/cache, body/OCR/path disclosure, count-total claim, activity renewal, model/tool/speech route, authority expansion or broader R26/installed-accessibility qualification is added.
-
-### R26 private native retained metadata literal search - 2026-10-14
-
-The [retained attachment catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) adds explicit volatile case-sensitive literal filtering of already exposed Session/source/revision/item IDs, digest and media type, composed with exact ID/lifecycle/removal filters. Shared Unicode bounds, fully validated finite scans, keyed authenticated query continuations, source/private revocation and separately explicit exact navigation remain mandatory. Removed tombstones never match literal search; no query content is serialized, persisted, audited, logged, exported or sent to a model.
-No hidden filename/path disclosure, file-content/OCR search, index, model grounding, authority expansion, installed/accessibility/hardware or full R26 qualification is claimed. Focused portable/Application/private SQLite/headless native evidence covers this consumer only; existing limits, corruption failure and experiment/enablement gates remain unchanged.
 
 ### R07 native immutable clipboard literal Find increment - 2026-10-14
 
@@ -969,20 +643,6 @@ Maintained codec/workflow, private native SQLite/audit composition, native edito
 They do not replace unique RT1/RT2/PV1, offline inference, containment, hardware, installed/native accessibility or storage evidence. No experiments are modified or retired.
 Profile-original publication remains explicitly deferred; template/skill/agent runtime, refinement and expanded applicability gates are unchanged.
 
-### R14 optional native prerequisite parity - 2026-10-12
-
-One new fixed-read enqueue can explicitly choose None or an exact same-session prerequisite from the already-observed bounded task metadata list. All six native buttons use the original exact command/application/audited store path and optional real revision guard at COMMIT.
-Refresh/private/source changes refuse stale choices; successful enqueue clears the next decision. No existing dependency editing, cross-session native picker, automatic dispatch or model management is delivered.
-The bounded list now includes already-observed queued pending/running/recent terminal tasks alongside nonqueue tasks. Optional task metadata comes from actual host task rows in the same atomic work read; restart-divergent host task revisions/states are not guessed from queue-entry authority. Missing/conflicting metadata is unavailable, never a fabricated prerequisite or silent None. Existing work bounds, 64 KiB disclosure and stored digests remain unchanged.
-
-Maintained native event/accessibility-label, real SQLite revision/private-boundary and existing queue/profile/order tests cover this consumer parity. No experiments are changed or retired; unique RT1/RT2/MG1/PV1, offline/containment, hardware/storage, installed-native/accessibility and physical-stop gates remain open.
-
-### R13 closed targeted metadata increment - 2026-10-12
-
-The [targeted queue increment](Work_Management.md#delivered-closed-targeted-metadata-reads---2026-10-12) completes queued access to the existing six registry reads: one exact current descriptor and fixed recorded local runtime join four unchanged profiles.
-Actual registry/native/private SQLite consumers validate target/result binding and explicit version-5 compatibility. This is not arbitrary tool arguments, model management, live qualification or broader R13 completion.
-Maintained consumer tests do not retire or replace unique RT1/RT2/MG1/PV1, offline CPU/inference, containment, hardware, installed-native/accessibility or physical protected-storage/STOP gates. No experiment is edited.
-
 ### R13 selected pending cancellation increment - 2026-10-12
 
 One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.
@@ -1045,25 +705,15 @@ quality and authority first, then approved identity/licence, reference hardware,
 context/cancellation, offline/egress and integrated-host qualification. That
 work gates only the candidate's enablement and associated release claims.
 
-## R13 exact current-run queue pause receipt - 2026-10-11
-
-The [fixed local-version increment](Work_Management.md#delivered-exact-current-run-dispatch-pause---2026-10-11) adds exact native/original typed/activated Pause/Resume and observational Work/All work/status.
-Pause shares the physical atomic admission fence, skips only the addressed session and lets committed callbacks drain; Resume never dispatches or replays.
-Captured limits/deadlines/FIFO/fairness, private epochs, Unknown quarantine and meaningful-activity retention remain authoritative.
-Deterministic domain/parser tests and genuine private-SQLite commit/callback races cover this bounded control, not MG1 inference or general workers/providers/leases. The enabled consumer closure is queue admission, Work/All work, local event eligibility and native/exact command routing; question waits, grants, captions, quiet mode, memory and provider/definition authorities are unchanged.
-Applicable MG1 envelope/no-retry/Unknown assertions remain in maintained queue tests; RT1 final-request/all-status controls and RT2 native mediation/loss/quiescence, containment W1-W4, hardware/audio/accessibility and historical storage/recovery evidence are retained.
-No experiment executable or shared consumer is retired: exact runtime/profile/native equivalence has not been established by these deterministic tests.
-Full R13/A3, installed-native qualification and physical-stop evidence remain open under the three-tier policy.
-
 ## R02 Runtime/Provider Follow-Up Gates
 
-The [reviewed expired current-run pending removal/new-decision increment](Work_Management.md#delivered-reviewed-expired-pending-removal-and-fresh-tail-decision---2026-10-12) joins native/exact/current-name activated consumers to one audited private-store transaction: old Removed/Cancelled history and a separate fresh same-profile task at session tail, never replay or extension.
+The [reviewed expired current-run pending removal/new-decision increment](Work_Management.md#authoritative-work-ledger) joins native/exact/current-name activated consumers to one audited private-store transaction: old Removed/Cancelled history and a separate fresh same-profile task at session tail, never replay or extension.
 Current settings, source/private revisions, capacity and exact dependency lineage are revalidated. Running callbacks, normal manual dispatch/fairness, original deadlines/digests and restart no-replay are unchanged.
 
 Deterministic parser/domain/application and genuine private SQLite tests retain the applicable MG1 envelope, audit/commit/cancellation/race and Unknown/no-retry obligations.
 No experiment or consumer is retired; exact equivalence to retained RT1/RT2/MG1/PV1/offline inference, containment W1-W4, hardware/audio, native installed/accessibility or physical-storage/termination evidence is not established. Full R13 and those separate qualifications remain open.
 
-The [reviewed adjacent pending-order increment](Work_Management.md#delivered-reviewed-adjacent-pending-order---2026-10-12) adds exact native and original typed/activated pair review/confirmation, shared ordering and atomic audited lineage at the existing store seam.
+The [reviewed adjacent pending-order increment](Work_Management.md#delivered-deterministic-local-version-queue) adds exact native and original typed/activated pair review/confirmation, shared ordering and atomic audited lineage at the existing store seam.
 Arrival identity/digests/deadlines, dependencies, fairness, independent pause and restart no-replay remain authoritative. No experiment consumer is retired or relabelled; full R13/RT2/PV1, workers/providers/resource leases and installed/hardware/native qualification remain open.
 
 | Gate | Current disposition | Next required evidence |

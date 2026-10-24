@@ -24,6 +24,39 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class ClipboardLiteralFindWindowTests
 {
+    [Fact]
+    public async Task NativeExplanationRequiresExactReviewedConsentAndClearsVolatileAnswerOnClose()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var calls = 0;
+            var current = true;
+            var window = new ClipboardPreviewWindow(_ => throw new InvalidOperationException("Unexpected native explanation failure"));
+            window.Show(Snapshot("untrusted exact source"), UnexpectedMutation, UnexpectedMutation, () => current,
+                () => { calls++; return Task.CompletedTask; });
+            var consent = window.GetVisualDescendants().OfType<CheckBox>()
+                .Single(control => AutomationProperties.GetName(control) is "Admit this exact clipboard snapshot to local-only inference");
+            var explain = (AsyncCommand)Button(window, "Review and explain locally").Command!;
+            var withoutReview = () => explain.ExecuteAsync();
+            await withoutReview.Should().ThrowAsync<InvalidOperationException>();
+            consent.IsChecked = true;
+            await explain.ExecuteAsync();
+            consent.IsChecked.Should().BeFalse();
+            calls.Should().Be(1);
+            window.SetExplanation("untrusted local explanation");
+            var answer = window.GetVisualDescendants().OfType<Kora.Controls.NamedTextBlock>()
+                .Single(control => AutomationProperties.GetName(control) is "Volatile local clipboard explanation; untrusted model response");
+            answer.Text.Should().Be("untrusted local explanation");
+            current = false;
+            consent.IsChecked = true;
+            var stale = () => explain.ExecuteAsync();
+            await stale.Should().ThrowAsync<InvalidOperationException>();
+            calls.Should().Be(1);
+            window.ClearAndClose();
+            answer.Text.Should().BeNull();
+        });
+    }
+
     [Theory]
     [InlineData(640, 480)]
     [InlineData(760, 600)]

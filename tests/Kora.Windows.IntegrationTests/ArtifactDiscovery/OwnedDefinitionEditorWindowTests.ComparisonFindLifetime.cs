@@ -23,7 +23,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         {
             await using var f = await DraftValidationFixture.Create(ArtifactKind.Instruction, false);
             var dialog = await OpenFindComparison(f);
-            var pane = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().Last();
+            var pane = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().Last();
             var query = FindQuery(pane);
             var span = FindSpan(pane);
             var changed = false;
@@ -74,7 +74,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         {
             await using var f = await DraftValidationFixture.Create(ArtifactKind.Prompt, false);
             var old = await OpenFindComparison(f);
-            var retired = old.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            var retired = old.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
             foreach (var pane in retired)
             {
                 FindQuery(pane).Text = "PRIVATE";
@@ -94,7 +94,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 FindOutcome(pane).Text.Should().BeNull();
                 pane.Dispose();
             }
-            foreach (var pane in replacement.GetVisualDescendants().OfType<OwnedComparisonFindPane>())
+            foreach (var pane in replacement.GetVisualDescendants().OfType<SnapshotComparisonFindPane>())
             {
                 FindSource(pane).Text.Should().Contain("PRIVATE");
                 FindQuery(pane).Text.Should().BeNullOrEmpty();
@@ -111,7 +111,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
         {
             await using var f = await DraftValidationFixture.Create(ArtifactKind.Instruction, false);
             var dialog = await OpenFindComparison(f);
-            var panes = dialog.GetVisualDescendants().OfType<OwnedComparisonFindPane>().ToArray();
+            var panes = dialog.GetVisualDescendants().OfType<SnapshotComparisonFindPane>().ToArray();
             foreach (var pane in panes)
             {
                 FindQuery(pane).Text = "PRIVATE";

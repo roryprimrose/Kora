@@ -369,6 +369,42 @@ shortcut behavior, prerequisite failures, and actual installed ACL/token and
 worker boundaries still need approved disposable-Windows acceptance. Automated
 tests cover the managed lifecycle using a fake engine, not Windows installation.
 
+### Optional local speech component lifecycle
+
+The approved [speech-input design](../Design/Speech_Input.md#optional-installation-and-runtime-lifecycle)
+requires future qualified wake/VAD/ASR and optional verifier assets to follow
+the existing optional-component pattern: unchecked actionable preparation at
+install time, or later installation/verification through Kora Settings.
+The [shared lifecycle service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+and [installer choice binding](Kora.Setup/SpeechComponentInstallChoice.cs)
+implement this path, separate from the existing PowerShell/Ollama/Kokoro
+selections. The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
+has no input offers while D-002 backend selection and exact qualification remain
+open. The installer says so explicitly; it does not show a placeholder checkbox
+or claim preparation succeeded. A Kora-only installation remains valid.
+Unknown inspection state is not a missing or failed component; the shared
+[readiness observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs)
+retains explicit reasons and only existing authoritative functional evidence.
+No functional probe runs during inspection. An exclusive mutation attempt
+returns a [typed acquired/denied status](../src/Kora.Core/Dependencies/SpeechComponentMutationAdmission.cs),
+not a null lease that conflates busy, unknown and unavailable state.
+
+Use the [shared setup catalogue and lifecycle](../Design/Environment_Setup.md#optional-local-speech-component-lifecycle)
+for source/digest/licence, supported hardware/backend, download/disk/resource
+costs, user scope, readiness, cancellation and removal ownership. MSI owns
+application/native adapter code; Burn must not create a second model manifest
+or imply that declining model data removes shared/bundled launch requirements.
+Optional preparation remains non-elevated and does not select the runtime
+profile, open capture, grant learning/enrollment consent or clear recovery holds.
+Repair/upgrade/uninstall and Settings removal must preserve other consumers,
+user-owned assets and retained preferences under the existing policy.
+The [deterministic parity tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsSpeechComponentStoreTests.cs)
+use exact fixture metadata and fake storage/acquisition, including unchecked
+choices, consent, integrity failures, interrupted publication/removal and fresh
+retry. They do not download data or install anything. Exact-offer native/payload
+qualification and installed acceptance remain separate gates before offering a
+production profile; they are not replaced by these deterministic tests.
+
 ## Versioning and GitHub Actions
 
 Application binaries and installer packaging use the same

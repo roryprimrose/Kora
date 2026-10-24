@@ -1,0 +1,256 @@
+using System.ComponentModel;
+using Kora.Application.Skills;
+using Kora.Application.ViewModels;
+using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Core.Skills;
+using Kora.Core.Storage;
+using Microsoft.Extensions.Logging;
+
+namespace Kora;
+
+internal sealed partial class SharedSkillInvocationController(
+    MainViewModel main, SharedSkillInvocationWorkflow workflow, SkillPackagesWindowController sources,
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<SharedSkillInvocationController> logger) : IDisposable
+{
+    private SharedSkillInvocationWindow? window;
+    private SharedSkillUseReview? review;
+    private SharedSkillInvocation? invocation;
+    private CancellationTokenSource? lifetime;
+    private Task active = Task.CompletedTask;
+    private bool disposed;
+    private bool opening;
+    private bool showing;
+    private bool closeAfterShow;
+    private long ownerRevision;
+    private long callRevision;
+    private long inputRevision;
+    private RequestOrigin requestOrigin;
+    private Guid? next;
+#pragma warning disable VSTHRD003 // Exposes the owned operation for lifecycle observation without starting another submission.
+    internal Task ActiveOperation => active;
+#pragma warning restore VSTHRD003
+
+    internal void Bind()
+    {
+        sources.BindInvocation((source, snapshot) => Open(source, snapshot, RequestOrigin.LocalUi, static () => true));
+        main.SharedSkillInvocationRequested += Route;
+        main.PrivacyClosureRequested += OnPrivacyClosed;
+        main.PropertyChanged += OnMainChanged;
+        main.BindSharedSkillUseShutdown(CloseAndWait);
+    }
+
+    private bool Eligible() => !disposed && ownsHost() && ownershipRevision() == ownerRevision
+        && main.CallPolicyRevision == callRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
+        && !main.IsResponseInteractionPending;
+
+    private async Task Open(SharedSkillSource source, SharedSkillSnapshot snapshot, RequestOrigin origin, Func<bool> eligible)
+    {
+        if (opening) { throw new InvalidOperationException("Wait for the exact source review already opening."); }
+        opening = true;
+        try
+        {
+        await CloseAndWait();
+        ownerRevision = ownershipRevision();
+        callRevision = main.CallPolicyRevision;
+        lifetime = new();
+        try
+        {
+            review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token);
+            if (!eligible() || !Eligible()) { Close(); return; }
+            requestOrigin = origin;
+            window = new(action => Start(action, RequestOrigin.LocalUi));
+            window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D}\n\n{review.Text}";
+            window.Closed += (_, _) => Close();
+            window.Request.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
+            window.Targets.SelectionChanged += (_, _) => RetireConfirmation();
+            showing = true;
+            try { window.Show(); }
+            finally
+            {
+                showing = false;
+                if (closeAfterShow) { closeAfterShow = false; Close(); }
+            }
+            if (window is null || !Eligible()) { Close(); return; }
+            window.Status.Text = "Review all instructions, then separately enable this exact revision. Nothing invoked.";
+        }
+        catch { Close(); throw; }
+        }
+        finally { opening = false; }
+    }
+
+    private async Task Route(SharedSkillInvocationCommand command, RequestOrigin origin, Func<bool> eligible)
+    {
+        try
+        {
+            if (!eligible()) { throw new InvalidOperationException("Original command admission expired."); }
+            if (string.Equals(command.Action, "Review", StringComparison.Ordinal))
+            {
+                var selection = sources.ResolveInvocation(command.Argument)
+                    ?? throw new InvalidOperationException("List one registered source natively first. Select its exact case-sensitive name; ambiguous names require 'name from source <source ID>'.");
+                await Open(selection.Source, selection.Snapshot, origin, eligible);
+                return;
+            }
+            if (string.Equals(command.Action, "Close", StringComparison.Ordinal)) { await CloseAndWait(); return; }
+            if (window is null || !Eligible() || !active.IsCompleted)
+            { throw new InvalidOperationException("Open a current exact-source review and wait for its owned operation first."); }
+            if (string.Equals(command.Action, "Request", StringComparison.Ordinal))
+            {
+                window.Request.Text = command.Argument;
+                requestOrigin = origin;
+                RetireConfirmation();
+                return;
+            }
+            if (string.Equals(command.Action, "Target", StringComparison.Ordinal))
+            {
+                if (!Guid.TryParseExact(command.Argument, "D", out var id))
+                { throw new InvalidOperationException("Use the exact existing Active conversation ID from the displayed metadata page."); }
+                var matches = (window.Targets.ItemsSource as SharedSkillConversationTarget[])?
+                    .Where(item => item.Entry.Authority.SessionId.Value == id).ToArray();
+                if (matches is not { Length: 1 }) { throw new InvalidOperationException("Refresh the metadata page and select exactly one displayed Active conversation."); }
+                window.Targets.SelectedItem = matches[0];
+                return;
+            }
+            active = RunReported(command.Action, origin, eligible);
+            await active;
+        }
+        catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException or IOException or OperationCanceledException)
+        {
+            UseFailed(logger, exception.GetType().Name);
+            main.ReportHostInteractionFailure("Shared skill use unavailable or cancelled. No replay or successful receipt claimed. Refresh and review again.");
+        }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native skill buttons require a void callback; RunReported logs failures and retires the exact review.")]
+    private async void Start(string action, RequestOrigin origin)
+    {
+        if (!active.IsCompleted) { return; }
+        active = RunReported(action, origin, Eligible);
+        await active;
+    }
+
+    private async Task RunReported(string action, RequestOrigin origin, Func<bool> eligible)
+    {
+        var capturedLifetime = lifetime;
+        try { await Run(action, origin, eligible); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            UseFailed(logger, exception.GetType().Name);
+            review?.Dispose();
+            if (window is { } opened)
+            { opened.Clear(); opened.Status.Text = "Unavailable, cancelled or unconfirmed. Inspect the target conversation before any fresh review; no automatic retry."; }
+        }
+        finally
+        {
+            if (window is null && ReferenceEquals(lifetime, capturedLifetime))
+            { lifetime?.Dispose(); lifetime = null; }
+        }
+    }
+
+    private async Task Run(string action, RequestOrigin origin, Func<bool> eligible)
+    {
+        var opened = window ?? throw new InvalidOperationException("Review window is closed.");
+        var captured = review ?? throw new InvalidOperationException("Exact skill review is unavailable.");
+        var token = lifetime!.Token;
+        bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && captured.IsCurrent;
+        if (!Current()) { throw new InvalidOperationException("Review authority expired."); }
+        if (string.Equals(action, "Enable", StringComparison.Ordinal))
+        {
+            await workflow.EnableAsync(captured, Current, origin, token);
+            if (Current()) { opened.Status.Text = "Exact revision enabled for one local-only use until this review expires. Explicitly choose a target and original request."; }
+        }
+        else if (action is "Targets" or "NextTargets")
+        {
+            var after = string.Equals(action, "NextTargets", StringComparison.Ordinal) ? next ?? throw new InvalidOperationException("No next page; refresh targets.") : (Guid?)null;
+            RetireConfirmation();
+            opened.Targets.ItemsSource = null;
+            var page = await workflow.ReadTargetsAsync(after, Current, origin, token);
+            if (!Current()) { return; }
+            next = page.Next;
+            opened.Targets.ItemsSource = page.Records.Where(item => item.Authority.IsActive).Select(item => new SharedSkillConversationTarget(item)).ToArray();
+            opened.Status.Text = "Explicitly select an existing Active conversation. No session was created or resumed.";
+        }
+        else if (string.Equals(action, "Prepare", StringComparison.Ordinal))
+        {
+            RetireConfirmation();
+            var selection = (opened.Targets.SelectedItem as SharedSkillConversationTarget)?.Entry
+                ?? throw new InvalidOperationException("Select exactly one existing Active conversation.");
+            var revision = inputRevision;
+            bool Exact() => Current() && inputRevision == revision;
+            using var request = HostActivity.BeginRoot(HostRequest.Create(requestOrigin), HostActivityLayer.Desktop, HostOperation.Request);
+            invocation = await workflow.PrepareAsync(captured, selection, opened.Request.Text ?? string.Empty, Exact, requestOrigin, token);
+            request.Complete(HostOperationOutcome.Completed);
+            if (!Exact()) { invocation.Dispose(); invocation = null; return; }
+            opened.Confirmation.Text = $"{opened.Instructions.Text}\n\nTARGET {selection.Authority.SessionId.Value:D}\nORIGINAL REQUEST\n{invocation.Body}";
+            opened.Confirm.IsEnabled = true;
+            opened.Status.Text = "Confirm this exact skill, original request and target. Only a retained answer or truthful terminal failure completes the invocation.";
+        }
+        else if (string.Equals(action, "Invoke", StringComparison.Ordinal))
+        {
+            var prepared = invocation ?? throw new InvalidOperationException("Review the exact invocation before confirming.");
+            invocation = null;
+            opened.Confirm.IsEnabled = false;
+            var revision = inputRevision;
+            var receipt = await workflow.InvokeAsync(prepared, () => Current() && inputRevision == revision, token);
+            if (Eligible() && ReferenceEquals(window, opened))
+            {
+                opened.Confirmation.Text = string.Empty;
+                opened.Status.Text = $"Retained exact request {receipt.Message.Request.RequestId.Value:D}: {receipt.Message.Outcome} / {receipt.Message.Reason}. "
+                    + (receipt.Message.AssistantResponse?.Body ?? "No assistant answer. Inspect the exact conversation; no automatic replay.");
+            }
+        }
+        else { throw new InvalidOperationException("Use an exact shared skill review, enable, target, request, review invocation, confirm invocation or close command."); }
+    }
+
+    private void RetireConfirmation()
+    {
+        Interlocked.Increment(ref inputRevision);
+        if (invocation is not null) { invocation.Dispose(); invocation = null; }
+        if (window is not null) { window.Confirm.IsEnabled = false; window.Confirmation.Text = string.Empty; }
+    }
+
+    private void OnPrivacyClosed(object? sender, EventArgs args) => Close();
+    private void OnMainChanged(object? sender, PropertyChangedEventArgs args)
+    { if (!Eligible()) { Close(); } }
+    private void Close()
+    {
+        if (showing)
+        {
+            closeAfterShow = true;
+            lifetime?.Cancel();
+            review?.Dispose();
+            window?.Clear();
+            return;
+        }
+        var opened = window;
+        window = null;
+        lifetime?.Cancel();
+        review?.Dispose();
+        review = null;
+        invocation?.Dispose();
+        invocation = null;
+        opened?.Clear();
+        opened?.Close();
+    }
+    private async Task CloseAndWait()
+    {
+        Close();
+#pragma warning disable VSTHRD003 // Join this controller's owned submission before disposing its cancellation source.
+        await active;
+#pragma warning restore VSTHRD003
+        lifetime?.Dispose();
+        lifetime = null;
+    }
+    public void Dispose()
+    {
+        disposed = true;
+        Close();
+        if (active.IsCompleted) { lifetime?.Dispose(); lifetime = null; }
+        main.SharedSkillInvocationRequested -= Route;
+        main.PrivacyClosureRequested -= OnPrivacyClosed;
+        main.PropertyChanged -= OnMainChanged;
+        main.BindSharedSkillUseShutdown(null);
+    }
+}

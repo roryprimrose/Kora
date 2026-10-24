@@ -53,7 +53,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
         HostRevision generation, long expectedRevision, long admissionRevision, HostId<TaskIdentity>? dependency,
         SessionQueueLimits limits, Func<bool> eligible, CancellationToken token,
         SessionQueueReadProfile profile = SessionQueueReadProfile.Version, HostRevision? expectedDependencyRevision = null,
-        SessionQueueCapabilityTarget? target = null)
+        SessionQueueCapabilityTarget? target = null, SessionQueueDispatchControl? expectedControl = null)
     {
         SessionQueueReadProfiles.Validate(profile, target);
         Func<bool>? dependencyCurrent = null;
@@ -71,7 +71,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidOperationException("The exact prerequisite observation changed. Refresh work and explicitly reselect.");
             }
             // Recheck after the transaction checkpoint and before COMMIT, never freeze dispatch eligibility.
-            dependencyCurrent = MatchesDependency;
+            bool MatchesControl() => expectedControl is null
+                || QueueControl(connection, control.SessionId, admissionRevision) == expectedControl;
+            if (!MatchesControl()) { throw new InvalidOperationException("The reviewed queue run/control changed."); }
+            dependencyCurrent = () => MatchesDependency() && MatchesControl();
             var now = time.GetUtcNow();
             var entry = NewQueueEntry(connection, work, generation, admissionRevision, dependency, limits, profile, now, target);
             var task = new HostTaskRecord(work, new(1), HostTaskState.IntentRecorded);

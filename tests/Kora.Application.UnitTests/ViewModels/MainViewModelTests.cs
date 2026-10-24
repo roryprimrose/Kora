@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using System.Net;
 using System.Reflection;
 using System.Diagnostics;
@@ -1005,7 +1005,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.PresencePosition.Should().BeNull();
         fixture.ViewModel.PresenceSizeDescription.Should().Contain("360 pixels");
         fixture.ViewModel.PresenceDotSizeDescription.Should().Contain("100%");
-        fixture.ViewModel.PresenceDotDensityDescription.Should().Contain("100%").And.Contain("150 dots");
+        fixture.ViewModel.PresenceDotDensityDescription.Should().Contain("100%").And.Contain("Number of dots: 150");
         fixture.ViewModel.PresenceMovementSpeedDescription.Should().Contain("100%");
         fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("grows and shrinks");
         fixture.ViewModel.PresenceSpeechScaleAmountDescription.Should().Contain("100%");
@@ -2012,7 +2012,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.MainCaptureDescription.Should().StartWith("Nova");
         fixture.ViewModel.SpeechAudioSettingsDescription.Should().Contain("Nova");
         fixture.ViewModel.ResponseSettingsDescription.Should().Contain("Nova");
-        fixture.ViewModel.ReadinessSettingsDescription.Should().EndWith("Nova.");
+        fixture.ViewModel.ReadinessSettingsDescription.Should().Contain("Nova");
         fixture.ViewModel.CommandText.Should().Be("Nova, what can you do?");
         fixture.ViewModel.MicrophoneAvailabilityMessage.Should().Contain("Nova capture");
         fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("Nova playback");
@@ -2063,7 +2063,10 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseBody.Should()
             .Contain("Nova Prime, open documentation")
             .And.Contain("choose Commands")
-            .And.NotContain("catalogue on the right");
+            .And.NotContain("catalogue on the right")
+            .And.NotContain("calculate")
+            .And.NotContain("local clock")
+            .And.NotContain("what time is it");
     }
 
     [Fact]
@@ -3259,11 +3262,11 @@ public sealed partial class MainViewModelTests : IDisposable
             ResponseOutputMode.VoiceOnly,
             ResponseOutputMode.VisualOnly);
         fixture.ViewModel.ResponseModeOptions.Select(option => option.Label).Should().Equal(
-            "Both audible and visual",
-            "Audible only",
-            "Visual only");
+            "Text and speech",
+            "Speech only",
+            "Text only");
         fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be(
-            "Both audible and visual");
+            "Text and speech");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeTrue();
 
@@ -3275,7 +3278,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ConfiguredResponseMode = ResponseOutputMode.VisualOnly;
 
         fixture.ViewModel.ConfiguredResponseMode.Should().Be(ResponseOutputMode.VisualOnly);
-        fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be("Visual only");
+        fixture.ViewModel.DefaultResponseModeOption.Label.Should().Be("Text only");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
 
@@ -3329,10 +3332,10 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.ResponseModeOverrideOptions.Select(option => option.Label).Should().Equal(
-            "Inherit",
-            "Both audible and visual",
-            "Audible only",
-            "Visual only");
+            "Use default",
+            "Text and speech",
+            "Speech only",
+            "Text only");
         fixture.ViewModel.DefaultResponseModeOption =
             fixture.ViewModel.ResponseModeOptions.Single(
                 option => option.Mode == ResponseOutputMode.VisualOnly);
@@ -3347,22 +3350,22 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.VoiceOnly);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Current task override");
-        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Both audible and visual");
-        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Audible only");
+        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Text and speech");
+        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Speech only");
 
         fixture.ViewModel.TaskResponseModeOption =
             fixture.ViewModel.ResponseModeOverrideOptions[0];
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.Hybrid);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Current queue override");
-        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Inherit");
+        fixture.ViewModel.TaskResponseModeOption.Label.Should().Be("Use default");
 
         fixture.ViewModel.QueueResponseModeOption =
             fixture.ViewModel.ResponseModeOverrideOptions[0];
 
         fixture.ViewModel.EffectiveResponseMode.Should().Be(ResponseOutputMode.VisualOnly);
         fixture.ViewModel.ResponseOutputStatus.Should().StartWith("Device default");
-        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Inherit");
+        fixture.ViewModel.QueueResponseModeOption.Label.Should().Be("Use default");
     }
 
     [Fact]
@@ -3475,7 +3478,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVoiceActivationAvailable.Should().BeTrue();
         fixture.ViewModel.ToggleListeningCommand.CanExecute(null).Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Call speech protection");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Kora stays quiet during this call");
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
 
         await fixture.RunAsync("unsupported");
@@ -3760,7 +3763,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.TextToSpeech.SpokenText.Should().Contain("No power action is pending.");
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Audible only");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Speech only");
     }
 
     [Theory]
@@ -4289,7 +4292,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseOutputStatus.Should().Contain("Visual text is forced");
+        fixture.ViewModel.ResponseOutputStatus.Should().Contain("full response is shown on screen");
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
         fixture.ViewModel.ResponseTitle.Should().Be("Speech output is unavailable.");
     }
@@ -4527,32 +4530,52 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
+            .Concat(Kora.Core.Context.ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
+            .Concat(Kora.Core.Context.PreparedLocalSearchCommand.DiscoveryPhrases)
+            .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(WorkspaceSurfaceCommand.FixedPhrases)
+            .Concat(EvidenceTraceCommand.DiscoveryPhrases)
+            .Concat(["pending question help"])
+            .Concat(NewRequestOpenCommand.FixedPhrases)
             .Concat(MemoryCommand.DiscoveryPhrases)
             .Concat(AssistantNameCommand.DiscoveryPhrases)
             .Concat(InputDeviceCommand.FixedPhrases)
             .Concat(OutputDeviceCommand.FixedPhrases)
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
+            .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
-            .Concat(SessionQueueConfigurationCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)
             .Concat(SessionProviderProfileCommand.FixedPhrases)
             .Concat(PreapprovedUriCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
+            .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
+            .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
+            .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
+            .Concat(SpeechCommand.FixedPhrases)
+            .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
+            .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
             commandPhrases.SelectMany(phrase => new[] { phrase, $"Kora {phrase}" })
                 .Concat(ModelApprovalSpeech.GetPhrases("Kora"))
                 .Distinct(StringComparer.OrdinalIgnoreCase));
+        fixture.Voice.StartedPhrases.Should().NotContain(
+            phrase => phrase.Contains("calculate", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("local clock", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("what time", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("today s date", StringComparison.OrdinalIgnoreCase)
+                || phrase.Contains("date and time", StringComparison.OrdinalIgnoreCase));
         fixture.ViewModel.IsListening.Should().BeTrue();
         fixture.ViewModel.State.Should().Be(AssistantState.Listening);
         fixture.ViewModel.ListeningButtonText.Should().Be("Disable listening");
@@ -4738,6 +4761,23 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
         fixture.WindowActions.Should().ContainSingle().Which.Should().Be(WindowAction.Show);
         fixture.ViewModel.ResponseTitle.Should().Be("Text-to-speech is unavailable.");
+    }
+
+    [Theory]
+    [InlineData("calculate 1+1")]
+    [InlineData("calculate help")]
+    [InlineData("Kora, what time is it")]
+    [InlineData("what is today's date")]
+    [InlineData("what is the date and time")]
+    [InlineData("help local clock")]
+    public async Task RetiredUtilityRequestsHaveNoDeterministicAnswer(string input)
+    {
+        var fixture = new Fixture();
+
+        await fixture.RunAsync(input);
+
+        fixture.ViewModel.ResponseTitle.Should().Be("That isn't a supported built-in command.");
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
     }
 
     [Fact]
@@ -5364,18 +5404,18 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.PreferenceUpdate;
         fixture.Audit.Events.Should().BeEmpty();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is blocked.");
+            "Online AI models are blocked.");
 
         fixture.ViewModel.HostedModelsEnabled = true;
         await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is allowed,");
+            "Online AI models are allowed,");
         fixture.ViewModel.HostedModelsEnabled = false;
 
         await fixture.ViewModel.PreferenceUpdate;
         fixture.ViewModel.HostedModelsEnabled.Should().BeFalse();
         fixture.ViewModel.HostedModelExecutionDescription.Should().StartWith(
-            "Hosted model use is blocked.");
+            "Online AI models are blocked.");
         fixture.Audit.Events.Should().HaveCount(4);
     }
 
@@ -8520,7 +8560,10 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableArtifactConfiguration = false,
             Exception? artifactReadFailure = null,
             bool enableMcpServerConfiguration = true, bool enableProviderProfiles = false,
-            bool enableQuestionReplies = false, bool enableAuditImpact = false)
+            bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
+            bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
+            Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
+            SpeechComponentSetupService? speechComponentSetup = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8528,6 +8571,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Voice = new FakeVoiceRecognitionService(Dispatcher, Events);
             ReplyVoice = enableQuestionReplies ? new QuestionVoiceAdapter(Voice) : null;
             TextToSpeech = new FakeTextToSpeechService(Events);
+            SpeechPreparation = new(Preparation, NullLogger<Kora.Application.Voice.SpeechPreparationCoordinator>.Instance);
             NamePreferences = new FakeAssistantNamePreferences();
             AppearancePreferences = new FakeAppearancePreferences();
             MicrophoneAccess = new FakeMicrophoneAccessService();
@@ -8574,6 +8618,9 @@ public sealed partial class MainViewModelTests : IDisposable
             RatePreferences.ReadFailure = rateReadFailure;
             RateConfiguration = enableWindowsSpeechRate ? new(RatePreferences, TextToSpeech, SpeechConfiguration, OutputAdmission, Audit,
                 NullLogger<WindowsSpeechRateConfigurationService>.Instance) : null;
+            InputRuntime = new(Voice);
+            InputConfiguration = enableSpeechInput ? new(InputPreferences, InputRuntime, OutputAdmission, Audit,
+                NullLogger<SpeechInputConfigurationService>.Instance) : null;
             var diagnosticStore = new Kora.Application.UnitTests.Configuration.AudioControlTestStore();
             DiagnosticAdmission = new(diagnosticStore, diagnosticStore, new HostTaskCoordinator(diagnosticStore));
             DiagnosticPreferences.ReadFailure = diagnosticRetentionReadFailure;
@@ -8615,6 +8662,19 @@ public sealed partial class MainViewModelTests : IDisposable
                     new string('0', 64),
                     "Select only for an explicit request to lock the current session."),
             ]);
+            Kora.Application.Context.ClipboardExplanationWorkflow? clipboardWorkflow = null;
+            Kora.Tools.Clipboard.ClipboardExplain clipboardAction;
+            if (enableClipboardExplanation)
+            {
+                (clipboardAction, clipboardWorkflow, ClipboardWorkflowLifetime) =
+                    Kora.Application.UnitTests.Context.ClipboardExplanationWorkflowTests.CreateWorkflow(clipboard);
+                ClipboardWorkflow = clipboardWorkflow;
+            }
+            else
+            {
+                ClipboardExplainFake = new(clipboard);
+                clipboardAction = new(ClipboardExplainFake);
+            }
             ViewModel = new MainViewModel(
                 Catalog,
                 new BuiltInCommandRouter(Catalog),
@@ -8666,14 +8726,17 @@ public sealed partial class MainViewModelTests : IDisposable
                 new Kora.Tools.Clipboard.ClipboardRead(clipboard),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
+                clipboardAction,
                 new AuditedPreferenceWriter(Audit), outputCatalog,
-                microphoneCatalog, OutputConfiguration, VolumeConfiguration, enableResponseModeConfiguration
+                new Kora.Application.Presentation.AudioPlaybackSettings(Dispatcher,
+                    NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance, VolumeConfiguration, RateConfiguration),
+                microphoneCatalog, OutputConfiguration, enableResponseModeConfiguration
                     ? new ResponseModeConfigurationService(OutputPreferences, OutputAdmission, Audit, TextToSpeech) : null,
                 DiagnosticConfiguration,
                 enableManualCallControl ? new Kora.Application.Communication.ManualCallControl(audioStore, audioStore, new(audioStore)) : null,
-                AuditConfiguration, RateConfiguration, FeedbackConfiguration,
+                AuditConfiguration, FeedbackConfiguration,
                 enableSpeechText ? new SpeechTextConfigurationService(CaptionPreferences, OutputAdmission, Audit) : null,
-                SessionRetentionConfiguration, QueueConfiguration,
+                SessionRetentionConfiguration,
                 enableProviderModeConfiguration ? new ProviderModeConfigurationService(ProviderPreferences, OutputAdmission, Audit) : null,
                 preapprovedUriList ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriList(PreapprovedUris) : null),
                 preapprovedUriAdd ?? (enablePreapprovedUris ? new Kora.Tools.Network.PreapprovedUriAdd(PreapprovedUris) : null),
@@ -8683,10 +8746,18 @@ public sealed partial class MainViewModelTests : IDisposable
                 ArtifactDirectoryConfiguration,
                 McpServerConfiguration,
                 enableProviderProfiles ? new ProviderProfileConfigurationService(ProfilePreferences, ProfileCatalogue, OutputAdmission, Audit, ProfileTime) : null,
-                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null);
+                enableAuditImpact ? new AuditImpactPreviewService(ImpactReader, AuditPreferences, AuditConfiguration!) : null,
+                enableSessionRetentionPlanner ? new SessionRetentionPlannerService(SessionPlanReader, SessionRetentionConfiguration!) : null,
+                speechPreparation: enableSpeechPreparation ? SpeechPreparation : null,
+                diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
+                clipboardExplanation: clipboardWorkflow,
+                speechInputConfiguration: InputConfiguration,
+                speechComponentSetup: speechComponentSetup);
+            if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
             if (enableWindowsSpeechRate) { ViewModel.BindWindowsSpeechRateNativeLifetime(static () => true); }
+            if (enableSpeechInput) { ViewModel.BindSpeechInputNativeLifetime(static () => true); }
             if (enableInCallFeedback) { ViewModel.BindInCallFeedbackNativeLifetime(static () => true); }
             ViewModel.BindVoiceOwnershipGate(static () => true);
             ViewModel.BindClipboardOwnershipGate(static () => true);
@@ -8724,6 +8795,9 @@ public sealed partial class MainViewModelTests : IDisposable
         public SpeechConfigurationService SpeechConfiguration { get; }
         public FakeWindowsSpeechRatePreferences RatePreferences { get; } = new();
         public WindowsSpeechRateConfigurationService? RateConfiguration { get; }
+        public FakeSpeechInputPreferences InputPreferences { get; } = new();
+        public SpeechInputTestRuntime InputRuntime { get; }
+        public SpeechInputConfigurationService? InputConfiguration { get; }
         public FakeInCallFeedbackPreferences FeedbackPreferences { get; } = new();
         public InCallFeedbackConfigurationService? FeedbackConfiguration { get; }
         public DiagnosticRetentionAdmission DiagnosticAdmission { get; }
@@ -8732,11 +8806,13 @@ public sealed partial class MainViewModelTests : IDisposable
         public DiagnosticRetentionConfigurationService? DiagnosticConfiguration { get; }
         public FakeSessionRetentionPreferences SessionRetentionPreferences { get; } = new();
         public SessionRetentionConfigurationService? SessionRetentionConfiguration { get; }
+        public Kora.Application.UnitTests.Configuration.SessionRetentionPlannerServiceTests.Reader SessionPlanReader { get; } = new();
         public AuditRetentionAdmission AuditAdmission { get; }
         public FakeAuditRetentionPreferences AuditPreferences { get; } = new();
         public AuditRetentionPolicy AuditPolicy { get; } = new();
         public AuditRetentionConfigurationService? AuditConfiguration { get; }
         public Kora.Application.UnitTests.Configuration.AuditImpactPreviewServiceTests.Reader ImpactReader { get; } = new();
+        public Kora.Application.UnitTests.Configuration.DiagnosticImpactPreviewServiceTests.Reader DiagnosticImpactReader { get; } = new();
         public FakeArtifactPreferences ArtifactPreferences { get; } = new();
         public ArtifactDirectoryConfigurationService? ArtifactDirectoryConfiguration { get; }
         public McpServerConfigurationService? McpServerConfiguration { get; }
@@ -8747,6 +8823,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public QuestionVoiceAdapter? ReplyVoice { get; }
 
         public FakeTextToSpeechService TextToSpeech { get; }
+        public PreparationService Preparation { get; } = new();
+        public Kora.Application.Voice.SpeechPreparationCoordinator SpeechPreparation { get; }
 
         public FakeAssistantNamePreferences NamePreferences { get; }
 
@@ -8965,6 +9043,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.Voice.ResetInteractionState();
             fixture.WindowActions.Clear();
             fixture.Events.Clear();
+            fixture.Audit.Events.Clear();
             return fixture;
         }
 
@@ -9150,6 +9229,9 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public FakeClipboardReader ClipboardReader { get; } = new();
+        public PreviewExplanation? ClipboardExplainFake { get; }
+        public IAsyncDisposable? ClipboardWorkflowLifetime { get; }
+        public Kora.Application.Context.ClipboardExplanationWorkflow? ClipboardWorkflow { get; }
 
         public async Task RunAsync(string command)
         {
@@ -9259,6 +9341,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public long CaptureGeneration => Generation;
 
         public bool IsAmbientListeningAvailable => false;
+
+        public bool IsLiteralDictationAvailable { get; set; }
 
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
@@ -9539,6 +9623,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
 
         public TaskCompletionSource SpeakStarted { get; set; } = new(
@@ -9581,6 +9666,7 @@ public sealed partial class MainViewModelTests : IDisposable
             AudioOutputDevice outputDevice,
             CancellationToken cancellationToken = default)
         {
+            SpeakCalls++;
             var generation = Interlocked.Read(ref outputGeneration);
             BeforeSpeak?.Invoke();
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
@@ -9732,6 +9818,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public bool? NativePresenceRendererEnabled { get; private set; }
+        public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
+        public void SaveNativePresenceRendererEnabled(bool value)
+        {
+            ThrowIfSaveFails();
+            NativePresenceRendererEnabled = value;
+        }
+
         public int? ReaderTextScalePercent { get; private set; }
         public bool ReaderScalePending { get; private set; }
         public int? LoadReaderTextScalePercent() => ReaderScalePending

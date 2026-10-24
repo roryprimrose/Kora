@@ -8,11 +8,13 @@ internal sealed partial class CompactSessionWindow : Window
     internal event EventHandler? SessionsRequested;
     internal event EventHandler? NewRequestRequested;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
 
     internal CompactSessionWindow(SessionsViewModel model, SessionsPresentationOwner owner)
     {
         InitializeComponent();
         DataContext = model;
+        _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         owner.Attach(this);
         Sessions.Click += (_, _) => SessionsRequested?.Invoke(this, EventArgs.Empty);
         NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
@@ -22,8 +24,7 @@ internal sealed partial class CompactSessionWindow : Window
         NextConversationSearch.Click += async (_, _) => await (ConversationOperation = model.SearchConversationAsync(next: true));
         CancelConversationSearch.Click += (_, _) => model.ClearConversationSearch();
         ClearConversationSearch.Click += (_, _) => model.ClearConversationSearch();
-        foreach (var field in new[] { ConversationQuery, ConversationMinimumGeneration, ConversationMaximumGeneration,
-            ConversationMinimumRevision, ConversationMaximumRevision })
+        foreach (var field in new[] { ConversationQuery, ConversationSubmittedFrom, ConversationSubmittedThrough })
         {
             field.KeyDown += async (_, args) =>
             {
@@ -40,12 +41,15 @@ internal sealed partial class CompactSessionWindow : Window
             };
         }
         RefreshWork.Click += async (_, _) => await (ConversationOperation = model.RefreshWorkAsync());
-        SaveConversationDraft.Click += async (_, _) => await (ConversationOperation = model.SaveConversationDraftAsync());
-        ReloadConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ReloadConversationDraftAsync());
-        DiscardComposer.Click += (_, _) => model.DiscardComposerBuffer();
-        ReviewClearConversationDraft.Click += (_, _) => model.ReviewClearConversationDraft();
-        ClearConversationDraft.Click += async (_, _) => await (ConversationOperation = model.ClearSavedConversationDraftAsync());
+        RecoverConversationDraft.Click += async (_, _) => await (ConversationOperation = model.RecoverLegacyUnsentAsync());
+        DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
+        SubmitConversationWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
+        RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
+        CancelRunningConversation.Click += async (_, _) =>
+            await (ConversationCancellationOperation = model.CancelRunningConversationAsync());
         CloseView.Click += (_, _) => Close();
         KeyDown += (_, args) =>
         {

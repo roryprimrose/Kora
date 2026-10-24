@@ -370,14 +370,15 @@ public sealed partial class DetailWindowControllerTests
 
     private sealed class Fixture : IDisposable
     {
-        public Fixture(bool rendererAvailable = true)
+        public Fixture(bool rendererAvailable = true, bool pipeTablesAvailable = false, bool checklistsAvailable = false)
         {
             Controller = new(Documents, () => AccessGate?.Invoke() ?? Accessible,
-                new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable), Clipboard,
+                new(NullLogger<NativeDetailRenderer>.Instance, rendererAvailable, pipeTablesAvailable, checklistsAvailable), Clipboard,
                 (state, _, _) =>
                 {
                     if (FailCreate) { throw new InvalidOperationException("fake unavailable native controls"); }
                     var view = new FakeView(state);
+                    OnViewCreated?.Invoke(view);
                     Views.Add(view);
                     return view;
                 }, NullLogger<DetailWindowController>.Instance);
@@ -387,6 +388,7 @@ public sealed partial class DetailWindowControllerTests
         public List<FakeView> Views { get; } = [];
         public bool Accessible { get; set; } = true;
         public bool FailCreate { get; set; }
+        public Action<FakeView>? OnViewCreated { get; set; }
         public Func<bool>? AccessGate { get; set; }
         public DetailWindowController Controller { get; }
         public void Dispose() => Controller.Dispose();
@@ -406,12 +408,15 @@ public sealed partial class DetailWindowControllerTests
         public int Activations { get; private set; }
         public bool FailActivation { get; set; }
         public bool Shown { get; private set; }
+        public Action? OnShow { get; set; }
+        public Action? OnActivate { get; set; }
         public event EventHandler? Closed;
-        public void ShowOwned(Window? owner) => Shown = true;
+        public void ShowOwned(Window? owner) { Shown = true; OnShow?.Invoke(); }
         public void Activate()
         {
             if (FailActivation) { throw new InvalidOperationException("fake activation unavailable"); }
             Activations++;
+            OnActivate?.Invoke();
         }
         public void ClearAndClose()
         {

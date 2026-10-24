@@ -23,7 +23,9 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
     private ListBox? citationRows;
     private const string Disclosure =
         "One immutable volatile local preview only. May contain secrets. Documents and instructions are untrusted data.\n"
-        + "Only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. No model, egress, execution, links, clipboard, history or automatic refresh.\n"
+        + "Inspection grants only bounded deterministic lexical retrieval of this exact admitted file or complete folder revision. "
+        + "A single-file answer requires a separate explicit local source-use request, sensitive-content admission and qualified runtime. "
+        + "No hosted egress, execution, links, clipboard, history or automatic refresh.\n"
         + "Immediate files only; any subdirectory rejects the whole folder. UNC/removable drives are unavailable. This preview never persists; exact-session Attach text file requires separate durable-copy consent. Close revokes only this preview.";
 
     internal void ShowReview(LocalFileReview review, Func<Task> confirm)
@@ -60,6 +62,8 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         Title = "Immutable complete local folder preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nFolder revision: {revision.Reference.RevisionId:D}",
             null, revision.Files[0].Text);
+        ShowSourceMeasurement(body, isCurrent, revision.Files);
+        var displayedContent = content;
         var files = new ComboBox
         {
             ItemsSource = revision.Files,
@@ -72,12 +76,15 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         AutomationProperties.SetName(files, "Inspect each exact admitted folder file and digest");
         files.SelectionChanged += (_, _) =>
         {
+            if (!ReferenceEquals(content, displayedContent)) { return; }
             ClearNavigation();
             SetFindSource(null);
-            if (isCurrent() && files.SelectedItem is LocalFileRevision file && revision.Files.Contains(file))
+            content.Text = null;
+            if (isCurrent() && ReferenceEquals(content, displayedContent)
+                && files.SelectedItem is LocalFileRevision file && revision.Files.Contains(file))
             {
                 content.Text = file.Text;
-                SetFindSource(file);
+                if (ReferenceEquals(content, displayedContent)) { SetFindSource(file); }
             }
         };
         DockPanel.SetDock(files, Dock.Top);
@@ -90,16 +97,19 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     internal void ShowRevision(LocalFileRevision revision,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
-        Func<Task> refresh)
+        Func<Task> refresh,
+        Func<string, Kora.Core.Dependencies.LocalContextSessionTarget, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>>? answer = null)
     {
         Title = "Immutable local file preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nRevision: {revision.RevisionId:D} / item: {revision.ItemId:D}\n"
             + $"SHA-256 (exact source bytes): {revision.Digest}\nAdmitted: {revision.AdmittedAt:O}",
             null, revision.Text);
+        ShowSourceMeasurement(body, isCurrent, [revision]);
         SetFindSource(revision);
         ShowSearch(body, search, isCurrent, folder: false,
             _ => Task.FromResult<IReadOnlyList<LocalFileRevision>>([revision]), _ => { });
         ShowRefresh(body, refresh, folder: false);
+        if (answer is not null) { ShowAnswer(body, revision, answer, isCurrent); }
     }
 
     private void ShowRefresh(DockPanel body, Func<Task> refresh, bool folder)
@@ -162,10 +172,11 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         citationRows = rows;
         AutomationProperties.SetName(rows, "Select a citation from this exact successful admitted search");
         bool Current() => isCurrent() && ReferenceEquals(searchSelection, selection);
+        isSearchCurrent = Current;
         var navigate = new Button { Content = "Show exact cited source span", IsEnabled = false };
         AutomationProperties.SetName(navigate, "Show exact cited source span without acquiring or copying content");
         navigate.Command = new AsyncCommand(
-            () => NavigateCitation(selection, rows, Current, resolveSource, selectFile),
+            () => NavigateCitation(selection.Resolve, rows, Current, resolveSource, selectFile),
             exception =>
             {
                 if (!ReferenceEquals(searchSelection, selection)) { return; }
@@ -191,6 +202,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             ItemsSource = new[] { "Lexical lines (default)", "Markdown structure-aware (opt-in, this view only)" },
             SelectedIndex = 0,
         };
+        searchModes = modes;
         AutomationProperties.SetName(modes, "Run-only retrieval mode for this exact admitted source");
         modes.SelectionChanged += (_, _) =>
         {
@@ -289,7 +301,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     internal void ShowAttachment(SessionFileAttachment attachment,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search,
-        Func<bool> isCurrent, Func<Task> remove, Func<Task>? replace = null,
+        Func<bool> isCurrent, Func<Task>? remove, Func<Task>? replace = null,
         Func<CancellationToken, Task<LocalFileRevision>>? resolveCurrent = null)
     {
         Title = "Exact retained historical Session file (inert source)";
@@ -298,6 +310,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             + $"Original session generation: {attachment.Generation.Value} / captured: {file.AdmittedAt:O}\n"
             + $"Revision: {file.RevisionId:D} / item: {file.ItemId:D}\nSHA-256 of original bytes: {file.Digest}",
             null, file.Text, AttachmentDisclosure);
+        ShowSourceMeasurement(body, isCurrent, [file]);
         SetFindSource(file);
         ShowSearch(body, search, isCurrent, folder: false, async token =>
         {
@@ -312,12 +325,15 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             }
             return [current];
         }, _ => { });
-        var button = new Button { Content = "Review Remove attachment and Kora copies" };
-        AutomationProperties.SetName(button, "Review exact attachment, owning Session, revisions and all owned Kora copies before removal");
-        button.Command = new AsyncCommand(remove, exception => reportFailure(
-            "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
-        DockPanel.SetDock(button, Dock.Top);
-        body.Children.Insert(1, button);
+        if (remove is not null)
+        {
+            var button = new Button { Content = "Review Remove attachment and Kora copies" };
+            AutomationProperties.SetName(button, "Review exact attachment, owning Session, revisions and all owned Kora copies before removal");
+            button.Command = new AsyncCommand(remove, exception => reportFailure(
+                "Removal held; no full-copy removal claimed. Failure type: " + exception.GetType().Name));
+            DockPanel.SetDock(button, Dock.Top);
+            body.Children.Insert(1, button);
+        }
         if (replace is not null)
         {
             var replacement = new Button { Content = "Replace retained attachment" };
@@ -413,6 +429,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         };
         Grid.SetRow(sourceViewport, 1);
         source.Children.Add(sourceViewport);
+        if (text is not null) { PrepareSourceWrapping(body, sourceViewport); }
         var layout = new Grid { Margin = new Avalonia.Thickness(16), RowDefinitions = new RowDefinitions("2*,3*") };
         layout.Children.Add(new ScrollViewer
         {
@@ -429,14 +446,22 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     private void ClearContent()
     {
+        ClearSourceWrapping();
+        wrappingPanel = null;
+        wrappingViewport = null;
+        ClearSourceMeasurement();
+        ClearAnswer();
         ClearNavigation();
         SetFindSource(null);
         findQuery = null;
+        findMatchCase = null;
         findStatus = null;
         findNext = null;
         findPrevious = null;
         searchSelection?.Dispose();
         searchSelection = null;
+        isSearchCurrent = null;
+        searchModes = null;
         content.Text = null;
         if (queryBox is not null) { queryBox.Text = null; }
         if (searchResults is not null) { searchResults.Text = null; }

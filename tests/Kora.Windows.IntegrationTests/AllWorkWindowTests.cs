@@ -25,200 +25,9 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed partial class AllWorkWindowTests
 {
-    [WindowsFact]
-    public async Task PositiveObservedContentChoicesAreVisibleAccessiblePassiveAndComposeWithoutAbsenceInference()
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var f = new InteractionStorageFixture();
-            await f.InitializeAsync();
-            var question = await WindowsSqliteTaskControlTests.WaitAsync(f);
-            var held = new GatedWorkStore(f.Store);
-            var access = new WindowsSqliteSessionWorkspaceTests.Access();
-            var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
-            var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
-                (_, _, _) => throw new InvalidOperationException("Content filtering grants no navigation."));
-            var window = new AllWorkWindow(model);
-            window.Show();
-            try
-            {
-                var control = window.FindControl<ComboBox>("ObservedContent")!;
-                var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
-                control.SelectedIndex.Should().Be(0);
-                control.SelectedItem.Should().BeSameAs(model.ContentChoices[0]);
-                peer.GetProvider<ISelectionProvider>()!.GetSelection().Should()
-                    .ContainSingle().Which.GetName().Should().Be("Any");
-                peer.GetName().Should().Contain("changing performs no read").And.Contain("unavailable never matches")
-                    .And.Contain("omissions prove no absence or completion");
-                model.ContentChoices.Select(choice => choice.Label).Should().Equal("Any",
-                    "At least one observed queue receipt", "At least one observed task", "At least one observed pending question");
-                held.Reads.Should().Be(0);
-                var audits = f.Count("security_audit_events");
-                var tasks = f.Count("host_tasks");
-                var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
-                model.QueryKind = SessionListSearchKind.ExactId;
-                model.QueryText = f.Request.SessionId.Value.ToString("D");
-                model.NeedsAnswer = true;
-                model.Availability = SessionWorkOverviewAvailability.Observed;
-                await model.RefreshAsync();
-                model.Select(model.Records.Single());
-                var stale = model.SelectedRecord;
-                var reads = held.Reads;
-                control.Focus().Should().BeTrue();
-                control.SelectedIndex = 1;
-                model.Content.Should().Be(SessionWorkOverviewContent.QueueReceipt);
-                model.Records.Should().BeEmpty();
-                model.SelectedRecord.Should().BeNull();
-                model.SelectedDetails.Should().BeEmpty();
-                model.CanNavigate.Should().BeFalse();
-                model.CanNext.Should().BeFalse();
-                held.Reads.Should().Be(reads);
-                model.Select(stale);
-                model.CanNavigate.Should().BeFalse("retired selection cannot be restored");
-                await model.RefreshAsync();
-                model.Records.Should().BeEmpty();
-                model.Status.Should().Contain("not a global all-clear").And.Contain("Omitted records");
-                control.IsFocused.Should().BeTrue();
-                control.SelectedIndex = 2;
-                await model.RefreshAsync();
-                model.Records.Single().Work!.Tasks.Should().NotBeEmpty();
-                control.SelectedIndex = 3;
-                await model.RefreshAsync();
-                model.Records.Single().Work!.PendingQuestions.Single().Key.Should().Be(question.Key);
-                model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
-                await model.RefreshAsync();
-                model.Records.Should().BeEmpty("availability is an independent AND predicate");
-                held.Fail = true;
-                await model.RefreshAsync();
-                model.Records.Should().BeEmpty("unavailable is not positive content");
-                control.SelectedIndex = 0;
-                await model.RefreshAsync();
-                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
-                model.SelectedContentChoice.Label.Should().Be("Any");
-                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Down });
-                model.Content.Should().Be(SessionWorkOverviewContent.QueueReceipt);
-                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Up });
-                model.Content.Should().Be(SessionWorkOverviewContent.Any);
-                var invalid = () => model.Content = (SessionWorkOverviewContent)99;
-                invalid.Should().Throw<ArgumentOutOfRangeException>();
-                model.Content = SessionWorkOverviewContent.Task;
-                window.Close();
-                model.Content.Should().Be(SessionWorkOverviewContent.Any);
-                control.SelectedItem.Should().BeSameAs(model.ContentChoices[0]);
-                control.IsEnabled.Should().BeFalse();
-                model.Records.Should().BeEmpty();
-                held.Writes.Should().Be(0);
-                f.Count("security_audit_events").Should().Be(audits);
-                f.Count("host_tasks").Should().Be(tasks);
-                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
-                (await f.Store.ReadQuestionPageAsync(f.Request.SessionId, null, 50, f.Token))
-                    .Records.Single().Key.Should().Be(question.Key);
-            }
-            finally { window.Close(); }
-        });
-    }
-
-    [WindowsFact]
-    public async Task ExactNativeAvailabilityChoicesRevokeWithoutReadingAndRemainVolatileAccessibleAndPassive()
-    {
-        await HeadlessSession.RunAsync(async () =>
-        {
-            using var f = new InteractionStorageFixture();
-            await f.InitializeAsync();
-            var held = new GatedWorkStore(f.Store);
-            var access = new WindowsSqliteSessionWorkspaceTests.Access();
-            var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
-            var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
-                (_, _, _) => throw new InvalidOperationException("Filtering grants no navigation."));
-            var window = new AllWorkWindow(model);
-            window.Show();
-            try
-            {
-                var control = window.FindControl<ComboBox>("ObservationAvailability")!;
-                var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
-                control.SelectedIndex.Should().Be(0);
-                control.SelectedItem.Should().BeSameAs(model.AvailabilityChoices[0]);
-                model.SelectedAvailabilityChoice.Label.Should().Be("Any");
-                var selection = peer.GetProvider<ISelectionProvider>()!;
-                selection.GetSelection().Should().ContainSingle().Which.GetName().Should().Be("Any");
-                peer.GetName().Should().Contain("changing performs no read").And.Contain("unavailable is not empty work");
-                peer.GetProvider<ISelectionProvider>().Should().NotBeNull();
-                model.AvailabilityChoices.Select(choice => choice.Label).Should()
-                    .Equal("Any", "Observed", "Source changed", "Read unavailable", "Output bound");
-                held.Reads.Should().Be(0);
-                var clock = await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token);
-                var audits = f.Count("security_audit_events");
-                var tasks = f.Count("host_tasks");
-                await model.RefreshAsync();
-                model.Select(model.Records.Single());
-                var reads = held.Reads;
-                control.Focus().Should().BeTrue();
-                control.SelectedIndex = 1;
-                model.Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
-                model.Records.Should().BeEmpty();
-                model.SelectedRecord.Should().BeNull();
-                model.CanNavigate.Should().BeFalse();
-                model.CanNext.Should().BeFalse();
-                held.Reads.Should().Be(reads);
-                await model.RefreshAsync();
-                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
-                control.IsFocused.Should().BeTrue();
-                for (var index = 2; index < 5; index++)
-                {
-                    control.SelectedIndex = index;
-                    model.Availability.Should().Be(model.AvailabilityChoices[index].Value);
-                    model.Records.Should().BeEmpty();
-                    await model.RefreshAsync();
-                    model.Records.Should().BeEmpty();
-                    model.Status.Should().Contain("not a global all-clear");
-                }
-                control.SelectedIndex = 0;
-                model.Availability.Should().BeNull();
-                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Down });
-                model.Availability.Should().Be(SessionWorkOverviewAvailability.Observed);
-                control.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Up });
-                model.Availability.Should().BeNull();
-                await model.RefreshAsync();
-                model.Records.Should().ContainSingle();
-                var invalid = () => model.Availability = (SessionWorkOverviewAvailability)99;
-                invalid.Should().Throw<ArgumentOutOfRangeException>();
-                held.Fail = true;
-                model.Availability = SessionWorkOverviewAvailability.ReadUnavailable;
-                control.SelectedIndex.Should().Be(3);
-                await model.RefreshAsync();
-                model.Records.Single().Availability.Should().Be(SessionWorkOverviewAvailability.ReadUnavailable);
-                model.NeedsAnswer = true;
-                await model.RefreshAsync();
-                model.Records.Should().ContainSingle("unavailable is never no pending questions");
-                model.Select(model.Records.Single());
-                model.CanNavigate.Should().BeFalse();
-                model.SelectedDetails.Should().Contain("not an empty queue");
-                held.Fail = false;
-                access.CanInspect = false;
-                window.Close();
-                model.Availability.Should().BeNull();
-                model.Records.Should().BeEmpty();
-                control.IsEnabled.Should().BeFalse();
-                held.Writes.Should().Be(0);
-                f.Count("security_audit_events").Should().Be(audits);
-                f.Count("host_tasks").Should().Be(tasks);
-                (await f.Store.ReadRetentionAsync(f.Request.SessionId, f.Token)).Should().Be(clock);
-            }
-            finally { window.Close(); }
-        });
-    }
-
     [Theory]
     [InlineData("query")]
-    [InlineData("availability")]
-    [InlineData("content")]
     [InlineData("task-state")]
-    [InlineData("range-minimum")]
-    [InlineData("range-maximum")]
-    [InlineData("clear-ranges")]
-    [InlineData("task-id")]
-    [InlineData("request-id")]
-    [InlineData("clear-task-query")]
     [InlineData("revision")]
     [InlineData("close")]
     public async Task ExactNavigationAdmissionDoesNotSurviveQueryOrPrivateLifetimeChanges(string boundary)
@@ -237,29 +46,17 @@ public sealed partial class AllWorkWindowTests
                 entered.SetResult(admitted);
                 await release.Task.WaitAsync(f.Token);
             });
-        model.Availability = SessionWorkOverviewAvailability.Observed;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
-        model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
         var retained = model.Records[0].Work!.Tasks[0];
         model.TaskState = retained.State;
-        model.TaskIdText = retained.Request.TaskId.Value.ToString("D");
-        model.RequestIdText = retained.Request.RequestId.Value.ToString("D");
         await model.RefreshAsync();
         model.Select(model.Records.Single());
         var navigation = model.NavigateAsync();
         var admitted = await entered.Task.WaitAsync(f.Token);
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
-        if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.SourceChanged; }
-        if (boundary is "content") { model.Content = SessionWorkOverviewContent.Task; }
         if (boundary is "task-state") { model.TaskState = null; }
-        if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
-        if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
-        if (boundary is "clear-ranges") { model.ClearRanges(); }
-        if (boundary is "task-id") { model.TaskIdText = "00000000-0000-0000-0000-000000000099"; }
-        if (boundary is "request-id") { model.RequestIdText = "00000000-0000-0000-0000-000000000099"; }
-        if (boundary is "clear-task-query") { model.ClearTaskQuery(); }
         if (boundary is "revision") { access.ControlRevision++; }
         if (boundary is "close") { model.Close(); }
         admitted().Should().BeFalse();
@@ -440,12 +237,8 @@ public sealed partial class AllWorkWindowTests
     [InlineData("query")]
     [InlineData("query-kind")]
     [InlineData("clear-query")]
-    [InlineData("availability")]
-    [InlineData("content")]
     [InlineData("task-state")]
-    [InlineData("range-minimum")]
-    [InlineData("range-maximum")]
-    [InlineData("clear-ranges")]
+    [InlineData("order")]
     public async Task InFlightPrivateSnapshotNeverRepopulatesClosedOrChangedOverview(string boundary)
     {
         using var f = new InteractionStorageFixture();
@@ -455,11 +248,8 @@ public sealed partial class AllWorkWindowTests
         var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
         var model = new AllWorkViewModel(service, access, NullLogger<AllWorkViewModel>.Instance,
             (_, _, _) => throw new InvalidOperationException("A passive test must not navigate."));
-        model.Availability = SessionWorkOverviewAvailability.Observed;
-        model.Content = SessionWorkOverviewContent.Task;
         model.QueryKind = SessionListSearchKind.ExactId;
         model.QueryText = f.Request.SessionId.Value.ToString("D");
-        model.RangeInputs[0].Minimum = "1";
         await model.RefreshAsync();
         model.Records.Should().NotBeEmpty();
         model.TaskState = model.Records[0].Work!.Tasks[0].State;
@@ -478,28 +268,20 @@ public sealed partial class AllWorkWindowTests
         if (boundary is "query") { model.QueryText = "00000000-0000-0000-0000-000000000099"; }
         if (boundary is "query-kind") { model.QueryKind = SessionListSearchKind.NameSubstring; }
         if (boundary is "clear-query") { model.ClearQuery(); }
-        if (boundary is "availability") { model.Availability = SessionWorkOverviewAvailability.OutputBound; }
-        if (boundary is "content") { model.Content = SessionWorkOverviewContent.PendingQuestion; }
         if (boundary is "task-state") { model.TaskState = null; }
-        if (boundary is "range-minimum") { model.RangeInputs[0].Minimum = "2"; }
-        if (boundary is "range-maximum") { model.RangeInputs[1].Maximum = "0"; }
-        if (boundary is "clear-ranges") { model.ClearRanges(); }
+        if (boundary is "order") { model.Order = SessionWorkOverviewPageOrder.SessionNameDescending; }
         held.Release.SetResult();
         await read;
         model.Records.Should().BeEmpty();
         model.SelectedDetails.Should().BeEmpty();
         model.CanNext.Should().BeFalse();
         model.CanNavigate.Should().BeFalse();
+        if (boundary is "order") { model.Status.Should().Contain("cancelled/source changed"); }
         model.Close();
         model.Status.Should().BeEmpty();
         model.NeedsAnswer.Should().BeFalse();
         model.QueryText.Should().BeEmpty();
-        model.Availability.Should().BeNull();
-        model.Content.Should().Be(SessionWorkOverviewContent.Any);
         model.TaskState.Should().BeNull();
-        model.TaskIdText.Should().BeEmpty();
-        model.RequestIdText.Should().BeEmpty();
-        model.RangeInputs.Should().OnlyContain(input => input.Minimum.Length == 0 && input.Maximum.Length == 0);
         held.Writes.Should().Be(0);
     }
 
@@ -508,6 +290,8 @@ public sealed partial class AllWorkWindowTests
         internal bool Hold { get; set; }
         internal bool Fail { get; set; }
         internal int Reads { get; private set; }
+        internal int MetadataReads { get; private set; }
+        internal Guid? LastMetadataAfter { get; private set; }
         internal int Writes { get; private set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -524,10 +308,17 @@ public sealed partial class AllWorkWindowTests
             }
             return result;
         }
-        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token) =>
-            store.ReadMetadataPageAsync(after, limit, token);
-        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>
-            store.ReadMetadataAsync(session, token);
+        public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
+        {
+            MetadataReads++;
+            LastMetadataAfter = after;
+            return store.ReadMetadataPageAsync(after, limit, token);
+        }
+        public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token)
+        {
+            MetadataReads++;
+            return store.ReadMetadataAsync(session, token);
+        }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session,
             HostRevision generation, long metadataRevision, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview,

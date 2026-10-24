@@ -35,7 +35,8 @@ public sealed partial class MainViewModel
             await DispatchRecognizedVoiceTranscriptAsync(transcript, request);
         }, () => !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true
-            && questionVoiceReplies?.IsActive != true);
+            && questionVoiceReplies?.IsActive != true,
+            _ => CaptureCustomizationVoice(Volatile.Read(ref customizationVoiceTarget)));
         handsFreeVoice = handsFree;
         handsFree.Changed += OnHandsFreeVoiceStateChanged;
     }

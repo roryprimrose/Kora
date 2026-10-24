@@ -52,6 +52,8 @@ public sealed record ArtifactDefinition
     public string Version { get; }
     public string Digest { get; }
     public string Content { get; }
+    public string? UseControlId { get; init; }
+    public bool IsUseDisabled { get; init; }
     // Historical instruction-member names are shared by the two closed owned kinds.
     // Always qualify them with Kind; a display label or same filename in another kind is not identity.
     public string? OwnedInstructionName { get; init; }

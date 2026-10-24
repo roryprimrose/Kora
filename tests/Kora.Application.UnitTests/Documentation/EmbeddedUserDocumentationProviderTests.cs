@@ -172,6 +172,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "settings",
             "commands",
             "tools-and-built-in-skills",
+            "customizations",
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",

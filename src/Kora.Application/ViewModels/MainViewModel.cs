@@ -593,6 +593,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || PendingQuestionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
+                      || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
@@ -2018,7 +2019,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public string VoiceConsentDescription =>
         "Your listening permission is saved for your Windows account on this device. Voice commands are processed on this device. "
         + "Wake-word listening is not available: Kora does not record or transcribe background audio. "
-        + "Use push-to-talk in the response window when offered; Settings only manages listening permission and readiness. "
+        + "Use push-to-talk in the response window or Hold to speak in the foreground Customizations editor when offered; Settings only manages listening permission and readiness. "
         + "Disable listening turns the microphone off until you enable it again. Remove listening permission also keeps it off after a restart. "
         + "Unlocking can restore push-to-talk readiness after safety checks, but never starts recording. "
         + "After a disconnect, sleep or loss of microphone access, enable listening again.";
@@ -2980,6 +2981,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var conversationCurrent = await PrepareConversationShutdown();
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
+        if (customizationShutdown is not null && !await customizationShutdown()) { return; }
         await ClosePromptPreparation();
         await CloseAgentRun();
         await CloseSharedSkillUse();
@@ -4006,9 +4008,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var reviewEligibility = CaptureSkillReviewEligibility(manualInput);
             var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
             var newRequestEligibility = CaptureNewRequestOpeningEligibility(manualInput);
+            var editorTarget = Volatile.Read(ref capturedCustomizationVoiceTarget);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4057,7 +4060,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
-        PendingQuestionCapture questionTarget)
+        PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4119,7 +4122,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget);
+            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget, editorTarget);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4131,7 +4134,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Func<bool>? reviewEligibility = null,
         Func<bool>? newRequestEligibility = null,
         CurrentResponseInput? currentResponseInput = null,
-        PendingQuestionCapture? questionTarget = null)
+        PendingQuestionCapture? questionTarget = null,
+        Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null)
     {
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
@@ -4255,6 +4259,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (PreparedLocalSearchCommand.Parse(spokenText, AssistantName) is { } preparedSearch)
         {
             HostRequestRunner.Run(OriginalOrigin(initiator), () => PrepareLocalSearch(preparedSearch, initiator));
+            return;
+        }
+        if (Kora.Application.Definitions.CustomizationCommand.Parse(spokenText, AssistantName) is { } customization)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ReportHostInteractionFailure("Assistant prefix routing is unavailable; no customization control was dispatched.");
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
+                () => initiator == SecurityAuditInitiator.VoiceCommand && customization.Operation is "Refine"
+                    ? ExecuteCustomizationVoice(editorTarget, customization.Text!)
+                    : ExecuteCustomizationCommand(customization));
             return;
         }
         if (IsInstructionEditorCommand(spokenText))
@@ -4504,7 +4521,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
-            () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision));
+            () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision, editorTarget));
     }
 
     internal static bool IsDurableVersionQueryEligible(
@@ -4526,11 +4543,25 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         string spokenText,
         float confidence,
         SecurityAuditInitiator initiator,
-        long speechRevision)
+        long speechRevision, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null)
     {
         if (InputDeviceCommand.Parse(spokenText, AssistantName) is { } inputCommand)
         {
             await ExecuteInputDeviceCommandAsync(inputCommand, initiator);
+            return;
+        }
+        if (initiator == SecurityAuditInitiator.VoiceCommand
+            && (editorTarget is not null || Kora.Application.Definitions.CustomizationCommand.ReferencesEditor(spokenText))
+            && !commandRouter.Match(spokenText, AssistantName).IsMatch
+            && AppearanceCommand.Parse(spokenText, AssistantName) is null
+            && NaturalAppearanceCommand.Parse(spokenText, AssistantName, true) is null
+            && SpeechCommand.Parse(spokenText, AssistantName) is null
+            && ClipboardCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is null
+            && LocalFileCommand.Parse(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is null
+            && Kora.Core.Tools.ReadOnlyCapabilityCatalog.MatchCommand(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript) is null
+            && !artifactCommandRouter.Match(spokenText, AssistantName).IsArtifactCommand)
+        {
+            await ExecuteCustomizationVoice(editorTarget, spokenText);
             return;
         }
         if (pendingModelQuestion is { } question)
@@ -5956,6 +5987,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (instructionEditorShutdown is not null && !await instructionEditorShutdown())
             {
                 await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "editor-shutdown-not-confirmed");
+                return;
+            }
+            if (customizationShutdown is not null && !await customizationShutdown())
+            {
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "customization-shutdown-not-confirmed");
                 return;
             }
             await ClosePromptPreparation();

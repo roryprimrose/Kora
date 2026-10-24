@@ -12,6 +12,7 @@ public sealed partial class McpServerConfigurationService
     {
         ArgumentNullException.ThrowIfNull(account);
         token.ThrowIfCancellationRequested();
+        var useRevision = UseControlRevision;
         var selected = Load().SingleOrDefault(server => string.Equals(server.Id, serverId, StringComparison.Ordinal));
         if (selected is not { IsIncluded: true })
         { throw new InvalidOperationException("The exact configured MCP server is not included."); }
@@ -44,9 +45,11 @@ public sealed partial class McpServerConfigurationService
             { throw new InvalidOperationException("The explicitly selected delegated account belongs to a different destination."); }
             token.ThrowIfCancellationRequested();
             if (!preferences.Load().IncludedMcpServerIds.Contains(serverId, StringComparer.Ordinal)
-                || !SourceFiles.Contains(path, StringComparer.OrdinalIgnoreCase))
+                || !SourceFiles.Contains(path, StringComparer.OrdinalIgnoreCase)
+                || usePolicy?.IsDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(serverId)) == true
+                || UseControlRevision != useRevision)
             { throw new InvalidOperationException("The selected MCP source or inclusion changed during resolution."); }
-            return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)), endpoint, account);
+            return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)), endpoint, account, useRevision);
         }
         throw new InvalidOperationException("The selected MCP source is no longer configured.");
     }
@@ -56,6 +59,7 @@ public sealed partial class McpServerConfigurationService
         var current = await ResolveHttpsAsync(descriptor.ServerId, descriptor.Account, token).ConfigureAwait(false);
         if (!string.Equals(current.SourceRevision, descriptor.SourceRevision, StringComparison.Ordinal)
             || !string.Equals(current.SourcePath, descriptor.SourcePath, StringComparison.OrdinalIgnoreCase)
+            || current.UseControlRevision != descriptor.UseControlRevision
             || current.Endpoint != descriptor.Endpoint)
         { throw new InvalidOperationException("The exact MCP source revision changed; review and discovery must be repeated."); }
     }

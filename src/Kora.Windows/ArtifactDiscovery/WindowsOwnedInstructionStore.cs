@@ -350,7 +350,7 @@ public sealed partial class WindowsOwnedInstructionStore(IApplicationDataPaths p
         if (status != 0) { throw new IOException("Atomic owned publication failed.", new Win32Exception(unchecked((int)status))); }
     }
 
-    private sealed class Pinned : IDisposable
+    internal sealed class Pinned : IDisposable
     {
         private readonly List<SafeFileHandle> handles = [];
         internal SafeFileHandle Last => handles[^1];

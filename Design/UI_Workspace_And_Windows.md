@@ -552,13 +552,23 @@ Missing renderers disclose source fallback/unavailable capability without losing
 
 ## Skills and Permission Management
 
-The proposed native **Definitions** surface manages skills, prompts,
-instructions, and agent profiles from bundled, Kora-owned, and registered
-profile sources. Skills remains a focused entry point. The complete control,
+The native **Customizations** surface manages skills, prompts, instructions,
+agent profiles and MCP entries, grouped by Built-in (read-only), Kora roaming
+and supported User profile sources. Skills remains a focused entry point. The complete control,
 editing, applicability, and reload contract is
 [Definition Management](Definition_Management.md#one-management-surface-equal-ui-and-voice-control);
-every supported native action has a typed/activated-voice equivalent over the
-same host service. Unqualified agent Run controls disclose unavailability.
+native and original typed/activated-voice routes share the same admitted service.
+The three-pane window supports exact source editing, complete file-set reviews,
+skill component additions/renames/removals, recoverable writes to User originals,
+persisted Kora exclusion and separately reviewed tool-free local-model proposals.
+Foreground-editor voice binds one activation-time draft context and interprets
+editing/discussion intent through separately reviewed local metadata. Native
+clarification and complete-draft/proposal reviews never transfer failed or
+stale input to another session; see the
+[targeting contract](Definition_Management.md#foreground-editor-voice-targeting).
+Saving leaves runtime use disabled; enabling removes only this exclusion, not
+registration, compatibility, revision, authentication or qualification gates.
+See [current routes and limitations](../docs/customizations.md).
 
 The bounded delivered surface is one native Kora-owned instruction/versioned
 prompt editor with an explicit kind selector, exact source/diff review,
@@ -566,13 +576,12 @@ Save/Delete, Reload/Overwrite/Cancel and dirty closing/shutdown Save/Discard/Can
 Typed/current-name activated `instructions` and `prompts` controls focus the
 same native actions. Review only permits exact current-run selection for a new
 request; prompts are user-request content, not system guidance or execution authority. Owned prompt v2 adds only bounded required literal `${input:name}` native fields and whole expanded USER REQUEST preview, followed by separate fresh Use admission.
-Editing a field or source/review/input/call/private change retires old previews; close/cancel clears ephemeral values without history/autofill/export/speech or template autosave. Production generation remains unavailable; no rejected-provider fallback is used. Native v1 remains literal. Profile/skill/agent editing and the full Definitions
-surface remain separately gated. See [native editor](../docs/instruction-editor.md).
+Editing a field or source/review/input/call/private change retires old previews; close/cancel clears ephemeral values without history/autofill/export/speech or template autosave. Production prompt execution remains gated; no rejected-provider fallback is used. Native v1 remains literal. Broader applicability and runtime qualification remain separately gated. See [native editor](../docs/instruction-editor.md).
 **Validate** / exact `instructions validate` or `prompts validate` observes only the open same-kind supported owned draft, using the ordinary Save preparation including BOM/marker/header limits. It does not open/switch/discard another source.
 The text-only body-free summary is historical structural compatibility, never approval, harmlessness or enablement. Source/name/kind/baseline/catalogue/private/input changes retire findings and suppress late results. Validation retains draft/dirty/inventory/use/uncertain-hold state without source I/O, reload or preference writes; Save separately re-prepares and exactly confirms.
 **Disable reviewed use** and exact `instructions` / `prompts` `disable` or `stop-use` focus one separate native confirmation for the clean inspected supported native owned source/kind/digest/revision (instruction v1; prompt v1/v2).
 The durable hold withdraws all new selections without writing/deleting the source, preserves inspection/editing and already captured reasoning, and retires pending unadmitted choices without replay. Dirty drafts remain intact with an explicit Save/Reload prerequisite.
-Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Profile-original editing and installed/accessibility qualification stay open.
+Cancellation/stale review and failed audit/preference readback never invent completion or restore enablement. No-change reload/restart/restored bytes cannot re-enable use; fresh exact review is required. Installed/accessibility qualification stays open. Customizations' universal exclusion is stronger than this older captured-use hold: it also retires pending captured-use eligibility.
 
 The owned editor's native **Exact SHA-256** field narrows observed artifact
 metadata for both owned kinds, ANDed with literal metadata query and use state.

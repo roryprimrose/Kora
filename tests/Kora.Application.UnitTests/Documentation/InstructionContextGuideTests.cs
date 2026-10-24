@@ -18,5 +18,10 @@ public sealed class InstructionContextGuideTests
             .And.Contain("no tools, hosted transfer")
             .And.Contain("two minutes")
             .And.Contain("ordinary **Submit exact message** action ignores");
+        guide.Markdown.Should().Contain("instructions request review \"brief-style\" in \"Project planning\" --")
+            .And.Contain("instructions request confirm")
+            .And.Contain("do not need to recite")
+            .And.Contain("queued before that review")
+            .And.Contain("Stop is not rollback");
     }
 }

@@ -73,6 +73,17 @@ internal static partial class OllamaToolWire
             {
                 writer.WriteStartArray("tools");
                 foreach (var descriptor in request.Context.Tools) { WriteTool(writer, descriptor); }
+                if (request.Context.McpTool is { } external)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "function");
+                    writer.WriteStartObject("function");
+                    writer.WriteString("name", external.Id);
+                    writer.WritePropertyName("parameters");
+                    writer.WriteRawValue(external.InputSchema);
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                }
                 writer.WriteEndArray();
             }
             writer.WriteEndObject();
@@ -161,7 +172,8 @@ internal static partial class OllamaToolWire
         writer.WriteEndObject();
     }
 
-    internal static Reply ReadReply(byte[] bytes, string model, int round, bool clarificationAllowed = false)
+    internal static Reply ReadReply(byte[] bytes, string model, int round, bool clarificationAllowed = false,
+        Kora.Core.Mcp.McpModelTool? mcpTool = null)
     {
         using var document = ReadJson(bytes);
         var root = document.RootElement;
@@ -241,7 +253,7 @@ internal static partial class OllamaToolWire
             }
             writer.WriteEndObject();
         }
-        return new(ModelToolProtocol.ParseAssistant(stream.ToArray()), JsonSerializer.SerializeToUtf8Bytes(message));
+        return new(ModelToolProtocol.ParseAssistant(stream.ToArray(), mcpTool: mcpTool), JsonSerializer.SerializeToUtf8Bytes(message));
     }
 
     private static string Text(JsonElement element, string name)

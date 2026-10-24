@@ -319,7 +319,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         linked.Token.ThrowIfCancellationRequested();
         // Refuse before asynchronous source validation so an unawaited callback cannot race a successful answer.
         if (turn.Owner == owner && (turn.Context.ToolMode == ModelToolMode.None
-            || !turn.Context.Tools.Any(tool => string.Equals(tool.Id, id, StringComparison.Ordinal))))
+            || (turn.Context.McpTool is { } external
+                ? !string.Equals(external.Id, id, StringComparison.Ordinal)
+                : !turn.Context.Tools.Any(tool => string.Equals(tool.Id, id, StringComparison.Ordinal)))))
         {
             turn.RejectToolAttempt();
             ToolDenied(logger);
@@ -339,7 +341,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
-        var reply = turn.Context.ToolMode == ModelToolMode.LocalWebPage
+        var reply = turn.Context.ToolMode == ModelToolMode.McpReadOnly
+            ? mcpInvocations.TryGetValue(turn, out var mcp)
+                ? await mcp.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "mcp-reviewed-workflow-unavailable")
+            : turn.Context.ToolMode == ModelToolMode.LocalWebPage
             ? webPages.TryGetValue(turn, out var webPage)
                 ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")

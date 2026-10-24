@@ -7,7 +7,7 @@ using Kora.Core.Dependencies;
 
 namespace Kora.Application.Configuration;
 
-public sealed class McpServerConfigurationService
+public sealed partial class McpServerConfigurationService
 {
     private const int MaximumConfigurationBytes = 256 * 1024;
     private const int MaximumServers = 128;
@@ -100,10 +100,18 @@ public sealed class McpServerConfigurationService
         {
             throw new InvalidDataException($"MCP configuration file '{path}' is empty or exceeds its byte limit.");
         }
+        LoadBytes(File.ReadAllBytes(path), path, includedServerIds, servers);
+    }
+
+    internal static void LoadBytes(byte[] bytes, string path, IReadOnlyList<string> includedServerIds,
+        List<McpServerConfigurationSummary> servers)
+    {
+        if (bytes.Length is 0 or > MaximumConfigurationBytes)
+        { throw new InvalidDataException("MCP configuration is empty or exceeds its byte limit."); }
         string text;
         try
         {
-            text = Utf8.GetString(File.ReadAllBytes(path));
+            text = Utf8.GetString(bytes);
         }
         catch (DecoderFallbackException exception)
         {
@@ -118,6 +126,7 @@ public sealed class McpServerConfigurationService
                 MaxDepth = 16,
             });
             var root = document.RootElement;
+            ValidateUniqueNames(root);
             if (root.ValueKind != JsonValueKind.Object)
             {
                 throw new InvalidDataException($"MCP configuration file '{path}' must contain a JSON object.");
@@ -174,6 +183,24 @@ public sealed class McpServerConfigurationService
     private static string CreateId(string path, string name) =>
         Convert.ToHexStringLower(SHA256.HashData(
             Encoding.UTF8.GetBytes($"{Path.GetFullPath(path).ToUpperInvariant()}\0{name}")));
+
+    private static void ValidateUniqueNames(JsonElement element)
+    {
+        if (element.ValueKind == JsonValueKind.Object)
+        {
+            var names = new HashSet<string>(StringComparer.Ordinal);
+            foreach (var property in element.EnumerateObject())
+            {
+                if (!names.Add(property.Name))
+                { throw new InvalidDataException("Duplicate MCP configuration fields are not admitted."); }
+                ValidateUniqueNames(property.Value);
+            }
+        }
+        else if (element.ValueKind == JsonValueKind.Array)
+        {
+            foreach (var item in element.EnumerateArray()) { ValidateUniqueNames(item); }
+        }
+    }
 
     private sealed record Source(string Path, bool Required);
 }

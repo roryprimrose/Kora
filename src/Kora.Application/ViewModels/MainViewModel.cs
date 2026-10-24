@@ -2983,6 +2983,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         await ClosePromptPreparation();
         await CloseAgentRun();
         await CloseSharedSkillUse();
+        await CloseInstructionUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
         ApplicationLog.Information(logger, "Kora exit was requested");
         hostExitRequested = true;
@@ -4265,7 +4266,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
-                () => ExecuteInstructionEditorCommand(spokenText));
+                () => ExecuteInstructionEditorCommand(spokenText, manualInput, reviewEligibility));
             return;
         }
         if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
@@ -5966,6 +5967,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ClosePromptPreparation();
             await CloseAgentRun();
             await CloseSharedSkillUse();
+            await CloseInstructionUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                 && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.

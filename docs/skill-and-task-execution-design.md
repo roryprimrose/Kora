@@ -63,6 +63,35 @@ resources. Profile definitions remain separately source-qualified and untrusted;
 user authoring is declarative, not permission to install arbitrary executables.
 Save, enablement and execution each have distinct decisions.
 
+### Local Markdown-reference skills
+
+A registered shared-profile skill can explicitly declare up to four local
+Markdown references using the [v2 format](../Design/Skill_Storage.md#explicit-local-markdown-references-v2).
+Listing a source does not read their contents or authorize use. Review the
+displayed declaration, then choose **Authorize only the exact declared local
+Markdown reads**. With a pending declaration, original typed
+`shared skill review invocation` (or current-name activated voice) confirms
+only those displayed local reads, not invocation.
+
+Review the complete primary and reference contents, then separately enable
+the revision, select an existing Active conversation, supply the original
+request, review the invocation, and confirm. The existing `shared skill enable`,
+`shared skill targets`, `shared skill target <conversation ID>`,
+`shared skill request <original text>`, `shared skill review invocation` and
+`shared skill confirm invocation` commands use the same review as native UI.
+Enablement is memory-only, expires in two minutes and permits one local-only,
+zero-tool request. Changed files, withdrawal, closed review or lost private
+admission require a fresh review. The answer or truthful terminal is retained
+with the unchanged request; no automatic replay occurs.
+
+References must remain inside the selected package and be nonempty strict
+UTF-8, at most 16 KiB each and 64 KiB including the primary. Missing, changed,
+undeclared, nested or executable references are unavailable, not partially
+loaded. The existing stricter complete-model-context limit also applies.
+No scripts, tools, hosted disclosure, persistent enablement or installation
+are authorized. Ordinary single-file skills and the separate reviewed
+one-tool route retain their existing rules.
+
 See [source storage](../Design/Skill_Storage.md),
 [authoring](../Design/Skill_Authoring.md) and
 [bundled package implementation](../src/Kora.Definitions/README.md).

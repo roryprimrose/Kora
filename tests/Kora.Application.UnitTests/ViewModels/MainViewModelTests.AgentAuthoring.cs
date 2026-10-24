@@ -60,13 +60,41 @@ public sealed partial class MainViewModelTests
     {
         var f = await Fixture.CreateInitializedAsync();
         var runStops = 0;
+        var runSetStops = 0;
         f.ViewModel.BindAgentProfileAuthoringShutdown(() => Task.FromResult(false));
         f.ViewModel.BindAgentShutdown(() => { runStops++; return Task.CompletedTask; });
+        f.ViewModel.BindAgentRunSetShutdown(() => { runSetStops++; return Task.CompletedTask; });
         var exit = () => f.ViewModel.ExitAsync();
         await exit.Should().ThrowAsync<OperationCanceledException>();
         runStops.Should().Be(0);
+        runSetStops.Should().Be(0);
         f.ViewModel.BindAgentProfileAuthoringShutdown(() => Task.FromResult(true));
         await f.ViewModel.ExitAsync();
         runStops.Should().Be(1);
+        runSetStops.Should().Be(1);
+    }
+
+    [Fact]
+    public async Task ApprovedAuthoringCloseJoinsBothRunOwnersEvenWhenOneFails()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var legacy = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var independent = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var approved = false;
+        f.ViewModel.BindAgentProfileAuthoringShutdown(() => { approved = true; return Task.FromResult(true); });
+        f.ViewModel.BindAgentShutdown(() => { approved.Should().BeTrue(); return legacy.Task; });
+        f.ViewModel.BindAgentRunSetShutdown(() =>
+        {
+            approved.Should().BeTrue();
+            started.SetResult();
+            return independent.Task;
+        });
+        var exit = f.ViewModel.ExitAsync();
+        await started.Task.WaitAsync(TestContext.Current.CancellationToken);
+        legacy.SetException(new IOException("Legacy resource closure failed."));
+        exit.IsCompleted.Should().BeFalse();
+        independent.SetResult();
+        await exit.Invoking(value => value).Should().ThrowAsync<IOException>();
     }
 }

@@ -23,5 +23,6 @@ public sealed partial class App
             Services.GetRequiredService<ILogger<AgentRunController>>());
         agentRuns.Bind();
         BindAgentProfileAuthoring(main);
+        BindAgentRunSet(main);
     }
 }

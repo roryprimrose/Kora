@@ -55,6 +55,12 @@ copy holds. Required audit remains content-minimised and independently
 retained; disk/write/receipt failures cannot become an unaudited success.
 Optional versioned assistant data shares the existing original message cell,
 audit digest, complete-page byte limit and disposition/retention/copy inventory.
+The v11-to-v12 conversation migration raises only the message revision limit
+from two to three; it preserves the 32,768-byte payload limit, original content
+and audit bytes. Legacy schema validation retains that same payload bound.
+Desktop workspace access is denied until the constructed main view model is
+explicitly bound. Binding and disposal invalidate prior control revisions;
+binding does not bypass ownership, call protection or privacy-closure gates.
 Legacy canonical payloads remain unchanged; unknown/malformed/foreign response
 provenance is rejected. USER/HOST lexical search and original-text reuse do not
 search or promote assistant output. Private native details show it separately

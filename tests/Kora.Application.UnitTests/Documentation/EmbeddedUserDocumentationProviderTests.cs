@@ -180,6 +180,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "troubleshooting",
             "agent-profile-authoring",
             "hosted-requests",
+            "independent-agent-runs",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

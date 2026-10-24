@@ -406,7 +406,8 @@ internal static class Program
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechTextConfigurationService>();
-        services.AddSingleton<ISessionWorkspaceAccess, DesktopSessionWorkspaceAccess>();
+        services.AddSingleton<DesktopSessionWorkspaceAccess>();
+        services.AddSingleton<ISessionWorkspaceAccess>(provider => provider.GetRequiredService<DesktopSessionWorkspaceAccess>());
         services.AddSingleton<SessionWorkspaceService>();
         services.AddSingleton<ILocalContextTaskStore>(interactions);
         services.AddSingleton<LocalContextTurnWorkflow>();

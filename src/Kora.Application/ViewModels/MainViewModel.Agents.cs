@@ -14,7 +14,7 @@ public sealed partial class MainViewModel
     {
         if (agentAuthoringShutdown is { } close && !await close())
         { throw new OperationCanceledException("Agent authoring close was cancelled; shutdown is not approved."); }
-        if (agentShutdown is { } stop) { await stop(); }
+        await Task.WhenAll(agentShutdown?.Invoke() ?? Task.CompletedTask, CloseAgentRunSet());
     }
 
     private async Task ExecuteAgentCommand(AgentRunCommand command, string text, ManualCallInput input,
@@ -32,6 +32,14 @@ public sealed partial class MainViewModel
             { Transcript = "Owned agent profile authoring is unavailable in this host."; return; }
             await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
                 () => author(authoring, input.Origin, eligible), operation: HostOperation.Request));
+            return;
+        }
+        if (command.RunSet is { } runSet)
+        {
+            if (AgentRunSetRequested is not { } runSetRoute)
+            { Transcript = "Independent agent runs are unavailable in this host."; return; }
+            await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
+                () => runSetRoute(runSet, input.Origin, eligible), operation: HostOperation.Request));
             return;
         }
         if (AgentRunRequested is not { } route)

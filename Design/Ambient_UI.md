@@ -95,13 +95,19 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 | Clarification / approval wait | Warm amber | Almost still | Until resolved, cancelled, or expired |
 | Executing | Clear blue | Directional flow / scanning | Until terminal outcome |
 | Success | Sage green | Settle | Brief receipt, then fade if not engaged |
-| Failure / outcome unknown | Soft coral | Stable | Until acknowledged; never imply success |
+| Failure / outcome unknown | Soft coral | Gentle continuous wandering | Until acknowledged; never imply success |
 | Providing information | Ice blue | Slow, open motion | Until dismissed in this study |
 
 Animation is an activity indicator, **not a percentage complete**. The prototype's
 listening motion is synthetic; native amplitude response must reflect actual audio
 only during command capture. A hidden presence must not conceal enabled microphone
 listening; the separate tray/status indicator communicates local wake listening.
+Every visible state retains particle motion in both renderers when system motion
+preferences allow it; reduced motion freezes the arrangement. Coral can also
+represent a background host or setup failure, not only a command failure.
+Failure details require visual feedback whenever private presentation is eligible
+and remain exempt from response-window inactivity auto-hide until dismissed or
+replaced. The coral colour alone is not an explanation of the failure.
 
 Native state changes cross-fade between the current and target state colours rather
 than replacing the palette in one frame. Showing and hiding the presence also

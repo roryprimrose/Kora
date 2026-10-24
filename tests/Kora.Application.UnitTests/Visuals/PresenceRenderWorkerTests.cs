@@ -25,6 +25,7 @@ public sealed partial class PresenceRenderWorkerTests
     [InlineData(AssistantState.Listening)]
     [InlineData(AssistantState.Calculating)]
     [InlineData(AssistantState.Executing)]
+    [InlineData(AssistantState.Failure)]
     public void AllNonzeroMovementUsesThirtyThreeMillisecondsIndependentOfSpeed(AssistantState state)
     {
         for (var speed = PresenceSettings.MinimumMovementSpeedPercent;
@@ -45,8 +46,41 @@ public sealed partial class PresenceRenderWorkerTests
         PresenceRenderWorker.GetCadence(inputs, false, true).Should().Be(PresenceAnimation.FrameInterval);
         PresenceRenderWorker.GetCadence(inputs with { IsSpeaking = true }, false, false)
             .Should().Be(PresenceAnimation.FrameInterval);
-        PresenceRenderWorker.GetCadence(Inputs() with { State = AssistantState.Failure }, false, false)
+        PresenceRenderWorker.GetCadence(Inputs() with { State = AssistantState.Hidden }, false, false)
             .Should().Be(PresenceParticleField.QuietFrameInterval);
+    }
+
+    [Fact]
+    public async Task FailureKeepsMovingAfterTheCoralFrameHasSettled()
+    {
+        using var target = new FakeTarget();
+        var queue = Channel.CreateUnbounded<Action>();
+        var time = new FrameTimeProvider();
+        using var worker = new PresenceRenderWorker(target, action => queue.Writer.TryWrite(action),
+            exception => throw new InvalidOperationException("Unexpected rendering failure.", exception),
+            NullLogger<PresenceRenderWorker>.Instance, time);
+        worker.Update(Inputs() with { State = AssistantState.Failure });
+        var first = await Next(queue);
+        var initialParticles = target.LastParticles;
+        time.Advance(TimeSpan.FromSeconds(1));
+        first();
+
+        var fading = await Next(queue);
+        time.Advance(TimeSpan.FromSeconds(1));
+        fading();
+        var settled = await Next(queue);
+        var settledParticles = target.LastParticles;
+        settledParticles.Should().NotEqual(initialParticles);
+        time.Advance(PresenceAnimation.FrameInterval);
+        settled();
+        worker.PresentedOpacity.Should().Be(1);
+
+        var moving = await Next(queue);
+        target.LastParticles.Should().NotEqual(settledParticles);
+        target.LastRed.Should().Be(244);
+        target.LastGreen.Should().Be(156);
+        target.LastBlue.Should().Be(156);
+        moving();
     }
 
     [Fact]
@@ -285,6 +319,14 @@ public sealed partial class PresenceRenderWorkerTests
 
     internal static PresenceRenderInputs Inputs() => new(AssistantState.Calculating, false, 0, true, 100,
         100, 100, 100, false, false, true, 360, 360, 1);
+
+    private sealed class FrameTimeProvider : TimeProvider
+    {
+        private long ticks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
+        public override long GetTimestamp() => Interlocked.Read(ref ticks);
+        public void Advance(TimeSpan elapsed) => Interlocked.Add(ref ticks, elapsed.Ticks);
+    }
 
     internal sealed class FakeTarget : IPresenceRenderTarget
     {

@@ -9,6 +9,7 @@ using Avalonia.Threading;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Visuals;
+using Kora.Core;
 using Kora.Core.Configuration;
 using Kora.Core.Presentation;
 
@@ -363,6 +364,10 @@ public sealed partial class ResponseWindow : Window
 
         if (string.Equals(
                 eventArgs.PropertyName,
+                nameof(MainViewModel.State),
+                StringComparison.Ordinal)
+            || string.Equals(
+                eventArgs.PropertyName,
                 nameof(MainViewModel.IsResponseAlwaysVisible),
                 StringComparison.Ordinal)
             || string.Equals(
@@ -395,7 +400,8 @@ public sealed partial class ResponseWindow : Window
             return;
         }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
-            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive)
+            && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive
+            && viewModel.State != AssistantState.Failure)
         {
             if (!responseInactivity.TryExpire())
             {
@@ -456,7 +462,8 @@ public sealed partial class ResponseWindow : Window
         responseInactivity.Stop();
         if (!IsVisible || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
-            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive)
+            || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
+            || viewModel.State == AssistantState.Failure)
         {
             return;
         }

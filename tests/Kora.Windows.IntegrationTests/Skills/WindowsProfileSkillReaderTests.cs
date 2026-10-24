@@ -25,6 +25,79 @@ public sealed partial class WindowsProfileSkillReaderTests : IDisposable
     }
 
     [WindowsFact]
+    public async Task DeclaredReferencesRemainUnreadAtDiscoveryAndPinnedCompleteBundleRechecksExactBytes()
+    {
+        var token = TestContext.Current.CancellationToken;
+        var text = Text.Replace("description: Read only example", "description: Read only example\nformat: skill-md-instructions-v2\nreferences: notes.md", StringComparison.Ordinal);
+        File.WriteAllText(SkillFile, text);
+        var notes = Path.Combine(Path.GetDirectoryName(SkillFile)!, "notes.md");
+        File.WriteAllBytes(notes, [0xff]);
+        var reader = new WindowsProfileSkillReader(Profile);
+        var source = await reader.SelectAsync(SourceRoot, token);
+        var snapshot = (await reader.DiscoverAsync(source, token)).Packages.Single();
+        snapshot.IsReferenceCandidate.Should().BeTrue();
+        snapshot.ReferenceBundle.Should().BeNull();
+        snapshot.PackageDirectoryIdentity.Should().HaveLength(48);
+        var invalid = async () => await reader.ReadReferencesAsync(source, snapshot, token);
+        await invalid.Should().ThrowAsync<InvalidDataException>();
+        File.WriteAllText(notes, "\uFEFF# Exact\r\nOriginal notes e\u0301.", new UTF8Encoding(false));
+        var complete = await reader.ReadReferencesAsync(source, snapshot, token);
+        complete.ReferenceBundle!.References.Single().Text.Should().Be("\uFEFF# Exact\r\nOriginal notes e\u0301.");
+        complete.IsInstructionCompatible.Should().BeTrue();
+        (await reader.ReadReferencesAsync(source, complete, token)).RevisionDigest.Should().Be(complete.RevisionDigest);
+        File.AppendAllText(notes, "\nChanged.");
+        await ((Func<Task>)(async () => await reader.ReadReferencesAsync(source, complete, token)))
+            .Should().ThrowAsync<SharedSkillUnavailableException>();
+        using var busy = new FileStream(notes, FileMode.Open, FileAccess.ReadWrite, FileShare.ReadWrite);
+        await invalid.Should().ThrowAsync<SharedSkillUnavailableException>();
+    }
+
+    [Theory]
+    [InlineData("primary")]
+    [InlineData("missing")]
+    [InlineData("extra")]
+    [InlineData("package")]
+    [InlineData("source")]
+    [InlineData("oversized")]
+    [InlineData("nested")]
+    [InlineData("cancel")]
+    public async Task ReferenceChangesAndInvalidSetsNeverReturnPartialBundles(string fault)
+    {
+        var token = TestContext.Current.CancellationToken;
+        var text = Text.Replace("description: Read only example", "description: Read only example\nformat: skill-md-instructions-v2\nreferences: notes.md", StringComparison.Ordinal);
+        File.WriteAllText(SkillFile, text);
+        var directory = Path.GetDirectoryName(SkillFile)!;
+        var notes = Path.Combine(directory, "notes.md");
+        File.WriteAllText(notes, "Notes.");
+        var reader = new WindowsProfileSkillReader(Profile);
+        var source = await reader.SelectAsync(SourceRoot, token);
+        var snapshot = (await reader.DiscoverAsync(source, token)).Packages.Single();
+        if (fault is "primary") { File.AppendAllText(SkillFile, "\nChanged."); }
+        if (fault is "missing") { File.Delete(notes); }
+        if (fault is "extra") { File.WriteAllText(Path.Combine(directory, "extra.md"), "Extra."); }
+        if (fault is "package")
+        {
+            Directory.Move(directory, directory + "-retired");
+            Directory.CreateDirectory(directory);
+            File.WriteAllText(SkillFile, text);
+            File.WriteAllText(notes, "Notes.");
+        }
+        if (fault is "source")
+        {
+            Directory.Move(SourceRoot, SourceRoot + "-retired");
+            Directory.CreateDirectory(directory);
+        }
+        if (fault is "oversized") { File.WriteAllBytes(notes, new byte[SharedSkillReferenceDeclaration.MaximumReferenceBytes + 1]); }
+        if (fault is "nested") { File.WriteAllText(notes, "[nested](other.md)"); }
+        using var cancellation = new CancellationTokenSource();
+        if (fault is "cancel") { await cancellation.CancelAsync(); }
+        var read = async () => await reader.ReadReferencesAsync(source, snapshot, cancellation.Token);
+        await read.Should().ThrowAsync<Exception>();
+        snapshot.ReferenceBundle.Should().BeNull();
+        snapshot.IsInstructionCompatible.Should().BeFalse();
+    }
+
+    [WindowsFact]
     public async Task Selected_exact_profile_root_is_source_qualified_and_snapshot_reads_never_modify_sources()
     {
         var reader = new WindowsProfileSkillReader(Profile);

@@ -1,7 +1,7 @@
 # Skill Sources, Profile Reuse, and Roaming Storage
 
 Status: bounded bundled catalogue and explicit shared-profile native inspection delivered.
-The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation.
+The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation, including the explicitly declared, separately consented [v2 Markdown bundle](#explicit-local-markdown-references-v2).
 The separate [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) admits a declarative shared revision declaring only the host's WebPageGet binding, with independent model-context consent and per-action authorization. General tool-dependent invocation and Kora-specific authoring remain proposed.
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
@@ -10,6 +10,68 @@ Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md
 source, UI/voice editing, activation, and external-reload contract for skills,
 prompts, instructions, and agent profiles. Its first-class profile editor
 does not expand the delivered R21 read-only boundary below.
+
+## Explicit local Markdown references v2
+
+The v1 single-file profile remains unchanged. A primary `SKILL.md` may opt into
+the finite local-only v2 profile with these exact additional flat fields:
+
+```text
+---
+name: review-prose
+version: 1.0.0
+description: Review original prose using local notes
+format: skill-md-instructions-v2
+references: notes.md, references\guide.md
+---
+Use [notes](notes.md) and [guide](references\guide.md) as inert guidance.
+```
+
+`references` is an ordered comma-and-space-separated set of one to four distinct
+package-relative paths. Each segment is lowercase ASCII letters, digits, `-`
+or `_`; the leaf ends in exact `.md`. Maximum path length is 240 characters,
+segment length 64, and depth four. Device names, `skill.md`, case/normalization
+aliases, traversal, ADS, absolute/UNC paths and slash aliases are refused.
+Only declared primary links of the shown inline form are supported. References
+cannot reference other files or contain active markup, URLs, executable
+references or executable/unknown code fences. No scripts or recursive loading.
+Missing or undeclared package entries make the whole operation unavailable.
+
+Discovery still reads only primary files and inventories other entry names.
+It pins the source and selected package identities, but does **not** open
+reference contents. The user first reviews the exact declaration and separately
+authorizes those local reads. Registration/discovery consent is not reference
+consent. The native **Authorize only the exact declared local Markdown reads**
+button and exact original typed/current-name activated
+`shared skill review invocation` command confirm only the displayed pending
+declaration. Other invocation actions cannot skip this step.
+
+The Windows reader revalidates the registered source, selected package,
+canonical ancestors, inventory and exact primary bytes while retaining
+non-writable, non-deletable handles. Reparse points, hardlinks, aliases,
+replacement, unreadable/busy files and changed bytes fail closed. Each reference
+is nonempty strict UTF-8, at most 16 KiB; primary plus references are at most
+64 KiB inclusive. The aggregate revision uses domain-separated, big-endian
+length-framed exact primary path/bytes followed by declaration-order reference
+paths/bytes. BOMs and line endings are not normalized.
+
+Only after capture does the host show the **complete primary and all reference
+contents**. The user separately enables that immutable revision in memory,
+selects one existing Active conversation, supplies the unchanged original
+request, reviews the exact invocation, then confirms it. Declaration/review
+authority expires after two minutes, is single-use, and is retired by closure,
+withdrawal, source/input/admission change or cancellation. There is no saved
+enablement or automatic retry. Revalidation rereads the entire bundle before
+context admission and publication; late work is joined, not abandoned.
+
+Primary and separately attributed references enter only the existing LocalOnly,
+zero-tool model route. The complete serialized model envelope must still fit
+32,768 UTF-8 bytes: the stricter limit wins and nothing is dropped or truncated.
+The original request and genuine answer, or truthful failure/cancellation
+terminal, are retained in the selected conversation. No hosted transfer,
+generic executor, nested authority, tools, installation or provider qualification
+is added. The separate one-tool workflow still accepts only its existing v1
+single-file contract.
 
 ## Source Partitions
 
@@ -219,10 +281,10 @@ This is an implementation path, not qualification of an installed model or appro
 
 ### Future discovery and enablement
 
-The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
+The [bounded delivered consumer](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) covers explicit instruction-only single-file use and separately consented [v2 Markdown bundles](#explicit-local-markdown-references-v2) with empty capabilities, original UI/activated-voice provenance, exact unchanged request text and one existing Active target.
 Its [review](../src/Kora.Application/Skills/SharedSkillUseReview.cs) expires after two minutes, is single-use and never persists enablement.
 The [canonical conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.SharedSkills.cs) retains actual host results under the unchanged source, cancellation and terminal-readback fences.
-Broader catalogue/model selection, tools outside the separately reviewed one-tool path, additional files, executable requirements and hosted transmission below remain future work.
+Broader catalogue/model selection, tools outside the separately reviewed one-tool path, files outside the explicit v2 profile, executable requirements and hosted transmission below remain future work.
 
 Offer user-approved source registrations, not a recursive scan of the entire profile.
 Recognisable candidate locations can be suggested if present, for example `%USERPROFILE%\.agents\skills` or `%USERPROFILE%\.copilot\skills`.

@@ -16,6 +16,7 @@ internal sealed partial class SharedSkillInvocationController(
 {
     private SharedSkillInvocationWindow? window;
     private SharedSkillUseReview? review;
+    private SharedSkillReferenceConsent? referenceConsent;
     private SharedSkillInvocation? invocation;
     private CancellationTokenSource? lifetime;
     private Task active = Task.CompletedTask;
@@ -66,12 +67,15 @@ internal sealed partial class SharedSkillInvocationController(
                 toolSource = source;
                 toolSnapshot = snapshot;
             }
+            else if (snapshot.ReferenceDeclaration is not null)
+            { referenceConsent = await workflow.ReviewReferenceDeclarationAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             else { review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             if (!eligible() || !Eligible()) { Close(); return; }
             requestOrigin = origin;
             window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable);
             window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
-                + (toolCapable ? snapshot.Text : review!.Text);
+                + (toolCapable ? snapshot.Text : referenceConsent?.DeclarationText ?? review!.Text);
+            window.SetReferenceConsent(referenceConsent is not null);
             window.Closed += (_, _) => Close();
             window.Request.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
@@ -88,7 +92,9 @@ internal sealed partial class SharedSkillInvocationController(
             if (window is null || !Eligible()) { Close(); return; }
             window.Status.Text = toolCapable
                 ? "Select an existing Active target, review exact target and tool revision, then separately enable. No action permission granted."
-                : "Review all instructions, then separately enable this exact revision. Nothing invoked.";
+                : referenceConsent is not null
+                    ? "Review the exact declaration. Authorize only those local reads, or use 'shared skill review invocation' to confirm this displayed declaration. Enablement remains separate."
+                    : "Review all instructions, then separately enable this exact revision. Nothing invoked.";
         }
         catch { Close(); throw; }
         }
@@ -163,6 +169,7 @@ internal sealed partial class SharedSkillInvocationController(
         {
             UseFailed(logger, exception.GetType().Name);
             review?.Dispose();
+            referenceConsent?.Dispose();
             toolReview?.Dispose();
             if (window is { } opened)
             { opened.Clear(); opened.Status.Text = "Unavailable, cancelled or unconfirmed. Inspect the target conversation before any fresh review; no automatic retry."; }
@@ -178,6 +185,21 @@ internal sealed partial class SharedSkillInvocationController(
     {
         if (toolMode) { await RunTool(action, origin, eligible); return; }
         var opened = window ?? throw new InvalidOperationException("Review window is closed.");
+        if (referenceConsent is { } declaration)
+        {
+            if (!string.Equals(action, "Prepare", StringComparison.Ordinal))
+            { throw new InvalidOperationException("First separately authorize the displayed exact declaration's local reads. No enablement is granted."); }
+            bool DeclaredCurrent() => Eligible() && eligible() && ReferenceEquals(window, opened);
+            opened.ReadReferences.IsEnabled = false;
+            var capturedReview = await workflow.ConsentToReferencesAsync(declaration, DeclaredCurrent, origin, lifetime!.Token);
+            if (!DeclaredCurrent()) { capturedReview.Dispose(); return; }
+            review = capturedReview;
+            referenceConsent = null;
+            opened.Instructions.Text = capturedReview.Text;
+            opened.SetReferenceConsent(false);
+            opened.Status.Text = "Complete primary and declared reference contents captured. Review ALL content, then separately enable. Nothing invoked.";
+            return;
+        }
         var captured = review ?? throw new InvalidOperationException("Exact skill review is unavailable.");
         var token = lifetime!.Token;
         bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && captured.IsCurrent;
@@ -249,6 +271,7 @@ internal sealed partial class SharedSkillInvocationController(
             closeAfterShow = true;
             lifetime?.Cancel();
             review?.Dispose();
+            referenceConsent?.Dispose();
             toolReview?.Dispose();
             window?.Clear();
             return;
@@ -258,6 +281,8 @@ internal sealed partial class SharedSkillInvocationController(
         lifetime?.Cancel();
         review?.Dispose();
         review = null;
+        referenceConsent?.Dispose();
+        referenceConsent = null;
         RetireToolReview();
         toolSource = null;
         toolSnapshot = null;

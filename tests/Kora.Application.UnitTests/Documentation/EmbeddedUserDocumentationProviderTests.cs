@@ -178,6 +178,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
+            "owned-skill-authoring",
             "hosted-requests");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

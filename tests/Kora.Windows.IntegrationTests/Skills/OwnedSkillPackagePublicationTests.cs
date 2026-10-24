@@ -1,3 +1,4 @@
+using System.Security.Principal;
 using AwesomeAssertions;
 using Kora.Core.Skills;
 using Kora.Windows.IntegrationTests.Storage;
@@ -13,7 +14,10 @@ public sealed class OwnedSkillPackagePublicationTests
     {
         using var paths = new OwnedStorageFixture();
         var directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
-        Directory.CreateDirectory(paths.RoamingRoot);
+        using var identity = WindowsIdentity.GetCurrent();
+        RestrictedStorageDirectory.CreateRestrictedDirectory(paths.RoamingRoot,
+            identity.User ?? throw new InvalidOperationException("The test needs a loaded Windows profile."));
+        new DirectoryInfo(paths.RoamingRoot).GetAccessControl().AreAccessRulesProtected.Should().BeTrue();
         directory.CreateNew();
         var id = Path.Combine(directory.Root, "example");
         directory.CreateOwnedSkillDirectory(id);

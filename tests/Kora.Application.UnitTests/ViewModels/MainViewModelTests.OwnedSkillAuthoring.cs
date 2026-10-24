@@ -60,6 +60,27 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnedSkillRestartDecisionPreservesExistingShutdownGatesAndPreventsUnapprovedDispatch(bool allow)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var owned = 0;
+        var conversation = 0;
+        var instruction = 0;
+        f.ViewModel.BindOwnedSkillAuthoring(null, () => { owned++; return Task.FromResult(allow); });
+        f.ViewModel.BindConversationShutdown(() => { conversation++; return Task.FromResult(true); }, static () => true);
+        f.ViewModel.BindInstructionEditorShutdown(() => { instruction++; return Task.FromResult(true); });
+        await f.RunAsync("restart the app");
+        owned.Should().Be(1);
+        conversation.Should().Be(allow ? 1 : 0);
+        instruction.Should().Be(allow ? 1 : 0);
+        if (allow) { f.Events.Should().Contain("process.restart"); }
+        else { f.Events.Should().NotContain("process.restart"); }
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("missing")]
     [InlineData("system")]
     [InlineData("binding")]

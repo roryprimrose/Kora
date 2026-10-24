@@ -43,6 +43,8 @@ public sealed partial class App : Avalonia.Application
     private AllWorkWindowController? allWorkWindow;
     private WorkspaceSurfaceCommandController? workspaceSurfaceCommands;
     private ClipboardPreviewWindowController? clipboardWindow;
+    private CopilotTransmissionWindowController? copilotTransmissionWindow;
+    private CopilotAccountWindowController? copilotAccountWindow;
     private LocalFilePreviewWindowController? fileWindow;
     private SessionAttachmentWindowController? attachmentWindow;
     private AttachmentCatalogueWindowController? attachmentCatalogue;
@@ -272,6 +274,13 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
+            { copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
+                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>()); }
+            copilotAccountWindow = new CopilotAccountWindowController(viewModel,
+                Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
+                Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
+                Services.GetRequiredService<ILogger<CopilotAccountWindowController>>());
             viewModel.BindFilePreview(Services.GetRequiredService<Kora.Tools.Files.LocalFilePreview>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
@@ -402,6 +411,10 @@ public sealed partial class App : Avalonia.Application
         attachmentWindow = null;
         clipboardWindow?.Dispose();
         clipboardWindow = null;
+        copilotTransmissionWindow?.Dispose();
+        copilotTransmissionWindow = null;
+        copilotAccountWindow?.Dispose();
+        copilotAccountWindow = null;
         fileWindow?.Dispose();
         fileWindow = null;
         maintenanceWindow?.Dispose();

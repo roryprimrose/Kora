@@ -7,6 +7,23 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task Copilot_account_setup_is_explicit_and_owns_instance_handoff_quiescence()
+    {
+        var f = new Fixture();
+        await f.ViewModel.InitializeAsync();
+        f.ViewModel.ConfigureCopilotAccount();
+        var requests = 0;
+        f.ViewModel.CopilotAccountSetupRequested += (_, _) => requests++;
+        f.ViewModel.ConfigureCopilotAccount();
+        requests.Should().Be(1);
+        f.ViewModel.BindCopilotSetupQuiescence(static () => false);
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeFalse();
+        f.ViewModel.BindCopilotSetupQuiescence(static () => true);
+        (await f.ViewModel.TryPrepareHandoffAsync()).Should().BeTrue();
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.Dispose();
+    }
+    [Fact]
     public async Task NativeHandoffRequestIsLocalPresentationOnlyAndRetiresOnCallOrDisposal()
     {
         var f = new Fixture();

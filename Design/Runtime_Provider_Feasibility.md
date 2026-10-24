@@ -99,6 +99,95 @@ without qualified exact-profile evidence and independent egress. RT1/RT2/MG1
 executables, derived-fixture consumers and native procedures remain retained;
 these deterministic workflow tests are not exact maintained runtime equivalence.
 
+### Maintained Copilot SDK boundary - 2026-10-23
+
+The production source now compiles the Windows
+[`CopilotSdkTurnRuntime`](../src/Kora.Windows/Dependencies/CopilotSdkTurnRuntime.cs)
+against released NuGet `GitHub.Copilot.SDK` **1.0.26**, rather than substituting
+the historical source-built experiment package. The portable
+[`ICopilotTurnRuntime`](../src/Kora.Core/Dependencies/ICopilotTurnRuntime.cs)
+contract and Application
+[`CopilotModelTurnAdapter`](../src/Kora.Application/Dependencies/CopilotModelTurnAdapter.cs)
+keep SDK/process mechanisms out of Core and Application.
+
+The bounded profile uses one owned stdio runtime and fresh host-turn-derived
+SDK session per turn; no external server, resume, native tools, MCP, custom
+agents, skills, plugins, filesystem discovery, memory, embeddings, session
+telemetry, persistent session store or infinite-session compaction is enabled.
+Only aliases of the existing six read-only Kora capability callbacks are
+advertised. Each callback re-enters captured host context and revalidates the
+exact turn/account/session; SDK trace headers cannot choose those identities.
+Session state uses a per-turn virtual store limited to 64 entries and 262144
+content bytes, with no host-filesystem fallback. SQL and binary requests
+are routed to explicit refusal handlers, not native fallback storage.
+
+The final HTTP interceptor admits only the selected model's complete JSON
+request to the exact HTTPS Copilot chat/responses endpoints. It rejects
+unknown/foreign sessions, subagent requests and WebSockets. Redirects are
+disabled. Request bodies are limited to 131072 bytes and buffered HTTP
+responses to 262144 bytes; the final serialized answer still has the existing
+4096-byte response limit. Every intercepted request, including a later
+tool-result request or SDK retry, needs a fresh
+[`HostedTransmissionReviewService`](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)
+review of final destination, account/profile, noncredential headers and exact
+body. Earlier envelope review, desired provider settings and turn preparation
+never approve transmission. Missing presentation or changed authority denies
+egress. The outgoing body and headers are captured before review; changing
+the SDK's original request during review cannot change the approved send.
+An answer cannot succeed without at least one approved, successful physical
+HTTP transmission in that exact SDK turn.
+
+Cancellation closes callback authority, then joins owned process stop, the
+outstanding send and admitted callbacks. Late output is discarded. A failed
+stop keeps the runtime non-quiescent and unavailable; neither another turn nor
+host disposal may report resource release from a cancelled await alone.
+
+**I / E / Q boundary:** deterministic tests compile against the real package
+and fake only the SDK/process and HTTP boundaries. They are not live-account,
+installed-runtime or paid-provider evidence. The default runtime/account-use
+deployment approval source is unavailable; no account is inferred from ambient login and no
+runtime is automatically installed or bundled. Terms/cost/account approval,
+an exact current profile and admitted runtime deployment remain E. Live
+offering stays unavailable without those inputs. Generic hosted admission
+remains denied unless the dedicated original-user Copilot authorization and
+independent final-request gate are present. Local-only tool-free paths do not
+gain a hosted fallback. Historical RT1/RT2 qualification is not an
+implementation prerequisite or lifecycle authority for these new bytes.
+See [dependency provenance and licensing](../DEPENDENCY-LICENSES.md).
+
+**Composed original-request path:** Settings exposes explicit volatile token
+entry, gated before accepting credentials by
+[`ICopilotDeploymentApprovalSource`](../src/Kora.Windows/Dependencies/ICopilotDeploymentApprovalSource.cs).
+This source must revalidate the exact approved deployment, private paths and
+account-use terms/cost policy; user preferences and a typed executable path
+cannot supply that authority. The shipped source returns unavailable.
+[`CopilotAccountBroker`](../src/Kora.Windows/Dependencies/CopilotAccountBroker.cs)
+verifies the exact entered login/token with a fresh SDK authentication and
+enabled model catalogue. Setup cannot create an inference session or send
+an inference request. It stops and disposes the management runtime before
+publishing the account; cancellation joins late operations before reporting
+quiescence. Tokens are kept only in managed volatile memory, not preferences,
+logs or review content. Revocation, expiry and privacy closure remove the
+account/catalogue; managed memory is not a secure-zeroing guarantee.
+
+Refresh services/models, choose the current account-bound model and save its
+exact tuple, with a policy that admits hosted use. In Sessions, the separate
+**Submit explicitly with Copilot** action invokes
+[`SessionConversationService`](../src/Kora.Application/Hosting/SessionConversationService.cs)
+under the original retained request. A private native window displays every
+final body byte and noncredential header as inert text. No affirmative default
+is selected; closing, privacy loss, cancellation, stale authority or missing
+presentation denies transmission. The entire explicitly prepared Copilot turn,
+including human review and subsequent tool-result reviews, has a two-minute
+deadline; local turns keep their existing deadline. Successful bounded answers
+are committed to that same request as distinct ASSISTANT data in the existing
+private conversation store. Failed/denied turns retain no assistant answer.
+Ordinary submission and all local-only reviewed-source flows remain separate
+and cannot select hosted execution implicitly. Composition preserves the
+existing local resolver/factory and uses the same shared host admission gate.
+Deterministic tests cover account setup, final transport, host authorization,
+and original-request answer/refusal retention without live inference.
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)

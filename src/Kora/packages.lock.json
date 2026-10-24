@@ -228,6 +228,11 @@
           "SQLitePCLRaw.core": "2.1.12"
         }
       },
+      "Microsoft.Extensions.AI.Abstractions": {
+        "type": "Transitive",
+        "resolved": "10.2.0",
+        "contentHash": "ONGlIBht0ygEdKc0bCt9XWUiq19/460dAu7fCKzPM34OFJSMQIohEDTJwjCJ8vVp8znNakloc9xFF9+R/eDCYQ=="
+      },
       "Microsoft.Extensions.DependencyInjection.Abstractions": {
         "type": "Transitive",
         "resolved": "10.0.12",
@@ -419,6 +424,7 @@
       "kora.windows": {
         "type": "Project",
         "dependencies": {
+          "GitHub.Copilot.SDK": "[1.0.26, )",
           "KokoroSharp": "[0.8.4, )",
           "Kora.Core": "[0.1.0, )",
           "Microsoft.Extensions.Logging.Abstractions": "[10.0.12, )",
@@ -428,6 +434,16 @@
           "NAudio": "[3.1.0, )",
           "SkiaSharp": "[3.119.4, )",
           "System.Speech": "[10.0.12, )"
+        }
+      },
+      "GitHub.Copilot.SDK": {
+        "type": "CentralTransitive",
+        "requested": "[1.0.26, )",
+        "resolved": "1.0.26",
+        "contentHash": "z5irU7ylg09KnZIE/82lbk08ZZ6S0mHc0RA+EzYrOxYrdBm+GEx+QDLM5dqOYE0xwvBxWRIkSKeGHeUcMkQGuA==",
+        "dependencies": {
+          "Microsoft.Extensions.AI.Abstractions": "10.2.0",
+          "Microsoft.Extensions.Logging.Abstractions": "10.0.2"
         }
       },
       "KokoroSharp": {

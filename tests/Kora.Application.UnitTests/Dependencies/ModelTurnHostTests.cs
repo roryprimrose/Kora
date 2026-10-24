@@ -547,9 +547,10 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal long SessionProfileRevision { get; set; }
         internal bool SessionProfileHeld { get; set; }
         internal Action? AfterProfileRead { get; set; }
+        internal Func<SessionProviderProfile>? ProfileRead { get; set; }
         public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token)
         {
-            var result = new SessionProviderProfile(Session, SessionProfileRevision, SessionOverrides, SessionProfileHeld);
+            var result = ProfileRead?.Invoke() ?? new SessionProviderProfile(Session, SessionProfileRevision, SessionOverrides, SessionProfileHeld);
             AfterProfileRead?.Invoke();
             return ValueTask.FromResult(result);
         }
@@ -693,6 +694,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
 
     private sealed class ManualTime : TimeProvider
     {
+        internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
         private TimerCallback? callback;
         private object? state;
@@ -701,7 +703,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             this.callback = callback;
             this.state = state;
-            dueTime.Should().Be(TimeSpan.FromSeconds(15));
+            dueTime.Should().Be(ExpectedDeadline);
             return new FakeTimer();
         }
         internal void FireDeadline() => callback!(state);

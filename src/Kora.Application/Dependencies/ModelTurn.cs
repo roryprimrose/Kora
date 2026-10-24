@@ -43,7 +43,7 @@ public sealed class ModelTurn
     internal HostRevision TaskRevision { get; set; }
     internal Kora.Core.Storage.SessionWorkspaceEntry? ConversationTarget { get; set; }
     internal long ControlRevision { get; }
-    internal ModelProviderRegistration Registration { get; }
+    internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
     internal Kora.Application.Hosting.ConversationQuestionContinuation? QuestionContinuation { get; set; }

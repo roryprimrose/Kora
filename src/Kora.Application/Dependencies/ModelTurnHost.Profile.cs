@@ -8,7 +8,7 @@ namespace Kora.Application.Dependencies;
 public sealed partial class ModelTurnHost
 {
     private async Task<ModelTurnAdmission> AdmitConfiguredProfileAsync(ModelTurnChoice choice, ModelContextEnvelope context,
-        ModelHandoffReview? review, CancellationToken token)
+        ModelHandoffReview? review, CancellationToken token, CopilotTurnAuthorization? hostedAuthorization = null)
     {
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown)
@@ -59,10 +59,12 @@ public sealed partial class ModelTurnHost
                     admission = new(Finish(ModelTurnOutcome.Denied, review is null
                         ? ModelTurnReason.HandoffReviewRequired : ModelTurnReason.HandoffReviewStale));
                 }
+                else if (hostedAuthorization is not null && resolved.Tuple != hostedAuthorization.Profile)
+                { admission = new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
                 else if (!resolved.Current()) { admission = new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged)); }
                 else
                 {
-                    admission = await AdmitSelectionAsync(resolved.Selection, context, current, token, resolved.Tuple).ConfigureAwait(false);
+                    admission = await AdmitSelectionAsync(resolved.Selection, context, current, token, resolved.Tuple, hostedAuthorization).ConfigureAwait(false);
                     if (admission.Turn is { } turn)
                     {
                         turn.Policy = policy;

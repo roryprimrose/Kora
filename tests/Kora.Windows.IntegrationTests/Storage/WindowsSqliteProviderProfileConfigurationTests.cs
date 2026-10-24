@@ -34,7 +34,7 @@ public sealed class WindowsSqliteProviderProfileConfigurationTests
         await using var provider = services.BuildServiceProvider();
         var service = provider.GetRequiredService<ProviderProfileConfigurationService>();
         provider.GetRequiredService<ProviderProfileConfigurationService>().Should().BeSameAs(service);
-        provider.GetRequiredService<IProviderCapabilityCatalogue>().Should().BeOfType<WindowsOllamaRuntimeResolver>();
+        provider.GetRequiredService<IProviderCapabilityCatalogue>().Should().BeOfType<CopilotProviderCatalogue>();
         provider.GetRequiredService<IProviderProfilePreferences>().Should().BeOfType<LocalProviderProfilePreferences>();
         await service.RefreshAsync(RequestOrigin.LocalUi, static () => true, f.Token);
         service.Get().Desired!.Service.Should().Be(ProviderService.Local);

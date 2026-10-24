@@ -11,6 +11,15 @@ namespace Kora.Core.UnitTests.Conversation;
 
 public sealed class ConversationResponseTests
 {
+    [Theory]
+    [InlineData(ModelProviderIdentity.Ollama, true)]
+    [InlineData(ModelProviderIdentity.Copilot, true)]
+    [InlineData(ModelProviderIdentity.Claude, false)]
+    [InlineData(ModelProviderIdentity.Codex, false)]
+    [InlineData((ModelProviderIdentity)999, false)]
+    public void Retained_provider_format_support_is_not_execution_authority(ModelProviderIdentity provider, bool expected) =>
+        ConversationResponse.SupportsProvider(provider).Should().Be(expected);
+
     private static readonly HostRequest Request = HostRequest.Create(RequestOrigin.LocalUi);
     private static ModelTurnProvenance Provenance() => new(new(Guid.NewGuid()), Request, ModelProviderSelection.OllamaCandidate);
     private static ConversationMessage Original() => new(Request, new(1), 1, 1, DateTimeOffset.UnixEpoch, "original USER", null, null);
@@ -88,7 +97,7 @@ public sealed class ConversationResponseTests
             "origin" => response with { Provenance = p with { Request = HostRequest.Create(RequestOrigin.HostSystem) } },
             "null-body" => response with { Body = null! },
             "turn" => response with { Provenance = p with { Turn = default } },
-            "provider" => response with { Provenance = p with { Selection = ModelProviderSelection.CopilotCandidate } },
+            "provider" => response with { Provenance = p with { Selection = ModelProviderSelection.CopilotCandidate with { Provider = ModelProviderIdentity.Claude } } },
             "selection" => response with { Provenance = p with { Selection = null! } },
             "blank" => response with { Body = " \r\n" },
             "oversize" => response with { Body = new string('x', 4096) },

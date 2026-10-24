@@ -24,7 +24,7 @@ Existing security, provider, storage and qualification decisions below remain in
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
 | D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |
-| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | Local configurable input direction approved 2026-10-22; engine/profile selection and enablement open | [Speech-input design](Speech_Input.md); candidate benchmark, redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests; apply I/E/Q, not a monolithic implementation block |
+| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | sherpa-onnx/Silero development direction approved 2026-10-24; exact model/native/VAD bytes, alignment and enablement open | [Speech-input direction and admission evidence](Speech_Input.md#approved-development-direction-and-remaining-admission-evidence); redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests; apply I/E/Q, not a monolithic implementation block |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
 | D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for production model-assisted management; released-profile .NET MG1 envelope passes, historical witnesses unchanged | Carry MG1 bytes/deadline/admission/no-retry/Unknown quarantine to R13 using R04 host contracts. Applicable RT2 and management PV1 still require approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost evidence. Byte limits do not bound billed reasoning; deterministic fallback is independent. |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First production-accepted binary candidate | WiX MSI/custom Burn binary packaging, POC release automation, managed-source build-only tooling and immutable source-tool packaging/channel resolution implemented; source activation/installed/protection acceptance open, production release-blocking; historical NSIS receipts retained | Approved unsigned beta/stable POC publication is not D-005 closure. Static acquisition binds complete tool bytes to canonical exact-source Git identity; production excludes drafts/prereleases, preview explicitly admits published prereleases, and neither executes downloaded code. CI gates, per-release native/redistribution review, lifecycle/logon/upgrades and actual runtime/identity/protection trials remain required; follow R02-D01 through R17-D03 below. No install-capable updater; future signed-metadata trust is separately gated. |
@@ -164,7 +164,13 @@ preparation and later Settings setup through the same catalogue/services.
 Installed, selected, qualified and consented input remain separate; see the
 [installation/runtime lifecycle](Speech_Input.md#optional-installation-and-runtime-lifecycle).
 
-Benchmark at least:
+The 2026-10-24 product decision selects sherpa-onnx/Silero as the gated
+development direction, not an enabled profile. See the
+[exact evidence and unresolved wake-end boundary](Speech_Input.md#approved-development-direction-and-remaining-admission-evidence).
+The mode-independent lifecycle may merge while the production adapter stays
+unavailable. Engine code licensing does not admit model or native package bytes.
+
+The original candidate comparison includes:
 
 - `openWakeWord`
 - `sherpa-onnx` keyword spotting
@@ -172,7 +178,7 @@ Benchmark at least:
 
 Candidate inclusion is not approval.
 Verify code and model licences separately, including redistribution and commercial-use terms.
-Run the packaged acceptance corpus on the reference Windows hardware before selecting an engine.
+Run the packaged acceptance corpus on the reference Windows hardware before enabling the selected exact profile.
 Record the selected engine/model/version, rejected alternatives, threshold rationale, and known accents/noise limitations.
 
 ## D-003 Local Inference Baseline

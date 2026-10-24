@@ -2005,7 +2005,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        Volatile.Read(ref listeningStopRequests) == 0 && listeningStop.CanRecover
+        Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
         && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
@@ -2024,7 +2024,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public string ListeningButtonText => IsVoiceEnabled ? "Disable listening" : "Enable listening";
 
-    public string ListeningStatus => IsListening
+    public string ListeningStatus => ActiveHandsFreeVoiceStatus ?? (IsListening
         ? SelectedMicrophone is { } activeMicrophone
             ? $"Recording on {activeMicrophone.Name}"
             : "Recording · checking microphone selection"
@@ -2041,7 +2041,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 : listeningPauseReason
               ?? (IsVoiceActivationAvailable
                   ? "Microphone closed"
-                  : "Microphone closed · voice activation paused during detected call");
+                  : "Microphone closed · voice activation paused during detected call"));
 
     public async Task InitializeAsync()
     {
@@ -3436,6 +3436,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     "Push-to-talk is ready.",
                     "The microphone remains closed until you press and hold Push to talk. Production wake detection is unavailable.");
             }
+            IsBusy = false;
+            await StartHandsFreeVoiceAsync(explicitListeningRecovery);
         }
         catch (ArgumentOutOfRangeException exception)
         {
@@ -3970,10 +3972,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
-    private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs)
+    private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs) =>
+        await DispatchRecognizedVoiceTranscriptAsync(eventArgs);
+
+    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null)
     {
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
-        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+        using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
         if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
@@ -4003,6 +4008,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
                     newRequestEligibility, currentResponseInput, questionTarget));
+            if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
+            {
+                await handsFree.ResumeAfterActivatedInputAsync();
+            }
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

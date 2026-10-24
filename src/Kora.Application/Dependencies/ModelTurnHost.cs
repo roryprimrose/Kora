@@ -27,6 +27,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ProviderProfileConfigurationService? providerProfileConfiguration;
     private readonly ISessionProviderProfileStore? sessionProfiles;
     private readonly IModelProviderRegistrationSource? registrationSource;
+    private readonly HostedTransmissionReviewService? hostedReviews;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -34,7 +35,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private volatile bool disposed;
     private Task? disposal;
 
-    public bool IsQuiescent { get { lock (dispatchGate) { return quiescence is null || quiescence.Task.IsCompleted; } } }
+    public bool IsQuiescent
+    {
+        get
+        {
+            lock (dispatchGate)
+            {
+                return (quiescence is null || quiescence.Task.IsCompleted)
+                    && registrations.All(item => item.Adapter?.IsQuiescent != false);
+            }
+        }
+    }
 
     public ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
@@ -50,7 +61,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
         ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
-        ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null)
+        ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null,
+        HostedTransmissionReviewService? hostedReviews = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -64,6 +76,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.sessionProfiles = sessionProfiles;
         this.registrationSource = registrationSource;
+        this.hostedReviews = hostedReviews;
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -72,7 +85,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async Task<ModelTurnAdmission> AdmitSelectionAsync(ModelProviderSelection selection,
         ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken,
-        Kora.Core.Providers.ProviderProfileTuple? profile = null)
+        Kora.Core.Providers.ProviderProfileTuple? profile = null, CopilotTurnAuthorization? hostedAuthorization = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
         var current = HostActivity.Current;
@@ -130,7 +143,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 }
                 else
                 {
-                    if (profile is not null && selection.Provider == ModelProviderIdentity.Ollama && registrationSource is not null)
+                    if (profile is not null && registrationSource is not null
+                        && (selection.Provider == ModelProviderIdentity.Ollama || hostedAuthorization is not null))
                     { registration = await registrationSource.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false); }
                     cancellationToken.ThrowIfCancellationRequested();
                     if (!Eligible(revision))
@@ -139,7 +153,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                     { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel, provenance); }
                     else if (!registration.IsQualified(time.GetUtcNow()))
                     { result = Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.QualificationPending, provenance); }
-                    else if (selection.Provider != ModelProviderIdentity.Ollama)
+                    else if (selection.Provider != ModelProviderIdentity.Ollama
+                        && !HostedAuthorized(registration, hostedAuthorization, context, issuer))
                     {
                         // Hosted eligibility is not destination/content approval. Local composition cannot clear this denial.
                         result = Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted, provenance);
@@ -148,6 +163,14 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                     {
                         turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
                             revision, registration);
+                        if (hostedAuthorization is not null && registration.Adapter is CopilotModelTurnAdapter copilot)
+                        {
+                            var boundTurn = turn;
+                            turn.Registration = registration with
+                            {
+                                Adapter = copilot.Bind(hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
+                            };
+                        }
                         var refreshed = profile is not null && registrationSource is not null
                             ? await RevalidateAsync(turn, cancellationToken).ConfigureAwait(false) : ModelTurnReason.None;
                         if (refreshed != ModelTurnReason.None)
@@ -195,7 +218,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         Tag(turn.Provenance);
         var requested = StartAudit(turn.Provenance);
         using var deadline = new CancellationTokenSource(turn.Context.Constraints is { } constraints
-            ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds) : Deadline, time);
+            ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds)
+            : turn.Registration.Adapter is CopilotModelTurnAdapter ? CopilotTurnAuthorization.MaximumDuration : Deadline, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token);
         ModelTurnResult result;
         try
@@ -475,6 +499,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        if (!IsQuiescent)
+        { throw new InvalidOperationException("The model runtime has not confirmed resource quiescence."); }
         lock (policyGate) { policies.Clear(); }
         try
         {

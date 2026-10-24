@@ -25,7 +25,13 @@ internal static class ProviderProfileComposition
         services.AddSingleton<OllamaAdmissionWorkflow>();
         services.AddSingleton<IWindowsOllamaQualificationSource>(provider => provider.GetRequiredService<WindowsOllamaAdmissionBroker>());
         services.AddSingleton<WindowsOllamaRuntimeResolver>();
-        services.AddSingleton<IProviderCapabilityCatalogue>(provider => provider.GetRequiredService<WindowsOllamaRuntimeResolver>());
+        services.AddSingleton<ICopilotDeploymentApprovalSource, UnavailableCopilotDeploymentApprovalSource>();
+        services.AddSingleton<CopilotAccountBroker>();
+        services.AddSingleton<ICopilotExecutionAccountSource>(provider => provider.GetRequiredService<CopilotAccountBroker>());
+        services.AddSingleton<CopilotSdkTurnRuntime>();
+        services.AddSingleton<Kora.Application.Dependencies.HostedTransmissionReviewService>();
+        services.AddSingleton<IProviderCapabilityCatalogue, CopilotProviderCatalogue>();
+        services.AddSingleton<CopilotModelProviderFactory>();
         services.AddSingleton<OllamaModelProviderFactory>();
         services.AddSingleton<ILocalProviderInstallationObservation, WindowsOllamaInstallationObservation>();
         services.AddSingleton<IProviderProfilePreferences>(provider =>

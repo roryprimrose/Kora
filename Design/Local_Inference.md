@@ -110,19 +110,45 @@ its existing task, original-channel, tool, result and physical-quiescence fences
 The native transport independently rechecks runtime version and selected model
 digest before chat dispatch, rejects redirects and never chooses another endpoint.
 
-**Enablement remains unavailable.** The shipped
-[qualification source](../src/Kora/UnqualifiedOllamaQualificationSource.cs)
-has no accepted receipt and offers no executable profile. It does not inspect
-or adopt an installed model as qualification, auto-install/start Ollama, initiate
-authentication, or fall back to hosted inference. A future enablement change
-must supply an approved trusted receipt issuer and the exact profile's required
-evidence; a preference file or an arbitrary JSON manifest is not such an issuer.
+**Enablement remains unavailable.** The shipped [release qualification authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)
+accepts no attestation pins, so the production catalogue offers no executable profile.
+The [host admission workflow](../src/Kora.Application/Dependencies/OllamaAdmissionWorkflow.cs) and
+[native receipt producer](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionBroker.cs) are implemented; they do not manufacture missing qualification.
+They never adopt an installed model as qualification, auto-install/start Ollama, initiate authentication, or fall back to hosted inference.
 No existing rejected runtime/model is qualified, no readiness observation sets
 `ToolLoopQualified`, and no legacy/global reasoner fallback is used.
 `IModelTurnAdmission` and `IModelTurnExecution` resolve the same host singleton.
 That host supplies the live continuation guard around each exchange/tool and
 retains the session consumer's current-source fence; native composition does
 not call the engine's deliberately refused unguarded entry.
+
+### Qualification authority and governed admission
+
+The [attestation contract](../src/Kora.Core/Providers/LocalModelQualificationEvidence.cs) accepts only bounded, exact SHA-256-pinned bytes supplied by the build's release authority.
+Adding an accepted resource and its pin requires an independently reviewed enablement change, not a user-imported manifest, preference edit, consent click or deterministic test result.
+There are no accepted production resources or pins in this increment ([bundled authority](../src/Kora.Definitions/Qualifications/BundledLocalModelQualificationAuthority.cs)).
+
+An attestation binds `kora-ollama-native-v1`, exact profile/revision, executable digest/runtime version, model name/digest, `off`/`bounded` options and validity interval.
+Its seven required passed proofs each bind a source commit, run ID and evidence artifact SHA-256: licence/identity, quality/authority, bounds, cancellation/recovery, resource/latency, offline/egress and integrated host.
+The host validates the release-pinned attestation's integrity and complete shape; it does not execute qualification, fetch proof artifacts, infer passing outcomes from installed software, or convert review into qualification ([parser](../src/Kora.Core/Providers/LocalModelQualificationEvidence.cs)).
+Release admission must verify those independent artifacts before accepting their attestation; the pin authenticates that reviewed release decision, not arbitrary model assertions.
+
+The [native observer](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionObservation.cs) can inspect only the supported per-user executable and fixed `127.0.0.1:11434` metadata.
+It verifies executable hash, process ID/start, listener ownership, current Windows account/session, runtime version and exact model digest.
+It starts no process and performs no model inference; inaccessible, ambiguous, stale or changed identity is unavailable rather than a substitute.
+The [broker](../src/Kora.Windows/Dependencies/WindowsOllamaAdmissionBroker.cs) retains opaque candidates and receipts only in memory, rechecks trusted evidence and current identity before use, and revokes on loss.
+
+The [Application workflow](../src/Kora.Application/Dependencies/OllamaAdmissionWorkflow.cs) owns a short-lived, exact original-channel review followed by separate confirmation under the existing durable host-control session.
+It requires current original-user eligibility, typed requested/terminal audit, shared atomic preference writes and exact readback before publishing a receipt.
+The [persisted format](../src/Kora.Core/Providers/LocalModelAdmissionPreference.cs) stores only evidence/profile/account/review time/expiry, never PID, executable path, session authority or a reusable process capability.
+A [pending marker](../src/Kora.Application/Configuration/LocalModelAdmissionPreferences.cs), malformed choice or audit/persistence failure blocks publication and requires explicit recovery.
+Restart does not restore live authority; revocation closes Kora's receipt without stopping the external process.
+
+The [native Settings controls](../src/Kora/SettingsWindow.LocalModelAdmission.cs) expose Review, Allow and Revoke.
+With this build's empty accepted set, Review reports the missing release-qualified profile and does not inspect or run Ollama.
+Equivalent original LocalUi/ActivatedVoice admission semantics and failed persistence/revocation are exercised by [portable workflow tests](../tests/Kora.Application.UnitTests/Dependencies/OllamaAdmissionWorkflowTests.cs).
+The [Windows integration tests](../tests/Kora.Windows.IntegrationTests/Dependencies/OllamaAdmissionWorkflowTests.cs) exercise real durable host admission with fake qualification/process observations, including source-read/replacement races.
+These are implementation evidence, not qualification of any runtime/model or a claim of a working user-visible inference backend.
 
 Deterministic [resolver tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaRuntimeResolverTests.cs)
 cover missing/stale/revoked evidence, unknown installation, dead or changed

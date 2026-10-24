@@ -2,6 +2,7 @@ using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 using Kora.Windows.Dependencies;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
@@ -14,9 +15,9 @@ internal sealed class OllamaModelProviderFactory(
         CancellationToken cancellationToken)
     {
         var receipt = await resolver.ResolveAsync(selection, profile, cancellationToken).ConfigureAwait(false);
-        return receipt is null ? null : new(selection,
+        return receipt?.QualificationEvidence is not { } evidence || !evidence.IsCurrent(time.GetUtcNow()) ? null : new(selection,
             ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
             receipt.Catalogue.ValidUntil, new OllamaModelTurnAdapter(resolver, receipt, time, logging, createTransport),
-            () => receipt.IsCurrent(time.GetUtcNow()));
+            () => receipt.IsCurrent(time.GetUtcNow()) && evidence.IsCurrent(time.GetUtcNow()));
     }
 }

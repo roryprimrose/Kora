@@ -1,7 +1,9 @@
 using System.Net;
 using System.Net.Http.Headers;
+
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
+
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -40,7 +42,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     public WindowsOllamaToolTransport(Func<ModelToolRequest, WindowsOllamaToolEndpointBinding?> resolveBinding,
         TimeProvider time, ILogger<WindowsOllamaToolTransport> logger)
         : this(CreateOwnedClient(resolveBinding, time, logger), resolveBinding,
-            WindowsOllamaToolProcessObservation.IsCurrentAsync, time, logger) { }
+            WindowsOllamaToolProcessObservation.IsCurrentAsync, time, logger)
+    { }
 
     internal WindowsOllamaToolTransport(HttpClient client,
         Func<ModelToolRequest, WindowsOllamaToolEndpointBinding?> resolveBinding,
@@ -243,7 +246,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         return ModelTurnOutcome.Succeeded;
     }
 
-    private static ModelTurnOutcome Status(HttpResponseMessage response, HttpRequestMessage request)
+    internal static ModelTurnOutcome Status(HttpResponseMessage response, HttpRequestMessage request)
     {
         if (response.RequestMessage?.RequestUri != request.RequestUri
             || (int)response.StatusCode is >= 300 and < 400)
@@ -257,7 +260,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         return ModelTurnOutcome.Succeeded;
     }
 
-    private static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)
+    internal static async Task<byte[]> ReadBoundedAsync(HttpContent content, int limit, CancellationToken token)
     {
         if (content.Headers.ContentLength > limit)
         { throw new InvalidDataException("The complete native response exceeds the remaining host output budget."); }

@@ -1408,6 +1408,16 @@
             <TextBlock Text="These are app defaults. Changing them does not sign in, send data, download a model or run a request. Session-specific choices are reviewed separately; changes for a single request are not yet available."
                        Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <TextBlock Text="On-device runtime access" FontSize="20" FontWeight="SemiBold" />
+            <TextBlock Text="Review independently release-qualified evidence and the exact running runtime before allowing use. Consent does not qualify an unverified model. Saved choices never authorize a process after restart. This does not install or start Ollama."
+                       Classes="settings-description" TextWrapping="Wrap" />
+            <WrapPanel ItemSpacing="8" LineSpacing="6">
+              <Button Content="Review local runtime" Click="OnReviewLocalAdmission" IsEnabled="{Binding CanChangeProviderProfile}" />
+              <Button Content="Allow reviewed runtime" Click="OnConfirmLocalAdmission" IsEnabled="{Binding CanChangeProviderProfile}" />
+              <Button Content="Revoke local runtime access" Click="OnRevokeLocalAdmission" IsEnabled="{Binding CanChangeProviderProfile}" />
+            </WrapPanel>
+            <TextBlock x:Name="LocalAdmissionStatus" Text="No local runtime has been admitted in this host lifetime. Review to inspect availability and recovery."
+                       Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Review pending service change" Click="OnReviewHandoffClicked"
                     AutomationProperties.Name="Review pending AI service change" />
             <TextBlock Text="Available only when Kora has a service change ready for your review. Opening the review does not send data or run a request."

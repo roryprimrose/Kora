@@ -143,23 +143,63 @@ public sealed partial class SharedSkillDiscoveryService(
             await useAdmission.CommitAsync(request, session, live, () => { RequireRegistration(source); return true; },
                 currentToken).ConfigureAwait(false);
             var current = await reader.DiscoverAsync(source, currentToken).ConfigureAwait(false);
+            SharedSkillSnapshot? bundle = null;
+            if (snapshot.ReferenceBundle is not null)
+            {
+                if (!Matches(current, snapshot)) { throw new InvalidOperationException("The declared skill revision changed."); }
+                bundle = await reader.ReadReferencesAsync(source, snapshot, currentToken).ConfigureAwait(false);
+            }
             await useAdmission.CommitAsync(request, session, live, () =>
             {
                 RequireRegistration(source);
-                if (current.Source != source || !Matches(current, snapshot))
+                if (current.Source != source || !Matches(current, snapshot)
+                    || bundle is not null && (!bundle.IsInstructionCompatible || !string.Equals(bundle.RevisionDigest, snapshot.RevisionDigest, StringComparison.Ordinal)))
                 { throw new InvalidOperationException("The exact reviewed shared skill source changed; review and enable again."); }
                 return true;
             }, currentToken).ConfigureAwait(false);
             return true;
         }, token);
 
+    internal Task<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSnapshot snapshot, SharedSkillSource source,
+        SharedSkillUseAdmission useAdmission, Func<bool> eligible, Kora.Core.Hosting.RequestOrigin origin, CancellationToken token) =>
+        useAdmission.RunAsync(origin, eligible, async (request, session, live, currentToken) =>
+        {
+            var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.SecurityApproval,
+                "skills.references.read", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
+                $"shared-revision.{snapshot.SourceId:N}.{snapshot.RevisionDigest}");
+            await useAdmission.CommitAsync(request, session, live, () =>
+            { RequireRegistration(source); auditLog.Write(entry); return true; }, currentToken).ConfigureAwait(false);
+            try
+            {
+                var result = await reader.ReadReferencesAsync(source, snapshot, currentToken).ConfigureAwait(false);
+                return await useAdmission.CommitAsync(request, session, live, () =>
+                {
+                    RequireRegistration(source);
+                    if (!result.IsInstructionCompatible || result.ReferenceBundle is null
+                        || result.SourceId != snapshot.SourceId || !string.Equals(result.RelativeFile, snapshot.RelativeFile, StringComparison.Ordinal)
+                        || !string.Equals(result.PackageDirectoryIdentity, snapshot.PackageDirectoryIdentity, StringComparison.Ordinal)
+                        || !result.Bytes.SequenceEqual(snapshot.Bytes))
+                    { throw new InvalidDataException("Reference capture did not return the exact complete reviewed package."); }
+                    auditLog.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
+                    return result;
+                }, currentToken).ConfigureAwait(false);
+            }
+            catch
+            {
+                auditLog.Write(entry.WithOutcome(SecurityAuditOutcome.Failed, "reference-read-unconfirmed"));
+                throw;
+            }
+        }, token);
+
     private static bool Matches(SharedSkillCatalogue current, SharedSkillSnapshot snapshot) =>
         current.Packages.Any(package => string.Equals(package.SourceQualifiedIdentity, snapshot.SourceQualifiedIdentity, StringComparison.Ordinal)
             && string.Equals(package.RelativeFile, snapshot.RelativeFile, StringComparison.Ordinal)
-            && string.Equals(package.RevisionDigest, snapshot.RevisionDigest, StringComparison.Ordinal)
             && package.Bytes.SequenceEqual(snapshot.Bytes)
+            && string.Equals(package.PackageDirectoryIdentity, snapshot.PackageDirectoryIdentity, StringComparison.Ordinal)
             && package.UninspectedFiles.SequenceEqual(snapshot.UninspectedFiles, StringComparer.Ordinal)
-            && package.UnavailableReasons.SequenceEqual(snapshot.UnavailableReasons, StringComparer.Ordinal));
+            && (snapshot.ReferenceBundle is null
+                ? package.UnavailableReasons.SequenceEqual(snapshot.UnavailableReasons, StringComparer.Ordinal)
+                : package.IsReferenceCandidate));
 
     private void RequireRegistration(SharedSkillSource source)
     {

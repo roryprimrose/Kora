@@ -13,7 +13,7 @@ public sealed record SpeechTextCommand(AppearanceCommandOperation Operation, Spe
     public const string DelayId = "display.speech-text-dismissal-delay";
     public const string PinId = "display.speech-text-pin";
     public const string Syntax = "list speech text settings | get display.speech-text | status display.speech-text | "
-        + "set display.speech-text to Off|CurrentUtterance | reset display.speech-text | "
+        + "set display.speech-text to Off|CurrentUtterance|CurrentSentence | reset display.speech-text | "
         + "get/status/set/reset display.speech-text-placement (BottomRight|BottomLeft|TopRight|TopLeft) | "
         + "get/status/set/reset display.speech-text-dismissal-delay (canonical integer seconds 0-30; default 5) | "
         + "get/status/set/reset display.speech-text-pin (true|false; current caption only) | "

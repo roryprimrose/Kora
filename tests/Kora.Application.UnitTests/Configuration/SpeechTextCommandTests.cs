@@ -14,6 +14,7 @@ public sealed class SpeechTextCommandTests
     [InlineData("reset display.speech-text", AppearanceCommandOperation.Reset, null)]
     [InlineData("set display.speech-text to Off", AppearanceCommandOperation.Set, SpeechTextMode.Off)]
     [InlineData("set display.speech-text to CurrentUtterance", AppearanceCommandOperation.Set, SpeechTextMode.CurrentUtterance)]
+    [InlineData("set display.speech-text to CurrentSentence", AppearanceCommandOperation.Set, SpeechTextMode.CurrentSentence)]
     public void Exact_current_name_and_bare_commands_share_one_contract(string input, AppearanceCommandOperation operation, SpeechTextMode? value)
     {
         foreach (var text in new[] { input, "Nova, " + input, "nova " + input.ToUpperInvariant() })

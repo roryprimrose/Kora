@@ -90,7 +90,12 @@ internal static class SettingsText
         : Unavailable(state.Recovery);
 
     public static string Describe(SpeechTextState state) => state.Available && state.Effective is { } mode
-        ? (mode == SpeechTextMode.Off ? "Captions are off. " : "Show the words Kora speaks. ") + Source(state.Source)
+        ? (mode switch
+        {
+            SpeechTextMode.Off => "Captions are off. ",
+            SpeechTextMode.CurrentSentence => "Current sentence requested. Captions are unavailable without exact-profile qualified alignment; the complete answer remains visual. ",
+            _ => "Show the words Kora speaks. ",
+        }) + Source(state.Source)
         : Unavailable(state.Recovery);
 
     public static string Describe(ProviderProfileConfigurationState state)

@@ -38,12 +38,24 @@ public sealed class LocalSpeechTextPreferencesTests : IDisposable
     [InlineData("0")]
     [InlineData("off")]
     [InlineData("Off\n")]
-    [InlineData("CurrentSentence")]
+    [InlineData("currentSentence")]
     public void Corruption_never_becomes_a_default(string contents)
     {
         Directory.CreateDirectory(Path.Combine(root, "Preferences"));
         File.WriteAllText(Path.Combine(root, "Preferences", "speech-text-mode.txt"), contents);
         Create().Invoking(item => item.Load()).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void Sentence_mode_roundtrips_explicitly_without_persisting_text()
+    {
+        var preferences = Create();
+        preferences.BeginWrite();
+        preferences.Save(SpeechTextMode.CurrentSentence);
+        preferences.ReadBack().Should().Be(SpeechTextMode.CurrentSentence);
+        preferences.ConfirmWrite();
+        Create().Load().Should().Be(SpeechTextMode.CurrentSentence);
+        File.ReadAllText(Path.Combine(root, "Preferences", "speech-text-mode.txt")).Should().Be("CurrentSentence");
     }
 
     public void Dispose() { if (Directory.Exists(root)) { Directory.Delete(root, recursive: true); } }

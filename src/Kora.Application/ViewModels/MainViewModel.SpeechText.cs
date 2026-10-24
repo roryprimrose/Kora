@@ -26,7 +26,9 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     public string? SpeechCaptionText => speechCaptionText;
     public bool IsSpeechCaptionPinned => speechCaption.IsPinned;
     public bool IsPreviousSpeechCaption => speechCaption.IsPreviousSpeech;
-    public string SpeechCaptionLabel => IsPreviousSpeechCaption ? "PREVIOUS SPEECH" : "CURRENT PLAYBACK - UTTERANCE";
+    public string SpeechCaptionLabel => IsPreviousSpeechCaption ? "PREVIOUS SPEECH"
+        : speechTextConfiguration?.Get().Effective == SpeechTextMode.CurrentSentence
+            ? "CURRENT PLAYBACK - SENTENCE" : "CURRENT PLAYBACK - UTTERANCE";
     public string SpeechCaptionPinLabel => IsSpeechCaptionPinned ? "Unpin" : "Pin";
     public SpeechCaptionPlacement? SpeechCaptionPlacement =>
         speechTextConfiguration?.Get().EffectiveCaptionOptions?.Placement;
@@ -99,9 +101,16 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     {
         RetireSpeechCaption();
         var captionState = speechTextConfiguration?.Get();
-        if (captionState?.Effective is not SpeechTextMode.CurrentUtterance)
+        if (captionState?.Effective is not (SpeechTextMode.CurrentUtterance or SpeechTextMode.CurrentSentence))
         {
             return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, cancellationToken);
+        }
+        if (captionState.Effective == SpeechTextMode.CurrentSentence)
+        {
+            forceVisualResponse = true;
+            NotifyOutputPolicyChanged();
+            if (CanRevealPrivatePresentation) { WindowActionRequested?.Invoke(this, WindowAction.Show); }
+            if (!playbackEligible()) { throw new OperationCanceledException("Speech output was retired before playback."); }
         }
         var request = HostActivity.RequireCurrent().Request;
         captionPresentationContext = HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Presentation);
@@ -117,9 +126,11 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             && privacyObservation.Current.MicrophoneAccess == privacy.MicrophoneAccess
             && recovery == Interlocked.Read(ref voiceRecoveryRevision)
             && (request.Origin != RequestOrigin.ActivatedVoice || voiceRecognition.Generation == voiceGeneration)
-            && speechTextConfiguration?.Get() is { Available: true, Effective: SpeechTextMode.CurrentUtterance } current
+            && speechTextConfiguration?.Get() is { Available: true } current
+            && current.Effective == captionState.Effective
             && current.Revision == captionState.Revision;
-        var id = speechCaption.Bind(response, request, exactText, Eligible, captionState.EffectiveCaptionOptions);
+        var id = speechCaption.Bind(response, request, exactText, Eligible, captionState.EffectiveCaptionOptions,
+            captionState.Effective.Value);
         return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, cancellationToken);
     }
 
@@ -212,6 +223,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
         SelectedSpeechTextChoice = SpeechTextChoices.FirstOrDefault(choice => choice.Mode == captionState.Effective);
         OnPropertyChanged(nameof(SpeechTextChoices));
         OnPropertyChanged(nameof(SpeechTextConfigurationStatus));
+        OnPropertyChanged(nameof(SpeechCaptionLabel));
         OnPropertyChanged(nameof(CanChangeSpeechText));
         SelectedSpeechCaptionChoice = null;
         OnPropertyChanged(nameof(SpeechCaptionOptionChoices));

@@ -25,6 +25,7 @@ public sealed class SpeechTextChoice
     {
         SpeechTextMode.Off => "Off",
         SpeechTextMode.CurrentUtterance => "Show spoken words",
+        SpeechTextMode.CurrentSentence => "Current sentence (requires qualified alignment)",
         _ => throw new InvalidOperationException("A caption mode or option is required."),
     };
     internal long Revision { get; }

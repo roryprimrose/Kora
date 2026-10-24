@@ -203,13 +203,22 @@ configuration, general tools or A0-A4 acceptance. See the
 
 ### Delivered bounded local speech text (R25)
 
-Schema-1 **`display.speech-text`** supports exact `Off` and `CurrentUtterance`;
+Schema-1 **`display.speech-text`** supports exact `Off`, `CurrentUtterance` and `CurrentSentence`;
 unsaved/default/reset is **Off**. Native **Inspect speech text**, explicit
 host-held choice/save and reset share the same service as
 `list speech text settings`, `get/status display.speech-text`,
-`set display.speech-text to Off|CurrentUtterance`, and
+`set display.speech-text to Off|CurrentUtterance|CurrentSentence`, and
 `reset display.speech-text`. The current assistant-name prefix is accepted only
 on the exact activated route; no fuzzy/model interpretation is advertised.
+
+`CurrentSentence` roundtrips through the same audited atomic preferences,
+readback, restart and native choice service. Saving it does not enable alignment,
+synthesize or replay speech. It requests only exact source sentences reached by
+matching actual playback. No Windows voice/rate/output profile is qualified in
+this build, so sentence captions remain explicitly unavailable and the full
+visual answer remains available. Missing, malformed, stale or unknown-provider
+evidence never falls back to an utterance caption or estimated timing.
+See the [versioned source and native alignment contract](Information_Display.md#optional-speech-text).
 
 The [bounded natural caption grammar](Information_Display.md#bounded-natural-speech-caption-commands) now maps original typed/current-name activated whole utterances to these same commands. Show/on saves `CurrentUtterance`; hide/off saves `Off`, not one-shot visibility. `reset speech captions` resets mode only; placement/delay have independent reset phrases ([parser and syntax help](../src/Kora.Application/Configuration/SpeechTextCommand.cs)).
 

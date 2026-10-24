@@ -12,6 +12,10 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
     private Guid responseId;
     private HostRequest? request;
     private string? text;
+    private SpeechSentenceMap? sentenceMap;
+    private bool sentenceMode;
+    private string? observedText;
+    private SpeechSentencePosition? lastSentence;
     private Func<bool>? eligible;
     private long? generation;
     private bool observedPlaying;
@@ -25,7 +29,7 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
     public bool IsPreviousSpeech { get { lock (gate) { return completed && text is not null; } } }
 
     public Guid Bind(Guid response, HostRequest hostRequest, string exactText, Func<bool> remainsEligible,
-        SpeechCaptionOptions? options = null)
+        SpeechCaptionOptions? options = null, SpeechTextMode mode = SpeechTextMode.CurrentUtterance)
     {
         ArgumentException.ThrowIfNullOrWhiteSpace(exactText);
         lock (gate)
@@ -34,6 +38,8 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
             responseId = response;
             request = hostRequest;
             text = exactText;
+            sentenceMode = mode == SpeechTextMode.CurrentSentence;
+            sentenceMap = sentenceMode ? SpeechSentenceMap.Create(exactText) : null;
             eligible = remainsEligible;
             delaySeconds = (options ?? SpeechCaptionOptions.Default).DismissalDelaySeconds;
             playbackId = Guid.NewGuid();
@@ -68,7 +74,7 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
                     Retire();
                     return null;
                 }
-                return text;
+                return observedText;
             }
             if (!frame.IsPlaying)
             {
@@ -82,8 +88,34 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
                 return null;
             }
             generation = frame.Generation;
+            if (sentenceMode)
+            {
+                if (!frame.SentenceAlignmentAvailable || sentenceMap is null)
+                {
+                    Retire();
+                    return null;
+                }
+                if (frame.Sentence is not { } sentence)
+                {
+                    if (lastSentence is not null) { Retire(); }
+                    return null;
+                }
+                if (!sentenceMap.Matches(sentence)
+                    || lastSentence is { } previous && (sentence.Index < previous.Index
+                        || sentence.PlaybackPosition < previous.PlaybackPosition
+                        || sentence.AudioDuration != previous.AudioDuration
+                        || sentence.Index == previous.Index && sentence.AudioStart != previous.AudioStart
+                        || sentence.Index > previous.Index && sentence.AudioStart <= previous.AudioStart))
+                {
+                    Retire();
+                    return null;
+                }
+                lastSentence = sentence;
+                observedText = sentenceMap.GetText(sentenceMap.Sentences[sentence.Index]);
+            }
+            else { observedText = text; }
             observedPlaying = true;
-            return text;
+            return observedText;
         }
     }
 
@@ -115,6 +147,10 @@ internal sealed class SpeechCaption(TimeProvider? timeProvider = null)
         lock (gate)
         {
             text = null;
+            sentenceMap = null;
+            observedText = null;
+            lastSentence = null;
+            sentenceMode = false;
             request = null;
             eligible = null;
             generation = null;

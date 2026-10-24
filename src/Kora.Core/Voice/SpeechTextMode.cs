@@ -4,4 +4,5 @@ public enum SpeechTextMode
 {
     Off,
     CurrentUtterance,
+    CurrentSentence,
 }

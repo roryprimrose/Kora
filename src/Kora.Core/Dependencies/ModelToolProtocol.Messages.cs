@@ -6,7 +6,8 @@ namespace Kora.Core.Dependencies;
 
 public static partial class ModelToolProtocol
 {
-    public static ModelAssistantMessage ParseAssistant(ReadOnlySpan<byte> wire, bool clarificationAllowed = false)
+    public static ModelAssistantMessage ParseAssistant(ReadOnlySpan<byte> wire, bool clarificationAllowed = false,
+        Mcp.McpModelTool? mcpTool = null)
     {
         using var document = ReadJson(wire, MaximumOutputUtf8Bytes);
         var root = document.RootElement;
@@ -40,12 +41,20 @@ public static partial class ModelToolProtocol
             var capabilityId = ReadString(call, "capabilityId");
             if (!ValidCallId(callId) || !ids.Add(callId))
             { throw new InvalidDataException("Tool-call correlation must be unique bounded ASCII, not host identity."); }
+            var input = call.GetProperty("input").GetRawText();
+            if (mcpTool is not null)
+            {
+                if (!string.Equals(capabilityId, mcpTool.Id, StringComparison.Ordinal))
+                { throw new InvalidDataException("The external capability is not in this exact request."); }
+                new Mcp.McpToolSchema(mcpTool.InputSchema).ValidateArguments(input);
+                result.Add(new(callId, capabilityId, input));
+                continue;
+            }
             var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId)
                 ?? Network.LocalWebPageTool.FindExact(capabilityId);
             if (descriptor is null || descriptor.Availability != CapabilityAvailability.Available
                 || !descriptor.CallerLanes.Contains(CapabilityLane.Execution))
             { throw new InvalidDataException("The requested capability is not in the available execution catalogue."); }
-            var input = call.GetProperty("input").GetRawText();
             if (CapabilityInputPolicy.Read(descriptor, input).DenialReason is not null)
             { throw new InvalidDataException("The complete capability input is not admitted."); }
             result.Add(new(callId, capabilityId, input));
@@ -53,14 +62,33 @@ public static partial class ModelToolProtocol
         return new ModelAssistantToolCalls(result.ToImmutable());
     }
 
-    public static ModelToolResultMessage CreateToolResult(ModelToolCall call, CapabilityReply reply)
+    public static ModelToolResultMessage CreateToolResult(ModelToolCall call, CapabilityReply reply,
+        Mcp.McpModelTool? mcpTool = null)
     {
         ArgumentNullException.ThrowIfNull(call);
         ArgumentNullException.ThrowIfNull(reply);
         if (reply.Outcome != CapabilityOutcome.Succeeded || string.IsNullOrWhiteSpace(reply.Reason)
             || !CapabilityReplyWire.IsWithinLimit(reply))
         { throw new InvalidDataException("The host tool result is invalid or exceeds its complete bound."); }
-        ValidateResult(call, reply);
+        if (mcpTool is null) { ValidateResult(call, reply); }
+        else
+        {
+            new Mcp.McpToolSchema(mcpTool.InputSchema).ValidateArguments(call.InputJson);
+            if (!string.Equals(call.CapabilityId, mcpTool.Id, StringComparison.Ordinal)
+                || reply.Mcp is not { } external || !string.Equals(external.ToolId, call.CapabilityId, StringComparison.Ordinal)
+                || external.SourceRevision.Length != 64 || external.SourceRevision.Any(character => !char.IsAsciiHexDigit(character))
+                || external.ObservedAt.Offset != TimeSpan.Zero
+                || reply.WebPage is not null || reply.Capabilities is not null || reply.Descriptor is not null
+                || reply.Version is not null || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null)
+            { throw new InvalidDataException("The external result does not match its exact requested tool and provenance."); }
+            ValidateText(external.Text);
+            if (external.StructuredJson is { } structured)
+            {
+                using var inert = ReadJson(StrictUtf8.GetBytes(structured), Mcp.McpProtocol.MaximumResultUtf8Bytes);
+                if (inert.RootElement.ValueKind != JsonValueKind.Object)
+                { throw new InvalidDataException("External structured content requires an inert object."); }
+            }
+        }
         var wire = CapabilityReplyWire.Serialize(reply);
         using var document = ReadJson(wire, MaximumOutputUtf8Bytes);
         return new(call.CallId, call.CapabilityId, ImmutableArray.CreateRange(wire));

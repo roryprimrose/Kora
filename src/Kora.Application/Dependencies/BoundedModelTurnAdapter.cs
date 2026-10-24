@@ -181,9 +181,17 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             // Remaining assistant messages are fully validated tool-call batches.
             var assistant = (ModelAssistantToolCalls)message;
-            if (assistant.Calls.Any(call => !context.Tools
-                .Any(descriptor => string.Equals(descriptor.Id, call.CapabilityId, StringComparison.Ordinal))))
-            { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
+            try
+            {
+                _ = ModelToolProtocol.ParseAssistant(ModelToolProtocol.SerializeMessage(assistant), mcpTool: context.McpTool);
+                if (context.McpTool is not null && calls + assistant.Calls.Length > 1
+                    || context.McpTool is null && assistant.Calls.Any(call =>
+                        !context.Tools.Any(tool =>
+                            string.Equals(tool.Id, call.CapabilityId, StringComparison.Ordinal))))
+                { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
+            }
+            catch (InvalidDataException)
+            { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
             if (context.ToolMode == ModelToolMode.LocalWebPage && (assistant.Calls.Length != 1 || calls != 0))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Length > callLimit - calls)
@@ -210,7 +218,7 @@ internal sealed partial class BoundedModelTurnAdapter(
                 if (toolReply.WebPage is { } page && page.Request != provenance.Request)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 ModelToolResultMessage result;
-                try { result = ModelToolProtocol.CreateToolResult(call, toolReply); }
+                try { result = ModelToolProtocol.CreateToolResult(call, toolReply, context.McpTool); }
                 catch (InvalidDataException)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 var resultBytes = ModelToolProtocol.SerializeMessage(result).Length;

@@ -26,7 +26,8 @@ public static partial class ModelToolProtocol
         ValidateProvenance(provenance);
         if (context.Provenance != provenance)
         { throw new InvalidDataException("A context cannot be reused by another host turn."); }
-        if (context.ToolMode == ModelToolMode.LocalWebPage && provenance.Selection.Provider != ModelProviderIdentity.Ollama)
+        if (context.ToolMode is ModelToolMode.LocalWebPage or ModelToolMode.McpReadOnly
+            && provenance.Selection.Provider != ModelProviderIdentity.Ollama)
         { throw new InvalidDataException("The approved page and its results may only enter the original local model turn."); }
         if (profile is not null)
         {
@@ -45,7 +46,9 @@ public static partial class ModelToolProtocol
         if (round != expectedRound || round > (context.Constraints?.MaximumRounds ?? MaximumRounds)
             || history.OfType<ModelAssistantToolCalls>().Sum(item => item.Calls.Length) > (context.Constraints?.MaximumCalls ?? MaximumCalls)
             || history.OfType<ModelAssistantToolCalls>().Any(item => item.Calls.Any(call =>
-                !context.Tools.Any(tool => string.Equals(tool.Id, call.CapabilityId, StringComparison.Ordinal)))))
+                context.McpTool is { } external
+                    ? !string.Equals(external.Id, call.CapabilityId, StringComparison.Ordinal)
+                    : !context.Tools.Any(tool => string.Equals(tool.Id, call.CapabilityId, StringComparison.Ordinal)))))
         { throw new InvalidDataException("The continuation round is not the complete serial history."); }
         // Revalidate the immutable source against this request rather than allowing cross-session reuse.
         ReadContext(context.Wire.AsSpan(), provenance);

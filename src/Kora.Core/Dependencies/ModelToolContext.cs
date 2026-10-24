@@ -6,7 +6,7 @@ public sealed class ModelToolContext
 {
     internal ModelToolContext(ModelTurnProvenance provenance, string systemPolicy, string userRequest,
         ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire,
-        ModelTurnConstraints? constraints = null)
+        ModelTurnConstraints? constraints = null, Mcp.McpModelTool? mcpTool = null)
     {
         Provenance = provenance;
         SystemPolicy = systemPolicy;
@@ -15,6 +15,7 @@ public sealed class ModelToolContext
         ToolMode = toolMode;
         Wire = wire;
         Constraints = constraints;
+        McpTool = mcpTool;
     }
 
     internal ModelTurnProvenance Provenance { get; }
@@ -25,5 +26,6 @@ public sealed class ModelToolContext
     public ModelTurnConstraints? Constraints { get; }
     public IReadOnlyList<Kora.Core.Tools.CapabilityDescriptor> Tools =>
         Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
+    public Mcp.McpModelTool? McpTool { get; }
     public ImmutableArray<byte> Wire { get; }
 }

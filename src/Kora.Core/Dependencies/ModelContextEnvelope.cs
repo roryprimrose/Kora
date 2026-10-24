@@ -3,6 +3,7 @@ using System.Text;
 using System.Text.Json;
 using Kora.Core.Hosting;
 using Kora.Core.Tools;
+using Kora.Core.Mcp;
 
 namespace Kora.Core.Dependencies;
 
@@ -16,7 +17,8 @@ public sealed class ModelContextEnvelope
 
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
-        ModelToolMode toolMode = ModelToolMode.ReadOnly, ModelTurnConstraints? constraints = null)
+        ModelToolMode toolMode = ModelToolMode.ReadOnly, ModelTurnConstraints? constraints = null,
+        McpModelTool? mcpTool = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
@@ -24,6 +26,8 @@ public sealed class ModelContextEnvelope
         ArgumentNullException.ThrowIfNull(evidence);
         _ = ModelToolProtocol.GetTools(toolMode);
         _ = constraints?.GetTools(toolMode);
+        if ((toolMode == ModelToolMode.McpReadOnly) != (mcpTool is not null))
+        { throw new InvalidDataException("An MCP turn requires exactly its reviewed request-owned tool."); }
         if (expiresAt <= createdAt)
         {
             throw new InvalidDataException("A context envelope requires a finite positive validity interval.");
@@ -35,6 +39,7 @@ public sealed class ModelContextEnvelope
         ExpiresAt = expiresAt;
         ToolMode = toolMode;
         Constraints = constraints;
+        McpTool = mcpTool;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -72,9 +77,15 @@ public sealed class ModelContextEnvelope
     public ModelToolMode ToolMode { get; }
     public ModelTurnConstraints? Constraints { get; }
     public IReadOnlyList<CapabilityDescriptor> Tools => Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
+    public McpModelTool? McpTool { get; }
 
     public byte[] Serialize()
     {
+        if (McpTool is not null)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(new
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, McpTool });
+        }
         if (Constraints is null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new

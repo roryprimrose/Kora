@@ -175,6 +175,50 @@ policy state excludes the server and its capabilities. Model awareness never
 comes from raw configuration JSON and cannot itself include a server, create a
 grant, connect, or invoke a capability.
 
+#### First HTTPS read-only execution profile
+
+The first admitted execution profile is user-configured HTTPS with an explicit
+endpoint, delegated account, and exact tool/schema review. It does not select a
+default server, inherit credentials, start stdio processes, or expose
+provider-native MCP. Account references identify host-protected credentials;
+they are not secrets, connection grants, or authority supplied by server JSON.
+The actual account broker and connector remain unavailable until separately
+qualified. Anonymous fallback is not supported.
+
+The host-private source resolver pins the complete configuration-file bytes,
+requires current app inclusion, and accepts only `url` and optional
+`"type": "http"` fields for execution. It rejects inline headers, environment,
+launch configuration, user-info, query strings and fragments. Ordinary metadata
+inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
+fields now fail closed rather than selecting an ambiguous definition. A source
+revision or inclusion change requires fresh review and discovery.
+
+The bounded protocol parser targets MCP `2025-06-18`, requires exact JSON-RPC
+correlation, and rejects paginated/oversize discovery and unsupported schemas.
+The initial schema subset is a closed flat object with at most eight fields:
+bounded strings, bounded integers and Booleans. Results accept bounded inert
+text and optional structured-object data, not images or embedded resources.
+Server instructions, descriptions and annotations, including `readOnlyHint`,
+are untrusted metadata; parsing them never establishes an effect mapping.
+Invocation will require a separate host-owned read-only mapping pinned to the
+endpoint, account, exact tool and schema, followed by explicit user review.
+
+The Sessions composer provides explicit server/account selection, connection and
+schema review, one host-mapped tool selection, exact outgoing-argument approval,
+and a local model turn through canonical asynchronous host dispatch. It displays
+the actual bounded inert tool result separately from the genuine retained
+assistant answer. `use selected mcp tool <task>` and `stop mcp` use the same exact
+foreground selected-session route; they never choose a server, account, session
+or tool implicitly. Authentication/approval still uses mandatory native review.
+The original voice/UI channel is preserved. Cancellation closes new dispatch
+and publication; the owner joins late provider/transport work before disconnect.
+
+Implementation is exercised with deterministic delegated-account, transport and
+model fakes, not live servers. The shipped broker remains explicitly
+**unavailable**, with no qualified accounts or effect mappings installed. This
+does not advertise an enabled connector, and remote model disclosure is not
+approved. The first profile remains local-model-only.
+
 ## Responsibility and Terminology
 
 The [canonical catalogue](Internal_Model_Tools.md) owns tool IDs and caller lanes;

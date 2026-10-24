@@ -7,6 +7,8 @@ public static partial class ModelToolProtocol
     private static void ValidateResult(ModelToolCall call, CapabilityReply reply)
     {
         ValidateText(reply.Reason);
+        if (reply.Mcp is not null)
+        { throw new InvalidDataException("External content cannot be returned without an exact external tool."); }
         if (Network.LocalWebPageTool.FindExact(call.CapabilityId) is { } web)
         {
             var address = CapabilityInputPolicy.Read(web, call.InputJson).WebPageAddress;

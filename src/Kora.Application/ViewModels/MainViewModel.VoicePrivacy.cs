@@ -47,6 +47,8 @@ public sealed partial class MainViewModel
             ? "Microphone closed - Windows access denied or unknown"
         : EffectiveMicrophone is null
             ? "Microphone closed - selected microphone unavailable"
+        : ActiveHandsFreeVoiceStatus is { } handsFreeStatus
+            ? handsFreeStatus
         : IsListening && voiceRecognition.IsListening
             ? "Push-to-talk capture active"
         : IsVoiceEnabled
@@ -62,6 +64,8 @@ public sealed partial class MainViewModel
     {
         voiceOwnershipEligible = gate;
         Interlocked.Increment(ref voiceOwnershipBindingRevision);
+        BindHandsFreeVoiceRuntime();
+        if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree) { handsFree.Revalidate(); }
     }
 
     public bool IsPrivacyPresentationHeld => Volatile.Read(ref privacyPresentationHeld) != 0;
@@ -504,6 +508,7 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        if (disposed) { RetireHandsFreeVoiceBinding(); }
         RetireSessionCommandReviews();
         long revision;
         lock (voiceReadinessGate)
@@ -600,6 +605,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             ApplicationLog.Information(logger, "Previously enabled voice readiness was restored after Windows unlock");
+            await StartHandsFreeVoiceAsync();
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -700,6 +706,17 @@ public sealed partial class MainViewModel
         if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
+        if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
+        {
+            try { await handsFree.PauseWakeForReplyAsync(); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                HoldVoiceInput("Microphone closed - wake capture release failed before manual activation");
+                ApplicationLog.Error(logger, exception, "Retiring wake capture before push-to-talk");
+                ShowFailure("Microphone cleanup needs attention.", "No manual capture was opened. " + exception.Message);
+                return;
+            }
+        }
         if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
             || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())

@@ -25,7 +25,7 @@ public sealed class SpeechInputUiContractTests
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeSpeechInputNative}");
         }
         var program = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
-        program.Should().Contain("services.AddSingleton<ISpeechInputProfileRuntime>").And.Contain("services.AddSingleton<SpeechInputConfigurationService>()");
+        program.Should().Contain("VoiceInputComposition.Configure(services)").And.Contain("services.AddSingleton<SpeechInputConfigurationService>()");
         var lifetime = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"));
         lifetime.Should().Contain("BindSpeechInputNativeLifetime");
     }

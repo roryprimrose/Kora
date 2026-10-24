@@ -60,6 +60,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     public async Task OpenAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
         Action<HostInteractionDecision> accepted, bool afterPlayback, CancellationToken cancellationToken)
     {
+        if (capture is HandsFreeVoiceRecognitionService handsFree) { await handsFree.PauseWakeForReplyAsync(); }
         Turn opened;
         var admission = observe();
         var presented = isExactVisiblePresenter();
@@ -252,6 +253,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         }
         if (failure is null)
         {
+            if (capture is HandsFreeVoiceRecognitionService handsFree) { await handsFree.ResumeAfterActivatedInputAsync(); }
             activity.Complete(HostOperationOutcome.Completed);
         }
         else
@@ -351,7 +353,9 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 if (Eligible(current)) { current.Accepted(decision); }
             });
             activity.Complete(HostOperationOutcome.Completed);
-            Retire(current, "Reply turn ended. Microphone closed; ordinary explicit push-to-talk readiness only.");
+            Retire(current, capture.IsAmbientListeningAvailable
+                ? "Reply turn ended. Fresh policy may restore wake-only listening; no answer or audio is replayed."
+                : "Reply turn ended. Microphone closed; ordinary explicit push-to-talk readiness only.");
         }
         catch (OperationCanceledException)
         {
@@ -398,6 +402,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         lock (gate) { current = turn; }
         if (current is { Submitting: false } && args.Generation == current.Generation)
         {
+            if (capture is HandsFreeVoiceRecognitionService handsFree) { handsFree.RequireExplicitRecovery(); }
             Retire(current, "Local recognition failed. Microphone closed; use native controls.");
         }
     }

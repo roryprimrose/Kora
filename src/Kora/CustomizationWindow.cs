@@ -12,7 +12,15 @@ namespace Kora;
 
 internal sealed class CustomizationWindow : Window
 {
-    internal readonly ListBox Kinds = new() { ItemsSource = new[] { "Skills", "Instructions", "Agents", "MCP servers", "Prompts" }, SelectedIndex = 0 };
+    private static readonly (CustomizationKind Kind, string Label)[] kindOptions =
+    [
+        (CustomizationKind.Instruction, "Instructions"),
+        (CustomizationKind.Skill, "Skills"),
+        (CustomizationKind.Agent, "Agents"),
+        (CustomizationKind.McpServer, "MCP Servers"),
+        (CustomizationKind.Prompt, "Prompts"),
+    ];
+    internal readonly ListBox Kinds = new() { ItemsSource = kindOptions.Select(option => option.Label).ToArray(), SelectedIndex = 0 };
     internal readonly TextBox Search = new() { PlaceholderText = "Search names or sources" };
     internal readonly ComboBox Destination = new() { ItemsSource = new[] { CustomizationScope.Kora, CustomizationScope.User }, SelectedIndex = 0, MinWidth = 100 };
     internal readonly TextBox NewName = new() { PlaceholderText = "new-artifact-id", MinWidth = 150 };
@@ -35,7 +43,11 @@ internal sealed class CustomizationWindow : Window
     private Window? review;
     private bool openingReview;
     internal CustomizationSource? SelectedSource { get; private set; }
-    internal CustomizationKind Kind => (CustomizationKind)Math.Max(0, Kinds.SelectedIndex);
+    internal CustomizationKind Kind
+    {
+        get => kindOptions[Math.Max(0, Kinds.SelectedIndex)].Kind;
+        set => Kinds.SelectedIndex = Array.FindIndex(kindOptions, option => option.Kind == value);
+    }
     internal CustomizationScope Scope => Destination.SelectedItem is CustomizationScope scope ? scope : CustomizationScope.Kora;
 
     internal CustomizationWindow(Action<string> run, MainViewModel main)

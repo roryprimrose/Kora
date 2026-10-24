@@ -171,13 +171,16 @@ Reject unresolved required references and cycles before activation.
 ### Customizations window and source categories
 
 The product owner's 2026-10-24 direction is one **Customizations** window for
-Skills, Instructions, Agents and MCP servers, with the existing Prompts editor
+Instructions, Skills, Agents and MCP Servers, with the existing Prompts editor
 retained. This advances the admitted governed-definition outcome, not a general
 file editor or permission to execute newly authored content. Discovery, source
 editing, complete proposal review and runtime exclusion are host responsibilities;
 domain-specific generated behavior remains definition content.
 
-Use artifact-type navigation at the left, a searchable catalogue in the middle,
+Use artifact-type navigation at the left in the order **Instructions**, **Skills**,
+**Agents**, **MCP Servers**, then **Prompts**, with Instructions initially selected.
+An explicit artifact-type command selects its requested category.
+Use a searchable catalogue in the middle,
 and a selected-artifact viewer/editor at the right. Group each type into
 **Built-in**, **Kora** and **User**, in that order, including empty groups.
 Kora means Kora-owned roaming profile definitions; User means explicitly

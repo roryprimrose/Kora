@@ -523,7 +523,7 @@ internal sealed partial class CustomizationWindowController(
     private async Task RouteCore(CustomizationCommand command, Func<bool> current, CancellationToken token)
     {
         if (window is null) { return; }
-        if (command.Kind is { } kind) { window.Kinds.SelectedIndex = (int)kind; }
+        if (command.Kind is { } kind) { window.Kind = kind; }
         if (command.Operation is "List") { RenderSources(); return; }
         if (command.Operation is "Refine") { window.Request.Text = command.Text; await Refine(current, token); return; }
         if (command.Operation is "Create")

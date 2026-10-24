@@ -439,13 +439,37 @@ public sealed class CustomizationWindowTests
             }
             void Choose(Window view, string caption) => view.GetVisualDescendants().OfType<Button>()
                 .Single(button => Equals(button.Content, caption)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+            await Run("show customizations");
+            editor.Should().NotBeNull();
+            editor!.Kinds.Items.Cast<string>().Should().Equal("Instructions", "Skills", "Agents", "MCP Servers", "Prompts");
+            editor.Kind.Should().Be(CustomizationKind.Instruction);
+            (string Command, CustomizationKind Kind)[] categories =
+            [
+                ("show instructions", CustomizationKind.Instruction),
+                ("show skills", CustomizationKind.Skill),
+                ("show agents", CustomizationKind.Agent),
+                ("show mcp servers", CustomizationKind.McpServer),
+                ("show prompts", CustomizationKind.Prompt),
+            ];
+            for (var index = 0; index < categories.Length; index++)
+            {
+                editor.Kinds.SelectedIndex = index;
+                editor.Kind.Should().Be(categories[index].Kind);
+            }
+            for (var index = 0; index < categories.Length; index++)
+            {
+                await Run(categories[index].Command);
+                editor.Kinds.SelectedIndex.Should().Be(index);
+                editor.Kind.Should().Be(categories[index].Kind);
+            }
             await Run("add an instruction named example");
             editor.Should().NotBeNull();
             editor!.Editor.IsReadOnly.Should().BeFalse();
             editor.Editor.Text += "Manual change.";
             var save = Run("show skills");
             await save;
-            editor.Kinds.SelectedIndex.Should().Be(0);
+            editor.Kinds.SelectedIndex.Should().Be(1);
+            editor.Kind.Should().Be(CustomizationKind.Skill);
             editor.Editor.Text.Should().Contain("Manual change.", "changing the browsing category does not discard the draft");
             editor.GetVisualDescendants().OfType<Button>().Single(button => Equals(button.Content, "Review and save"))
                 .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));

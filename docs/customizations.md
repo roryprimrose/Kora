@@ -1,4 +1,4 @@
-# Skills, instructions, agents and MCP servers
+# Instructions, skills, agents and MCP servers
 
 Open **Tray > Customizations**, type `show customizations`, or use the current
 assistant-name prefix with activated voice, such as `Kora, show skills`.
@@ -6,7 +6,9 @@ The same native window serves all these routes.
 
 ## Browse by type and source
 
-Choose **Skills**, **Instructions**, **Agents**, **MCP servers**, or **Prompts**.
+Categories appear in this order: **Instructions**, **Skills**, **Agents**,
+**MCP Servers**, then **Prompts**. Instructions is selected when the window first
+opens; an explicit artifact-type command selects its requested category.
 Each type has three source groups:
 
 - **Built-in**: bundled binary resources. Inspect their complete files; originals

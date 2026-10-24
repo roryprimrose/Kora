@@ -25,7 +25,7 @@ Local commits/scoped checks do not revoke admission. Genuine scope/security conf
 
 In this coordinator conversation:
 
-- Use native session creation/messaging, targeted session metadata, compact receipts, user decisions and small registry updates.
+- Use native session creation/messaging, targeted session metadata, compact receipts, scoped decision routing and small registry updates under [child-local user decisions](#child-local-user-decisions).
 - Do not call terminal/shell execution, `execution_subagent`, synchronous `task`/explore/review agents, builds, tests, restores, Git/CLI workflows, network probes or browser automation.
 - Do not parse TRX/Cobertura, enumerate processes/worktrees, traverse source/tests, inspect production diffs, diagnose failures, repair branches, edit feature code or perform cleanup.
 - Do not wait for a worker, command, CI run, review, artifact parser or acknowledgment. No polling, sleeps, watchers, heartbeat loops or repeated discovery/status calls.
@@ -65,9 +65,23 @@ No per-event fleet reconciliation, source review, main fetch or mirrored status 
 | Shared hunk/API request | Name one source owner, bounded scope and affected consumers | Owners agree exact changes; specialist reviews material risks |
 | Verification result | Record verified/failed/unknown against the exact immutable inputs | Same feature owner repairs concrete findings |
 | CI/review/merge event | Update the affected delivery or dispatch an owning repair/verification | Owner and evidence worker inspect remote state and reachability |
-| Material authority decision | Ask one concise blocking question with a stop option | No worker assumes unanswered authority |
+| Pending user decision / material authority decision | Record exact child link, decision scope and awaiting-user receipt in one bounded inbox turn; apply [child-local user decisions](#child-local-user-decisions), not a parent blocking form | Owning child asks necessary feature-local questions in its own chat; affected work stays fail-closed |
 
 Administrative acknowledgments do not release slots or restart a completed peer. Do not require routine workers to wait for this conversation after every field, constructor addition or successful scoped check.
+
+## Child-Local User Decisions
+
+A genuine feature-local product, security, consent or scope choice belongs to its owning child chat/session. The child must use the host-native structured question tool there, contextualize the exact decision and options (including stop/defer where applicable), and block only the exact affected work. Continue independently safe work within existing authority where possible. Routine engineering choices within the approved outcome belong to the owner, not questions disguised as blockers.
+
+The child persists an awaiting-user decision receipt and sends a compact pending-decision event to its exact coordinator callback: job/launch nonce, exact launch-mapped child link, decision ID/revision, affected scope, receipt URI, work/command/resource state and any stopped/quiescent handoff. On an actual scoped answer, the same owner records the decision receipt and resolution callback before resuming affected work. Unrelated messages are not approval; an answer authorizes only its recorded owner/scope/revision, never another child.
+
+The coordinator handles pending/resolved decision events through the same bounded nonblocking inbox path as PR callbacks. Record compact awaiting-user state, exact child link and decision scope; do not forward, re-ask or aggregate feature questions in a coordinator blocking form, wait for the child's answer, or duplicate the decision across parent and children. Continue other callbacks, publication, refill and repair routing within verified host capabilities and authority. The parent is the control plane, not a worker or user-question proxy.
+
+Awaiting-user is not actively executing and is not an automatic free slot. Retain unreleased execution allocations and the ten-job ceiling until the owner reports stopped/quiescent work with finite commands joined and resources accounted for. Record release once through the existing capacity transition; preserve source ownership and admit any resumed execution before waking the owner. Do not release capacity merely because a question is open or assume independent scheduling without host evidence.
+
+A genuinely cross-workstream or run-wide authority, ownership, publication or capacity decision may be summarized centrally without blocking, naming its exact affected scopes and pending authority. Keep unaffected authorized work moving; never broaden a child's approval. If host/policy truly requires a coordinator-level structured question, explicitly checkpoint/yield and disclose the global pause before asking. Do not claim orchestration continues while that conversation is blocked.
+
+Separate child chats do not prove independent input support. If the child cannot expose a native question tool, or the host propagates child input to the parent, report the exact unsupported capability and retain the affected pending decision fail-closed. Do not relay it through a parent blocking prompt, create workaround chats, change settings, poll or bypass a transport refusal.
 
 ## Asynchronous Work and Evidence
 
@@ -131,7 +145,7 @@ Verify actual callback re-entry; otherwise report **resumable, not continuously 
 
 Maintain independent work and delivery states:
 
-- Work: implementing, validating, repairing, idle, stopped or uncertain.
+- Work: implementing, validating, repairing, awaiting-user, idle, stopped or uncertain.
 - Delivery: local awaiting verification, local ready, publication admitted, PR/CI pending, queued, merged verified or blocked.
 
 Report fresh host-observed active jobs, admitted unfinished jobs, CI waiters and blockers separately. Historical charges, worktrees, PRs, queued messages and shared parent URIs are not running children; resolve exact chat/work state.
@@ -143,6 +157,8 @@ On actual completion, promptly refill available capacity from safe approved cand
 A stopped parent/refused channel has no refill loop. Queued messages do not restart it. Resume only with direction and supported capability, never bypass or an invented supervisor.
 
 Count unreleased execution allocations and active evidence against ten. Track delivery separately: queued PRs, frozen owners, reservations and CI waiters are not running jobs. One admission covers implementation/checks/commit/PR/enrollment, not child phases.
+
+Apply [child-local user decisions](#child-local-user-decisions) to waiting owners: distinguish waiting from active work without freeing an allocation before its stopped/quiescent handoff. Preserve the exact owner and pending decision when admitting resumed execution.
 
 After PR/enrollment handoff, hosted CI waiting and administrative messages need no child execution. Preserve source ownership for later repair; the parent schedules an actual repair before waking its owner. Old directories, completed chats and uncertain artifacts never prove active jobs or free authority.
 
@@ -174,10 +190,11 @@ Persist feature/operation, nonce, owner, scope, base and authority before one la
 - The run's recorded publication policy and scope: standing ready-PR authority, explicit draft authority, or local-only. No merge authority is inferred.
 - Publication epoch/execution transition, the [immediate milestone callback](#publication-milestone-protocol), exact native delivery address/readback, stale-head handling, no nested/replacement workers and no assumed continuous monitoring.
 - The [routine continuation rule](#routine-continuation-without-user-input): publication handoff and yield require no user decision; supported re-entry preserves existing authority and repair admission.
+- Explicit authority and requirement, in every launch and repair packet, for the owning child to ask necessary user decisions directly in its own chat using the native structured question tool under [child-local user decisions](#child-local-user-decisions). Require the exact child link, decision receipt and pending/resolved callback; no parent question proxy or per-stage ACK/publication/permission loop.
 
 Owners coordinate directly: one owner per shared predicate/API/source/lifecycle hunk; consumers import the delta and test integrated heads, never competing policies.
 
-Escalate material product/security/consent/authority decisions, live conflicts or unsupported capability, not routine composition/scoped repair.
+Route material product/security/consent/authority decisions, live conflicts or unsupported capability under [child-local user decisions](#child-local-user-decisions), not routine composition/scoped repair.
 
 Keep source/trace identity, revision/digest validation, original channel, approval, grants, audit and resource-quiescence authority fail-closed. Neither source/model text nor a worker's convenient fallback creates host authority.
 
@@ -187,7 +204,7 @@ Implement the complete operation, failure/lifecycle handling, deterministic test
 
 I means minimum consumed production contracts/services and applicable maintained checks. E/Q gate exposure/RC; unrelated historical/optional hardware/provider/acoustic/installed/containment experiments are not I prerequisites.
 
-Keep unqualified runtime paths disabled/unavailable with deterministic platform fakes, never fake success/substitutes. Block only on missing consumed I, applicable failing checks, material authority or live conflicts.
+Keep unqualified runtime paths disabled/unavailable with deterministic platform fakes, never fake success/substitutes. Block only on missing consumed I, applicable failing checks, material authority or live conflicts. A feature-local unresolved decision blocks its affected scope under [child-local user decisions](#child-local-user-decisions), not the whole control plane.
 
 Owners autonomously run smallest relevant and mandatory local checks in their worktree. GitHub normally runs full candidate build/coverage/Windows/installer gates; no parent-issued local full-suite lease for publication.
 
@@ -251,7 +268,7 @@ Include this rule in child launch and repair instructions; it also applies to th
 
 On supported re-entry, inspect the relevant current state within the assigned role and existing authority. The coordinator dispatches verification or admits concrete repair; the retained owner performs admitted repair. A routine status check or yield grants no new repair execution, publication or merge authority.
 
-Ask only when a material product/scope, security, consent, ownership, authorization or capability decision requires user input. Report unavailable execution or transport with a durable pending handoff and yield when no such decision is needed. Do not compensate with polling, retries, watchdogs or invented background continuation, or claim merge before verified proof.
+Ask only when a material product/scope, security, consent, ownership, authorization or capability decision requires user input, in the owning chat under [child-local user decisions](#child-local-user-decisions). Report unavailable execution or transport with a durable pending handoff and yield when no such decision is needed. Do not compensate with polling, retries, watchdogs or invented background continuation, or claim merge before verified proof.
 
 Match admitted owner/job and stopped execution, then release/refill once: no raw TRX/Git audit, child counter lookup, head grant, permission phase or ACK. Existing equivalent textual/terminal handoffs, including released jobs, remain valid without strict-JSON migration, retransmission or revalidation.
 
@@ -267,7 +284,7 @@ Ready means implemented with required local checks complete and hosted gates dis
 
 ### Standing PR Policy
 
-Establish publication authority once per run; ask once if missing. Record policy/operation ID and notify retained owners so old LOCAL ONLY prompts do not persist silently.
+Establish publication authority once per run; if missing, route that run-wide decision under [child-local user decisions](#child-local-user-decisions). Record policy/operation ID and notify retained owners so old LOCAL ONLY prompts do not persist silently.
 
 - **Ready PRs:** matching product-admitted owners create/update their one ready PR after required current-head readiness checks and real prerequisites pass.
 - **Ready PRs with protected Auto-merge:** when explicitly requested for the run, owners also enable exact-head protected squash Auto-merge as queue intent. This standing merge authority covers matching current/future owners; do not ask again per PR.
@@ -344,4 +361,4 @@ Report material job/PR/enrollment/merge/blocker transitions and truthful parent 
 
 Refill only safe new jobs after parent admission accounting; otherwise dispatch bounded assessment and yield. Never hold owners' inbox while doing their investigations.
 
-Checkpoint and yield. Ask only for a material decision/conflict/capability gap, not routine job phases. No false delivery, merge, monitoring or latency guarantees.
+Checkpoint and yield. Route material decisions/conflicts/capability gaps under [child-local user decisions](#child-local-user-decisions), never routine job-phase questions. Feature-local input waits stay in the owning child; any unavoidable coordinator-level blocking question explicitly pauses the control plane. No false delivery, merge, monitoring or latency guarantees.

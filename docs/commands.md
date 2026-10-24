@@ -95,6 +95,14 @@ Malformed reserved commands are refused before question-answer/model routing.
 The separate navigation status does not replace the transcript, current response,
 question status or security preview.
 
+## Read the exact selected retained assistant answer
+
+Use `read selected answer`, optionally with the current assistant-name prefix when typed, or `Kora, read selected answer` through activated voice. First explicitly select a retained ASSISTANT answer in the open Sessions or compact conversation ([exact reserved grammar](../src/Kora.Application/Voice/ResponseReadCommand.cs)).
+
+Missing/stale selection clarifies without using the current response or sending anything to a model. It uses the same one-shot operation as **Read selected ASSISTANT answer once** ([workflow and source checks](../src/Kora.Application/Hosting/SessionAnswerReadWorkflow.cs)).
+
+It does not read USER text, drafts, questions or HOST/audit status, change speech settings, shorten an over-cap answer or bypass Text only/protected calls. Cancel, close or source/channel retirement prevents queued replay ([playback guide](responses-and-calls.md#read-one-retained-assistant-answer)).
+
 ## Unsent conversation input and legacy recovery
 
 Sessions are ongoing topic conversations with Active/Done lifecycle. Unsent input stays separately in memory for each exact session while switching topics; Sessions and compact views share the same buffer. There is no ordinary draft Save/Reload/Clear, catalogue, search or saved-buffer comparison workflow ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).

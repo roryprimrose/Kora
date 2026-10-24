@@ -42,12 +42,19 @@ public static partial class ModelToolProtocol
         if (clarificationAllowed) { ValidateQuestionHistory(history); }
         else { ValidateHistory(history); }
         var expectedRound = history.Count(message => message is ModelAssistantMessage) + 1;
-        if (round != expectedRound || round > MaximumRounds)
+        if (round != expectedRound || round > (context.Constraints?.MaximumRounds ?? MaximumRounds)
+            || history.OfType<ModelAssistantToolCalls>().Sum(item => item.Calls.Length) > (context.Constraints?.MaximumCalls ?? MaximumCalls)
+            || history.OfType<ModelAssistantToolCalls>().Any(item => item.Calls.Any(call =>
+                !context.Tools.Any(tool => string.Equals(tool.Id, call.CapabilityId, StringComparison.Ordinal)))))
         { throw new InvalidDataException("The continuation round is not the complete serial history."); }
         // Revalidate the immutable source against this request rather than allowing cross-session reuse.
         ReadContext(context.Wire.AsSpan(), provenance);
         var request = new ModelToolRequest(provenance, profile, context, history, round,
-            budget ?? new(MaximumInputUtf8Bytes, MaximumOutputUtf8Bytes), clarificationAllowed);
+            budget ?? new(context.Constraints?.InputUtf8Bytes ?? MaximumInputUtf8Bytes,
+                context.Constraints?.OutputUtf8Bytes ?? MaximumOutputUtf8Bytes), clarificationAllowed);
+        if (request.Budget.InputUtf8Bytes > (context.Constraints?.InputUtf8Bytes ?? MaximumInputUtf8Bytes)
+            || request.Budget.OutputUtf8Bytes > (context.Constraints?.OutputUtf8Bytes ?? MaximumOutputUtf8Bytes))
+        { throw new InvalidDataException("The transport budget exceeds the exact turn constraints."); }
         if (SerializeRequest(request).Length > request.Budget.InputUtf8Bytes)
         { throw new InvalidDataException("The complete model request exceeds the input limit."); }
         return request;

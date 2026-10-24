@@ -9629,6 +9629,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public bool HoldSpeechCompletionOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
+        public bool IgnoreSpeakCancellation { get; set; }
 
         public TaskCompletionSource SpeakStarted { get; set; } = new(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -9687,7 +9688,7 @@ public sealed partial class MainViewModelTests : IDisposable
             if (ReturnWhileSpeaking) { return; }
             if (SpeakGate is not null)
             {
-                await SpeakGate.Task.WaitAsync(cancellationToken);
+                await SpeakGate.Task.WaitAsync(IgnoreSpeakCancellation ? CancellationToken.None : cancellationToken);
             }
             if (generation != Interlocked.Read(ref outputGeneration)) { throw new OperationCanceledException(); }
 

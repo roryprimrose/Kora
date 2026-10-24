@@ -659,6 +659,7 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();
         services.AddSingleton<SessionFileAttachmentService>();
+        services.AddSingleton<SessionAttachmentAnswerWorkflow>();
         services.AddSingleton<SessionAttachmentCatalogueService>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();

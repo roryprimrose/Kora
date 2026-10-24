@@ -2,7 +2,7 @@ using Kora.Core.Auditing;
 
 namespace Kora.Core.Voice;
 
-/// <summary>Resolves an exact current response through host-owned speech admission.</summary>
+/// <summary>Resolves an exact host-bound response through host-owned speech admission.</summary>
 public interface ISpeechReadOncePlayback
 {
     /// <summary>Requests one playback without changing preferences or granting reusable authority.</summary>

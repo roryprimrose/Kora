@@ -1,5 +1,21 @@
 # Responses and manual call mode
 
+## Answer from a retained session attachment
+
+In **Sessions**, select the exact Active conversation and choose **Answer from this session's retained attachment**. The existing native source viewer opens only that session's already retained immutable text/Markdown copy; it never opens a picker or the original live file ([native route](../src/Kora/SessionsViewModel.AttachmentAnswer.cs)).
+
+Enter a bounded lexical question, choose **Review exact evidence for this question**, and inspect the complete admitted excerpts and question. Separately choose **Consent once: answer locally and retain in this conversation**. Saving or reading an attachment is not permission to send it to a model; source-use policy and qualified local runtime independently admit the turn ([review workflow](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
+
+This explicit operation uses one local-only, tool-free turn. It does not add history, memory, other attachments, folders, tools or hosted fallback. Changed/deleted/replaced sources, revoked consent, incomplete lexical selection and over-budget input are rejected rather than silently truncated. Inspection does not renew retention or Keep ([source and budget fences](../src/Kora.Application/Hosting/SessionAttachmentAnswerWorkflow.cs)).
+
+The host binds reviewed evidence to the exact submitted request through the [shared reviewed-context lifecycle](../src/Kora.Application/Hosting/SessionConversationService.cs). Citation resolution runs before the assistant response is committed, after the owning turn's terminal identity and cancellation checks ([execution boundary](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+Refusal before conversation retention remains an explicit refusal, not an uncertain saved request. Unconfirmed submission or later audit failure identifies the actual submitted conversation request, never the source-review request ([attachment completion boundary](../src/Kora.Application/Hosting/SessionConversationService.AttachmentAnswer.cs)).
+
+An admitted result retains the question and genuine ASSISTANT answer in the same conversation. Each supported claim has host-resolved retained session/source/revision/digest and exact UTF-16 span references, not model-invented locations. Citation identity is verified, not semantic truth: inspect the retained source to check each claim. Unsupported evidence is explicit ([response admission](../src/Kora.Core/Context/SessionAttachmentAnswerResponse.cs), [retained commit](../src/Kora.Application/Hosting/SessionConversationService.AttachmentAnswer.cs)).
+
+Production source-use policy and unqualified runtimes remain unavailable; no generation or provider qualification is enabled by these controls. Cancellation clears pending review; late results cannot be published as success. If retention/commit is unconfirmed, inspect exact conversation/task receipts without repeating the turn. Close/privacy retirement clears private source-review controls ([native lifecycle](../src/Kora/LocalFilePreviewWindow.AttachmentAnswer.cs), [execution fences](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 ## Response modes
 
 Kora supports three response modes:
@@ -56,6 +72,20 @@ It retains the complete answer, uses normal speech admission and both summary ca
 The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+## Read one retained assistant answer
+
+In Sessions or the compact conversation, explicitly read a conversation page, select a row with a retained **ASSISTANT** answer, then choose **Read selected ASSISTANT answer once** or request `read selected answer`. Selection alone never speaks ([native selection and cancellation](../src/Kora/SessionsViewModel.AnswerRead.cs)).
+
+The host reads only that exact assistant body, not its original USER message or separate HOST status. It re-reads the retained record and revision under the same session/privacy/retention authority immediately before playback; a missing or changed source never falls back to the latest/current answer ([source workflow](../src/Kora.Application/Hosting/SessionAnswerReadWorkflow.cs)).
+
+Normal output admission, Text only, protected-call restrictions and both spoken-summary caps still apply. An over-cap answer is withheld in full, never silently shortened; its full visual source remains available. Changing speech settings cannot start or replay this operation ([shared playback admission](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+
+Use **Cancel answer reading** or the existing speech Stop control to retire playback. Closing its surface, changing selection, privacy/source retirement or cancellation suppresses late completion; another reading always needs a fresh deliberate request ([retirement tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.RetainedAnswerRead.cs)).
+
+Unqualified conversation generation remains unavailable; this operation does not add a model or speech backend ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerRead.cs)).
+
+Typing a command while a prompt review is open still closes that prompt on the first edit. If the submitted typed command is `read selected answer`, that reading is refused once; make a fresh deliberate request. Native and activated-voice reads do not inherit or consume this typed-input refusal ([input guard](../src/Kora/PromptParameterController.AnswerRead.cs)).
 
 ## Reviewed earlier conversation context
 

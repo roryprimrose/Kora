@@ -252,6 +252,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
@@ -271,6 +272,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyAnswerRead();
         ObserveConversationCancellation();
         NotifyConversationCancellation();
         if (appearanceReview is { Available: false }) { CancelAppearanceSuggestion(reportCancellation: false); }

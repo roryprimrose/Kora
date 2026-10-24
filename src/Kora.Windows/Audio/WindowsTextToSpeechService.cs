@@ -71,6 +71,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         this.setOwnedWindowsRate = setOwnedWindowsRate ?? (rate => synthesizer.Rate = rate);
         this.cancelOwnedSynthesis = cancelOwnedSynthesis ?? synthesizer.SpeakAsyncCancelAll;
         synthesizer.SpeakCompleted += OnSpeakCompleted;
+        synthesizer.SpeakProgress += OnSpeakProgress;
     }
 
     internal void ApplyOwnedWindowsGain(PlaybackVolume volume) => setOwnedWindowsGain(volume.Percent);
@@ -137,7 +138,8 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     var position = TimeSpan.FromSeconds(
                         playback.GetPosition() / (double)playback.OutputWaveFormat.AverageBytesPerSecond);
                     return new SpeechPlaybackFrame(true, outputEnvelope.GetLevel(position),
-                        currentPlaybackId, playbackGeneration);
+                        currentPlaybackId, playbackGeneration, Sentence: sentenceAlignment?.At(position),
+                        SentenceAlignmentAvailable: sentenceAlignment?.Available == true);
                 }
                 catch (COMException exception)
                 {
@@ -418,6 +420,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     RequireCurrentOutput(generation);
                     synthesisCompletion = completion;
                     activePrompt = prompt;
+                    sentenceAlignment = playbackId is null ? null : new(prompt, generation, text);
                     StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
                 }
                 synthesisTask = completion.Task;
@@ -627,6 +630,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         try
         {
             synthesizer.SpeakCompleted -= OnSpeakCompleted;
+            synthesizer.SpeakProgress -= OnSpeakProgress;
             synthesizer.Dispose();
             DisposePlaybackResources();
             lifecycleLock.Dispose();
@@ -714,6 +718,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             lock (stateLock)
             {
                 outputEnvelope = envelope;
+                sentenceAlignment?.Seal(audioReader.TotalTime, IsSentenceAlignmentProfileQualified());
             }
             var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             try
@@ -783,6 +788,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             }
 
             completion = synthesisCompletion;
+            sentenceAlignment?.Close();
             synthesisCompletion = null;
             activePrompt = null;
         }
@@ -812,6 +818,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             beginReceipt = beginStopReceipt;
             playbackCompletion = null;
             currentPlaybackId = null;
+            sentenceAlignment = null;
             outputEnvelope?.Clear();
             outputEnvelope = null;
         }

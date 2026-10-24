@@ -33,7 +33,8 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Service.Get().Effective.Should().Be(SpeechTextMode.Off);
         fixture.Service.Get().Source.Should().Be("default");
         await fixture.Refresh();
-        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Off", "Show spoken words");
+        fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Off", "Show spoken words",
+            "Current sentence (requires qualified alignment)");
         await fixture.Apply();
         fixture.Service.Get().Saved.Should().Be(SpeechTextMode.CurrentUtterance);
         fixture.Service.Get().Source.Should().Be("saved");
@@ -49,6 +50,22 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Audit.Hosts.Should().OnlyContain(host => host != null && host.SessionId == fixture.Store.Authority!.SessionId);
         SpeechTextState.Serialize(fixture.Service.Get()).Should().Contain("\"scope\":\"device-local\"")
             .And.Contain("\"type\":\"speech-text-mode\"").And.Contain("\"schema\":1");
+    }
+
+    [Fact]
+    public async Task Sentence_request_uses_the_same_audited_atomic_choice_and_restart_contract()
+    {
+        await using var fixture = new Fixture();
+        await fixture.Refresh();
+        await fixture.Apply(fixture.Service.Choices.Single(choice => choice.Mode == SpeechTextMode.CurrentSentence));
+        fixture.Service.Get().Effective.Should().Be(SpeechTextMode.CurrentSentence);
+        var restarted = fixture.Create();
+        restarted.Observe();
+        restarted.Get().Saved.Should().Be(SpeechTextMode.CurrentSentence);
+        Kora.Application.Presentation.SettingsText.Describe(restarted.Get()).Should().Contain("unavailable")
+            .And.Contain("complete answer remains visual");
+        fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Succeeded);
+        SpeechTextState.Serialize(restarted.Get()).Should().Contain("\"effective\":\"CurrentSentence\"");
     }
 
     [Theory]

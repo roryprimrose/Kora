@@ -1123,12 +1123,41 @@ surface.
 
 `display.speech-text` is device-local, unsaved/default/reset **Off**. Native
 Settings and exact typed/current-name activated commands share the admitted,
-audited atomic configuration service. **CurrentUtterance** is the only enabled
-mode in this slice: an ephemeral selectable native window shows the exact text
+audited atomic configuration service. **CurrentUtterance** remains enabled:
+an ephemeral selectable native window shows the exact text
 passed by the host's admitted response speech route, only while the provider
 reports that matching playback identity/generation and utterance segment 0 as
 actually playing. Synthesis, queued work, failed/suppressed output and voice
 preview do not acquire caption authority.
+
+**CurrentSentence** is an implemented, explicitly saved request, not an enabled
+Windows voice/profile claim. It uses the same native choices and exact
+`set display.speech-text to CurrentSentence` typed/current-name activated route.
+No exact Windows voice/rate/output profile is qualified in this build; sentence
+captions therefore remain explicitly unavailable in production. Kokoro and
+legacy providers do not attest sentence alignment. Ordinary speech is unchanged,
+and the complete visual answer is retained even when sentence evidence is absent.
+
+The bounded version-1 source map keeps exact UTF-16 substrings, including leading
+and trailing whitespace. It accepts at most 32,768 characters and 256 ranges.
+ASCII `.`, `!`, `?` runs, optional closing quotes/brackets and following whitespace
+end a range; an unterminated final range is retained. Interior decimal punctuation
+is not a delimiter. Initials and known ambiguous abbreviations (`Dr`, `Mr`, `Mrs`,
+`Ms`, `Prof`, `etc`, `vs` before a period), malformed surrogate pairs and
+non-whitespace control characters are unsupported, not normalized or guessed. This is conservative plain
+text segmentation, not general linguistic or SSML support.
+
+The Windows producer binds real `SpeakProgress` source character ranges and
+`AudioPosition` to the exact active `Prompt` and output generation. It seals
+before playback, requiring monotone nonnegative positions, complete lexical
+source coverage, UTF-16 boundaries and output-duration bounds. Identical repeated
+native ranges (including normalized numbers) keep their first time; overlapping,
+cross-sentence or unmappable ranges invalidate the timeline. Callback `Text` is
+never used as original source. The matching **actual device** position selects
+the last reached sentence start; reader position, output level, elapsed wall time
+and duration estimates cannot advance captions. Completion retains only the last
+sentence actually observed, never an unplayed final sentence. This implementation
+does not chunk/resynthesize speech, change prosody or add word highlighting.
 
 Response replacement/retirement, playback stop/cancel/failure, configuration
 revision, original request/session/channel, input recovery/activation generation,
@@ -1421,7 +1450,7 @@ Delivered caption options use [User Configuration](User_Configuration.md):
 
 | ID | Default / choices | Exact example after current activation name |
 |---|---|---|
-| `display.speech-text` | Off / CurrentUtterance | `set display.speech-text to CurrentUtterance` |
+| `display.speech-text` | Off / CurrentUtterance / CurrentSentence (alignment unavailable without exact-profile qualification) | `set display.speech-text to CurrentUtterance` |
 | `display.speech-text-dismissal-delay` | 5 seconds; canonical integer 0-30 | `set display.speech-text-dismissal-delay to 10` |
 | `display.speech-text-placement` | BottomRight / BottomLeft / TopRight / TopLeft; primary working area | `set display.speech-text-placement to TopLeft` |
 | `display.speech-text-pin` | false / true; current observed caption only, run-only | `set display.speech-text-pin to true` |
@@ -1480,7 +1509,7 @@ The broader proposed registry includes:
 
 | Preference | Default / choices | Example after "Kora" |
 |---|---|---|
-| Speech text | Sentence/word alignment remains proposed; bounded Off/CurrentUtterance aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Show the current sentence" (proposed) |
+| Speech text | CurrentSentence exact controls/implementation are delivered but alignment is unqualified; word highlighting and a natural sentence alias remain proposed | "Show the current sentence" (proposed alias) |
 | Speech-text dismissal | Number-word parsing remains proposed; canonical integer 0-30 commands are [delivered above](#bounded-natural-speech-caption-commands) | "Keep speech text visible for ten seconds" (proposed) |
 | Caption placement | Arbitrary placement and voice display selection remain proposed; four corner aliases are [delivered above](#bounded-natural-speech-caption-commands) | "Put speech text on another display" (proposed) |
 | Text scale | 100%; 75-200% | "Make result text twenty percent larger" |

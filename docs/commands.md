@@ -1740,12 +1740,25 @@ commands, arguments, URLs, headers, environment values, or credentials to a
 model. Include/exclude is audited and fail-closed, but does not connect to a
 server or authorize any capability.
 
-Live MCP capability discovery and invocation are not delivered yet. When they
-are added, app inclusion will be intersected with each session's explicit
-server/capability selection. Voice, typed, and UI requests will expose only
-freshly discovered and admitted capability descriptions to the selected
-model; every proposed call will still require the ordinary host permission,
-approval, egress, audit, cancellation, and provenance checks.
+**HTTPS read-only operation:** in the selected Sessions conversation, use
+**Review HTTPS MCP options**, then explicitly choose a server and delegated
+account. Enter the task and choose **Use reviewed MCP tool locally**. Separate
+native reviews cover the exact destination/account, discovered schema/tool, and
+outgoing arguments. Only host-mapped read-only tools are eligible; a server's
+`readOnlyHint` is not approval. The actual inert tool result is displayed
+separately from the retained assistant answer. **Stop MCP operation** closes
+new work and waits for owned resources before disconnect; it does not undo an
+external call.
+
+With that exact conversation in the foreground and explicit choices already
+made, typed or activated-voice `use selected mcp tool <task>` follows the same
+operation. `stop mcp` requests cancellation. Account and permission reviews
+remain native; commands never choose a default server, account or session.
+
+The shipped HTTPS account/transport broker remains **unavailable until
+qualified**. There is no anonymous or ambient-credential fallback, stdio
+launcher, default integration, or hosted-model result disclosure. Ordinary app
+inclusion still does not connect or authorize execution.
 
 ### Search admitted skill package metadata
 

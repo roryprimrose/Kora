@@ -28,6 +28,7 @@ public sealed class LocalSpeechTextPreferences : ISpeechTextPreferences
         null => null,
         "Off" => SpeechTextMode.Off,
         "CurrentUtterance" => SpeechTextMode.CurrentUtterance,
+        "CurrentSentence" => SpeechTextMode.CurrentSentence,
         _ => throw new InvalidDataException("The saved speech-text mode is invalid."),
     };
 

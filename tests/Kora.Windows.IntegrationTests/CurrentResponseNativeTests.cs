@@ -5,6 +5,8 @@ using Avalonia.Threading;
 using Avalonia.VisualTree;
 using AwesomeAssertions;
 using Kora.Application.Presentation;
+using Kora.Application.Visuals;
+using Kora.Core;
 using Kora.Core.Presentation;
 using Kora.NativeUxFixture;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -14,6 +16,48 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class CurrentResponseNativeTests
 {
+    [Fact]
+    public async Task BackgroundFailureRevealsItsDetailsAndCannotAutoHideBeforeExplicitDismissal()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new NativeUxFixtureSession(Path.GetFullPath("."), silentCaption: true);
+            await f.InitializeAsync();
+            using var controller = new ResponseWindowController(f.Main, NullLogger<ResponseWindowController>.Instance);
+            f.Main.CommandText = "what power action is pending";
+            await f.Main.RunTypedCommand.ExecuteAsync();
+            Dispatcher.UIThread.RunJobs();
+            var window = (ResponseWindow)typeof(ResponseWindowController).GetField("window",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(controller)!;
+            // Inspect the legacy window's timeout without relying on real dispatcher time.
+            var inactivity = (PresentationInactivityTimeout)typeof(ResponseWindow).GetField("responseInactivity",
+                BindingFlags.Instance | BindingFlags.NonPublic)!.GetValue(window)!;
+            window.IsVisible.Should().BeTrue();
+            inactivity.IsScheduled.Should().BeTrue();
+            controller.Dismiss(static () => true).Should().BeTrue();
+            window.IsVisible.Should().BeFalse();
+
+            f.Main.ReportHostInteractionFailure("Synthetic background host failure.");
+            Dispatcher.UIThread.RunJobs();
+
+            f.Main.State.Should().Be(AssistantState.Failure);
+            f.Main.ResponseBody.Should().Be("Synthetic background host failure.");
+            window.IsVisible.Should().BeTrue();
+            inactivity.IsScheduled.Should().BeFalse("unacknowledged failure details must not time out");
+
+            f.Main.CommandText = "what power action is pending";
+            await f.Main.RunTypedCommand.ExecuteAsync();
+            Dispatcher.UIThread.RunJobs();
+            f.Main.State.Should().Be(AssistantState.Information);
+            inactivity.IsScheduled.Should().BeTrue("an informational response resumes the configured timeout");
+
+            f.Main.ReportHostInteractionFailure("Synthetic replacement host failure.");
+            inactivity.IsScheduled.Should().BeFalse("a failure also cancels an already scheduled timeout");
+            controller.Dismiss(static () => true).Should().BeTrue();
+            window.IsVisible.Should().BeFalse("explicit dismissal remains available for failures");
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

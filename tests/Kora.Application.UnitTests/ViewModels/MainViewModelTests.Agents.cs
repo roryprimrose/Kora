@@ -218,6 +218,35 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
+    public async Task IndependentRunCommandsPreserveOriginalGuardAndJoinTheirOwnShutdown()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
+        await f.RunAsync("independent agents");
+        f.ViewModel.Transcript.Should().Contain("unavailable");
+        var received = new List<RequestOrigin>();
+        f.ViewModel.AgentRunSetRequested += (command, origin, eligible) =>
+        {
+            command.Action.Should().Be("Open");
+            eligible().Should().BeTrue();
+            HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
+            received.Add(origin);
+            return Task.CompletedTask;
+        };
+        await f.RunAsync("independent agents");
+        await f.RaiseActivatedTranscriptAsync("Nova, independent agents", 1);
+        using (HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.HostSystem),
+            HostActivityLayer.Application, HostOperation.Request))
+        { await f.RunAsync("independent agents"); }
+        received.Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
+        var closed = 0;
+        f.ViewModel.BindAgentRunSetShutdown(() => { closed++; return Task.CompletedTask; });
+        await f.ViewModel.ExitAsync();
+        closed.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
     public async Task AgentUnavailableActivationNameCannotCreateAuthority()
     {
         var f = new Fixture();

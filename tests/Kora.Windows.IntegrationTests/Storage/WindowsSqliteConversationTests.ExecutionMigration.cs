@@ -17,10 +17,26 @@ public sealed partial class WindowsSqliteConversationTests
         using var fixture = new InteractionStorageFixture();
         await fixture.InitializeAsync();
         await FinishInitial(fixture);
-        var original = await Submit(fixture, fixture.Request.SessionId, "legacy original bytes");
+        var original = await Submit(fixture, fixture.Request.SessionId, new string('\u0800', 4096));
         var audits = AuditText(fixture);
+        using (var connection = fixture.OpenRaw())
+        {
+            using var payload = connection.CreateCommand();
+            payload.CommandText = "SELECT length(CAST(payload AS BLOB)) FROM conversation_messages;";
+            Convert.ToInt64(payload.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture)
+                .Should().BeInRange(22769L, 32768L);
+        }
         fixture.Mutate("ALTER TABLE conversation_messages RENAME TO migration_fixture_messages; "
-            + HostInteractionSchema.LegacyConversationSchema[1]
+            + """
+            CREATE TABLE conversation_messages(
+                request_id TEXT PRIMARY KEY NOT NULL,
+                session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+                sequence INTEGER NOT NULL CHECK(sequence BETWEEN 1 AND 100),
+                revision INTEGER NOT NULL CHECK(revision BETWEEN 1 AND 2),
+                payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 32768),
+                audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence),
+                UNIQUE(session_id,sequence)) STRICT
+            """
             + "; INSERT INTO conversation_messages SELECT * FROM migration_fixture_messages; "
             + "DROP TABLE migration_fixture_messages; PRAGMA user_version=11;");
         if (interruptedMigration)

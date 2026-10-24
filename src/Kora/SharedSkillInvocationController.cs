@@ -11,7 +11,8 @@ namespace Kora;
 
 internal sealed partial class SharedSkillInvocationController(
     MainViewModel main, SharedSkillInvocationWorkflow workflow, SkillPackagesWindowController sources,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<SharedSkillInvocationController> logger) : IDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<SharedSkillInvocationController> logger,
+    ReviewedToolSkillInvocationWorkflow? toolWorkflow = null, QuestionWindowController? questions = null) : IDisposable
 {
     private SharedSkillInvocationWindow? window;
     private SharedSkillUseReview? review;
@@ -34,6 +35,7 @@ internal sealed partial class SharedSkillInvocationController(
     internal void Bind()
     {
         sources.BindInvocation((source, snapshot) => Open(source, snapshot, RequestOrigin.LocalUi, static () => true));
+        sources.BindToolInvocation((source, snapshot) => Open(source, snapshot, RequestOrigin.LocalUi, static () => true, true));
         main.SharedSkillInvocationRequested += Route;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.PropertyChanged += OnMainChanged;
@@ -44,7 +46,8 @@ internal sealed partial class SharedSkillInvocationController(
         && main.CallPolicyRevision == callRevision && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible
         && !main.IsResponseInteractionPending;
 
-    private async Task Open(SharedSkillSource source, SharedSkillSnapshot snapshot, RequestOrigin origin, Func<bool> eligible)
+    private async Task Open(SharedSkillSource source, SharedSkillSnapshot snapshot, RequestOrigin origin, Func<bool> eligible,
+        bool toolCapable = false)
     {
         if (opening) { throw new InvalidOperationException("Wait for the exact source review already opening."); }
         opening = true;
@@ -56,15 +59,25 @@ internal sealed partial class SharedSkillInvocationController(
         lifetime = new();
         try
         {
-            review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token);
+            toolMode = toolCapable;
+            if (toolCapable)
+            {
+                if (toolWorkflow is null) { throw new InvalidOperationException("Reviewed tool skill invocation is unavailable in this host."); }
+                toolSource = source;
+                toolSnapshot = snapshot;
+            }
+            else { review = await workflow.ReviewAsync(source, snapshot, () => Eligible(), origin, lifetime.Token); }
             if (!eligible() || !Eligible()) { Close(); return; }
             requestOrigin = origin;
-            window = new(action => Start(action, RequestOrigin.LocalUi));
-            window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D}\n\n{review.Text}";
+            window = new(action => Start(action, RequestOrigin.LocalUi), toolCapable);
+            window.Instructions.Text = $"{snapshot.Name} | {snapshot.Version} | source {source.Id:D} | SHA256 {snapshot.RevisionDigest}\n\n"
+                + (toolCapable ? snapshot.Text : review!.Text);
             window.Closed += (_, _) => Close();
             window.Request.PropertyChanged += (_, args) =>
             { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
-            window.Targets.SelectionChanged += (_, _) => RetireConfirmation();
+            window.Address.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
+            window.Targets.SelectionChanged += (_, _) => { RetireConfirmation(); RetireToolReview(); };
             showing = true;
             try { window.Show(); }
             finally
@@ -73,7 +86,9 @@ internal sealed partial class SharedSkillInvocationController(
                 if (closeAfterShow) { closeAfterShow = false; Close(); }
             }
             if (window is null || !Eligible()) { Close(); return; }
-            window.Status.Text = "Review all instructions, then separately enable this exact revision. Nothing invoked.";
+            window.Status.Text = toolCapable
+                ? "Select an existing Active target, review exact target and tool revision, then separately enable. No action permission granted."
+                : "Review all instructions, then separately enable this exact revision. Nothing invoked.";
         }
         catch { Close(); throw; }
         }
@@ -89,15 +104,24 @@ internal sealed partial class SharedSkillInvocationController(
             {
                 var selection = sources.ResolveInvocation(command.Argument)
                     ?? throw new InvalidOperationException("List one registered source natively first. Select its exact case-sensitive name; ambiguous names require 'name from source <source ID>'.");
-                await Open(selection.Source, selection.Snapshot, origin, eligible);
+                await Open(selection.Source, selection.Snapshot, origin, eligible, command.ToolCapable);
                 return;
             }
             if (string.Equals(command.Action, "Close", StringComparison.Ordinal)) { await CloseAndWait(); return; }
             if (window is null || !Eligible() || !active.IsCompleted)
             { throw new InvalidOperationException("Open a current exact-source review and wait for its owned operation first."); }
+            if (command.ToolCapable != toolMode)
+            { throw new InvalidOperationException("Instruction-only and tool-capable invocation commands are separate."); }
             if (string.Equals(command.Action, "Request", StringComparison.Ordinal))
             {
                 window.Request.Text = command.Argument;
+                requestOrigin = origin;
+                RetireConfirmation();
+                return;
+            }
+            if (toolMode && command.Action is "Address")
+            {
+                window.Address.Text = command.Argument;
                 requestOrigin = origin;
                 RetireConfirmation();
                 return;
@@ -139,6 +163,7 @@ internal sealed partial class SharedSkillInvocationController(
         {
             UseFailed(logger, exception.GetType().Name);
             review?.Dispose();
+            toolReview?.Dispose();
             if (window is { } opened)
             { opened.Clear(); opened.Status.Text = "Unavailable, cancelled or unconfirmed. Inspect the target conversation before any fresh review; no automatic retry."; }
         }
@@ -151,6 +176,7 @@ internal sealed partial class SharedSkillInvocationController(
 
     private async Task Run(string action, RequestOrigin origin, Func<bool> eligible)
     {
+        if (toolMode) { await RunTool(action, origin, eligible); return; }
         var opened = window ?? throw new InvalidOperationException("Review window is closed.");
         var captured = review ?? throw new InvalidOperationException("Exact skill review is unavailable.");
         var token = lifetime!.Token;
@@ -208,6 +234,8 @@ internal sealed partial class SharedSkillInvocationController(
     {
         Interlocked.Increment(ref inputRevision);
         if (invocation is not null) { invocation.Dispose(); invocation = null; }
+        toolInvocation?.Dispose();
+        toolInvocation = null;
         if (window is not null) { window.Confirm.IsEnabled = false; window.Confirmation.Text = string.Empty; }
     }
 
@@ -221,6 +249,7 @@ internal sealed partial class SharedSkillInvocationController(
             closeAfterShow = true;
             lifetime?.Cancel();
             review?.Dispose();
+            toolReview?.Dispose();
             window?.Clear();
             return;
         }
@@ -229,6 +258,10 @@ internal sealed partial class SharedSkillInvocationController(
         lifetime?.Cancel();
         review?.Dispose();
         review = null;
+        RetireToolReview();
+        toolSource = null;
+        toolSnapshot = null;
+        toolMode = false;
         invocation?.Dispose();
         invocation = null;
         opened?.Clear();
@@ -252,5 +285,6 @@ internal sealed partial class SharedSkillInvocationController(
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.PropertyChanged -= OnMainChanged;
         main.BindSharedSkillUseShutdown(null);
+        sources.BindToolInvocation(null);
     }
 }

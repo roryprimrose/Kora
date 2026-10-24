@@ -11,7 +11,7 @@ public sealed class WindowsOllamaQualification
 {
     public WindowsOllamaQualification(Guid evidenceId, ProviderCapabilityCatalogue catalogue,
         WindowsOllamaRuntimeIdentity runtime, string runtimeVersion, string model, string modelDigest,
-        CancellationToken revoked)
+        CancellationToken revoked, LocalModelQualificationEvidence? qualificationEvidence = null)
     {
         ArgumentNullException.ThrowIfNull(catalogue);
         ArgumentNullException.ThrowIfNull(runtime);
@@ -37,6 +37,14 @@ public sealed class WindowsOllamaQualification
         Model = model;
         ModelDigest = modelDigest;
         Revoked = revoked;
+        QualificationEvidence = qualificationEvidence;
+        if (qualificationEvidence is not null && (!string.Equals(qualificationEvidence.ExecutableSha256, runtime.ExecutableSha256, StringComparison.OrdinalIgnoreCase)
+            || !string.Equals(qualificationEvidence.RuntimeVersion, runtimeVersion, StringComparison.Ordinal)
+            || !string.Equals(qualificationEvidence.Model, model, StringComparison.Ordinal)
+            || !string.Equals(qualificationEvidence.ModelSha256, modelDigest, StringComparison.OrdinalIgnoreCase)
+            || qualificationEvidence.ProfileId != selected.Selection.Model.Value || qualificationEvidence.Revision != catalogue.Revision.Value
+            || qualificationEvidence.IssuedAt > catalogue.ObservedAt || qualificationEvidence.ExpiresAt != catalogue.ValidUntil))
+        { throw new ArgumentException("The receipt subject does not match independently verified qualification evidence.", nameof(qualificationEvidence)); }
     }
 
     public Guid EvidenceId { get; }
@@ -46,6 +54,7 @@ public sealed class WindowsOllamaQualification
     public string Model { get; }
     public string ModelDigest { get; }
     public CancellationToken Revoked { get; }
+    public LocalModelQualificationEvidence? QualificationEvidence { get; }
     public bool IsCurrent(DateTimeOffset now) => !Revoked.IsCancellationRequested
-        && Runtime.StartedAt <= now && Catalogue.IsCurrent(now);
+        && Runtime.StartedAt <= now && Catalogue.IsCurrent(now) && QualificationEvidence?.IsCurrent(now) == true;
 }

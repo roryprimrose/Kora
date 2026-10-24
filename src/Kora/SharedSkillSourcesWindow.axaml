@@ -22,6 +22,7 @@
       <Button x:Name="DiscoverSource" Content="List selected source" />
       <Button x:Name="VerifyRevision" Content="Recheck selected revision" />
       <Button x:Name="ReviewInstructionUse" Content="Review selected instruction-only use" />
+      <Button x:Name="ReviewToolUse" Content="Review selected one-tool use" />
     </StackPanel>
     <controls:NamedTextBlock x:Name="SharedStatus" Grid.Row="3" TextWrapping="Wrap"
                             AutomationProperties.Name="Source availability and immutable revision status" />

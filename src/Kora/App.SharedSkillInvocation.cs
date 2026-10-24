@@ -14,7 +14,8 @@ public sealed partial class App
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-            Services.GetRequiredService<ILogger<SharedSkillInvocationController>>());
+            Services.GetRequiredService<ILogger<SharedSkillInvocationController>>(),
+            ActivatorUtilities.CreateInstance<ReviewedToolSkillInvocationWorkflow>(Services), questionWindow);
         sharedSkillInvocation.Bind();
     }
 }

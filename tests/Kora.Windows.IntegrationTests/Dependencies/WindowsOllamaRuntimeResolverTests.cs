@@ -1,9 +1,14 @@
 using AwesomeAssertions;
+
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Windows.Dependencies;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
+using System.Security.Cryptography;
+using System.Text.Json;
 
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
@@ -103,9 +108,9 @@ public sealed class WindowsOllamaRuntimeResolverTests
     public async Task ActualDesktopSourceHasNoQualifiedProfileAndNeverObservesAProcess()
     {
         using var f = new Fixture();
-        var source = new UnqualifiedOllamaQualificationSource();
-        (await source.ReadAsync(Token)).Should().BeNull();
-        var resolver = new WindowsOllamaRuntimeResolver(source, f, f.Time, NullLogger<WindowsOllamaRuntimeResolver>.Instance,
+        (await new Kora.Definitions.Qualifications.BundledLocalModelQualificationAuthority().Read(Token)).Should().BeEmpty();
+        f.Value = null;
+        var resolver = new WindowsOllamaRuntimeResolver(f, f, f.Time, NullLogger<WindowsOllamaRuntimeResolver>.Instance,
             (_, _) => throw new InvalidOperationException("No native process observation is authorized."));
         (await resolver.ObserveAsync(Token)).For(ProviderService.Local).Models.Should().BeEmpty();
     }
@@ -179,14 +184,41 @@ public sealed class WindowsOllamaRuntimeResolverTests
         internal ProviderProfileTuple Profile { get; } = new(ProviderService.Local, new("fake-host-account"), new(1),
             new("fake-model"), new("off"), new("bounded"));
         internal WindowsOllamaRuntimeResolver Resolver { get; }
+        private static readonly string[] Gates = ["licence-identity", "quality-authority", "bounds", "cancellation-recovery",
+            "resource-latency", "offline-egress", "integrated-host"];
         internal Fixture()
         {
             var model = new ProviderCatalogueModel(Profile.Model, "Deterministic fake", Selection,
                 [new(Profile.Reasoning, "Off", false)], [new(Profile.Context, "Host bounded", true)]);
             var catalogue = new ProviderCapabilityCatalogue(ProviderService.Local, ProviderCatalogueStatus.Current,
                 Profile.Account, Profile.CatalogueRevision, Time.Now, Time.Now.AddMinutes(1), [model]);
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new
+            {
+                Format = 1,
+                HostContract = LocalModelQualificationEvidence.HostContract,
+                ProfileId = Selection.Model.Value,
+                Revision = 1,
+                Label = "Deterministic fixture",
+                RuntimeVersion = "fake-runtime",
+                ExecutableSha256 = Digest,
+                Model = "deterministic-fake:one",
+                ModelSha256 = Digest,
+                Reasoning = "off",
+                Context = "bounded",
+                IssuedAt = Time.Now,
+                ExpiresAt = Time.Now.AddMinutes(1),
+                Proofs = Gates.Select(gate => new
+                {
+                    Gate = gate,
+                    SourceRevision = new string('b', 40),
+                    RunId = "fixture-only",
+                    ArtifactSha256 = Digest,
+                    Outcome = "passed"
+                }).ToArray(),
+            });
+            var qualification = LocalModelQualificationEvidence.Read(bytes, Convert.ToHexString(SHA256.HashData(bytes)));
             Value = new(Guid.NewGuid(), catalogue,
-                new(4242, Time.Now, @"C:\fake\ollama.exe", Digest), "fake-runtime", "deterministic-fake:one", Digest, Revoked.Token);
+                new(4242, Time.Now, @"C:\fake\ollama.exe", Digest), "fake-runtime", "deterministic-fake:one", Digest, Revoked.Token, qualification);
             Resolver = new(this, this, Time, NullLogger<WindowsOllamaRuntimeResolver>.Instance, (_, token) =>
             {
                 token.ThrowIfCancellationRequested();

@@ -180,7 +180,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "troubleshooting",
             "agent-profile-authoring",
             "claude-requests",
-            "hosted-requests");
+            "hosted-requests",
+            "independent-agent-runs");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));

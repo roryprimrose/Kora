@@ -32,14 +32,37 @@ public sealed class PresenceParticleFieldTests
     [Theory]
     [InlineData(true)]
     [InlineData(false)]
-    public void ReducedMotionAndFailurePreserveCurrentArrangement(bool reducedMotion)
+    public void ReducedMotionAndHiddenPreserveCurrentArrangement(bool reducedMotion)
     {
         var field = new PresenceParticleField();
         field.Advance(AssistantState.Calculating, TimeSpan.FromMilliseconds(33), 100, 100, false);
         var before = Project(field, 100);
-        field.Advance(reducedMotion ? AssistantState.Executing : AssistantState.Failure,
+        field.Advance(reducedMotion ? AssistantState.Executing : AssistantState.Hidden,
             TimeSpan.FromSeconds(2), 100, 200, reducedMotion).Should().BeFalse();
         Project(field, 100).Should().Equal(before);
+    }
+
+    [Theory]
+    [InlineData(AssistantState.Listening)]
+    [InlineData(AssistantState.Calculating)]
+    [InlineData(AssistantState.Waiting)]
+    [InlineData(AssistantState.Executing)]
+    [InlineData(AssistantState.Success)]
+    [InlineData(AssistantState.Failure)]
+    [InlineData(AssistantState.Information)]
+    public void EveryVisibleStateMovesAtMinimumSpeedAndRespectsReducedMotion(AssistantState state)
+    {
+        var field = new PresenceParticleField();
+        var before = Project(field, 100);
+
+        field.Advance(state, PresenceAnimation.FrameInterval, 100,
+            PresenceSettings.MinimumMovementSpeedPercent, false).Should().BeTrue();
+        var moving = Project(field, 100);
+        moving.Should().NotEqual(before);
+
+        field.Advance(state, TimeSpan.FromHours(1), 100,
+            PresenceSettings.MinimumMovementSpeedPercent, true).Should().BeFalse();
+        Project(field, 100).Should().Equal(moving);
     }
 
     [Theory]

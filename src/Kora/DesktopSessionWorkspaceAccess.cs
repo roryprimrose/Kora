@@ -6,30 +6,63 @@ namespace Kora;
 internal sealed class DesktopSessionWorkspaceAccess : ISessionWorkspaceAccess, IDisposable
 {
     private readonly DesktopInstanceOwnershipBridge ownership;
-    private readonly MainViewModel main;
+    private MainViewModel? main;
     private readonly Lock gate = new();
     private long revision;
     private long privacyEpoch;
     private (long Call, long Owner, long Privacy) observed;
     private volatile bool disposed;
 
-    public DesktopSessionWorkspaceAccess(DesktopInstanceOwnershipBridge ownership, MainViewModel main)
+    public DesktopSessionWorkspaceAccess(DesktopInstanceOwnershipBridge ownership)
     {
         this.ownership = ownership;
-        this.main = main;
-        main.PrivacyClosureRequested += OnPrivacyClosure;
     }
 
-    public bool CanInspect => !disposed && ownership.IsCapabilityAdmissionOpen && !ownership.IsHandoffRecoveryRequired
-        && main.CanRevealPrivatePresentation;
-    public bool CanControl => CanInspect && !main.CallObservation.IsProtected;
+    public void Bind(MainViewModel viewModel)
+    {
+        ArgumentNullException.ThrowIfNull(viewModel);
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (main is not null)
+            {
+                throw new InvalidOperationException("Workspace access is already bound to its desktop view model.");
+            }
+            revision = checked(revision + 1);
+            main = viewModel;
+            main.PrivacyClosureRequested += OnPrivacyClosure;
+        }
+    }
+
+    public bool CanInspect
+    {
+        get
+        {
+            lock (gate)
+            {
+                return !disposed && main is not null && ownership.IsCapabilityAdmissionOpen
+                    && !ownership.IsHandoffRecoveryRequired && main.CanRevealPrivatePresentation;
+            }
+        }
+    }
+
+    public bool CanControl
+    {
+        get
+        {
+            lock (gate)
+            {
+                return CanInspect && main is not null && !main.CallObservation.IsProtected;
+            }
+        }
+    }
     public long ControlRevision
     {
         get
         {
             lock (gate)
             {
-                var current = (main.CallObservation.Revision, ownership.AdmissionRevision, privacyEpoch);
+                var current = (main?.CallObservation.Revision ?? 0, ownership.AdmissionRevision, privacyEpoch);
                 if (current != observed) { revision = checked(revision + 1); observed = current; }
                 return revision;
             }
@@ -38,12 +71,24 @@ internal sealed class DesktopSessionWorkspaceAccess : ISessionWorkspaceAccess, I
 
     private void OnPrivacyClosure(object? sender, EventArgs args)
     {
-        lock (gate) { privacyEpoch = checked(privacyEpoch + 1); }
+        lock (gate)
+        {
+            if (!disposed) { privacyEpoch = checked(privacyEpoch + 1); }
+        }
     }
 
     public void Dispose()
     {
-        disposed = true;
-        main.PrivacyClosureRequested -= OnPrivacyClosure;
+        lock (gate)
+        {
+            if (disposed) { return; }
+            disposed = true;
+            revision = checked(revision + 1);
+            if (main is not null)
+            {
+                main.PrivacyClosureRequested -= OnPrivacyClosure;
+                main = null;
+            }
+        }
     }
 }

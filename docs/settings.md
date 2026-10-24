@@ -647,6 +647,9 @@ Inspection distinguishes saved evidence from unsaved defaults, while malformed o
 
 Command results stay in the transcript without immediate speech or replacing question/security panels. Saving AlwaysShow does not reopen a dismissed window or resurrect old/private/revoked content; native source, privacy, call and presentation admission remain authoritative.
 Topmost applies only to Kora's response window, not arbitrary OS windows, geometry, activation or foreground rights ([window controller](../src/Kora/ResponseWindowController.cs), [native response](../src/Kora/ResponseWindow.axaml.cs)).
+Failure details do not auto-hide after the response timeout. They remain visible
+until dismissed or replaced, unless privacy or presentation eligibility hides
+them. This includes background application failures, even without a command.
 
 Under **Appearance > Presence**, **Animation mode** switches
 between **Standard** (Avalonia) and **Experimental** (native) without restarting Kora's
@@ -660,6 +663,9 @@ active or unavailable renderer. Failures are explicit and do not silently select
 the other backend. Uncertain retirement requires normal exit, not a storage or
 ownership reset. Native remains experimental; this does not qualify laptop
 rendering performance or full physical interaction.
+Both modes keep every visible state gently moving, including coral failures.
+Windows reduced-motion preferences still freeze particle movement, and hidden
+or ineligible surfaces do not keep animating.
 
 The saved renderer choice overrides `KORA_PRESENCE_RENDERER` on later startups.
 With no saved choice, unset/`avalonia` uses Avalonia and `native` opts into the

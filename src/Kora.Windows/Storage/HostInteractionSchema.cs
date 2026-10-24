@@ -195,7 +195,7 @@ internal static class HostInteractionSchema
     internal static readonly string[] LegacyConversationSchema =
     [
         ConversationSchema[0],
-        ConversationSchema[1].Replace("BETWEEN 1 AND 3", "BETWEEN 1 AND 2", StringComparison.Ordinal),
+        ConversationSchema[1].Replace("revision BETWEEN 1 AND 3", "revision BETWEEN 1 AND 2", StringComparison.Ordinal),
     ];
     internal static readonly string[] LegacyConversationTables = [.. QueueOrderTables, .. LegacyConversationSchema];
     internal static readonly string[] CurrentTables = [.. QueueOrderTables, .. ConversationSchema];

@@ -3,9 +3,9 @@ using Kora.Core.Configuration;
 
 namespace Kora.Application.Voice;
 
-public sealed record ResponseReadCommand(bool IsValid)
+public sealed record ResponseReadCommand(bool IsValid, bool SelectedAnswer = false)
 {
-    public static IReadOnlyList<string> FixedPhrases { get; } = ["read that aloud", "read current response"];
+    public static IReadOnlyList<string> FixedPhrases { get; } = ["read that aloud", "read current response", "read selected answer"];
 
     public static bool Matches(string input, string assistantName) => Parse(input, assistantName)?.IsValid == true;
 
@@ -22,11 +22,13 @@ public sealed record ResponseReadCommand(bool IsValid)
         var head = new string(text.Select(character => char.IsControl(character) ? ' ' : character).ToArray());
         var prefix = string.Join(' ', head.Split((char[]?)null, 3, StringSplitOptions.RemoveEmptyEntries).Take(2));
         if (!prefix.Equals("read that", StringComparison.OrdinalIgnoreCase)
-            && !prefix.Equals("read current", StringComparison.OrdinalIgnoreCase))
+            && !prefix.Equals("read current", StringComparison.OrdinalIgnoreCase)
+            && !prefix.Equals("read selected", StringComparison.OrdinalIgnoreCase))
         {
             return null;
         }
         return new(Encoding.UTF8.GetByteCount(input) <= 1024 && !input.Any(char.IsControl)
-            && FixedPhrases.Contains(text, StringComparer.OrdinalIgnoreCase));
+            && FixedPhrases.Contains(text, StringComparer.OrdinalIgnoreCase),
+            prefix.Equals("read selected", StringComparison.OrdinalIgnoreCase));
     }
 }

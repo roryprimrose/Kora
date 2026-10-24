@@ -12,6 +12,23 @@ namespace Kora.Application.UnitTests.Documentation;
 
 public sealed class EmbeddedUserDocumentationProviderTests
 {
+    [Fact]
+    public void SpeechSuggestionGuideExplainsCompleteReviewSeparateConfirmationAndOriginalVoice()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        foreach (var phrase in SpeechSummarySuggestionCommand.FixedPhrases)
+        {
+            settings.Should().Contain("**" + phrase + "**");
+            commands.Should().Contain("**" + phrase + "**");
+        }
+        settings.Should().Contain("shared device-local").And.Contain("60 seconds")
+            .And.Contain("uncertain save is not rollback or success")
+            .And.Contain("Voice provenance survives later")
+            .And.Contain("Unqualified model execution remains", "the guide must retain qualification boundaries");
+    }
+
     [Theory]
     [InlineData("commands")]
     [InlineData("windows-and-tray")]
@@ -200,10 +217,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 22);
+        sections.Should().HaveCount(commands.Count + 23);
         sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
             .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
             .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
+        var speechSuggestion = sections.Single(section => section.StartsWith(
+            "Review one retained assistant speech limit suggestion", StringComparison.Ordinal));
+        foreach (var phrase in SpeechSummarySuggestionCommand.FixedPhrases)
+        { speechSuggestion.Should().Contain("**" + phrase + "**"); }
+        speechSuggestion.Should().Contain("separate fresh input").And.Contain("original voice classification")
+            .And.Contain("never the newest message").And.Contain("shared audited settings service");
         var disposition = sections.Single(section => section.StartsWith("Review one exact session's logical disposition", StringComparison.Ordinal));
         disposition.Should().Contain(SessionDispositionReviewCommand.Syntax)
             .And.Contain("Nothing is removed by the command").And.Contain("separate deliberate native action")
@@ -369,6 +392,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, sharedInvocation)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
             && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();

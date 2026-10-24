@@ -6,6 +6,9 @@
 # dotenv files
 .env
 
+# Local agent coordination and transient workflow files
+.scratch/
+
 # User-specific files
 *.rsuser
 *.suo

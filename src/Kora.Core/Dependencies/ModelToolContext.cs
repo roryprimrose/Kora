@@ -5,7 +5,8 @@ namespace Kora.Core.Dependencies;
 public sealed class ModelToolContext
 {
     internal ModelToolContext(ModelTurnProvenance provenance, string systemPolicy, string userRequest,
-        ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire)
+        ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire,
+        ModelTurnConstraints? constraints = null)
     {
         Provenance = provenance;
         SystemPolicy = systemPolicy;
@@ -13,6 +14,7 @@ public sealed class ModelToolContext
         Evidence = evidence;
         ToolMode = toolMode;
         Wire = wire;
+        Constraints = constraints;
     }
 
     internal ModelTurnProvenance Provenance { get; }
@@ -20,5 +22,8 @@ public sealed class ModelToolContext
     public string UserRequest { get; }
     public ImmutableArray<ModelContextEvidence> Evidence { get; }
     public ModelToolMode ToolMode { get; }
+    public ModelTurnConstraints? Constraints { get; }
+    public IReadOnlyList<Kora.Core.Tools.CapabilityDescriptor> Tools =>
+        Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
     public ImmutableArray<byte> Wire { get; }
 }

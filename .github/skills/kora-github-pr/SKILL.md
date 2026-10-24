@@ -120,13 +120,13 @@ Record current candidate-head App checks and ticket when available, not merely m
 
 ## Handoff, Repair and Uncertainty
 
-For a coordinator job, send immediate native `pr-enrolled-ci-wait` after actual PR/enrollment readback and all local finite consequential commands have terminated/joined. Follow the agent's [publication milestone protocol](../../agents/roadmap-coordinator.agent.md#publication-milestone-protocol); do not wait for final merge or parent ACK.
+For a coordinator job, immediately publish `pr-enrolled-ci-wait` to the registered shared outbox after actual PR/enrollment readback and all local finite consequential commands have terminated/joined. Follow the agent's [publication milestone protocol](../../agents/roadmap-coordinator.agent.md#publication-milestone-protocol) and [mailbox protocol](../../agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol); do not wait for final merge or parent ACK, or send a redundant native message.
 
-The agent owns event fields, once-only release/refill, native delivery readback and authority exceptions; do not duplicate that protocol here.
+The agent owns event fields, once-only release/refill, atomic file delivery/readback, retained-owner continuation and authority exceptions; do not duplicate that protocol here. Explicitly retained legacy native runs preserve their recorded transport until a safe transition.
 
-Apply the agent's [routine continuation rule](../../agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input): finish the authorized handoff and yield without a stop/wait/check-again user prompt. Supported re-entry retains existing authority and repair admission; pending hosted checks do not authorize polling or imply continuous monitoring.
+Apply the agent's [routine continuation rule](../../agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input): finish the authorized handoff and release execution without a stop/wait/check-again user prompt. Retain the verified administrative inbox continuation or record the need for a budgeted wake. Supported re-entry retains existing authority and repair admission; pending hosted checks do not authorize child CI polling or imply continuous monitoring. The coordinator keeps its separate bounded scheduling loop running.
 
-Return one compact durable handoff with principal, repository, exact launch-mapped owner/branch/current remote head, actual PR URL, Auto method/`enabledAt` or explicit authority exception, current candidate state, evidence pointers, failures and command termination. Persist deep CLI evidence in the owner's receipt; a status-file write alone is not native delivery.
+Return one compact durable handoff with principal, repository, exact launch-mapped owner/branch/current remote head, actual PR URL, Auto method/`enabledAt` or explicit authority exception, current candidate state, evidence pointers, failures and command termination. Persist deep CLI evidence in the owner's receipt; status alone is not an event, but verified atomic mailbox publication is delivery without native messaging.
 
 Retain the same source owner/worktree and PR for approved review/CI repair. Preserve App updates, changed-input validation and required checks. Hosted CI wait does not consume execution allocation.
 
@@ -135,6 +135,8 @@ On supported resume, report concrete source-bound failure for repair admission; 
 ## Scratch Usage
 
 Keep durable receipts in the established host-owned artifact location. For transient repository scratch, use `New-NetAaaScratchPath -RepoRoot <owning-worktree> -SkillName 'kora-github-pr'` from the installed shared helper.
+
+Coordinator transport is separate from transient PR scratch: use the exact absolute shared run root supplied at launch, not a relative `.scratch` directory in each worktree. Follow the agent's mailbox ownership/retention rules; never clean a live shared mailbox or bootstrap an unavailable scratch helper merely for transport.
 
 Verify approved `.scratch/` ignore policy; obtain consent before changing it. Do not add a dependency or bootstrap tooling just for scratch.
 

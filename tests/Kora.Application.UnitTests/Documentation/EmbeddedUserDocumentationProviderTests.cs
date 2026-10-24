@@ -178,6 +178,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
+            "agent-profile-authoring",
             "hosted-requests",
             "independent-agent-runs");
         first.Should().OnlyContain(page =>

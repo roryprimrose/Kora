@@ -5,10 +5,13 @@ namespace Kora.Application.Agents;
 public sealed record AgentRunCommand(string Action, string Argument)
 {
     public AgentRunSetCommand? RunSet { get; init; }
+    public AgentProfileAuthoringCommand? Authoring { get; init; }
     public static AgentRunCommand? Parse(string input, string assistantName)
     {
         if (string.IsNullOrWhiteSpace(input)) { return null; }
         var text = ArtifactCommandRouter.RemoveActivationPrefix(input, assistantName);
+        if (AgentProfileAuthoringCommand.Parse(text) is { } authoring)
+        { return new("Authoring", string.Empty) { Authoring = authoring }; }
         foreach (var (phrase, action) in new[]
         {
             ("agent source ", "Source"), ("agent request ", "Request"), ("agent target ", "Target"),

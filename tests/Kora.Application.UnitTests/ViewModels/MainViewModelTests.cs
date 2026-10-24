@@ -4564,6 +4564,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
+            .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)

@@ -172,7 +172,8 @@ public sealed partial class ModelTurnHostTests
 
     private sealed partial class Fixture
     {
-        internal ModelTurnHost CopilotProfiles(HostedRuntime runtime, HostedTransmissionReviewService reviews)
+        internal ModelTurnHost CopilotProfiles(ICopilotTurnRuntime runtime, HostedTransmissionReviewService reviews,
+            bool profileConfiguration = true, bool sessionStore = true, bool composeReviews = true)
         {
             Time.ExpectedDeadline = CopilotTurnAuthorization.MaximumDuration;
             ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
@@ -181,7 +182,8 @@ public sealed partial class ModelTurnHostTests
             var selection = ModelProviderSelection.OllamaCandidate with { Provider = ModelProviderIdentity.Copilot };
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
                 [new(selection, Gates(selection), Time.Now.AddMinutes(5), new CopilotModelTurnAdapter(runtime, reviews))],
-                ProviderConfiguration, ProfileConfiguration, this, hostedReviews: reviews);
+                ProviderConfiguration, profileConfiguration ? ProfileConfiguration : null, sessionStore ? this : null,
+                hostedReviews: composeReviews ? reviews : null);
             ownedHosts.Add(host);
             return host;
         }

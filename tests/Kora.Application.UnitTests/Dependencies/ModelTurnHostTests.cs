@@ -547,9 +547,10 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal long SessionProfileRevision { get; set; }
         internal bool SessionProfileHeld { get; set; }
         internal Action? AfterProfileRead { get; set; }
+        internal Func<SessionProviderProfile>? ProfileRead { get; set; }
         public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token)
         {
-            var result = new SessionProviderProfile(Session, SessionProfileRevision, SessionOverrides, SessionProfileHeld);
+            var result = ProfileRead?.Invoke() ?? new SessionProviderProfile(Session, SessionProfileRevision, SessionOverrides, SessionProfileHeld);
             AfterProfileRead?.Invoke();
             return ValueTask.FromResult(result);
         }

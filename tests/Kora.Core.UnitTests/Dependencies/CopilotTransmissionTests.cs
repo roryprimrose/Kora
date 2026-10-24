@@ -29,6 +29,18 @@ public sealed class CopilotTransmissionTests
         transmission.Body.Should().Equal(1, 2, 3);
     }
 
+    [Fact]
+    public void Noncredential_headers_are_an_immutable_case_insensitive_snapshot()
+    {
+        var headers = new Dictionary<string, string>(StringComparer.OrdinalIgnoreCase) { ["Content-Type"] = "application/json" };
+        var transmission = new CopilotTransmission(
+            new(new(Guid.NewGuid()), HostRequest.Create(RequestOrigin.LocalUi), ModelProviderSelection.CopilotCandidate),
+            new(ProviderService.Copilot, new("account"), new(1), new("model"), new("default"), new("default")),
+            new("https://api.githubcopilot.com/chat/completions"), new byte[] { 1 }, headers);
+        headers["Content-Type"] = "changed";
+        transmission.Headers["content-type"].Should().Be("application/json");
+    }
+
     [Theory]
     [InlineData("http://api.githubcopilot.com/chat/completions")]
     [InlineData("https://user:password@api.githubcopilot.com/chat/completions")]

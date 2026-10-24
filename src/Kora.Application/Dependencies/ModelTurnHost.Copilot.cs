@@ -21,8 +21,7 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
         if (session.Held || !session.Session.IsActive || session.Session.SessionId != issuer.Request.SessionId || !Live())
         { return new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted)); }
         var resolved = await providerProfileConfiguration.ResolveTurnAsync(Live, session.Desired, token).ConfigureAwait(false);
-        if (!Live() || !resolved.Current() || resolved.Tuple is not { Service: ProviderService.Copilot } profile
-            || resolved.Selection?.Provider != ModelProviderIdentity.Copilot)
+        if (!Live() || !resolved.Current() || resolved.Tuple is not { Service: ProviderService.Copilot } profile)
         { return new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }
         return await AdmitCopilotAsync(hostedReviews.PrepareTurn(context, profile), token).ConfigureAwait(false);
     }
@@ -51,13 +50,13 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
     private async ValueTask<bool> HostedCurrentAsync(ModelTurn turn, CancellationToken token)
     {
         if (turn.Profile is not { Service: ProviderService.Copilot } profile || !turn.IsRunning
-            || await RevalidateAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None
-            || sessionProfiles is null || providerProfileConfiguration is null)
+            || await RevalidateAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
         { return false; }
-        var saved = await sessionProfiles.ReadProviderProfile(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
+        // This callback is bound only after configured-profile admission requires both stores.
+        var saved = await sessionProfiles!.ReadProviderProfile(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         return !saved.Held && saved.Session.IsActive && saved.Session.SessionId == turn.Provenance.Request.SessionId
             && saved.Session.Generation == turn.SessionGeneration && saved.Revision == turn.SessionPolicyRevision
-            && await providerProfileConfiguration.ValidateTurnAsync(profile, token).ConfigureAwait(false)
+            && await providerProfileConfiguration!.ValidateTurnAsync(profile, token).ConfigureAwait(false)
             && await RevalidateAsync(turn, token).ConfigureAwait(false) == ModelTurnReason.None;
     }
 }

@@ -150,6 +150,13 @@ asynchronous assessment consults repository-wide open and recently landed PRs,
 including work outside the coordinator, to avoid duplicate feature delivery.
 Concrete conflicts route to the same admitted PR owner; unknown mergeability
 does not authorize mutation. Parent questions never block this loop.
+Multiple orchestration sessions join the same [repository dataset](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-ownership-and-recovery),
+discovered through the common Git metadata directory, with one fenced scheduling
+leader and observing standbys. A successor adopts all nonclosed runs, owners,
+capacity, pending dispatches and PRs; expired coordinator leadership does not
+prove child or remote work stopped. [Transport retention/cleanup](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-retention-and-cleanup)
+uses checkpointed, reference-aware bounded plans, not deletion when a chat ends
+or a PR merges. New chats/runs do not reset capacity or authority.
 These are agent instructions, not an installed scheduler or queue-controller
 change: filesystem writes do not wake idle sessions, unavailable continuation
 must be disclosed, and repair/merge authority is not expanded.

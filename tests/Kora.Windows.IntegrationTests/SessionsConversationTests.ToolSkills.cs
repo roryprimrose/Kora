@@ -3,8 +3,12 @@ using Avalonia.Controls;
 using Avalonia.Interactivity;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Skills;
+using Kora.Core.Authorization;
+using Kora.Core.Dependencies;
+using Kora.Core.Hosting;
 using Kora.Core.Network;
 using Kora.Core.Skills;
 using Kora.NativeUxFixture;
@@ -15,8 +19,11 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
-    [Fact]
-    public async Task NativeToolRevisionReviewRequiresSeparateEnablementAndComposedActionBeforeRetention()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task NativeToolRevisionReviewRequiresSeparateEnablementAndExactActionApprovalBeforeRetention(bool available, bool deny)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -24,11 +31,19 @@ public sealed partial class SessionsConversationTests
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var adapter = new HistoryAdapter();
-            await using var composed = new Composition(f, adapter: adapter);
+            await using var transport = new PageModelTransport();
+            await using var bounded = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
+            var network = new PageNetworkTransport();
+            await using var composed = new Composition(f, adapter: available ? bounded : adapter,
+                pageTransport: available ? network : null);
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
             using var native = new NativeUxFixtureSession(parent);
             await native.InitializeAsync();
+            using var questionHost = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
+            using var questions = new QuestionWindowController(native.Main, questionHost, native.VersionQuery, new HostBoundary(),
+                new(NullLogger<NativeDetailRenderer>.Instance), static () => true,
+                NullLogger<QuestionWindowController>.Instance, static () => 1);
             var reader = new ToolInvocationReader();
             var discovery = new SharedSkillDiscoveryService(new LocalSharedSkillPreferences(native), reader, native.SharedAdmission, native.Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
@@ -43,11 +58,14 @@ public sealed partial class SessionsConversationTests
                 NullLogger<SkillPackagesWindowController>.Instance, new(NullLogger<NativeDetailRenderer>.Instance),
                 discovery, NullLogger<SharedSkillSourcesWindowController>.Instance);
             using var controller = new SharedSkillInvocationController(native.Main, instructionWorkflow, packages,
-                static () => true, static () => 1, NullLogger<SharedSkillInvocationController>.Instance, toolWorkflow);
+                static () => true, static () => 1, NullLogger<SharedSkillInvocationController>.Instance, toolWorkflow, questions);
             controller.Bind();
             SharedSkillSourcesWindow? inspector = null;
             SharedSkillInvocationWindow? invocation = null;
             var useOpened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var approvalOpened = new TaskCompletionSource<QuestionWindow>(TaskCreationOptions.RunContinuationsAsynchronously);
+            using var approvalObserved = Window.WindowOpenedEvent.AddClassHandler<QuestionWindow>((window, _) =>
+                approvalOpened.TrySetResult(window));
             using var observed = Window.WindowOpenedEvent.AddClassHandler<SharedSkillSourcesWindow>((window, _) => inspector = window);
             using var reviewed = Window.WindowOpenedEvent.AddClassHandler<SharedSkillInvocationWindow>((window, _) =>
             { invocation = window; useOpened.SetResult(); });
@@ -89,10 +107,65 @@ public sealed partial class SessionsConversationTests
                 opened.Confirm.IsEnabled.Should().BeTrue();
                 opened.Confirmation.Text.Should().Contain(body).And.Contain("ONE host WebPageGet call");
                 opened.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await controller.ActiveOperation;
-                opened.Status.Text.Should().Contain("Unavailable");
+                if (available)
+                {
+                    await Task.WhenAny(approvalOpened.Task, controller.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(60), native.Token);
+                    approvalOpened.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
+                    var approval = await approvalOpened.Task;
+                    approval.FindControl<TextBlock>("PromptLabel")!.Text.Should().Contain("https://example.com/");
+                    approval.FindControl<TextBlock>("TargetLabel")!.Text.Should().Contain(f.Request.SessionId.Value.ToString("D"));
+                    if (deny) { approval.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                    else
+                    {
+                        var review = approval.FindControl<Button>("ReviewQuestion")!;
+                        review.IsEnabled.Should().BeTrue(approval.FindControl<TextBlock>("QuestionStatus")!.Text);
+                        var exactReview = approval.FindControl<TextBox>("ExactReview")!;
+                        var reviewedOperation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                        void Reviewed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+                        {
+                            if (args.Property == TextBox.TextProperty && !string.IsNullOrEmpty(exactReview.Text))
+                            { reviewedOperation.TrySetResult(); }
+                        }
+                        exactReview.PropertyChanged += Reviewed;
+                        try
+                        {
+                            review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            await Task.WhenAny(reviewedOperation.Task, controller.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(60), native.Token);
+                            reviewedOperation.Task.IsCompleted.Should().BeTrue(
+                                $"invocation: {opened.Status.Text}; question: {approval.FindControl<TextBlock>("QuestionStatus")!.Text}");
+                        }
+                        finally { exactReview.PropertyChanged -= Reviewed; }
+                        approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>().Single().IsChecked = true;
+                        var submit = approval.FindControl<Button>("SubmitAnswer")!;
+                        submit.IsEnabled.Should().BeTrue();
+                        submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
+                }
+                await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(30), native.Token);
                 adapter.Calls.Should().Be(0);
-                (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                var retained = await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token);
+                if (available)
+                {
+                    opened.Status.Text.Should().Contain(deny ? "Denied" : "Succeeded");
+                    var message = retained.Messages.Should().ContainSingle().Subject;
+                    message.Request.SessionId.Should().Be(f.Request.SessionId);
+                    message.Body.Should().Be(body);
+                    message.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+                    (message.AssistantResponse?.Body).Should().Be(deny ? null : "Genuine local summary of the approved public page.");
+                    transport.Requests.Should().HaveCount(deny ? 1 : 2);
+                    transport.Requests[0].Context.Evidence[0].Content.Should().Be(reader.Text);
+                    network.Sends.Should().Be(deny ? 0 : 1);
+                    var grants = await f.Store.ReadGrantsAsync(f.Token);
+                    if (deny) { grants.Should().BeEmpty(); }
+                    else { grants.Should().ContainSingle().Which.Status.Should().Be(OperationGrantStatus.Consumed); }
+                }
+                else
+                {
+                    opened.Status.Text.Should().Contain("Unavailable");
+                    retained.Messages.Should().BeEmpty();
+                    transport.Requests.Should().BeEmpty();
+                    network.Sends.Should().Be(0);
+                }
             }
             finally { opened.Close(); }
             opened.Instructions.Text.Should().BeEmpty();

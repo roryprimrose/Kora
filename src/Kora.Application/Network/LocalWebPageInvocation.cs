@@ -46,7 +46,9 @@ internal sealed class LocalWebPageInvocation(
         try
         {
             var proposal = CreateProposal(invocation);
-            var presented = await present(proposal, generation, destination, () => Live(token), token).ConfigureAwait(false);
+            // Native review owns its own activity; presentation freshness is not executable host context.
+            var presented = await present(proposal, generation, destination,
+                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             if (!Live(token) || presented.Presented.Proposal != proposal
                 || presented.Presented.Key.Request != invocation || presented.Presented.SessionGeneration != generation
                 || presented.Completed is not { Outcome: HostInteractionOutcome.Approved, Grant: { } grant }
@@ -120,8 +122,9 @@ internal sealed class LocalWebPageInvocation(
         { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
-    private bool Live(CancellationToken token) => !token.IsCancellationRequested && admitted()
-        && time.GetUtcNow() < expiresAt && HostActivity.Current is { } current
+    private bool Admitted(CancellationToken token) => !token.IsCancellationRequested && admitted() && time.GetUtcNow() < expiresAt;
+
+    private bool Live(CancellationToken token) => Admitted(token) && HostActivity.Current is { } current
         && current.Request.IsWithinIntent(original) && current.Outcome == HostOperationOutcome.Unknown
         && !current.Activity!.IsStopped;
 

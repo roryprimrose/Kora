@@ -497,6 +497,45 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Calls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData("completed-review")]
+    [InlineData("foreign-presentation")]
+    [InlineData("no-context")]
+    public async Task PageApprovalPresentationChecksOwningLifetimeRatherThanIncidentalActivity(string context)
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var store = new PageApprovalStore(f);
+        var network = new PageNetwork();
+        Func<bool>? captured = null;
+        async Task<WebPageApprovalPresentation> Present(HostOperationProposal proposal, HostRevision generation,
+            Uri address, Func<bool> admitted, CancellationToken token)
+        {
+            captured = admitted;
+            if (context is "no-context")
+            {
+                Task<bool> checking;
+                using (ExecutionContext.SuppressFlow()) { checking = Task.Run(admitted, token); }
+                (await checking).Should().BeTrue();
+            }
+            else
+            {
+                using var presentation = HostActivity.BeginRoot(context is "completed-review" ? proposal.Request
+                    : HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Presentation);
+                if (context is "completed-review") { presentation.Complete(HostOperationOutcome.Completed); }
+                admitted().Should().BeTrue();
+            }
+            return await store.Present(proposal, generation, address, admitted, token);
+        }
+        var invocation = new LocalWebPageInvocation(new(network, new PageAudit(f)), store, Present, f.Request,
+            f.Session.Generation, ToolDestination, f.Time.Now.AddSeconds(15), () => f.CanControl, f.Time);
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), f.Request, ModelProviderSelection.OllamaCandidate);
+        var result = await invocation.InvokeAsync(provenance, WebPageCapability.Id, """{"address":"https://example.com/"}""", Token);
+        result.Outcome.Should().Be(Kora.Core.Tools.CapabilityOutcome.Succeeded);
+        network.Sends.Should().Be(1);
+        captured!().Should().BeFalse("completed tool ownership cannot be revived by a stale UI callback");
+    }
+
     private sealed class ExpiringCaptureClock : TimeProvider
     {
         private int reads;

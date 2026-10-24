@@ -205,6 +205,8 @@ The [consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflo
 
 Source-read consent, explicit enablement of the exact revision's local model context, confirmation of the original request/target, and the WebPageGet action's own permission are separate boundaries. Guidance is inert untrusted evidence, never system instructions or permission. A model cannot expand the host-owned tool subset or budgets ([workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).
 
+Native approval freshness follows the still-running owning tool operation, source admission, cancellation and expiry, not the incidental activity of a UI review or refresh. Execution still requires exact live host context and the separately committed once-only grant. Finishing the tool retires its presentation callback ([shared page invocation](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+
 The native source inspector offers **Review selected one-tool use**. Select an existing target, **Review exact target and tool revision**, then separately enable, enter the explicit page address and original request, review the invocation and confirm ([controller](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
 
 Typed commands use `review tool skill <exact name>` and the distinct `tool skill targets`, `target <ID>`, `review tool revision`, `enable`, `address <absolute HTTP or HTTPS URL>`, `request <unchanged prose>`, `review invocation`, `confirm invocation` and `close` forms. The destination is explicit original input, never inferred from instructions or model output ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs)).

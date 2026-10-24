@@ -48,6 +48,7 @@ public sealed class PresenceParticleField
             AssistantState.Waiting => 0.35,
             AssistantState.Executing => 1.5,
             AssistantState.Success => 0.08,
+            AssistantState.Failure => 0.28,
             AssistantState.Information => 0.28,
             _ => 0,
         };

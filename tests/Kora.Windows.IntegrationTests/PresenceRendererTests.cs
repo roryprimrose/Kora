@@ -133,6 +133,7 @@ public sealed class PresenceRendererTests
     [InlineData(AssistantState.Listening)]
     [InlineData(AssistantState.Calculating)]
     [InlineData(AssistantState.Executing)]
+    [InlineData(AssistantState.Failure)]
     public async Task LowAndHighMovementSpeedsKeepThirtyThreeMillisecondCadence(AssistantState state)
     {
         await HeadlessSession.RunAsync(() =>
@@ -151,8 +152,10 @@ public sealed class PresenceRendererTests
                     control.MovementSpeedPercent = speed;
                     scheduler.Advance(TimeSpan.FromSeconds(1));
                     var before = control.InvalidationCount;
+                    var positions = control.Particles.ToArray().Select(particle => (particle.X, particle.Y)).ToArray();
                     scheduler.Advance(TimeSpan.FromMilliseconds(1980));
                     (control.InvalidationCount - before).Should().Be(60, "motion speed {0} must not reduce frame rate", speed);
+                    control.Particles.ToArray().Select(particle => (particle.X, particle.Y)).Should().NotEqual(positions);
                     scheduler.PendingCount.Should().Be(1);
                 }
             }
@@ -499,6 +502,7 @@ public sealed class PresenceRendererTests
             {
                 IsPresentationEligible = true,
                 State = AssistantState.Failure,
+                IsMotionEnabled = false,
             };
             var window = Show(control);
             scheduler.Advance(TimeSpan.FromSeconds(1));

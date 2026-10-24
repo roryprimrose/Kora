@@ -16,6 +16,7 @@ public sealed record AgentRunCommand(string Action, string Argument)
             ("agent source ", "Source"), ("agent request ", "Request"), ("agent target ", "Target"),
             ("review agent", "Open"), ("agent targets", "Targets"), ("agent next targets", "NextTargets"),
             ("agent review invocation", "Review"), ("agent confirm invocation", "Invoke"), ("agent stop", "Stop"),
+            ("agent review references", "Review"), ("agent consent resolution", "Resolve"),
         })
         {
             if (phrase.EndsWith(' ') && text.StartsWith(phrase, StringComparison.OrdinalIgnoreCase))

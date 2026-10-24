@@ -33,8 +33,13 @@ public sealed partial class MainViewModel
             || normalized.StartsWith("prompts ", StringComparison.OrdinalIgnoreCase);
     }
 
-    private async Task ExecuteInstructionEditorCommand(string input)
+    private async Task ExecuteInstructionEditorCommand(string input, ManualCallInput? manualInput, Func<bool>? reviewEligibility)
     {
+        if (Kora.Core.Commands.InstructionUseCommand.Parse(input, AssistantName) is { } request)
+        {
+            await ExecuteInstructionUseCommand(request, input, manualInput, reviewEligibility);
+            return;
+        }
         var normalized = Kora.Core.Artifacts.ArtifactCommandRouter.RemoveActivationPrefix(input.Trim(), AssistantName);
         var words = normalized.Split(' ', StringSplitOptions.RemoveEmptyEntries);
         var prompt = string.Equals(words[0], "prompts", StringComparison.OrdinalIgnoreCase);

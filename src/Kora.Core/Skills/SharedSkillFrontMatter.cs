@@ -56,7 +56,7 @@ internal static class SharedSkillFrontMatter
                 continue;
             }
             if (!result.TryAdd(key, value)) { reasons.Add("duplicate-metadata"); }
-            if (key is not ("name" or "version" or "description" or "allowed-tools"))
+            if (key is not ("name" or "version" or "description" or "allowed-tools" or "format" or "references"))
             { reasons.Add("unsupported-metadata"); }
         }
         return result;

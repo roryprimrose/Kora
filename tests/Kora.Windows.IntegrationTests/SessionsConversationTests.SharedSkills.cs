@@ -16,8 +16,10 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
-    [Fact]
-    public async Task NativeSharedSkillReviewEnableExactTargetAndConfirmationRetainGenuineAnswerAndClearPrivateBuffers()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativeSharedSkillReviewEnableExactTargetAndConfirmationRetainGenuineAnswerAndClearPrivateBuffers(bool references)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -30,7 +32,7 @@ public sealed partial class SessionsConversationTests
             Directory.CreateDirectory(parent);
             using var native = new NativeUxFixtureSession(parent);
             await native.InitializeAsync();
-            var reader = new InvocationReader();
+            var reader = new InvocationReader(references);
             var preferences = new LocalSharedSkillPreferences(native);
             var discovery = new SharedSkillDiscoveryService(preferences, reader, native.SharedAdmission, native.Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
@@ -68,6 +70,15 @@ public sealed partial class SessionsConversationTests
             var opened = invocation ?? throw new InvalidOperationException("No reviewed-use window.");
             try
             {
+                if (references)
+                {
+                    reader.ReferenceReads.Should().Be(0);
+                    opened.Instructions.Text.Should().Contain("notes.md").And.NotContain(reader.Reference);
+                    opened.ReadReferences.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await controller.ActiveOperation;
+                    opened.Status.Text.Should().Contain("separately enable");
+                    opened.Instructions.Text.Should().Contain(reader.Reference);
+                }
                 opened.Instructions.Text.Should().Contain(reader.Text);
                 adapter.Calls.Should().Be(0);
                 var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
@@ -93,6 +104,9 @@ public sealed partial class SessionsConversationTests
                 message.AssistantResponse!.Body.Should().Be("earlier ASSISTANT");
                 using var wire = JsonDocument.Parse(adapter.Wire!);
                 wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(reader.Text);
+                wire.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(references ? 2 : 1);
+                if (references)
+                { wire.RootElement.GetProperty("Evidence")[1].GetProperty("Content").GetString().Should().Contain(reader.Reference); }
                 wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(body);
                 wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             }
@@ -104,13 +118,30 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private sealed class InvocationReader : ISharedSkillSourceReader
+    private sealed class InvocationReader(bool references = false) : ISharedSkillSourceReader
     {
         internal SharedSkillSource Source { get; } = new(Guid.NewGuid(), ".agents\\skills", new string('a', 48));
-        internal string Text => "---\nname: concise-review\nversion: 1.0.0\ndescription: Review prose\n---\nReview user prose concisely.";
+        internal string Text => "---\nname: concise-review\nversion: 1.0.0\ndescription: Review prose\n"
+            + (references ? "format: skill-md-instructions-v2\nreferences: notes.md\n" : "")
+            + "---\nReview user prose concisely.";
+        internal string Reference => "# Notes\nExplain the exact original prose.";
+        internal int ReferenceReads { get; private set; }
+        private SharedSkillSnapshot Snapshot()
+        {
+            var snapshot = SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text),
+                references, references ? ["concise-review\\notes.md"] : []);
+            return references ? snapshot.WithPackageDirectoryIdentity(new string('b', 48)) : snapshot;
+        }
         public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) => ValueTask.FromResult(Source);
         public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new SharedSkillCatalogue(Source,
-                [SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), false)]));
+                [Snapshot()]));
+        public ValueTask<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSource source, SharedSkillSnapshot primary, CancellationToken cancellationToken)
+        {
+            ReferenceReads++;
+            var snapshot = Snapshot();
+            return ValueTask.FromResult(snapshot.WithReferenceBundle(SharedSkillReferenceBundle.Create(snapshot,
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes(Reference) })));
+        }
     }
 }

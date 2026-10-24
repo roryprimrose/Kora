@@ -14,7 +14,8 @@ public sealed class SharedSkillSnapshot
 
     private SharedSkillSnapshot(Guid sourceId, string relativeFile, byte[] content, string? text,
         string? name, string? version, string? description, IEnumerable<string> tools, IEnumerable<string> reasons,
-        IEnumerable<string>? uninspectedFiles = null)
+        IEnumerable<string>? uninspectedFiles = null, SharedSkillReferenceDeclaration? declaration = null,
+        SharedSkillReferenceBundle? bundle = null, string? packageDirectoryIdentity = null)
     {
         SourceId = sourceId;
         RelativeFile = relativeFile;
@@ -26,7 +27,10 @@ public sealed class SharedSkillSnapshot
         DeclaredTools = tools.ToList().AsReadOnly();
         UninspectedFiles = (uninspectedFiles ?? []).ToList().AsReadOnly();
         UnavailableReasons = reasons.Distinct(StringComparer.Ordinal).ToList().AsReadOnly();
-        RevisionDigest = Convert.ToHexStringLower(SHA256.HashData(bytes));
+        ReferenceDeclaration = declaration;
+        ReferenceBundle = bundle;
+        PackageDirectoryIdentity = packageDirectoryIdentity;
+        RevisionDigest = bundle?.RevisionDigest ?? Convert.ToHexStringLower(SHA256.HashData(bytes));
         SourceQualifiedIdentity = $"shared-profile:{sourceId:N}:{name ?? relativeFile}@{version ?? "unversioned"}";
     }
 
@@ -42,6 +46,11 @@ public sealed class SharedSkillSnapshot
     public ReadOnlyCollection<string> DeclaredTools { get; }
     public ReadOnlyCollection<string> UninspectedFiles { get; }
     public ReadOnlyCollection<string> UnavailableReasons { get; }
+    public SharedSkillReferenceDeclaration? ReferenceDeclaration { get; }
+    public SharedSkillReferenceBundle? ReferenceBundle { get; }
+    public string? PackageDirectoryIdentity { get; }
+    public bool IsReferenceCandidate => ReferenceDeclaration is not null && ReferenceBundle is null
+        && UnavailableReasons.SequenceEqual(["reference-read-consent-required"], StringComparer.Ordinal);
     public bool IsInstructionCompatible => UnavailableReasons.Count == 0;
     public bool IsAvailableForInvocation => false;
 
@@ -73,8 +82,26 @@ public sealed class SharedSkillSnapshot
             return new(sourceId, relativeFile, copy, text, null, null, null, [], ["invalid-control-text"], uninspectedFiles);
         }
         var reasons = new List<string>();
-        if (containsOtherFiles || uninspectedFiles is { Count: > 0 }) { reasons.Add("additional-package-files-not-supported"); }
         var fields = SharedSkillFrontMatter.Parse(text, reasons);
+        SharedSkillReferenceDeclaration? declaration = null;
+        if (fields.TryGetValue("format", out var format) || fields.ContainsKey("references"))
+        {
+            if (!string.Equals(format, SharedSkillReferenceDeclaration.Format, StringComparison.Ordinal) || !fields.TryGetValue("references", out var references))
+            { reasons.Add("unsupported-reference-format"); }
+            else
+            {
+                try { declaration = SharedSkillReferenceDeclaration.Parse(references); }
+                catch (InvalidDataException) { reasons.Add("invalid-reference-declaration"); }
+            }
+        }
+        if (declaration is not null)
+        {
+            if (!declaration.MatchesInventory(relativeFile, uninspectedFiles ?? []))
+            { reasons.Add("undeclared-or-missing-package-entries"); }
+            reasons.Add("reference-read-consent-required");
+        }
+        else if (containsOtherFiles || uninspectedFiles is { Count: > 0 })
+        { reasons.Add("additional-package-files-not-supported"); }
         fields.TryGetValue("name", out var name);
         fields.TryGetValue("version", out var version);
         fields.TryGetValue("description", out var description);
@@ -93,6 +120,16 @@ public sealed class SharedSkillSnapshot
             // No runtime tool/task dependency admission is provided by this inspection reader.
             reasons.Add("declared-tools-unavailable");
         }
+        ValidateInstructionText(text, declaration, reasons);
+        return new(sourceId, relativeFile, copy, text, name, version, description, tools, reasons, uninspectedFiles, declaration);
+    }
+
+    internal static void ValidateInstructionText(string text, SharedSkillReferenceDeclaration? declaration, List<string> reasons)
+    {
+        var projection = text.StartsWith('\uFEFF') ? text[1..] : text;
+        if (projection.Any(c => char.IsControl(c) && c is not ('\r' or '\n' or '\t')
+            || char.GetUnicodeCategory(c) == System.Globalization.UnicodeCategory.Format))
+        { reasons.Add("invalid-control-text"); }
         foreach (var line in text.Split('\n'))
         {
             var trimmed = line.Trim();
@@ -102,8 +139,23 @@ public sealed class SharedSkillSnapshot
                 if (language.Length > 0 && language is not ("text" or "markdown" or "md"))
                 { reasons.Add("executable-or-unknown-code-fence"); }
             }
-            if (trimmed.Contains("](", StringComparison.Ordinal)
-                || trimmed.Contains('[')
+            var withoutLinks = trimmed;
+            if (declaration is not null)
+            {
+                var start = withoutLinks.IndexOf('[', StringComparison.Ordinal);
+                while (start >= 0)
+                {
+                    var labelEnd = withoutLinks.IndexOf("](", start, StringComparison.Ordinal);
+                    if (labelEnd < 0 || start > 0 && withoutLinks[start - 1] == '!'
+                        || withoutLinks[(start + 1)..labelEnd].Any(c => c is '[' or ']' or '!' or '<')) { break; }
+                    var end = withoutLinks.IndexOf(')', labelEnd + 2);
+                    if (end < 0 || !declaration.Paths.Contains(withoutLinks[(labelEnd + 2)..end], StringComparer.Ordinal)) { break; }
+                    withoutLinks = withoutLinks.Remove(start, end + 1 - start);
+                    start = withoutLinks.IndexOf('[', StringComparison.Ordinal);
+                }
+            }
+            if (withoutLinks.Contains("](", StringComparison.Ordinal)
+                || withoutLinks.Contains('[')
                 || trimmed.Contains("http:", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Contains("https:", StringComparison.OrdinalIgnoreCase)
                 || trimmed.Contains('<'))
@@ -114,11 +166,31 @@ public sealed class SharedSkillSnapshot
                 || trimmed.Contains(".py", StringComparison.OrdinalIgnoreCase))
             { reasons.Add("executable-workflow-reference"); }
         }
-        return new(sourceId, relativeFile, copy, text, name, version, description, tools, reasons, uninspectedFiles);
     }
 
     public SharedSkillSnapshot WithUnavailableReason(string reason) =>
-        new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, UnavailableReasons.Append(reason), UninspectedFiles);
+        new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, UnavailableReasons.Append(reason),
+            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, PackageDirectoryIdentity);
+
+    public SharedSkillSnapshot WithPackageDirectoryIdentity(string identity)
+    {
+        if (identity.Length != 48 || identity.Any(c => !char.IsAsciiHexDigit(c)))
+        { throw new InvalidDataException("A pinned native package identity is required."); }
+        return new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, UnavailableReasons,
+            UninspectedFiles, ReferenceDeclaration, ReferenceBundle, identity);
+    }
+
+    public SharedSkillSnapshot WithReferenceBundle(SharedSkillReferenceBundle bundle)
+    {
+        ArgumentNullException.ThrowIfNull(bundle);
+        if (!IsReferenceCandidate || PackageDirectoryIdentity is null)
+        { throw new InvalidOperationException("Only an exact pinned reference candidate can accept a complete bundle."); }
+        var verified = SharedSkillReferenceBundle.Create(this, bundle.References.ToDictionary(item => item.RelativePath, item => item.Bytes.ToArray(), StringComparer.Ordinal));
+        if (!string.Equals(verified.RevisionDigest, bundle.RevisionDigest, StringComparison.Ordinal))
+        { throw new InvalidDataException("The bundle belongs to a different primary revision."); }
+        return new(SourceId, RelativeFile, bytes, Text, Name, Version, Description, DeclaredTools, [],
+            UninspectedFiles, ReferenceDeclaration, bundle, PackageDirectoryIdentity);
+    }
 
     private static bool IsName(string? name) => name is { Length: > 0 and <= 64 }
         && name[0] is >= 'a' and <= 'z' && name[^1] != '-'

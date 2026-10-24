@@ -102,7 +102,12 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     {
         inputRevision++;
         review?.Dispose();
-        if (window is not null) { window.Confirm.IsEnabled = false; window.Review.Text = string.Empty; window.Result.Text = string.Empty; }
+        if (window is not null)
+        {
+            window.Confirm.IsEnabled = window.Resolve.IsEnabled = false;
+            window.Review.Text = string.Empty;
+            window.Result.Text = string.Empty;
+        }
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -145,32 +150,37 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 review = await workflow.ReviewAsync(opened.Source.Text ?? string.Empty, target,
                     opened.Input.Text ?? string.Empty, inputOrigin, Current, token);
                 if (!Current()) { await workflow.RevokeAsync(review); review = null; return; }
-                var profile = review.Profile;
-                opened.Review.Text = $"{profile.Document.Definition.Name}\nSOURCE {opened.Source.Text}\n"
-                    + $"SESSION {target.Authority.SessionId.Value:D}\nLOCAL TEXT -> TEXT; REFERENCES NONE\n"
-                    + $"TOOLS {string.Join(", ", profile.Tools)}\n"
-                    + $"HOST CLAMPS: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, "
-                    + $"input {profile.MaximumInputUtf8Bytes} bytes, output {profile.MaximumOutputUtf8Bytes} bytes, "
-                    + $"deadline {profile.Deadline.TotalMilliseconds}ms\n"
-                    + $"REQUESTED: calls {profile.RequestedCalls}, rounds {profile.RequestedRounds}, "
-                    + $"input {profile.RequestedInputUtf8Bytes}, output {profile.RequestedOutputUtf8Bytes}, "
-                    + $"deadline {profile.RequestedDeadlineMilliseconds}ms\n\n"
-                    + $"INERT PROFILE\n{profile.Document.Definition.Content}\n\nORIGINAL INPUT\n{review.Input}";
-                opened.Confirm.IsEnabled = true;
-                opened.Status.Text = "Review exact input, profile, locality, tools and clamped budgets. Separately consent to invoke once.";
+                if (review.References is { } referenced)
+                {
+                    opened.Review.Text = $"LOCAL TEXT -> TEXT; TOOL-FREE\nSESSION {target.Authority.SessionId.Value:D}\n"
+                        + $"DECLARED OWNED INSTRUCTION IDS\n{string.Join("\n", review.Profile.References.Select(item => item.Id))}\n"
+                        + $"EXACT ENABLED CANDIDATES\n{string.Join("\n", referenced.Candidates.Select(item => item.Name + " (" + item.Id + ")"))}\n"
+                        + $"COMPLETE PROFILE\n{review.Profile.Document.Text}\n\nORIGINAL INPUT\n{review.Input}";
+                    opened.Resolve.IsEnabled = true;
+                    opened.Status.Text = "No instruction source was read. Separately consent to read only these candidates; this is not invocation consent.";
+                }
+                else { ShowInvocation(opened, review); }
+            }
+            else if (action is "Resolve")
+            {
+                var captured = review ?? throw new InvalidOperationException("Review exact declarations and candidates first.");
+                opened.Resolve.IsEnabled = false;
+                await workflow.ResolveAsync(captured, origin, token);
+                if (!Current()) { await workflow.RevokeAsync(captured); review = null; return; }
+                ShowInvocation(opened, captured);
             }
             else if (action is "Invoke")
             {
                 var captured = review ?? throw new InvalidOperationException("Review the exact invocation first.");
                 opened.Confirm.IsEnabled = false;
                 opened.Status.Text = "Executing one serial bounded run. Stop/revoke remains available; resource release requires actual quiescence.";
-                var result = await workflow.InvokeAsync(captured, token);
+                var result = await workflow.InvokeAsync(captured, origin, token);
                 if (!Current()) { return; }
                 opened.Result.Text = result.Message.AssistantResponse?.Body ?? "No assistant answer was produced.";
                 opened.Status.Text = $"Retained terminal {result.Message.Outcome} / {result.Message.Reason}; "
                     + $"request {result.Message.Request.RequestId.Value:D}. Inspect it in Sessions. No automatic replay.";
             }
-            else { throw new InvalidOperationException("Use an exact agent review, source, request, target, review invocation, confirm invocation or stop command."); }
+            else { throw new InvalidOperationException("Use an exact agent source, request, target, reference review, resolution consent, invocation review, confirm or stop command."); }
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -179,11 +189,32 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             review?.Dispose();
             if (window is { } opened)
             {
-                opened.Confirm.IsEnabled = false;
+                opened.Confirm.IsEnabled = opened.Resolve.IsEnabled = false;
                 opened.Result.Text = string.Empty;
                 opened.Status.Text = "Unavailable, revoked, cancelled or unconfirmed. Inspect Sessions before any fresh review. No success or rollback claimed.";
             }
         }
+    }
+
+    private static void ShowInvocation(AgentRunWindow opened, BoundedAgentReview captured)
+    {
+        var profile = captured.Profile;
+        opened.Review.Text = $"{profile.Document.Definition.Name}\nSOURCE {opened.Source.Text}\n"
+                    + $"SESSION {captured.Target.Authority.SessionId.Value:D}\nLOCAL TEXT -> TEXT\n"
+                    + $"TOOLS {string.Join(", ", profile.Tools)}\n"
+                    + $"HOST CLAMPS: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, "
+                    + $"input {profile.MaximumInputUtf8Bytes} bytes, output {profile.MaximumOutputUtf8Bytes} bytes, "
+                    + $"deadline {profile.Deadline.TotalMilliseconds}ms\n"
+                    + $"REQUESTED: calls {profile.RequestedCalls}, rounds {profile.RequestedRounds}, "
+                    + $"input {profile.RequestedInputUtf8Bytes}, output {profile.RequestedOutputUtf8Bytes}, "
+                    + $"deadline {profile.RequestedDeadlineMilliseconds}ms\n\n"
+                    + $"COMPLETE INERT PROFILE (UTF-8 BOM: {profile.Document.HasBom})\n{profile.Document.Text}\n\n"
+                    + string.Join("\n\n", captured.References?.Bundle?.Instructions.Select(item =>
+                        $"COMPLETE INERT INSTRUCTION {item.Document.Definition.Id} (UTF-8 BOM: {item.Document.HasBom})\n{item.Document.Text}") ?? [])
+                    + $"\n\nORIGINAL INPUT\n{captured.Input}";
+                opened.Confirm.IsEnabled = true;
+                opened.Resolve.IsEnabled = false;
+                opened.Status.Text = "Review exact input, profile, locality, tools and clamped budgets. Separately consent to invoke once.";
     }
 
     private void PrivacyClosed(object? sender, EventArgs args) => Close();

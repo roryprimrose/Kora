@@ -1,3 +1,4 @@
+using System.Collections.Concurrent;
 using System.Diagnostics;
 
 using AwesomeAssertions;
@@ -40,14 +41,7 @@ public sealed partial class SessionsViewModelTests
         using var cancellation = new CancellationTokenSource();
         var owner = true;
         var admitted = true;
-        var activities = new List<Activity>();
-        using var listener = new ActivityListener
-        {
-            ShouldListenTo = source => string.Equals(source.Name, "Kora.Desktop", StringComparison.Ordinal),
-            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
-            ActivityStarted = activities.Add,
-        };
-        ActivitySource.AddActivityListener(listener);
+        using var capture = new DispositionActivityCapture();
         using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
         var read = viewer.ReviewDispositionAsync(new(f.Request.SessionId.Value, 1, 0), RequestOrigin.ActivatedVoice,
@@ -55,7 +49,7 @@ public sealed partial class SessionsViewModelTests
         held.DispositionRequest!.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         held.DispositionRequest.SessionId.Should().Be(f.Request.SessionId);
         held.DispositionRequest.Should().NotBe(original.Request);
-        activities.Should().Contain(activity => activity.Links.Any(link => link.Context == original.Activity!.Context));
+        capture.Snapshot.Should().Contain(activity => activity.Links.Any(link => link.Context == original.Activity!.Context));
         switch (change)
         {
             case "close": viewer.Close(); break;
@@ -84,5 +78,63 @@ public sealed partial class SessionsViewModelTests
         service.IsDispositionPreviewCurrent(preview).Should().Be(change is "none");
         held.ControlCalls.Should().Be(0);
         viewer.Close();
+    }
+
+    [Fact]
+    public async Task DispositionTraceSnapshotRemainsStableWhileConcurrentDesktopActivityIsCaptured()
+    {
+        var token = TestContext.Current.CancellationToken;
+        using var capture = new DispositionActivityCapture();
+        using var original = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            Kora.Core.Diagnostics.HostActivityLayer.Desktop, Kora.Core.Diagnostics.HostOperation.Request);
+        var snapshot = capture.Snapshot;
+        snapshot.Should().ContainSingle().Which.Should().BeSameAs(original.Activity);
+        var enumerating = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var appended = new TaskCompletionSource<Activity>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var writer = Task.Run(async () =>
+        {
+            await enumerating.Task.WaitAsync(token);
+            using var concurrent = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+                Kora.Core.Diagnostics.HostActivityLayer.Desktop, Kora.Core.Diagnostics.HostOperation.Request);
+            appended.SetResult(concurrent.Activity!);
+        }, token);
+        var observed = new List<Activity>();
+        try
+        {
+            foreach (var activity in snapshot)
+            {
+                enumerating.SetResult();
+                await appended.Task.WaitAsync(token);
+                observed.Add(activity);
+            }
+        }
+        finally
+        {
+            enumerating.TrySetResult();
+            await writer;
+        }
+        observed.Should().Equal(original.Activity!);
+        snapshot.Should().ContainSingle().Which.Should().BeSameAs(original.Activity);
+        capture.Snapshot.Should().Equal(original.Activity!, await appended.Task);
+    }
+
+    private sealed class DispositionActivityCapture : IDisposable
+    {
+        private readonly ConcurrentQueue<Activity> activities = new();
+        private readonly ActivityListener listener;
+
+        internal DispositionActivityCapture()
+        {
+            listener = new()
+            {
+                ShouldListenTo = source => string.Equals(source.Name, "Kora.Desktop", StringComparison.Ordinal),
+                Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+                ActivityStarted = activities.Enqueue,
+            };
+            ActivitySource.AddActivityListener(listener);
+        }
+
+        internal IReadOnlyList<Activity> Snapshot => activities.ToArray();
+        public void Dispose() => listener.Dispose();
     }
 }

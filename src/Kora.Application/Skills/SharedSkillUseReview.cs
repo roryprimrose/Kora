@@ -31,7 +31,20 @@ public sealed class SharedSkillUseReview : IDisposable
     internal SharedSkillSource Source { get; }
     internal ActivityLink Cause { get; }
     public DateTimeOffset ExpiresAt { get; }
-    public string Text { get { lock (gate) { return IsCurrent ? snapshot!.Text! : string.Empty; } } }
+    public string Text
+    {
+        get
+        {
+            lock (gate)
+            {
+                if (!IsCurrent) { return string.Empty; }
+                return snapshot!.ReferenceBundle is not { } bundle ? snapshot.Text!
+                    : $"PRIMARY {snapshot.RelativeFile}\n{snapshot.Text}\n\n"
+                        + string.Join("\n\n", bundle.References.Select(reference =>
+                            $"REFERENCE {reference.RelativePath}\n{reference.Text}"));
+            }
+        }
+    }
     public bool IsCurrent
     {
         get

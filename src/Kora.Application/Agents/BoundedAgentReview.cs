@@ -36,15 +36,20 @@ public sealed class BoundedAgentReview : IDisposable
     internal Func<bool> Current { get; }
     internal bool IsRevoked => Volatile.Read(ref revoked) != 0;
     public BoundedAgentProfile Profile { get; }
+    public AgentInstructionReferenceReview? References { get; internal set; }
+    public bool IsInvocationReady => !IsRevoked && (References is null || References.Bundle is not null);
     public SessionWorkspaceEntry Target { get; }
     public string Input { get; }
     public RequestOrigin Origin { get; }
     public DateTimeOffset ExpiresAt { get; }
     internal DateTimeOffset CreatedAt { get; }
-    public string SourceRevision { get; }
+    public string SourceRevision { get; private set; }
+    internal void PinBundle(AgentInstructionBundle bundle) =>
+        SourceRevision = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            SourceRevision + "\0" + string.Join("\0", bundle.Instructions.Select(item => item.Revision)))));
     internal void Consume(BoundedAgentWorkflow owner)
     {
-        if (!ReferenceEquals(Owner, owner) || IsRevoked || Interlocked.Exchange(ref consumed, 1) != 0)
+        if (!ReferenceEquals(Owner, owner) || !IsInvocationReady || Interlocked.Exchange(ref consumed, 1) != 0)
         { throw new InvalidOperationException("An agent review is exact-owner, single-use and cannot be replayed."); }
     }
     /// <summary>Immediately closes new dispatch/publication; the workflow retains the pinned resource until joined.</summary>
@@ -52,7 +57,11 @@ public sealed class BoundedAgentReview : IDisposable
     {
         lock (gate)
         {
-            if (Interlocked.Exchange(ref revoked, 1) == 0) { cancellation = revocation.CancelAsync(); }
+            if (Interlocked.Exchange(ref revoked, 1) == 0)
+            {
+                References?.Dispose();
+                cancellation = revocation.CancelAsync();
+            }
         }
     }
     internal async Task ReleaseSourceAsync()

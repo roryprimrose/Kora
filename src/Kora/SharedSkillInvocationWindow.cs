@@ -13,6 +13,8 @@ internal sealed class SharedSkillInvocationWindow : Window
     internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     internal TextBox Confirmation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 150 };
     internal Button Confirm { get; } = new() { Content = "Confirm exact skill, original request and target", IsEnabled = false };
+    internal Button ReadReferences { get; } = new() { Content = "Authorize only the exact declared local Markdown reads", IsVisible = false };
+    private readonly List<Button> operationButtons = [];
 
     internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false)
     {
@@ -31,6 +33,8 @@ internal sealed class SharedSkillInvocationWindow : Window
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         panel.Children.Add(Instructions);
+        panel.Children.Add(ReadReferences);
+        ReadReferences.Click += (_, _) => run("Prepare");
         AddButton("Enable exact reviewed revision", "Enable");
         AddButton("Refresh existing Active conversations", "Targets");
         AddButton("Next conversation page", "NextTargets");
@@ -58,8 +62,18 @@ internal sealed class SharedSkillInvocationWindow : Window
         {
             var button = new Button { Content = text };
             button.Click += (_, _) => run(action);
+            operationButtons.Add(button);
             panel.Children.Add(button);
         }
+    }
+
+    internal void SetReferenceConsent(bool pending)
+    {
+        ReadReferences.IsVisible = pending;
+        ReadReferences.IsEnabled = pending;
+        foreach (var button in operationButtons) { button.IsEnabled = !pending; }
+        Request.IsEnabled = !pending;
+        Targets.IsEnabled = !pending;
     }
 
     internal void Clear()
@@ -71,5 +85,6 @@ internal sealed class SharedSkillInvocationWindow : Window
         Targets.ItemsSource = null;
         Status.Text = string.Empty;
         Confirm.IsEnabled = false;
+        ReadReferences.IsEnabled = false;
     }
 }

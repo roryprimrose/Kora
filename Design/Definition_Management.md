@@ -2,7 +2,8 @@
 
 Status: shared lifecycle contract with a bounded native Kora-owned instruction
 and versioned literal/required-parameter prompt editor and revision-held catalogue reload increment. Skill/agent/profile editing,
-agent execution and the full qualification matrix remain unavailable.
+general agent execution and the full qualification matrix remain unavailable.
+The bounded local agent operation below is a separate implementation, not general executor qualification.
 
 This is the authoritative management contract for all four definition kinds.
 [Skill Storage](Skill_Storage.md) retains the delivered R21 read-only source
@@ -48,6 +49,49 @@ the qualified run configuration. File type or a claim of "system" authority
 cannot promote text into trusted host instructions.
 Missing template parameters require clarification, not expression evaluation,
 file reads, secret substitution, or implicit network access.
+
+### Bounded local agent owned-instruction references (v2)
+
+The existing selected-source v1 agent operation remains unchanged, including its
+`references: none` contract and independently permissioned observation tools.
+For one original native, typed or current-name activated request, v2 adds
+`references: disk.kora-profile.instruction.<exact-id>[,...]`: one to four distinct,
+source-qualified existing catalogue IDs. All other required v1 metadata fields
+remain required, with `kora-agent-format: 2`, local text input/output,
+`tools: none` and `maximum-calls: 0`. Display names, paths, URLs, searches and
+"latest" matches are not identifiers. Declaration never enables an instruction.
+
+The host first reads the explicitly selected existing agent profile and reviews
+the declared IDs and exact enabled owned candidates without new instruction
+reads. A separate original-user **resolution consent** permits only those
+bounded owned-store reads. Missing, disabled, held, stale, wrong-kind,
+replacement or reload-unavailable sources fail closed without substitution.
+The immutable bundle pins exact source bytes/revisions and control epochs.
+Profile plus instruction source bytes may not exceed 64 KiB; the existing
+complete serialized input and model budget limits can be stricter.
+
+The next review shows the COMPLETE profile and every instruction source,
+original request, exact Active target, locality and budgets. Separate single-use
+original-user **invocation confirmation** runs one tool-free local model turn.
+Each source is inert separate LocalOnly evidence, never system policy or
+authority. The original request and genuine answer or truthful terminal are
+retained through the existing conversation path with content-free correlated
+audit. No persistent applicability, history or durable consent is created.
+
+Changed input, source, session, ownership, privacy, expiry, disable/hold or
+reload retires this bundle. This stricter bundle lifetime does not change
+independent instruction one-shot captured-answer semantics elsewhere.
+Cancellation and withdrawal suppress late output; reads and model work remain
+owned until actual quiescence, even if they ignore cancellation. Local model
+unavailability remains explicit, not fallback or qualification.
+
+Composition is confined to `App.Agents.cs`; catalogue/store/revision and
+conversation contracts are consumed unchanged. Skills, arbitrary file/resource
+references, personal-profile instruction originals, recursive agents, scripts,
+hooks, tools, delegation/concurrency/scheduling, hosted transfer, automatic
+enablement and persistent policies are excluded. Caption and skill-reference
+operations remain independent; this increment does not change their contracts
+or the v1 contract in [Commands, Tools, and Skills](Commands_Tools_And_Skills.md).
 
 ## Source and Format Matrix
 

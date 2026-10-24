@@ -593,6 +593,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || PendingQuestionCommand.Parse(CommandText, AssistantName) is not null
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
+                      || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
@@ -2977,6 +2978,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
+        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
         var conversationCurrent = await PrepareConversationShutdown();
         if (conversationCurrent is null) { return; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
@@ -4193,6 +4195,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Skills.SharedSkillInvocationCommand.Parse(spokenText, AssistantName) is { } skillUse)
         {
             await ExecuteSharedSkillInvocation(skillUse, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(spokenText, AssistantName) is { } authoringCommand)
+        {
+            await ExecuteOwnedSkillAuthoring(authoringCommand, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -5936,6 +5944,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task RestartApplicationAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
+        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
         var restartDispatched = false;
         var callRevision = CallPolicyRevision;
         var privacyRevision = privacyObservation.Current.TopologyRevision;
@@ -6300,6 +6309,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)

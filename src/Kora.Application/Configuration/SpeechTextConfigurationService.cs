@@ -29,7 +29,10 @@ public sealed class SpeechTextConfigurationService(
         {
             return new(outcome, revision, saved, held ? null : saved ?? SpeechTextMode.Off,
                 held ? "unavailable" : saved is null ? "default" : "saved", !held,
-                held ? "Speech-text preference or admission/evidence is unconfirmed. Captions remain off; inspect saved state and audit receipts before explicit repair." : null,
+                held ? "Speech-text preference or admission/evidence is unconfirmed. Captions remain off; inspect saved state and audit receipts before explicit repair."
+                    : saved == SpeechTextMode.CurrentSentence
+                        ? "CurrentSentence is a saved request, not alignment readiness. Sentence captions are unavailable without exact-profile qualified playback evidence; the complete answer remains visual."
+                        : null,
                 savedOptions, held ? null : savedOptions ?? SpeechCaptionOptions.Default);
         }
     }

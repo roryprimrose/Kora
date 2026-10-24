@@ -37,12 +37,19 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private long presentationRevision;
     private string status = "Choose an answer. Editing is local; Save draft and Submit are explicit.";
     private string reviewText = string.Empty;
+    private string mcpReviewText = string.Empty;
     private QuestionAnswer answer;
     private HostQuestionVoiceReplyService? voiceReplies;
     private Func<bool> ownsVoiceTarget = static () => false;
     private Func<bool> visibleVoicePresenter = static () => false;
     private HostQuestionKey? voiceTarget;
     private int voicePresenterCount;
+    internal void BindMcpReview(Kora.Application.Mcp.McpReview review)
+    {
+        if (question.Proposal is null || !review.IsBoundTo(question.Proposal))
+        { throw new InvalidOperationException("The native MCP review does not match the exact operation."); }
+        mcpReviewText = review.NativeText;
+    }
     internal string VoiceReplyStatus => voiceReplies?.Status ?? "Question voice reply unavailable. Use native answer controls.";
     internal bool IsVoiceReplyActive => voiceReplies?.IsActive == true;
     internal bool CanAnswerByVoice => voiceReplies is not null && IsEditable && !IsApproval
@@ -321,7 +328,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                         }
                         if (reviewing)
                         {
-                            reviewText = cleared ? string.Empty : review;
+                            reviewText = cleared ? string.Empty : mcpReviewText.Length == 0
+                                ? review : mcpReviewText + "\n\nHost record:\n" + review;
                             reviewedKey = cleared ? null : target;
                             displayedReviewKey = null;
                             status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
@@ -513,6 +521,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         answer = EmptyAnswer();
         reviewText = string.Empty;
+        mcpReviewText = string.Empty;
         reviewedKey = null;
         displayedReviewKey = null;
     }

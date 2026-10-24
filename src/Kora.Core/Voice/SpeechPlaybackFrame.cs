@@ -1,7 +1,8 @@
 namespace Kora.Core.Voice;
 
 public sealed record SpeechPlaybackFrame(bool IsPlaying, double OutputLevel,
-    Guid? PlaybackId = null, long Generation = 0, int Segment = 0)
+    Guid? PlaybackId = null, long Generation = 0, int Segment = 0,
+    SpeechSentencePosition? Sentence = null, bool SentenceAlignmentAvailable = false)
 {
     public static readonly SpeechPlaybackFrame Inactive = new(false, 0);
 }

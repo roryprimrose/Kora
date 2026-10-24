@@ -8,6 +8,81 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed class SpeechCaptionTests
 {
     [Fact]
+    public void Sentence_caption_uses_only_observed_exact_slices_and_completion_does_not_advance()
+    {
+        var clock = new Clock();
+        var caption = new SpeechCaption(clock);
+        var response = Guid.NewGuid();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi), "First. \r\nSecond! Last?",
+            static () => true, mode: SpeechTextMode.CurrentSentence);
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        var waiting = new SpeechPlaybackFrame(true, 0.5, id, 4, SentenceAlignmentAvailable: true);
+        caption.Observe(waiting, response).Should().BeNull();
+        var first = new SpeechSentencePosition(0, 0, 9, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(9));
+        var frame = waiting with { Sentence = first };
+        caption.Observe(frame, response).Should().Be("First. \r\n");
+        caption.Observe(frame with { Sentence = first with { PlaybackPosition = TimeSpan.FromSeconds(2) } }, response)
+            .Should().Be("First. \r\n");
+        var second = new SpeechSentencePosition(1, 9, 8, TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(9));
+        caption.Observe(frame with { Sentence = second }, response).Should().Be("Second! ");
+        caption.SetPinned(true, response, frame with { Sentence = second }).Should().BeTrue();
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+        caption.Complete();
+        clock.Seconds = 100;
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().Be("Second! ");
+        caption.IsPreviousSpeech.Should().BeTrue();
+        caption.SetPinned(false, response, SpeechPlaybackFrame.Inactive).Should().BeTrue();
+        caption.Observe(SpeechPlaybackFrame.Inactive, response).Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("absent")]
+    [InlineData("map")]
+    [InlineData("range")]
+    [InlineData("index")]
+    [InlineData("rewind")]
+    [InlineData("time")]
+    [InlineData("start")]
+    [InlineData("duration")]
+    [InlineData("next-start")]
+    [InlineData("missing")]
+    public void Malformed_unavailable_or_regressing_sentence_evidence_retires_without_revival(string failure)
+    {
+        var caption = new SpeechCaption();
+        var response = Guid.NewGuid();
+        var id = caption.Bind(response, HostRequest.Create(RequestOrigin.LocalUi),
+            failure is "map" ? "Dr. Smith." : "First. Next.", static () => true, mode: SpeechTextMode.CurrentSentence);
+        var position = new SpeechSentencePosition(0, 0, 7, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(8));
+        var frame = new SpeechPlaybackFrame(true, 0.5, id, 4, Sentence: position, SentenceAlignmentAvailable: true);
+        if (failure is not ("absent" or "map"))
+        {
+            caption.Observe(frame, response).Should().Be("First. ");
+        }
+        frame = failure switch
+        {
+            "absent" => frame with { SentenceAlignmentAvailable = false },
+            "range" => frame with { Sentence = position with { Start = 1 } },
+            "index" => frame with { Sentence = position with { Index = 9 } },
+            "rewind" => frame with { Sentence = position with { PlaybackPosition = TimeSpan.FromSeconds(1) } },
+            "time" => frame with { Sentence = position with { PlaybackPosition = TimeSpan.Zero } },
+            "start" => frame with { Sentence = position with { AudioStart = TimeSpan.Zero } },
+            "duration" => frame with { Sentence = position with { AudioDuration = TimeSpan.FromSeconds(9) } },
+            "next-start" => frame with { Sentence = new(1, 7, 5, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(3), TimeSpan.FromSeconds(8)) },
+            "missing" => frame with { Sentence = null },
+            _ => frame,
+        };
+        if (failure is "rewind")
+        {
+            var next = position with { Index = 1, Start = 7, Length = 5, AudioStart = TimeSpan.FromSeconds(3), PlaybackPosition = TimeSpan.FromSeconds(4) };
+            caption.Observe(frame with { Sentence = next }, response).Should().Be("Next.");
+        }
+        caption.Observe(frame, response).Should().BeNull();
+        caption.Observe(new(true, 0.5, id, 4, Sentence: position, SentenceAlignmentAvailable: true), response).Should().BeNull();
+        caption.Complete();
+        caption.IsPreviousSpeech.Should().BeFalse();
+    }
+
+    [Fact]
     public void Replacement_during_admission_cannot_publish_old_text_or_retire_the_new_source()
     {
         var caption = new SpeechCaption();

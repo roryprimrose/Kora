@@ -221,8 +221,17 @@ suppressed. It does not steal focus when shown.
 Exact typed or current-name activated commands are `list speech text settings`,
 `get display.speech-text`, `status display.speech-text`,
 `set display.speech-text to Off`, `set display.speech-text to CurrentUtterance`,
+`set display.speech-text to CurrentSentence`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
+
+**Current sentence (requires qualified alignment)** is also an explicit native
+choice in Speech and audio settings. It requests the exact source sentence
+reached by actual playback, not a timing estimate or rewritten text. This build
+has no qualified Windows voice/rate/output profile for sentence alignment, so
+sentence captions remain **unavailable**; ordinary speech and the complete visual
+answer remain available. Missing or invalid alignment never becomes an utterance
+caption. Saving this choice does not test your device or enable a provider.
 
 Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending

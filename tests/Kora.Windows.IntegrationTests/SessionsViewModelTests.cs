@@ -17,6 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
+[Collection("Host tracing")]
 public sealed partial class SessionsViewModelTests
 {
     [WindowsFact]

@@ -249,7 +249,10 @@ public sealed partial class SessionsConversationTests
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
             IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
             Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null, bool memoryContext = false,
-            Kora.Core.Network.IWebPageTransport? pageTransport = null)
+            Kora.Core.Network.IWebPageTransport? pageTransport = null,
+            McpServerConfigurationService? mcpConfiguration = null,
+            Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
+            Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -273,7 +276,8 @@ public sealed partial class SessionsConversationTests
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
                 NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
-                webPageAction: pageTransport is null ? null : new(pageTransport, Audit));
+                webPageAction: pageTransport is null ? null : new(pageTransport, Audit),
+                mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects);
             Conversation = conversation;
             memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
                 NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;

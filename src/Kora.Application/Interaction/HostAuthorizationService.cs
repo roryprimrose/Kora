@@ -86,6 +86,22 @@ public sealed class HostAuthorizationService(
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);
 
+    public ValueTask<HostInteractionDecision> PresentMcpOnceAsync(HostRequest request, Mcp.McpReview review,
+        CancellationToken cancellationToken) => transaction.RunAsync(request, "approval.mcp-once", snapshot =>
+    {
+        if (!Eligible(snapshot, request) || !review.IsBoundTo(snapshot.Proposal!)
+            || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
+        { return InteractionTransaction.Reject(snapshot, "exact-mcp-proposal-not-current"); }
+        var spec = new QuestionSpec("Review the complete exact HTTPS MCP " + review.Stage
+            + " record, including destination, delegated account, schema and any outgoing arguments. "
+            + "Approve once only if this read-only external processing and local-only result use are intended.",
+            QuestionKind.SingleChoice, [new("once", "Approve once")], purpose: "authorization", sourceId: "mcp-https-read-only");
+        var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)), spec,
+            snapshot.Session.Generation, snapshot.Proposal!.ExpiresAt, Proposal: snapshot.Proposal);
+        return (snapshot with { Questions = snapshot.Questions.Add(question) },
+            new(HostInteractionOutcome.Presented, "exact-mcp-approval-presented", question));
+    }, cancellationToken);
+
     public ValueTask<HostInteractionDecision> PresentWebPageOnceAsync(
         HostRequest request, Uri address, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.web-page-once", snapshot =>

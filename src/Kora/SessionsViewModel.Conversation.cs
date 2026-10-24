@@ -137,13 +137,34 @@ internal sealed partial class SessionsViewModel
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
 
-    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null) => RunConversationAsync(async (target, live) =>
+    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null,
+        bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
+        Func<bool>? mcpCallerAdmission = null, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
-        var body = composerBody;
+        var body = mcpBody ?? composerBody;
         var presenter = allowQuestion ? QuestionPresenter
             ?? throw new InvalidOperationException("The exact native clarification presenter is unavailable. Nothing was submitted.") : null;
-        var receipt = pageAddress is null
+        if (useMcp && !HasCurrentMcpOptions)
+        { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
+        var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
+        var receipt = useMcp
+            ? await conversation!.SubmitMcpAsync(target, body,
+                mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
+                    : throw new InvalidOperationException("Select an actual app-included MCP server from refreshed options."),
+                mcpAccount is { } account && mcpAccounts.Any(item => ReferenceEquals(item, account)) ? account.Reference
+                    : throw new InvalidOperationException("Select an actual delegated MCP account from refreshed options."),
+                McpPresenter ?? throw new InvalidOperationException("The exact native MCP review presenter is unavailable."),
+                McpSelector ?? throw new InvalidOperationException("The exact native MCP tool selector is unavailable."),
+                () => live() && Interlocked.Read(ref mcpSelectionRevision) == mcpRevision
+                    && mcpCallerAdmission?.Invoke() != false, mcpToken, mcpOrigin, (request, result) =>
+                {
+                    if (!live() || Interlocked.Read(ref mcpSelectionRevision) != mcpRevision) { return; }
+                    mcpResult = result;
+                    mcpResultRequest = request;
+                    mcpResultControl = access.ControlRevision;
+                })
+            : pageAddress is null
             ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
             : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter
                 ?? throw new InvalidOperationException("The exact native page approval presenter is unavailable. Nothing was submitted."),
@@ -159,7 +180,7 @@ internal sealed partial class SessionsViewModel
             + " | task " + receipt.Task.State
             + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately below.")
             + " No fallback or automatic retry. Refresh for the full bounded conversation.";
-    }, submission: true);
+    }, submission: true, origin: mcpOrigin);
 
     internal Task<bool> ProtectComposerAsync(Func<bool>? admitted = null)
     {
@@ -169,7 +190,8 @@ internal sealed partial class SessionsViewModel
     }
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
-        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false)
+        bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false,
+        RequestOrigin origin = RequestOrigin.LocalUi)
     {
         if (!CanReadConversation) { return; }
         var target = RequireSelected();
@@ -181,7 +203,7 @@ internal sealed partial class SessionsViewModel
         busy = true;
         Notify();
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
-            new(Guid.NewGuid()), RequestOrigin.LocalUi), HostActivityLayer.Desktop, HostOperation.Request);
+            new(Guid.NewGuid()), origin), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
             if (submission && (conversationHeld || conversationSourceHeld))
@@ -283,7 +305,8 @@ internal sealed partial class SessionsViewModel
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
-            nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification) })
+            nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
+            nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
         { OnPropertyChanged(name); }
     }
 }

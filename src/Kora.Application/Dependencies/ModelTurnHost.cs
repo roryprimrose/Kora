@@ -305,13 +305,19 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
         }
-        if (!ModelToolProtocol.GetTools(turn.Context.ToolMode).Any(descriptor =>
-            string.Equals(descriptor.Id, id, StringComparison.Ordinal)))
+        if (turn.Context.McpTool is { } external
+            ? !string.Equals(external.Id, id, StringComparison.Ordinal)
+            : !ModelToolProtocol.GetTools(turn.Context.ToolMode).Any(descriptor =>
+                string.Equals(descriptor.Id, id, StringComparison.Ordinal)))
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-not-in-exact-turn-subset");
         }
-        var reply = turn.Context.ToolMode == ModelToolMode.LocalWebPage
+        var reply = turn.Context.ToolMode == ModelToolMode.McpReadOnly
+            ? mcpInvocations.TryGetValue(turn, out var mcp)
+                ? await mcp.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
+                : new(CapabilityOutcome.Denied, "mcp-reviewed-workflow-unavailable")
+            : turn.Context.ToolMode == ModelToolMode.LocalWebPage
             ? webPages.TryGetValue(turn, out var webPage)
                 ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")

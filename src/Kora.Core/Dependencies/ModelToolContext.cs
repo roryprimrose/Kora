@@ -5,7 +5,8 @@ namespace Kora.Core.Dependencies;
 public sealed class ModelToolContext
 {
     internal ModelToolContext(ModelTurnProvenance provenance, string systemPolicy, string userRequest,
-        ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire)
+        ImmutableArray<ModelContextEvidence> evidence, ModelToolMode toolMode, ImmutableArray<byte> wire,
+        Mcp.McpModelTool? mcpTool = null)
     {
         Provenance = provenance;
         SystemPolicy = systemPolicy;
@@ -13,6 +14,7 @@ public sealed class ModelToolContext
         Evidence = evidence;
         ToolMode = toolMode;
         Wire = wire;
+        McpTool = mcpTool;
     }
 
     internal ModelTurnProvenance Provenance { get; }
@@ -20,5 +22,6 @@ public sealed class ModelToolContext
     public string UserRequest { get; }
     public ImmutableArray<ModelContextEvidence> Evidence { get; }
     public ModelToolMode ToolMode { get; }
+    public Mcp.McpModelTool? McpTool { get; }
     public ImmutableArray<byte> Wire { get; }
 }

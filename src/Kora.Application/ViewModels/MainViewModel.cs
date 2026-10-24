@@ -585,6 +585,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             () => !string.IsNullOrWhiteSpace(CommandText)
                   && (!IsBusy || IsSetupStatusCommand() || IsListeningStopCommand(CommandText)
                       || SessionCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Mcp.McpCommand.Parse(CommandText, AssistantName) is not null
                       || SessionDispositionReviewCommand.Parse(CommandText, AssistantName) is not null
                       || WorkspaceSurfaceCommand.Parse(CommandText, AssistantName) is not null
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
@@ -4348,6 +4349,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteWebSummary(webSummaryCommand, initiator);
             return;
         }
+        if (Kora.Application.Mcp.McpCommand.Parse(spokenText, AssistantName) is { } mcpCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ReportHostInteractionFailure("Assistant prefix routing is unavailable; no MCP request was dispatched.");
+                return;
+            }
+            await ExecuteMcpCommandAsync(mcpCommand, initiator);
+            return;
+        }
         if (WebPageCommand.Parse(spokenText, AssistantName) is { } webPageCommand)
         {
             await ExecuteWebPageCommandAsync(webPageCommand, initiator);
@@ -6211,6 +6222,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])

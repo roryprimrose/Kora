@@ -4535,6 +4535,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Core.Context.PreparedLocalSearchCommand.DiscoveryPhrases)
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
+            .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])

@@ -298,6 +298,8 @@ internal static class Program
             new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<McpServerConfigurationService>();
+        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Application.Mcp.UnavailableMcpConnectionBroker>();
+        services.AddSingleton(new Kora.Application.Mcp.McpReadOnlyPolicy([]));
         services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
         services.AddKeyedSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt,
             (provider, _) => new(paths, ArtifactKind.Prompt));

@@ -11,4 +11,7 @@ public enum ModelToolMode
 
     /// <summary>One explicitly approved public page, returned only to the original local model turn.</summary>
     LocalWebPage,
+
+    /// <summary>Only the exact reviewed dynamic tool; retrieved data stays in the original local model turn.</summary>
+    McpReadOnly,
 }

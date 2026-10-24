@@ -17,7 +17,10 @@ public static partial class ModelToolProtocol
     {
         ValidateProvenance(provenance);
         using var document = ReadJson(wire, MaximumInputUtf8Bytes);
-        RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes");
+        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("Constraints", out _))
+        { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "Constraints"); }
+        else
+        { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes"); }
         ContextContent content;
         try
         {
@@ -26,7 +29,7 @@ public static partial class ModelToolProtocol
         }
         catch (Exception exception) when (exception is JsonException or ArgumentException)
         { throw new InvalidDataException("The host context has invalid typed fields.", exception); }
-        var tools = GetTools(content.ToolMode);
+        var tools = content.Constraints?.GetTools(content.ToolMode) ?? GetTools(content.ToolMode);
         if (content.SystemPolicy is null || content.UserRequest is null || content.Evidence is null
             || content.Tools is null || content.MaximumOutputUtf8Bytes != MaximumOutputUtf8Bytes
             || content.Tools.Length != tools.Count
@@ -36,7 +39,7 @@ public static partial class ModelToolProtocol
         var evidence = ModelContextEnvelope.ValidateContent(provenance.Request, content.SystemPolicy,
             content.UserRequest, content.Evidence);
         return new(provenance, content.SystemPolicy, content.UserRequest, evidence, content.ToolMode,
-            ImmutableArray.CreateRange(wire.ToArray()));
+            ImmutableArray.CreateRange(wire.ToArray()), content.Constraints);
     }
 
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
@@ -48,5 +51,5 @@ public static partial class ModelToolProtocol
     };
 
     private sealed record ContextContent(string SystemPolicy, string UserRequest, ModelContextEvidence[] Evidence,
-        ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes);
+        ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes, ModelTurnConstraints? Constraints = null);
 }

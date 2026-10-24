@@ -147,7 +147,7 @@ public sealed partial class MainViewModelTests
 
     private sealed partial class SessionCommandStore : ISessionConversationStore
     {
-        internal ConversationMessage? RequestMessage { get; private set; }
+        internal ConversationMessage? RequestMessage { get; set; }
         internal int RequestRetentions { get; private set; }
         public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request, HostRevision generation,
             long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)
@@ -178,6 +178,7 @@ public sealed partial class MainViewModelTests
             HostId<RequestIdentity> request, CancellationToken token)
         {
             token.ThrowIfCancellationRequested();
+            BeforeSpeechExactRead?.Invoke();
             var message = RequestMessage ?? throw new InvalidOperationException("The exact original request is not retained.");
             if (message.Request.SessionId != session || message.Request.RequestId != request)
             { throw new InvalidOperationException("The retained source does not match the requested session and request."); }

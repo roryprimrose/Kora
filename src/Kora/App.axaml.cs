@@ -144,6 +144,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);
+            BindAgentRuns(viewModel);
             instructionEditor = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
                 Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),
@@ -268,6 +269,8 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionCommands(Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
                 Services.GetRequiredService<SessionRequestCommandService>(),
                 Services.GetRequiredService<ConversationSearchCommandService>());
+            viewModel.BindSpeechSummarySuggestions(Services.GetRequiredService<SessionConversationService>(),
+                Services.GetRequiredService<TimeProvider>());
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);

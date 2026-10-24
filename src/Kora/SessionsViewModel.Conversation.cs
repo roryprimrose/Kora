@@ -255,10 +255,12 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
         ClearConversationCancellation();
         CancelAppearanceSuggestion(reportCancellation: false);
+        CancelSpeechSummarySuggestion(reportCancellation: false);
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -273,12 +275,17 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyAnswerRead();
         ObserveConversationCancellation();
         NotifyConversationCancellation();
         if (appearanceReview is { Available: false }) { CancelAppearanceSuggestion(reportCancellation: false); }
         OnPropertyChanged(nameof(AppearanceSuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmAppearanceSuggestion));
         OnPropertyChanged(nameof(CanReviewAppearanceSuggestion));
+        if (speechSummaryReview is { Available: false }) { CancelSpeechSummarySuggestion(reportCancellation: false); }
+        OnPropertyChanged(nameof(SpeechSummarySuggestionDescription));
+        OnPropertyChanged(nameof(CanConfirmSpeechSummarySuggestion));
+        OnPropertyChanged(nameof(CanReviewSpeechSummarySuggestion));
         RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();

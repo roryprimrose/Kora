@@ -113,17 +113,21 @@ internal sealed partial class BoundedModelTurnAdapter(
         var outputBytes = 0;
         var calls = 0;
         var started = time.GetUtcNow();
+        var inputLimit = context.Constraints?.InputUtf8Bytes ?? ModelToolProtocol.MaximumInputUtf8Bytes;
+        var outputLimit = context.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes;
+        var callLimit = context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
         for (var round = 1; ; round++)
         {
             var denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
             if (denied is not null) { return denied; }
             ModelToolRequest request;
-            if (inputBytes >= ModelToolProtocol.MaximumInputUtf8Bytes || outputBytes >= ModelToolProtocol.MaximumOutputUtf8Bytes)
+            if (inputBytes >= inputLimit || outputBytes >= outputLimit
+                || round > (context.Constraints?.MaximumRounds ?? ModelToolProtocol.MaximumRounds))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             try
             {
                 request = ModelToolProtocol.CreateRequest(provenance, profile, context, history, round,
-                    new(ModelToolProtocol.MaximumInputUtf8Bytes - inputBytes, ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes),
+                    new(inputLimit - inputBytes, outputLimit - outputBytes),
                     clarificationAllowed: ask is not null);
             }
             catch (InvalidDataException)
@@ -168,7 +172,7 @@ internal sealed partial class BoundedModelTurnAdapter(
                 if (replyAnswer is null || !ReferenceEquals(replyAnswer.Question, question))
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
                 var answerBytes = ModelToolProtocol.SerializeMessage(replyAnswer).Length;
-                if (answerBytes > ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes)
+                if (answerBytes > outputLimit - outputBytes)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
                 outputBytes += answerBytes;
                 history.Add(question);
@@ -177,12 +181,12 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             // Remaining assistant messages are fully validated tool-call batches.
             var assistant = (ModelAssistantToolCalls)message;
-            if (assistant.Calls.Any(call => !ModelToolProtocol.GetTools(context.ToolMode)
+            if (assistant.Calls.Any(call => !context.Tools
                 .Any(descriptor => string.Equals(descriptor.Id, call.CapabilityId, StringComparison.Ordinal))))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
             if (context.ToolMode == ModelToolMode.LocalWebPage && (assistant.Calls.Length != 1 || calls != 0))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
-            if (assistant.Calls.Length > ModelToolProtocol.MaximumCalls - calls)
+            if (assistant.Calls.Length > callLimit - calls)
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Any(call => callIds.Contains(call.CallId)))
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
@@ -210,7 +214,7 @@ internal sealed partial class BoundedModelTurnAdapter(
                 catch (InvalidDataException)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
                 var resultBytes = ModelToolProtocol.SerializeMessage(result).Length;
-                if (resultBytes > ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes)
+                if (resultBytes > outputLimit - outputBytes)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
                 outputBytes += resultBytes;
                 history.Add(result);

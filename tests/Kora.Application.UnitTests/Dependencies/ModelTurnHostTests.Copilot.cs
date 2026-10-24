@@ -25,8 +25,10 @@ public sealed partial class ModelTurnHostTests
         runtime.Transmissions.Should().Be(0);
     }
 
-    [Fact]
-    public async Task Copilot_requires_host_issued_turn_intent_and_separate_exact_final_transmission_confirmation()
+    [Theory]
+    [InlineData(null)]
+    [InlineData(250)]
+    public async Task Copilot_requires_host_issued_turn_intent_and_separate_exact_final_transmission_confirmation(int? deadlineMilliseconds)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -34,6 +36,13 @@ public sealed partial class ModelTurnHostTests
         var reviews = new HostedTransmissionReviewService(f, f.Time);
         var host = f.CopilotProfiles(runtime, reviews);
         var context = f.Context(text: "original-session-request");
+        if (deadlineMilliseconds is { } milliseconds)
+        {
+            f.Time.ExpectedDeadline = TimeSpan.FromMilliseconds(milliseconds);
+            context = new(context.Request, context.SystemPolicy, context.UserRequest, context.Evidence,
+                context.CreatedAt, context.ExpiresAt, context.ToolMode,
+                new(1, [ReadOnlyCapabilityCatalog.Version], 1, 2, 32768, 4096, milliseconds));
+        }
         (await host.AdmitAsync(ModelTurnChoice.Hosted, context, null, Token)).Result.Outcome.Should().Be(ModelTurnOutcome.DeniedEgress);
         runtime.Calls.Should().Be(0);
         var authorization = reviews.PrepareTurn(context, Profile(ProviderService.Copilot));
@@ -123,9 +132,14 @@ public sealed partial class ModelTurnHostTests
             reviews.Confirm(review, true, RequestOrigin.HostSystem).Should().BeFalse();
             reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
         };
-        (await host.RunAsync(turn, Token)).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        var result = await host.RunAsync(turn, Token);
+        result.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        result.Reason.Should().Be(ModelTurnReason.ToolUseNotPermitted);
+        result.Response.Should().BeNull();
         runtime.Version!.Outcome.Should().Be(CapabilityOutcome.Succeeded);
         runtime.Malicious!.Outcome.Should().Be(CapabilityOutcome.Denied);
+        f.Audits.Where(item => string.Equals(item.ActionId, "model.turn", StringComparison.Ordinal))
+            .Last().Outcome.Should().Be(Kora.Core.Auditing.SecurityAuditOutcome.Denied);
     }
 
     [Fact]

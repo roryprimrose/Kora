@@ -111,7 +111,9 @@ internal static class SettingsText
         (state.IsAvailable ? $"Voice: {state.EffectiveVoice!.Name}. " + Source(state.IsSaved ? "saved" : "default")
             : Unavailable(state.Recovery))
         + (state.SummaryLimits is { } limits
-            ? $" Spoken summary limits: {limits.Sentences} sentences and {limits.Words} words."
+            ? $" Spoken summary limits: {limits.Sentences} sentences and {limits.Words} words"
+                + (state.AreSummaryLimitsSaved ? " (saved limits on this device; next ordinary speech)."
+                    : " (unsaved defaults; next ordinary speech).")
             : " Spoken summary limits are unavailable. " + state.SummaryLimitsRecovery);
 
     public static string Describe(AppearanceOptionState state) => state.IsSaved

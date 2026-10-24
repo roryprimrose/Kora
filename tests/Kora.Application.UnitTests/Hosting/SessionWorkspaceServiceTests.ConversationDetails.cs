@@ -88,6 +88,7 @@ public sealed partial class SessionWorkspaceServiceTests
 
     [Theory]
     [InlineData("system")]
+    [InlineData("voice")]
     [InlineData("invocation")]
     [InlineData("session")]
     public async Task ConversationDetailsRejectNonNativeAndForeignHostContextBeforeReadingOriginal(string fault)
@@ -97,7 +98,7 @@ public sealed partial class SessionWorkspaceServiceTests
         f.Messages = [expected];
         var request = new HostRequest(f.Request.RequestId,
             fault is "session" ? new(Guid.NewGuid()) : f.Session.SessionId, f.Request.TaskId,
-            fault is "system" ? RequestOrigin.HostSystem : RequestOrigin.LocalUi,
+            fault is "system" ? RequestOrigin.HostSystem : fault is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi,
             fault is "invocation" ? new(Guid.NewGuid()) : null);
         using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
         await f.Service.Invoking(service => service.ReadConversationDetailAsync(new(f.Session, null), expected, () => true, f.Token))

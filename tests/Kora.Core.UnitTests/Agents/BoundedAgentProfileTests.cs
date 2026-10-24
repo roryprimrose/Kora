@@ -87,6 +87,7 @@ public sealed class BoundedAgentProfileTests
 
     [Theory]
     [InlineData("kora-agent-format", "2")]
+    [InlineData("kora-agent-format", "3")]
     [InlineData("runtime", "hosted")]
     [InlineData("runtime", "ollama")]
     [InlineData("input", "files")]
@@ -117,6 +118,45 @@ public sealed class BoundedAgentProfileTests
         Action act = () => Parse(Profile.Replace(line, field + ": " + value, StringComparison.Ordinal));
         act.Should().Throw<InvalidDataException>();
     }
+
+    [Fact]
+    public void VersionTwoDeclaresExactBoundedOwnedIdsWithoutEnablingTools()
+    {
+        var text = ReferencedProfile("disk.kora-profile.instruction.first, disk.kora-profile.instruction.second");
+        var profile = Parse(text);
+        profile.References.Select(item => item.Id).Should().Equal("disk.kora-profile.instruction.first", "disk.kora-profile.instruction.second");
+        profile.Tools.Should().BeEmpty();
+        profile.MaximumCalls.Should().Be(0);
+        profile.MaximumRounds.Should().Be(1);
+        Action tool = () => Parse(text.Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal));
+        tool.Should().Throw<InvalidDataException>();
+        Action calls = () => Parse(text.Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal));
+        calls.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("none")]
+    [InlineData("")]
+    [InlineData("C:\\owned.instructions.md")]
+    [InlineData("https://example.com/instruction")]
+    [InlineData("disk.kora-profile.prompt.first")]
+    [InlineData("disk.personal.instruction.first")]
+    [InlineData("disk.kora-profile.instruction.")]
+    [InlineData("disk.kora-profile.instruction.UPPER")]
+    [InlineData("disk.kora-profile.instruction.first,disk.kora-profile.instruction.first")]
+    [InlineData("disk.kora-profile.instruction.first,")]
+    [InlineData("disk.kora-profile.instruction.a,disk.kora-profile.instruction.b,disk.kora-profile.instruction.c,disk.kora-profile.instruction.d,disk.kora-profile.instruction.e")]
+    public void VersionTwoRejectsUnboundedOrUnqualifiedReferences(string references)
+    {
+        Action parse = () => Parse(ReferencedProfile(references));
+        parse.Should().Throw<InvalidDataException>();
+    }
+
+    private static string ReferencedProfile(string references) =>
+        Profile.Replace("kora-agent-format: 1", "kora-agent-format: 2", StringComparison.Ordinal)
+            .Replace("references: none", "references: " + references, StringComparison.Ordinal)
+            .Replace("tools: application.get_version", "tools: none", StringComparison.Ordinal)
+            .Replace("maximum-calls: 2", "maximum-calls: 0", StringComparison.Ordinal);
 
     [Theory]
     [InlineData("hooks: none")]

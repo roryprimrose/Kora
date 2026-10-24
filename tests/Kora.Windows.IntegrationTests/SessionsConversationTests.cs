@@ -248,8 +248,12 @@ public sealed partial class SessionsConversationTests
             Action<HostId<SessionIdentity>>? revokeDetails = null,
             Func<SessionWorkspaceEntry, Kora.Core.Conversation.ConversationMessage, Func<bool>, CancellationToken, Task<string>>? reuseOriginal = null,
             IModelTurnAdapter? adapter = null, AppearanceConfigurationService? appearance = null,
-            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null, bool memoryContext = false,
-            Kora.Core.Network.IWebPageTransport? pageTransport = null)
+            Func<ISessionWorkspaceAccess, ScopedInstructionUseBroker>? instructionFactory = null,
+            bool memoryContext = false,
+            SpeechConfigurationService? speech = null,
+            Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
+            Kora.Core.Network.IWebPageTransport? pageTransport = null,
+            ISessionAnswerPlayback? answerPlayback = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -286,7 +290,13 @@ public sealed partial class SessionsConversationTests
                 reviewAppearanceSuggestion: appearance is null ? null : (message, eligible, validate, token) =>
                     AppearanceSuggestionReview.ReviewAsync(appearance, message, eligible, validate, token),
                 confirmAppearanceSuggestion: appearance is null ? null : (review, token) => review.ConfirmAsync(token),
-                instructionUse: instructionFactory?.Invoke(Access));
+                instructionUse: instructionFactory?.Invoke(Access),
+                reviewSpeechSummarySuggestion: speech is null ? null : (message, eligible, validate, token) =>
+                    SpeechSummarySuggestionReview.ReviewAsync(speech,
+                        speechPolicy ?? throw new InvalidOperationException("Test speech policy is required."),
+                        f.Time, message, eligible, validate, token),
+                confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token),
+                answerReads: answerPlayback is null ? null : new(workspace, answerPlayback));
         }
         public async ValueTask DisposeAsync()
         {

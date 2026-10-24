@@ -45,11 +45,19 @@
         <WrapPanel>
           <Button x:Name="ReadConversation" Content="Read exact conversation" IsEnabled="{Binding CanReadConversation}" />
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
+          <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
         </WrapPanel>
-        <controls:ScrollableListBox ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
+        <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
+            SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
             ItemTemplate="{StaticResource ConversationMessageTemplate}"
-            AutomationProperties.Name="Chronological immutable original user messages and separate host statuses; inert native text, not model answers or replay controls" />
+            AutomationProperties.Name="Original USER messages, separate retained ASSISTANT answers and typed HOST outcomes; selection never starts speech" />
+        <WrapPanel>
+          <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
+          <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />
         <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
             PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
             AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
@@ -140,6 +148,12 @@
         <WrapPanel>
           <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
           <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
+        </WrapPanel>
+        <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
+        <WrapPanel>
+          <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+          <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
         </WrapPanel>
       </StackPanel>
     </Expander>

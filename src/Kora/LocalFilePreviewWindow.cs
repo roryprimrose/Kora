@@ -310,6 +310,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
             + $"Original session generation: {attachment.Generation.Value} / captured: {file.AdmittedAt:O}\n"
             + $"Revision: {file.RevisionId:D} / item: {file.ItemId:D}\nSHA-256 of original bytes: {file.Digest}",
             null, file.Text, AttachmentDisclosure);
+        attachmentAnswerBody = body;
         ShowSourceMeasurement(body, isCurrent, [file]);
         SetFindSource(file);
         ShowSearch(body, search, isCurrent, folder: false, async token =>
@@ -451,6 +452,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         wrappingViewport = null;
         ClearSourceMeasurement();
         ClearAnswer();
+        ClearAttachmentAnswer();
         ClearNavigation();
         SetFindSource(null);
         findQuery = null;

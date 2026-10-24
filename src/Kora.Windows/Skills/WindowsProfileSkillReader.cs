@@ -71,6 +71,11 @@ public sealed partial class WindowsProfileSkillReader : ISharedSkillSourceReader
                     && entry.StartsWith(directory + '\\', StringComparison.OrdinalIgnoreCase))
                     .Select(entry => Path.GetRelativePath(root, entry)).Order(StringComparer.Ordinal).ToArray();
                 var snapshot = SharedSkillSnapshot.Parse(source.Id, Path.GetRelativePath(root, file), bytes, otherFiles.Length > 0, otherFiles);
+                if (snapshot.ReferenceDeclaration is not null)
+                {
+                    using var package = PinAncestors(directory);
+                    snapshot = snapshot.WithPackageDirectoryIdentity(WindowsFileIdentity.Read(package.Last));
+                }
                 if (!string.Equals(Path.GetFileName(file), "SKILL.md", StringComparison.Ordinal))
                 { snapshot = snapshot.WithUnavailableReason("noncanonical-skill-file-name"); }
                 result.Add(snapshot);

@@ -177,7 +177,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "windows-and-tray",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
-            "troubleshooting");
+            "troubleshooting",
+            "hosted-requests");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));

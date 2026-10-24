@@ -41,6 +41,8 @@ public sealed class SessionRequestCommandService(
             if (!Live()) { throw new InvalidOperationException("Original private input admission changed; initiate a fresh review."); }
             if (command.Operation == SessionCommandOperation.RequestReview)
             {
+                if (!Enum.IsDefined(command.RequestProvider))
+                { throw new InvalidOperationException("An exact supported request provider is required."); }
                 var body = command.RequestBody ?? throw new InvalidOperationException("An original request body is required.");
                 ConversationText.Validate(body, submission: true);
                 var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
@@ -48,14 +50,15 @@ public sealed class SessionRequestCommandService(
                     || target.Authority.Generation.Value != command.Generation
                     || (target.Metadata?.Revision.Value ?? 0) != command.MetadataRevision || !Live())
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
-                var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60));
+                var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
+                    command.RequestProvider);
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
                     pending = new(review, Live, control, new(activity.Activity!.Context));
                 }
                 activity.Complete(HostOperationOutcome.Completed);
-                return new("review", "Review the exact original body, target, origin and expiry. Confirm separately using the exact session and review IDs; no content is retained or dispatched yet.")
+                return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately using the exact session and review IDs; no content is retained or dispatched yet. Copilot additionally requires separate native approval of each final physical send.")
                 { RequestReview = review };
             }
             if (previous is null || previous.Review.Id != command.RequestReviewId
@@ -90,8 +93,11 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
-                    Revalidate, [previous.Cause], previous.Review.Origin).ConfigureAwait(false);
+                receipt = previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
+                    ? await conversation.SubmitReviewedCopilotAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
+                        Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
+                    : await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
+                        Revalidate, [previous.Cause], previous.Review.Origin).ConfigureAwait(false);
                 submission.Complete(HostOperationOutcome.Completed);
             }
             catch

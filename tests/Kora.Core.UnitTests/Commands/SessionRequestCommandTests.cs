@@ -21,6 +21,21 @@ public sealed class SessionRequestCommandTests
         command.Generation.Should().Be(2);
         command.MetadataRevision.Should().Be(0);
         command.RequestBody.Should().Be(body);
+        command.RequestProvider.Should().Be(SessionRequestReview.ProviderChoice.Default);
+    }
+
+    [Theory]
+    [InlineData("session request review ", "copilot")]
+    [InlineData("Nova, SESSION REQUEST REVIEW ", "COPILOT")]
+    public void ExplicitCopilotReviewPinsProviderWithoutChangingOriginalBody(string prefix, string provider)
+    {
+        const string body = "  Original\r\n\t-- copilot  ";
+        var command = SessionCommand.Parse(prefix + Id + " 2 0 " + provider + " -- " + body, "Nova")!;
+        command.Operation.Should().Be(SessionCommandOperation.RequestReview);
+        command.RequestProvider.Should().Be(SessionRequestReview.ProviderChoice.Copilot);
+        command.RequestBody.Should().Be(body);
+        command.Generation.Should().Be(2);
+        command.MetadataRevision.Should().Be(0);
     }
 
     [Theory]
@@ -62,6 +77,11 @@ public sealed class SessionRequestCommandTests
     [InlineData("cancel " + Id + " invalid")]
     [InlineData("submit " + Id + " " + Id)]
     [InlineData("review\t" + Id + " 1 0 -- original")]
+    [InlineData("review " + Id + " 1 0 hosted -- original")]
+    [InlineData("review " + Id + " 1 0 copilot extra -- original")]
+    [InlineData("review " + Id + " 1 0 copilot -- api_key=synthetic-only-value")]
+    [InlineData("review " + Id + " 1 0 copilot -- ")]
+    [InlineData("confirm " + Id + " " + Id + " copilot")]
     public void InvalidRequestNamespaceIsReservedWithoutModelOrQuestionFallback(string arguments) =>
         SessionCommand.Parse("session request " + arguments, "Kora")!.Operation.Should().Be(SessionCommandOperation.Invalid);
 

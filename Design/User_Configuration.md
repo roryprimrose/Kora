@@ -1525,7 +1525,7 @@ Revocation blocks subsequent exact-grant consumption. In-flight work is reported
 
 ### Delivered native exact operation grants — 2026-10-10
 
-The tray's separate **Exact operation grants** window reads the initialized private interaction store, not the legacy **Approvals** tab or its Markdown named-action list. Refresh and Next return at most **50 retained records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot. Source, row or cursor failures are explicit; no empty-success fallback occurs.
+**Settings > Approvals > Exact operation grants...** opens a separate window reading the initialized private interaction store, not the legacy tab's named-action list. Refresh and Next return at most **50 retained records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot. Source, row or cursor failures are explicit; no empty-success fallback occurs.
 
 Select one exact approval ID, then **Inspect selected exact ID** to reread current immutable metadata. It shows the actual revision, capability/source/skill, binding/content SHA-256 identities, recorded effect classification, scope, original session/generation, creator channel/time, status, count, last use and retained revocation reason. Raw parameters, scripts, bodies, credentials and provider content are not displayed or logged.
 

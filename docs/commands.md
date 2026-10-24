@@ -260,7 +260,7 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 
 ## Attach one text file to an exact Session (native only)
 
-For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
+For a content-free overview, use **Sessions > Retained attachments... > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
 [Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
 Exact typed or current-name activated `prepare attachment catalogue <session-id>`
@@ -762,8 +762,7 @@ not automatic rollback/replay. There is no model tool or pending-question bridge
 
 ## Explicit local clipboard preview
 
-These exact commands and the tray's **Preview clipboard (local plain text)**
-entry use the same request workflow without a model:
+These exact commands use the local clipboard preview workflow without a model:
 
 | Exact command | Result |
 |---|---|
@@ -1011,7 +1010,7 @@ session commands without changing their targets; resolve them explicitly first.
 | `task inspect <session-id> <task-id>` | The same complete bounded authoritative record, not inferred progress or remaining steps |
 | `task cancel <session-id> <task-id> <task-revision> <generation> <question-id> <question-revision>` | Atomically cancel only admitted current-run local-version work still waiting before dispatch |
 
-Copy exact IDs and all tokens from a fresh inspection. Only the tray's native
+Copy exact IDs and all tokens from a fresh inspection. Only the Readiness diagnostic native
 local-version question currently admits that wait. Its question is now before
 dispatch; cancellation commits the terminal task, revised cancelled question,
 target capability revocation and required audit together. It never creates or
@@ -1361,7 +1360,7 @@ Opening setup shows readiness; it does not install a model without approval.
 - **tell me your version**
 - **which version of Kora is this**
 
-The tray also offers **Review local version (native question)**, an explicit
+**Settings > Readiness > Question diagnostics > Review local version (native question)** offers an explicit
 mouse/keyboard-only route using the same durable local version-query context.
 It does not need voice consent, a microphone, a model or network access.
 The native window names the original session/task/question, revision and
@@ -1372,7 +1371,7 @@ record** is passive inspection, not approval or execution. **Cancel question**
 is explicit; Close/Escape only closes presentation. Stale, expired or
 privacy/ownership-unavailable targets cannot be answered.
 
-**Tray > Return to current question** returns to that same still-live original version wait after Close/Escape, restoring only its committed draft and current revision. Unsaved edits/review clear on close. The original five-minute expiry continues while hidden; return creates no new query/question/grant or dispatch and never extends activity.
+**Settings > Readiness > Question diagnostics > Return to local-version question** returns to that same still-live original version wait after Close/Escape, restoring only its committed draft and current revision. Unsaved edits/review clear on close. The original five-minute expiry continues while hidden; return creates no new query/question/grant or dispatch and never extends activity.
 
 An already-open exact card activates; Sessions selection cannot retarget it.
 
@@ -1762,7 +1761,7 @@ inclusion still does not connect or authorize execution.
 
 ### Search admitted skill package metadata
 
-In **Tray > Skill packages**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
+In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
 
 In **Shared profile sources (read only)**, first explicitly **List selected source**, then use **Search** with **All / Instruction-compatible / Instruction-incompatible**. Matching covers admitted declared name, metadata-qualified source ID/name/version identity when the name is valid, and valid declared description, across at most 32 snapshots from that exact source. Missing metadata is not guessed; files/roots, path-fallback IDs, SKILL.md bodies, manifests and helpers are not searched ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
@@ -1772,7 +1771,7 @@ All includes incompatible/unavailable rows. Shared compatibility is structural i
 
 ### Inspect shared profile skills locally
 
-Open the tray **Skill packages**, then **Shared profile sources (read only)**.
+Open **Settings > Custom content > Skill packages...**, then **Shared profile sources (read only)**.
 Choose **Choose and register profile root (read only)** and select an exact
 bounded local directory below your Windows profile, such as `.agents\skills`.
 Kora resolves the profile through Windows Known Folder APIs, not environment

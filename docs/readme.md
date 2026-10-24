@@ -40,7 +40,7 @@ releases the microphone; device selection alone does not undo that choice.
 
 ## Open this guide
 
-Choose **Documentation** from the tray, type **open documentation**, or use
+Choose **Help > Documentation** from the tray, type **open documentation**, or use
 push-to-talk and say **"Kora, open documentation"**.
 
 ## Important limitations

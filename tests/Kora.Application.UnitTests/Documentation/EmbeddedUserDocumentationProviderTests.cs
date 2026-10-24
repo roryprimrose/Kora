@@ -13,6 +13,26 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TrayGuideDescribesGroupedNavigationAndRelocatedSpecialistLinks()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var tray = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        tray.Should().Contain("These nine root rows")
+            .And.Contain("Settings is bold as the double-click action")
+            .And.Contain("There is no Stop speaking entry")
+            .And.Contain("**Voice & audio**")
+            .And.Contain("**Help**")
+            .And.Contain("**Settings > Custom content**")
+            .And.Contain("**Sessions > Retained attachments...**")
+            .And.Contain("**Settings > Readiness > Question diagnostics**")
+            .And.NotContain("**Tray > Compact selected-session conversation**")
+            .And.NotContain("**Tray > Preview file")
+            .And.NotContain("**Tray > Return to current question**");
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**");
+    }
+
+    [Fact]
     public void SpeechSuggestionGuideExplainsCompleteReviewSeparateConfirmationAndOriginalVoice()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

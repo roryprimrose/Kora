@@ -18,6 +18,7 @@ internal sealed partial class SessionsWindow : Window
     internal event EventHandler? AllWorkRequested;
     internal event EventHandler? NewRequestRequested;
     internal event EventHandler? CompactConversationRequested;
+    internal event EventHandler? RetainedAttachmentsRequested;
     internal SessionsWindow(SessionsViewModel model, SessionsPresentationOwner? owner = null)
     {
         this.owner = owner ?? new(model);
@@ -80,6 +81,7 @@ internal sealed partial class SessionsWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
+        RetainedAttachments.Click += (_, _) => RetainedAttachmentsRequested?.Invoke(this, EventArgs.Empty);
         NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);

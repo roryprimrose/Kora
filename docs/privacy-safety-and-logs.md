@@ -426,7 +426,7 @@ COMMIT. Privacy closure clears name drafts and late content. Missing/corrupt/
 unsupported data is refused rather than replaced; validated v1-to-v2 schema
 maintenance preserves authority and never invents titles.
 
-The tray's **Review local version (native question)** uses trusted native
+**Settings > Readiness > Question diagnostics > Review local version (native question)** uses trusted native
 input over the durable host question service, separately from legacy
 model-action approvals. Answers retain the exact original question/session
 and request origin; window focus cannot choose their target. Review, saved
@@ -571,7 +571,7 @@ baggage, and cannot promote ordinary logs to the dedicated AuthorityAudit path.
 No source capture, model/provider/network, copy/export/persistence or session
 activity renewal is added.
 
-The tray's **Evidence (read-only)** opens a native inspector for actual
+**Tray > Help > Evidence & diagnostics...** opens a native read-only inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
 **DailyLog** additionally inspects existing daily diagnostic JSON independently;
 **All** still selects SQLite only and does not count mirrored file copies.

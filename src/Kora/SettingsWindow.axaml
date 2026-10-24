@@ -1244,6 +1244,12 @@
       <TabItem Header="Custom content">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <WrapPanel ItemSpacing="8" LineSpacing="6">
+              <Button x:Name="EditOwnedInstructions" Content="Owned instructions and prompts..." IsEnabled="False"
+                      AutomationProperties.Name="Open the owned instruction and prompt editor; opening does not save or enable content" />
+              <Button x:Name="InspectSkillPackages" Content="Skill packages..." IsEnabled="False"
+                      AutomationProperties.Name="Open skill package inspection; opening does not enable or invoke a skill" />
+            </WrapPanel>
             <StackPanel Spacing="5" Margin="0,0,0,8">
               <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                 <TextBlock Text="Custom content sources" FontSize="28" FontWeight="SemiBold" />
@@ -1516,12 +1522,25 @@
                   Content="Open Windows microphone settings"
                   Command="{Binding OpenMicrophonePrivacySettingsCommand}" />
             </StackPanel>
+            <Expander Header="Question diagnostics" IsExpanded="False">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Exercise the existing local-version question workflow. Returning only restores its still-live original wait, not another conversation question."
+                           TextWrapping="Wrap" />
+                <Button x:Name="ReviewLocalVersion" Content="Review local version (native question)" IsEnabled="False"
+                        HorizontalAlignment="Left" />
+                <Button x:Name="ReturnToVersionQuestion" Content="Return to local-version question" IsEnabled="False"
+                        HorizontalAlignment="Left" />
+              </StackPanel>
+            </Expander>
           </StackPanel>
         </ScrollViewer>
       </TabItem>
       <TabItem Header="Approvals">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
+            <Button x:Name="InspectExactGrants" Content="Exact operation grants..." IsEnabled="False"
+                    HorizontalAlignment="Left"
+                    AutomationProperties.Name="Open the separate retained exact-operation grant inventory, not the legacy named-action approval lists" />
             <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />
             <TextBlock
                 Text="AI models can suggest Kora actions for you to approve. Once allows only that request. Session lasts until Kora exits, restarts or locks Windows through Kora. Always stays approved until you remove it. Approval prompts always appear on screen, even in speech-only mode."

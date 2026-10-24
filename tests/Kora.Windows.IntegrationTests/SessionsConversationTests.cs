@@ -253,7 +253,8 @@ public sealed partial class SessionsConversationTests
             SpeechConfigurationService? speech = null,
             Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
             Kora.Core.Network.IWebPageTransport? pageTransport = null,
-            ISessionAnswerPlayback? answerPlayback = null)
+            ISessionAnswerPlayback? answerPlayback = null,
+            CopilotConversationRuntime? copilot = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -261,13 +262,28 @@ public sealed partial class SessionsConversationTests
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);
             mode.Observe();
             var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Paths),
-                new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time), admission, Audit, f.Time);
+                copilot is null ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f),
+                admission, Audit, f.Time);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var boundary = new HostBoundary();
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(boundary, new(), new(), new(boundary), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
-            turns = adapter is null
+            if (copilot is not null)
+            {
+                new LocalModelProviderModePreferences(f.Paths).Save(ModelProviderMode.HostedPreferred);
+                mode.Observe();
+                new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Copilot, [CopilotCatalogue.Profile]));
+            }
+            Reviews = new(Audit, f.Time);
+            turns = copilot is not null
+                ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.CopilotCandidate,
+                        ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
+                            | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), new CopilotModelTurnAdapter(copilot, Reviews))],
+                    mode, profiles, f.Store, hostedReviews: Reviews)
+                : adapter is null
                 ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time, mode, profiles, f.Store)
                 : new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
                     [new(ModelProviderSelection.OllamaCandidate,
@@ -298,6 +314,7 @@ public sealed partial class SessionsConversationTests
                 confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token),
                 answerReads: answerPlayback is null ? null : new(workspace, answerPlayback));
         }
+        internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()
         {
             Model.Close();

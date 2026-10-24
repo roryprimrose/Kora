@@ -505,12 +505,15 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>(),
             [
                 new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
-                new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
+                new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue,
+                    new CopilotModelTurnAdapter(provider.GetRequiredService<CopilotSdkTurnRuntime>(),
+                        provider.GetRequiredService<HostedTransmissionReviewService>())),
             ],
             provider.GetRequiredService<ProviderModeConfigurationService>(),
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
             provider.GetRequiredService<ISessionProviderProfileStore>(),
-            provider.GetRequiredService<OllamaModelProviderFactory>()));
+            provider.GetRequiredService<CopilotModelProviderFactory>(),
+            provider.GetRequiredService<HostedTransmissionReviewService>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();

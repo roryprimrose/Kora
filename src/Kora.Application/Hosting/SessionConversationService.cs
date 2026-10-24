@@ -55,6 +55,12 @@ public sealed partial class SessionConversationService(
             ? SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null, ModelTurnChoice.Default, token)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
+    /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
+    public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
+        SubmitCoreAsync(target, body, admitted, beforeRetain, null, RequestOrigin.LocalUi, null,
+            ModelTurnChoice.Hosted, token, copilot: true);
+
     /// <summary>Host-only reviewed-source lifecycle; callbacks cannot confer authority or replace host validation.</summary>
     internal Task<ConversationSubmissionReceipt> SubmitReviewedContextAsync(SessionWorkspaceEntry target, string body,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
@@ -85,7 +91,7 @@ public sealed partial class SessionConversationService(
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null,
         ConversationQuestionPresenter? questionPresenter = null,
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
-        Action? terminalCommitted = null)
+        Action? terminalCommitted = null, bool copilot = false)
     {
         RequireOriginalSource(origin);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
@@ -107,7 +113,8 @@ public sealed partial class SessionConversationService(
         if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
         var now = time.GetUtcNow();
-        var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now, now.AddSeconds(15))
+        var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now,
+            copilot ? now.Add(CopilotTurnAuthorization.MaximumDuration) : now.AddSeconds(15))
             : createContext(request, now);
         context.RequireCompleteInputLimit();
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
@@ -133,7 +140,11 @@ public sealed partial class SessionConversationService(
                 if (!Live()) { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
                 else
                 {
-                    var admission = await turns.AdmitAsync(choice, context, null, token).ConfigureAwait(false);
+                    var admission = copilot
+                        ? turns is ICopilotTurnAdmission hosted
+                            ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
+                            : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
+                        : await turns.AdmitAsync(choice, context, null, token).ConfigureAwait(false);
                     if (admission.Turn is not null)
                     {
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);

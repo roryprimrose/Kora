@@ -136,14 +136,17 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true);
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
-    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null) => RunConversationAsync(async (target, live) =>
+    private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = composerBody;
         var presenter = allowQuestion ? QuestionPresenter
             ?? throw new InvalidOperationException("The exact native clarification presenter is unavailable. Nothing was submitted.") : null;
-        var receipt = pageAddress is null
+        var receipt = copilot
+            ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
+            : pageAddress is null
             ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
             : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter
                 ?? throw new InvalidOperationException("The exact native page approval presenter is unavailable. Nothing was submitted."),

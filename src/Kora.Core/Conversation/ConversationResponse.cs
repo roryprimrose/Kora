@@ -10,12 +10,16 @@ public sealed record ConversationResponse(ModelTurnProvenance Provenance, string
 {
     public int Version { get; init; } = 1;
 
+    /// <summary>Retained data format support only, never execution or disclosure authority.</summary>
+    public static bool SupportsProvider(ModelProviderIdentity provider) =>
+        provider is ModelProviderIdentity.Ollama or ModelProviderIdentity.Copilot;
+
     public void Validate()
     {
         if (Version != 1 || Body is null || Provenance is null || Provenance.Request is null
             || Provenance.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice) || Provenance.Request.InvocationId is not null
             || Provenance.Selection is null || !Provenance.Selection.IsValid
-            || Provenance.Selection.Provider != ModelProviderIdentity.Ollama)
+            || !SupportsProvider(Provenance.Selection.Provider))
         { throw new InvalidDataException("Assistant response provenance is invalid."); }
         Provenance.Turn.Validate();
         Provenance.Request.RequestId.Validate();

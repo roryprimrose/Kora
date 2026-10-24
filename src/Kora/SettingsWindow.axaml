@@ -1384,6 +1384,8 @@
             <TextBlock Text="Choose a service, then a model and its thinking and conversation-size options. Save just the service or all choices together. Other services keep their saved settings. Models appear only when the service supplies a current list."
                        Classes="settings-description" TextWrapping="Wrap" />
             <TextBlock Text="{Binding ProviderProfileDraftStatus}" Classes="settings-description" TextWrapping="Wrap" />
+            <Button Content="Configure Copilot account (volatile token)" Click="OnCopilotAccountClicked"
+                    IsEnabled="{Binding CanChangeProviderProfile}" />
             <ComboBox ItemsSource="{Binding ProviderProfileModels}" SelectedItem="{Binding SelectedProviderProfileModel}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Model for the selected account" />
             <ComboBox ItemsSource="{Binding ProviderReasoningChoices}" SelectedItem="{Binding SelectedProviderReasoning}"

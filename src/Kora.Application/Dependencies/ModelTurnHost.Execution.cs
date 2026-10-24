@@ -30,6 +30,8 @@ public sealed partial class ModelTurnHost : IModelTurnExecution
             lock (dispatchGate)
             {
                 if (IsQuiescent) { return; }
+                if (quiescence is null || quiescence.Task.IsCompleted)
+                { throw new InvalidOperationException("Provider termination is unconfirmed; the host remains unavailable."); }
                 outstanding = quiescence!.Task;
             }
             await outstanding.WaitAsync(cancellationToken).ConfigureAwait(false);

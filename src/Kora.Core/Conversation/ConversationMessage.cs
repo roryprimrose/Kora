@@ -40,7 +40,7 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
             || (Version == 1 && (Execution is not null || ExecutionMetadataRevision is not null || AssistantResponse is not null || Outcome == ModelTurnOutcome.Succeeded))
             || (Version == 2 && (Execution is null || Execution.Request != Request
                 || Execution.Selection is null || !Execution.Selection.IsValid
-                || Execution.Selection.Provider != ModelProviderIdentity.Ollama || ExecutionMetadataRevision is null or < 0))
+                || !ConversationResponse.SupportsProvider(Execution.Selection.Provider) || ExecutionMetadataRevision is null or < 0))
             || (AssistantResponse is not null) != (Outcome == ModelTurnOutcome.Succeeded)
             || Reason is { } reason && !Enum.IsDefined(reason)
             || (Version == 1 ? (Revision == 1) != (Outcome is null) || Revision > 2

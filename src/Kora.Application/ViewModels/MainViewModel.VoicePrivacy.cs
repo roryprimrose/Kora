@@ -1188,7 +1188,7 @@ public sealed partial class MainViewModel
             || !outputCatalog.IsQuiescent || !OutputRefresh.IsCompleted || !outputDiscoveryPersistence.IsCompleted
             || Volatile.Read(ref pendingAuditWrites) != 0
             || Volatile.Read(ref stoppingAudioOperations) != 0
-            || !IsHandoffReviewQuiescent || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive || IsWebSummaryActive
+            || !IsHandoffReviewQuiescent || !copilotSetupQuiescent() || speechPreparation?.IsQuiescent == false || IsBusy || IsWebPageRetrievalActive || IsWebSummaryActive
             || !clipboardPreview.IsQuiescent || clipboardExplanation?.IsQuiescent == false
             || filePreview?.IsQuiescent == false || sessionFiles?.IsQuiescent == false
             || IsLocalModelSetupActive || IsPowerShellSetupActive || IsSpeechProviderOperationActive

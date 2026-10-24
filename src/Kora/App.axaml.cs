@@ -159,6 +159,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>());
             instructionEditor.Bind();
+            BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptConversationSubmission>(),
@@ -372,6 +373,8 @@ public sealed partial class App : Avalonia.Application
         systemTray?.Dispose();
         instructionEditor?.Dispose();
         instructionEditor = null;
+        instructionUse?.Dispose();
+        instructionUse = null;
         promptParameters?.Dispose();
         promptParameters = null;
         systemTray = null;

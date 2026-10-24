@@ -14,11 +14,14 @@ public sealed partial class App
     private void BindAgentRuns(MainViewModel main)
     {
         var workflow = ActivatorUtilities.CreateInstance<BoundedAgentWorkflow>(Services,
-            new WindowsAgentProfileReader(Services.GetRequiredService<WindowsLocalFileInspector>()));
+            new WindowsAgentProfileReader(Services.GetRequiredService<WindowsLocalFileInspector>()),
+            ActivatorUtilities.CreateInstance<AgentInstructionReferenceResolver>(Services));
         var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>();
         agentRuns = new(main, workflow, Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<AgentRunController>>());
         agentRuns.Bind();
+        BindAgentProfileAuthoring(main);
+        BindAgentRunSet(main);
     }
 }

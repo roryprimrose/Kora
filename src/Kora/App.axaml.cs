@@ -142,6 +142,7 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);
+            BindAgentRuns(viewModel);
             instructionEditor = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
                 Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),

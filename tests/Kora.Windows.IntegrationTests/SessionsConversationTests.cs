@@ -252,7 +252,8 @@ public sealed partial class SessionsConversationTests
             bool memoryContext = false,
             SpeechConfigurationService? speech = null,
             Kora.Application.Communication.CallCommunicationPolicy? speechPolicy = null,
-            Kora.Core.Network.IWebPageTransport? pageTransport = null)
+            Kora.Core.Network.IWebPageTransport? pageTransport = null,
+            ISessionAnswerPlayback? answerPlayback = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -294,7 +295,8 @@ public sealed partial class SessionsConversationTests
                     SpeechSummarySuggestionReview.ReviewAsync(speech,
                         speechPolicy ?? throw new InvalidOperationException("Test speech policy is required."),
                         f.Time, message, eligible, validate, token),
-                confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token));
+                confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token),
+                answerReads: answerPlayback is null ? null : new(workspace, answerPlayback));
         }
         public async ValueTask DisposeAsync()
         {

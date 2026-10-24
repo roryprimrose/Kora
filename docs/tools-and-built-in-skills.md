@@ -44,6 +44,22 @@ live-provider or hardware qualification claims here. Hosted providers cannot
 consume this tool or its result. This is not arbitrary browsing, SDK-native
 network access, or a change to the separate local-only web-result summary policy.
 
+## Run one reviewed local agent profile
+
+Type **review agent**, or say your current assistant name followed by **review agent**. This opens a separate bounded-run review; loading an ordinary agent artifact is not execution. No default or bundled agent is selected.
+
+1. Enter the full canonical path to an **existing user-owned `.agent.md`** file on a local fixed drive. Protected, hidden/system, reparse and hard-linked sources are unavailable. Only the explicit [v1 compatibility subset](../Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles) is accepted; missing or unsupported required metadata is rejected.
+1. Refresh the existing Active conversations and explicitly select one. Enter the exact original task.
+1. Choose **Read source and review exact invocation**. This consents to bounded local source reading, not invocation. Review the complete inert profile, original input, exact target, local text input/output, no references, explicit observation-tool subset, requested budgets and host clamps.
+1. Separately choose **Consent to this exact bounded invocation**. One serial local model/tool turn runs under independent per-tool permissions. A real final answer or truthful terminal failure is retained in that exact conversation; inspect it in **Sessions**. Unavailable runtime is not a successful prompt submission.
+1. **Stop / revoke and join owned execution** (or **agent stop**) closes authority. Closing the window, privacy/ownership changes or source replacement also invalidate use. Resources remain owned until the actual provider terminates; cancellation does not imply physical completion or rollback.
+
+Equivalent typed/current-name activated voice controls are **agent source &lt;full path&gt;**, **agent request &lt;original text&gt;**, **agent targets**, **agent next targets**, **agent target &lt;displayed session ID&gt;**, **agent review invocation**, **agent confirm invocation**, and **agent stop**. Changing the input or target requires a fresh review. Review expires after two minutes and cannot be replayed.
+
+Only the six original recorded read-only observation IDs can be requested, and only the exact reviewed subset is advertised or dispatched. There are no instruction/skill/file imports, hooks, scripts, child agents, concurrent workers, scheduling, MCP, web/power tools, hosted fallback or provider-native facilities. Profile text and tool output cannot grant authority.
+
+**Availability:** the execution path remains fail-closed when the separately configured local model is unqualified or unavailable. Deterministic implementation tests do not establish live-model enablement or release qualification.
+
 ## Asking Kora to do something
 
 Type a command or hold push-to-talk and use the configured assistant name.

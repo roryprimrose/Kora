@@ -6,6 +6,8 @@ using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
 
+using Microsoft.Extensions.Logging;
+
 namespace Kora.Application.UnitTests.Dependencies;
 
 [Collection("Host tracing")]
@@ -65,6 +67,29 @@ public sealed class OllamaAdmissionWorkflowTests : IDisposable
         (await f.Review()).Should().BeNull();
         f.Workflow.Status.Should().Contain("Unavailable");
         f.Values.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task UnavailableAndFailedReviewsLogOnlyBoundedDiagnosticsWithoutGrantingAdmission()
+    {
+        await using var f = new OllamaAdmissionWorkflowFixture();
+        f.Trusted = [];
+        (await f.Review()).Should().BeNull();
+        var unavailable = f.Diagnostics.Should().ContainSingle().Subject;
+        unavailable.Level.Should().Be(LogLevel.Information);
+        unavailable.EventId.Id.Should().Be(1);
+        unavailable.Message.Should().Be("Local model admission unavailable: qualification-or-current-subject-missing.");
+
+        f.Values["local-model-admission.json"] = "private-invalid-saved-content";
+        await f.Invoking(value => value.Review()).Should().ThrowExactlyAsync<InvalidDataException>();
+        f.Diagnostics.Should().HaveCount(2);
+        var failed = f.Diagnostics[1];
+        failed.Level.Should().Be(LogLevel.Error);
+        failed.EventId.Id.Should().Be(2);
+        failed.Message.Should().Be("Local model admission held unavailable after InvalidDataException; explicit review recovery required.");
+        f.Admitted.Should().BeNull();
+        f.Observations.Should().Be(0);
+        f.Host.Audit.Events.Should().BeEmpty();
     }
 
     [Theory]

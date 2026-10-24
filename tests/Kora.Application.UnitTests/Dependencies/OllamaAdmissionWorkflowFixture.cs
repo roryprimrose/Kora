@@ -6,11 +6,12 @@ using Kora.Application.Dependencies;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Providers;
 
-using Microsoft.Extensions.Logging.Abstractions;
+using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
-internal sealed class OllamaAdmissionWorkflowFixture : ILocalModelQualificationAuthority, ILocalModelAdmissionBroker, IPreferenceStore, IAsyncDisposable
+internal sealed class OllamaAdmissionWorkflowFixture : ILocalModelQualificationAuthority, ILocalModelAdmissionBroker, IPreferenceStore,
+    ILogger<OllamaAdmissionWorkflow>, IAsyncDisposable
 {
     private static readonly string[] Gates = ["licence-identity", "quality-authority", "bounds", "cancellation-recovery",
         "resource-latency", "offline-egress", "integrated-host"];
@@ -31,6 +32,7 @@ internal sealed class OllamaAdmissionWorkflowFixture : ILocalModelQualificationA
     internal Action? AfterRead { get; set; }
     internal Func<CancellationToken, Task>? BeforeObserve { get; set; }
     internal int Observations { get; private set; }
+    internal List<(LogLevel Level, EventId EventId, string Message)> Diagnostics { get; } = [];
     internal OllamaAdmissionWorkflowFixture()
     {
         var bytes = JsonSerializer.SerializeToUtf8Bytes(new
@@ -64,7 +66,7 @@ internal sealed class OllamaAdmissionWorkflowFixture : ILocalModelQualificationA
     }
 
     internal OllamaAdmissionWorkflow NewWorkflow() => new(this, this, new(this), Host.Admission, Host.Audit,
-        Host.Time, NullLogger<OllamaAdmissionWorkflow>.Instance);
+        Host.Time, this);
     internal Task<OllamaAdmissionReview?> Review() => Workflow.Review(Kora.Core.Hosting.RequestOrigin.LocalUi,
         () => Host.Eligible, Host.Token);
     internal Task Confirm(OllamaAdmissionReview review) => Workflow.Confirm(review, Kora.Core.Hosting.RequestOrigin.LocalUi,
@@ -107,5 +109,9 @@ internal sealed class OllamaAdmissionWorkflowFixture : ILocalModelQualificationA
         Values.Remove(fileName);
         if (string.Equals(fileName, "local-model-admission-unconfirmed.txt", StringComparison.Ordinal)) { AfterConfirm?.Invoke(); }
     }
+    public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+    public bool IsEnabled(LogLevel logLevel) => true;
+    public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
+        Func<TState, Exception?, string> formatter) => Diagnostics.Add((logLevel, eventId, formatter(state, exception)));
     public async ValueTask DisposeAsync() { await Workflow.DisposeAsync(); await Host.DisposeAsync(); }
 }

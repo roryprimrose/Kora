@@ -262,14 +262,10 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
             if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         }
-        TaskCompletionSource released;
-        lock (dispatchGate)
+        var released = AcquireDispatch(turn);
+        if (released is null)
         {
-            if (!IsQuiescent)
-            {
-                return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.ProviderBusy, turn.Provenance);
-            }
-            quiescence = released = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            return Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.ProviderBusy, turn.Provenance);
         }
         // Cancellation closes presentation/tool authority promptly, but the slot stays occupied until actual adapter termination.
         turn.IsRunning = true;
@@ -293,7 +289,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         finally
         {
             turn.IsRunning = false;
-            if (!transferred) { released.TrySetResult(); }
+            if (!transferred) { ReleaseDispatch(released); }
         }
         token.ThrowIfCancellationRequested();
         if (turn.HasForbiddenToolAttempt)
@@ -473,7 +469,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "Observes this host's already-dispatched adapter off the UI context; no synchronous join or UI dependency.")]
-    private async Task ObserveLateAsync(Task<ModelProviderReply> pending, TaskCompletionSource released,
+    private async Task ObserveLateAsync(Task<ModelProviderReply> pending, DispatchLease released,
         Func<HostActivity> continuation, ModelTurnProvenance provenance)
     {
         try
@@ -485,11 +481,13 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         }
         catch (Exception exception)
         {
+            if (released.Lane is not null)
+            { lock (dispatchGate) { lateFailures.Add(exception); } }
             using var activity = continuation();
             Fault(logger, exception.GetType().Name);
             activity.Complete(HostOperationOutcome.Unknown);
         }
-        finally { released.TrySetResult(); }
+        finally { ReleaseDispatch(released); }
     }
 
     public ValueTask DisposeAsync()
@@ -501,21 +499,27 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task CloseAsync()
     {
         disposed = true;
-        await lifetime.CancelAsync().ConfigureAwait(false);
+        List<Exception> failures = [];
+        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        catch (Exception exception) { failures.Add(exception); }
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        lock (dispatchGate) { failures.AddRange(lateFailures); }
         if (!IsQuiescent)
-        { throw new InvalidOperationException("The model runtime has not confirmed resource quiescence."); }
+        { failures.Add(new InvalidOperationException("The model runtime has not confirmed resource quiescence.")); }
         lock (policyGate) { policies.Clear(); }
         try
         {
             foreach (var adapter in registrations.Select(item => item.Adapter).OfType<IAsyncDisposable>()
                 .Distinct<IAsyncDisposable>(ReferenceEqualityComparer.Instance))
             {
-                await adapter.DisposeAsync().ConfigureAwait(false);
+                try { await adapter.DisposeAsync().ConfigureAwait(false); }
+                catch (Exception exception) { failures.Add(exception); }
             }
         }
         finally { lifetime.Dispose(); }
+        if (failures.Count == 1) { throw failures[0]; }
+        if (failures.Count != 0) { throw new AggregateException("Model resource closure failed.", failures); }
     }
 }

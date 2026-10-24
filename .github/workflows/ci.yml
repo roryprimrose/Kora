@@ -274,6 +274,10 @@ jobs:
         shell: pwsh
         run: ./eng/Test-PortableTestScheduling.ps1
 
+      - name: Enforce dependency and portable API boundaries
+        shell: pwsh
+        run: ./eng/Test-Architecture.ps1
+
       - name: Test hosted merge queue policy and workflow contracts
         run: node --test eng/merge-queue/*.test.cjs
 

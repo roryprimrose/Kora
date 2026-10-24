@@ -1,3 +1,5 @@
+using System.Security.Principal;
+
 using AwesomeAssertions;
 
 using Kora.Core.Agents;
@@ -97,10 +99,13 @@ public sealed class WindowsOwnedAgentProfileStoreTests : IDisposable
         var wrong = () => Save(store, destination with { Name = "other" });
         await wrong.Should().ThrowAsync<InvalidDataException>();
         Directory.Move(Path.GetDirectoryName(Target)!, Path.Combine(root, "retained"));
-        Directory.CreateDirectory(Path.GetDirectoryName(Target)!);
+        using var identity = WindowsIdentity.GetCurrent();
+        Kora.Windows.Storage.RestrictedStorageDirectory.CreateRestrictedDirectory(Path.GetDirectoryName(Target)!, identity.User!);
         var replaced = () => Save(store, destination);
-        await replaced.Should().ThrowAsync<InvalidDataException>();
+        await replaced.Should().ThrowAsync<InvalidDataException>()
+            .WithMessage("The owned source directory was replaced.*");
         File.Exists(Target).Should().BeFalse();
+        Directory.GetFiles(Path.GetDirectoryName(Target)!).Should().BeEmpty();
     }
 
     [Fact]

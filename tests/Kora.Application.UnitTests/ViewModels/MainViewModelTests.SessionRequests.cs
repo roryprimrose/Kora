@@ -17,10 +17,57 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public void HostedRequestGuideIsEmbeddedWithExplicitReviewAndNativeSendBoundary()
+    {
+        var guide = new Kora.Application.Documentation.EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "hosted-requests", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("session request review <session-id> <generation> <metadata-revision> copilot -- <original body>")
+            .And.Contain("60 seconds").And.Contain("original channel")
+            .And.Contain("Transmit this exact request once").And.Contain("no automatic retry")
+            .And.Contain("Local-only").And.Contain("unavailable");
+    }
+
+    [Fact]
+    public async Task UndefinedRequestProviderIsRejectedBeforeRetentionOrAnyModelAdmission()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = new SessionCommandStore(fixture);
+        var workspace = new SessionWorkspaceService(store, new(fixture.HostStore), store, NullLogger<SessionWorkspaceService>.Instance);
+        var admission = new RequestAdmission();
+        var conversation = new SessionConversationService(store, store, workspace, store, admission,
+            TimeProvider.System, NullLogger<SessionConversationService>.Instance);
+        var commands = new SessionRequestCommandService(workspace, conversation, store, TimeProvider.System);
+        var command = new SessionCommand(SessionCommandOperation.RequestReview, store.Session.Authority.SessionId.Value, 1, 0)
+        { RequestBody = "original", RequestProvider = (SessionRequestReview.ProviderChoice)99 };
+        await commands.Invoking(value => value.ExecuteAsync(command, RequestOrigin.LocalUi, () => true,
+            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        store.RequestRetentions.Should().Be(0);
+        admission.DefaultCalls.Should().Be(0);
+        admission.CopilotCalls.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task ExplicitCopilotWithoutDedicatedAdmissionNeverFallsBackToDefault()
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var store = BindRequestCommands(fixture, new DefaultOnlyRequestAdmission());
+        var session = store.Session.Authority.SessionId.Value.ToString("D");
+        await fixture.RunAsync("session request review " + session + " 1 0 copilot -- original hosted request");
+        using var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
+        var review = result.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
+        await fixture.RunAsync("session request confirm " + session + " " + review);
+        store.RequestMessage!.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        store.RequestMessage.Reason.Should().Be(ModelTurnReason.GenerationNotEnabled);
+        store.RequestRetentions.Should().Be(1);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+    }
+
     [Theory]
     [InlineData(false, false)]
     [InlineData(true, false)]
     [InlineData(true, true)]
+    [InlineData(false, true)]
     public async Task ExplicitTypedAndCurrentNameVoiceRequestConfirmRetainsOriginalBodyAndOriginWithoutReasoning(bool voice, bool voiceConfirmation)
     {
         var fixture = await Fixture.CreateInitializedAsync();
@@ -45,6 +92,85 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync(confirm);
         fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
         store.RequestRetentions.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task ExplicitCopilotRequestPinsProviderAndOriginalChannelAcrossConfirmation(bool voice, bool voiceConfirmation)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var admission = new RequestAdmission();
+        var store = BindRequestCommands(fixture, admission);
+        var session = store.Session.Authority.SessionId.Value.ToString("D");
+        const string body = "  Original hosted request\r\n\tend  ";
+        var command = "session request review " + session + " 1 0 copilot -- " + body;
+        if (voice) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
+        else { await fixture.RunAsync(command); }
+        using var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
+        var review = result.RootElement.GetProperty("requestReview");
+        review.GetProperty("provider").GetString().Should().Be("Copilot");
+        review.GetProperty("body").GetString().Should().Be(body);
+        store.RequestRetentions.Should().Be(0);
+        admission.CopilotCalls.Should().Be(0);
+        var confirm = "session request confirm " + session + " " + review.GetProperty("id").GetString();
+        if (voiceConfirmation) { await fixture.RaiseActivatedTranscriptAsync("Kora, " + confirm, 1); }
+        else { await fixture.RunAsync(confirm); }
+        fixture.ViewModel.ResponseTitle.Should().Be("Session command retained.");
+        store.RequestMessage!.Body.Should().Be(body);
+        store.RequestMessage.Request.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        store.RequestMessage.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+        admission.Context!.Request.Should().Be(store.RequestMessage.Request);
+        admission.Context.UserRequest.Should().Be(body);
+        admission.CopilotCalls.Should().Be(1);
+        admission.DefaultCalls.Should().Be(0);
+        fixture.Reasoner.Requests.Should().BeEmpty();
+        await fixture.RunAsync(confirm);
+        fixture.ViewModel.ResponseTitle.Should().Be("Session command not confirmed.");
+        admission.CopilotCalls.Should().Be(1);
+        store.RequestRetentions.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData("name")]
+    [InlineData("consent")]
+    [InlineData("call")]
+    [InlineData("privacy")]
+    [InlineData("revoked")]
+    public async Task OriginalVoiceCopilotReviewCannotGainFreshAuthorityFromTypedConfirmation(string change)
+    {
+        var fixture = await Fixture.CreateInitializedAsync();
+        var admission = new RequestAdmission();
+        var store = BindRequestCommands(fixture, admission);
+        var session = store.Session.Authority.SessionId.Value.ToString("D");
+        await fixture.RaiseActivatedTranscriptAsync("Kora, session request review " + session
+            + " 1 0 copilot -- original hosted request", 1);
+        using var result = JsonDocument.Parse(fixture.ViewModel.ResponseBody);
+        var review = result.RootElement.GetProperty("requestReview").GetProperty("id").GetString();
+        if (change is "name")
+        {
+            fixture.ViewModel.AssistantNameInput = "Nova";
+            await fixture.ViewModel.ApplyAssistantNameCommand.ExecuteAsync();
+        }
+        if (change is "consent") { await fixture.ViewModel.SetVoiceConsentAsync(false); }
+        if (change is "call")
+        {
+            fixture.CallState.SetState(CallState.Active);
+            await fixture.Dispatcher.LastInvocation;
+        }
+        if (change is "privacy")
+        {
+            fixture.ViewModel.CloseForObservedPrivacyEvent("locked", true);
+            await fixture.ViewModel.PrivacyClosureTask;
+        }
+        if (change is "revoked") { fixture.ViewModel.RevokeSessionPresentation(store.Session.Authority.SessionId); }
+        await fixture.RunAsync("session request confirm " + session + " " + review);
+        store.RequestRetentions.Should().Be(0);
+        admission.CopilotCalls.Should().Be(0);
+        admission.DefaultCalls.Should().Be(0);
+        fixture.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Theory]
@@ -127,22 +253,42 @@ public sealed partial class MainViewModelTests
         store.RequestRetentions.Should().Be(0);
     }
 
-    private static SessionCommandStore BindRequestCommands(Fixture fixture)
+    private static SessionCommandStore BindRequestCommands(Fixture fixture, IModelTurnAdmission? admission = null)
     {
         var store = new SessionCommandStore(fixture);
         var workspace = new SessionWorkspaceService(store, new(fixture.HostStore), store, NullLogger<SessionWorkspaceService>.Instance);
-        var conversation = new SessionConversationService(store, store, workspace, store, new RequestAdmission(),
+        var conversation = new SessionConversationService(store, store, workspace, store, admission ?? new RequestAdmission(),
             TimeProvider.System, NullLogger<SessionConversationService>.Instance);
         fixture.ViewModel.BindSessionCommands(workspace, new(workspace, conversation, store, TimeProvider.System));
         return store;
     }
 
-    private sealed class RequestAdmission : IModelTurnAdmission
+    private sealed class RequestAdmission : IModelTurnAdmission, ICopilotTurnAdmission
+    {
+        public bool IsQuiescent => true;
+        internal int DefaultCalls { get; private set; }
+        internal int CopilotCalls { get; private set; }
+        internal ModelContextEnvelope? Context { get; private set; }
+        public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
+            ModelHandoffReview? review, CancellationToken token)
+        {
+            DefaultCalls++;
+            return Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+        }
+        public Task<ModelTurnAdmission> AdmitCopilotAsync(ModelContextEnvelope context, CancellationToken token)
+        {
+            CopilotCalls++;
+            Context = context;
+            return Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled)));
+        }
+    }
+
+    private sealed class DefaultOnlyRequestAdmission : IModelTurnAdmission
     {
         public bool IsQuiescent => true;
         public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
             ModelHandoffReview? review, CancellationToken token) =>
-            Task.FromResult(new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)));
+            throw new InvalidOperationException("Explicit Copilot must never fall back to ordinary admission.");
     }
 
     private sealed partial class SessionCommandStore : ISessionConversationStore

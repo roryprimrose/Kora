@@ -6,7 +6,10 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
-    private bool handsFreeVoiceBound;
+    private HandsFreeVoiceRecognitionService? handsFreeVoice;
+
+    private bool CanRetireWakeForManualInput =>
+        voiceRecognition is HandsFreeVoiceRecognitionService { State: HandsFreeVoiceState.WakeListening };
 
     private string? ActiveHandsFreeVoiceStatus => voiceRecognition is HandsFreeVoiceRecognitionService { IsAmbientListeningAvailable: true } handsFree
         ? handsFree.State switch
@@ -21,7 +24,7 @@ public sealed partial class MainViewModel
 
     private void BindHandsFreeVoiceRuntime()
     {
-        if (handsFreeVoiceBound || voiceRecognition is not HandsFreeVoiceRecognitionService handsFree) { return; }
+        if (handsFreeVoice is not null || voiceRecognition is not HandsFreeVoiceRecognitionService handsFree) { return; }
         handsFree.Bind(ObserveHandsFreeVoiceAdmission, async (transcript, request) =>
         {
             if (transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() is null)
@@ -33,7 +36,7 @@ public sealed partial class MainViewModel
         }, () => !IsBusy && !IsSpeaking && !textToSpeech.IsSpeaking
             && promptInputVoice?.IsActive != true && composerDictation?.IsActive != true
             && questionVoiceReplies?.IsActive != true);
-        handsFreeVoiceBound = true;
+        handsFreeVoice = handsFree;
         handsFree.Changed += OnHandsFreeVoiceStateChanged;
     }
 
@@ -58,9 +61,9 @@ public sealed partial class MainViewModel
     {
         var privacy = privacyObservation.Current;
         var profile = speechInputConfiguration?.Get().Effective;
-        return handsFreeVoiceBound && profile is not null && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+        return handsFreeVoice is not null && profile is not null && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
-            && IsVoiceReadinessEligible(privacy) && communicationPolicy.Current.AllowActivation
+            && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
                 ? new(EffectiveMicrophone!, AssistantName, profile, Interlocked.Read(ref voiceRecoveryRevision),
                     privacy.TopologyRevision, CallPolicyRevision, auditImpactOwnerRevision(),
@@ -69,7 +72,5 @@ public sealed partial class MainViewModel
     }
 
     private Task StartHandsFreeVoiceAsync(bool explicitRecovery = false) =>
-        handsFreeVoiceBound && voiceRecognition is HandsFreeVoiceRecognitionService handsFree
-            ? handsFree.StartHandsFreeAsync(explicitRecovery)
-            : Task.CompletedTask;
+        handsFreeVoice?.StartHandsFreeAsync(explicitRecovery) ?? Task.CompletedTask;
 }

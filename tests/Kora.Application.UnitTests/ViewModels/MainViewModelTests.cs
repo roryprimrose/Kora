@@ -8565,7 +8565,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableQuestionReplies = false, bool enableAuditImpact = false, bool enableSessionRetentionPlanner = false,
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
-            SpeechComponentSetupService? speechComponentSetup = null)
+            SpeechComponentSetupService? speechComponentSetup = null,
+            Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8691,7 +8692,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 ApprovalPreferences,
                 ModelExecutionPreferences,
                 MicrophoneAccess,
-                (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice,
+                voiceDecorator is null ? (IActivatedVoiceRecognitionService?)ReplyVoice ?? Voice
+                    : voiceDecorator(ReplyVoice ?? new QuestionVoiceAdapter(Voice)),
                 TextToSpeech,
                 new AssistantNameConfigurationService(NamePreferences, Catalog, Audit,
                     NullLogger<AssistantNameConfigurationService>.Instance),

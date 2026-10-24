@@ -706,6 +706,17 @@ public sealed partial class MainViewModel
         if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
+        if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
+        {
+            try { await handsFree.PauseWakeForReplyAsync(); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                HoldVoiceInput("Microphone closed - wake capture release failed before manual activation");
+                ApplicationLog.Error(logger, exception, "Retiring wake capture before push-to-talk");
+                ShowFailure("Microphone cleanup needs attention.", "No manual capture was opened. " + exception.Message);
+                return;
+            }
+        }
         if (Volatile.Read(ref listeningStopRequests) != 0 || !listeningStop.CanRecover
             || lifecycleAdmissionClosed || IsBusy && !IsSpeaking
             || !IsHostInputEligible || !RefreshVoiceReadiness())

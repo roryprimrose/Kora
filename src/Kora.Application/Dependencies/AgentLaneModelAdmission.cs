@@ -20,7 +20,7 @@ public sealed class AgentLaneModelAdmission : IModelTurnAdmission, IModelTurnExe
     internal void Bind(BoundedAgentReview value)
     {
         if (agentReview is not null) { throw new InvalidOperationException("A lane review cannot be replaced."); }
-        if (!value.Profile.Tools.IsEmpty || value.Profile.MaximumCalls != 0)
+        if (!value.Profile.Tools.IsEmpty)
         { throw new InvalidOperationException("Independent runs require an existing local tool-free agent profile."); }
         agentReview = value;
     }

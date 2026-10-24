@@ -504,8 +504,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         catch (Exception exception) { failures.Add(exception); }
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
-        try { await outstanding.ConfigureAwait(false); }
-        catch (Exception exception) { failures.Add(exception); }
+        await outstanding.ConfigureAwait(false);
         lock (dispatchGate) { failures.AddRange(lateFailures); }
         if (!IsQuiescent)
         { failures.Add(new InvalidOperationException("The model runtime has not confirmed resource quiescence.")); }

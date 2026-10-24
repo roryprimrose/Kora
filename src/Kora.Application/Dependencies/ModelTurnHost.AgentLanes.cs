@@ -21,7 +21,7 @@ public sealed partial class ModelTurnHost
             || turn.SessionGeneration != review.Target.Authority.Generation
             || turn.Provenance.Request.Origin != review.Origin
             || !string.Equals(turn.Context.UserRequest, review.Input, StringComparison.Ordinal)
-            || turn.Context.ToolMode != ModelToolMode.None || turn.Context.Constraints is not { MaximumCalls: 0 }
+            || turn.Context.ToolMode != ModelToolMode.None || turn.Context.Constraints is null
             || !turn.Context.Serialize().AsSpan().SequenceEqual(turn.Wire))
         { throw new InvalidOperationException("The original reviewed local agent request does not match canonical admission."); }
         var lane = new LocalAgentExecutionLane(this, review, turn, qualification);

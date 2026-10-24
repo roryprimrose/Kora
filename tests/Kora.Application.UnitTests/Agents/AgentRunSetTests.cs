@@ -272,9 +272,11 @@ public sealed class AgentRunSetTests
                 Readers.Add(reader);
                 var conversation = new SessionConversationService(this, this, workspace, this, lane, Time,
                     NullLogger<SessionConversationService>.Instance, lane, this);
-                return new(reader, this, this, conversation, lane, this, Time);
+                return new(reader, this, this, conversation, lane, this, Time, Instructions.Resolver);
             });
         }
+
+        internal AgentInstructionReferenceResolverTests.Fixture Instructions { get; } = new();
 
         internal Task Review(AgentRunSet runs, int number) => runs.ReviewAsync(number, "selected",
             Sessions[number - 1], $"original task {number}", RequestOrigin.LocalUi, () => true, Token);
@@ -374,12 +376,17 @@ public sealed class AgentRunSetTests
             Guid.NewGuid(), time.Now, time.Now.AddMinutes(5), 2);
         internal bool Current { get; set; } = true;
         internal Action? OnObserve { get; set; }
+        internal Action? OnCurrent { get; set; }
         public LocalAgentCapacity? Observe(ModelProviderSelection selection, ProviderProfileTuple? profile, IModelTurnAdapter adapter)
         {
             OnObserve?.Invoke();
             return Proof;
         }
-        public bool IsCurrent(LocalAgentCapacity capacity) => Current && capacity == Proof;
+        public bool IsCurrent(LocalAgentCapacity capacity)
+        {
+            OnCurrent?.Invoke();
+            return Current && capacity == Proof;
+        }
     }
 
     internal sealed class BarrierAdapter : IModelTurnAdapter, IAsyncDisposable
@@ -389,9 +396,10 @@ public sealed class AgentRunSetTests
         private readonly ConcurrentDictionary<HostId<SessionIdentity>, TaskCompletionSource<ModelProviderReply>> replies = new();
         private int active;
         internal int Active => Volatile.Read(ref active);
-        public bool IsQuiescent => Active == 0;
+        public bool IsQuiescent => Quiescent ?? Active == 0;
         internal bool FailDispose { get; set; }
         internal bool Disposed { get; private set; }
+        internal bool? Quiescent { get; set; }
         public ValueTask DisposeAsync()
         {
             Disposed = true;

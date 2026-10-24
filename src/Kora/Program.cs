@@ -520,6 +520,8 @@ internal static class Program
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddSingleton<ScopedInstructionUseBroker>();
+        services.AddSingleton<SessionInstructionScopeBroker>();
+        services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
         services.AddSingleton<SessionRetentionCommandService>();
         services.AddSingleton<ConversationSearchCommandService>();

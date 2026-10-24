@@ -4469,7 +4469,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
                 return;
             }
-            await ExecuteSessionCommandAsync(sessionCommand, initiator);
+            await ExecuteSessionCommandAsync(sessionCommand, initiator,
+                reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
+                    ?? CaptureManualCallInput(initiator == SecurityAuditInitiator.VoiceCommand
+                        ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, CallPolicyRevision)),
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName),
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)

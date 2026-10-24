@@ -40,13 +40,16 @@ public sealed partial class MainViewModel
 
     private void OnSessionRequestPrivacyClosure(object? sender, EventArgs args)
     {
+        retireSessionInstructionScopes?.Invoke();
         RetireSessionCommandReviews();
         if (SessionCommand.Parse(CommandText, AssistantName) is { } command
             && (command.Operation == SessionCommandOperation.RequestReview || command.IsRetentionCommand || command.IsConversationSearch))
         { CommandText = string.Empty; }
     }
 
-    internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator)
+    internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator,
+        Func<bool>? originalScopeEligibility = null, bool scopeActivationPrefixed = false,
+        long? originalScopeNameRevision = null)
     {
         if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Invalid)
@@ -106,6 +109,14 @@ public sealed partial class MainViewModel
         }
         try
         {
+            if (command.IsInstructionScope)
+            {
+                await ExecuteSessionInstructionScopeAsync(command, origin,
+                    () => Eligible() && !IsProtectedCall && originalScopeEligibility?.Invoke() == true
+                        && originalScopeNameRevision == assistantNameConfiguration.Get().Revision,
+                    scopeActivationPrefixed);
+                return;
+            }
             if (command.IsConversationSearch)
             {
                 var page = await (conversationSearchCommands

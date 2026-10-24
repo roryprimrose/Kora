@@ -30,7 +30,13 @@ internal static class ProviderProfileComposition
         services.AddSingleton<ICopilotExecutionAccountSource>(provider => provider.GetRequiredService<CopilotAccountBroker>());
         services.AddSingleton<CopilotSdkTurnRuntime>();
         services.AddSingleton<Kora.Application.Dependencies.HostedTransmissionReviewService>();
-        services.AddSingleton<IProviderCapabilityCatalogue, CopilotProviderCatalogue>();
+        services.AddSingleton<IClaudeDeploymentApprovalSource, UnavailableClaudeDeploymentApprovalSource>();
+        services.AddSingleton<ClaudeAccountBroker>();
+        services.AddSingleton<ClaudeMessagesRuntime>();
+        services.AddSingleton<ClaudeModelProviderFactory>();
+        services.AddSingleton<HostedModelProviderFactory>();
+        services.AddSingleton<CopilotProviderCatalogue>();
+        services.AddSingleton<IProviderCapabilityCatalogue, HostedProviderCatalogue>();
         services.AddSingleton<CopilotModelProviderFactory>();
         services.AddSingleton<OllamaModelProviderFactory>();
         services.AddSingleton<ILocalProviderInstallationObservation, WindowsOllamaInstallationObservation>();

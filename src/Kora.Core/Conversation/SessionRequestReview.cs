@@ -11,5 +11,5 @@ public sealed record SessionRequestReview(Guid Id, SessionWorkspaceEntry Target,
     SessionRequestReview.ProviderChoice Provider = SessionRequestReview.ProviderChoice.Default)
 {
     [JsonConverter(typeof(JsonStringEnumConverter<ProviderChoice>))]
-    public enum ProviderChoice { Default, Copilot }
+    public enum ProviderChoice { Default, Copilot, Claude }
 }

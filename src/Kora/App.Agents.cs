@@ -20,5 +20,6 @@ public sealed partial class App
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<AgentRunController>>());
         agentRuns.Bind();
+        BindAgentProfileAuthoring(main);
     }
 }

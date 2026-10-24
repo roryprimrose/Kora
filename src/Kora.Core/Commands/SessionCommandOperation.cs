@@ -7,4 +7,5 @@ public enum SessionCommandOperation { Help, List, Status, Inspect, Create, Renam
     QueueRequeueExpiredReview, QueueRequeueExpiredConfirm, QueueRequeueExpiredDiscard,
     RequestReview, RequestConfirm, RequestCancel,
     RetentionStatus, RetentionReview, RetentionConfirm, RetentionCancel,
-    ConversationSearch, ConversationSearchNext, ConversationSearchCancel, AttachmentInspect }
+    ConversationSearch, ConversationSearchNext, ConversationSearchCancel, AttachmentInspect,
+    InstructionScopeReview, InstructionScopeConfirm, InstructionScopeStop, InstructionScopeStatus }

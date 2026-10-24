@@ -138,6 +138,9 @@
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <Button x:Name="SessionInstructionScopes" Content="Apply or stop an instruction for this Active session"
+            IsEnabled="{Binding CanCompose}"
+            AutomationProperties.Name="Review and separately confirm volatile ordinary local session guidance, or stop applying; no hosted or tools" />
         <Expander Header="Use one enabled owned instruction for one local request">
           <StackPanel Spacing="6">
             <WrapPanel>

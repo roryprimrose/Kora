@@ -65,6 +65,7 @@ public sealed partial record SessionCommand(
         if (ParseRetention(text, input) is { } retention) { return retention; }
         if (ParseConversationSearch(text) is { } search) { return search; }
         if (ParseRequest(text) is { } request) { return request; }
+        if (ParseInstructionScopes(text, input) is { } scope) { return scope; }
         text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)
             || text.StartsWith("queue ", StringComparison.OrdinalIgnoreCase))

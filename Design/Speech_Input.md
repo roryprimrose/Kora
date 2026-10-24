@@ -33,7 +33,9 @@ output/approval policy needs a separate product decision.
 
 ## Current Implementation Boundary
 
-The desktop composes the [Windows recognition service](../src/Kora/Program.cs)
+The desktop [voice composition](../src/Kora/VoiceInputComposition.cs) shares one
+host lifecycle across recognition, activated input and profile switching. It
+borrows the DI-owned [Windows recognition service](../src/Kora.Windows/Audio/WindowsVoiceRecognitionService.cs)
 for explicitly activated capture. Its [factory](../src/Kora.Windows/Audio/WindowsActivatedCaptureFactory.cs)
 selects an installed English `System.Speech` recognizer, loads command choices
 and a dictation grammar, and feeds local WASAPI/NAudio PCM into it.
@@ -46,6 +48,59 @@ The configurable pipeline, performance profiles, wake detector, speaker
 learning and enrolled verification described below are not delivered by this
 document. A selected local reasoning model or Kokoro output voice is not a
 speech-input provider. Source presence is not runtime readiness.
+
+The mode-independent [hands-free host lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.cs)
+defines wake-only processing, generation-bound command capture, joined resource
+release, existing governed text dispatch and fresh-policy re-arm. Its
+[platform seam](../src/Kora.Core/Voice/IHandsFreeAudioSession.cs) separates wake
+observation from command-only transcription; the
+[pre-roll buffer](../src/Kora.Core/Voice/WakeAudioBuffer.cs) retains at most two
+seconds and consumes only the exact post-name interval. These contracts and
+deterministic fakes are implementation groundwork, not an acoustic detector.
+The [Windows adapter](../src/Kora.Windows/Audio/UnavailableHandsFreeAudioStage.cs)
+is explicitly unavailable. D-002 has an approved development direction below,
+but still requires admitted exact bytes, configured-name/language, endpointing
+and playback-rejection profiles; no package,
+model, microphone capture or implicit consent is introduced by this groundwork.
+In particular, token timestamps are not proof of an exact exclusive wake end.
+
+### Approved development direction and remaining admission evidence
+
+On 2026-10-24 the product owner approved local CPU sherpa-onnx keyword spotting,
+initially English configured names, a narrow Windows native adapter, Silero VAD,
+existing activated-only Windows ASR and conservative no-barge-in playback
+exclusion. This is development direction, not deployment, capture or download
+approval. Unsupported names, unknown playback and missing qualification remain
+unavailable; no hidden default-name alias or hosted fallback is permitted.
+
+Source inspection establishes only these bounded facts:
+
+- sherpa-onnx tag `v1.13.8` resolves to
+  `11afbd009a7f8c08f4bcf2fc1b265d0df4670fbf`; its
+  [source licence](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/LICENSE)
+  is Apache-2.0. The versioned NuGet pages for
+  [managed bindings](https://www.nuget.org/packages/org.k2fsa.sherpa.onnx/1.13.8),
+  [Windows x64](https://www.nuget.org/packages/org.k2fsa.sherpa.onnx.runtime.win-x64/1.13.8)
+  and [Windows x86](https://www.nuget.org/packages/org.k2fsa.sherpa.onnx.runtime.win-x86/1.13.8)
+  display Apache-2.0. Package payloads, native dependencies and hashes have not
+  been admitted by this implementation.
+- Silero tag `v6.2` has an
+  [MIT licence](https://github.com/snakers4/silero-vad/blob/v6.2/LICENSE).
+  This is not evidence for an arbitrary ONNX export or third-party redistribution;
+  the exact VAD bytes and provenance still require admission.
+- The candidate English model is documented as
+  [sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01](https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/index.html#sherpa-onnx-kws-zipformer-gigaspeech-3-3m-2024-01-01-english).
+  Its exact model licence, redistribution terms and digest are **not verified**.
+  Engine/package licences must not be substituted for model licensing.
+- The pinned [C# keyword result](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/scripts/dotnet/KeywordResult.cs)
+  exposes the keyword, not a timing boundary. The
+  [native result](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/sherpa-onnx/c-api/c-api.h)
+  includes token timestamps and start time, but does not establish an exclusive
+  wake end. A last-token timestamp, detection callback time or arbitrary padding
+  cannot supply the required boundary. Until a real alignment contract preserves
+  immediate command words while excluding wake/preceding audio, the adapter
+  remains unavailable. Synthetic sample-boundary tests verify the host contract,
+  not acoustic alignment.
 
 ## Processing and Data Boundaries
 

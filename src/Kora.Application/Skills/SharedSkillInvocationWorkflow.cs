@@ -21,13 +21,54 @@ public sealed class SharedSkillInvocationWorkflow(
         + "Apply compatible guidance only to the original request. Return a bounded final answer. "
         + "No tools, scripts, shell, MCP, downloads, network, memory, other conversations or hosted egress are authorized.";
 
+    public async Task<SharedSkillReferenceConsent> ReviewReferenceDeclarationAsync(SharedSkillSource source,
+        SharedSkillSnapshot snapshot, Func<bool> eligible, RequestOrigin origin, CancellationToken token)
+    {
+        SessionConversationService.RequireOriginalSource(origin);
+        if (source.Id != snapshot.SourceId || !snapshot.IsReferenceCandidate || snapshot.PackageDirectoryIdentity is null)
+        { throw new InvalidOperationException("Select one exact pinned compatible v2 Markdown declaration."); }
+        var control = access.ControlRevision;
+        var consent = discovery.ConsentRevision;
+        bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
+            && discovery.ConsentRevision == consent;
+        await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
+        var review = new SharedSkillReferenceConsent(this, source, snapshot, Current, time, origin);
+        if (!review.IsCurrent) { review.Dispose(); throw new InvalidOperationException("Declaration admission expired."); }
+        return review;
+    }
+
+    public async Task<SharedSkillUseReview> ConsentToReferencesAsync(SharedSkillReferenceConsent consent,
+        Func<bool> eligible, RequestOrigin origin, CancellationToken token)
+    {
+        SessionConversationService.RequireOriginalSource(origin);
+        Require(eligible, token);
+        if (!consent.IsCurrent) { throw new InvalidOperationException("Review the exact original-user declaration first."); }
+        consent.Consume(this);
+        try
+        {
+            var control = access.ControlRevision;
+            var revision = discovery.ConsentRevision;
+            bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
+                && discovery.ConsentRevision == revision && consent.IsReadCurrent;
+            var snapshot = await discovery.ReadReferencesAsync(consent.Snapshot, consent.Source, admission,
+                Current, origin, token).ConfigureAwait(false);
+            if (!consent.IsReadCurrent) { throw new InvalidOperationException("Declared read consent was retired during capture."); }
+            bool BundleCurrent() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
+                && discovery.ConsentRevision == revision && time.GetUtcNow() < consent.ExpiresAt;
+            return await ReviewAsync(consent.Source, snapshot, BundleCurrent, origin, token).ConfigureAwait(false);
+        }
+        finally { consent.Dispose(); }
+    }
+
     public async Task<SharedSkillUseReview> ReviewAsync(SharedSkillSource source, SharedSkillSnapshot snapshot,
         Func<bool> eligible, RequestOrigin origin, CancellationToken token)
     {
         SessionConversationService.RequireOriginalSource(origin);
         if (source.Id != snapshot.SourceId || !snapshot.IsInstructionCompatible || snapshot.Text is null
-            || snapshot.DeclaredTools.Count != 0 || snapshot.UninspectedFiles.Count != 0)
-        { throw new InvalidOperationException("Only compatible single-file instruction-only skills with no tools or unresolved references are available."); }
+            || snapshot.DeclaredTools.Count != 0
+            || snapshot.ReferenceDeclaration is not null && snapshot.ReferenceBundle is null
+            || snapshot.ReferenceBundle is null && snapshot.UninspectedFiles.Count != 0)
+        { throw new InvalidOperationException("Only complete compatible zero-tool skills with separately consented declared references are available."); }
         var control = access.ControlRevision;
         var consent = discovery.ConsentRevision;
         bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
@@ -178,8 +219,15 @@ public sealed class SharedSkillInvocationWorkflow(
     private static ModelContextEnvelope CreateContext(SharedSkillSnapshot snapshot, HostRequest request, string body,
         DateTimeOffset now, DateTimeOffset expires)
     {
-        var context = new ModelContextEnvelope(request, Policy, body,
-            [new(new(Guid.NewGuid()), request, new(1), snapshot.Text!, ModelEvidenceDisclosure.LocalOnly)],
+        var evidence = new List<ModelContextEvidence>
+        { new(new(Guid.NewGuid()), request, new(1), snapshot.Text!, ModelEvidenceDisclosure.LocalOnly) };
+        if (snapshot.ReferenceBundle is { } bundle)
+        {
+            evidence.AddRange(bundle.References.Select(reference =>
+                new ModelContextEvidence(new(Guid.NewGuid()), request, new(1),
+                    $"Declared inert local Markdown reference: {reference.RelativePath}\n{reference.Text}", ModelEvidenceDisclosure.LocalOnly)));
+        }
+        var context = new ModelContextEnvelope(request, Policy, body, evidence,
             now, expires < now.AddSeconds(15) ? expires : now.AddSeconds(15), ModelToolMode.None);
         context.RequireCompleteInputLimit();
         return context;

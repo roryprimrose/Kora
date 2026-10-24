@@ -10,7 +10,12 @@ public sealed partial class MainViewModel
     public event Func<AgentRunCommand, RequestOrigin, Func<bool>, Task>? AgentRunRequested;
     private Func<Task>? agentShutdown;
     public void BindAgentShutdown(Func<Task>? close) => agentShutdown = close;
-    private Task CloseAgentRun() => agentShutdown?.Invoke() ?? Task.CompletedTask;
+    private async Task CloseAgentRun()
+    {
+        if (agentAuthoringShutdown is { } close && !await close())
+        { throw new OperationCanceledException("Agent authoring close was cancelled; shutdown is not approved."); }
+        if (agentShutdown is { } stop) { await stop(); }
+    }
 
     private async Task ExecuteAgentCommand(AgentRunCommand command, string text, ManualCallInput input,
         Func<bool>? queuedEligibility)
@@ -21,6 +26,14 @@ public sealed partial class MainViewModel
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
         { Transcript = "Agent review requires original private typed input or current-name activated voice, without a pending approval."; return; }
+        if (command.Authoring is { } authoring)
+        {
+            if (AgentProfileAuthoringRequested is not { } author)
+            { Transcript = "Owned agent profile authoring is unavailable in this host."; return; }
+            await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
+                () => author(authoring, input.Origin, eligible), operation: HostOperation.Request));
+            return;
+        }
         if (AgentRunRequested is not { } route)
         { Transcript = "Bounded agent execution is unavailable in this host."; return; }
         await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,

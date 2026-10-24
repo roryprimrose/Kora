@@ -9,6 +9,10 @@ public sealed partial class SharedSkillSourcesWindow
         this.FindControl<Button>("ReviewInstructionUse")!.Click += async (_, _) =>
         { if (!closed && !busy && current()) { await review(); } };
 
+    internal void BindToolInvocation(Func<Task> review) =>
+        this.FindControl<Button>("ReviewToolUse")!.Click += async (_, _) =>
+        { if (!closed && !busy && current()) { await review(); } };
+
     internal (SharedSkillSource Source, SharedSkillSnapshot Snapshot)? ResolveInvocation(string selection, SharedSkillSource source)
     {
         if (closed || busy || !current() || catalogue?.Source != source) { return null; }

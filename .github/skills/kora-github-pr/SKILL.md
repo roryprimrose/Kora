@@ -136,7 +136,7 @@ On supported resume, report concrete source-bound failure for repair admission; 
 
 Keep durable receipts in the established host-owned artifact location. For transient repository scratch, use `New-NetAaaScratchPath -RepoRoot <owning-worktree> -SkillName 'kora-github-pr'` from the installed shared helper.
 
-Coordinator transport is separate from transient PR scratch: use the exact absolute shared run root supplied at launch, not a relative `.scratch` directory in each worktree. Follow the agent's mailbox ownership/retention rules; never clean a live shared mailbox or bootstrap an unavailable scratch helper merely for transport.
+Coordinator transport is separate from transient PR scratch: use the exact absolute shared dataset/run roots supplied at launch, not a relative `.scratch` directory in each worktree. The default dataset lives under the common Git metadata directory so disposable worktrees/chats do not own its lifetime. Follow the agent's [ownership/recovery](../../agents/roadmap-coordinator.agent.md#shared-dataset-ownership-and-recovery) and [retention/cleanup](../../agents/roadmap-coordinator.agent.md#shared-dataset-retention-and-cleanup) rules: one fenced scheduling leader, shared accounting across sessions/runs, retained source owners and no deletion of live/uncertain or referenced data. A coordinator takeover is not renewed publication/merge authority. Never bootstrap an unavailable scratch helper merely for transport.
 
 Verify approved `.scratch/` ignore policy; obtain consent before changing it. Do not add a dependency or bootstrap tooling just for scratch.
 

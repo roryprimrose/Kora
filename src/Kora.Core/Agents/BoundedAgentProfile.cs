@@ -23,6 +23,8 @@ public sealed class BoundedAgentProfile
         Document = document;
         Tools = tools;
         var metadata = document.Metadata;
+        References = string.Equals(metadata["kora-agent-format"], FormatVersion, StringComparison.Ordinal)
+            ? [] : AgentInstructionReference.Parse(metadata["references"]);
         RequestedCalls = ReadLimit(metadata, "maximum-calls", allowZero: true);
         RequestedRounds = ReadLimit(metadata, "maximum-rounds");
         RequestedInputUtf8Bytes = ReadLimit(metadata, "maximum-input-bytes");
@@ -34,6 +36,7 @@ public sealed class BoundedAgentProfile
 
     public ArtifactFileDocument Document { get; }
     public ImmutableArray<string> Tools { get; }
+    public ImmutableArray<AgentInstructionReference> References { get; }
     public int RequestedCalls { get; }
     public int RequestedRounds { get; }
     public int RequestedInputUtf8Bytes { get; }
@@ -53,12 +56,18 @@ public sealed class BoundedAgentProfile
         var metadata = document.Metadata;
         if (document.Definition.Kind != ArtifactKind.Agent || metadata.Count != Fields.Count
             || metadata.Keys.Any(key => !Fields.Contains(key)))
-        { throw new InvalidDataException("An executable agent profile requires exactly the supported v1 metadata fields."); }
-        Require(metadata, "kora-agent-format", FormatVersion);
+        { throw new InvalidDataException("An executable agent profile requires exactly the supported metadata fields."); }
+        if (metadata["kora-agent-format"] is not ("1" or "2"))
+        { throw new InvalidDataException("The agent format is unsupported."); }
         Require(metadata, "runtime", "local");
         Require(metadata, "input", "text");
         Require(metadata, "output", "text");
-        Require(metadata, "references", "none");
+        if (string.Equals(metadata["kora-agent-format"], FormatVersion, StringComparison.Ordinal)) { Require(metadata, "references", "none"); }
+        else
+        {
+            Require(metadata, "tools", "none");
+            Require(metadata, "maximum-calls", "0");
+        }
         var value = metadata["tools"];
         var tools = string.Equals(value, "none", StringComparison.Ordinal)
             ? ImmutableArray<string>.Empty : value.Split(',').Select(item => item.Trim()).ToImmutableArray();

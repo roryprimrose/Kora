@@ -237,12 +237,14 @@ public sealed partial class AdaptiveInteractionTests
         private DetailWindowController? details;
         internal ResponseWindow? Window { get; private set; }
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
+        internal SessionWorkspaceEntry Conversation { get; private set; } = null!;
         internal SessionWorkspaceEntry? Done { get; private set; }
 
         internal async Task Initialize()
         {
             await Native.InitializeAsync();
-            foreach (var name in new[] { "First topic", "Second topic", "Third topic" })
+            Conversation = await Native.Sessions.CreateAsync(new("First topic"), RequestOrigin.LocalUi, Native.Token);
+            foreach (var name in new[] { "Second topic", "Third topic" })
             { await Native.Sessions.CreateAsync(new(name), RequestOrigin.LocalUi, Native.Token); }
             Done = await Native.Sessions.CreateAsync(new("Completed topic"), RequestOrigin.LocalUi, Native.Token);
             await Native.Sessions.ChangeLifecycleAsync(Done.Authority.SessionId, Done.Authority.Generation,
@@ -263,6 +265,9 @@ public sealed partial class AdaptiveInteractionTests
             commands = new(Native.Main, Native.Access, all, Sessions);
             commands.Bind();
         }
+
+        internal Task SelectConversation() =>
+            Model.SelectAsync(Model.Sessions.Single(row => row.Authority == Conversation.Authority));
 
         internal async Task Run(string phrase)
         {

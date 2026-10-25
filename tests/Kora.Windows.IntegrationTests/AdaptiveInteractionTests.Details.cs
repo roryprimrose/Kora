@@ -9,6 +9,7 @@ using Kora.Controls;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Commands;
+using Kora.Core.Dependencies;
 using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests;
@@ -26,7 +27,7 @@ public sealed partial class AdaptiveInteractionTests
             using var f = new Fixture();
             await f.Initialize();
             await f.Run("show sessions");
-            await f.Run("select the first session");
+            await f.SelectConversation();
             var view = f.Window!.SessionView;
             var show = view.FindControl<Button>("ShowSessionDetails")!;
             show.IsEnabled.Should().BeFalse("metadata selection cannot claim unread message details");
@@ -35,6 +36,9 @@ public sealed partial class AdaptiveInteractionTests
             {
                 f.Model.ComposerBody = body;
                 await f.Model.SubmitConversationAsync();
+                var retained = f.Model.ConversationMessages.Should().ContainSingle(f.Model.ConversationStatus).Which;
+                retained.Body.Should().Be(body);
+                retained.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
             }
             await f.Model.ReadConversationAsync();
             Dispatcher.UIThread.RunJobs();
@@ -97,7 +101,7 @@ public sealed partial class AdaptiveInteractionTests
             using var f = new Fixture();
             await f.Initialize();
             await f.Run("show sessions");
-            await f.Run("select the first session");
+            await f.SelectConversation();
             f.Admission.AllowUnavailable = true;
             f.Model.ComposerBody = "private original";
             await f.Model.SubmitConversationAsync();
@@ -108,7 +112,7 @@ public sealed partial class AdaptiveInteractionTests
             f.Window!.SessionView.DetailsVisible.Should().BeTrue(f.Model.ConversationStatus);
             f.Window.UpdateLayout();
             var reader = f.Window!.SessionView.GetVisualDescendants().OfType<DetailContentView>().Single();
-            await f.Run("select the last session");
+            await f.Model.SelectAsync(f.Model.Sessions.First(row => row.Authority != f.Conversation.Authority));
             f.Window.SessionView.DetailsVisible.Should().BeFalse();
             reader.FindControl<TextBox>("ContentReader")!.Text.Should().BeEmpty();
             f.Model.CanShowDetails.Should().BeFalse();

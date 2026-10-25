@@ -14,8 +14,15 @@ internal sealed partial class RestrictedStorageDirectory
     private readonly SecurityIdentifier user;
     private readonly string localRoot;
     private readonly bool includeKeys;
+    private readonly bool includeArtifacts;
 
     internal RestrictedStorageDirectory(IApplicationDataPaths paths, bool includeKeys = true, string? partitionName = null)
+        : this(paths, paths?.LocalRoot ?? throw new ArgumentNullException(nameof(paths)), includeKeys, partitionName, includeArtifacts: true)
+    {
+    }
+
+    private RestrictedStorageDirectory(IApplicationDataPaths paths, string suppliedRoot,
+        bool includeKeys, string? partitionName, bool includeArtifacts)
     {
         ArgumentNullException.ThrowIfNull(paths);
         if (!OperatingSystem.IsWindows())
@@ -25,16 +32,16 @@ internal sealed partial class RestrictedStorageDirectory
 
         using var identity = WindowsIdentity.GetCurrent();
         user = identity.User ?? throw new InvalidOperationException("The current Windows profile is unavailable.");
-        if (string.IsNullOrWhiteSpace(paths.LocalRoot))
+        if (string.IsNullOrWhiteSpace(suppliedRoot))
         {
             throw new InvalidDataException("The supplied local storage root is missing.");
         }
-        if (!Path.IsPathFullyQualified(paths.LocalRoot) || paths.LocalRoot.StartsWith(@"\\", StringComparison.Ordinal))
+        if (!Path.IsPathFullyQualified(suppliedRoot) || suppliedRoot.StartsWith(@"\\", StringComparison.Ordinal))
         {
             throw new InvalidDataException("Durable storage requires a supplied absolute local path.");
         }
 
-        localRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(paths.LocalRoot));
+        localRoot = Path.TrimEndingDirectorySeparator(Path.GetFullPath(suppliedRoot));
         var volume = Path.GetPathRoot(localRoot) ?? throw new InvalidDataException("The storage volume is unknown.");
         if (new DriveInfo(volume).DriveType != DriveType.Fixed
             || string.Equals(localRoot, volume, StringComparison.OrdinalIgnoreCase))
@@ -43,6 +50,7 @@ internal sealed partial class RestrictedStorageDirectory
         }
 
         this.includeKeys = includeKeys;
+        this.includeArtifacts = includeArtifacts;
         var partition = partitionName ?? (includeKeys ? PartitionName : "HostStorageV1");
         if (string.IsNullOrWhiteSpace(partition) || partition is "." or ".."
             || partition.IndexOfAny(Path.GetInvalidFileNameChars()) >= 0)
@@ -67,7 +75,7 @@ internal sealed partial class RestrictedStorageDirectory
         {
             CreateRestrictedDirectory(Keys, user);
         }
-        CreateRestrictedDirectory(Artifacts, user);
+        if (includeArtifacts) { CreateRestrictedDirectory(Artifacts, user); }
         Verify();
     }
 
@@ -79,7 +87,7 @@ internal sealed partial class RestrictedStorageDirectory
         {
             VerifyDirectory(Keys);
         }
-        VerifyDirectory(Artifacts);
+        if (includeArtifacts) { VerifyDirectory(Artifacts); }
     }
 
     internal FileStream AcquireLease() => AcquireBoundedLease(requireExisting: false, CancellationToken.None);

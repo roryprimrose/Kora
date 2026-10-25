@@ -72,6 +72,7 @@ public sealed partial class App : Avalonia.Application
             Services.GetRequiredService<AppearanceConfigurationService>().ConfigureNativePresenceStartupDefault(
                 PresenceRendererSelection.UseNative(Environment.GetEnvironmentVariable(PresenceRendererSelection.EnvironmentVariable)));
             viewModel = Services.GetRequiredService<MainViewModel>();
+            Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;

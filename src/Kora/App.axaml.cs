@@ -199,19 +199,16 @@ public sealed partial class App : Avalonia.Application
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),
-                () => questionWindow.ReviewVersionAsync(GetPresenceOwner()),
                 () => evidenceWindow?.Open(),
-                () => skillPackagesWindow.Open(),
                 () => sessionsWindow?.Open(),
-                () => maintenanceWindow?.Open(),
                 microphoneRecovery.Open,
-                () => exactGrants?.Open(),
-                () => questionWindow.ReturnToCurrentQuestionAsync(GetPresenceOwner()),
-                () => attachmentCatalogue?.Open(),
-                () => instructionEditor.Open(),
                 () => newRequestWindow?.Open(),
-                () => sessionsWindow?.OpenCompact(),
                 () => customizations.Open());
+            settingsWindow.EditOwnedInstructions = () => instructionEditor.Open();
+            settingsWindow.InspectSkillPackages = () => skillPackagesWindow.Open();
+            settingsWindow.InspectExactGrants = () => exactGrants?.Open();
+            settingsWindow.ReviewLocalVersion = () => questionWindow.ReviewVersionAsync(GetPresenceOwner());
+            settingsWindow.ReturnToVersionQuestion = () => questionWindow.ReturnToCurrentQuestionAsync(GetPresenceOwner());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -259,6 +256,7 @@ public sealed partial class App : Avalonia.Application
             ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
+            sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),

@@ -302,8 +302,8 @@ preference cannot disable complete visual recovery or exact pending previews.
 ## Interrupting spoken responses
 
 No ambient command recognizer runs during playback. Explicit push-to-talk stops
-Kora speech before opening capture. **Stop speaking** is also available in the
-tray without model, network or recognition. Production wake and acoustic
+Kora speech before opening capture. Use the existing native speech controls or
+the [exact stop command](commands.md#stop-speech-playback); Stop speaking is not a tray entry. Production wake and acoustic
 barge-in/playback-rejection quality require separate real-hardware proof.
 
 ## Manual call mode and call settings

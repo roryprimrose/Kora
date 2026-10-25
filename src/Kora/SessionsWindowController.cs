@@ -1,4 +1,5 @@
-﻿using Avalonia.Threading;
+﻿using Avalonia.Controls;
+using Avalonia.Threading;
 
 using Kora.Application.Diagnostics;
 using Kora.Application.Hosting;
@@ -157,6 +158,7 @@ internal sealed partial class SessionsWindowController(
     }
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
+    internal Action? OpenRetainedAttachments { get; set; }
     internal QuestionWindowController? ConversationQuestions { get; set; }
     internal async Task<bool> PrepareShutdown()
     {
@@ -234,6 +236,18 @@ internal sealed partial class SessionsWindowController(
             opened.AllWorkRequested += (_, _) => OpenAllWork?.Invoke();
             opened.NewRequestRequested += (_, _) => OpenNewRequest?.Invoke();
             opened.CompactConversationRequested += (_, _) => OpenCompact();
+            opened.FindControl<Button>("RetainedAttachments")!.IsVisible = OpenRetainedAttachments is not null;
+            opened.RetainedAttachmentsRequested += (_, _) =>
+                HostRequestRunner.Run(RequestOrigin.LocalUi, () =>
+                {
+                    if (disposed || !ReferenceEquals(window, opened) || !opened.IsVisible
+                        || !access.CanInspect || !main.CanRevealPrivatePresentation || OpenRetainedAttachments is null)
+                    {
+                        main.ReportHostInteractionFailure("Retained attachments navigation unavailable under current private desktop ownership.");
+                        return;
+                    }
+                    OpenRetainedAttachments();
+                });
             opened.PropertyChanged += (_, args) =>
             {
                 if (args.Property != Avalonia.Controls.Window.IsVisibleProperty || !ReferenceEquals(window, opened)) { return; }

@@ -303,11 +303,10 @@ hardware/acoustic/closure latency and full matrix acceptance remain open.
 The Windows notification-area icon is the primary non-voice entry point, present for the lifetime of the normal desktop instance, even when the presence/details are hidden.
 It is not optional while Kora is running; Windows may place it in the notification-area overflow and Kora must not claim it can force taskbar pinning.
 Voice is a convenient primary path, not compulsory; the tray is deterministic host functionality requiring no model or working audio device.
-A single left-click shows and activates the existing Kora window. A
-double-click opens or activates the single Settings window. Because Windows
-reports the first click before it knows whether a second will follow, the
-single-click action waits for the configured Windows double-click interval;
-the second click cancels that pending show action.
+Single- and double-click both show and activate the existing Kora window immediately.
+Show Kora is the bold default menu action; Settings opens only through its
+explicit menu entry or existing commands. No click-sequence timer delays reveal
+or interprets a second click as a different action.
 
 Remaining target context menu (not an implemented capability list):
 
@@ -344,7 +343,7 @@ If blocked, explain the reason and open recovery/help rather than leaving a disa
 "Mute Kora" follows the existing host intent: close input, stop speech, and clear audio; it does not cancel task execution.
 "Stop speaking" affects only playback. Device selection, mute, enable, and refresh never silently approve queued work.
 
-The delayed single-click Show Kora action activates the compact status/questions surface; Sessions and history opens the list-plus-conversation workspace, and right-click opens this menu.
+The immediate Show Kora action activates the presence/status surface; Sessions opens the list-plus-conversation workspace, and right-click opens the tray menu.
 These routes follow [Coordinated Window Design](UI_Workspace_And_Windows.md); they do not open a new window per running session.
 Tray activation never toggles recording as an implicit side effect.
 All actions share existing host services and lifecycle/approval rules; Exit Kora still confirms affected work, and Check for updates installs nothing.

@@ -5,8 +5,11 @@ using Avalonia.Layout;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Infrastructure;
+using Kora.Application.Hosting;
 using Kora.Core.Commands;
 using Kora.Application.Presentation;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -64,6 +67,34 @@ public sealed partial class SettingsWindow : Window
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;
 
     public void ShowVoiceRecovery() => settingsTabs.SelectedItem = speechAudioTab;
+
+    internal void BindNavigation(Action? editOwnedInstructions, Action? inspectSkillPackages,
+        Action? inspectExactGrants, Func<Task>? reviewLocalVersion, Func<Task>? returnToVersionQuestion)
+    {
+        BindAction("EditOwnedInstructions", editOwnedInstructions);
+        BindAction("InspectSkillPackages", inspectSkillPackages);
+        BindAction("InspectExactGrants", inspectExactGrants);
+        BindAsync("ReviewLocalVersion", reviewLocalVersion);
+        BindAsync("ReturnToVersionQuestion", returnToVersionQuestion);
+
+        void BindAction(string name, Action? action) =>
+            BindAsync(name, action is null ? null : () => { action(); return Task.CompletedTask; });
+
+        void BindAsync(string name, Func<Task>? action)
+        {
+            var button = this.FindControl<Button>(name)
+                ?? throw new InvalidOperationException("The Settings navigation control is unavailable: " + name);
+            button.IsEnabled = action is not null;
+            if (action is null) { return; }
+            button.Command = new AsyncCommand(() => HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () =>
+            {
+                if (!IsVisible || !model.CanRevealPrivatePresentation)
+                { throw new InvalidOperationException("Settings navigation requires the original visible private host."); }
+                return action();
+            }), exception => model.ReportHostInteractionFailure(
+                "Settings navigation failed. No operation completion is claimed. Failure type: " + exception.GetType().Name));
+        }
+    }
 
     public void ShowSection(SettingsSection section)
     {

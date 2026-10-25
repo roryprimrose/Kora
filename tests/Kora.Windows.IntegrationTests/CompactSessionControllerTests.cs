@@ -149,16 +149,16 @@ public sealed class CompactSessionControllerTests
     }
 
     [Fact]
-    public void TrayCompactEntryUsesOnlyExplicitNativeCallbackAndPreservesLegacyShowRoute()
+    public void CompactNavigationLivesInSessionsAndPreservesLegacyTrayShowRoute()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
         { directory = directory.Parent; }
         var tray = File.ReadAllText(Path.Combine(directory!.FullName, "src", "Kora", "SystemTrayController.cs"));
-        tray.Should().Contain("Compact selected-session conversation").And.Contain("RunAfterNativeMenuCloses(compactConversation)")
+        tray.Should().NotContain("Compact selected-session conversation").And.NotContain("compactConversation")
             .And.Contain("showItem.Click += (_, _) => ShowWindow()");
-        var app = File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "App.axaml.cs"));
-        app.Should().Contain("() => sessionsWindow?.OpenCompact()");
+        var controller = File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "SessionsWindowController.cs"));
+        controller.Should().Contain("opened.CompactConversationRequested += (_, _) => OpenCompact()");
     }
 
     private sealed class NoAdmission : IModelTurnAdmission, IApplicationInfo

@@ -63,8 +63,8 @@ Use exact listed endpoint IDs, not names/indices. Per-option reset selects
 System only; it does not enable listening, change consent/permission or reopen
 a run hold. Protected/unknown calls deny original voice mutations.
 
-Choose **Settings > Speech & audio > Choose microphone (native recovery)** or
-the same **Choose microphone** tray entry. This native card works without voice,
+Choose **Settings > Speech & audio > Choose microphone** or
+**Tray > Voice & audio > Choose microphone**. This native card works without voice,
 a model or network. Opening it refreshes metadata only. Review System and active
 endpoint names/IDs (duplicate names remain distinct); an unavailable saved pin
 stays visible. Highlighting changes only a local draft. **Save preference only**
@@ -364,8 +364,8 @@ that explicit choice. Preview is disabled when no voice is selected and
 revalidates both selections before playback. There is no retained substitute
 voice for a missing saved choice. No ambient recognizer
 runs during playback. Push-to-talk stops Kora playback before opening command
-capture. **Stop speaking** remains available from the tray without speech
-recognition. Exit also stops active playback before host teardown. Acoustic
+capture. The existing [native speech controls and exact stop command](commands.md#stop-speech-playback)
+remain available; Stop speaking is not a tray entry. Exit also stops active playback before host teardown. Acoustic
 playback rejection for a future production wake pipeline still requires
 separate real-hardware proof.
 

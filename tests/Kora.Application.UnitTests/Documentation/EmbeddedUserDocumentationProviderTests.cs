@@ -13,6 +13,38 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TrayGuideDescribesGroupedNavigationAndRelocatedSpecialistLinks()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var tray = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        tray.Should().Contain("These ten root rows")
+            .And.Contain("**Kora Customizations**")
+            .And.Contain("immediately below Sessions")
+            .And.Contain("Show Kora is bold as the default action")
+            .And.Contain("Double-click: also show or activate Kora, never Settings")
+            .And.Contain("There is no Stop speaking entry")
+            .And.Contain("**Voice & audio**")
+            .And.Contain("**Help**")
+            .And.Contain("**Settings > Custom content**")
+            .And.Contain("**Sessions > Retained attachments...**")
+            .And.Contain("**Settings > Readiness > Question diagnostics**")
+            .And.NotContain("**Tray > Compact selected-session conversation**")
+            .And.NotContain("**Tray > Preview file")
+            .And.NotContain("**Tray > Return to current question**")
+            .And.NotContain("**New request...**")
+            .And.NotContain("**Sessions...**")
+            .And.NotContain("**Customizations...**")
+            .And.NotContain("**Settings...**")
+            .And.NotContain("**Choose microphone...**")
+            .And.NotContain("**Speech & audio settings...**")
+            .And.NotContain("**Evidence & diagnostics...**");
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**")
+            .And.NotContain("double-clicking the tray icon")
+            .And.NotContain("bold **Settings...**");
+    }
+
+    [Fact]
     public void AdaptiveInteractionGuideSeparatesPresentedPageNavigationFromMatchingAndApproval()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

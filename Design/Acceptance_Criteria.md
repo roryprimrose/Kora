@@ -1007,7 +1007,7 @@ Validate the production invocation's flags and actual restricted worker admissio
 ## Verbal Configuration Gate
 
 - The system tray exposes a Settings command that opens and activates one settings window; closing it permits a fresh instance without duplicating application settings state.
-- One tray-icon left-click shows/activates the configured assistant after the configured Windows double-click interval; two clicks within that interval cancel the pending show and open/activate Settings without creating a second settings window.
+- Single- and double-click on the tray icon immediately show/activate the configured assistant through the same action, without a double-click delay or opening Settings. Show Kora is the bold default menu command; Settings remains an explicit menu/command route.
 - The settings window presents the assistant name and every currently implemented speech/audio, response-output, detected-call, and readiness setting through mouse-accessible controls.
 - Settings presents System, Light, and Dark appearance choices; System is the default, persists as a device-local preference, follows live Windows light/dark changes, and Light/Dark remain explicit overrides.
 - Changing the theme updates the presence, main and Settings windows, chat/answer windows, speech text, trusted approvals/errors, Markdown/diagram results, browser chrome, and generated-HTML surfaces immediately without recreating content or losing focus, selection, scroll position, task identity, or approval identity.

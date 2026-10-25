@@ -403,7 +403,7 @@ separate approval.
 
 ### Delivered Bounded Question Window
 
-**Tray > Return to current question** restores the dismissed original current-run local-version window only while its host-owned original wait remains live. Close/Escape clears native controls, unsaved input and review, but does not submit, cancel or end that wait. The committed draft/current revision may return; there is no affirmative default.
+**Settings > Readiness > Question diagnostics > Return to local-version question** restores the dismissed original current-run local-version window only while its host-owned original wait remains live. Close/Escape clears native controls, unsaved input and review, but does not submit, cancel or end that wait. The committed draft/current revision may return; there is no affirmative default.
 
 Already-open exact presentation activates, independently of Sessions selection and voice/approval focus.
 
@@ -413,7 +413,7 @@ After restart, retained metadata is read-only **Unavailable** recovery with a fr
 
 The [synchronized terminal boundary](Interaction_Fallback.md#synchronized-native-terminal-publication---2026-10-12) keeps committed cancellation and original completion coherent without holding notifications under a lock. Later withdrawal still clears private controls after a receipt; late restore cannot undo withdrawal or a newer dismissal. Existing five-minute expiry, exact approval review and pre-dispatch privacy/source checks are unchanged.
 
-Tray **Review local version (native question)** opens one owned, non-topmost
+**Settings > Readiness > Question diagnostics > Review local version (native question)** opens one owned, non-topmost
 window for the original durable local-version request. Opening another while
 it is pending activates that same target, not the foreground session. The
 window has explicit identity/generation/revision/expiry and purpose/source
@@ -441,7 +441,7 @@ Shared native question/approval components can be hosted in compact or workspace
 
 | Surface | Primary content and controls | Relationship to session/work |
 |---|---|---|
-| Tray and ambient Presence | Actual listening state, aggregate activity/attention, Show Kora, Sessions, Questions, mute/stop, Settings, Exit | Always reachable without model/audio; Presence is optional presentation, not the work registry |
+| Tray and ambient Presence | Tray: input status, Show Kora, New request, Sessions, Disable listening, Voice & audio, Settings, Customizations, Help, Exit. Presence: actual listening/activity/attention | Tray has no Stop speaking or specialist inspector shortcuts; Presence is optional presentation, not the work registry ([tray](../src/Kora/SystemTrayController.cs)) |
 | Compact session interaction | Selected session identity/state, concise latest interaction, pending native cards, Details/History, session switcher, typed composer | One lightweight selected-session view; showing/hiding/pinning never stops work or marks Done |
 | Sessions workspace | Active/Done session list and search beside full selected conversation; per-session work/queue, questions, history, Evidence mode, and management controls | Primary multi-session and retained-evidence UI; responsive while independent sessions run |
 | Detail/artifact viewer | Exact answer, Markdown/static HTML, citations, script/diff source, provenance/revision; search/copy/export/source controls | Bound to an immutable session/artifact reference; stays on that item when workspace selection changes |

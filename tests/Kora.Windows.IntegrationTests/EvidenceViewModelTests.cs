@@ -138,7 +138,7 @@ public sealed class EvidenceViewModelTests
         }
         Read("EvidenceWindow.axaml.cs").Should().Contain("RoutingStrategies.Tunnel")
             .And.Contain("CopyingToClipboard").And.Contain("CuttingToClipboard").And.NotContain("Clipboard.");
-        Read("SystemTrayController.cs").Should().Contain("Evidence (read-only)");
+        Read("SystemTrayController.cs").Should().Contain("Evidence & diagnostics");
         Read("Program.cs").Should().Contain("new WindowsSegmentedEvidenceReader(provider.GetRequiredService<WindowsSegmentedEvidenceSink>())");
         Read("App.axaml.cs").Should().Contain("evidenceWindow?.Dispose()");
         Read("DesktopEvidenceAccess.cs").Should().Contain("IsReady").And.Contain("IsHandoffRecoveryRequired")

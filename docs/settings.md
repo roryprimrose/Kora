@@ -4,8 +4,7 @@
 
 Open Settings by:
 
-- right-clicking the tray icon and selecting **Kora Settings**;
-- double-clicking the tray icon;
+- right-clicking the tray icon and selecting **Settings**;
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 
@@ -384,7 +383,7 @@ See the [canonical bounded contract](../Design/User_Configuration.md#delivered-b
 
 ## Release maintenance (notify-only)
 
-Open **Settings > Maintenance** or **Tray > Release maintenance (notify-only)**.
+Open **Settings > Maintenance > Review update options**.
 This is metadata review/browser navigation, not an installer or updater.
 
 | Choice/control | Behavior |
@@ -502,7 +501,7 @@ for you.
 
 ## Exact operation grants
 
-Open **Exact operation grants** from the tray menu. This is a separate native window for retained host-issued exact approval records, not the **Approvals** tab or the Markdown named-action preferences. It does not import or promote those preferences.
+Open **Settings > Approvals > Exact operation grants...**. This opens a separate native window for retained host-issued exact approval records, distinct from the tab's legacy model-action preferences or Markdown named-action list. It does not import or promote those preferences ([native link](../src/Kora/SettingsWindow.axaml)).
 
 Optional native **Stored scope** and **Stored status** filters default to **Any**. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page.
 
@@ -1030,7 +1029,7 @@ remain governed by their existing rules. Changes retire pending speech before
 UI dispatch; reset or call clearance never replays retired output.
 
 Push-to-talk stops current speech before opening command capture.
-**Stop speaking** is also available from the tray without speech or a model.
+Use the existing native speech controls or the [exact stop command](commands.md#stop-speech-playback); Stop speaking is not a tray entry.
 
 ### Audio output
 

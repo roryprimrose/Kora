@@ -11,7 +11,7 @@ Reasoning/context pickers use the saved model. Model review retains both depende
 
 ## Customizations
 
-Open **Tray > Customizations** for a shared Skills / Instructions / Agents /
+Open **Tray > Kora Customizations** for a shared Skills / Instructions / Agents /
 MCP servers / Prompts window with **Built-in**, **Kora**, and **User** source
 groups. Built-ins are read-only; writable sources support reviewed native
 editing, skill component changes, recoverable saves and local-model proposals.
@@ -21,7 +21,7 @@ source-write, model-disclosure and runtime-use boundaries.
 
 ## Owned instructions and prompts
 
-Open **Tray > Owned instructions and prompts (native editor)**. Choose Instruction
+Open **Settings > Custom content > Owned instructions and prompts...**. Choose Instruction
 or Prompt in one model-free text editor, then list/inspect or create an exact ID.
 Save/Delete use native exact-source/diff review; Save does not enable use.
 Changed/missing/replaced bases offer Reload/Overwrite/Cancel, including the
@@ -120,8 +120,8 @@ Missing native composition or changed original/current ownership, private/call/i
 
 ### Compact selected-session conversation
 
-Open **Tray > Compact selected-session conversation** or **Sessions > Compact conversation**.
-These production entries now collapse/activate the primary interaction window.
+Open **Sessions > Compact conversation**.
+This production entry now collapses/activates the primary interaction window.
 Expand it to use the selected-conversation composer. The legacy compact surface
 described below remains a compatibility projection, not a second normal primary window.
 All projections share the exact selected session and memory composer, not a copied
@@ -183,7 +183,7 @@ There is no Find clipboard/paste/export, logging, persistence, provider or netwo
 
 ### New request with a fresh session
 
-Open **Tray > New request (fresh session only)** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
+Open **Tray > New request** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
 
 Without a mouse, type **open new request** or use activated voice **Kora, open new request** with the current configured name. This opens/activates the same window only; existing dirty/reviewed/held/busy state stays unchanged ([native controller](../src/Kora/NewRequestWindowController.cs)).
 
@@ -369,7 +369,7 @@ Query/source/private changes retire stale results; all internal ID, generation, 
 
 ## Native local file inspection
 
-**Tray > Preview file (local inspection only)** opens the trusted Windows
+The exact `preview file` command opens the trusted Windows
 single-file picker. A separate metadata-only review shows the canonical path,
 identity, scope, original host session/origin, byte count and limits. Confirm
 that exact review locally before content is read; it expires after two minutes.
@@ -380,7 +380,7 @@ same host workflow. Exact **search file** / **inspect file** focus native
 lexical search of that admitted revision. Queries execute only in this
 native control; bounded exact excerpts carry revision/digest/line citations,
 observation time and truthful truncation/failure states. Results stay inert,
-volatile and host-only. **Tray > Preview folder** reviews all 1–32 immediate text/Markdown files (1 MiB combined, 256 KiB per file); any subdirectory or inadmissible item rejects the whole selection.
+volatile and host-only. The exact `preview folder` command reviews all 1–32 immediate text/Markdown files (1 MiB combined, 256 KiB per file); any subdirectory or inadmissible item rejects the whole selection ([commands](commands.md#explicit-local-file-preview)).
 
 Use native **Refresh this file preview** / **Refresh this folder preview**, or exact typed/current-name ACTIVATED `refresh file` / `refresh folder`, for a fresh complete metadata review of that exact admitted canonical physical source. **Confirm again** before new content reads; an old confirmation cannot be reused. Folder additions/removals/metadata changes are visible in review. Starting refresh retires the old immutable preview/citations. Failure/cancel leaves no admitted preview; missing/replaced/aliased roots require a new native picker selection. Original files are never changed.
 
@@ -581,9 +581,9 @@ Browsing does not resume a Done session or add model context/consent ([catalogue
 
 ## Tray icon
 
-**Exact operation grants** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance, stale confirmation and unknown running work.
+**Settings > Approvals > Exact operation grants...** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance and stale confirmation.
 
-**Evidence (read-only)** offers an explicit **AuthorityAudit** source for
+**Help > Evidence & diagnostics** offers an explicit **AuthorityAudit** source for
 committed typed interaction-store audits, separately from diagnostic **Audit**,
 **All**, **DailyLog** and **CombinedLog**. It shares the existing bounded native
 filter/page/citation display, without copying, export, execution or approval
@@ -620,35 +620,37 @@ taskbar settings.
 
 - Single left-click: request Kora's presence immediately, without the Windows double-click
   interval.
-- Double-click: also open or activate Settings; the first click has already requested the presence.
+- Double-click: also show or activate Kora, never Settings; each click uses the same immediate Show action.
 - Right-click: open the tray menu.
 
 The right-click menu contains:
 
-- **Show Kora**
-- **Kora Settings**
-- **Documentation**
-- **Skill packages (inspection only)**
-- **Sessions**
-- **Retained session attachments** (metadata only; explicit Refresh and exact historical navigation)
-- **Preview clipboard (local plain text)**
-- **Release maintenance (notify-only)**
-- **Evidence (read-only)**
-- **Review local version (native question)**
-- **Return to current question** (only the still-live current-run version question)
 - Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
-- **Listening controls > Enable listening / Disable listening**
-- **Voice consent / push-to-talk**
-- **Microphones** (friendly endpoint labels, native selected-preference marks and availability)
-- **Choose microphone (native recovery)** (the same passive card as speech Settings)
-- **Refresh microphones** (metadata only; five-second deadline; no model/network dependency)
-- **Stop speaking**
+- **Show Kora**
+- **New request** (a separate fresh-session composer)
+- **Sessions**
+- **Kora Customizations** (skills, instructions, agents, MCP servers and prompts)
+- **Disable listening** (close input for this run, not Stop speaking)
+- **Voice & audio**
+  - **Enable listening (push-to-talk readiness)**
+  - **Choose microphone**
+  - **Speech & audio settings**
+- **Settings**
+- **Help**
+  - **Documentation**
+  - **Evidence & diagnostics** (read-only)
 - **Exit Kora**
 
-Tray labels use the configured assistant name except for the fixed
-Documentation label.
+These ten root rows are separated into navigation, input, settings/help and exit groups. Show/Exit and the tooltip use the configured assistant name ([tray implementation](../src/Kora/SystemTrayController.cs)).
+Kora Customizations sits immediately below Sessions and opens the existing shared management window. Tray command labels have no trailing ellipses ([menu construction](../src/Kora/SystemTrayController.cs), [customization workflow](customizations.md)).
+Show Kora is bold as the default action for both single- and double-click. Settings opens only through its explicit menu entry or existing commands ([default-action styling and click routing](../src/Kora/SystemTrayController.cs)).
+There is no Stop speaking entry. Use the existing [speech controls or exact command](commands.md#stop-speech-playback) instead.
 
-For manual call protection use **Kora Settings > Calls** from the tray. The
+Specialist links live in their owning screens: **Settings > Custom content** opens the instruction/prompt editor and skill-package inspection; **Settings > Approvals** opens the distinct exact-grant inventory; **Sessions > Retained attachments...** opens the cross-session metadata catalogue ([Settings](../src/Kora/SettingsWindow.axaml), [Sessions](../src/Kora/SessionsWindow.axaml)).
+Compact conversation remains inside Sessions. Update review remains in **Settings > Maintenance**. Clipboard/file/folder previews retain their [explicit commands](commands.md#explicit-local-clipboard-preview), not tray shortcuts.
+The local-version question exercise and its exact recovery live under **Settings > Readiness > Question diagnostics**, separate from normal conversation navigation ([diagnostics](../src/Kora/SettingsWindow.axaml)).
+
+For manual call protection use **Settings > Calls** from the tray. The
 native **I'm in a call**, **Clear manual call mode**, **Reset manual off** and
 passive **Cached call status** share the [exact current-run commands](commands.md#exact-current-run-manual-call-control).
 This adds no ambient detector or separate tray mutation authority. Manual
@@ -676,7 +678,7 @@ The native selections share the same audited preference seam as the bounded
 Commands do not combine selection with Enable or renew consent/permission;
 reset explicitly selects System without releasing manual/run holds.
 
-**Choose microphone (native recovery)** opens a non-topmost card with real current
+**Voice & audio > Choose microphone** opens a non-topmost card with real current
 endpoint names/IDs, System/default availability and the retained unavailable pin.
 **Refresh devices** is metadata only. Highlight a current endpoint, then choose
 **Save preference only**; highlighting/closing is not consent or enablement.
@@ -686,7 +688,7 @@ microphone, test capture or durable question bridge is required or claimed.
 Close/Escape does not cancel a task or mark a session Done. Speech Settings
 opens the same card and retains its separate consent and held PTT controls.
 
-Open the right-click menu to refresh microphone metadata without recording.
+Open **Voice & audio > Choose microphone**, then **Refresh devices**, to refresh microphone metadata without recording.
 Refresh is single-flight and has a five-second caller deadline. If Windows
 enumeration is still finishing after a timeout, retry later; repeated clicks
 do not start more workers. Failure reports **Microphone recovery needs
@@ -695,8 +697,8 @@ attention** with Refresh/Settings recovery, and capture stays closed.
 The tooltip distinguishes PTT-ready (**microphone closed; wake unavailable**)
 from actual PTT capture, disabled input, unavailable selection and denied/
 unknown Windows privacy. It contains no device identity or private content.
-The microphone submenu shows **System** and active named endpoints. A native
-selection mark means saved preference, not recording. A missing saved pin
+The microphone chooser shows **System** and active named endpoints. Its saved
+preference is not recording. A missing saved pin
 remains marked **unavailable; preference retained**, not replaced. System can
 explicitly clear an unavailable pin even when Windows has no usable default.
 
@@ -869,7 +871,7 @@ Reader text scaling applies to the snapshot body and exact span without changing
 Cut/copy/paste/context routes are blocked, including query shortcuts. Private/owner/call loss, replacement, revoke, close and disposal clear volatile state and fence callbacks. Find never rereads the clipboard or invokes reuse/revoke, inference, persistence, history, activity renewal or a new timer.
 See the [canonical contract and automated evidence](../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07); installed-native accessibility/privacy qualification remains separate.
 
-The separate **Review local version (native question)** tray entry opens one
+The separate **Settings > Readiness > Question diagnostics > Review local version (native question)** control opens one
 owned native card bound to the original durable host question, not whichever
 window is focused. It shows exact target/revision/expiry, an unselected choice,
 Review exact record, Save draft, Submit answer, Cancel question and Close.
@@ -889,9 +891,9 @@ native window. This command preserves unsaved answers and never reloads source
 content, selects a session or resurrects a closed/historical question.
 `pending question help` is constant syntax, not a list of questions or IDs.
 Navigation status is separate; answer or cancel only through the existing
-explicit controls. The recovery tray entry below retains its distinct behavior.
+explicit controls. The diagnostic recovery control below retains its distinct behavior.
 
-Use **Tray > Return to current question** after closing/Escape on the native local-version card. This returns to the **same still-live original request, session, task and question**, not a replacement version check. If its exact window is already open, the route activates it; selecting another Session does not retarget it.
+Use **Settings > Readiness > Question diagnostics > Return to local-version question** after closing/Escape on the native local-version card. This returns to the **same still-live original request, session, task and question**, not a replacement version check. If its exact window is already open, the route activates it; selecting another Session does not retarget it.
 
 Close clears the window's text, unsaved choices and review. Only **Save draft** preserves an answer for return; it does not submit it. A saved draft returns at its current revision; otherwise no affirmative option is selected. **Submit answer** and **Cancel question** remain separate deliberate actions. Cancel commits the original task and question as Cancelled before dispatch, not termination of a running effect.
 

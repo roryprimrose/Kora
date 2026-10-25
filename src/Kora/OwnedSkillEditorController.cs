@@ -10,7 +10,8 @@ namespace Kora;
 
 internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger) : IAsyncDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
+    OwnedSkillInvocationController? invocation = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -47,6 +48,7 @@ internal sealed partial class OwnedSkillEditorController(
     {
         original?.Retire();
         lifetime?.Cancel();
+        invocation?.Retire();
         window?.RetireReview();
     }
 
@@ -61,6 +63,7 @@ internal sealed partial class OwnedSkillEditorController(
 #pragma warning disable VSTHRD003 // Join the one owned operation after retiring authority, even if I/O ignores cancellation.
             await work;
 #pragma warning restore VSTHRD003
+            if (invocation is not null) { await invocation.CloseAndWait(); }
             return;
         }
         if (busy) { main.ReportHostInteractionFailure("Skill authoring is busy; cancel or wait for its owned I/O to finish."); return; }
@@ -77,6 +80,7 @@ internal sealed partial class OwnedSkillEditorController(
                 Interlocked.Increment(ref generation);
                 dirty = true;
                 validated = null;
+                invocation?.Retire();
                 window?.RetireReview();
             };
             window.Closing += OnClosing;
@@ -137,7 +141,27 @@ internal sealed partial class OwnedSkillEditorController(
                 case "save": await Save(); break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
-                    if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen; nothing is enabled or invocable."); }
+                    if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
+                    break;
+                case "use":
+                    var selection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
+                    var useId = command.Id ?? selection?.Document.Id;
+                    var useVersion = command.Version ?? selection?.Document.Version;
+                    if (useId is null || useVersion is null)
+                    { throw new InvalidOperationException("Select an exact saved ID/version before Use."); }
+                    if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
+                    await invocation.Handle(new("use", useId, useVersion), authority, Eligible);
+                    break;
+                case "enable":
+                case "targets":
+                case "next-targets":
+                case "target":
+                case "request":
+                case "review-use":
+                case "invoke":
+                case "close-use":
+                    if (invocation is null) { throw new InvalidOperationException("Owned skill invocation is unavailable in this host."); }
+                    await invocation.Handle(command, authority, Eligible);
                     break;
                 case "reopen":
                     var selected = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
@@ -175,7 +199,7 @@ internal sealed partial class OwnedSkillEditorController(
         var saved = await workflow.Save(document, original, Current, opened, lifetime.Token);
         if (saved is null || !Current()) { return false; }
         ShowSaved(opened, saved);
-        opened.Report("Both exact files durably read back. Saved inactive/unselected, invocation unavailable. List and Reopen selects this immutable saved version.");
+        opened.Report("Both exact files durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
         return true;
     }
 
@@ -189,7 +213,7 @@ internal sealed partial class OwnedSkillEditorController(
         validated = null;
         dirty = false;
         uncertain = false;
-        opened.Report("Exact saved version reopened. It remains inactive and cannot be invoked. Existing versions cannot be changed; Create a fresh ID/version.");
+        opened.Report("Exact saved version reopened. It remains inactive; Use requires separate review and enablement. Existing versions cannot be changed; Create a fresh ID/version.");
     }
 
     private async Task<bool> DiscardOrSave()
@@ -222,6 +246,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     internal async Task<bool> PrepareClose()
     {
+        if (invocation is not null) { await invocation.CloseAndWait(); }
         if (window is null) { return true; }
         if (busy)
         {
@@ -260,6 +285,7 @@ internal sealed partial class OwnedSkillEditorController(
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.PropertyChanged -= OnMainChanged;
         main.BindOwnedSkillAuthoring(null, null);
+        if (invocation is not null) { await invocation.DisposeAsync(); }
         await admission.DisposeAsync();
         lifetime?.Dispose();
     }

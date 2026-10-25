@@ -18,6 +18,7 @@ internal sealed partial class SessionsWindow : Window
     internal event EventHandler? AllWorkRequested;
     internal event EventHandler? NewRequestRequested;
     internal event EventHandler? CompactConversationRequested;
+    internal event EventHandler? RetainedAttachmentsRequested;
     internal SessionsWindow(SessionsViewModel model, SessionsPresentationOwner? owner = null)
     {
         this.owner = owner ?? new(model);
@@ -27,6 +28,7 @@ internal sealed partial class SessionsWindow : Window
         BindWorkScrolling();
         BindListPageOrder(model);
         BindInstructionContext(model);
+        BindSessionInstructionScopes(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
@@ -60,6 +62,7 @@ internal sealed partial class SessionsWindow : Window
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
+        BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
@@ -80,6 +83,7 @@ internal sealed partial class SessionsWindow : Window
         Refresh.Click += async (_, _) => await model.RefreshAsync();
         Next.Click += async (_, _) => await model.NextAsync();
         AllWork.Click += (_, _) => AllWorkRequested?.Invoke(this, EventArgs.Empty);
+        RetainedAttachments.Click += (_, _) => RetainedAttachmentsRequested?.Invoke(this, EventArgs.Empty);
         NewRequest.Click += (_, _) => NewRequestRequested?.Invoke(this, EventArgs.Empty);
         SearchList.Click += async (_, _) => await model.SearchListAsync();
         NextListSearch.Click += async (_, _) => await model.SearchListAsync(next: true);

@@ -18,7 +18,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         "For a requested future ordinary spoken-response limit suggestion only, the entire final answer may instead be "
         + $"one inert suggestion: 'set speech.summary-words to <integer>' (1-{SpokenSummaryLimits.MaximumWords}) or "
         + $"'set speech.summary-sentences to <integer>' (1-{SpokenSummaryLimits.MaximumSentences}). Use canonical decimal digits. "
-        + "No other speech setting, reset, batch or command is admitted. Nothing is applied or spoken. "
+        + "For this speech-limit suggestion, no other speech setting, reset, batch or command is admitted. Nothing is applied or spoken. "
         + "The original user must review the complete current/proposed shared device-local limits and separately confirm; "
         + "the current answer is never truncated, regenerated or replayed.";
 

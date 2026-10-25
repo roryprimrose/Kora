@@ -12,7 +12,7 @@ public sealed record ConversationResponse(ModelTurnProvenance Provenance, string
 
     /// <summary>Retained data format support only, never execution or disclosure authority.</summary>
     public static bool SupportsProvider(ModelProviderIdentity provider) =>
-        provider is ModelProviderIdentity.Ollama or ModelProviderIdentity.Copilot;
+        provider is ModelProviderIdentity.Ollama or ModelProviderIdentity.Copilot or ModelProviderIdentity.Claude;
 
     public void Validate()
     {

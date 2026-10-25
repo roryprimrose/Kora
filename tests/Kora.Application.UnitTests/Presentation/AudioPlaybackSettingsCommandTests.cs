@@ -13,7 +13,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Presentation;
 
 [Collection("Host tracing")]
-public sealed class AudioPlaybackSettingsCommandTests : IDisposable
+public sealed partial class AudioPlaybackSettingsCommandTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

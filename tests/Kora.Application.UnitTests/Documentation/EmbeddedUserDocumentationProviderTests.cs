@@ -13,6 +13,38 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TrayGuideDescribesGroupedNavigationAndRelocatedSpecialistLinks()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var tray = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        tray.Should().Contain("These ten root rows")
+            .And.Contain("**Kora Customizations**")
+            .And.Contain("immediately below Sessions")
+            .And.Contain("Show Kora is bold as the default action")
+            .And.Contain("Double-click: also show or activate Kora, never Settings")
+            .And.Contain("There is no Stop speaking entry")
+            .And.Contain("**Voice & audio**")
+            .And.Contain("**Help**")
+            .And.Contain("**Settings > Custom content**")
+            .And.Contain("**Sessions > Retained attachments...**")
+            .And.Contain("**Settings > Readiness > Question diagnostics**")
+            .And.NotContain("**Tray > Compact selected-session conversation**")
+            .And.NotContain("**Tray > Preview file")
+            .And.NotContain("**Tray > Return to current question**")
+            .And.NotContain("**New request...**")
+            .And.NotContain("**Sessions...**")
+            .And.NotContain("**Customizations...**")
+            .And.NotContain("**Settings...**")
+            .And.NotContain("**Choose microphone...**")
+            .And.NotContain("**Speech & audio settings...**")
+            .And.NotContain("**Evidence & diagnostics...**");
+        var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
+        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**")
+            .And.NotContain("double-clicking the tray icon")
+            .And.NotContain("bold **Settings...**");
+    }
+
+    [Fact]
     public void AdaptiveInteractionGuideSeparatesPresentedPageNavigationFromMatchingAndApproval()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -198,7 +230,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
+            "session-instructions",
             "agent-profile-authoring",
+            "claude-requests",
             "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs",
@@ -242,7 +276,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 23);
+        sections.Should().HaveCount(commands.Count + 24);
+        var volumeSuggestion = sections.Single(section => section.StartsWith(
+            "Review one retained assistant Kora volume suggestion", StringComparison.Ordinal));
+        foreach (var phrase in PlaybackVolumeSuggestionCommand.FixedPhrases)
+        { volumeSuggestion.Should().Contain("**" + phrase + "**"); }
+        volumeSuggestion.Should().Contain("Review is inert").And.Contain("60 seconds").And.Contain("Original voice");
         sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
             .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
             .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
@@ -418,6 +457,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
             && !ReferenceEquals(section, speechSuggestion)
+            && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
             && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();

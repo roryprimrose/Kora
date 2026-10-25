@@ -101,7 +101,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 "next" => page with { Next = new(f.Session.SessionId, new(1), 2, 0, 4) },
                 "generation-zero" => page with { Session = page.Session with { Generation = default } },
                 "head-negative" => page with { HeadRevision = -1 },
-                "head-large" => page with { HeadRevision = 5 },
+                "head-large" => page with { HeadRevision = 7 },
                 _ => page with
                 {
                     Messages = page.Messages.SetItem(page.Messages.Length - 1, invalid switch

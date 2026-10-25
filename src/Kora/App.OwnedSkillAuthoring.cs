@@ -23,9 +23,17 @@ public sealed partial class App
             Services.GetRequiredService<WindowsSqliteHostInteractionStore>(), Services.GetRequiredService<HostTaskCoordinator>());
         var workflow = new OwnedSkillSaveWorkflow(store, admission, Services.GetRequiredService<ISecurityAuditLog>());
         var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>();
+        var useWorkflow = new OwnedSkillInvocationWorkflow(store, admission, Services.GetRequiredService<ISessionWorkspaceAccess>(),
+            Services.GetRequiredService<ISessionWorkspaceStore>(), Services.GetRequiredService<SessionWorkspaceService>(),
+            Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISecurityAuditLog>(),
+            Services.GetRequiredService<TimeProvider>());
+        var use = new OwnedSkillInvocationController(main, useWorkflow,
+            () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
+            Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>());
+        use.Bind();
         ownedSkillEditor = new(main, workflow, admission,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<OwnedSkillEditorController>>());
+            Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use);
         ownedSkillEditor.Bind();
         if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         { desktop.Exit += ownedSkillEditor.OnHostExit; }

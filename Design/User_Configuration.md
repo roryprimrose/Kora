@@ -1040,6 +1040,30 @@ complete 64-KiB result bound apply. Results expose desired/effective percent,
 saved/default/unavailable provenance, default/bounds, availability, recovery,
 configuration/call revisions, application timing and independent reset.
 
+#### Retained model playback-volume suggestion
+
+The complete successful retained ASSISTANT answer may be exactly
+`set speech.playback-volume to <canonical integer 0-100>`. Host review accepts
+only this single Set form through the existing command/domain scalar, not model
+authority, resets, relative adjustments, commentary or other settings.
+Expanded/compact Sessions review the actual selected immutable answer; exact
+typed/current-name activated commands use the pinned successful submission
+receipt. Both use the shared exact retained-setting double-read validator.
+
+The memory-only review shows desired/effective percent, provenance, proposed
+percent, shared device-local scope, recovery and zero-synthesis implications.
+It writes nothing. Separate fresh confirmation within 60 seconds revalidates
+the original source/session/channel, ownership/privacy/call and preference/review
+identities. Voice origin at source, review or confirmation remains restrictive
+inside the final call-policy lock. The existing playback settings owner retains
+its active-operation guard and uses the existing configuration writer and
+AudioControlAdmission; preference, audit and terminal readbacks precede success.
+Cancellation, expiry, revocation, changed sources/settings and disposal prevent
+late authority revival; cancellation alone is not quiescence. Unconfirmed writes
+stay explicitly unavailable with no retry/rollback claim. No provider, synthesis,
+replay, OS/device/call gain or other settings authority is introduced.
+See [user workflow](../docs/settings.md#review-an-assistant-kora-volume-suggestion).
+
 An atomic unconfirmed-write marker is installed before changing the scalar
 file (including reset) and removed only after exact readback and both audit/task
 terminal receipts. Failed evidence therefore remains unavailable across restart,
@@ -1525,7 +1549,7 @@ Revocation blocks subsequent exact-grant consumption. In-flight work is reported
 
 ### Delivered native exact operation grants — 2026-10-10
 
-The tray's separate **Exact operation grants** window reads the initialized private interaction store, not the legacy **Approvals** tab or its Markdown named-action list. Refresh and Next return at most **50 retained records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot. Source, row or cursor failures are explicit; no empty-success fallback occurs.
+**Settings > Approvals > Exact operation grants...** opens a separate window reading the initialized private interaction store, not the legacy tab's named-action list. Refresh and Next return at most **50 retained records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot. Source, row or cursor failures are explicit; no empty-success fallback occurs.
 
 Select one exact approval ID, then **Inspect selected exact ID** to reread current immutable metadata. It shows the actual revision, capability/source/skill, binding/content SHA-256 identities, recorded effect classification, scope, original session/generation, creator channel/time, status, count, last use and retained revocation reason. Raw parameters, scripts, bodies, credentials and provider content are not displayed or logged.
 

@@ -21,6 +21,12 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private int nativeVisible;
     private long nativeVisibilityRevision;
 
+    internal Action? EditOwnedInstructions { get; set; }
+    internal Action? InspectSkillPackages { get; set; }
+    internal Action? InspectExactGrants { get; set; }
+    internal Func<Task>? ReviewLocalVersion { get; set; }
+    internal Func<Task>? ReturnToVersionQuestion { get; set; }
+
     public SettingsWindowController(
         MainViewModel viewModel,
         ILogger<SettingsWindowController> logger,
@@ -129,6 +135,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private SettingsWindow CreateWindow()
     {
         var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone, captionDisplay);
+        settingsWindow.BindNavigation(EditOwnedInstructions, InspectSkillPackages, InspectExactGrants,
+            ReviewLocalVersion, ReturnToVersionQuestion);
         settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;

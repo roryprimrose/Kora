@@ -302,7 +302,7 @@ Production has no qualified catalogue models/auth adapters, so model-dependent s
 
 ## Attach one text file to an exact Session (native only)
 
-For a content-free overview, use **Tray > Retained session attachments > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
+For a content-free overview, use **Sessions > Retained attachments... > Search / refresh metadata**. Default Browse or volatile ExactId observes retained slots, never original paths or bodies.
 [Catalogue query rules and exact navigation](windows-and-tray.md#retained-session-attachments-metadata-only) cover canonical IDs, explicit Enter/Clear/Next, bounded empty pages and separate full-byte inspection. No typed/voice/model search or capture command is added.
 
 Exact typed or current-name activated `prepare attachment catalogue <session-id>`
@@ -804,8 +804,7 @@ not automatic rollback/replay. There is no model tool or pending-question bridge
 
 ## Explicit local clipboard preview
 
-These exact commands and the tray's **Preview clipboard (local plain text)**
-entry use the same request workflow without a model:
+These exact commands use the local clipboard preview workflow without a model:
 
 | Exact command | Result |
 |---|---|
@@ -1015,6 +1014,23 @@ Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/C
 Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
 Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
+#### Search retained assistant answers explicitly
+
+Add `--role ASSISTANT` before the unchanged query separator to search only complete retained `AssistantResponse.Body` text. Omitting the role keeps **All** compatibility: original USER bodies and typed HOST fields only. Named `All`, `USER` and `HOST` roles are also accepted; unknown or numeric roles refuse rather than default ([grammar](../src/Kora.Core/Commands/SessionCommand.ConversationSearch.cs), [field policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+
+```text
+conversation search <session-id> --role ASSISTANT -- <verbatim query>
+Nova, conversation search abcdef12-1234-1234-1234-123456789012 --role ASSISTANT -- café
+conversation search next <session-id>
+conversation search cancel <session-id>
+```
+
+The voice example assumes the current assistant name is **Nova**. Typed/current-name activated voice uses the same exact-session host route. Next keeps the original query, role, source and nonrenewing 60-second expiry; it accepts no replacement role or caller cursor. Cancel releases the host-held continuation and cancels an in-flight read ([command service](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs)).
+
+Results contain complete unchanged inert retained answers, not new generation or implicit model context. Missing assistant output does not fall back to USER/HOST text. Active/Done read admission, full-record validation, complete serialized page bounds and source/privacy revocation still apply. Search neither renews retention nor creates an index, persistence, provider call or replay ([search owner](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+For Search/Next, complete answer inspection and Cancel/Clear in the existing role selector, see [native assistant search](windows-and-tray.md#search-retained-assistant-answers). Deterministic coverage includes [grammar/role isolation](../tests/Kora.Core.UnitTests/Conversation/AssistantConversationSearchTests.cs), [continuations/budgets/revocation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private restart/native inspection](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs).
+
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.
 They AND-compose with the lexical query and bind the continuation digest; changed
@@ -1053,7 +1069,7 @@ session commands without changing their targets; resolve them explicitly first.
 | `task inspect <session-id> <task-id>` | The same complete bounded authoritative record, not inferred progress or remaining steps |
 | `task cancel <session-id> <task-id> <task-revision> <generation> <question-id> <question-revision>` | Atomically cancel only admitted current-run local-version work still waiting before dispatch |
 
-Copy exact IDs and all tokens from a fresh inspection. Only the tray's native
+Copy exact IDs and all tokens from a fresh inspection. Only the Readiness diagnostic native
 local-version question currently admits that wait. Its question is now before
 dispatch; cancellation commits the terminal task, revised cancelled question,
 target capability revocation and required audit together. It never creates or
@@ -1192,6 +1208,22 @@ writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#kora-playback-volume) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
+
+### Review one retained assistant Kora volume suggestion
+
+- **review volume suggestion**
+- **confirm volume change**
+- **cancel volume review**
+
+Typed and current-name ACTIVATED routes use the pinned exact successful
+Active-session answer, not latest-message guessing. The entire answer must be
+`set speech.playback-volume to <canonical integer 0-100>`. Review is inert;
+confirmation is separate, fresh and expires after 60 seconds. Expanded/compact
+Sessions offer the same exact-answer review and confirmation. Original voice
+at any stage remains voice-restricted under protected/unknown call policy.
+Source/session/privacy/ownership/channel/call/settings changes retire authority;
+no replay, audio test, other-setting or system/device/call volume mutation.
+See [complete review and recovery](settings.md#review-an-assistant-kora-volume-suggestion).
 
 ### Inspect or change Windows-native speech rate
 
@@ -1403,7 +1435,7 @@ Opening setup shows readiness; it does not install a model without approval.
 - **tell me your version**
 - **which version of Kora is this**
 
-The tray also offers **Review local version (native question)**, an explicit
+**Settings > Readiness > Question diagnostics > Review local version (native question)** offers an explicit
 mouse/keyboard-only route using the same durable local version-query context.
 It does not need voice consent, a microphone, a model or network access.
 The native window names the original session/task/question, revision and
@@ -1414,7 +1446,7 @@ record** is passive inspection, not approval or execution. **Cancel question**
 is explicit; Close/Escape only closes presentation. Stale, expired or
 privacy/ownership-unavailable targets cannot be answered.
 
-**Tray > Return to current question** returns to that same still-live original version wait after Close/Escape, restoring only its committed draft and current revision. Unsaved edits/review clear on close. The original five-minute expiry continues while hidden; return creates no new query/question/grant or dispatch and never extends activity.
+**Settings > Readiness > Question diagnostics > Return to local-version question** returns to that same still-live original version wait after Close/Escape, restoring only its committed draft and current revision. Unsaved edits/review clear on close. The original five-minute expiry continues while hidden; return creates no new query/question/grant or dispatch and never extends activity.
 
 An already-open exact card activates; Sessions selection cannot retarget it.
 
@@ -1804,7 +1836,7 @@ inclusion still does not connect or authorize execution.
 
 ### Search admitted skill package metadata
 
-In **Tray > Skill packages**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
+In **Settings > Custom content > Skill packages...**, type a native metadata query, choose **All / Runtime unavailable / Runtime available**, then click **Search**. Search covers bundled declared names, IDs and descriptions only, across the admitted catalogue (at most eight packages). Runtime availability is not instruction compatibility; every current bundled package remains invocation-unavailable ([bundled controls](../src/Kora/SkillPackagesWindow.axaml.cs), [bounded catalogue](../src/Kora.Core/Skills/SkillPackageCatalogue.cs)).
 
 In **Shared profile sources (read only)**, first explicitly **List selected source**, then use **Search** with **All / Instruction-compatible / Instruction-incompatible**. Matching covers admitted declared name, metadata-qualified source ID/name/version identity when the name is valid, and valid declared description, across at most 32 snapshots from that exact source. Missing metadata is not guessed; files/roots, path-fallback IDs, SKILL.md bodies, manifests and helpers are not searched ([query policy](../src/Kora.Application/Skills/SkillCatalogueSearch.cs)).
 
@@ -1814,7 +1846,7 @@ All includes incompatible/unavailable rows. Shared compatibility is structural i
 
 ### Inspect shared profile skills locally
 
-Open the tray **Skill packages**, then **Shared profile sources (read only)**.
+Open **Settings > Custom content > Skill packages...**, then **Shared profile sources (read only)**.
 Choose **Choose and register profile root (read only)** and select an exact
 bounded local directory below your Windows profile, such as `.agents\skills`.
 Kora resolves the profile through Windows Known Folder APIs, not environment

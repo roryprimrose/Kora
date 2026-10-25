@@ -46,7 +46,8 @@ public sealed class ExactGrantsWindowContractTests
             .And.Contain("Any by default").And.NotContain("Watermark=");
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
-        Read("SystemTrayController.cs").Should().Contain("Exact operation grants");
+        Read("SettingsWindow.axaml").Should().Contain("Exact operation grants...");
+        Read("App.axaml.cs").Should().Contain("settingsWindow.InspectExactGrants = () => exactGrants?.Open()");
         Read("ExactGrantsWindowController.cs").Should().Contain("Dispatcher.UIThread.Invoke(WindowAdmitted)")
             .And.Contain("WindowAdmitted, logger");
     }

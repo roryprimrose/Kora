@@ -4,8 +4,7 @@
 
 Open Settings by:
 
-- right-clicking the tray icon and selecting **Kora Settings**;
-- double-clicking the tray icon;
+- right-clicking the tray icon and selecting **Settings**;
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 
@@ -384,7 +383,7 @@ See the [canonical bounded contract](../Design/User_Configuration.md#delivered-b
 
 ## Release maintenance (notify-only)
 
-Open **Settings > Maintenance** or **Tray > Release maintenance (notify-only)**.
+Open **Settings > Maintenance > Review update options**.
 This is metadata review/browser navigation, not an installer or updater.
 
 | Choice/control | Behavior |
@@ -502,7 +501,7 @@ for you.
 
 ## Exact operation grants
 
-Open **Exact operation grants** from the tray menu. This is a separate native window for retained host-issued exact approval records, not the **Approvals** tab or the Markdown named-action preferences. It does not import or promote those preferences.
+Open **Settings > Approvals > Exact operation grants...**. This opens a separate native window for retained host-issued exact approval records, distinct from the tab's legacy model-action preferences or Markdown named-action list. It does not import or promote those preferences ([native link](../src/Kora/SettingsWindow.axaml)).
 
 Optional native **Stored scope** and **Stored status** filters default to **Any**. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page.
 
@@ -911,6 +910,32 @@ refresh. An atomic unconfirmed-write marker keeps ambiguous writes unavailable
 across restart until explicit evidence inspection/repair; refresh cannot silently
 clear it. No automatic retry, test playback or acoustic audibility claim.
 
+#### Review an assistant Kora volume suggestion
+
+An admitted local model can return exactly `set speech.playback-volume to 30`
+(one canonical integer 0-100). The complete retained successful ASSISTANT answer
+is inert data, never permission. Choose **Review Kora volume suggestion...** on
+that exact answer in expanded or compact Sessions. Review displays current
+desired/effective percent, saved/default provenance, proposed percent, shared
+device-local scope and zero-synthesis implications. Review writes nothing and
+never synthesizes or replays the answer.
+
+Choose **Confirm exact Kora volume change** separately within 60 seconds, or
+**Cancel Kora volume review**. Typed/current-name activated routes are
+**review volume suggestion**, **confirm volume change**, **cancel volume review**;
+they use only the exact successful session-submission receipt, never a guessed
+latest answer. Confirmation revalidates source, session, ownership, privacy,
+original channel, call and settings before the existing audited volume writer.
+Voice origin at any stage remains voice-restricted, even when confirmed in UI;
+use genuinely new eligible input rather than laundering a protected-call review.
+
+Cancellation, expiry, source/session/page/settings changes or closing invalidate
+the review. Malformed, mixed, relative, reset, prefixed and commented answers
+are not suggestions for this operation. Unavailable adapters remain unavailable.
+Unconfirmed writes require explicit Settings/audit inspection, never automatic
+retry or a rollback claim. No system/device/call volume or other preference is
+changed. Zero blocks future synthesis; full visual output remains available.
+
 ### Spoken summary limits
 
 Under **Speech & audio**, choose **Maximum sentences (1-3)** and **Maximum
@@ -1004,7 +1029,7 @@ remain governed by their existing rules. Changes retire pending speech before
 UI dispatch; reset or call clearance never replays retired output.
 
 Push-to-talk stops current speech before opening command capture.
-**Stop speaking** is also available from the tray without speech or a model.
+Use the existing native speech controls or the [exact stop command](commands.md#stop-speech-playback); Stop speaking is not a tray entry.
 
 ### Audio output
 

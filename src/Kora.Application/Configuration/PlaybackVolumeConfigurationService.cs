@@ -43,7 +43,8 @@ public sealed class PlaybackVolumeConfigurationService(
         }
     }
 
-    public async Task RefreshAsync(RequestOrigin originalOrigin, Func<bool> remainsEligible, CancellationToken token)
+    public async Task RefreshAsync(RequestOrigin originalOrigin, Func<bool> remainsEligible, CancellationToken token,
+        long? expectedRevision = null)
     {
         try
         {
@@ -52,6 +53,8 @@ public sealed class PlaybackVolumeConfigurationService(
                 lock (gate)
                 {
                     if (applying || publishing) { throw new InvalidOperationException("Volume is committing or notifying."); }
+                    if (expectedRevision is { } revision && state.Revision != revision)
+                    { throw new InvalidOperationException("The reviewed volume revision changed before fresh admission."); }
                     var saved = preferences.Load();
                     if (input is not { } current || current.Session != authority || current.Origin != request.Origin || !current.Eligible())
                     {
@@ -59,12 +62,13 @@ public sealed class PlaybackVolumeConfigurationService(
                         state = state with { Revision = checked(state.Revision + 1) };
                     }
                     input = (authority, request.Origin, remainsEligible);
-                    return saved;
+                    return (Saved: saved, Revision: state.Revision);
                 }
             }, token).ConfigureAwait(false);
             lock (gate)
             {
-                if (!remainsEligible() || preferences.Load() != observed) { throw new InvalidOperationException("Volume discovery admission or saved state changed before its receipt."); }
+                if (!remainsEligible() || state.Revision != observed.Revision || preferences.Load() != observed.Saved)
+                { throw new InvalidOperationException("Volume discovery admission or saved state changed before its receipt."); }
                 Observe();
             }
         }
@@ -133,12 +137,13 @@ public sealed class PlaybackVolumeConfigurationService(
                         throw new InvalidOperationException("Volume proposal, saved state or original admission changed.");
                     }
                     applying = true;
+                    var mutationOrigin = originalOrigin == RequestOrigin.ActivatedVoice ? originalOrigin : request.Origin;
                     var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
                         "configuration.playback-volume", SecurityAuditOutcome.Requested,
-                        request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
+                        mutationOrigin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                         "preferences.device-local");
                     auditLog.Write(audit);
-                    var denied = policy.CommitVoiceSetting(request.Origin, candidate.CallRevision,
+                    var denied = policy.CommitVoiceSetting(mutationOrigin, candidate.CallRevision,
                         () => ReferenceEquals(HostActivity.RequireCurrent().Request, request)
                             && remainsEligible() && candidate.Eligible() && !token.IsCancellationRequested
                             && ReferenceEquals(proposal, candidate) && candidate.Revision == state.Revision && state.Available, () =>

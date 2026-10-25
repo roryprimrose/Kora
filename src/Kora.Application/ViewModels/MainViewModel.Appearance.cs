@@ -16,7 +16,8 @@ public sealed partial class MainViewModel
         // A forced desktop close need not pump UI continuations to join the owned storage write.
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
         await Task.WhenAll(appearancePersistence, preferencePersistence, consentPersistence,
-            appearanceSuggestionPersistence, speechSummaryPersistence, AuditPersistence, outputDiscoveryPersistence,
+            appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
+            AuditPersistence, outputDiscoveryPersistence,
             outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
 #pragma warning restore VSTHRD003
     }

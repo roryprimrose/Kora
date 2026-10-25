@@ -2,7 +2,7 @@
 
 ## Open and select
 
-Use the tray's **Owned instructions and prompts (native editor)** entry or type `instructions editor` / `prompts editor`.
+Use **Settings > Custom content > Owned instructions and prompts...** or type `instructions editor` / `prompts editor`.
 After ordinary push-to-talk admission, `Kora, instructions editor` focuses the same native surface.
 All write and use reviews remain native; definition-source body dictation and voice-only confirmation are unavailable. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
 No AI model, hosted account or network is involved in editing.

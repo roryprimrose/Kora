@@ -4446,6 +4446,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (PlaybackVolumeSuggestionCommand.Parse(spokenText, AssistantName) is { } volumeSuggestionCommand)
+        {
+            await ExecutePlaybackVolumeSuggestionAsync(volumeSuggestionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
         if (SpeechSummarySuggestionCommand.Parse(spokenText, AssistantName) is { } speechSuggestionCommand)
         {
             await ExecuteSpeechSummarySuggestionAsync(speechSuggestionCommand, initiator,
@@ -4498,7 +4504,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
                 return;
             }
-            await ExecuteSessionCommandAsync(sessionCommand, initiator);
+            await ExecuteSessionCommandAsync(sessionCommand, initiator,
+                reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
+                    ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName),
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -6346,6 +6356,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
+            .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

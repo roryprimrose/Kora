@@ -106,6 +106,12 @@
         <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
         <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
       </WrapPanel>
+      <TextBlock Text="{Binding PlaybackVolumeSuggestionDescription}" TextWrapping="Wrap"
+          AutomationProperties.Name="Current desired and effective Kora-only volume, saved or default provenance, proposed percent, shared device-local scope and zero-synthesis implications" />
+      <WrapPanel>
+        <Button Name="ConfirmPlaybackVolumeSuggestion" Content="Confirm exact Kora volume change" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
+        <Button Name="CancelPlaybackVolumeSuggestion" Content="Cancel Kora volume review" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
+      </WrapPanel>
       <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
           AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
       <WrapPanel>

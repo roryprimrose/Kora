@@ -77,7 +77,7 @@ public sealed partial class SessionWorkspaceService
     {
         if (page.Session.SessionId != session || page.Session.Generation.Value <= 0
             || page.Ceiling is < 0 or > ConversationText.MaximumSessionMessages
-            || page.HeadRevision < page.Ceiling || page.HeadRevision > page.Ceiling * 2
+            || page.HeadRevision < page.Ceiling || page.HeadRevision > page.Ceiling * 3
             || page.Messages.IsDefault || page.Messages.Length > limit
             || cursor is not null && (page.Session.Generation != cursor.Generation
                 || page.Ceiling != cursor.Ceiling || page.HeadRevision != cursor.HeadRevision))

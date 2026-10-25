@@ -118,6 +118,8 @@
                       HorizontalAlignment="Left" />
               <Button Content="Review local summary of this exact web result"
                       Tag="{Binding}" Click="OnWebSummaryClicked" HorizontalAlignment="Left" />
+              <Button Content="Open in external browser"
+                      Tag="{Binding}" Click="OnExternalBrowserClicked" HorizontalAlignment="Left" />
               </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>

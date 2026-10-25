@@ -236,6 +236,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs",
+            "external-browser",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

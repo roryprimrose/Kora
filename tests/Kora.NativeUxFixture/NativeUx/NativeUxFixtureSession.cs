@@ -55,17 +55,19 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal NativeUxFixtureSession(string scratchParent, bool silentCaption = false, bool listOverflow = false,
         bool exactGrants = false, bool allWork = false, bool bufferedEvidence = false,
         ISqliteTransactionCheckpoint? evidenceCheckpoint = null,
-        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null)
+        IHostInteractionTransactionCheckpoint? interactionCheckpoint = null, bool syntheticVoice = false)
     {
-        if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) > 1)
+        if ((silentCaption ? 1 : 0) + (listOverflow ? 1 : 0) + (exactGrants ? 1 : 0) + (allWork ? 1 : 0) + (syntheticVoice ? 1 : 0) > 1)
         {
-            throw new ArgumentException("Synthetic caption, list-overflow, exact-grants and all-work fixture modes are separate.");
+            throw new ArgumentException("Synthetic caption, list-overflow, exact-grants, all-work and voice fixture modes are separate.");
         }
         if (!NativeUxFixtureHost.IsLocalScratchParent(scratchParent))
         {
             throw new ArgumentException("An existing absolute scratch parent on a fixed local drive, not a reparse point, is required.", nameof(scratchParent));
         }
         LocalRoot = Path.Combine(Path.GetFullPath(scratchParent), "kora-native-ux-" + Guid.NewGuid().ToString("N"));
+        Access = new(syntheticVoice);
+        Voice = new(syntheticVoice);
         SilentSpeech = silentCaption ? new SilentCaptionSpeech() : null;
         ListOverflow = listOverflow;
         ExactGrants = exactGrants;
@@ -115,7 +117,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
 
     public string LocalRoot { get; }
     public string RoamingRoot => Path.Combine(LocalRoot, "Roaming");
-    internal FixtureAccess Access { get; } = new();
+    internal FixtureAccess Access { get; }
+    internal FixtureVoice Voice { get; }
     internal CancellationToken Token => cancellation.Token;
     internal ILoggerFactory Loggers { get; }
     internal LoggerSecurityAuditLog Audit { get; }
@@ -195,12 +198,13 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), execution, new LocalModelApprovalPreferences(this), models, Access,
-            new FixtureVoice(), speech, assistantNameConfiguration, appearances,
+            Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
             new LocalCallAwarePreferences(this, NullLogger<LocalCallAwarePreferences>.Instance),
-            callState ?? new FixtureCallState(SilentSpeech is null ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
+            callState ?? new FixtureCallState(SilentSpeech is null && !Voice.SyntheticCapture
+                ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
             Access, execution, dispatcher ?? new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
             NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),

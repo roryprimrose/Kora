@@ -382,16 +382,20 @@ public sealed partial class InstructionEditorTests : IDisposable
         internal readonly InstructionSaveWorkflow Workflow;
         internal bool Open = true;
         internal bool Eligible() => Open;
-        internal Fixture(ArtifactKind kind = ArtifactKind.Instruction)
+        internal Fixture(ArtifactKind kind = ArtifactKind.Instruction, IArtifactUsePolicy? usePolicy = null)
         {
             Files.Current = Snapshot(kind: kind);
             Revisions = new(State, kind);
-            Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]));
+            Catalogue = new(Revisions.Reconcile([Candidate(Files.Current!)]), usePolicy);
             Admission = new(Control, Control, new HostTaskCoordinator(Control));
             Actions = new(Files, Admission, Revisions, Catalogue, Audit, new BuiltInCommandRouter(new BuiltInCommandCatalog()), kind);
             Workflow = new(Actions);
         }
-        public ValueTask DisposeAsync() => Admission.DisposeAsync();
+        public ValueTask DisposeAsync()
+        {
+            Catalogue.Dispose();
+            return Admission.DisposeAsync();
+        }
     }
 
     private sealed class Files : IOwnedInstructionStore

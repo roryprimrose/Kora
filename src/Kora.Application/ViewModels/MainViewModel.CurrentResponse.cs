@@ -11,6 +11,16 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private sealed record FinalizedModelAnswer(string Body);
+    private Guid? dismissedDetailsOffer;
+    public bool IsDetailsOfferPending => Volatile.Read(ref ordinaryResponse) is { ModelAnswer: { } answer } source
+        && source.Id != dismissedDetailsOffer && AnswerPresentation.From(answer.Body).HasDetails
+        && !IsResponseInteractionPending && !IsGrantEditorVisible && !HasResponseActions;
+
+    public void DeclineCurrentDetailsOffer()
+    {
+        if (Volatile.Read(ref ordinaryResponse) is { } source) { dismissedDetailsOffer = source.Id; }
+        OnPropertyChanged(nameof(IsDetailsOfferPending));
+    }
 
     private ICurrentResponsePresentation? currentResponsePresentation;
     private long currentResponseBindingRevision;

@@ -46,6 +46,12 @@ internal sealed class WorkspaceSurfaceCommandController(
                 case WorkspaceSurfaceTarget.CompactConversation: sessions.OpenCompact(Admitted); break;
                 case WorkspaceSurfaceTarget.Sessions: await sessions.ShowInteractionAsync(true, Admitted); break;
                 case WorkspaceSurfaceTarget.SelectSession: await selection!(); break;
+                case WorkspaceSurfaceTarget.Details:
+                case WorkspaceSurfaceTarget.HideDetails:
+                case WorkspaceSurfaceTarget.SessionLogs:
+                case WorkspaceSurfaceTarget.SessionAudit:
+                    await sessions.ShowDetailsAsync(navigation.Target, Admitted);
+                    break;
                 default: throw new InvalidOperationException("The native navigation target is unavailable.");
             }
             activity.Complete(HostOperationOutcome.Completed);

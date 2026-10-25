@@ -226,6 +226,7 @@ internal sealed partial class SessionsViewModel(
             throw new OperationCanceledException("The selected history receipt or private presentation changed.");
         }
         status = present(content);
+        RememberSelectedDetail(DetailPart.History, record.Id);
     }, passive: true);
     public bool CanHistory => CanRead && Guid.TryParseExact(historySessionId, "D", out var id) && id != Guid.Empty;
     public bool CanNextHistory => CanHistory && history?.Next is not null;
@@ -718,6 +719,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearEvidenceDetails();
         ClearConversation();
         ClearProviderReview();
         attachments?.Close();
@@ -756,6 +758,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        detailSelections.Clear();
         ClearUnsent();
         composerBody = string.Empty;
         RevokeListSearchPresentation();

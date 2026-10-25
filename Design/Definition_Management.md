@@ -1,16 +1,26 @@
 # Skills, Prompts, Instructions, and Agent Profile Management
 
-Status: shared lifecycle contract with a bounded native Kora-owned instruction
-and versioned literal/required-parameter prompt editor and revision-held catalogue reload increment. Skill/agent/profile editing,
-general agent execution and the full qualification matrix remain unavailable.
+Status: categorized native Customizations editing for skills, instructions,
+agents, MCP entries and prompts across Built-in (read-only), Kora roaming and
+supported User profile sources, with device-local persisted runtime exclusion,
+recoverable reviewed source writes and tool-free local-model authoring proposals.
+Customization transactions reuse the same native definition-file access owner
+as the bounded owned instruction/agent stores. Independent local agent runs
+consume the same exclusion policy; disable/re-enable cannot revive their old reviews.
+The existing bounded owned instruction/versioned prompt editor and revision-held
+catalogue reload remain available. General agent execution, automatic source
+registration/applicability and the full qualification matrix remain unavailable.
 The bounded local agent operation below is a separate implementation, not general executor qualification.
+Foreground-editor activated voice now has bounded local intent routing and
+native clarification, separate from speech/model-profile qualification.
 
 This is the authoritative management contract for all four definition kinds.
 [Skill Storage](Skill_Storage.md) retains the delivered R21 read-only source
 boundary and skill-specific package/execution rules;
 [Skill Authoring](Skill_Authoring.md) supplies declarative skill validation.
-The existing startup artifact reader and native skill inspection are partial
-deliveries, not evidence that this full contract is implemented.
+The [Customizations guide](../docs/customizations.md) identifies the delivered
+source/edit/recovery/model-review routes. These and native skill inspection are
+bounded deliveries, not evidence that the full runtime contract is qualified.
 
 The owned editor's **Find in selected metadata** is a separate, ephemeral native
 literal Find over exactly one current, selected inventory row's displayed
@@ -157,6 +167,263 @@ Referenced definitions resolve by admitted source-qualified identity.
 Reject unresolved required references and cycles before activation.
 
 ## One Management Surface, Equal UI and Voice Control
+
+### Customizations window and source categories
+
+The product owner's 2026-10-24 direction is one **Customizations** window for
+Instructions, Skills, Agents and MCP Servers, with the existing Prompts editor
+retained. This advances the admitted governed-definition outcome, not a general
+file editor or permission to execute newly authored content. Discovery, source
+editing, complete proposal review and runtime exclusion are host responsibilities;
+domain-specific generated behavior remains definition content.
+
+Use artifact-type navigation at the left in the order **Instructions**, **Skills**,
+**Agents**, **MCP Servers**, then **Prompts**, with Instructions initially selected.
+An explicit artifact-type command selects its requested category.
+Use a searchable catalogue in the middle,
+and a selected-artifact viewer/editor at the right. Group each type into
+**Built-in**, **Kora** and **User**, in that order, including empty groups.
+Kora means Kora-owned roaming profile definitions; User means explicitly
+identified supported Copilot/VS Code personal-profile locations, not the
+current repository or an arbitrary workspace. Display the actual source/profile
+and availability reason. These labels do not establish precedence: duplicate
+names require source-qualified selection, never automatic shadowing.
+
+Built-in content is immutable. Inspection can show its complete packaged file
+set, but editing requires **Create Kora copy** with a distinct destination,
+attribution and initially disabled state. Neither copying nor saving transfers
+bundled action authority.
+
+Selecting an editable source opens a private working draft. A skill exposes its
+primary `SKILL.md` and bounded component tree; instructions and agents start
+with their primary document. MCP editing targets one server definition, not
+permission to replace unrelated entries in a shared configuration. Add, rename
+and remove component controls operate on the draft only; primary documents
+cannot accidentally be removed. Unsupported/binary components remain explicitly
+unavailable, not silently omitted from the package or a save.
+
+**Add** selects kind and writable destination, then either starts with a
+template or a conversational description. **Ask Kora** accepts typed or activated
+voice refinements against the same draft; model output is a proposal, never
+approval, an authoritative file path, a source registration or an action grant.
+Before any model disclosure show the exact supplied source/request, destination
+and locality; ordinary provider policy remains authoritative. Native text editing
+and local validation remain available without a model. Editing a source or request
+retires an outstanding generation/review; late model output cannot replace a
+newer draft.
+
+Review covers every added, modified and removed file, its complete proposed
+source, the selected destination and current base. Save, Discard and Cancel are
+distinct, including on selection changes and dirty close. Changed source bytes
+are saved disabled; activation requires a separate current revision review.
+Errors and external conflicts retain the draft and offer explicit recovery.
+Do not claim unsupported reader/runtime compatibility after a successful write.
+
+The same operations are addressed by exact original typed input or current-name
+activated voice: "Show skills", "Show me XYZ instruction", "Edit XYZ skill" and
+"Add a skill". Ambiguous names open the filtered source-qualified choices.
+Commands route to the same native workflow; source content is not recursively
+interpreted as a command. A command opening an editor is not completion of an
+edit or an approval.
+
+### Foreground editor voice targeting
+
+**Status: bounded implementation with native clarification/review.** The product owner selected
+foreground editor plus model-interpreted editing intent, with clarification
+when ambiguous. The delivered route requires neither an "in this editor"
+preface nor a separate editor capture mode. This advances the approved
+voice interaction and governed-definition outcomes: while editing an
+instruction, "make this more concise" can refine that draft without entering
+another Active session or starting a conversation. Target admission belongs to
+the host because it crosses window, capture, privacy and session boundaries;
+definition content and models cannot assign that authority.
+The current target-choice surface offers refinement/discussion of the exact
+captured artifact or Cancel. Another artifact/session/New request requires
+cancellation and its explicit admitted route; there is no automatic transfer
+of the held utterance. Spoken target-choice replies and general model-selected
+session relatedness are not delivered by this increment.
+
+An open background editor is not a target. At admitted wake/PTT activation,
+before asynchronous capture or UI dispatch, the host snapshots the eligible
+foreground editor instance, selected source, complete draft revision, selected
+component and original voice channel. Bind the capture generation and current
+ownership/privacy/call admission to that snapshot. Show a visible, accessible
+label such as **Voice context: Instructions / Kora / Writing style** in the
+editor and capture feedback. This is one utterance's routing context, not
+permission to read source bytes, run inference, edit or keep listening. Do not
+recompute its target from whichever window is foreground when recognition ends.
+Internal identities and revisions stay out of normal labels.
+
+The native editor provides **Hold to speak**, including pointer hold and
+Space/Enter hold while the button is focused. It shares the response window's
+push-to-talk gesture and host capture lifecycle, but owns only its own gesture:
+another window closing or losing focus cannot release this capture. The held
+button remains enabled to receive release while capture makes new activation
+unavailable. Blur, deactivation, hiding and closing release its capture;
+presentation loss also retires the original target. No focus exception or
+ambient wake enablement is required to reach the editor route.
+
+#### Input ownership and route selection
+
+| Original input context | Admission and routing |
+|---|---|
+| Dedicated question reply, approval response or literal dictation capture | Its existing exact owner consumes the utterance exclusively. The editor cannot intercept it; text does not become a general command if that owner expires or rejects it. Existing cancellation and safety controls retain their own contracts. |
+| Explicit editor, session, New request or reserved local command, outside dedicated capture | Resolve the explicit target through its existing admitted route, before inferred foreground routing. Opening or naming another artifact retains source-qualified selection and dirty-draft decisions. A conflicting or mixed editor/session request requires clarification, not partial execution. |
+| Foreground editor snapshot and editing/discussion intent | A bounded local, tool-free interpretation proposes **edit this draft**, **discuss this draft**, or **clarify**. The host admits only the original editor snapshot, never a model-selected path or Active session. |
+| Ambiguous editor reference, several possible targets, or an inferred different destination while editor context is present | Hold the utterance privately and ask a target-choice question. Do not send it to a session or create one while waiting. |
+| No editor context, addressing or possible editor reference | Keep the ordinary admitted command/session route. An editor merely remaining open in the background does not change that route. |
+
+Routing interpretation receives only the original text and the minimum
+admitted editor metadata needed to distinguish these intents: kind, displayed
+source/name, selected component and read-only/availability state. It receives
+no definition bodies, other sessions' messages, hidden drafts, tool results or
+capability catalogue. Even this local inference requires ordinary model
+admission and an explicit review of the exact text/metadata disclosure; capture
+or focus alone is not disclosure consent. Preserve the recognized text and
+voice origin; interpretation is not an LLM transcript-cleanup stage.
+
+The model returns a bounded typed proposal against host-issued candidate
+references. The host checks the original target, lifecycle and revisions before
+acting. Model confidence is not authority; malformed, unresolved or unavailable
+interpretation has an explicit outcome and a native recovery path. No generic
+session-routing retry follows a rejected editor proposal. Local inference
+failure never selects a hosted model.
+
+Clarification offers only actual eligible, source-qualified targets, with
+**Cancel**. The delivered choices are the captured artifact's refinement or
+discussion; separate explicit routes select another destination. A later
+cross-target chooser may include **New request** or sessions only when relevant.
+For example: **Did you mean this instruction, or a session request?** A future admitted spoken answer must belong to this exact question and original
+utterance, not a fresh command. Choice expiry, cancellation or invalidation discards the pending
+handoff. Selecting a different destination is a new explicit routing decision,
+not replay through the global parser. It preserves the original voice channel
+and uses that destination's ordinary review/admission; choosing an editor does
+not itself approve disclosure or an edit. No choice may silently substitute a
+different source after the original becomes stale.
+
+#### Complete editing interaction
+
+1. The user activates voice with one eligible Customizations editor foreground
+   and says, for example, "make the error-handling section clearer". Kora shows
+   the captured artifact context and the exact recognized request.
+2. Route interpretation or a target-choice answer resolves the original editor.
+   The editor's request field receives the request through a revision-checked
+   handoff, not literal insertion into the component text. The user can correct
+   it using native text input. "Type this text" requires a separately qualified
+   literal-dictation route; it cannot silently become model refinement.
+3. **Review model authoring disclosure** shows the exact request, complete
+   supplied draft files and local destination. This is separate from the
+   metadata-only routing review. Reuse the existing one-turn, tool-free local
+   authoring service; it can explain or return a complete bounded file-set
+   proposal, including component additions, edits, renames and removals.
+   Selected-component context is explicit, but does not hide the rest of the
+   supplied package or grant access to other files. Carry the captured component
+   and resolved edit/discussion mode into that authoring turn as separately
+   reviewed context, without rewriting the recognized request. Discussion mode
+   requires unchanged files even when the original utterance uses edit wording.
+4. **Review proposed draft** shows every changed component and complete
+   before/after content. **Use proposed draft** changes only the working draft.
+   Discussion leaves files unchanged; neither output nor spoken assent is
+   automatically a save or approval.
+5. **Review and save** applies the existing exact-source transaction and
+   conflict/recovery contract. Changed content is saved disabled. **Allow Kora
+   use** remains a separate current-revision decision, not part of generation.
+
+Subsequent "also remove the old example" turns bind anew to the current draft.
+Do not search other conversations or infer a hidden previous proposal to
+resolve "it" or "that version"; clarify if the currently displayed context is
+insufficient. Built-ins remain read-only and offer a separately chosen Kora
+copy, never automatic copying or mutation. Disabled drafts retain the existing
+explicit authoring-only disclosure exception and stay excluded from runtime
+context/options/capabilities. MCP source edits never connect, authenticate,
+start a server or invoke its tools.
+
+#### Retirement, privacy and implementation evidence
+
+Focus leaving the editor's admitted native presentation, source/draft/component
+or request edits, selection changes, closure, privacy/ownership/call revocation
+and capture replacement retire the original routing snapshot. Returning focus
+or selecting the same source again does not revive it. Host-opened disclosure,
+target-choice and proposal windows require an explicit ownership handoff;
+their expected activation is not permission to rebind to another window.
+Intentional request/draft updates advance the bound revision through that same
+checked handoff rather than invalidating themselves.
+
+After editor intent is selected, stale/rejected/unavailable/cancelled work is
+terminal for that utterance: it must never answer another pending question,
+append to another session, create a New request, execute a command or retry a
+different model. Late or duplicate recognition/model/choice callbacks cannot
+apply text or revive a retired target. Keep owned capture/inference resources
+until actual quiescence. Ordinary cancellation preserves independent native
+draft edits; privacy retirement clears private controls, request/choice/review
+bodies and pending model output under the existing editor privacy contract.
+Audio, transcripts, definition text and model output remain excluded from
+diagnostics/audit. This adds no saved conversation or transcript history.
+
+The implementation boundary requires deterministic regressions for activation-time binding
+versus final-result focus; background and competing sessions; exclusive
+question/dictation capture; explicit addressing and ambiguous/mixed intent;
+source-qualified duplicate names; draft/component/source/focus ABA changes;
+owned modal handoffs; built-in and disabled sources; model/recognition failure;
+privacy/call revocation; late and duplicate callbacks; and cancellation with
+delayed resource release. Assert forbidden effects as well as outcomes:
+unresolved or stale editor speech produces zero conversation submissions,
+conversation-session creation, component mutation, source writes, enablement or tool calls.
+Accepted refinement changes the draft only after proposal acceptance; save and
+use control retain separate reviews. Fakes qualify these boundaries, not real
+acoustic/provider readiness.
+
+The [speech admission contract](Speech_Input.md#editor-targeted-text-admission)
+and [session routing exception](Interaction_And_Sessions.md#editor-targeting-precedence)
+must preserve this exclusive ownership. Native text editing and the delivered
+exact customization commands remain available when the selected speech/model
+profile is unavailable. [Application routing regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.Customizations.cs)
+and [native review regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.cs)
+exercise the bounded implementation without qualifying real audio or models.
+
+### Persisted exclusion from Kora use
+
+Every artifact, including an immutable built-in and an MCP server, has a
+persisted Kora use-disable state. This is Kora's device-local control state,
+separate from roaming content and from VS Code/Copilot's own settings. Disabling
+does not mutate the original definition, stop unrelated tools, unregister a
+source or delete content. Disabled entries remain inspectable and editable where
+source access permits.
+
+Disabled artifacts must be excluded from new model context, instruction
+applicability, completion/selection options, advertised capabilities and new
+invocation admission. Enforce this at the common catalogue and at independent
+selected-source agent/skill/MCP admission seams, not only in the window.
+The product owner separately approved an explicit authoring-only exception:
+an original-user **Ask Kora to edit this** request may disclose a disabled draft
+only after a complete source/request/locality review. This is inert authoring
+input, never capability activation; runtime use stays disabled.
+Revalidate before model disclosure or tool execution; pending reviews cannot
+re-enable a disabled artifact. Enabling removes only Kora's exclusion: it does
+not approve changed bytes, resolve missing dependencies, grant tools, authenticate
+an MCP account, start a process or qualify a runtime. Missing/corrupt/unconfirmed
+control state fails closed and is reported.
+
+### Reviewed transactions for User package originals
+
+The product owner explicitly selected recoverable multi-file writes to User
+originals on 2026-10-24 rather than a mandatory Kora-copy-only restriction.
+Single-file saves retain the existing optimistic conflict contract. A package
+transaction must retain its exact complete base, stage and validate every
+proposed component, and compare original identity/membership/bytes immediately
+before publication. Its exact-change review warns that external consumers such
+as VS Code may observe intermediate files; never present sequential publication
+as an atomic package replacement.
+
+Interrupted or uncertain transactions remain recovery-required and unavailable
+to Kora until explicitly reconciled. Recovery itself is reviewed, bounded to the
+original source and complete file set, and cannot overwrite a subsequent external
+edit without another conflict decision. Backup/staging content is definition
+data, private and transient, never diagnostics/audit content. Clean temporary
+data after confirmed publication/recovery; never silently roll back, claim no
+effect after cancellation, or release ownership while publication is active.
+This decision does not relax reparse/hardlink/parent-owner checks, private
+presentation, source consent, audit or per-file protected-target restrictions.
 
 Provide a native **Definitions** surface reachable from the tray and workspace,
 with kind/source/state filters. The existing Skills view can remain a focused

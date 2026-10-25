@@ -380,7 +380,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
         ArtifactFileDocument Document, string CanonicalFileName);
     internal sealed record WriteResult(bool Published, bool Deleted, bool Conflict, Snapshot? Current, bool Unchanged = false);
 
-    private sealed class Pinned : IDisposable
+    internal sealed class Pinned : IDisposable
     {
         private readonly List<SafeFileHandle> handles = [];
         internal SafeFileHandle Last => handles[^1];

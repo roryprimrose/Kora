@@ -15,6 +15,45 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ComplexModelAnswerOffersItsExactFullSourceWhileCompactUiAndSpeechUseTheBrief(bool decline)
+    {
+        var f = new Fixture();
+        f.Probe.Status = new Kora.Core.Dependencies.DependencyStatus("local.inference", "Local inference",
+            Kora.Core.Dependencies.DependencyReadiness.Ready, "Synthetic ready provider");
+        const string full = "Brief response:\nThe plan has two stages.\n\nDetailed response:\n# Full plan\n\n```mermaid\ngraph TD\n A-->B\n```";
+        f.Reasoner.Response = new(full, null);
+        await f.ViewModel.InitializeAsync();
+        var native = new ResponsePresenter(f.ViewModel);
+        f.ViewModel.BindCurrentResponsePresentation(native);
+        await f.RunAsync("prepare a detailed plan");
+        await f.ViewModel.ActiveReasoningTask!;
+        f.ViewModel.ResponseBody.Should().Contain("The plan has two stages.").And.Contain(AnswerPresentation.Offer)
+            .And.NotContain("graph TD");
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue();
+        f.ViewModel.WorkspaceSurfaceRequested += _ => Task.CompletedTask;
+        await f.RunAsync("hide details");
+        f.ViewModel.IsDetailsOfferPending.Should().BeTrue("navigation is not acceptance or source replacement");
+        if (decline)
+        {
+            f.ViewModel.DeclineCurrentDetailsOffer();
+            f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
+            native.Calls.Should().Be(0);
+            await f.RunAsync("open current response details");
+        }
+        else { await f.RunAsync("show me the detailed results"); }
+        native.Content!.Source.Should().Be(full);
+        native.Calls.Should().Be(1);
+        f.Reasoner.Requests.Should().ContainSingle();
+        await f.RunAsync("what version are you running");
+        f.ViewModel.IsDetailsOfferPending.Should().BeFalse("an unrelated ordinary response must retire the old offer");
+        f.ViewModel.RetireCurrentResponseSpeech();
+        f.ViewModel.IsDetailsOfferPending.Should().BeFalse();
+        f.ViewModel.DeclineCurrentDetailsOffer();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public void CurrentResponseFailureDiagnosticsRespectEnabledLogging(bool enabled)
     {
         var capture = new Network.EnabledLogger<MainViewModel>();

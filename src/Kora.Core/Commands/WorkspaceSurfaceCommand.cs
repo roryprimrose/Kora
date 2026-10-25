@@ -23,6 +23,12 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
         ("show me the current sessions", WorkspaceSurfaceTarget.Sessions),
         ("expand conversation", WorkspaceSurfaceTarget.Sessions),
         ("collapse conversation", WorkspaceSurfaceTarget.CompactConversation),
+        ("show me the detailed results", WorkspaceSurfaceTarget.Details),
+        ("show detailed results", WorkspaceSurfaceTarget.Details),
+        ("show details", WorkspaceSurfaceTarget.Details),
+        ("hide details", WorkspaceSurfaceTarget.HideDetails),
+        ("show session logs", WorkspaceSurfaceTarget.SessionLogs),
+        ("show session audit", WorkspaceSurfaceTarget.SessionAudit),
     ];
 
     public static IReadOnlyList<string> FixedPhrases { get; } =
@@ -47,6 +53,12 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
             && !normalized.StartsWith("show me the current sessions", StringComparison.Ordinal)
             && !normalized.StartsWith("expand conversation", StringComparison.Ordinal)
             && !normalized.StartsWith("collapse conversation", StringComparison.Ordinal)
+            && !normalized.StartsWith("show me the detailed results", StringComparison.Ordinal)
+            && !normalized.StartsWith("show detailed results", StringComparison.Ordinal)
+            && !normalized.StartsWith("show details", StringComparison.Ordinal)
+            && !normalized.StartsWith("hide details", StringComparison.Ordinal)
+            && !normalized.StartsWith("show session logs", StringComparison.Ordinal)
+            && !normalized.StartsWith("show session audit", StringComparison.Ordinal)
             && !(normalized.StartsWith("select the ", StringComparison.Ordinal)
                 && normalized.Contains(" session", StringComparison.Ordinal)))
         {

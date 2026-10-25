@@ -9,4 +9,6 @@ public enum DetailContentOrigin
     RetrievedWebResult,
     /// <summary>An exact retained original USER record with a separately typed HOST observation, never a model answer.</summary>
     RetainedConversation,
+    /// <summary>Complete separately retained assistant answer; not an approval, original USER or host receipt.</summary>
+    RetainedAssistant,
 }

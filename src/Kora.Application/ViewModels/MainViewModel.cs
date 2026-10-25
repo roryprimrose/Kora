@@ -4479,8 +4479,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             await ExecuteSessionCommandAsync(sessionCommand, initiator,
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
-                    ?? CaptureManualCallInput(initiator == SecurityAuditInitiator.VoiceCommand
-                        ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, CallPolicyRevision)),
+                    ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName),
                 manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision);
             return;

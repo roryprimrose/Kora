@@ -11,6 +11,7 @@ using Kora.Application.ViewModels;
 using Kora.Core.Presentation;
 using Kora.Core.Context;
 using Kora.Controls;
+using Kora.CodeHighlighting;
 
 namespace Kora;
 
@@ -53,7 +54,8 @@ public sealed partial class DetailContentView : UserControl
             : MarkdownDocumentRenderer.CreateControls(result, selectable: false);
         foreach (var control in renderedControls)
         {
-            if (typographyHost is not null && control is TextBlock text
+            var text = control is NativeCodeBlock code ? code.Reader : control as TextBlock;
+            if (typographyHost is not null && text is not null
                 && (!result.IsFallback || !ReferenceEquals(control, renderedControls[0])))
             {
                 NativeReaderTypography.Bind(text, typographyHost);
@@ -296,6 +298,7 @@ public sealed partial class DetailContentView : UserControl
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
         reader.Text = string.Empty;
+        foreach (var code in renderedDocument.Children.OfType<NativeCodeBlock>()) { code.Retire(); }
         renderedDocument.Children.Clear();
         search.Text = string.Empty;
         findSpan.Text = null;

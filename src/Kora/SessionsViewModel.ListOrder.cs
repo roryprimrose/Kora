@@ -9,6 +9,7 @@ internal sealed partial class SessionsViewModel
     private SessionListPageOrder listPageOrder;
     private ImmutableArray<SessionWorkspaceEntry> orderedListPage = [];
     private long listPageControlRevision;
+    private long listPageOrderRevision;
 
     public IReadOnlyList<SessionListPageOrder> ListPageOrders { get; } = Enum.GetValues<SessionListPageOrder>();
     public string ListPageOrderScope => "Order this loaded session page only: paged metadata search (including empty-text Browse), "
@@ -29,6 +30,7 @@ internal sealed partial class SessionsViewModel
                 var projection = SessionListPageOrdering.Apply(listSearch!.Records, value);
                 orderedListPage = projection;
                 listPageOrder = value;
+                listPageOrderRevision++;
                 status = "Loaded session metadata page order changed only. Exact selection and unsaved buffers retained; no read or action.";
             }
             catch (InvalidDataException exception)

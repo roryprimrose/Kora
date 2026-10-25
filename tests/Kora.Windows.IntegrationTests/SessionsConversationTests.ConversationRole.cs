@@ -44,8 +44,10 @@ public sealed partial class SessionsConversationTests
                 var roles = workspace.FindControl<ComboBox>("ConversationRole")!;
                 var sharedRoles = compact.FindControl<ComboBox>("ConversationRole")!;
                 roles.ItemsSource!.Cast<ConversationSearchRole>().Should().Equal(
-                    ConversationSearchRole.All, ConversationSearchRole.USER, ConversationSearchRole.HOST);
-                AutomationProperties.GetName(roles).Should().Contain("USER original body only").And.Contain("HOST outcome");
+                    ConversationSearchRole.All, ConversationSearchRole.USER, ConversationSearchRole.HOST,
+                    ConversationSearchRole.ASSISTANT);
+                AutomationProperties.GetName(roles).Should().Contain("USER original body only").And.Contain("HOST outcome")
+                    .And.Contain("ASSISTANT retained answer body only");
                 AutomationProperties.GetName(sharedRoles).Should().Contain("Shared").And.Contain("editing does not read");
                 roles.Focusable.Should().BeTrue();
                 sharedRoles.Focusable.Should().BeTrue();

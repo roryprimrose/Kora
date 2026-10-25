@@ -4,6 +4,7 @@ using Avalonia.Interactivity;
 using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
@@ -47,9 +48,19 @@ public sealed partial class SessionsConversationTests
                 model.ComposerDirty.Should().BeFalse();
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
-                model.ConversationQuery = "Host version";
+                model.ConversationQuery = "1.0.0";
                 await model.SearchConversationAsync();
-                model.ConversationSearchMessages.Should().BeEmpty("original USER / typed HOST search must not claim assistant-body search");
+                model.ConversationSearchMessages.Should().BeEmpty("All searches original USER / typed HOST fields and must not claim assistant-body search");
+                model.ConversationRole = ConversationSearchRole.USER;
+                await model.SearchConversationAsync();
+                model.ConversationSearchMessages.Should().BeEmpty("USER search must not claim assistant-body search");
+                model.ConversationRole = ConversationSearchRole.HOST;
+                await model.SearchConversationAsync();
+                model.ConversationSearchMessages.Should().BeEmpty("typed HOST search must not claim assistant-body search");
+                model.ConversationRole = ConversationSearchRole.ASSISTANT;
+                await model.SearchConversationAsync();
+                model.ConversationSearchMessages.Should().ContainSingle("only explicit ASSISTANT search reads the retained answer body")
+                    .Which.AssistantResponse!.Body.Should().Be("Host version: 1.0.0");
                 window.ClosePrivate();
                 model.ConversationMessages.Should().BeEmpty("private closure retires the immediate terminal projection as well as pages");
             }

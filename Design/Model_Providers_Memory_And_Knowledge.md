@@ -68,6 +68,27 @@ control point.
 
 ## Hosted Service, Model, and Compute Profile
 
+### Implemented explicit Claude text operation
+
+The separately governed [native Claude Messages profile](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24)
+uses independent deployment/account-use terms/cost approval, private native
+volatile credential entry and a host-issued binding to the actual credential
+and workspace. Models authenticates that credential, not a claimed Console
+identity. The shipped approval source remains unavailable; deterministic tests
+are not provider enablement or qualification.
+
+An explicit native Claude submission or the existing typed/activated request
+review and separate confirmation retains the unchanged original USER body and
+channel. Ordinary/default/local-only reviewed-source routes do not acquire
+Claude authority. This first stateless text-only profile includes no tools,
+files, history, attachments, memory or other source instructions.
+Every content-bearing physical POST, including Count Tokens, requires a new
+private native complete-final-byte disclosure and affirmative one-send consent.
+A genuine bounded final answer is retained as ASSISTANT data; denial/failure
+retains a truthful terminal, never a substitute answer. Cancellation joins
+actual outstanding work and cannot retract transmitted bytes.
+See [Claude requests](../docs/claude-requests.md) for the complete interaction.
+
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each has its own adapter,
 authentication/account state, terms and usage boundary, capability catalogue,

@@ -237,11 +237,14 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Memory.MemoryManagementService>(), attachmentWindow,
                 Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>(),
                 Services.GetRequiredService<SessionConversationService>(),
-                Services.GetRequiredService<ScopedInstructionUseBroker>());
+                Services.GetRequiredService<ScopedInstructionUseBroker>(),
+                Services.GetRequiredService<SessionInstructionScopeCommandService>(),
+                Services.GetRequiredService<SessionInstructionScopeBroker>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
                     () => sessionsWindow.OpenNewRequest?.Invoke());
+            responseWindow.PrepareDetailsHost = sessionsWindow.PrepareDetailsHost;
             viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
                 sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),

@@ -86,6 +86,14 @@ unavailable, as explicitly scoped by the product owner. This does not qualify pr
 installed accessibility or physical display behavior. See
 [design and evidence](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25).
 
+The later [integrated session content-pane decision](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+is implemented for bounded passive native-text/Markdown, original/assistant
+conversation records, selected activity, ordinary current responses and fixed
+local-UI session log/audit queries. Brief/full-answer presentation and explicit
+native/activated-command offers preserve complete sources without another model
+call. This does not enable general result routing, Mermaid, static HTML or
+embedded browsing; standalone documentation and specialized previews remain.
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
@@ -658,6 +666,23 @@ New copies remain disabled until independent current-run explicit-use review; no
 Maintained codec/workflow, private native SQLite/audit composition, native editor and store regressions consume the production path for this bounded recovery feature.
 They do not replace unique RT1/RT2/PV1, offline inference, containment, hardware, installed/native accessibility or storage evidence. No experiments are modified or retired.
 Profile-original publication remains explicitly deferred; template/skill/agent runtime, refinement and expanded applicability gates are unchanged.
+
+### R10 retained playback-volume suggestion increment
+
+The bounded implementation accepts one exact retained successful assistant
+`set speech.playback-volume to <canonical integer 0-100>` answer as inert data.
+Expanded/compact Sessions and pinned typed/current-name activated review routes
+require separate fresh confirmation within 60 seconds through the existing
+admitted volume writer. Source/session/channel/privacy/call/preference changes
+invalidate the review; voice origin cannot be laundered through UI confirmation.
+See the [owning setting contract](User_Configuration.md#retained-model-playback-volume-suggestion).
+
+This is implementation of an approved registered-setting proposal, not broader
+R10 completion, model execution authority, provider/audio enablement or physical
+qualification. Unavailable runtime/adapter paths remain unavailable; no retired,
+hardware, provider, acoustic or installed experiments are required or changed.
+Hosted protected candidate validation retains the full Windows/coverage/installer
+gates independently of focused deterministic implementation checks.
 
 ### R13 selected pending cancellation increment - 2026-10-12
 

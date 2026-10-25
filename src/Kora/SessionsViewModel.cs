@@ -39,7 +39,11 @@ internal sealed partial class SessionsViewModel(
         Task<Kora.Application.Configuration.SpeechSummarySuggestionReview>>? reviewSpeechSummarySuggestion = null,
     Func<Kora.Application.Configuration.SpeechSummarySuggestionReview, CancellationToken,
         Task<Kora.Application.Configuration.SpeechApplyResult>>? confirmSpeechSummarySuggestion = null,
-    SessionAnswerReadWorkflow? answerReads = null) : ObservableObject
+    SessionAnswerReadWorkflow? answerReads = null,
+    Func<Kora.Core.Conversation.ConversationMessage, Func<bool>, Func<CancellationToken, Task>, CancellationToken,
+        Task<Kora.Application.Configuration.PlaybackVolumeSuggestionReview>>? reviewPlaybackVolumeSuggestion = null,
+    Func<Kora.Application.Configuration.PlaybackVolumeSuggestionReview, CancellationToken, Task<bool>>?
+        confirmPlaybackVolumeSuggestion = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();
@@ -226,6 +230,7 @@ internal sealed partial class SessionsViewModel(
             throw new OperationCanceledException("The selected history receipt or private presentation changed.");
         }
         status = present(content);
+        RememberSelectedDetail(DetailPart.History, record.Id);
     }, passive: true);
     public bool CanHistory => CanRead && Guid.TryParseExact(historySessionId, "D", out var id) && id != Guid.Empty;
     public bool CanNextHistory => CanHistory && history?.Next is not null;
@@ -718,6 +723,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearEvidenceDetails();
         ClearConversation();
         ClearProviderReview();
         attachments?.Close();
@@ -756,6 +762,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        detailSelections.Clear();
         ClearUnsent();
         composerBody = string.Empty;
         RevokeListSearchPresentation();

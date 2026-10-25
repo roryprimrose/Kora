@@ -82,6 +82,34 @@ supplies context, not a lock for unrelated general voice requests. Today use
 the explicitly addressed composer or the existing fresh-target **New conversation**
 workflow; expansion does not add model availability or permissions.
 
+### Details beside the conversation
+
+After explicitly reading a conversation or selecting an activity receipt, use
+**Message details**, **Open full detailed answer** or **Activity details**.
+The expanded window opens a Details pane beside the conversation and composer;
+it does not open another session-result window or repeat the task.
+Each message link opens that exact original or answer, including earlier results.
+
+Drag the divider to resize both panes. **Hide details** or the reader's Escape
+closes the content, not the conversation or unsent text. **Show details** restores
+the last explicitly chosen available item after fresh admission, or offers a
+chooser. It is disabled until the selected session has observed available details;
+selecting metadata alone does not read result bodies. Reading positions and the
+split are memory-only. The minimum side-by-side window width is 1040; a smaller
+display work area reports Details unavailable rather than hiding the composer.
+
+**Session logs** and **Session audit** explicitly query only this session through
+the existing read-only Evidence owners. They create separately labelled HOST
+result links, not assistant answers. Up to eight bounded pages stay available on
+the observed page; opening an earlier link does not rerun its query. Source
+revalidation may retire changed, removed, due or unavailable content. Switching
+sessions or privacy retirement clears these evidence pages.
+
+Current-response details also use this pane and name their own source; they are
+labelled as separate from the selected conversation and do not retarget its input.
+Supported Markdown renders natively. Mermaid remains labelled source fallback;
+this change does not enable HTML or browser capabilities.
+
 ### Workspace surface navigation
 
 Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.
@@ -227,6 +255,16 @@ Editing any predicate retires results and requires explicit Search. Generation/r
 Search returns chronological retained messages, not generated summaries. Enter searches; Cancel, Clear or Escape in the query retires search without changing the composer. Changing the exact source or private ownership rejects late results. Opening a view performs no search ([native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.CompactSearch.cs)).
 
 The bounded reader validates original identity, revision and snapshot continuity. Queries use whole lexical words, not executable instructions; results never add model context, resume work or establish execution authority ([reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+### Search retained assistant answers
+
+Select the exact retained Active or Done session. In the existing conversation role selector choose **ASSISTANT**, enter lexical words unchanged and choose **Search this conversation**. **All** still searches only USER/HOST fields; **ASSISTANT** searches only complete saved answer bodies, never provider/provenance metadata or an absent answer's USER/HOST text ([role policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+
+Use **Next conversation matches** for the original bounded snapshot. Each row displays the complete inert saved answer separately from USER and HOST; its existing **Details - exact original USER / separate HOST** action opens the complete record with the ASSISTANT answer shown separately. It does not run, speak or reuse the answer ([shared row](../src/Kora/ConversationPresentation.axaml), [detail action](../src/Kora/SessionsViewModel.Conversation.cs)).
+
+**Cancel conversation search** cancels an in-flight search; **Clear private conversation search** clears query, role, results and continuation. Query/role edits and Next retire match Details; source/privacy loss and close discard late results. Unsent input remains independent. Passive Done search never resumes work or renews retention, and search creates no new persisted content/index or model/provider call ([search lifetime](../src/Kora/SessionsViewModel.ConversationSearch.cs), [restart/native coverage](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs)).
+
+The existing lexical query and complete-page byte bounds apply unchanged. Submitted-date and typed task-state predicates still AND-compose with the selected field role. [Typed/current-name activated voice](commands.md#search-retained-assistant-answers-explicitly) selects the same ASSISTANT role through the exact addressed host route, without implicit session navigation.
 
 ### Exact-session conversation and composer
 

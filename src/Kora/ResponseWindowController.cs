@@ -13,6 +13,7 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
     private ResponseWindow? window;
     private bool disposed;
     private readonly DetailWindowController? details;
+    internal Action? PrepareDetailsHost { get; set; }
 
     internal ResponseWindow PrepareSessions(SessionsViewModel model, SessionsPresentationOwner owner,
         Action management, Action newConversation)
@@ -64,9 +65,13 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         return !current.IsVisible;
     }
 
-    public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted) =>
-        !disposed && window is { IsVisible: true } current && admitted()
-        && details?.OpenCurrentResponse(content, current, admitted) == true;
+    public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
+    {
+        if (disposed || window is not { IsVisible: true } current || !admitted()) { return false; }
+        PrepareDetailsHost?.Invoke();
+        return !disposed && ReferenceEquals(window, current) && admitted()
+            && details?.OpenCurrentResponse(content, current, admitted) == true;
+    }
 
     private void OnCurrentResponseChanged(object? sender, EventArgs eventArgs) =>
         details?.RetireUnavailableCurrentResponses();

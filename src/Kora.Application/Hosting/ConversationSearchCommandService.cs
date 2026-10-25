@@ -82,14 +82,15 @@ public sealed class ConversationSearchCommandService(
             { throw new InvalidOperationException("The original search source, cursor or expiry changed. Start a fresh search."); }
             var query = next ? previous!.Query : command.ConversationQuery
                 ?? throw new ArgumentException("An explicit lexical query is required.", nameof(command));
-            _ = new ConversationSearch(query);
+            var role = next ? previous!.Role : command.ConversationRole;
+            _ = new ConversationSearch(query, role);
             cancellationToken.ThrowIfCancellationRequested();
             if (!Live()) { throw new InvalidOperationException("Search admission changed before reading."); }
             var target = await workspace.ReadExactMetadataAsync(session, cancellationToken).ConfigureAwait(false);
             if (!Live() || target.Authority.SessionId != session || next && target != previous!.Target)
             { throw new InvalidOperationException("The exact retained conversation source changed."); }
             var page = await conversation.SearchAsync(session, query, next ? previous!.Cursor : null,
-                ConversationSearchPage.DefaultRecords, cancellationToken).ConfigureAwait(false);
+                ConversationSearchPage.DefaultRecords, cancellationToken, role).ConfigureAwait(false);
             var current = await workspace.ReadExactMetadataAsync(session, cancellationToken).ConfigureAwait(false);
             cancellationToken.ThrowIfCancellationRequested();
             if (!Live() || current != target || page.Session != target.Authority)
@@ -99,7 +100,7 @@ public sealed class ConversationSearchCommandService(
                 if (!Live()) { throw new InvalidOperationException("Search publication was revoked."); }
                 if (page.Next is { } cursor)
                 {
-                    pending = new(target, query, cursor, origin, control,
+                    pending = new(target, query, role, cursor, origin, control,
                         next ? previous!.ExpiresAt : time.GetUtcNow().AddSeconds(60),
                         next ? previous!.SourceAdmitted : SourceLive, new(activity.Activity!.Context));
                 }
@@ -124,6 +125,6 @@ public sealed class ConversationSearchCommandService(
     }
 
     private sealed record Running(HostId<SessionIdentity> Session, CancellationTokenSource Cancellation);
-    private sealed record Pending(SessionWorkspaceEntry Target, string Query, ConversationSearchCursor Cursor,
+    private sealed record Pending(SessionWorkspaceEntry Target, string Query, ConversationSearchRole Role, ConversationSearchCursor Cursor,
         RequestOrigin Origin, long ControlRevision, DateTimeOffset ExpiresAt, Func<bool> SourceAdmitted, ActivityLink Cause);
 }

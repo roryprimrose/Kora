@@ -39,17 +39,9 @@ public sealed partial class ModelTurnHost : ICopilotTurnAdmission
         return AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, authorization.Context, null, token, authorization);
     }
 
-    private static bool HostedAuthorized(ModelProviderRegistration registration, CopilotTurnAuthorization? authorization,
-        ModelContextEnvelope context, HostActivity issuer) =>
-        registration.Selection.Provider == ModelProviderIdentity.Copilot
-        && registration.Adapter is CopilotModelTurnAdapter copilot && authorization is not null
-        && Volatile.Read(ref authorization.Used) == 1 && ReferenceEquals(authorization.Context, context)
-        && ReferenceEquals(authorization.Issuer.Request, issuer.Request)
-        && copilot.Owns(authorization);
-
     private async ValueTask<bool> HostedCurrentAsync(ModelTurn turn, CancellationToken token)
     {
-        if (turn.Profile is not { Service: ProviderService.Copilot } profile || !turn.IsRunning
+        if (turn.Profile is not { Service: ProviderService.Copilot or ProviderService.Claude } profile || !turn.IsRunning
             || await RevalidateAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
         { return false; }
         // This callback is bound only after configured-profile admission requires both stores.

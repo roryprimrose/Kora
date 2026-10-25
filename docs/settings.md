@@ -910,6 +910,32 @@ refresh. An atomic unconfirmed-write marker keeps ambiguous writes unavailable
 across restart until explicit evidence inspection/repair; refresh cannot silently
 clear it. No automatic retry, test playback or acoustic audibility claim.
 
+#### Review an assistant Kora volume suggestion
+
+An admitted local model can return exactly `set speech.playback-volume to 30`
+(one canonical integer 0-100). The complete retained successful ASSISTANT answer
+is inert data, never permission. Choose **Review Kora volume suggestion...** on
+that exact answer in expanded or compact Sessions. Review displays current
+desired/effective percent, saved/default provenance, proposed percent, shared
+device-local scope and zero-synthesis implications. Review writes nothing and
+never synthesizes or replays the answer.
+
+Choose **Confirm exact Kora volume change** separately within 60 seconds, or
+**Cancel Kora volume review**. Typed/current-name activated routes are
+**review volume suggestion**, **confirm volume change**, **cancel volume review**;
+they use only the exact successful session-submission receipt, never a guessed
+latest answer. Confirmation revalidates source, session, ownership, privacy,
+original channel, call and settings before the existing audited volume writer.
+Voice origin at any stage remains voice-restricted, even when confirmed in UI;
+use genuinely new eligible input rather than laundering a protected-call review.
+
+Cancellation, expiry, source/session/page/settings changes or closing invalidate
+the review. Malformed, mixed, relative, reset, prefixed and commented answers
+are not suggestions for this operation. Unavailable adapters remain unavailable.
+Unconfirmed writes require explicit Settings/audit inspection, never automatic
+retry or a rollback claim. No system/device/call volume or other preference is
+changed. Zero blocks future synthesis; full visual output remains available.
+
 ### Spoken summary limits
 
 Under **Speech & audio**, choose **Maximum sentences (1-3)** and **Maximum

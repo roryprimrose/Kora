@@ -5,4 +5,5 @@ public enum ConversationSearchRole
     All,
     USER,
     HOST,
+    ASSISTANT,
 }

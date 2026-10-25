@@ -257,7 +257,8 @@ public sealed partial class SessionsConversationTests
             CopilotConversationRuntime? copilot = null,
             McpServerConfigurationService? mcpConfiguration = null,
             Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
-            Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null)
+            Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
+            PlaybackVolumeConfigurationService? volume = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -316,7 +317,12 @@ public sealed partial class SessionsConversationTests
                         speechPolicy ?? throw new InvalidOperationException("Test speech policy is required."),
                         f.Time, message, eligible, validate, token),
                 confirmSpeechSummarySuggestion: speech is null ? null : (review, token) => review.ConfirmAsync(token),
-                answerReads: answerPlayback is null ? null : new(workspace, answerPlayback));
+                answerReads: answerPlayback is null ? null : new(workspace, answerPlayback),
+                reviewPlaybackVolumeSuggestion: volume is null ? null : (message, eligible, validate, token) =>
+                    PlaybackVolumeSuggestionReview.ReviewAsync(volume,
+                        speechPolicy ?? throw new InvalidOperationException("Test volume call policy is required."),
+                        f.Time, message, eligible, validate, token),
+                confirmPlaybackVolumeSuggestion: volume is null ? null : (review, token) => review.ConfirmAsync(token));
         }
         internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()

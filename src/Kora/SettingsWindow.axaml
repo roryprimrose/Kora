@@ -1392,6 +1392,8 @@
             <TextBlock Text="{Binding ProviderProfileDraftStatus}" Classes="settings-description" TextWrapping="Wrap" />
             <Button Content="Configure Copilot account (volatile token)" Click="OnCopilotAccountClicked"
                     IsEnabled="{Binding CanChangeProviderProfile}" />
+            <Button Content="Configure Claude account (volatile API credential)" Click="OnClaudeAccountClicked"
+                    IsEnabled="{Binding CanChangeProviderProfile}" />
             <ComboBox ItemsSource="{Binding ProviderProfileModels}" SelectedItem="{Binding SelectedProviderProfileModel}"
                       DisplayMemberBinding="{Binding Label}" IsEnabled="{Binding CanChangeProviderProfile}" AutomationProperties.Name="Model for the selected account" />
             <ComboBox ItemsSource="{Binding ProviderReasoningChoices}" SelectedItem="{Binding SelectedProviderReasoning}"

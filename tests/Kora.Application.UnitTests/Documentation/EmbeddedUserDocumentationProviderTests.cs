@@ -230,7 +230,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
+            "session-instructions",
             "agent-profile-authoring",
+            "claude-requests",
             "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs",
@@ -274,7 +276,12 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 23);
+        sections.Should().HaveCount(commands.Count + 24);
+        var volumeSuggestion = sections.Single(section => section.StartsWith(
+            "Review one retained assistant Kora volume suggestion", StringComparison.Ordinal));
+        foreach (var phrase in PlaybackVolumeSuggestionCommand.FixedPhrases)
+        { volumeSuggestion.Should().Contain("**" + phrase + "**"); }
+        volumeSuggestion.Should().Contain("Review is inert").And.Contain("60 seconds").And.Contain("Original voice");
         sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
             .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
             .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
@@ -450,6 +457,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
             && !ReferenceEquals(section, speechSuggestion)
+            && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)
             && !ReferenceEquals(section, webPage) && !ReferenceEquals(section, conversationSearch)
             && !ReferenceEquals(section, attachment) && !ReferenceEquals(section, newRequest)).ToArray();

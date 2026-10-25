@@ -78,6 +78,9 @@ Missing/revoked/disposed presenters and stale original host, privacy, ownership 
 | `open compact conversation`, `collapse conversation` | Original compact interaction in the primary response window; shared session selection/input remain intact |
 | `open sessions`, `show sessions`, `show me the current sessions`, `expand conversation` | Expand that same window into a bounded session list and selected conversation/activity |
 | `select the top session`, `select the first session`, `select the third session`, `select the last session` | Select one exact row from the displayed session page; first through twenty-fifth supported |
+| `show me the detailed results`, `show detailed results`, `show details` | Accept the exact current-response details offer, or open the selected session's eligible last detail / native chooser |
+| `hide details` | Hide Details without closing the conversation or discarding input |
+| `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
 These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
@@ -100,6 +103,16 @@ in both modes. See [expanded interaction](windows-and-tray.md#expand-and-collaps
 Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
+
+Details reuse the expanded window with a resizable persistent conversation beside
+the reader. Exact message/result links never substitute the newest result or run
+the task again. With no eligible selected-session details, Show is disabled and
+the command explains recovery. Log/audit commands require original local UI
+ownership; activated voice is refused, not relabelled as UI. Result links recheck
+their original sources; they do not broaden session scope, replay a query or grant
+clipboard/model/approval authority.
+See [Details controls](windows-and-tray.md#details-beside-the-conversation)
+and [brief/full answers](responses-and-calls.md#brief-answers-and-full-details).
 
 ## Focus the exact pending native question
 
@@ -1001,6 +1014,23 @@ Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/C
 Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
 Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
+#### Search retained assistant answers explicitly
+
+Add `--role ASSISTANT` before the unchanged query separator to search only complete retained `AssistantResponse.Body` text. Omitting the role keeps **All** compatibility: original USER bodies and typed HOST fields only. Named `All`, `USER` and `HOST` roles are also accepted; unknown or numeric roles refuse rather than default ([grammar](../src/Kora.Core/Commands/SessionCommand.ConversationSearch.cs), [field policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+
+```text
+conversation search <session-id> --role ASSISTANT -- <verbatim query>
+Nova, conversation search abcdef12-1234-1234-1234-123456789012 --role ASSISTANT -- café
+conversation search next <session-id>
+conversation search cancel <session-id>
+```
+
+The voice example assumes the current assistant name is **Nova**. Typed/current-name activated voice uses the same exact-session host route. Next keeps the original query, role, source and nonrenewing 60-second expiry; it accepts no replacement role or caller cursor. Cancel releases the host-held continuation and cancels an in-flight read ([command service](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs)).
+
+Results contain complete unchanged inert retained answers, not new generation or implicit model context. Missing assistant output does not fall back to USER/HOST text. Active/Done read admission, full-record validation, complete serialized page bounds and source/privacy revocation still apply. Search neither renews retention nor creates an index, persistence, provider call or replay ([search owner](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+For Search/Next, complete answer inspection and Cancel/Clear in the existing role selector, see [native assistant search](windows-and-tray.md#search-retained-assistant-answers). Deterministic coverage includes [grammar/role isolation](../tests/Kora.Core.UnitTests/Conversation/AssistantConversationSearchTests.cs), [continuations/budgets/revocation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private restart/native inspection](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs).
+
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.
 They AND-compose with the lexical query and bind the continuation digest; changed
@@ -1178,6 +1208,22 @@ writes refuse. Input is at most 1,024 UTF-8 bytes including the prefix and
 rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#kora-playback-volume) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
+
+### Review one retained assistant Kora volume suggestion
+
+- **review volume suggestion**
+- **confirm volume change**
+- **cancel volume review**
+
+Typed and current-name ACTIVATED routes use the pinned exact successful
+Active-session answer, not latest-message guessing. The entire answer must be
+`set speech.playback-volume to <canonical integer 0-100>`. Review is inert;
+confirmation is separate, fresh and expires after 60 seconds. Expanded/compact
+Sessions offer the same exact-answer review and confirmation. Original voice
+at any stage remains voice-restricted under protected/unknown call policy.
+Source/session/privacy/ownership/channel/call/settings changes retire authority;
+no replay, audio test, other-setting or system/device/call volume mutation.
+See [complete review and recovery](settings.md#review-an-assistant-kora-volume-suggestion).
 
 ### Inspect or change Windows-native speech rate
 

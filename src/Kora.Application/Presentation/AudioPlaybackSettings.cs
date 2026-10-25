@@ -3,6 +3,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Diagnostics;
 using Kora.Core.Auditing;
 using Kora.Core.Configuration;
+using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 using Microsoft.Extensions.Logging;
@@ -81,6 +82,32 @@ public sealed class AudioPlaybackSettings : IDisposable
 
     public void HoldVolumeUnavailable() => volume?.HoldUnavailable();
     public void HoldRateUnavailable() => rate?.HoldUnavailable();
+
+    public Task<PlaybackVolumeSuggestionReview> ReviewVolumeSuggestionAsync(CallCommunicationPolicy policy,
+        TimeProvider time, ConversationMessage message, Func<bool> eligible,
+        Func<CancellationToken, Task> validateSource, CancellationToken token)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (volume is null || IsVolumeControlActive)
+        { throw new InvalidOperationException("Playback volume settings are unavailable or busy."); }
+        return PlaybackVolumeSuggestionReview.ReviewAsync(volume, policy, time, message,
+            () => !disposed && eligible(), validateSource, token);
+    }
+
+    public async Task<bool> ConfirmVolumeSuggestionAsync(PlaybackVolumeSuggestionReview review,
+        SecurityAuditInitiator initiator, CancellationToken token)
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (volume is null || IsVolumeControlActive || !review.BelongsTo(volume))
+        { throw new InvalidOperationException("Playback volume settings are unavailable or busy."); }
+        IsVolumeControlActive = true;
+        try { return await review.ConfirmAsync(token, initiator); }
+        finally
+        {
+            IsVolumeControlActive = false;
+            Synchronize(AudioPlaybackSetting.Volume);
+        }
+    }
 
     public async Task<(bool Saved, string Outcome, PlaybackVolume? PreviousDesired)> ExecuteVolumeAsync(
         PlaybackVolumeCommand command, RequestOrigin origin, SecurityAuditInitiator initiator,

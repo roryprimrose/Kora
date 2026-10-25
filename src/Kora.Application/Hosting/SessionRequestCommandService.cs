@@ -26,13 +26,36 @@ public sealed class SessionRequestCommandService(
         Func<bool> admitted, CancellationToken token)
     {
         SessionConversationService.RequireOriginalSource(origin);
-        var session = new HostId<SessionIdentity>(command.SessionId
-            ?? throw new InvalidOperationException("An exact session ID is required."));
         Pending? previous;
         long attempt;
         lock (gate) { previous = pending; pending = null; attempt = ++epoch; }
         var control = access.ControlRevision;
         bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted();
+        if (command.RequestUsesPendingReview)
+        {
+            if (command.SessionId is not null || command.RequestReviewId is not null
+                || command.Operation is not (SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel)
+                || previous is null)
+            { throw new InvalidOperationException("No single current host-held request review is available. Review an explicit conversation first."); }
+            command = command with
+            { SessionId = previous.Review.Target.Authority.SessionId.Value, RequestReviewId = previous.Review.Id };
+        }
+        if (command.SessionId is null && command.Operation == SessionCommandOperation.RequestReview
+            && (command.RequestActiveTarget || command.RequestTargetName is not null))
+        {
+            using var resolution = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
+            try
+            {
+                var resolved = await ResolveReadableAsync(command, Live, token).ConfigureAwait(false);
+                command = command with
+                { SessionId = resolved.Authority.SessionId.Value, Generation = resolved.Authority.Generation.Value,
+                    MetadataRevision = resolved.Metadata?.Revision.Value ?? 0 };
+                resolution.Complete(HostOperationOutcome.Completed);
+            }
+            catch { resolution.Complete(HostOperationOutcome.Failed); throw; }
+        }
+        var session = new HostId<SessionIdentity>(command.SessionId
+            ?? throw new InvalidOperationException("An exact or unambiguously host-resolved conversation is required."));
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
             HostActivityLayer.Application, HostOperation.Request);
         try
@@ -58,7 +81,7 @@ public sealed class SessionRequestCommandService(
                     pending = new(review, Live, control, new(activity.Activity!.Context));
                 }
                 activity.Complete(HostOperationOutcome.Completed);
-                return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately using the exact session and review IDs; no content is retained or dispatched yet. Copilot additionally requires separate native approval of each final physical send.")
+                return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
             }
             if (previous is null || previous.Review.Id != command.RequestReviewId
@@ -93,7 +116,10 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
+                receipt = previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
+                    ? await conversation.SubmitReviewedClaudeAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
+                        Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
+                    : previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
                     ? await conversation.SubmitReviewedCopilotAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
                         Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
                     : await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
@@ -119,6 +145,39 @@ public sealed class SessionRequestCommandService(
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
+    }
+
+    private async Task<SessionWorkspaceEntry> ResolveReadableAsync(SessionCommand command, Func<bool> live, CancellationToken token)
+    {
+        if (!live() || command.RequestActiveTarget && command.RequestTargetName is not null)
+        { throw new InvalidOperationException("One explicit original conversation selector is required."); }
+        Guid? after = null;
+        var cursors = new HashSet<Guid>();
+        var subjects = new HashSet<Guid>();
+        SessionWorkspaceEntry? match = null;
+        for (var pageNumber = 0; pageNumber < 16; pageNumber++)
+        {
+            var page = await workspace.ReadMetadataAsync(after, SessionPage<SessionWorkspaceEntry>.MaximumRecords, token).ConfigureAwait(false);
+            if (!live()) { throw new InvalidOperationException("Original conversation selection admission changed."); }
+            if (page.Records.IsDefault || page.Records.Length > SessionPage<SessionWorkspaceEntry>.MaximumRecords)
+            { throw new InvalidDataException("Conversation inventory page is incomplete or oversized."); }
+            foreach (var entry in page.Records)
+            {
+                if (!subjects.Add(entry.Authority.SessionId.Value))
+                { throw new InvalidDataException("Conversation inventory repeated a subject."); }
+                if (entry.Authority.IsActive && (command.RequestActiveTarget
+                    || string.Equals(entry.Metadata?.Name.Value, command.RequestTargetName!.Value, StringComparison.Ordinal)))
+                {
+                    if (match is not null) { throw new InvalidOperationException("Conversation selection is ambiguous. Choose an exact unique readable name in Sessions."); }
+                    match = entry;
+                }
+            }
+            if (page.Next is null)
+            { return match ?? throw new InvalidOperationException("No matching current Active conversation is available. Refresh Sessions."); }
+            if (!cursors.Add(page.Next.Value)) { throw new InvalidDataException("Conversation inventory cursor repeated."); }
+            after = page.Next;
+        }
+        throw new InvalidOperationException("Conversation inventory exceeds the bounded complete resolution limit. Use native Sessions to choose the exact conversation.");
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause);

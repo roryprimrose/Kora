@@ -138,7 +138,7 @@ internal sealed partial class SessionsWindowController(
         }
         await ShowInteractionAsync(true, Current);
         if (!Current() || interaction is null) { return; }
-        if (target == WorkspaceSurfaceTarget.HideDetails) { interaction.SessionView.HideDetails(); }
+        if (target == WorkspaceSurfaceTarget.HideDetails) { interaction.SessionView.HideDetailsAndRestoreFocus(); }
         else if (target is WorkspaceSurfaceTarget.SessionLogs or WorkspaceSurfaceTarget.SessionAudit)
         {
             await state!.ReadEvidenceDetailsAsync(target == WorkspaceSurfaceTarget.SessionLogs

@@ -1,4 +1,3 @@
-using System.Globalization;
 using System.Diagnostics;
 
 using Kora.Application.Communication;
@@ -8,20 +7,13 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Configuration.RegisteredSettings;
 
 namespace Kora.Application.Configuration;
 
 /// <summary>One memory-only review of inert retained answer data, never model approval authority.</summary>
 public sealed class SpeechSummarySuggestionReview : IDisposable
 {
-    public static string ModelPolicy =>
-        "For a requested future ordinary spoken-response limit suggestion only, the entire final answer may instead be "
-        + $"one inert suggestion: 'set speech.summary-words to <integer>' (1-{SpokenSummaryLimits.MaximumWords}) or "
-        + $"'set speech.summary-sentences to <integer>' (1-{SpokenSummaryLimits.MaximumSentences}). Use canonical decimal digits. "
-        + "For this speech-limit suggestion, no other speech setting, reset, batch or command is admitted. Nothing is applied or spoken. "
-        + "The original user must review the complete current/proposed shared device-local limits and separately confirm; "
-        + "the current answer is never truncated, regenerated or replayed.";
-
     private readonly SpeechConfigurationService configuration;
     private readonly CallCommunicationPolicy policy;
     private readonly TimeProvider time;
@@ -85,17 +77,13 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded
             || message.AssistantResponse is not { } answer)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
-        var command = SpeechCommand.Parse(answer.Body, AssistantNameRules.DefaultName);
-        if (command is not { Operation: AppearanceCommandOperation.Set, Descriptor.IsSummaryLimit: true, Value: not null }
-            || !string.Equals(answer.Body.Trim(), $"set {command.Descriptor.Id} to {command.Value}", StringComparison.OrdinalIgnoreCase))
+        if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Summary proposal)
         { throw new InvalidDataException("Request one exact speech.summary-words or speech.summary-sentences Set suggestion only."); }
+        var optionDescriptor = SpeechOptionRegistry.Get(proposal.Option);
         var state = configuration.Get();
         var limits = state.SummaryLimits
             ?? throw new InvalidOperationException("Repair unreadable saved summary limits and refresh; the companion cap cannot be defaulted.");
-        var next = limits.With(command.Descriptor.Option, command.Value);
-        var number = command.Descriptor.Option == SpeechOption.SummaryWords ? next.Words : next.Sentences;
-        if (!string.Equals(command.Value, number.ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal))
-        { throw new InvalidDataException("A speech limit suggestion requires one canonical decimal integer."); }
+        var next = limits.With(proposal.Option, proposal.Value);
         token.ThrowIfCancellationRequested();
         if (!eligible()) { throw new InvalidOperationException("The original speech limit source is no longer eligible."); }
         await validateSource(token).ConfigureAwait(false);
@@ -105,7 +93,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         var origin = message.Request.Origin == RequestOrigin.ActivatedVoice ? message.Request.Origin : request.Origin;
         if (policy.CheckMutation(origin, observedCall, eligible) is not null)
         { throw new InvalidOperationException("The original channel or call policy denies this speech limit review. Start a genuinely new eligible input."); }
-        return new(configuration, policy, time, state, command.Descriptor, command.Value, next,
+        return new(configuration, policy, time, state, optionDescriptor, proposal.Value, next,
             request, origin, observedCall, eligible, validateSource, message.Execution!);
     }
 
@@ -113,7 +101,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
     {
         var request = RequireInput(reviewRequest.SessionId);
-        if (request.RequestId == reviewRequest.RequestId || initiator is not
+        if (request.RequestId == reviewRequest.RequestId || request.RequestId == source.Request.RequestId || initiator is not
             (SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand))
         { throw new InvalidOperationException("Confirmation requires separate fresh original-user input."); }
         Func<CancellationToken, Task> validate;
@@ -128,7 +116,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
         activity.Activity.SetTag("kora.source.request.id", source.Request.RequestId.Value);
         activity.Activity.SetTag("kora.source.task.id", source.Request.TaskId.Value);
         activity.Activity.SetTag("kora.source.turn.id", source.Turn.Value);
-        activity.Activity.SetTag("kora.source.origin", sourceOrigin.ToString());
+        activity.Activity.SetTag("kora.source.origin", source.Request.Origin.ToString());
         try
         {
             token.ThrowIfCancellationRequested();
@@ -165,7 +153,7 @@ public sealed class SpeechSummarySuggestionReview : IDisposable
     private static HostRequest RequireInput(HostId<SessionIdentity> session)
     {
         var activity = HostActivity.RequireCurrent();
-        if (activity.Outcome != HostOperationOutcome.Unknown
+        if (activity.Activity!.IsStopped || activity.Outcome != HostOperationOutcome.Unknown
             || activity.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || activity.Request.SessionId != session || activity.Request.InvocationId is not null)
         { throw new InvalidOperationException("Speech limit review requires live original-user input in the exact session."); }

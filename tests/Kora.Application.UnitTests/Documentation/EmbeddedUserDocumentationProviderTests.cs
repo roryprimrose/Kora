@@ -13,6 +13,25 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void AdaptiveInteractionGuideSeparatesPresentedPageNavigationFromMatchingAndApproval()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var windows = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        windows.Should().Contain("### Expand and collapse the interaction window")
+            .And.Contain("select the third session")
+            .And.Contain("Positions count from the top")
+            .And.Contain("read-only, never live answer or approval buttons")
+            .And.Contain("Automatic current/other/new conversation matching is not available yet")
+            .And.Contain("selection")
+            .And.Contain("supplies context, not a lock");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("show me the current sessions")
+            .And.Contain("collapse conversation")
+            .And.Contain("out-of-range positions refuse")
+            .And.Contain("model-visible session-list context remain unavailable");
+    }
+
+    [Fact]
     public void SpeechSuggestionGuideExplainsCompleteReviewSeparateConfirmationAndOriginalVoice()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -181,7 +200,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "agent-profile-authoring",
             "owned-skill-authoring",
             "hosted-requests",
-            "independent-agent-runs");
+            "independent-agent-runs",
+            "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));

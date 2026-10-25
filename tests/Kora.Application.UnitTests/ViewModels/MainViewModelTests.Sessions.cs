@@ -12,13 +12,22 @@ public sealed partial class MainViewModelTests
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.ViewModel.ShowSessions();
         var opens = 0;
+        var navigations = 0;
         fixture.ViewModel.SessionsRequested += (_, _) => opens++;
+        fixture.ViewModel.WorkspaceSurfaceRequested += request =>
+        {
+            request.Target.Should().Be(Kora.Core.Commands.WorkspaceSurfaceTarget.Sessions);
+            request.IsAdmitted().Should().BeTrue();
+            navigations++;
+            return Task.CompletedTask;
+        };
         fixture.ViewModel.CommandText = command;
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
-        opens.Should().Be(1);
+        opens.Should().Be(0);
+        navigations.Should().Be(1);
         fixture.Reasoner.Requests.Should().BeEmpty();
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.ShowSessions();
-        opens.Should().Be(2);
+        opens.Should().Be(1);
     }
 }

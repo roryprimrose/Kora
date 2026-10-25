@@ -4538,7 +4538,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
-            () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision, editorTarget));
+            () => RouteTranscriptAsync(spokenText, confidence, initiator, speechRevision, editorTarget, manualInput));
     }
 
     internal static bool IsDurableVersionQueryEligible(
@@ -4560,7 +4560,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         string spokenText,
         float confidence,
         SecurityAuditInitiator initiator,
-        long speechRevision, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null)
+        long speechRevision, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
+        ManualCallInput? originalInput = null)
     {
         if (InputDeviceCommand.Parse(spokenText, AssistantName) is { } inputCommand)
         {
@@ -4758,6 +4759,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         if (!match.IsMatch || match.Command is null)
         {
+            if (await TryRouteSessionRequestAsync(spokenText, initiator, originalInput)) { return; }
             await HandleUnmatchedRequestAsync(spokenText, initiator);
             return;
         }

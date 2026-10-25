@@ -236,11 +236,24 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs",
+            "session-routing",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
         provider.GetStartPage().Should().Be(first[0]);
+    }
+
+    [Fact]
+    public void RoutingGuideRequiresExactReviewCorrectionAndTruthfulUnqualifiedNewFallback()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "session-routing", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Review this destination**").And.Contain("**Correct destination**")
+            .And.Contain("Production relatedness inference is currently **unqualified**")
+            .And.Contain("one page of 50").And.Contain("does not add hands-free routing replies")
+            .And.Contain("grants, provider state, history, sources and permissions are not moved")
+            .And.Contain("separate audited").And.Contain("no automatic fallback after denial");
     }
 
     [Fact]

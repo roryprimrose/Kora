@@ -19,7 +19,8 @@ internal sealed partial class SessionsWindowController(
     DetailWindowController? details = null, Kora.Application.Memory.MemoryManagementService? memories = null,
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
-    SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null) : IDisposable, ISessionDispositionReviewPresenter,
+    SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null,
+    SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -32,6 +33,7 @@ internal sealed partial class SessionsWindowController(
     private long dispositionOwnerEpoch;
     private int dispositionOwnerOpen;
     private int compactAnswerReadOpen;
+    private SessionInstructionScopeController? instructionScopes;
     internal Func<SessionsViewModel, SessionsPresentationOwner, ResponseWindow>? CreateInteraction { get; set; }
     internal Task InteractionOperation { get; private set; } = Task.CompletedTask;
 
@@ -156,7 +158,11 @@ internal sealed partial class SessionsWindowController(
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
     internal QuestionWindowController? ConversationQuestions { get; set; }
-    internal Task<bool> PrepareShutdown() => presentation?.PrepareShutdown() ?? Task.FromResult(true);
+    internal async Task<bool> PrepareShutdown()
+    {
+        if (instructionScopes is { } scopes) { await scopes.QuiesceAsync(); }
+        return presentation is { } current ? await current.PrepareShutdown() : true;
+    }
     internal Func<bool> CaptureShutdownEligibility()
     {
         var state = model;
@@ -177,6 +183,13 @@ internal sealed partial class SessionsWindowController(
 
     internal void Bind()
     {
+        if (scopeCommands is not null && scopeBroker is not null)
+        {
+            instructionScopes = new(main.CaptureSessionInstructionScopeEligibility, () => main.CanRevealPrivatePresentation,
+                main.ReportHostInteractionFailure, scopeCommands, scopeBroker,
+                () => model, () => window ?? (Avalonia.Controls.Window?)compact);
+            main.BindSessionInstructionScopes(instructionScopes.ExecuteAsync, instructionScopes.RevokeAll);
+        }
         main.SessionsRequested += OnOpen;
         main.BindSelectedAnswerRead(eligible => !disposed
             && (Volatile.Read(ref dispositionOwnerOpen) != 0 || Volatile.Read(ref compactAnswerReadOpen) != 0)
@@ -389,6 +402,15 @@ internal sealed partial class SessionsWindowController(
             };
         }
         presentation = new(model);
+        model.OpenSessionInstructionScopes = () =>
+        {
+            try
+            {
+                (instructionScopes ?? throw new InvalidOperationException("Session instruction scope is unavailable.")).Open();
+            }
+            catch (Exception exception) when (exception is InvalidOperationException)
+            { main.ReportHostInteractionFailure(exception.Message); }
+        };
     }
 
     private void ReleaseUnusedPresentation()
@@ -482,12 +504,15 @@ internal sealed partial class SessionsWindowController(
         catch (Exception exception) when (exception is not OutOfMemoryException)
         { main.ReportHostInteractionFailure("Sessions could not be opened. " + exception.Message); }
     }
-    private void OnPrivacyClosure(object? sender, EventArgs args) => presentation?.Revoke();
+    private void OnPrivacyClosure(object? sender, EventArgs args)
+    { instructionScopes?.RevokeAll(); presentation?.Revoke(); }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        instructionScopes?.Retire();
+        main.BindSessionInstructionScopes(null, null);
         Volatile.Write(ref dispositionOwnerOpen, 0);
         Interlocked.Increment(ref dispositionOwnerEpoch);
         OpenAllWork = null;

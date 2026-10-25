@@ -198,6 +198,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
+            "session-instructions",
             "agent-profile-authoring",
             "owned-skill-authoring",
             "hosted-requests",

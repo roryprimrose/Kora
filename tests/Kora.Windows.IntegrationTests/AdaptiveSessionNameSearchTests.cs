@@ -7,12 +7,14 @@ using Avalonia.Threading;
 using AwesomeAssertions;
 
 using Kora.Application.Diagnostics;
+using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Core.Authorization;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Storage;
 using Kora.NativeUxFixture;
 using Kora.Windows.Storage;
@@ -82,9 +84,9 @@ public sealed class AdaptiveSessionNameSearchTests
             model.ComposerBody.Should().Be("second unsent");
             f.Probe.ContentReads.Should().Be(0);
             (await f.Native.Interactions.ReadConversationDraftAsync(rows[0].Authority.SessionId, f.Native.Token))
-                .Body.Should().BeNull();
+                .Draft.Body.Should().BeNull();
             (await f.Native.Interactions.ReadConversationDraftAsync(rows[1].Authority.SessionId, f.Native.Token))
-                .Body.Should().BeNull();
+                .Draft.Body.Should().BeNull();
 
             await f.Click("SubmitMessage");
             f.Admission.Calls.Should().Be(1);
@@ -159,7 +161,7 @@ public sealed class AdaptiveSessionNameSearchTests
             await f.Click("SearchSessionNames");
             await f.Run("select the first session");
             var captured = f.Sessions.CaptureSessionSelection(1, static () => true);
-            if (query == "oversized") { query = new('x', 121); }
+            if (string.Equals(query, "oversized", StringComparison.Ordinal)) { query = new('x', 121); }
             f.Field.Text = query;
             Dispatcher.UIThread.RunJobs();
             f.Field.Text.Should().Be(query);
@@ -295,7 +297,7 @@ public sealed class AdaptiveSessionNameSearchTests
                 model.CanNextSessionNameSearch.Should().BeFalse();
                 probe.MetadataReads.Should().Be(1);
                 probe.ContentReads.Should().Be(0);
-                if (boundary != "privacy") { model.Status.Should().Contain("Cancelled"); }
+                if (!string.Equals(boundary, "privacy", StringComparison.Ordinal)) { model.Status.Should().Contain("Cancelled"); }
             }
             finally
             {
@@ -304,6 +306,50 @@ public sealed class AdaptiveSessionNameSearchTests
                 model.Close();
                 window.Close();
             }
+        });
+    }
+
+    [Fact]
+    public async Task NativeNextCanContinueAfterAValidatedPageWithZeroNameMatches()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new Fixture();
+            await f.Initialize();
+            var nonmatch = new SessionWorkspaceEntry(new(new(new Guid("00000000-0000-0000-0000-000000000001")),
+                new(1), true), null);
+            var match = new SessionWorkspaceEntry(new(new(new Guid("00000000-0000-0000-0000-000000000002")),
+                new(1), true), new(new(new Guid("00000000-0000-0000-0000-000000000002")), new(1), new("needle")));
+            var probe = new ConversationProbe(f.Native.Interactions);
+            probe.MetadataPages.Enqueue(new([nonmatch], nonmatch.Authority.SessionId.Value));
+            probe.MetadataPages.Enqueue(new([match], null));
+            var service = new SessionWorkspaceService(probe, new(f.Native.Tasks), f.Native.Access,
+                NullLogger<SessionWorkspaceService>.Instance);
+            var model = new SessionsViewModel(service, f.Native.Evidence, f.Native.Access,
+                NullLogger<SessionsViewModel>.Instance);
+            var view = new SessionInteractionView { DataContext = model };
+            var window = new Window { Content = view };
+            window.Show();
+            try
+            {
+                view.FindControl<TextBox>("SessionNameQuery")!.Text = "needle";
+                probe.MetadataReads.Should().Be(0);
+                view.FindControl<Button>("SearchSessionNames")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await view.Operation;
+                model.Sessions.Should().BeEmpty();
+                model.Status.Should().Contain("0 matches").And.Contain("Next metadata search continues even after zero matches");
+                view.FindControl<Button>("NextSessionNameSearch")!.IsEnabled.Should().BeTrue();
+                view.FindControl<Button>("NextSessionNameSearch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await view.Operation;
+                model.Sessions.Should().ContainSingle().Which.Should().Be(match);
+                model.SelectedSessionRecord.Should().BeNull();
+                model.CanNextSessionNameSearch.Should().BeFalse();
+                probe.MetadataReads.Should().Be(2);
+                probe.MetadataAfter.Should().Be(nonmatch.Authority.SessionId.Value);
+                probe.MetadataLimit.Should().Be(SessionListSearchPage.MaximumScannedRecords);
+                probe.ContentReads.Should().Be(0);
+            }
+            finally { model.Close(); window.Close(); }
         });
     }
 
@@ -398,6 +444,9 @@ public sealed class AdaptiveSessionNameSearchTests
         internal int ContentReads { get; private set; }
         internal int MetadataReads { get; private set; }
         internal bool HoldMetadata { get; init; }
+        internal Queue<SessionPage<SessionWorkspaceEntry>> MetadataPages { get; } = new();
+        internal Guid? MetadataAfter { get; private set; }
+        internal int MetadataLimit { get; private set; }
         internal CancellationToken ReadToken { get; private set; }
         internal TaskCompletionSource MetadataStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource<SessionPage<SessionWorkspaceEntry>> MetadataCompletion { get; } =
@@ -406,8 +455,11 @@ public sealed class AdaptiveSessionNameSearchTests
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
         {
             MetadataReads++;
+            MetadataAfter = after;
+            MetadataLimit = limit;
             ReadToken = token;
             MetadataStarted.TrySetResult();
+            if (MetadataPages.TryDequeue(out var page)) { return ValueTask.FromResult(page); }
             return HoldMetadata ? new(MetadataCompletion.Task) : store.ReadMetadataPageAsync(after, limit, token);
         }
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken token) =>

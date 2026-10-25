@@ -36,7 +36,7 @@
       <StackPanel Grid.Row="2" Spacing="6">
         <TextBlock Text="Conversation name" />
         <TextBox x:Name="SessionNameQuery" Text="{Binding SessionNameQuery, Mode=TwoWay}"
-            IsEnabled="{Binding CanEditListSearch}" Watermark="Part of a conversation name"
+            IsEnabled="{Binding CanEditListSearch}" PlaceholderText="Part of a conversation name"
             AutomationProperties.Name="Search session names; editing does not search or read conversations" />
         <WrapPanel>
           <Button x:Name="SearchSessionNames" Content="Search" IsEnabled="{Binding CanSearchSessionNames}" />

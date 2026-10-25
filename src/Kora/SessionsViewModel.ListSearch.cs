@@ -175,6 +175,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyListSearch()
     {
+        NotifySessionNameSearch();
         NotifyListPageOrder();
         OnPropertyChanged(nameof(ListQuery));
         OnPropertyChanged(nameof(ListSearchKind));

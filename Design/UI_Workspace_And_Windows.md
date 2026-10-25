@@ -32,8 +32,11 @@ expansion/collapse does not recreate the session model, move input, save, submit
 The expanded window does not use the ordinary response inactivity timer.
 
 - The left pane defaults to Active on its first list load, with All/Done filters and
-  explicit Refresh/Next. A list request admits a bounded metadata page, never all
-  transcripts. Opening does not select a default session.
+  explicit Refresh/Next. Ordinary conversation-name substring Search/Clear/Next
+  matches/Cancel reuses the validated bounded metadata search; edits read nothing,
+  retire captured ordinal targets and never select or resume a match. Matching is
+  case-sensitive ordinal text, not transcript search. A list request admits a
+  bounded metadata page, never all transcripts. Opening does not select a default session.
 - The right pane separates retained Conversation (original user text, genuine assistant
   answers and native action outcomes) from read-only Activity (the existing ordered
   host task/question/answer/decision receipts). Read/More are explicit source reads.
@@ -42,7 +45,7 @@ The expanded window does not use the ordinary response inactivity timer.
   tool-trace store or complete exact-grant-change feed.
 - A named session composer uses the existing admitted submit path and per-session
   memory-only input. Done browsing never resumes work. Advanced provider, retention,
-  search, evidence and lifecycle controls remain under **Session management**.
+  additional search, evidence and lifecycle controls remain under **Session management**.
 - **Current interaction** reveals the original response/question/approval controls
   inside the same window. Pending legacy interaction is indicated in the header;
   the independent authoritative native question window remains independent.

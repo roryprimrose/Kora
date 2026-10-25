@@ -136,7 +136,7 @@ public sealed class HostAuthorizationServiceTests
     }
 
     [Fact]
-    public async Task Protected_call_policy_ignores_preapproval_and_requires_fresh_single_use_review()
+    public async Task Protected_call_policy_preserves_exact_preapproval_without_creating_grants()
     {
         var address = new Uri("https://approved.example/page");
         using var f = new InteractionFixture(
@@ -155,14 +155,9 @@ public sealed class HostAuthorizationServiceTests
         var presented = await f.RunAsync(() =>
             f.Authorization.RequestWebPageAccessAsync(f.Request, address, CancellationToken.None));
 
-        presented.Outcome.Should().Be(HostInteractionOutcome.Presented);
-        var approved = await f.RunAsync(() => f.Authorization.ApproveAsync(
-            presented.Question!.Key,
-            new(["once"]),
-            RequestOrigin.LocalUi,
-            CancellationToken.None));
-        approved.Outcome.Should().Be(HostInteractionOutcome.Approved);
-        approved.Grant!.Scope.Should().Be(OperationGrantScope.Once);
+        presented.Outcome.Should().Be(HostInteractionOutcome.Approved);
+        presented.Reason.Should().Be("preapproved-address");
+        f.Store.Snapshot.Grants.Should().BeEmpty();
     }
 
     [Fact]
@@ -307,22 +302,17 @@ public sealed class HostAuthorizationServiceTests
 
     [Theory]
     [InlineData("once", HostInteractionOutcome.Consumed)]
-    [InlineData("session", HostInteractionOutcome.Denied)]
-    [InlineData("perpetual", HostInteractionOutcome.Denied)]
-    public async Task In_call_default_ignore_requires_single_use_without_deleting_reusable_records(string scope, HostInteractionOutcome outcome)
+    [InlineData("session", HostInteractionOutcome.Consumed)]
+    [InlineData("perpetual", HostInteractionOutcome.Consumed)]
+    public async Task In_call_policy_preserves_current_exact_grant_authority(string scope, HostInteractionOutcome outcome)
     {
         using var f = new InteractionFixture(RequestOrigin.ActivatedVoice);
         var grant = await f.GrantAsync(scope, RequestOrigin.ActivatedVoice);
         f.Store.Change(s => s with { Policy = s.Policy with { IsProtectedCall = true } });
         var result = await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, CancellationToken.None));
         result.Outcome.Should().Be(outcome);
-        if (!string.Equals(scope, "once", StringComparison.Ordinal))
-        {
-            f.Store.Snapshot.Grants[0].Should().Be(grant);
-            f.Store.Change(s => s with { Policy = s.Policy with { IgnoreReusableGrants = false } });
-            (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, CancellationToken.None)))
-                .Outcome.Should().Be(HostInteractionOutcome.Consumed);
-        }
+        f.Store.Snapshot.Grants[0].Id.Should().Be(grant.Id);
+        f.Store.Snapshot.Grants[0].UseCount.Should().Be(1);
     }
 
     [Theory]
@@ -373,6 +363,7 @@ public sealed class HostAuthorizationServiceTests
         if (allowed)
         {
             var restartedService = new Kora.Application.Interaction.HostAuthorizationService(f.Store, f.Time);
+            f.Rebind();
             var reused = await f.RunAsync(() => restartedService.ConsumeAsync(f.Request, grant.Id, result.Grant!.Revision, CancellationToken.None));
             reused.Outcome.Should().Be(HostInteractionOutcome.Consumed);
             reused.Grant!.CreatedAt.Should().Be(grant.CreatedAt);
@@ -570,6 +561,7 @@ public sealed class HostAuthorizationServiceTests
         var used = await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, CancellationToken.None));
         used.Outcome.Should().Be(HostInteractionOutcome.Consumed);
         (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, CancellationToken.None))).Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        f.Rebind();
         var twice = await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, used.Grant!.Revision, CancellationToken.None));
         twice.Grant!.UseCount.Should().Be(2);
     }

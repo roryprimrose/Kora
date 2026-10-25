@@ -133,7 +133,7 @@ public sealed partial class MainViewModelTests
             && item.Initiator == SecurityAuditInitiator.VoiceCommand && item.Outcome == SecurityAuditOutcome.Denied);
         await fixture.RunAsync("set calls.feedback-mode to Voice");
         fixture.FeedbackPreferences.Value.Should().Be(InCallFeedbackMode.Voice);
-        fixture.ViewModel.AreReusableGrantsIgnored.Should().BeTrue();
+        fixture.ViewModel.AreReusableGrantsIgnored.Should().BeFalse();
         fixture.CallState.SetState(CallState.Unavailable);
         await fixture.ViewModel.CallClosureTask;
         await fixture.ViewModel.EnableManualCallCommand.ExecuteAsync();

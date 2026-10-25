@@ -1,0 +1,18 @@
+<UserControl x:Class="Kora.SessionPermissionControls"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Expander Header="Exact-session action permission level">
+    <StackPanel Spacing="6">
+      <TextBlock Text="{Binding PermissionStatus}" TextWrapping="Wrap"
+          AutomationProperties.Name="Effective action permission for the exact selected session and reviewed change" />
+      <ComboBox ItemsSource="{Binding PermissionChoices}" SelectedIndex="{Binding PermissionChoice, Mode=TwoWay}"
+          IsEnabled="{Binding CanReviewPermission}" AutomationProperties.Name="Proposed session permission level; selecting is not confirmation" />
+      <WrapPanel>
+        <Button x:Name="ReadPolicy" Content="Read current policy" IsEnabled="{Binding CanReadPermission}" />
+        <Button x:Name="ReviewPolicy" Content="Review change" IsEnabled="{Binding CanReviewPermission}" />
+        <Button x:Name="ConfirmPolicy" Content="Confirm exact-session change" IsEnabled="{Binding CanConfirmPermission}" />
+        <Button x:Name="CancelPolicy" Content="Cancel review" />
+      </WrapPanel>
+    </StackPanel>
+  </Expander>
+</UserControl>

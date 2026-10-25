@@ -56,7 +56,7 @@ public sealed class DesktopSessionWorkspaceAccessTests
             access.Invoking(value => value.Bind(fixture.Main)).Should().Throw<InvalidOperationException>();
             ownership.BindCallbacks(_ => Task.CompletedTask, _ => Task.FromResult(true));
             access.CanInspect.Should().BeTrue();
-            access.CanControl.Should().Be(callState == CallState.Clear);
+            access.CanControl.Should().BeTrue();
             var admittedRevision = access.ControlRevision;
             access.ControlRevision.Should().Be(admittedRevision);
             ownership.UnbindCallbacks();

@@ -210,7 +210,7 @@ The design concerns are resolved under the chosen trust model by the following h
 - Admit only scoped capabilities and approved destinations; keep credentials, protected Kora resources, unrestricted execution, and trusted consent out of model control.
 - Preserve deterministic stop/mute/cancel, truthful receipt/unknown outcomes, and no blind replay after timeout/restart.
 - Explain which session, operation, and grant permitted an effect, without leaking sensitive data into ordinary diagnostics.
-- Under the proposed [session permission-level contract](Session_Permission_Levels.md), disable spoken approval during calls by default without changing grants or levels, and preserve voice-origin settings restrictions independently of output mode. Current grant-ignore enforcement remains until qualified migration.
+- Under the [session permission-level contract](Session_Permission_Levels.md), disable spoken approval during calls by default without changing grants or levels, and preserve voice-origin settings restrictions independently of output mode. Broader reviewer, provider and physical qualification remains unavailable where reported.
 
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
@@ -751,7 +751,7 @@ admission are still independent gates.
 
 The default treatment/risk tables below describe review when needed, especially Review all, rather than mandatory ordinary approval in all levels. Prohibited effects, unknown authority, containment, OS/provider checks, source privacy and required disclosure consent remain fail-closed. Combined action/disclosure cards may record distinct exact authorities from one explicit user answer.
 
-The proposed [call approval-channel policy](Call_Aware_Speech.md#spoken-approvals-during-calls) preserves reusable grants and levels while disabling spoken approvals by default. The R05/manual-call implementation paragraphs below remain source-backed current behavior, not the migrated feature.
+The implemented bounded [call approval-channel policy](Call_Aware_Speech.md#spoken-approvals-during-calls) preserves applicable grants and levels while disabling spoken approvals by default. The [session policy implementation boundary](Session_Permission_Levels.md#delivered-bounded-implementation) distinguishes deterministic admission from unqualified reviewer/execution profiles.
 
 ### R05 Authorization Foundation
 
@@ -815,9 +815,9 @@ exact review and approval, not in-place widening.
 
 The original request origin remains part of the proposal. UI may answer an
 allowed voice-originated proposal, but a protected-call voice/in-call-settings
-mutation remains denied after a UI confirmation. In-call reusable-grant-ignore
-temporarily denies Session/Perpetual use while allowing a fresh exact Once
-decision; it never deletes reusable records. Changed known effects cannot
+mutation remains denied after a UI confirmation. Calls restrict spoken approval
+by default without withdrawing applicable Session/Perpetual authority or forcing
+Once; fresh native UI approval remains independently gated. Changed known effects cannot
 reuse a grant for a different effect.
 
 The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
@@ -895,7 +895,7 @@ Persist its revoked state and reason without deleting the perpetual record.
 Restoring the old bytes never restores authorization; fresh exact approval
 creates a new grant. Temporary call-policy blocking and unverifiable resources
 are inapplicability, not content-change revocation.
-The proposed [call spoken-approval setting](Call_Aware_Speech.md#spoken-approvals-during-calls) defaults Off and restricts spoken grant/consent answers during protection, without changing grant reuse, scope or session level. Current call grant-ignore remains until the qualified migration.
+The [call spoken-approval setting](Call_Aware_Speech.md#spoken-approvals-during-calls) defaults Off and restricts spoken grant/consent answers during protection, without changing grant reuse, scope or session level. Native review/confirmation and the live policy commit gate enforce the bounded implementation; broader physical/provider qualification remains separate.
 The host revalidates voice-answer eligibility at acceptance and ordinary operation authority at dispatch, including background work; feedback/speak-once preferences cannot enable spoken approval.
 During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including enabling spoken approvals, disabling detection and clearing manual call state.
 Trusted initiating-channel lineage and request/apply revalidation prevent model/tool or later UI-confirmation laundering; a new UI request is required.

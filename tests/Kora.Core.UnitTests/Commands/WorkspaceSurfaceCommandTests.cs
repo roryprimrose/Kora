@@ -9,6 +9,11 @@ public sealed class WorkspaceSurfaceCommandTests
     [Theory]
     [InlineData("open all work", WorkspaceSurfaceTarget.AllWork)]
     [InlineData("open compact conversation", WorkspaceSurfaceTarget.CompactConversation)]
+    [InlineData("collapse conversation", WorkspaceSurfaceTarget.CompactConversation)]
+    [InlineData("open sessions", WorkspaceSurfaceTarget.Sessions)]
+    [InlineData("show sessions", WorkspaceSurfaceTarget.Sessions)]
+    [InlineData("show me the current sessions", WorkspaceSurfaceTarget.Sessions)]
+    [InlineData("expand conversation", WorkspaceSurfaceTarget.Sessions)]
     public void ExactRoutesAreTypedAndCurrentNameQualified(string phrase, WorkspaceSurfaceTarget target)
     {
         WorkspaceSurfaceCommand.Parse(phrase, "Nova Prime")!.Target.Should().Be(target);
@@ -32,6 +37,15 @@ public sealed class WorkspaceSurfaceCommandTests
     [InlineData("open compact")]
     [InlineData("open compact conversation selected")]
     [InlineData("open compact conversation; resume")]
+    [InlineData("select the session")]
+    [InlineData("select the third session and approve")]
+    [InlineData("select the twenty-sixth session")]
+    [InlineData("select the first session\n")]
+    [InlineData("show sessions!")]
+    [InlineData("open sessions extra")]
+    [InlineData("show me the current sessions extra")]
+    [InlineData("expand conversation extra")]
+    [InlineData("collapse conversation extra")]
     public void ReservedMalformedInputIsNotFreeForm(string phrase)
     {
         WorkspaceSurfaceCommand.Parse("Nova, " + phrase, "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
@@ -41,11 +55,30 @@ public sealed class WorkspaceSurfaceCommandTests
     [InlineData("")]
     [InlineData(" ")]
     [InlineData("Nova")]
-    [InlineData("open sessions")]
     [InlineData("open new request")]
     [InlineData("please open all work")]
+    [InlineData("select the file")]
     public void UnownedInputRemainsOutsideNavigation(string input) =>
         WorkspaceSurfaceCommand.Parse(input, "Nova").Should().BeNull();
+
+    [Fact]
+    public void EveryOrdinalSelectsTheSameOneBasedPresentedPosition()
+    {
+        var phrases = WorkspaceSurfaceCommand.FixedPhrases
+            .Where(phrase => phrase.StartsWith("select the ", StringComparison.Ordinal)).ToArray();
+        phrases.Should().HaveCount(27);
+        for (var index = 0; index < 25; index++)
+        {
+            var result = WorkspaceSurfaceCommand.Parse("Nova, " + phrases[index].ToUpperInvariant(), "Nova")!;
+            result.Target.Should().Be(WorkspaceSurfaceTarget.SelectSession);
+            result.SessionPosition.Should().Be(index + 1);
+        }
+        WorkspaceSurfaceCommand.Parse("select the top session", "Nova")!.SessionPosition.Should().Be(1);
+        WorkspaceSurfaceCommand.Parse("select the last session", "Nova")!.SessionPosition
+            .Should().Be(WorkspaceSurfaceCommand.LastSessionPosition);
+        WorkspaceSurfaceCommand.Parse("select the last session\0", "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
+        WorkspaceSurfaceCommand.Parse("select the\tthird session", "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
+    }
 
     [Theory]
     [InlineData("All Work")]

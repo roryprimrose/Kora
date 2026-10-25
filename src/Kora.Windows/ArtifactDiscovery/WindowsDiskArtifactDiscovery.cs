@@ -69,7 +69,11 @@ public sealed class WindowsDiskArtifactDiscovery
                 {
                     var snapshot = owned.ReadVerified(name, CancellationToken.None)
                         ?? throw new IOException("A discovered owned definition disappeared.");
-                    managed.Add(snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision });
+                    managed.Add(snapshot.Document.Definition with
+                    {
+                        OwnedInstructionRevision = snapshot.Revision,
+                        UseControlId = ArtifactUseIdentity.File(Path.Combine(root.Path, snapshot.CanonicalFileName)),
+                    });
                 }
                 continue;
             }
@@ -182,7 +186,8 @@ public sealed class WindowsDiskArtifactDiscovery
         var fileCommand = root.Kind == ArtifactKind.Skill
             ? new DirectoryInfo(Path.GetDirectoryName(path)!).Name
             : RemoveArtifactSuffix(Path.GetFileName(path), root.Kind);
-        return ArtifactFileDocument.ParseInvocable(bytes, root.Kind, root.Source, fileCommand)?.Definition;
+        var definition = ArtifactFileDocument.ParseInvocable(bytes, root.Kind, root.Source, fileCommand)?.Definition;
+        return definition is null ? null : definition with { UseControlId = ArtifactUseIdentity.File(path) };
     }
 
     private static string RemoveArtifactSuffix(string fileName, ArtifactKind kind)

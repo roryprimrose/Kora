@@ -12,10 +12,10 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class TrayRecoveryTests
 {
     private static readonly string[] NavigationLabels =
-        ["New request...", "Sessions...", "Choose microphone...", "Evidence & diagnostics..."];
+        ["New request...", "Sessions...", "Choose microphone...", "Customizations...", "Evidence & diagnostics..."];
 
     [Fact]
-    public Task TrayShowsNineRootRowsAndOnlyVoiceAndHelpSubmenus() => HeadlessSession.RunAsync(async () =>
+    public Task TrayShowsTenRootRowsAndOnlyVoiceAndHelpSubmenus() => HeadlessSession.RunAsync(async () =>
     {
         using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
         await fixture.InitializeAsync();
@@ -27,13 +27,14 @@ public sealed class TrayRecoveryTests
         var selection = fixture.Main.SelectedMicrophone;
         using var tray = new SystemTrayController(fixture.Main, NullLogger<SystemTrayController>.Instance,
             inspectEvidence: () => Open("Evidence & diagnostics..."), inspectSessions: () => Open("Sessions..."),
-            chooseMicrophone: () => Open("Choose microphone..."), newRequest: () => Open("New request..."));
+            chooseMicrophone: () => Open("Choose microphone..."), newRequest: () => Open("New request..."),
+            manageCustomizations: () => Open("Customizations..."));
         var icon = TrayIcon.GetIcons(Avalonia.Application.Current!)!.Single();
         var menu = icon.Menu!;
         var roots = menu.Items.OfType<NativeMenuItem>().Where(item => item is not NativeMenuItemSeparator).ToArray();
         roots.Select(item => item.Header).Should().Equal(
             fixture.Main.TrayInputStatus, "Show Kora", "New request...", "Sessions...",
-            "Disable listening", "Voice & audio", "Settings...", "Help", "Exit Kora");
+            "Disable listening", "Voice & audio", "Settings...", "Customizations...", "Help", "Exit Kora");
         menu.Items.OfType<NativeMenuItemSeparator>().Should().HaveCount(3);
         roots[0].IsEnabled.Should().BeFalse();
         var voice = roots.Single(item => string.Equals(item.Header, "Voice & audio", StringComparison.Ordinal)).Menu!;

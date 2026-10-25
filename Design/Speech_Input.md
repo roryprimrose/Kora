@@ -136,6 +136,35 @@ Enabling hosted command reasoning does not enable microphone transmission.
 Only text/context from a separately admitted reasoning request may use that
 provider under its existing policy. Local failure never selects hosted speech.
 
+### Editor-targeted text admission
+
+**Bounded activated-command implementation, not speech-profile qualification.** The
+[foreground editor contract](Definition_Management.md#foreground-editor-voice-targeting)
+allows the host to snapshot one eligible foreground Customizations editor at
+admitted wake/PTT activation. The capture generation and original voice channel
+stay bound to that instance/source/draft/component and host admission. Final
+recognition or UI dispatch must not observe a different foreground window and
+retarget the utterance. A background editor is not an implicit speech target.
+
+This snapshot supplies routing context only. Local, tool-free interpretation
+requires its own admitted, reviewed text/minimal-metadata disclosure; authoring
+requires a separate complete draft/request disclosure and proposal review.
+Neither wake detection, focus nor transcription grants those authorities.
+Existing question/reply and literal-dictation capture retain exclusive ownership.
+This adds no ambient transcription, ASR rewriting, hosted fallback or speech
+profile qualification.
+
+Ambiguous targeting asks one bounded addressed question. Retired, rejected or
+unavailable editor input cannot become a session request or answer another
+question; the [session routing exception](Interaction_And_Sessions.md#editor-targeting-precedence)
+excludes automatic New session fallback. Focus/source/draft/capture or host
+admission changes retire the snapshot, including late final results, without
+revival on reacquisition. Host-owned modal handoffs preserve the original
+binding rather than following arbitrary focus. Clarification and review use
+native choices; this adds no spoken choice-answer capture or automatic session
+handoff. Native text and existing exact commands remain recovery routes when
+the selected speech/model capability is unavailable.
+
 ## Provider Choices and Selection
 
 These are candidates, not approved dependencies or measured Kora profiles.

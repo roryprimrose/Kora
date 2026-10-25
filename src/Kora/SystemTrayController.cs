@@ -44,7 +44,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectEvidence = null,
         Action? inspectSessions = null,
         Action? chooseMicrophone = null,
-        Action? newRequest = null)
+        Action? newRequest = null,
+        Action? manageCustomizations = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -83,6 +84,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(voiceAudioItem);
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(settingsItem);
+        if (manageCustomizations is not null)
+        {
+            var customizationsItem = new NativeMenuItem("Customizations...");
+            customizationsItem.Click += (_, _) => RunAfterNativeMenuCloses(manageCustomizations);
+            menu.Add(customizationsItem);
+        }
         var help = new NativeMenu();
         var documentationItem = new NativeMenuItem("Documentation");
         documentationItem.Click += (_, _) => RunAfterNativeMenuCloses(viewModel.ShowDocumentation);

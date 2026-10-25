@@ -253,11 +253,8 @@
             FontSize="18"
             Width="42"
             IsVisible="{Binding IsPushToTalkVisible}"
-            IsEnabled="{Binding CanPushToTalk}"
             AutomationProperties.Name="Push to talk; hold while speaking"
-            ToolTip.Tip="Push to talk (hold)"
-            PointerCaptureLost="OnPushToTalkCaptureLost"
-            LostFocus="OnPushToTalkFocusLost" />
+            ToolTip.Tip="Push to talk (hold)" />
         <Button
             Grid.Column="2"
             Classes="primary"

@@ -18,6 +18,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     private Func<HandsFreeVoiceAdmission?>? observe;
     private Func<VoiceTranscriptEventArgs, HostRequest, Task>? dispatch;
     private Func<bool> canOpen = static () => false;
+    private Action<long> commandActivated = static _ => { };
     private CancellationTokenSource? cancellation;
     private IHandsFreeAudioSession? session;
     private HandsFreeVoiceAdmission? admission;
@@ -50,7 +51,8 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     public bool IsListening => State is HandsFreeVoiceState.WakeListening or HandsFreeVoiceState.CapturingCommand || activated.IsListening;
 
     public void Bind(Func<HandsFreeVoiceAdmission?> observation,
-        Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture)
+        Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture,
+        Action<long>? onCommandActivated = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
         ArgumentNullException.ThrowIfNull(governedDispatch);
@@ -62,6 +64,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
             observe = observation;
             dispatch = governedDispatch;
             canOpen = canOpenCapture;
+            commandActivated = onCommandActivated ?? (static _ => { });
         }
     }
 
@@ -170,6 +173,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                         {
                             throw new InvalidOperationException("Wake observation was stale or playback exclusion was unconfirmed.");
                         }
+                        commandActivated(generation);
                         SetState(HandsFreeVoiceState.CapturingCommand);
                         using var maximumDuration = new CancellationTokenSource(VoiceInputLimits.MaximumCommandDuration,
                             timeProvider ?? TimeProvider.System);

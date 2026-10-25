@@ -6,6 +6,7 @@ using Kora.Application.Agents;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Core.Agents;
+using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -20,6 +21,56 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task IndependentRunSetHonorsSharedArtifactExclusionBeforeReadingAndAcrossReenable(bool initiallyDisabled)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+        var adapter = new RunSetAdapter();
+        await using var composed = new Composition(f, adapter: adapter);
+        var reader = new NativeAgentReader();
+        var policy = new Kora.Application.Configuration.ArtifactUsePreferences(f.Paths);
+        var identity = ArtifactUseIdentity.File(reader.Metadata.CanonicalPath);
+        policy.SetDisabled(identity, initiallyDisabled);
+        var factory = new AgentRunSetFactory(composed.Turns, new RunSetQualification(f.Time.GetUtcNow(), adapter), lane =>
+        {
+            var conversation = new SessionConversationService(f.Store, f.Store, composed.Workspace, composed.Access,
+                lane, f.Time, NullLogger<SessionConversationService>.Instance, lane, composed.Audit);
+            return new(reader, f.Store, composed.Access, conversation, lane, composed.Audit, f.Time, usePolicy: policy);
+        });
+        await using var runs = factory.Create();
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        if (initiallyDisabled)
+        {
+            await runs.Invoking(value => value.ReviewAsync(1, "example.agent.md", target, "original request",
+                RequestOrigin.LocalUi, () => true, f.Token)).Should().ThrowAsync<InvalidOperationException>();
+        }
+        else
+        {
+            await runs.ReviewAsync(1, "example.agent.md", target, "original request", RequestOrigin.LocalUi, () => true, f.Token);
+            var review = runs.Read(1)!.Review!;
+            policy.SetDisabled(identity, true);
+            policy.SetDisabled(identity, false);
+            review.Current().Should().BeFalse();
+            await runs.Invoking(value => value.InvokeAsync(1, RequestOrigin.LocalUi, f.Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        await runs.Invoking(value => value.StopAsync(1)).Should().ThrowAsync<AggregateException>()
+            .WithInnerException(typeof(InvalidOperationException));
+        runs.Read(1).Should().BeNull();
+        adapter.Active.Should().Be(0);
+        adapter.Started(target).Task.IsCompleted.Should().BeFalse();
+        reader.Released.Should().BeTrue();
+        (await f.Store.ReadConversationPageAsync(target.Authority.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+        f.Count("host_questions").Should().Be(0);
+        f.Count("scoped_grants").Should().Be(0);
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

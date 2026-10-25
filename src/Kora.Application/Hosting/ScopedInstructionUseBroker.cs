@@ -97,6 +97,7 @@ public sealed class ScopedInstructionUseBroker(
         private readonly long control;
         private readonly DateTimeOffset createdAt;
         private readonly Func<bool> admitted;
+        private readonly long useRevision;
         private int consumed;
         private int prepared;
         private int captured;
@@ -118,6 +119,7 @@ public sealed class ScopedInstructionUseBroker(
             Origin = origin;
             this.createdAt = createdAt;
             this.admitted = admitted;
+            useRevision = owner.catalogue.UseControlRevision;
             Trace = trace;
         }
 
@@ -133,6 +135,7 @@ public sealed class ScopedInstructionUseBroker(
         internal bool IsCurrent()
         {
             if (Volatile.Read(ref retired) != 0 || !owner.access.CanInspect || !owner.access.CanControl
+                || owner.catalogue.UseControlRevision != useRevision
                 || owner.access.ControlRevision != control || !admitted() || owner.catalogue.IsReloadUnavailable
                 || owner.time.GetUtcNow() < createdAt || owner.time.GetUtcNow() >= createdAt.AddMinutes(2))
             { return false; }

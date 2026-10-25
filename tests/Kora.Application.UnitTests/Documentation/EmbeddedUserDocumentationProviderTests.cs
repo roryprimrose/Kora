@@ -17,7 +17,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
         var tray = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
-        tray.Should().Contain("These nine root rows")
+        tray.Should().Contain("These ten root rows")
+            .And.Contain("**Customizations...**")
             .And.Contain("Show Kora is bold as the default action")
             .And.Contain("Double-click: also show or activate Kora, never Settings")
             .And.Contain("There is no Stop speaking entry")
@@ -214,6 +215,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "settings",
             "commands",
             "tools-and-built-in-skills",
+            "customizations",
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",

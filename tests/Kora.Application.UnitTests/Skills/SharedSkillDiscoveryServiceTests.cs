@@ -8,6 +8,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Skills;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Skills;
@@ -26,6 +27,24 @@ public sealed class SharedSkillDiscoveryServiceTests : IDisposable
     };
     public SharedSkillDiscoveryServiceTests() => ActivitySource.AddActivityListener(listener);
     public void Dispose() => listener.Dispose();
+
+    [Fact]
+    public async Task Use_exclusion_preserves_inspection_but_retires_shared_source_use()
+    {
+        await using var fixture = new Fixture();
+        var use = new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store());
+        var service = new SharedSkillDiscoveryService(fixture.Preferences, fixture.Reader, fixture.Admission,
+            fixture.Audit, fixture.Logger, use);
+        var source = await service.RegisterAsync("selected root", fixture.Eligible, CancellationToken.None);
+        var package = (await service.DiscoverAsync(source, fixture.Eligible, CancellationToken.None)).Packages.Single();
+        service.IsUseAllowed(source, package).Should().BeTrue();
+        var identity = ArtifactUseIdentity.File(Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            source.ProfileRelativeRoot, package.RelativeFile));
+        use.SetDisabled(identity, true);
+        service.IsUseAllowed(source, package).Should().BeFalse();
+        service.UseRevision.Should().Be(use.Revision);
+        (await service.DiscoverAsync(source, fixture.Eligible, CancellationToken.None)).Packages.Should().ContainSingle();
+    }
 
     [Fact]
     public async Task Explicit_registration_is_audited_and_source_discovery_and_stale_review_are_immutable()

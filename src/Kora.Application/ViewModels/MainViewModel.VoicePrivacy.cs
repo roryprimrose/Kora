@@ -697,6 +697,7 @@ public sealed partial class MainViewModel
 
     public async Task BeginPushToTalkAsync()
     {
+        var editorTarget = Volatile.Read(ref customizationVoiceTarget);
         RetirePromptInputVoice();
 #pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
         if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
@@ -771,6 +772,7 @@ public sealed partial class MainViewModel
                 return;
             }
 
+            CaptureCustomizationVoice(editorTarget);
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
@@ -793,6 +795,8 @@ public sealed partial class MainViewModel
                 PresentResponse(AssistantState.Listening, "Capturing your command.",
                     "Release Push to talk to finish. Only this explicitly activated command is transcribed locally.");
             }
+            if (editorTarget is not null)
+            { Transcript += "\nVoice context: " + editorTarget.Context.Kind + " / " + editorTarget.Context.Scope + " / " + editorTarget.Context.Name; }
             generationToAccept = voiceRecognition.Generation;
         }
         catch (OperationCanceledException) when (opening.IsCancellationRequested)
@@ -1183,6 +1187,7 @@ public sealed partial class MainViewModel
     {
         if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return false; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
+        if (customizationShutdown is not null && !await customizationShutdown()) { return false; }
         await ClosePromptPreparation();
         if (lifecycleAdmissionClosed || applyingAppearance || drainingPreferences || preferenceWriteActive
             || !consentPersistence.IsCompleted || Volatile.Read(ref activeApprovalPreparations) != 0

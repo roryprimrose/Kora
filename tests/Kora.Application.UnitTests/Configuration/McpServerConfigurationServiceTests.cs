@@ -294,13 +294,16 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
     [InlineData("remove-before")]
     [InlineData("exclude-after")]
     [InlineData("remove-after")]
+    [InlineData("use-after")]
+    [InlineData("use-cycle-after")]
     public async Task Source_and_inclusion_changes_across_resolution_awaits_are_not_reinterpreted_as_current(string fault)
     {
         Directory.CreateDirectory(root);
         var file = Path.Combine(root, "runtime.json");
         File.WriteAllText(file, """{"servers":{"search":{"url":"https://example.com/mcp"}}}""");
         var preferences = new Preferences(new([], [], [], [], [file], []));
-        var service = new McpServerConfigurationService(new Paths(Path.Combine(root, "kora")), preferences, Path.Combine(root, "empty-profile"));
+        var use = new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store());
+        var service = new McpServerConfigurationService(new Paths(Path.Combine(root, "kora")), preferences, Path.Combine(root, "empty-profile"), use);
         var id = service.Load().Single().Id;
         preferences.Settings = new([], [], [], [], [file], [id]);
         var calls = 0;
@@ -315,6 +318,12 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
                 if (fault is "remove-before") { preferences.Settings = new([], [], [], [], [], [id]); }
             }
             if (calls == 3 && fault is "exclude-after") { preferences.Settings = new([], [], [], [], [file], []); }
+            if (calls == 3 && fault is "use-after") { use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), true); }
+            if (calls == 3 && fault is "use-cycle-after")
+            {
+                use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), true);
+                use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), false);
+            }
             if (calls == 4 && fault is "remove-after") { preferences.Settings = new([], [], [], [], [], [id]); }
         };
         var account = new McpAccountReference(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
@@ -328,6 +337,27 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
             await FluentActions.Awaiting(() => service.ResolveHttpsAsync(id, account, TestContext.Current.CancellationToken))
                 .Should().ThrowAsync<InvalidOperationException>();
         }
+    }
+
+    [Fact]
+    public async Task A_resolved_mcp_descriptor_cannot_be_revived_by_disable_reenable()
+    {
+        Directory.CreateDirectory(root);
+        var file = Path.Combine(root, "runtime.json");
+        File.WriteAllText(file, """{"servers":{"search":{"url":"https://example.com/mcp"}}}""");
+        var preferences = new Preferences(new([], [], [], [], [file], []));
+        var use = new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store());
+        var service = new McpServerConfigurationService(new Paths(Path.Combine(root, "kora")), preferences, Path.Combine(root, "empty-profile"), use);
+        var id = service.Load().Single().Id;
+        preferences.Settings = new([], [], [], [], [file], [id]);
+        var account = new McpAccountReference(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
+        var descriptor = await service.ResolveHttpsAsync(id, account, TestContext.Current.CancellationToken);
+        await service.ValidateCurrentAsync(descriptor, TestContext.Current.CancellationToken);
+        use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), true);
+        use.SetDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(id), false);
+        service.Load().Single().IsIncluded.Should().BeTrue();
+        await FluentActions.Awaiting(() => service.ValidateCurrentAsync(descriptor, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
     }
 
     private void Invalid(string content)

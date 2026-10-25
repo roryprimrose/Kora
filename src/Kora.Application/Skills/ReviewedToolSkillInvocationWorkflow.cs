@@ -31,8 +31,9 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         { throw new InvalidOperationException("Review requires one declarative file declaring only the exact supported host tool, with no scripts, unresolved references or uninspected resources."); }
         var control = access.ControlRevision;
         var consent = discovery.ConsentRevision;
+        var useRevision = discovery.UseRevision;
         bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
-            && discovery.ConsentRevision == consent;
+            && discovery.ConsentRevision == consent && discovery.UseRevision == useRevision && discovery.IsUseAllowed(source, snapshot);
         await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
         await RequireTargetAsync(target, Current, token).ConfigureAwait(false);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, origin);

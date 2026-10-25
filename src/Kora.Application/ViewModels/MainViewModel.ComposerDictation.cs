@@ -8,6 +8,7 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private ComposerDictationService? composerDictation;
+    public ComposerDictationService? ComposerDictation => composerDictation;
 
     public ComposerDictationService BindComposerDictation(ILogger<ComposerDictationService> dictationLogger)
     {

@@ -36,8 +36,10 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindCustomizationVoice((_, _, _) => { editorCalls++; return Task.CompletedTask; });
         using var composer = DictationComposer(f);
         await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
+        f.ViewModel.ComposerDictation.Should().BeSameAs(service);
         f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance).Should().BeSameAs(service);
         await service.BeginAsync(composer, static () => true, TestContext.Current.CancellationToken);
+        service.IsActiveFor(composer).Should().BeTrue();
         f.Voice.StartCalls.Should().Be(1);
         f.Voice.StartedPhrases.Should().BeEmpty();
         await f.Voice.RaiseTranscriptAsync("Kora, stop listening", 1);

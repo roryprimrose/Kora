@@ -87,6 +87,12 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
+The Customizations editor publishes its foreground voice target after the
+window's `IsActive` property becomes true; it cannot rely on `Activated` alone,
+which Avalonia raises before updating that property. The editor push-to-talk
+integration cases await the actual active-state notification and cover
+consent/read-only denial and capture release without retargeting.
+
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
 Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
@@ -95,6 +101,29 @@ Documentation-only changes need local link/heading, exact example and availabili
 checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
+
+### Durable engineering coordinator checks
+
+The roadmap coordinator's required finite decision path is
+[Invoke-Coordinator.ps1](eng/Invoke-Coordinator.ps1), with its canonical locator,
+request/receipt schema and legacy compatibility rules in the
+[engineering coordinator guide](eng/coordinator/README.md). It does not launch
+sessions, run mailbox commands, poll GitHub or install a scheduler.
+
+Run the maintained entry-point regressions in a new ignored output directory:
+
+```powershell
+.\eng\Test-Coordinator.ps1 -OutputDirectory (Join-Path $PWD '.scratch\coordinator-contracts-local')
+```
+
+The [CI workflow](.github/workflows/ci.yml) runs this check in portable validation
+and the `storage-other` Windows shard, retaining process/result evidence. The
+[tests](eng/Test-Coordinator.ps1) invoke separate PowerShell processes against
+local Git fixtures for restart, intent recovery, exact release, capacity races,
+fencing and receipt rejection. They never launch a feature or contact GitHub.
+Offline process proof is not fresh native-session/model/wakeup acceptance; that
+requires separately recorded actual host evidence. No test initializes or
+migrates the user's live coordinator dataset.
 
 ### Microphone metadata refresh ownership
 

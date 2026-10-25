@@ -269,6 +269,23 @@ public sealed class CustomizationWindowTests
         });
     }
 
+    private static async Task ActivateEditor(CustomizationWindow editor)
+    {
+        var activated = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        void OnChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
+        {
+            if (change.Property == Window.IsActiveProperty && editor.IsActive) { activated.TrySetResult(); }
+        }
+        editor.PropertyChanged += OnChanged;
+        try
+        {
+            editor.Activate();
+            if (!editor.IsActive)
+            { await activated.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken); }
+        }
+        finally { editor.PropertyChanged -= OnChanged; }
+    }
+
     [Theory]
     [InlineData("release")]
     [InlineData("pointer")]
@@ -322,7 +339,8 @@ public sealed class CustomizationWindowTests
                     : "edit example instruction";
                 await f.Main.RunTypedCommand.ExecuteAsync();
                 editor.Should().NotBeNull();
-                editor!.Activate();
+                await ActivateEditor(editor!);
+                editor.IsActive.Should().BeTrue();
                 editor.UpdateLayout();
                 if (state is not "read-only") { editor.Editor.Text.Should().Be(initial, editor.Status.Text); }
                 if (state is "no-consent" or "read-only")
@@ -334,7 +352,9 @@ public sealed class CustomizationWindowTests
                     authoring.InterpretCalls.Should().Be(0);
                     return;
                 }
-                editor.PushToTalkButton.IsEnabled.Should().BeTrue(editor.Status.Text + " / " + f.Main.ListeningStatus);
+                editor.PushToTalkButton.IsEnabled.Should().BeTrue(
+                    $"{editor.Status.Text} / {f.Main.ListeningStatus}; active={editor.IsActive}, busy={f.Main.IsBusy}, "
+                    + $"canCapture={f.Main.CanPushToTalk}, currentTarget={controller.VoiceTarget?.IsCurrent}");
                 editor.PushToTalkButton.Focus().Should().BeTrue();
                 editor.PushToTalkButton.IsFocused.Should().BeTrue();
                 f.Main.BeginPushToTalkCommand.CanExecute(null).Should().BeTrue();

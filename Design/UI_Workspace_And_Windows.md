@@ -195,6 +195,18 @@ size, and permits explicit re-resolution. Show restores an eligible last choice
 or presents a native chooser. Current-response details name their own original
 source and are explicitly labelled as separate from the selected conversation.
 
+Native **Back to conversation** now completes exact-origin return navigation for
+the currently observed retained USER/ASSISTANT message page. It reveals the
+Conversation tab, scrolls and focuses that exact original/answer link while
+preserving the open reader, Find and split. Explicit native/typed/activated
+**Hide details** shares origin-aware focus recovery, falling back to Show when
+the origin is unavailable. Escape keeps its existing Show recovery. Choosers,
+activity, evidence and unrelated current responses do not invent a message
+origin; return is disabled with an explanation. Source/session/private retirement
+fences delayed return without source reads, submission, session selection or
+authority changes. These are deterministic native regressions, not installed
+accessibility or provider qualification.
+
 Completed complex answers expose a brief conversational projection and a native
 offer. **Yes, show details** or `show me the detailed results` opens the exact full
 answer without another model call; **Not now** declines only that offer. The

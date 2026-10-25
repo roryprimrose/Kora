@@ -69,8 +69,8 @@
       </Grid>
       <TextBlock Grid.Row="1" Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
           AutomationProperties.Name="Session navigation outcome or failure" />
-      <TabControl Grid.Row="2">
-        <TabItem Header="Conversation">
+      <TabControl Grid.Row="2" x:Name="ConversationTabs">
+        <TabItem x:Name="ConversationTab" Header="Conversation">
           <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
             <WrapPanel>
               <Button x:Name="ReadConversation" Content="Read conversation" IsEnabled="{Binding CanReadConversation}" />
@@ -155,13 +155,19 @@
     <GridSplitter x:Name="DetailsDivider" Grid.Column="1" Width="6" IsVisible="False" ResizeDirection="Columns"
         ResizeBehavior="PreviousAndNext" Focusable="True"
         AutomationProperties.Name="Resize conversation and Details panes" />
-    <Grid x:Name="DetailsPane" Grid.Column="2" IsVisible="False" MinWidth="400" RowDefinitions="Auto,*" RowSpacing="8">
-      <Grid ColumnDefinitions="*,Auto">
+    <Grid x:Name="DetailsPane" Grid.Column="2" IsVisible="False" MinWidth="400" RowDefinitions="Auto,Auto,*" RowSpacing="8">
+      <StackPanel Spacing="6">
         <TextBlock x:Name="DetailsHeading" Text="Details" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
-        <Button Grid.Column="1" x:Name="HideSessionDetails" Content="Hide details"
-            AutomationProperties.Name="Hide Details without clearing the conversation or unsent message" />
-      </Grid>
-      <ContentControl Grid.Row="1" x:Name="DetailsContent" />
+        <WrapPanel>
+          <Button x:Name="BackToConversation" Content="Back to conversation" IsEnabled="False"
+              AutomationProperties.Name="Return focus to this exact originating message without hiding Details" />
+          <Button x:Name="HideSessionDetails" Content="Hide details"
+              AutomationProperties.Name="Hide Details and return to the originating message or Show details" />
+        </WrapPanel>
+      </StackPanel>
+      <TextBlock Grid.Row="1" x:Name="DetailNavigationStatus" TextWrapping="Wrap" Classes="muted"
+          AutomationProperties.Name="Details return navigation availability" />
+      <ContentControl Grid.Row="2" x:Name="DetailsContent" />
     </Grid>
     </Grid>
   </Grid>

@@ -94,6 +94,15 @@ native/activated-command offers preserve complete sources without another model
 call. This does not enable general result routing, Mermaid, static HTML or
 embedded browsing; standalone documentation and specialized previews remain.
 
+The bounded native **Back to conversation** increment completes exact-origin
+focus return from retained message Details without closing the reader. Explicit
+Hide shares origin-aware recovery across native and existing typed/activated
+routes. Missing or non-message origins remain unavailable; no session selection,
+history read, model call or submission is added. See the
+[content-pane delivery boundary](UI_Workspace_And_Windows.md#delivery-boundary)
+and [focused regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.ReturnNavigation.cs).
+Installed accessibility and broader R14 qualification remain open.
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)

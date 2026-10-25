@@ -180,6 +180,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "troubleshooting",
             "agent-profile-authoring",
             "claude-requests",
+            "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs");
         first.Should().OnlyContain(page =>

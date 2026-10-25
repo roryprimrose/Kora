@@ -1181,6 +1181,7 @@ public sealed partial class MainViewModel
 
     public async Task<bool> TryPrepareHandoffAsync()
     {
+        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return false; }
         if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return false; }
         await ClosePromptPreparation();
         if (lifecycleAdmissionClosed || applyingAppearance || drainingPreferences || preferenceWriteActive

@@ -1,6 +1,7 @@
 <Window x:Class="Kora.CompactSessionWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls"
     Title="Kora - selected session conversation" Icon="/Assets/Kora.ico"
     Width="620" Height="740" MinWidth="420" MinHeight="420"
@@ -77,6 +78,7 @@
           AutomationProperties.Name="Shared exact-session memory draft, not question input or approval" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable shared conversation draft size and shape" />
+      <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
       <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
           AutomationProperties.Name="Wrap draft text"
           ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />

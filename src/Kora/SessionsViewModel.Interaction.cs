@@ -8,6 +8,42 @@ internal sealed partial class SessionsViewModel
         ? target.Metadata?.Name.Value ?? "Unnamed conversation"
         : "Select a conversation";
 
+    public string SessionNameQuery
+    {
+        get => ListQuery;
+        set
+        {
+            if (!CanEditListSearch) { return; }
+            PrepareSessionNameSearch();
+            ListQuery = value;
+        }
+    }
+
+    public bool CanSearchSessionNames => CanRead && !refreshingWork
+        && SessionListSearch.IsValid(SessionListSearchKind.NameSubstring, sessionFilter, listQuery);
+
+    public bool CanNextSessionNameSearch => CanNextListSearch
+        && listSearchKind == SessionListSearchKind.NameSubstring && listNameAvailability == SessionNameAvailability.Any;
+
+    public Task SearchSessionNamesAsync(bool next = false)
+    {
+        PrepareSessionNameSearch();
+        return SearchListAsync(next);
+    }
+
+    private void PrepareSessionNameSearch()
+    {
+        if (ListSearchKind != SessionListSearchKind.NameSubstring) { ListSearchKind = SessionListSearchKind.NameSubstring; }
+        if (ListNameAvailability != SessionNameAvailability.Any) { ListNameAvailability = SessionNameAvailability.Any; }
+    }
+
+    private void NotifySessionNameSearch()
+    {
+        OnPropertyChanged(nameof(SessionNameQuery));
+        OnPropertyChanged(nameof(CanSearchSessionNames));
+        OnPropertyChanged(nameof(CanNextSessionNameSearch));
+    }
+
     internal bool HasSessionListPage => sessions is not null;
 
     internal void ReportNavigationStatus(string reason)

@@ -1,3 +1,5 @@
+using System.Text;
+
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
@@ -256,9 +258,11 @@ public sealed class CustomizationWindowTests
                 if (view is CustomizationWindow selected) { editor = selected; }
                 else if (view.Title is "Review editor voice routing disclosure") { routing.TrySetResult(view); }
             });
-            var path = Path.Combine(f.RoamingRoot, "Instructions", "example.instructions.md");
-            Directory.CreateDirectory(Path.GetDirectoryName(path)!);
-            File.WriteAllText(path, CustomizationLayout.Template(CustomizationKind.Instruction, "example"));
+            var seed = await store.Create(CustomizationKind.Instruction, CustomizationScope.Kora, "example", f.Token);
+            var initial = CustomizationLayout.Template(CustomizationKind.Instruction, "example");
+            await store.Save(seed, null, [new(seed.PrimaryFile, Encoding.UTF8.GetBytes(initial))],
+                () => true, operation => Task.FromResult(operation()), f.Token);
+            var path = seed.Location;
             var response = new ResponseWindow(f.Main);
             try
             {
@@ -271,6 +275,7 @@ public sealed class CustomizationWindowTests
                 editor.Should().NotBeNull();
                 editor!.Activate();
                 editor.UpdateLayout();
+                if (state is not "read-only") { editor.Editor.Text.Should().Be(initial, editor.Status.Text); }
                 if (state is "no-consent" or "read-only")
                 {
                     editor.PushToTalkButton.IsEnabled.Should().BeFalse();
@@ -280,9 +285,9 @@ public sealed class CustomizationWindowTests
                     authoring.InterpretCalls.Should().Be(0);
                     return;
                 }
-                editor.PushToTalkButton.Focus();
+                editor.PushToTalkButton.IsEnabled.Should().BeTrue(editor.Status.Text + " / " + f.Main.ListeningStatus);
+                editor.PushToTalkButton.Focus().Should().BeTrue();
                 editor.PushToTalkButton.IsFocused.Should().BeTrue();
-                editor.PushToTalkButton.IsEnabled.Should().BeTrue(f.Main.ListeningStatus);
                 f.Main.BeginPushToTalkCommand.CanExecute(null).Should().BeTrue();
                 var target = controller.VoiceTarget;
                 target.Should().NotBeNull();

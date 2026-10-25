@@ -1,3 +1,4 @@
+using System.Security.Principal;
 using System.Text;
 
 using AwesomeAssertions;
@@ -5,6 +6,7 @@ using AwesomeAssertions;
 using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
@@ -179,8 +181,13 @@ public sealed class WindowsCustomizationStoreTests : IDisposable
         var store = Create();
         var source = await store.Create(CustomizationKind.Skill, CustomizationScope.Kora, "example", TestContext.Current.CancellationToken);
         await Save(store, source, null, Primary(source));
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
         for (var index = 0; index < 129; index++)
-        { Directory.CreateDirectory(Path.Combine(Path.GetDirectoryName(source.Location)!, "directory" + index)); }
+        {
+            RestrictedStorageDirectory.CreateRestrictedDirectory(
+                Path.Combine(Path.GetDirectoryName(source.Location)!, "directory" + index), owner);
+        }
         await ((Func<Task>)(() => store.Read(source, TestContext.Current.CancellationToken))).Should().ThrowAsync<InvalidDataException>();
         Directory.GetFiles(Path.Combine(root, "local", "DefinitionTransactions")).Should().BeEmpty();
     }

@@ -667,6 +667,23 @@ Maintained codec/workflow, private native SQLite/audit composition, native edito
 They do not replace unique RT1/RT2/PV1, offline inference, containment, hardware, installed/native accessibility or storage evidence. No experiments are modified or retired.
 Profile-original publication remains explicitly deferred; template/skill/agent runtime, refinement and expanded applicability gates are unchanged.
 
+### R10 retained playback-volume suggestion increment
+
+The bounded implementation accepts one exact retained successful assistant
+`set speech.playback-volume to <canonical integer 0-100>` answer as inert data.
+Expanded/compact Sessions and pinned typed/current-name activated review routes
+require separate fresh confirmation within 60 seconds through the existing
+admitted volume writer. Source/session/channel/privacy/call/preference changes
+invalidate the review; voice origin cannot be laundered through UI confirmation.
+See the [owning setting contract](User_Configuration.md#retained-model-playback-volume-suggestion).
+
+This is implementation of an approved registered-setting proposal, not broader
+R10 completion, model execution authority, provider/audio enablement or physical
+qualification. Unavailable runtime/adapter paths remain unavailable; no retired,
+hardware, provider, acoustic or installed experiments are required or changed.
+Hosted protected candidate validation retains the full Windows/coverage/installer
+gates independently of focused deterministic implementation checks.
+
 ### R13 selected pending cancellation increment - 2026-10-12
 
 One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.

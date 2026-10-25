@@ -349,7 +349,9 @@ internal sealed partial class SessionsWindowController(
             instructionUse: instructionUse,
             reviewSpeechSummarySuggestion: main.ReviewSpeechSummarySuggestionAsync,
             confirmSpeechSummarySuggestion: (review, token) => main.ConfirmSpeechSummarySuggestionAsync(review, token),
-            answerReads: new SessionAnswerReadWorkflow(service, main));
+            answerReads: new SessionAnswerReadWorkflow(service, main),
+            reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
+            confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token));
         model.PresentEvidenceDetails = (page, admitted, validate) =>
         {
             if (DetailOwner() is not ResponseWindow primary)

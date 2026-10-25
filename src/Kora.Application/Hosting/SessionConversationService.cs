@@ -28,7 +28,8 @@ public sealed partial class SessionConversationService(
         + "Return a bounded final answer only. " + AnswerPresentation.ModelPolicy + " Use only the host's admitted read-only tools if needed. "
         + "No history, memory, attachment, question answer, approval, side effect or hosted egress is admitted by this request. "
         + Configuration.AppearanceSuggestionReview.ModelPolicy + " "
-        + Configuration.SpeechSummarySuggestionReview.ModelPolicy;
+        + Configuration.SpeechSummarySuggestionReview.ModelPolicy + " "
+        + Configuration.PlaybackVolumeSuggestionReview.ModelPolicy;
 
     public Task<ConversationDraftSnapshot> ReadDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         workspace.ReadConversationDraftAsync(session, token);
@@ -49,6 +50,10 @@ public sealed partial class SessionConversationService(
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
         workspace.ReadSpeechSummarySuggestionAsync(target, expected, admitted, token);
+
+    public Task<ConversationMessage> ReadSettingSuggestionAsync(SessionWorkspaceEntry target,
+        ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
+        workspace.ReadSettingSuggestionAsync(target, expected, admitted, token);
 
     public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,

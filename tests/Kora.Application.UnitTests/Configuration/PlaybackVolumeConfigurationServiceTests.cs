@@ -14,7 +14,7 @@ using Kora.Core.Voice;
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class PlaybackVolumeConfigurationServiceTests : IDisposable
+public sealed partial class PlaybackVolumeConfigurationServiceTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

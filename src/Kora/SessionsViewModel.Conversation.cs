@@ -303,6 +303,7 @@ internal sealed partial class SessionsViewModel
         ClearConversationCancellation();
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
+        CancelPlaybackVolumeSuggestion(reportCancellation: false);
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -328,6 +329,10 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(SpeechSummarySuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmSpeechSummarySuggestion));
         OnPropertyChanged(nameof(CanReviewSpeechSummarySuggestion));
+        if (playbackVolumeReview is { Available: false }) { CancelPlaybackVolumeSuggestion(reportCancellation: false); }
+        OnPropertyChanged(nameof(PlaybackVolumeSuggestionDescription));
+        OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
+        OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
         RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();

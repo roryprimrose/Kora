@@ -1210,6 +1210,22 @@ rejects controls; complete result at most 64 KiB.
 See [controls and option-specific recovery](settings.md#kora-playback-volume) and
 [shared preference admission](settings.md#preference-changes-and-recovery).
 
+### Review one retained assistant Kora volume suggestion
+
+- **review volume suggestion**
+- **confirm volume change**
+- **cancel volume review**
+
+Typed and current-name ACTIVATED routes use the pinned exact successful
+Active-session answer, not latest-message guessing. The entire answer must be
+`set speech.playback-volume to <canonical integer 0-100>`. Review is inert;
+confirmation is separate, fresh and expires after 60 seconds. Expanded/compact
+Sessions offer the same exact-answer review and confirmation. Original voice
+at any stage remains voice-restricted under protected/unknown call policy.
+Source/session/privacy/ownership/channel/call/settings changes retire authority;
+no replay, audio test, other-setting or system/device/call volume mutation.
+See [complete review and recovery](settings.md#review-an-assistant-kora-volume-suggestion).
+
 ### Inspect or change Windows-native speech rate
 
 - **list rate settings**

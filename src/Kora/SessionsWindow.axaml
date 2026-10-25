@@ -111,6 +111,8 @@
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires a current approved Copilot account/model and hosted policy. Unavailable until enabled. Never falls back." />
+          <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"
+            IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
             AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
@@ -138,6 +140,9 @@
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <Button x:Name="SessionInstructionScopes" Content="Apply or stop an instruction for this Active session"
+            IsEnabled="{Binding CanCompose}"
+            AutomationProperties.Name="Review and separately confirm volatile ordinary local session guidance, or stop applying; no hosted or tools" />
         <Expander Header="Use one enabled owned instruction for one local request">
           <StackPanel Spacing="6">
             <WrapPanel>

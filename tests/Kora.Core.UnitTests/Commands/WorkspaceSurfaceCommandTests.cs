@@ -14,6 +14,12 @@ public sealed class WorkspaceSurfaceCommandTests
     [InlineData("show sessions", WorkspaceSurfaceTarget.Sessions)]
     [InlineData("show me the current sessions", WorkspaceSurfaceTarget.Sessions)]
     [InlineData("expand conversation", WorkspaceSurfaceTarget.Sessions)]
+    [InlineData("show me the detailed results", WorkspaceSurfaceTarget.Details)]
+    [InlineData("show detailed results", WorkspaceSurfaceTarget.Details)]
+    [InlineData("show details", WorkspaceSurfaceTarget.Details)]
+    [InlineData("hide details", WorkspaceSurfaceTarget.HideDetails)]
+    [InlineData("show session logs", WorkspaceSurfaceTarget.SessionLogs)]
+    [InlineData("show session audit", WorkspaceSurfaceTarget.SessionAudit)]
     public void ExactRoutesAreTypedAndCurrentNameQualified(string phrase, WorkspaceSurfaceTarget target)
     {
         WorkspaceSurfaceCommand.Parse(phrase, "Nova Prime")!.Target.Should().Be(target);
@@ -46,6 +52,12 @@ public sealed class WorkspaceSurfaceCommandTests
     [InlineData("show me the current sessions extra")]
     [InlineData("expand conversation extra")]
     [InlineData("collapse conversation extra")]
+    [InlineData("show details extra")]
+    [InlineData("show detailed results!")]
+    [InlineData("show me the detailed results extra")]
+    [InlineData("hide details extra")]
+    [InlineData("show session logs extra")]
+    [InlineData("show session audit extra")]
     public void ReservedMalformedInputIsNotFreeForm(string phrase)
     {
         WorkspaceSurfaceCommand.Parse("Nova, " + phrase, "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);

@@ -31,6 +31,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindVoiceOwnershipGate(static () => true);
         f.Voice.IsLiteralDictationAvailable = true;
         await f.ViewModel.InitializeAsync();
+        var editorCalls = 0;
+        f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
+        f.ViewModel.BindCustomizationVoice((_, _, _) => { editorCalls++; return Task.CompletedTask; });
         using var composer = DictationComposer(f);
         await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
         f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance).Should().BeSameAs(service);
@@ -46,6 +49,7 @@ public sealed partial class MainViewModelTests
         f.Reasoner.Requests.Should().BeEmpty();
         f.Session.LockCalls.Should().Be(0);
         f.ClipboardReader.Calls.Should().Be(0);
+        editorCalls.Should().Be(0, "literal dictation cannot become editor authoring");
         await f.ViewModel.ExitAsync();
         f.ViewModel.Dispose();
     }

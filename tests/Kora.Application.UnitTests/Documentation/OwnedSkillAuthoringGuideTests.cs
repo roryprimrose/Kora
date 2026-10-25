@@ -17,6 +17,11 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("immutable")
             .And.Contain("not a rollback")
             .And.Contain("enable, select, advertise or invoke")
-            .And.Contain("not autosaved");
+            .And.Contain("not autosaved")
+            .And.Contain("owned skill use daily-review 1.0.0")
+            .And.Contain("owned skill invoke")
+            .And.Contain("32768-byte")
+            .And.Contain("no hosted fallback")
+            .And.Contain("two minutes");
     }
 }

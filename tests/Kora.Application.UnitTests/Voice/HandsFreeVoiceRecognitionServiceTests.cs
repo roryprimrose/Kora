@@ -19,6 +19,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         var operation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var delivered = new TaskCompletionSource<HostRequest>(TaskCreationOptions.RunContinuationsAsynchronously);
         var calls = 0;
+        long activatedGeneration = 0;
         voice.Bind(() => Admission, async (result, request) =>
         {
             result.Transcript.Should().Be("open settings");
@@ -27,7 +28,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             Interlocked.Increment(ref calls);
             delivered.SetResult(request);
             await operation.Task;
-        }, static () => true);
+        }, static () => true, generation => activatedGeneration = generation);
         await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
         var first = await stage.NextAsync();
         voice.State.Should().Be(HandsFreeVoiceState.WakeListening);
@@ -38,6 +39,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         first.HoldClose = true;
         first.Wake.SetResult(new(first.Binding.Generation, 3, true));
         await first.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        activatedGeneration.Should().Be(first.Binding.Generation, "routing context is bound before transcription");
         voice.IsListening.Should().BeTrue();
         first.Result.SetResult(new("open settings", 1, first.Binding.Generation));
         await first.CloseStarted.Task.WaitAsync(TestContext.Current.CancellationToken);

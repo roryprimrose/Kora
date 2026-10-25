@@ -34,6 +34,16 @@ Kora cannot modify its own source, installed components, runtime adapters, secur
 
 ## Workflow
 
+The delivered bounded native v1 owned-package path now includes a separate
+exact-ID/version, two-minute volatile single-use review. Save/List/Reopen remain
+inactive. Host-owned review/enable/target/request/preview/confirmation submits
+through the existing LocalOnly, tools-none conversation route; the package
+cannot authorize itself. Complete source identity/byte revalidation and the
+32768-byte serialized input limit fail closed, without truncation or provider
+fallback. See [the complete user operation](../docs/owned-skill-authoring.md#review-and-invoke-one-saved-revision).
+This does not deliver generated authoring, general YAML, profile editing,
+tools, references, scripts, hooks or agent execution.
+
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
 3. Generate a staged manifest, instructions, and example fixtures in memory.

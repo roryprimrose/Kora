@@ -36,8 +36,15 @@ public sealed class ScopedInstructionUseBroker(
     public async Task<InstructionContextReview> ReviewAsync(SessionWorkspaceEntry target, ArtifactDefinition selected,
         string body, Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi)
     {
-        SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
+        var source = await ReviewSourceAsync(target, selected, admitted, token, origin).ConfigureAwait(false);
+        return CreateRequestReview(source, body, origin);
+    }
+
+    public async Task<InstructionSourceReview> ReviewSourceAsync(SessionWorkspaceEntry target, ArtifactDefinition selected,
+        Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi)
+    {
+        SessionConversationService.RequireOriginalSource(origin);
         var control = access.ControlRevision;
         bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted();
         if (!Live() || !Choices.Any(candidate => ReferenceEquals(candidate, selected)))
@@ -54,11 +61,9 @@ public sealed class ScopedInstructionUseBroker(
             if (!Matches(selected, snapshot) || !revisions.IsEnabled(snapshot))
             { throw new InvalidOperationException("The exact reviewed enabled native instruction is no longer current."); }
             var epoch = revisions.CaptureReviewEpoch(snapshot);
-            var review = new InstructionContextReview(this, target, selected, snapshot, body, epoch, control,
-                origin, time.GetUtcNow(), admitted, activity.Activity?.Context);
+            var review = new InstructionSourceReview(this, target, selected, snapshot, epoch, control,
+                origin, admitted, activity.Activity?.Context);
             await review.ValidateSourceAsync(token).ConfigureAwait(false);
-            // The preview must fit the same complete serialization as the eventual request; nothing is truncated.
-            review.BuildContext(request, time.GetUtcNow()).RequireCompleteInputLimit();
             activity.Complete(HostOperationOutcome.Completed);
             return review;
         }
@@ -74,6 +79,19 @@ public sealed class ScopedInstructionUseBroker(
         }
     }
 
+    internal InstructionContextReview CreateRequestReview(InstructionSourceReview source, string body, RequestOrigin origin,
+        Action<Action>? admissionFence = null)
+    {
+        SessionConversationService.RequireOriginalSource(origin);
+        ConversationText.Validate(body, submission: true);
+        if (!ReferenceEquals(source.Owner, this) || !source.IsCurrent())
+        { throw new InvalidOperationException("The exact instruction source is no longer applicable."); }
+        var review = new InstructionContextReview(this, source, body, origin, time.GetUtcNow(), admissionFence);
+        review.BuildContext(new(new(Guid.NewGuid()), source.Target.Authority.SessionId, new(Guid.NewGuid()), origin),
+            time.GetUtcNow()).RequireCompleteInputLimit();
+        return review;
+    }
+
     private static bool IsOwnedInstruction(ArtifactDefinition candidate) =>
         candidate.Kind == ArtifactKind.Instruction && candidate.Source is "kora-profile"
         && candidate.OwnedInstructionName is not null && candidate.OwnedInstructionRevision is not null;
@@ -87,16 +105,78 @@ public sealed class ScopedInstructionUseBroker(
         && string.Equals(candidate.Content, snapshot.Document.Definition.Content, StringComparison.Ordinal)
         && string.Equals(candidate.OwnedInstructionRevision, snapshot.Revision, StringComparison.Ordinal);
 
-    /// <summary>A host-issued single-use review. Text and snapshot identity cannot confer host authority.</summary>
-    public sealed class InstructionContextReview
+    /// <summary>Exact source and target proof, without a fabricated request or future execution authority.</summary>
+    public sealed class InstructionSourceReview
     {
         private readonly ScopedInstructionUseBroker owner;
         private readonly ArtifactDefinition selected;
         private readonly OwnedInstructionSnapshot snapshot;
         private readonly Guid epoch;
         private readonly long control;
-        private readonly DateTimeOffset createdAt;
         private readonly Func<bool> admitted;
+        private readonly long useRevision;
+        private int retired;
+
+        internal InstructionSourceReview(ScopedInstructionUseBroker owner, SessionWorkspaceEntry target,
+            ArtifactDefinition selected, OwnedInstructionSnapshot snapshot, Guid epoch, long control,
+            RequestOrigin origin, Func<bool> admitted, ActivityContext? trace)
+        {
+            this.owner = owner;
+            Target = target;
+            this.selected = selected;
+            this.snapshot = snapshot;
+            this.epoch = epoch;
+            this.control = control;
+            Origin = origin;
+            this.admitted = admitted;
+            useRevision = owner.catalogue.UseControlRevision;
+            Trace = trace;
+        }
+
+        public SessionWorkspaceEntry Target { get; }
+        public string InstructionText => snapshot.Document.Text;
+        public string Name => selected.Name;
+        public RequestOrigin Origin { get; }
+        internal ScopedInstructionUseBroker Owner => owner;
+        internal ActivityContext? Trace { get; }
+        public void Retire() => Interlocked.Exchange(ref retired, 1);
+
+        internal bool IsCurrent(bool captured = false)
+        {
+            if (Volatile.Read(ref retired) != 0 || !owner.access.CanInspect || !owner.access.CanControl
+                || owner.catalogue.UseControlRevision != useRevision
+                || owner.access.ControlRevision != control || !admitted() || owner.catalogue.IsReloadUnavailable)
+            { return false; }
+            var current = owner.catalogue.Candidates.SingleOrDefault(candidate => Matches(candidate, snapshot));
+            if (current is null) { return false; }
+            // Explicit Disable permits only an already captured answer. Holds/access loss never do.
+            if (captured)
+            { return (current.IsUseEnabled || current.PreservesCapturedUse) && owner.revisions.IsCapturedUseAllowed(snapshot, epoch); }
+            return current.IsUseEnabled && owner.revisions.IsEnabled(snapshot)
+                && owner.revisions.CaptureReviewEpoch(snapshot) == epoch;
+        }
+
+        internal async Task ValidateSourceAsync(CancellationToken token, bool captured = false)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!IsCurrent(captured)) { throw new InvalidOperationException("Instruction use review expired or was revoked; review again."); }
+            var actual = await owner.instructions.Read(snapshot.Name, token).ConfigureAwait(false);
+            var session = await owner.sessions.ReadMetadataAsync(Target.Authority.SessionId, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
+            if (actual is null || !Matches(selected, actual)
+                || !actual.Document.CopyBytes().AsSpan().SequenceEqual(snapshot.Document.CopyBytes())
+                || session != Target || !session.Authority.IsActive || !IsCurrent(captured))
+            { throw new InvalidOperationException("The pinned instruction or exact session changed; no replacement or retry was selected."); }
+        }
+    }
+
+    /// <summary>A host-issued single-use request review, preserving the existing two-minute lifetime.</summary>
+    public sealed class InstructionContextReview
+    {
+        private readonly ScopedInstructionUseBroker owner;
+        private readonly InstructionSourceReview source;
+        private readonly DateTimeOffset createdAt;
+        private readonly Action<Action>? admissionFence;
         private int consumed;
         private int prepared;
         private int captured;
@@ -104,58 +184,31 @@ public sealed class ScopedInstructionUseBroker(
         private HostRequest? preparedRequest;
         private readonly HostId<EvidenceIdentity> evidence = new(Guid.NewGuid());
 
-        internal InstructionContextReview(ScopedInstructionUseBroker owner, SessionWorkspaceEntry target,
-            ArtifactDefinition selected, OwnedInstructionSnapshot snapshot, string body, Guid epoch, long control,
-            RequestOrigin origin, DateTimeOffset createdAt, Func<bool> admitted, ActivityContext? trace)
+        internal InstructionContextReview(ScopedInstructionUseBroker owner, InstructionSourceReview source,
+            string body, RequestOrigin origin, DateTimeOffset createdAt, Action<Action>? admissionFence)
         {
-            this.owner = owner;
-            Target = target;
-            this.selected = selected;
-            this.snapshot = snapshot;
-            Body = body;
-            this.epoch = epoch;
-            this.control = control;
-            Origin = origin;
-            this.createdAt = createdAt;
-            this.admitted = admitted;
-            Trace = trace;
+            this.owner = owner; this.source = source; Body = body; Origin = origin;
+            this.createdAt = createdAt; this.admissionFence = admissionFence;
         }
 
-        public SessionWorkspaceEntry Target { get; }
+        public SessionWorkspaceEntry Target => source.Target;
         public string Body { get; }
-        public string InstructionText => snapshot.Document.Text;
-        public string Name => selected.Name;
+        public string InstructionText => source.InstructionText;
+        public string Name => source.Name;
         public RequestOrigin Origin { get; }
-        internal ActivityContext? Trace { get; }
+        internal ActivityContext? Trace => source.Trace;
+        internal InstructionSourceReview Source => source;
+        internal bool IsExecutionCaptured => Volatile.Read(ref captured) != 0;
         public bool CanSubmit => Volatile.Read(ref consumed) == 0 && IsCurrent();
         public void Retire() => Interlocked.Exchange(ref retired, 1);
-
-        internal bool IsCurrent()
-        {
-            if (Volatile.Read(ref retired) != 0 || !owner.access.CanInspect || !owner.access.CanControl
-                || owner.access.ControlRevision != control || !admitted() || owner.catalogue.IsReloadUnavailable
-                || owner.time.GetUtcNow() < createdAt || owner.time.GetUtcNow() >= createdAt.AddMinutes(2))
-            { return false; }
-            var current = owner.catalogue.Candidates.SingleOrDefault(candidate => Matches(candidate, snapshot));
-            if (current is null) { return false; }
-            // Explicit Disable permits only an already captured answer. Holds/access loss never do.
-            if (Volatile.Read(ref captured) != 0)
-            { return (current.IsUseEnabled || current.PreservesCapturedUse) && owner.revisions.IsCapturedUseAllowed(snapshot, epoch); }
-            return current.IsUseEnabled && owner.revisions.IsEnabled(snapshot)
-                && owner.revisions.CaptureReviewEpoch(snapshot) == epoch;
-        }
-
+        internal bool IsCurrent() => Volatile.Read(ref retired) == 0
+            && owner.time.GetUtcNow() >= createdAt && owner.time.GetUtcNow() < createdAt.AddMinutes(2)
+            && source.IsCurrent(Volatile.Read(ref captured) != 0);
         internal async Task ValidateSourceAsync(CancellationToken token)
         {
-            token.ThrowIfCancellationRequested();
             if (!IsCurrent()) { throw new InvalidOperationException("Instruction use review expired or was revoked; review again."); }
-            var actual = await owner.instructions.Read(snapshot.Name, token).ConfigureAwait(false);
-            var session = await owner.sessions.ReadMetadataAsync(Target.Authority.SessionId, token).ConfigureAwait(false);
-            token.ThrowIfCancellationRequested();
-            if (actual is null || !Matches(selected, actual)
-                || !actual.Document.CopyBytes().AsSpan().SequenceEqual(snapshot.Document.CopyBytes())
-                || session != Target || !session.Authority.IsActive || !IsCurrent())
-            { throw new InvalidOperationException("The pinned instruction or exact session changed; no replacement or retry was selected."); }
+            await source.ValidateSourceAsync(token, Volatile.Read(ref captured) != 0).ConfigureAwait(false);
+            if (!IsCurrent()) { throw new InvalidOperationException("Instruction use review expired or was revoked; review again."); }
         }
 
         internal void Consume()
@@ -178,6 +231,12 @@ public sealed class ScopedInstructionUseBroker(
         }
 
         internal void BeginExecution(ModelTurnProvenance provenance)
+        {
+            if (admissionFence is { } fence) { fence(() => BeginExecutionCore(provenance)); }
+            else { BeginExecutionCore(provenance); }
+        }
+
+        private void BeginExecutionCore(ModelTurnProvenance provenance)
         {
             // The canonical host calls this only after exact admission checks. The current enabled
             // epoch check is capture's linearization point; a later use-disable may preserve this turn.

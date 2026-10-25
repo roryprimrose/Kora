@@ -28,13 +28,13 @@ public sealed partial class MainViewModel
             || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
         { ReportHostInteractionFailure("Skill authoring requires original typed input or current-name activated voice."); return; }
         var captured = queuedEligibility ?? CaptureSkillReviewEligibility(input);
-        var privacy = CaptureDefinitionObservationEligibility();
+        var privacy = CaptureInstructionEditorEligibility();
         var handler = ownedSkillAuthoring;
         var binding = Interlocked.Read(ref ownedSkillAuthoringBindingRevision);
         await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin, async () =>
         {
             var authority = new OwnedSkillAuthoringAuthority(input.Origin,
-                () => captured() && privacy() && !IsProtectedCall && ReferenceEquals(handler, ownedSkillAuthoring)
+                () => captured() && privacy() && !IsProtectedCall && !IsResponseInteractionPending && ReferenceEquals(handler, ownedSkillAuthoring)
                     && binding == Interlocked.Read(ref ownedSkillAuthoringBindingRevision));
             if (handler is null || !authority.IsCurrent())
             { ReportHostInteractionFailure("Owned skill authoring is unavailable or its original authority expired."); return; }

@@ -334,7 +334,7 @@ public sealed partial class MainViewModelTests
             return ValueTask.FromResult(Session);
         }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
-            Failure is null ? ValueTask.FromResult(new SessionPage<SessionWorkspaceEntry>([Session], null))
+            Failure is null ? ValueTask.FromResult(ClaudePageRead?.Invoke(after, limit) ?? new SessionPage<SessionWorkspaceEntry>([Session], null))
                 : ValueTask.FromException<SessionPage<SessionWorkspaceEntry>>(Failure);
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken cancellationToken) =>
             throw new NotSupportedException();

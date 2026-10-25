@@ -49,7 +49,7 @@ public sealed partial class DetailWindowController : IDisposable
                 && response.Content.IsSameSnapshot(content) && response.Admitted())
         && (content.Origin != DetailContentOrigin.RetrievedWebResult
             || ReferenceEquals(webResultSource(content.Reference), content))
-        && (content.Origin != DetailContentOrigin.RetainedConversation
+        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant)
             || conversationSources.TryGetValue(content.Reference, out var source)
                 && source.Content.IsSameSnapshot(content) && source.Admitted());
 
@@ -115,7 +115,7 @@ public sealed partial class DetailWindowController : IDisposable
     internal async Task<string> OpenConversationDetailAsync(AdmittedDetailContent content, Window? owner,
         Func<bool> admitted, Func<CancellationToken, Task<AdmittedDetailContent>> resolve, CancellationToken token)
     {
-        if (content.Origin != DetailContentOrigin.RetainedConversation || content.ConversationMessage is null)
+        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant) || content.ConversationMessage is null)
         { throw new InvalidDataException("Only an exact retained original conversation record may enter this detail route."); }
         if (disposed) { throw new InvalidOperationException("The conversation detail owner is disposed."); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
@@ -263,7 +263,7 @@ public sealed partial class DetailWindowController : IDisposable
         try
         {
             state = registry.Open(content, CanAccess(content),
-                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.FinalizedResponse
+                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.FinalizedResponse
                     ? () => CanAccess(content) : null,
                 () => !disposed && CanAccess(content));
         }
@@ -293,8 +293,12 @@ public sealed partial class DetailWindowController : IDisposable
         IDetailView view;
         try
         {
-            view = createView(state, result,
-                (confirmed, selectionStart, selectionLength) => CopyAsync(reference, generation, confirmed, selectionStart, selectionLength));
+            Task Copy(bool confirmed, int? selectionStart, int selectionLength) =>
+                CopyAsync(reference, generation, confirmed, selectionStart, selectionLength);
+            view = owner is ResponseWindow primary && viewModel is not null
+                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
+                ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
+                : createView(state, result, Copy);
         }
         catch (InvalidOperationException)
         {

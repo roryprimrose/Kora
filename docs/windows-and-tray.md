@@ -47,6 +47,25 @@ choose All or Done to inspect other lifecycle states. **Refresh list** and
 **Next page** are explicit. Background progress does not rearrange this page.
 No session is selected automatically.
 
+To find a conversation here, enter part of its **Conversation name**, then use
+**Search** or Enter. This is a case-sensitive ordinal name substring search within the
+chosen lifecycle filter, not a transcript search. Editing alone reads nothing.
+Enter the exact text you want to match: names must be nonblank, single-line NFC
+text without control/format characters or surrounding whitespace, at most 120
+Unicode scalars / 480 UTF-8 bytes. Invalid input stays visible without truncation
+or normalization; Search is unavailable.
+
+**Next matches** continues the bounded metadata scan, even when a page has no
+matches but more rows remain. **Cancel search** cancels an in-flight scan;
+late results cannot replace the page. **Clear** or Escape retires the search
+without reading; **Refresh list** returns to ordinary browsing. Changing the
+query retires captured spoken positions, and replacing a search page retires
+its old selection when it is no longer present. No matching session is selected
+or resumed automatically, and searching or selecting never reads conversation
+bodies. Select the intended row, then explicitly read or continue that exact
+conversation. Separate memory-only unsent buffers remain attached to their
+original conversations.
+
 Click a session, or say/type `select the top session`, `select the last session`
 or `select the third session`. Spoken commands require the current name prefix.
 First through twenty-fifth are supported. Positions count from the top of the
@@ -72,7 +91,7 @@ private presentation without saving it.
 **Current interaction** shows the original response/question/approval controls
 inside this same window. Selection does not retarget them. Authoritative native
 question windows and **Return to current question** remain independent.
-**Session management** opens the existing advanced workspace for search,
+**Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
 
 Automatic current/other/new conversation matching is not available yet, and

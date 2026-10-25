@@ -161,6 +161,14 @@ The [reserved command family](../src/Kora.Core/Commands/SessionCommand.Conversat
 
 The [user guide](../docs/commands.md#search-one-explicitly-addressed-retained-conversation) owns the current syntax and unavailable boundaries; no additional preparation-only command is approved by the existence of this implementation.
 
+### Explicit retained ASSISTANT search
+
+The existing [role policy](../src/Kora.Core/Conversation/ConversationSearch.cs) admits **ASSISTANT** only when explicitly selected, matching `AssistantResponse.Body` and no USER, HOST, provider or provenance fields. **All** remains USER/HOST-only for compatibility. Absent answers do not fall back; complete record/provenance validation precedes all exclusion. Lexical grammar and retained bytes remain unchanged.
+
+The [exact command service](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs) binds original role/query/channel and source to its original nonrenewing 60-second continuation. Native [Search/Next and detail retirement](../src/Kora/SessionsViewModel.ConversationSearch.cs) uses the same canonical search. [Complete page validation](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) admits terminal assistant revision 3 while preserving bounded head revisions, full serialized byte budgets and exact cursor/digest/source fences.
+
+The [complete interaction](../docs/windows-and-tray.md#search-retained-assistant-answers) is explicit role/query, Search/Next, inspect complete inert answer, Cancel/Clear. This grants no new context/reuse/export, retention renewal, index, persistence, model/provider invocation or profile enablement. Deterministic [portable tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private SQLite/native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs) cover the bounded implementation, not installed hardware/provider qualification.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Session-local unsent input and legacy compatibility - 2026-10-21

@@ -59,11 +59,11 @@
         <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />
         <TextBox x:Name="ConversationQuery" Text="{Binding ConversationQuery, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-            PlaceholderText="Search retained USER words or typed HOST outcome/reason/task state in only this exact selected session"
+            PlaceholderText="Search this exact retained conversation; choose ASSISTANT for saved answers, All for USER/HOST only"
             AutomationProperties.Name="Private exact-session conversation lexical query; memory-only, not composer input, a model instruction or global search" />
         <ComboBox x:Name="ConversationRole" ItemsSource="{Binding ConversationRoles}"
             SelectedItem="{Binding ConversationRole, Mode=TwoWay}" IsEnabled="{Binding CanReadConversation}"
-            AutomationProperties.Name="Conversation search field filter: All original USER and typed HOST fields, USER original body only, HOST outcome reason and task state only; editing does not read" />
+            AutomationProperties.Name="Conversation search field filter: All original USER and typed HOST fields only, USER original body only, HOST outcome reason and task state only, ASSISTANT retained answer body only; editing does not read" />
         <WrapPanel>
           <StackPanel Margin="0,0,8,0">
             <TextBlock Text="Submitted from UTC (inclusive)" />

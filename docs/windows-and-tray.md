@@ -164,6 +164,16 @@ Search returns chronological retained messages, not generated summaries. Enter s
 
 The bounded reader validates original identity, revision and snapshot continuity. Queries use whole lexical words, not executable instructions; results never add model context, resume work or establish execution authority ([reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
+### Search retained assistant answers
+
+Select the exact retained Active or Done session. In the existing conversation role selector choose **ASSISTANT**, enter lexical words unchanged and choose **Search this conversation**. **All** still searches only USER/HOST fields; **ASSISTANT** searches only complete saved answer bodies, never provider/provenance metadata or an absent answer's USER/HOST text ([role policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+
+Use **Next conversation matches** for the original bounded snapshot. Each row displays the complete inert saved answer separately from USER and HOST; its existing **Details - exact original USER / separate HOST** action opens the complete record with the ASSISTANT answer shown separately. It does not run, speak or reuse the answer ([shared row](../src/Kora/ConversationPresentation.axaml), [detail action](../src/Kora/SessionsViewModel.Conversation.cs)).
+
+**Cancel conversation search** cancels an in-flight search; **Clear private conversation search** clears query, role, results and continuation. Query/role edits and Next retire match Details; source/privacy loss and close discard late results. Unsent input remains independent. Passive Done search never resumes work or renews retention, and search creates no new persisted content/index or model/provider call ([search lifetime](../src/Kora/SessionsViewModel.ConversationSearch.cs), [restart/native coverage](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs)).
+
+The existing lexical query and complete-page byte bounds apply unchanged. Submitted-date and typed task-state predicates still AND-compose with the selected field role. [Typed/current-name activated voice](commands.md#search-retained-assistant-answers-explicitly) selects the same ASSISTANT role through the exact addressed host route, without implicit session navigation.
+
 ### Exact-session conversation and composer
 
 Open **Sessions**, select the exact session and use **Exact-session conversation and composer**. Its header shows the readable conversation name (or **Unnamed conversation**) and full stable session ID to distinguish identical names. Sessions and compact share this label; internal generations, revisions and private-control epochs are not ordinary chat chrome ([target label](../src/Kora/SessionsViewModel.Conversation.cs)).

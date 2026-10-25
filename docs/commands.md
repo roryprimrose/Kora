@@ -973,6 +973,23 @@ Deterministic evidence: [grammar and query bytes](../tests/Kora.Core.UnitTests/C
 Also see [typed/voice and decision isolation](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ConversationSearch.cs) and [private SQLite/headless dirty-composer checks](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ConversationSearch.cs).
 Hardware/provider/wake/acoustic/installed qualification is not enabled or required by this bounded implementation.
 
+#### Search retained assistant answers explicitly
+
+Add `--role ASSISTANT` before the unchanged query separator to search only complete retained `AssistantResponse.Body` text. Omitting the role keeps **All** compatibility: original USER bodies and typed HOST fields only. Named `All`, `USER` and `HOST` roles are also accepted; unknown or numeric roles refuse rather than default ([grammar](../src/Kora.Core/Commands/SessionCommand.ConversationSearch.cs), [field policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
+
+```text
+conversation search <session-id> --role ASSISTANT -- <verbatim query>
+Nova, conversation search abcdef12-1234-1234-1234-123456789012 --role ASSISTANT -- café
+conversation search next <session-id>
+conversation search cancel <session-id>
+```
+
+The voice example assumes the current assistant name is **Nova**. Typed/current-name activated voice uses the same exact-session host route. Next keeps the original query, role, source and nonrenewing 60-second expiry; it accepts no replacement role or caller cursor. Cancel releases the host-held continuation and cancels an in-flight read ([command service](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs)).
+
+Results contain complete unchanged inert retained answers, not new generation or implicit model context. Missing assistant output does not fall back to USER/HOST text. Active/Done read admission, full-record validation, complete serialized page bounds and source/privacy revocation still apply. Search neither renews retention nor creates an index, persistence, provider call or replay ([search owner](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
+
+For Search/Next, complete answer inspection and Cancel/Clear in the existing role selector, see [native assistant search](windows-and-tray.md#search-retained-assistant-answers). Deterministic coverage includes [grammar/role isolation](../tests/Kora.Core.UnitTests/Conversation/AssistantConversationSearchTests.cs), [continuations/budgets/revocation](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private restart/native inspection](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs).
+
 The native receipt-history controls additionally offer exact kind, task state,
 decision, question status and answer-channel choices, each with explicit Any.
 They AND-compose with the lexical query and bind the continuation digest; changed

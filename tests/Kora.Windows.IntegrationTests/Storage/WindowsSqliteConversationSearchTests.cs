@@ -64,14 +64,14 @@ public sealed class WindowsSqliteConversationSearchTests
         {
             var range = new ConversationRangeFilter(MinimumGeneration: 1, MaximumGeneration: long.MaxValue, MinimumRevision: 2, MaximumRevision: 2);
             var page = await service.SearchConversationAsync(session, "Unavailable", null, 25, f.Token, role, terminal, range);
-            page.Messages.Should().HaveCount(role == ConversationSearchRole.USER ? 0 : 1);
+            page.Messages.Should().HaveCount(role is ConversationSearchRole.USER or ConversationSearchRole.ASSISTANT ? 0 : 1);
             page.Scanned.Should().Be(2);
             page.Role.Should().Be(role);
             page.Terminal.Should().Be(terminal);
             page.Next.Should().BeNull();
             var pendingOnly = await service.SearchConversationAsync(session, "marker", null, 25, f.Token, role,
                 range: range with { MinimumRevision = 1, MaximumRevision = 1 });
-            pendingOnly.Messages.Should().HaveCount(role == ConversationSearchRole.HOST ? 0 : 1);
+            pendingOnly.Messages.Should().HaveCount(role is ConversationSearchRole.HOST or ConversationSearchRole.ASSISTANT ? 0 : 1);
             pendingOnly.Messages.Should().OnlyContain(message => message.Revision == 1);
         }
         (await service.SearchConversationAsync(session, "marker", null, 25, f.Token, ConversationSearchRole.All,

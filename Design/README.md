@@ -43,6 +43,7 @@ Start with these documents, then follow the topic you need:
 | Definition sources and authoring | [Definition management](Definition_Management.md) owns UI/voice editing and external reload for skills, prompts, instructions, and agent profiles in Kora-owned/profile files; [skill storage](Skill_Storage.md) and [voice/text skill and instruction authoring](Skill_Authoring.md) supply skill-specific and single-file editing contracts |
 | Task execution and recovery | [Task lifecycle](Task_Lifecycle.md); [work management](Work_Management.md) |
 | Session action-permission levels | [Permission levels](Session_Permission_Levels.md); proposed, not delivered authority |
+| Explicit retained assistant conversation search | [Session search contract](Interaction_And_Sessions.md#explicit-retained-assistant-search); [exact command syntax](../docs/commands.md#search-retained-assistant-answers-explicitly); [native workflow](../docs/windows-and-tray.md#search-retained-assistant-answers) |
 | Workspace and windows | [Coordinated workspace](UI_Workspace_And_Windows.md); [information display](Information_Display.md) |
 | Shared questions and device recovery | [Interaction fallback](Interaction_Fallback.md) |
 | Preferences and setup | [User configuration](User_Configuration.md); [environment setup](Environment_Setup.md); [dependency catalogue](Dependency_Catalogue.md) |

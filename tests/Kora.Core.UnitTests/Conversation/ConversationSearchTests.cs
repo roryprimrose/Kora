@@ -58,7 +58,7 @@ public sealed class ConversationSearchTests
 
     [Theory]
     [InlineData(-1)]
-    [InlineData(3)]
+    [InlineData(99)]
     public void UndefinedRoleIsNeverAnAllFallback(int value)
     {
         var act = () => new ConversationSearch("word", (ConversationSearchRole)value);

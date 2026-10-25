@@ -4,9 +4,9 @@
     "net10.0-windows10.0.19041": {
       "Meziantou.Analyzer": {
         "type": "Direct",
-        "requested": "[3.0.299, )",
-        "resolved": "3.0.299",
-        "contentHash": "3PWTsYZnFFs49xDk6Y8+qy1jWe80+j9EhgzHrWo94MM711JsbCBqRptBJHhZmaueEJs6WNspJd+apIEqwyyjqg=="
+        "requested": "[3.0.311, )",
+        "resolved": "3.0.311",
+        "contentHash": "IUhVQNXZRf3lGkNo8BxQf3iZrkN4l+M8INS3GxxqEUqNT+pJHzFG4ROqNBr5KggoqIEmXONdL+OxBU7J+f5uxw=="
       },
       "Microsoft.VisualStudio.Threading.Analyzers": {
         "type": "Direct",

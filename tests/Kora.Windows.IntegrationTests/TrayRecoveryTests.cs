@@ -2,6 +2,7 @@
 using Avalonia.Controls.Primitives;
 using Avalonia.Media;
 using AwesomeAssertions;
+using Kora.Application.ViewModels;
 using Kora.NativeUxFixture;
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -58,7 +59,7 @@ public sealed class TrayRecoveryTests
     });
 
     [Fact]
-    public Task OnlyTheExactSettingsPresenterIsBoldAndDoubleClickKeepsOpeningSettings() => HeadlessSession.RunAsync(async () =>
+    public Task OnlyTheExactShowPresenterIsBoldAndAllPrimaryClicksShowKora() => HeadlessSession.RunAsync(async () =>
     {
         using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
         await fixture.InitializeAsync();
@@ -67,25 +68,40 @@ public sealed class TrayRecoveryTests
         using var tray = new SystemTrayController(fixture.Main, NullLogger<SystemTrayController>.Instance);
         var roots = TrayIcon.GetIcons(application)!.Single().Menu!.Items.OfType<NativeMenuItem>().ToArray();
         var settings = roots.Single(item => string.Equals(item.Header, "Settings...", StringComparison.Ordinal));
-        var defaultPresenter = new MenuItem { Header = settings.Header, DataContext = settings };
-        var unrelatedPresenter = new MenuItem { Header = settings.Header, DataContext = roots[1] };
+        var show = roots.Single(item => string.Equals(item.Header, "Show Kora", StringComparison.Ordinal));
+        var defaultPresenter = new MenuItem { Header = show.Header, DataContext = show };
+        var unrelatedPresenter = new MenuItem { Header = show.Header, DataContext = settings };
         var window = new Window { Content = new StackPanel { Children = { defaultPresenter, unrelatedPresenter } } };
         try
         {
             window.Show();
             defaultPresenter.FontWeight.Should().Be(FontWeight.Bold);
             unrelatedPresenter.FontWeight.Should().NotBe(FontWeight.Bold);
-            settings.Header = "Renamed settings";
+            show.Header = "Show renamed assistant";
             defaultPresenter.FontWeight.Should().Be(FontWeight.Bold);
             var settingsRequests = 0;
-            fixture.Main.SettingsRequested += (_, _) => settingsRequests++;
+            var showRequests = 0;
+            var settingsOpened = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            fixture.Main.SettingsRequested += (_, _) => { settingsRequests++; settingsOpened.TrySetResult(); };
+            fixture.Main.WindowActionRequested += (_, action) => { if (action == WindowAction.Show) { showRequests++; } };
             tray.HandlePrimaryClick();
+            showRequests.Should().Be(1, "the first click reveals immediately without a double-click delay");
             settingsRequests.Should().Be(0);
             tray.HandlePrimaryClick();
+            showRequests.Should().Be(2, "a second click repeats the same Show action, never Settings");
+            settingsRequests.Should().Be(0);
+            ((INativeMenuItemExporterEventsImplBridge)settings).RaiseClicked();
+            settingsRequests.Should().Be(0, "explicit Settings navigation still waits for menu dismissal");
+            await settingsOpened.Task.WaitAsync(fixture.Token);
             settingsRequests.Should().Be(1);
+            showRequests.Should().Be(2);
+            fixture.Main.IsVoiceEnabled.Should().BeFalse();
             tray.Dispose();
             application.Styles.Count.Should().Be(originalStyles);
             defaultPresenter.FontWeight.Should().NotBe(FontWeight.Bold);
+            tray.HandlePrimaryClick();
+            showRequests.Should().Be(2);
+            settingsRequests.Should().Be(1);
         }
         finally { window.Close(); }
     });
@@ -156,8 +172,8 @@ public sealed class TrayRecoveryTests
             .And.NotContain("StopSpeakingFromTrayAsync")
             .And.Contain("if (!disposed) { continuation(); }")
             .And.Contain("NativeMenuDismissalDelay, DispatcherPriority.Input")
-            .And.Contain("ClickSequenceOutcome.DoubleClick")
-            .And.Contain("ClickSequenceOutcome.SingleClick")
+            .And.NotContain("ClickSequenceOutcome")
+            .And.NotContain("trayClickTimer")
             .And.NotContain("Skill packages (inspection only)")
             .And.Contain("Sessions")
             .And.NotContain("Release maintenance (notify-only)")

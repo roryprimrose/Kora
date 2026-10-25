@@ -518,7 +518,7 @@ taskbar settings.
 
 - Single left-click: request Kora's presence immediately, without the Windows double-click
   interval.
-- Double-click: also open or activate Settings; the first click has already requested the presence.
+- Double-click: also show or activate Kora, never Settings; each click uses the same immediate Show action.
 - Right-click: open the tray menu.
 
 The right-click menu contains:
@@ -539,7 +539,7 @@ The right-click menu contains:
 - **Exit Kora**
 
 These nine root rows are separated into navigation, input, settings/help and exit groups. Show/Exit and the tooltip use the configured assistant name ([tray implementation](../src/Kora/SystemTrayController.cs)).
-Settings is bold as the double-click action; a single click still shows the presence ([default-action styling and click routing](../src/Kora/SystemTrayController.cs)).
+Show Kora is bold as the default action for both single- and double-click. Settings opens only through its explicit menu entry or existing commands ([default-action styling and click routing](../src/Kora/SystemTrayController.cs)).
 There is no Stop speaking entry. Use the existing [speech controls or exact command](commands.md#stop-speech-playback) instead.
 
 Specialist links live in their owning screens: **Settings > Custom content** opens the instruction/prompt editor and skill-package inspection; **Settings > Approvals** opens the distinct exact-grant inventory; **Sessions > Retained attachments...** opens the cross-session metadata catalogue ([Settings](../src/Kora/SettingsWindow.axaml), [Sessions](../src/Kora/SessionsWindow.axaml)).

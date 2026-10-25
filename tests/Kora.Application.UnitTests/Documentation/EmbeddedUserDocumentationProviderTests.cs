@@ -18,7 +18,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
         var tray = pages.Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
         tray.Should().Contain("These nine root rows")
-            .And.Contain("Settings is bold as the double-click action")
+            .And.Contain("Show Kora is bold as the default action")
+            .And.Contain("Double-click: also show or activate Kora, never Settings")
             .And.Contain("There is no Stop speaking entry")
             .And.Contain("**Voice & audio**")
             .And.Contain("**Help**")
@@ -29,7 +30,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.NotContain("**Tray > Preview file")
             .And.NotContain("**Tray > Return to current question**");
         var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
-        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**");
+        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**")
+            .And.NotContain("double-clicking the tray icon")
+            .And.NotContain("bold **Settings...**");
     }
 
     [Fact]

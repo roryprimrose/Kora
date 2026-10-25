@@ -220,10 +220,10 @@ playback and execution.
 
 ### Opt-in native presence renderer
 
-The first left tray click requests reveal immediately, without waiting for the
-Windows double-click interval. A second click inside that interval also opens
-Settings; the first reveal is not undone. The timer only retires the click
-sequence. Privacy, display and instance-ownership gates still apply.
+Every left tray click requests reveal immediately, including both clicks in a
+double-click. Show Kora is the bold default menu action; Settings remains an
+explicit menu/command route. There is no click-sequence timer or delayed reveal.
+Privacy, display and instance-ownership gates still apply.
 The responsiveness target is under one second from the tray-handler entry to
 the first positive-opacity frame, preferably under 500 ms. The private-desktop
 fixture measures both renderers with a deliberately blocked scratch SQLite

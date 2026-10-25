@@ -27,6 +27,7 @@ internal sealed class McpInvocation(
     Func<bool> admitted) : IAsyncDisposable
 {
     private readonly long control = access.ControlRevision;
+    private readonly long useRevision = configuration.UseControlRevision;
     private readonly DateTimeOffset expiresAt = time.GetUtcNow().AddMinutes(2);
     private readonly HostRequest interactionRequest = new(original.RequestId, original.SessionId,
         original.TaskId, original.Origin, new(Guid.NewGuid()));
@@ -157,7 +158,8 @@ internal sealed class McpInvocation(
     }
 
     private bool Live(CancellationToken token) => !disposed && !token.IsCancellationRequested
-        && access.CanControl && access.ControlRevision == control && admitted() && time.GetUtcNow() < expiresAt
+        && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
+        && admitted() && time.GetUtcNow() < expiresAt
         && HostActivity.Current is { } current && current.Request.IsWithinIntent(original)
         && current.Outcome == HostOperationOutcome.Unknown && !current.Activity!.IsStopped;
 

@@ -58,7 +58,22 @@ internal sealed partial class SessionsViewModel
     public bool CanReadConversation => CanRead && !conversationBusy && selected is not null && conversation is not null;
     public bool CanNextConversation => CanReadConversation && conversationPage?.Next is not null;
     public bool CanOpenConversationDetails => CanReadConversation && openConversationDetail is not null;
-    public Task OpenConversationDetailAsync(ConversationMessage message) => RunConversationAsync(async (target, live) =>
+    internal bool CanPresentDetails => !closed && access.CanInspect;
+    public bool CanShowDetails => CanRead && selected is not null
+        && (CanOpenConversationDetails && ConversationMessages.Count != 0 || CanOpenHistoryDetail || HasEvidenceDetails);
+    public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
+        : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
+    private Guid? dismissedSessionDetailsOffer;
+    public ConversationMessage? DetailsOfferMessage => CanPresentDetails && completedConversationMessage is { AssistantResponse: { } response } message
+        && message.Request.RequestId.Value != dismissedSessionDetailsOffer
+        && Kora.Core.Presentation.AnswerPresentation.From(response.Body).HasDetails ? message : null;
+    internal void DismissDetailsOffer(ConversationMessage message)
+    {
+        if (!ReferenceEquals(message, DetailsOfferMessage)) { return; }
+        dismissedSessionDetailsOffer = message.Request.RequestId.Value;
+        NotifyConversation();
+    }
+    public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false) => RunConversationAsync(async (target, live) =>
     {
         if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
@@ -66,7 +81,8 @@ internal sealed partial class SessionsViewModel
         var searchEpoch = conversationSearchEpoch;
         bool DetailLive() => live() && (!searchMatch || conversationSearchEpoch == searchEpoch);
         if (searchMatch) { conversationSearchDetailTarget = target; }
-        var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token);
+        var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
+            assistant);
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
@@ -74,7 +90,8 @@ internal sealed partial class SessionsViewModel
             using var validation = beginValidation();
             try
             {
-                var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token);
+                var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token,
+                    assistant);
                 validation.Complete(HostOperationOutcome.Completed);
                 return exact;
             }
@@ -94,6 +111,7 @@ internal sealed partial class SessionsViewModel
                 content, DetailLive, Resolve, lifetime.Token);
         if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
         conversationStatus = detailStatus;
+        RememberSelectedDetail(assistant ? DetailPart.Assistant : DetailPart.Original, message.Request.RequestId.Value);
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
@@ -315,6 +333,9 @@ internal sealed partial class SessionsViewModel
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
+            nameof(CanShowDetails), nameof(DetailsAvailability),
+            nameof(HasEvidenceDetails), nameof(EvidenceDetails),
+            nameof(DetailsOfferMessage),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
             nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
         { OnPropertyChanged(name); }

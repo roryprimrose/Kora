@@ -9,6 +9,16 @@ Existing saved content remains governed by retention and private recovery. See t
 
 Reasoning/context pickers use the saved model. Model review retains both dependent IDs only if supported; missing, stale or incompatible complete bases require the existing full draft/save. No defaults or individual resets are invented. Current production catalogues have no models; these field controls are unavailable. [Settings and recovery](settings.md#app-default-service-and-desired-profiles) describe the exact boundaries.
 
+## Customizations
+
+Open **Tray > Customizations** for a shared Skills / Instructions / Agents /
+MCP servers / Prompts window with **Built-in**, **Kora**, and **User** source
+groups. Built-ins are read-only; writable sources support reviewed native
+editing, skill component changes, recoverable saves and local-model proposals.
+Every artifact can be persistently disabled in Kora without deleting its files.
+See [Customizations](customizations.md) for exact commands and the separate
+source-write, model-disclosure and runtime-use boundaries.
+
 ## Owned instructions and prompts
 
 Open **Tray > Owned instructions and prompts (native editor)**. Choose Instruction
@@ -71,6 +81,34 @@ The approved design uses relatedness routing in both window modes: selection
 supplies context, not a lock for unrelated general voice requests. Today use
 the explicitly addressed composer or the existing fresh-target **New conversation**
 workflow; expansion does not add model availability or permissions.
+
+### Details beside the conversation
+
+After explicitly reading a conversation or selecting an activity receipt, use
+**Message details**, **Open full detailed answer** or **Activity details**.
+The expanded window opens a Details pane beside the conversation and composer;
+it does not open another session-result window or repeat the task.
+Each message link opens that exact original or answer, including earlier results.
+
+Drag the divider to resize both panes. **Hide details** or the reader's Escape
+closes the content, not the conversation or unsent text. **Show details** restores
+the last explicitly chosen available item after fresh admission, or offers a
+chooser. It is disabled until the selected session has observed available details;
+selecting metadata alone does not read result bodies. Reading positions and the
+split are memory-only. The minimum side-by-side window width is 1040; a smaller
+display work area reports Details unavailable rather than hiding the composer.
+
+**Session logs** and **Session audit** explicitly query only this session through
+the existing read-only Evidence owners. They create separately labelled HOST
+result links, not assistant answers. Up to eight bounded pages stay available on
+the observed page; opening an earlier link does not rerun its query. Source
+revalidation may retire changed, removed, due or unavailable content. Switching
+sessions or privacy retirement clears these evidence pages.
+
+Current-response details also use this pane and name their own source; they are
+labelled as separate from the selected conversation and do not retarget its input.
+Supported Markdown renders natively. Mermaid remains labelled source fallback;
+this change does not enable HTML or browser capabilities.
 
 ### Workspace surface navigation
 

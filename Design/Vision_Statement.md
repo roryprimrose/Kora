@@ -37,7 +37,7 @@ The particle-cloud presence provides state feedback; session conversations and e
 Users should be able to accomplish every supported Kora workflow without compulsory typing, or entirely through accessible UI without compulsory speech.
 Mandatory OS/provider authentication and unavailable microphone constraints remain explicit.
 During protected calls, voice-initiated voice-setting and in-call-option changes are rejected and require a new UI request; this is the explicit privacy/security exception, not a general restriction on voice operation.
-The compact latest-interaction UI, Sessions workspace with a session list beside full conversation/history, and separate immutable detail/script viewer share host-owned questions and approvals.
+The primary window combines compact latest interaction and an expanded Sessions workspace with a session list, full conversation/history and an on-demand immutable content/script pane. Trusted questions and approvals remain host-owned, outside rendered content.
 See [Human Interaction and Persistent Sessions](Interaction_And_Sessions.md) and [Coordinated Window Design](UI_Workspace_And_Windows.md).
 Kora can also initiate conversation, for example to offer an available update or ask for clarification on current work.
 Suggestions are not authority to execute actions; see [Proactive Voice Interaction](Proactive_Interaction.md).

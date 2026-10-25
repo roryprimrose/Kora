@@ -9,6 +9,9 @@ general artifact or permission-management experience described below.
 The bounded native shared-question slice additionally reuses this passive
 plain-text renderer for complete immutable host-record review, separate from
 native answer/approval controls.
+The [integrated session content pane](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+is approved placement direction, not delivered behavior; existing bounded Details
+windows remain in use until migrated.
 
 The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
 Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
@@ -743,29 +746,46 @@ approval and remain pending.
 ## Recommended Surfaces
 
 Keep the ambient presence small; do not turn every answer into a browser window.
-The compact response surface evolves into a session-labelled latest-interaction view, paired with the Sessions workspace (session list plus full conversation/history) and a separately bound detail/artifact viewer.
+The compact response surface evolves into a session-labelled latest-interaction view, expanding into the Sessions workspace with a session list, full conversation/history and an on-demand session-bound content pane.
 The [coordinated window design](UI_Workspace_And_Windows.md) owns layouts/navigation and native card placement; [Interaction and Sessions](Interaction_And_Sessions.md) owns their data/lifecycle contracts.
 Concise output links to retained full content; expansion never reruns a task. Structured questions and exact grants use host-owned cards, not generated markup.
 Rich-content presentation adds these independently controlled roles within that wider window design:
 
 1. Optional speech-text overlay for the words Kora is currently speaking.
-2. Workspace history/inline expansion and separate detail/artifact viewing for text, Markdown, diagrams, citations, immutable `.ps1` source/diffs, and session/task evidence.
-3. Static HTML in the detail window and a separate isolated web viewer for
-   explicitly requested websites, each with native trusted
-   navigation/provenance controls.
+2. Workspace history/inline expansion and the integrated Details pane for text, Markdown, diagrams, citations, immutable `.ps1` source/diffs, session/task evidence and explicitly requested session-command log/audit results.
+3. Distinct static-HTML and isolated-web adapters in that content area for
+   admitted snapshots and explicitly requested websites, each with appropriate
+   native trusted navigation/provenance controls. Shared placement does not
+   merge renderer permissions or browser isolation boundaries.
 
-Showing/hiding one surface does not cancel work, mute the microphone, or change another surface's visibility.
+Showing/hiding content does not cancel work, mute the microphone or dismiss native
+interaction controls. Show/Hide details changes the Details pane's visibility;
+the conversation and composer stay visible whenever Details is shown.
+The resizable split and minimum expanded-window width follow the
+[workspace contract](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25).
 Approvals, safety warnings, and unresolved errors remain separate trusted host panels, not optional captions or content inside a webpage.
 Native question cards support mouse answers and microphone selection/recovery as defined in [Interaction Fallback](Interaction_Fallback.md), even when speech text is off or voice is unavailable.
 Content viewing is not browser automation or implicit permission to capture a webpage as model context.
 
-## Detailed Information Window
+## Detailed Information Surface
 
-Use a host-owned detailed information window for a single retained answer,
+The bounded delivered subset reuses one [native reader](../src/Kora/DetailContentView.axaml)
+inside expanded Sessions for exact original USER, full separately retained
+ASSISTANT, selected activity, ordinary current responses and explicit local-UI
+session log/audit result pages. A complex answer's brief is a presentation
+projection; its complete original remains the retained/admitted source. Native
+offers and exact detail commands reveal the pane without another model call.
+The [workspace delivery boundary](UI_Workspace_And_Windows.md#delivery-boundary)
+owns availability, source revalidation, limits and remaining renderer gates.
+
+Use a host-owned detailed information surface for a single retained answer,
 document, report, list, or immutable artifact that is too long or structurally
-rich for the compact response surface. This is the primary passive reading
+rich for the compact response surface. Its default session-result placement is
+the [integrated adaptive content pane](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25),
+not a new top-level window. This is the primary passive reading
 surface for plain text, the supported Markdown profile, and isolated static
-HTML. It can also host exact read-only source/diff tabs. It does not become a
+HTML. It can also host exact read-only source/diff tabs and admitted typed log/audit
+result pages without converting structured evidence into Markdown. It does not become a
 generic host for settings, session management, permission editing, arbitrary
 web applications, or model-defined controls.
 
@@ -781,7 +801,7 @@ through content inheriting authority from a base web page:
 ```text
 +----------------------------------------------------------------+
 | Native title / session / origin / revision / sensitivity        |
-| [Back] [Rendered | Source] [Search] [Copy all] [Export] [...]  |
+| [Back to message] [Rendered | Source] [Search] [Hide details]     |
 |----------------------------------------------------------------|
 | Passive content viewport: text, Markdown, static HTML, source    |
 | Local in-document navigation only; no authoritative controls     |
@@ -790,18 +810,28 @@ through content inheriting authority from a base web page:
 +----------------------------------------------------------------+
 ```
 
-The native shell owns the window title, trust/provenance labels, keyboard
+The native shell owns the content title, trust/provenance labels, keyboard
 commands, renderer state, source toggle, copy/export requests, and navigation
 back to the exact session event. Rendered content cannot cover, imitate, move,
 or mutate that chrome. Opening the same immutable reference activates its
-existing viewer; explicit comparison may open separately titled viewers bound
-to different references. New revisions never silently replace a viewer's
+existing session-bound view. Explicit comparison, where supported, preserves
+distinct immutable references without requiring separate windows; comparison
+and detachable windows are not part of the first integrated increment.
+New revisions never silently replace a viewer's
 current item. A user-requested refresh resolves and displays a new immutable
 revision with the change made visible.
 
-The window opens only from an explicit Details/Open action or a configured
-automatic-detail preference for an eligible finalized response. Background
-completion does not steal focus. Closing the window releases renderer
+The pane opens from an explicit per-message Open details link, native Show details,
+an admitted exact voice request/accepted offer, or a configured automatic-detail
+preference for an eligible finalized response. Show is disabled without available
+detail references for the selected session; checking metadata is not permission to
+read bodies or scan logs. Each message's links bind its own immutable result(s),
+not a session-wide "latest details" slot. Native Show restores an explicitly chosen
+reference or offers the known-reference chooser under the workspace contract.
+Log/audit links use the [session-command evidence route](UI_Workspace_And_Windows.md#session-command-log-and-audit-details),
+with source/query scope, typed authority labels and independent retention intact.
+Background
+completion does not steal focus or replace an open item. Closing the pane releases renderer
 resources but does not cancel work, delete retained content, mark a session
 Done, or count as approval. Merely reading, searching, scrolling, copying, or
 changing tabs does not refresh session inactivity.
@@ -857,7 +887,7 @@ each model/provider to choose. A user can still open any retained eligible
 short response through History even when it was not recommended for detail.
 
 Classification occurs after finalization. Streaming text can show a compact
-provisional response, but cannot repeatedly open windows or ask on every
+provisional response, but cannot repeatedly reveal content or ask on every
 structural change. A corrected/replaced final item gets a new immutable
 revision and offer identity. Renderer availability does not change whether
 detail is warranted: missing rich rendering opens the labelled source/plain
@@ -868,8 +898,8 @@ keyboard/screen-reader-accessible **Open details** link/button beside a concise
 summary. Its accessible label includes the content type and session/item
 context, for example "Open details: 14-row settings table for Deployment
 notes". The control binds the immutable item/revision, never "whatever response
-is latest". Clicking or pressing Enter/Space opens or activates that exact
-detail window without rerunning work. If the response UI later displays
+is latest". Clicking or pressing Enter/Space reveals that exact session-bound
+content view in the primary window without rerunning work. If the response UI later displays
 another item, the retained conversation entry keeps its own Open details
 action.
 
@@ -892,9 +922,9 @@ attention without claiming that a question was spoken.
 The offer is a host-owned, non-consequential Yes/Not now question bound to
 session, response item, immutable revision, and expiry. An unambiguous "yes" or
 "show it" while that offer is the foreground voice target opens and activates
-the exact detail window; "not now", dismissal, or expiry leaves the retained
+the exact session-bound content view; "not now", dismissal, or expiry leaves the retained
 link/history available. Silence is not consent and does not open anything.
-Acceptance performs no model round trip. The window may take focus because the
+Acceptance performs no model round trip. The primary window may take focus because the
 user just clicked or accepted the exact offer; merely classifying or completing
 a response never steals focus.
 
@@ -1030,14 +1060,15 @@ security decisions:
 
 | Scenario | Primary surface | Reuse of detail rendering | Authority boundary |
 |---|---|---|---|
-| Long answer, documentation, commands/settings report, model result | Detailed information window | Full document or immutable item | Read-only; content links request native navigation |
-| Session list, conversation, queue, lifecycle, evidence filters | Sessions workspace | Open one answer/artifact/evidence record in the detail window | Session selection and lifecycle controls are typed native controls |
+| Long answer, documentation, commands/settings report, model result | Integrated session Details pane | Full document or immutable item | Read-only; content links request native navigation |
+| Session list, conversation, queue, lifecycle, evidence filters | Sessions workspace | Open one answer/artifact/evidence record in its session-bound content pane | Session selection and lifecycle controls are typed native controls |
+| Explicit session-command log/audit result | Integrated session Details pane | Bounded typed record/query-result page via the existing Evidence owners | Exact source/query scope, authority labels and retention remain distinct; no command replay or implicit egress |
 | Skill discovery and review | Skills management/review surface | Render purpose/instructions Markdown and exact manifest/source/diff tabs | Enable, disable, save, test, and capability review are separate native workflows |
 | Standalone instruction authoring | Skill authoring workspace in single-file mode | Render instruction Markdown plus exact source/diff | Voice/typed refinement changes only the proposal; exact native Save revalidates source identity and base digest, and profile editing is not general file-write authority |
 | Multi-file skill or script review | Skill/revision view with host-owned file tree and tabs | Each selected file uses Markdown or exact language-highlighted source rendering; digest and dependency status remain visible | Tab selection is not approval; review binds the complete immutable revision/file set |
 | Permission grant inventory and editing | Permissions & Approvals workspace | Optional inert explanation, provenance, and use-evidence detail | Filter, narrow, revoke, broaden/request, and confirm are typed native operations, never HTML/Markdown controls |
 | Settings and setup/recovery | Dedicated typed native pages | Help/details may open passive documentation | Validation, persistence, consent, and recovery stay outside rendered content |
-| Internet website | Isolated web viewer | None; a page is not converted into a trusted detail document | Browser navigation policy applies; reading/scraping/model context is separate |
+| Internet website | Separately labelled isolated-web adapter in the content pane, when qualified | Native shell only; a page is not converted into a trusted detail document | Browser navigation policy applies; reading/scraping/model context is separate |
 
 A complex workspace may embed the same read-only content controls, but it owns
 its navigation, selection, dirty state, validation, conflict handling, and
@@ -1068,7 +1099,7 @@ lock, or source loss clears content according to the store/access contract
 rather than leaving a stale renderer copy available.
 
 Kora does not support document-supplied JavaScript in the detailed information
-window. There is no "enable scripts" escape hatch, even for model-generated,
+surface. There is no "enable scripts" escape hatch, even for model-generated,
 skill-provided, user-selected, or locally stored HTML. A pinned host-owned
 implementation may internally use JavaScript to render a bounded format such
 as Mermaid; that implementation receives validated data in its isolated
@@ -1224,6 +1255,9 @@ Accessibility announcements must not duplicate TTS or announce rapidly changing 
 ### Internet Pages
 
 Support a dedicated embedded viewer as the target UX, with an external-browser choice.
+Its session-view placement is the integrated content pane, with separately labelled
+native browser controls, not another Kora window. This placement does not enable the
+browser capability or relax its isolation/lifecycle gate.
 No browser package is selected here: an Avalonia-compatible Windows integration, potentially WebView2-backed, must prove packaging, isolation, network control, lifecycle, and accessibility.
 If that proof fails, report embedded viewing as unavailable and offer an explicit external-browser action; never silently open another app.
 
@@ -1421,7 +1455,7 @@ Generated summaries/captions inherit source restrictions; viewing content is not
 Core owns portable presentation kinds, origins, identities, and validation.
 Application owns admission orchestration, immutable viewer state, generation
 cancellation, native action requests, and access revalidation. The Avalonia
-desktop layer owns native Markdown/source controls and shared window chrome.
+desktop layer owns native Markdown/source controls and the shared native content shell.
 Windows owns any WebView/browser integration, profile/process lifecycle, and
 OS session/lock behavior, including the platform clipboard adapter. A renderer
 receives already admitted content and
@@ -1443,6 +1477,11 @@ streams, temporary snapshots, browser controllers/profiles, timers, and
 subscriptions. A renderer crash or failed disposal reports the capability as
 degraded and cannot leave an invisible browser process with continued content
 or network access.
+Hiding the pane through Hide details, session switching or compact collapse must
+stop owned browser activity or dispose the browser.
+Returning never silently reissues navigation/network requests; renewed browsing
+uses current admission. Merely keeping the primary window open is not authority
+for a hidden page to keep running.
 
 ## Voice Settings and Navigation
 

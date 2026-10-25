@@ -36,6 +36,39 @@ and model-visible list context explicitly unavailable. See the
 and [routing contract](Interaction_And_Sessions.md#proposed-relatedness-routing).
 Question/approval authority, privacy, retention and provider qualification are unchanged.
 
+## Integrated session content pane - 2026-10-25
+
+The product owner approved a contextual content pane inside the primary expanded
+sessions window as the default for complex results, rather than another top-level
+detail/artifact window. Session list, persistent conversation/composer and Details
+appear together with a resizable conversation/Details divider. The owner selected
+a minimum expanded-window width rather than stacking or Conversation/Details tabs;
+resizing/expansion cannot hide the message pane. Show/Hide details controls visibility,
+and Show is disabled when the selected session has no available admitted detail
+references. Each conversation entry may link to different exact results in that same
+pane. Explicit session-command log/audit results can reuse it under the existing
+Evidence and independent retention contracts. The first increment adds no detachable
+content windows.
+
+This advances the existing readable-results and independent-conversation outcomes.
+Kora owns placement, exact session/item binding, private disclosure and trusted
+controls; extensions supply admitted content, not window or approval authority.
+The [workspace contract](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+owns interaction and layout; [information display](Information_Display.md#detailed-information-surface)
+owns the passive renderer shell and existing admission/fallback boundaries.
+Static HTML and live websites remain distinct renderer/security capabilities even
+when presented in the same content area.
+
+This supersedes the separate-window default for session result/detail viewing.
+The bounded native-reader migration now implements retained USER/full ASSISTANT,
+selected activity, ordinary current-response and explicit session log/audit details
+inside that primary window, with brief-answer offers and unchanged full sources.
+Standalone embedded documentation and specialized native previews remain supporting
+surfaces. General result routing, Mermaid and embedded-browser enablement remain
+gated; authoritative questions/approvals and management surfaces are not redesigned
+by this decision. The workspace contract records the exact delivered subset and
+deterministic evidence separately from renderer/provider/native qualification.
+
 ## Decision inventory
 
 | ID | Decision | Owner | Due before | Status | Required evidence |

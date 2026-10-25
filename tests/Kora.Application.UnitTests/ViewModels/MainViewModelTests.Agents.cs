@@ -141,7 +141,9 @@ public sealed partial class MainViewModelTests
             ---
             Exact role guidance.
             """;
-        public LocalFileMetadata Metadata { get; } = new(@"C:\owner\role.agent.md", "profile", 512, DateTimeOffset.UnixEpoch);
+        public LocalFileMetadata Metadata { get; } = new(
+            Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "owner", "role.agent.md")),
+            "profile", 512, DateTimeOffset.UnixEpoch);
         public Task<IAgentProfileSelection> OpenAsync(string path, CancellationToken token) => Task.FromResult<IAgentProfileSelection>(this);
         public Task<byte[]> ReadAsync(CancellationToken token) => Task.FromResult(ArtifactFileDocument.Encode(Text, false));
         public void Dispose() => Released = true;

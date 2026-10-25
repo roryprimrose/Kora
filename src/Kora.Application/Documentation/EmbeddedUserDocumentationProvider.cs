@@ -15,6 +15,7 @@ public sealed class EmbeddedUserDocumentationProvider : IUserDocumentationProvid
         "settings",
         "commands",
         "tools-and-built-in-skills",
+        "customizations",
         "instruction-editor",
         "conversation-instructions",
         "windows-and-tray",

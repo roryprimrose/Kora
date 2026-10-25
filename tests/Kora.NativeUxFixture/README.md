@@ -5,6 +5,11 @@ privacy, isolated scratch SQLite stores and preferences. It never starts the
 production host, reads normal profile sources, captures audio, runs models,
 performs network requests, or uses the shared clipboard.
 
+Headless push-to-talk regressions can opt into a fixture-owned in-memory
+capture seam with a synthetic endpoint and transcript callbacks. This mode
+never opens an audio device and is not exposed by the interactive launcher.
+The default fixture still denies microphone permission and capture.
+
 Evidence capture serializes delivery per sink and provider disposal waits for active
 callbacks and joins accepted writes before scratch cleanup. The buffered presence
 fixture uses the desktop's independent bounded required-file/SQLite-projection

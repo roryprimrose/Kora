@@ -4,6 +4,7 @@ using System.Text.Json;
 
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
+using Kora.Core.Artifacts;
 
 namespace Kora.Application.Configuration;
 
@@ -15,24 +16,27 @@ public sealed partial class McpServerConfigurationService
     private readonly IApplicationDataPaths paths;
     private readonly IArtifactDirectoryPreferences preferences;
     private readonly string profileRoamingRoot;
+    private readonly IArtifactUsePolicy? usePolicy;
 
     public event EventHandler? Changed;
+    internal long UseControlRevision => usePolicy?.Revision ?? 0;
 
     public McpServerConfigurationService(
         IApplicationDataPaths paths,
-        IArtifactDirectoryPreferences preferences)
-        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData))
+        IArtifactDirectoryPreferences preferences, IArtifactUsePolicy? usePolicy = null)
+        : this(paths, preferences, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData), usePolicy)
     {
     }
 
     internal McpServerConfigurationService(
         IApplicationDataPaths paths,
         IArtifactDirectoryPreferences preferences,
-        string profileRoamingRoot)
+        string profileRoamingRoot, IArtifactUsePolicy? usePolicy = null)
     {
         this.paths = paths;
         this.preferences = preferences;
         this.profileRoamingRoot = profileRoamingRoot;
+        this.usePolicy = usePolicy;
     }
 
     public IReadOnlyList<McpServerConfigurationSummary> Load()
@@ -63,6 +67,8 @@ public sealed partial class McpServerConfigurationService
             }
         }
         return servers
+            .Select(server => usePolicy?.IsDisabled(ArtifactUseIdentity.Mcp(server.Id)) == true
+                ? server with { IsIncluded = false } : server)
             .OrderBy(server => server.Name, StringComparer.OrdinalIgnoreCase)
             .ThenBy(server => server.Source, StringComparer.OrdinalIgnoreCase)
             .ToArray();
@@ -180,9 +186,8 @@ public sealed partial class McpServerConfigurationService
         }
     }
 
-    private static string CreateId(string path, string name) =>
-        Convert.ToHexStringLower(SHA256.HashData(
-            Encoding.UTF8.GetBytes($"{Path.GetFullPath(path).ToUpperInvariant()}\0{name}")));
+    public static string CreateId(string path, string name) =>
+        ArtifactUseIdentity.McpServerId(path, name);
 
     private static void ValidateUniqueNames(JsonElement element)
     {

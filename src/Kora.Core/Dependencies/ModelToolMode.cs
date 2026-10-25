@@ -14,4 +14,7 @@ public enum ModelToolMode
 
     /// <summary>Only the exact reviewed dynamic tool; retrieved data stays in the original local model turn.</summary>
     McpReadOnly,
+
+    /// <summary>Only a separately reviewed bounded Active-session metadata page in the original local turn.</summary>
+    SessionDiscovery,
 }

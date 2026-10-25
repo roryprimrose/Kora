@@ -51,7 +51,9 @@ public static partial class ModelToolProtocol
                 continue;
             }
             var descriptor = ReadOnlyCapabilityCatalog.FindExact(capabilityId)
-                ?? Network.LocalWebPageTool.FindExact(capabilityId);
+                ?? Network.LocalWebPageTool.FindExact(capabilityId)
+                ?? (string.Equals(capabilityId, SessionDiscoveryTool.Id, StringComparison.Ordinal)
+                    ? SessionDiscoveryTool.Descriptor : null);
             if (descriptor is null || descriptor.Availability != CapabilityAvailability.Available
                 || !descriptor.CallerLanes.Contains(CapabilityLane.Execution))
             { throw new InvalidDataException("The requested capability is not in the available execution catalogue."); }
@@ -79,7 +81,8 @@ public static partial class ModelToolProtocol
                 || external.SourceRevision.Length != 64 || external.SourceRevision.Any(character => !char.IsAsciiHexDigit(character))
                 || external.ObservedAt.Offset != TimeSpan.Zero
                 || reply.WebPage is not null || reply.Capabilities is not null || reply.Descriptor is not null
-                || reply.Version is not null || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null)
+                || reply.Version is not null || reply.Readiness is not null || reply.Runtimes is not null || reply.Runtime is not null
+                || reply.Sessions is not null)
             { throw new InvalidDataException("The external result does not match its exact requested tool and provenance."); }
             ValidateText(external.Text);
             if (external.StructuredJson is { } structured)

@@ -237,6 +237,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-dictation",
             "hosted-requests",
             "independent-agent-runs",
+            "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

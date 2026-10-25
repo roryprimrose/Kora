@@ -26,7 +26,7 @@ public sealed partial class SessionWorkspaceServiceTests
                 new(null, null, HostTaskState.IntentRecorded) })
             {
                 var page = await f.Service.SearchConversationAsync(f.Session.SessionId, "marker", null, 25, f.Token, role, filter);
-                var expected = role == ConversationSearchRole.HOST ? 0
+                var expected = role is ConversationSearchRole.HOST or ConversationSearchRole.ASSISTANT ? 0
                     : filter == default ? 3 : role == ConversationSearchRole.USER
                         || filter.Reason == ModelTurnReason.CallerCancelled || filter.TaskState == HostTaskState.IntentRecorded ? 0 : 1;
                 page.Messages.Should().HaveCount(expected);

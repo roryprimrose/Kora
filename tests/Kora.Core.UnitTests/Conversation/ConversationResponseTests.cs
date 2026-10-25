@@ -14,7 +14,7 @@ public sealed class ConversationResponseTests
     [Theory]
     [InlineData(ModelProviderIdentity.Ollama, true)]
     [InlineData(ModelProviderIdentity.Copilot, true)]
-    [InlineData(ModelProviderIdentity.Claude, false)]
+    [InlineData(ModelProviderIdentity.Claude, true)]
     [InlineData(ModelProviderIdentity.Codex, false)]
     [InlineData((ModelProviderIdentity)999, false)]
     public void Retained_provider_format_support_is_not_execution_authority(ModelProviderIdentity provider, bool expected) =>
@@ -97,7 +97,7 @@ public sealed class ConversationResponseTests
             "origin" => response with { Provenance = p with { Request = HostRequest.Create(RequestOrigin.HostSystem) } },
             "null-body" => response with { Body = null! },
             "turn" => response with { Provenance = p with { Turn = default } },
-            "provider" => response with { Provenance = p with { Selection = ModelProviderSelection.CopilotCandidate with { Provider = ModelProviderIdentity.Claude } } },
+            "provider" => response with { Provenance = p with { Selection = ModelProviderSelection.CopilotCandidate with { Provider = ModelProviderIdentity.Codex } } },
             "selection" => response with { Provenance = p with { Selection = null! } },
             "blank" => response with { Body = " \r\n" },
             "oversize" => response with { Body = new string('x', 4096) },
@@ -108,6 +108,24 @@ public sealed class ConversationResponseTests
         if (fault is "credential")
         { response.Invoking(value => value.Validate()).Should().Throw<ConversationCredentialException>(); }
         else { response.Invoking(value => value.Validate()).Should().Throw<InvalidDataException>(); }
+    }
+
+    [Fact]
+    public void Claude_retains_only_exact_original_user_and_genuine_successful_answer_data()
+    {
+        var provenance = Provenance() with
+        { Selection = new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), new(1)) };
+        var original = Original();
+        var response = ConversationResponse.FromResult(new(ModelTurnOutcome.Succeeded, ModelTurnReason.ProviderOutcome,
+            provenance, new("genuine Claude answer", null)), provenance);
+        var message = Executing(provenance) with
+        { Revision = 3, Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome, AssistantResponse = response };
+        message.Validate();
+        message.Body.Should().Be(original.Body);
+        JsonSerializer.Deserialize<ConversationMessage>(JsonSerializer.Serialize(message)).Should().Be(message);
+        new Action(() => ConversationResponse.FromResult(new(ModelTurnOutcome.DeniedEgress,
+            ModelTurnReason.EgressNotAdmitted, provenance, new("not a successful answer", null)), provenance))
+            .Should().Throw<InvalidDataException>();
     }
 
     [Theory]

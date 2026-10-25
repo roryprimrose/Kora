@@ -21,7 +21,7 @@ public sealed class CompactSessionControllerTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
-    public async Task ControllerComposesClarificationAndAppearanceReviewTogether(bool compact)
+    public async Task ControllerComposesClarificationAndSettingReviewsWithEvidenceDetails(bool compact)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -57,6 +57,8 @@ public sealed class CompactSessionControllerTests
             state.QuestionPresenter.Should().NotBeNull();
             state.CanSubmitConversationWithClarification.Should().BeTrue();
             state.CanReviewAppearanceSuggestion.Should().BeTrue();
+            state.CanReviewPlaybackVolumeSuggestion.Should().BeTrue();
+            state.PresentEvidenceDetails.Should().NotBeNull();
         });
     }
 

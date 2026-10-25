@@ -27,10 +27,10 @@ public sealed class ConversationTerminalFilterTests
                     {
                         var search = new ConversationSearch("marker", role, filter);
                         search.Terminal.Should().Be(filter);
-                        search.Matches(message, token).Should().Be(role != ConversationSearchRole.HOST
+                        search.Matches(message, token).Should().Be(role is not (ConversationSearchRole.HOST or ConversationSearchRole.ASSISTANT)
                             && (filter == default || role != ConversationSearchRole.USER));
                         new ConversationSearch(reason.ToString(), role, filter).Matches(message, token)
-                            .Should().Be(role != ConversationSearchRole.USER);
+                            .Should().Be(role is not (ConversationSearchRole.USER or ConversationSearchRole.ASSISTANT));
                         new ConversationSearch("absent", role, filter).Matches(message, token).Should().BeFalse();
                     }
                 }
@@ -59,7 +59,8 @@ public sealed class ConversationTerminalFilterTests
                     foreach (var role in Enum.GetValues<ConversationSearchRole>())
                     {
                         new ConversationSearch("Unavailable", role, filter).Matches(message, token).Should()
-                            .Be(expected && (role != ConversationSearchRole.USER || filter == default));
+                            .Be(role != ConversationSearchRole.ASSISTANT
+                                && expected && (role != ConversationSearchRole.USER || filter == default));
                     }
                 }
             }

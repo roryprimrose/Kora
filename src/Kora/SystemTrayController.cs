@@ -55,7 +55,8 @@ public sealed class SystemTrayController : IDisposable
         Action? inspectRetainedAttachments = null,
         Action? editOwnedInstructions = null,
         Action? newRequest = null,
-        Action? compactConversation = null)
+        Action? compactConversation = null,
+        Action? manageCustomizations = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -78,6 +79,12 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         menu.Add(settingsItem);
         menu.Add(documentationItem);
+        if (manageCustomizations is not null)
+        {
+            var customizationsItem = new NativeMenuItem("Customizations");
+            customizationsItem.Click += (_, _) => RunAfterNativeMenuCloses(manageCustomizations);
+            menu.Add(customizationsItem);
+        }
         if (newRequest is not null)
         {
             var newRequestItem = new NativeMenuItem("New request (fresh session only)");

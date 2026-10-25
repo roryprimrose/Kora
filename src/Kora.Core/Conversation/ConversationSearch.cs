@@ -5,7 +5,7 @@ using Kora.Core.Storage;
 
 namespace Kora.Core.Conversation;
 
-/// <summary>Passive lexical matching of original USER content and typed HOST status, not receipt history.</summary>
+/// <summary>Passive lexical matching of selected retained fields; All remains USER/HOST only.</summary>
 public sealed class ConversationSearch
 {
     private readonly SessionHistorySearch lexical;
@@ -44,6 +44,11 @@ public sealed class ConversationSearch
 
     private IEnumerable<string> Fields(ConversationMessage message)
     {
+        if (Role is ConversationSearchRole.ASSISTANT)
+        {
+            if (message.AssistantResponse is { } answer) { yield return answer.Body; }
+            yield break;
+        }
         if (Role is not ConversationSearchRole.HOST) { yield return message.Body; }
         if (Role is ConversationSearchRole.USER) { yield break; }
         if (message.Outcome is { } outcome) { yield return outcome.ToString(); }

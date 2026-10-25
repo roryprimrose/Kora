@@ -27,6 +27,7 @@ internal sealed partial class SessionsWindow : Window
         BindWorkScrolling();
         BindListPageOrder(model);
         BindInstructionContext(model);
+        BindSessionInstructionScopes(model);
         _ = new NativeDraftWrapping(this, ConversationComposer, WrapDraftText, model, model.CaptureDraftPresentationEligibility);
         this.owner.Attach(this);
         CompactConversation.Click += (_, _) => CompactConversationRequested?.Invoke(this, EventArgs.Empty);
@@ -60,6 +61,7 @@ internal sealed partial class SessionsWindow : Window
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
+        BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
         SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());

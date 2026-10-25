@@ -39,6 +39,48 @@ or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
 
+## Review and invoke one saved revision
+
+Saving, listing and reopening never invoke a model. To use one saved package:
+
+1. Select an exact saved ID/version and choose **Use**, or enter
+   `owned skill use daily-review 1.0.0`. Review the complete manifest and
+   guidance as inert, untrusted content, with **LocalOnly**, **tools none**
+   and **references none** scope.
+2. Separately choose **Enable exact reviewed revision once**, or
+   `owned skill enable`. This creates only a volatile single use, expiring
+   two minutes after review. The saved document remains inactive.
+3. Choose **Refresh existing Active conversations** (`owned skill targets`).
+   Select one displayed exact target, or use `owned skill target <session-id>`.
+   `owned skill next-targets` pages the existing conversations; no session is
+   created or resumed.
+4. Enter the original request, or `owned skill request: <literal>`. Its exact
+   whitespace and content are retained unchanged in that conversation.
+5. Choose **Preview complete local invocation** (`owned skill review-use`).
+   Review the target and complete serialized local context. Only host
+   correlation identifiers are freshly stamped at admission; all policy,
+   original request and both complete evidence files are shown.
+6. Separately choose **Confirm exact invocation once** (`owned skill invoke`).
+   The existing admitted local model route retains its answer, or a truthful
+   unavailable/failed terminal, in that exact conversation. An unqualified
+   provider stays unavailable; there is no hosted fallback or automatic retry.
+
+No tools, MCP, scripts, hooks, references or nested agents are admitted.
+A valid saved 64 KiB package may exceed the **32768-byte complete serialized
+input** limit. Invocation then fails visibly before submission; no content is
+truncated. The exact private non-reparse package directory, both file identities
+and complete bytes are revalidated at review, admission, asynchronous model
+boundaries and final disclosure.
+
+`owned skill close-use` closes and retires use without changing the draft.
+`owned skill cancel`, editor edits, closing, expiry, source changes, privacy,
+ownership, channel or target loss retire authority and suppress late output.
+Changing target/request after preparing an invocation requires a fresh source
+review and enablement. Cancelling or closing retains ownership until actual
+read/model work joins, even if cancellation is ignored. If retention is
+unconfirmed, inspect that exact conversation before starting any fresh review;
+an unconfirmed result is not a rollback.
+
 ## Native v1 format
 
 The host resolves the owned roaming application root. The fixed layout is

@@ -161,6 +161,14 @@ The [reserved command family](../src/Kora.Core/Commands/SessionCommand.Conversat
 
 The [user guide](../docs/commands.md#search-one-explicitly-addressed-retained-conversation) owns the current syntax and unavailable boundaries; no additional preparation-only command is approved by the existence of this implementation.
 
+### Explicit retained ASSISTANT search
+
+The existing [role policy](../src/Kora.Core/Conversation/ConversationSearch.cs) admits **ASSISTANT** only when explicitly selected, matching `AssistantResponse.Body` and no USER, HOST, provider or provenance fields. **All** remains USER/HOST-only for compatibility. Absent answers do not fall back; complete record/provenance validation precedes all exclusion. Lexical grammar and retained bytes remain unchanged.
+
+The [exact command service](../src/Kora.Application/Hosting/ConversationSearchCommandService.cs) binds original role/query/channel and source to its original nonrenewing 60-second continuation. Native [Search/Next and detail retirement](../src/Kora/SessionsViewModel.ConversationSearch.cs) uses the same canonical search. [Complete page validation](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs) admits terminal assistant revision 3 while preserving bounded head revisions, full serialized byte budgets and exact cursor/digest/source fences.
+
+The [complete interaction](../docs/windows-and-tray.md#search-retained-assistant-answers) is explicit role/query, Search/Next, inspect complete inert answer, Cancel/Clear. This grants no new context/reuse/export, retention renewal, index, persistence, model/provider invocation or profile enablement. Deterministic [portable tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private SQLite/native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs) cover the bounded implementation, not installed hardware/provider qualification.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Session-local unsent input and legacy compatibility - 2026-10-21
@@ -923,8 +931,13 @@ and active Capturing Reply.
 
 The [2026-10-25 adaptive-window increment](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
 combines the primary compact response and bounded session browser into two modes of
-one native window. The legacy management workspace and immutable Details remain
-separate supporting surfaces. Automatic relatedness and model-visible list context
+one native window. The legacy management workspace remains a supporting surface. The
+[integrated content-pane direction](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+now places bounded original/assistant, activity, current-response and session
+log/audit details beside the persistent conversation/composer. Exact links, native
+brief-answer offers and explicit detail commands do not rerun a model or grant
+authority. Standalone documentation and specialized preview windows remain.
+Automatic relatedness and model-visible list context
 remain proposed; deterministic show/select navigation does not imply their delivery.
 
 The delivered [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) shares one authoritative presentation selection and memory draft with the Sessions workspace.
@@ -932,7 +945,7 @@ Explicit reading and canonical draft/submission actions remain separate from pas
 
 1. **Compact session interaction:** evolve the response window into the latest interaction for the selected session, with its name, actual work state, concise answer/progress, structured question or approval, Details/History, and typed composer.
 2. **Sessions workspace:** reachable from tray, keyboard, compact UI, and verbal commands; Active/Done list and search beside the selected session's full conversation/history, pending cards, and work/queue. A bounded Evidence mode searches and correlates permitted session, diagnostic and audit records without making diagnostics part of the conversation. Shows unread/attention, meaningful activity/due dates, and actual work state, with rename/Done/resume/delete and All work/evidence views.
-3. **Detail/artifact viewer:** expands immutable Markdown, static HTML, plain text, diffs, `.ps1` source and task evidence without losing the workspace conversation/current question. Explicitly opened items retain their own session/artifact identity when selection changes; viewing is not execution.
+3. **Integrated Details pane:** expands immutable Markdown, admitted static HTML, plain text, diffs, `.ps1` source, task evidence and admitted session-command log/audit results inside the primary expanded window. Conversation/messages and composer remain visible beside a resizable Details pane, with minimum pane/window widths, explicit Show/Hide and Show disabled without available detail references. Each conversation entry can open its own exact result in that pane; there is no single session-wide latest-result target. No detachable content window is added in the first increment. Items retain exact session/artifact identity, and switching sessions hides unrelated content rather than retargeting it. Evidence authority/retention, Mermaid and isolated browsing remain separately governed; viewing is not execution.
 
 [Session Workspace and Coordinated Window Design](UI_Workspace_And_Windows.md) owns concrete layouts, window roles/navigation, structured cards, focus/drafts, concurrent-session UX, supporting settings/grant/setup surfaces, and original-requirement coverage.
 
@@ -1153,6 +1166,10 @@ The source is authoritatively reread after native opening/activation and immedia
 
 ### Proposed relatedness routing
 
+The [editor-targeting precedence](#editor-targeting-precedence) below
+applies before this general relatedness policy. Editor-bound or ambiguously
+editor-intended speech is not an unmatched general request.
+
 Explicit targeting wins: input in a session composer continues that session; "new session" starts one; naming a session targets it.
 The same policy applies in collapsed and expanded modes. Explicit selection establishes
 the current conversational reference, not a routing lock: "Select the third session"
@@ -1189,6 +1206,36 @@ automatically marks the control session Done after its lock task.
 Exact session list/switch/new/Done/delete controls and basic factual status work without a model or network.
 A status/history question reads the addressed records and does not resume the subject sessions.
 Relatedness never transfers grants, provider state, sources, or permissions between sessions.
+
+### Editor targeting precedence
+
+**Bounded activated routing with native clarification/review.** A foreground Customizations editor
+may supply one activation-time candidate for model-interpreted editing or
+discussion intent, without a compulsory editor preface. An editor merely being
+open, or a session being selected, is insufficient. The
+[definition-management contract](Definition_Management.md#foreground-editor-voice-targeting)
+owns the complete snapshot, disclosure, choice and draft-review interaction.
+
+Existing dedicated question/approval/dictation capture keeps exclusive input
+ownership and no command fallback. Outside such capture, explicit admitted
+editor/session/New request/local commands precede inferred foreground intent.
+The host pins the candidate at activation, not final recognition or queued UI
+delivery. Routing inference sees only reviewed minimal metadata, not session
+transcripts or definition bodies; its typed proposal cannot confer authority.
+
+An ambiguous editor reference or inferred destination change requires an exact
+target-choice question before any session submission/creation or authoring
+disclosure. A failed, unavailable, stale, cancelled or rejected editor route
+must not use this section's ordinary "no clear match" New session fallback,
+answer an unrelated pending question or rerun the utterance through the global
+parser. A choice authorizes only routing through the selected destination's
+ordinary admission, preserving original voice origin and current eligibility.
+Delivered clarification selects refinement/discussion of the captured artifact
+or Cancel. Selecting another artifact/session/New request requires cancellation
+and its explicit existing route, not automatic held-utterance handoff or a
+model-selected session. General relatedness routing above remains proposed.
+Truly unrelated input without editor context/references retains ordinary
+routing. Background tasks remain isolated and cannot acquire editor input.
 
 ## Concurrent Work and Focus
 

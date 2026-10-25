@@ -1,0 +1,47 @@
+using System.Diagnostics;
+
+using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
+using Kora.Core.Storage;
+
+namespace Kora.Application.Hosting;
+
+public sealed partial class SessionConversationService
+{
+    private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
+        SessionWorkspaceEntry target, string body, Func<bool> admitted,
+        Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
+        CancellationToken token)
+    {
+        RequireOriginalSource(origin);
+        var review = sessionInstructionScopes is null ? null
+            : await sessionInstructionScopes.PrepareRequestAsync(target, body, origin, token).ConfigureAwait(false);
+        if (review is null)
+        {
+            return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null,
+                ModelTurnChoice.Default, token).ConfigureAwait(false);
+        }
+        List<ActivityLink> causes = links?.ToList() ?? [];
+        if (HostActivity.Current?.Activity is { } parent) { causes.Add(new(parent.Context)); }
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
+            new(Guid.NewGuid()), origin), HostActivityLayer.Application, HostOperation.Request, causes);
+        try
+        {
+            if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
+            var receipt = await SubmitInstructionAsync(review,
+                () => admitted() && sessionInstructionScopes!.IsRequestAdmitted(review), token).ConfigureAwait(false);
+            activity.Complete(receipt.Message.Outcome switch
+            {
+                ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,
+                ModelTurnOutcome.Cancelled => HostOperationOutcome.Cancelled,
+                ModelTurnOutcome.Unknown => HostOperationOutcome.Unknown,
+                _ => HostOperationOutcome.Failed,
+            });
+            return receipt;
+        }
+        catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+        finally { review.Retire(); }
+    }
+}

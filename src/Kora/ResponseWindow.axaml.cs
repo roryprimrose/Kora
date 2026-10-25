@@ -22,7 +22,7 @@ public sealed partial class ResponseWindow : Window
     private readonly DispatcherTimer responseTimeoutTimer;
     private readonly PresentationInactivityTimeout responseInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
-    private readonly Button pushToTalkButton;
+    private readonly PushToTalkButtonBinding pushToTalk;
     private bool positionInitialized;
     private readonly DetailWindowController? details;
 
@@ -37,30 +37,9 @@ public sealed partial class ResponseWindow : Window
         details = detailController;
         InitializeComponent();
         DataContext = viewModel;
-        pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
+        var pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
             ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
-#pragma warning disable MA0147 // Avalonia routed events require void event handlers.
-        pushToTalkButton.AddHandler(
-            PointerPressedEvent,
-            OnPushToTalkPressed,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            PointerReleasedEvent,
-            OnPushToTalkReleased,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyDownEvent,
-            OnPushToTalkKeyDown,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-        pushToTalkButton.AddHandler(
-            KeyUpEvent,
-            OnPushToTalkKeyUp,
-            RoutingStrategies.Tunnel,
-            handledEventsToo: true);
-#pragma warning restore MA0147
+        pushToTalk = new(this, pushToTalkButton, viewModel);
         responseTimeoutTimer = new DispatcherTimer();
         responseTimeoutTimer.Tick += OnResponseTimeout;
         positionSaveTimer = new DispatcherTimer
@@ -79,7 +58,6 @@ public sealed partial class ResponseWindow : Window
         AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnInteraction;
         KeyDown += OnInteraction;
-        Deactivated += OnPushToTalkSurfaceUnavailable;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -101,6 +79,8 @@ public sealed partial class ResponseWindow : Window
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCurrentResponseDetailsClicked(object? sender, RoutedEventArgs eventArgs) =>
         await RunResponseActionAsync(viewModel.OpenCurrentResponseDetailsAsync);
+
+    private void OnDeclineDetailsOffer(object? sender, RoutedEventArgs eventArgs) => viewModel.DeclineCurrentDetailsOffer();
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
@@ -190,52 +170,6 @@ public sealed partial class ResponseWindow : Window
         {
             viewModel.ApplyArtifactCommandOption(option);
             this.FindControl<TextBox>("CommandInput")?.Focus();
-        }
-    }
-
-    private void OnPushToTalkSurfaceUnavailable(object? sender, EventArgs eventArgs) =>
-        viewModel.EndPushToTalkCommand.Execute(null);
-
-    private void OnPushToTalkFocusLost(object? sender, Avalonia.Input.FocusChangedEventArgs eventArgs) =>
-        OnPushToTalkSurfaceUnavailable(sender, eventArgs);
-
-    private void OnPushToTalkPressed(object? sender, PointerPressedEventArgs eventArgs)
-    {
-        if (sender is Control control && eventArgs.GetCurrentPoint(control).Properties.IsLeftButtonPressed
-            && viewModel.BeginPushToTalkCommand.CanExecute(null))
-        {
-            eventArgs.Handled = true;
-            eventArgs.Pointer.Capture(control);
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkReleased(object? sender, PointerReleasedEventArgs eventArgs)
-    {
-        eventArgs.Handled = true;
-        viewModel.EndPushToTalkCommand.Execute(null);
-        eventArgs.Pointer.Capture(null);
-    }
-
-    private void OnPushToTalkCaptureLost(object? sender, PointerCaptureLostEventArgs eventArgs) =>
-        viewModel.EndPushToTalkCommand.Execute(null);
-
-    private void OnPushToTalkKeyDown(object? sender, KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Key.Space or Key.Enter
-            && viewModel.BeginPushToTalkCommand.CanExecute(null))
-        {
-            eventArgs.Handled = true;
-            viewModel.BeginPushToTalkCommand.Execute(null);
-        }
-    }
-
-    private void OnPushToTalkKeyUp(object? sender, KeyEventArgs eventArgs)
-    {
-        if (eventArgs.Key is Key.Space or Key.Enter)
-        {
-            eventArgs.Handled = true;
-            viewModel.EndPushToTalkCommand.Execute(null);
         }
     }
 
@@ -342,7 +276,7 @@ public sealed partial class ResponseWindow : Window
     {
         sessionWindowClosed = true;
         viewModel.RetireCurrentResponseSpeech();
-        viewModel.EndPushToTalkCommand.Execute(null);
+        pushToTalk.Dispose();
         viewModel.RetireWebResultDetails();
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
@@ -358,7 +292,7 @@ public sealed partial class ResponseWindow : Window
             if (IsExpanded && viewModel.CanRevealPrivatePresentation) { return; }
             responseTimeoutTimer.Stop();
             responseInactivity.Stop();
-            viewModel.EndPushToTalkCommand.Execute(null);
+            pushToTalk.Release();
             Hide();
             viewModel.RetireCurrentResponseSpeech();
             return;

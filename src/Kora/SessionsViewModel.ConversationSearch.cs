@@ -21,7 +21,7 @@ internal sealed partial class SessionsViewModel
     private SessionWorkspaceEntry? conversationSearchTarget;
     private SessionWorkspaceEntry? conversationSearchDetailTarget;
     private long conversationSearchControlRevision;
-    private string conversationSearchStatus = "Search only this exact session's retained USER messages and typed HOST outcomes. No model context or receipt-history search.";
+    private string conversationSearchStatus = "Search only this exact session's retained conversation. All searches USER/HOST only; choose ASSISTANT for retained answers. No model context or receipt-history search.";
 
     public string ConversationQuery
     {
@@ -173,7 +173,7 @@ internal sealed partial class SessionsViewModel
                 + " exact " + result.Role + " field matches; scanned " + result.Scanned.ToString(CultureInfo.InvariantCulture)
                 + ", omitted 0, unavailable 0. "
                 + (result.Next is null ? "End of original sequence snapshot." : "Next continues the original snapshot.")
-                + " Chronological inert text; not generated answers, ranking or execution authority.";
+                + " Complete chronological retained text; ASSISTANT matches are inert saved answers, not new generation, ranking or execution authority.";
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

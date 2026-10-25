@@ -24,6 +24,8 @@ public sealed partial class MainViewModelTests
     [InlineData("oversized")]
     [InlineData("aggregate")]
     [InlineData("repeated-declaration")]
+    [InlineData("agent-disabled")]
+    [InlineData("agent-reenabled")]
     public async Task SharedSkillAgentPortableWorkflowPreservesDistinctConsentsAndRetainedOperation(string scenario)
     {
         var f = await Fixture.CreateInitializedAsync();
@@ -45,8 +47,12 @@ public sealed partial class MainViewModelTests
             reader.Text += "\n" + new string('a', 40 * 1024);
             shared.Reader.Primary += "\n" + new string('b', 24 * 1024);
         }
+        var usePolicy = new Kora.Application.Configuration.ArtifactUsePreferences(
+            new Kora.Application.UnitTests.Configuration.LocalSharedSkillPreferencesTests.Store());
+        Path.IsPathFullyQualified(reader.Metadata.CanonicalPath).Should().BeTrue();
+        var agentIdentity = ArtifactUseIdentity.File(reader.Metadata.CanonicalPath);
         await using var workflow = new BoundedAgentWorkflow(reader, store, store, conversation, model, f.Audit,
-            TimeProvider.System, skills: scenario is "no-resolver" ? null : resolver);
+            TimeProvider.System, usePolicy: usePolicy, skills: scenario is "no-resolver" ? null : resolver);
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
         if (scenario is "no-resolver")
         {
@@ -61,6 +67,16 @@ public sealed partial class MainViewModelTests
         }
         (await workflow.ReadSkillSourcesAsync(() => true, TestContext.Current.CancellationToken)).Should().Equal(shared.Reader.Source);
         (await workflow.ReadSkillCatalogueAsync(shared.Reader.Source, () => true, TestContext.Current.CancellationToken)).Packages.Should().HaveCount(1);
+        if (scenario is "agent-disabled")
+        {
+            usePolicy.SetDisabled(agentIdentity, true);
+            await workflow.Invoking(value => value.ReviewAsync("role.agent.md", store.Session, "original",
+                RequestOrigin.LocalUi, () => true, TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+            reader.Released.Should().BeTrue();
+            model.Calls.Should().Be(0);
+            store.RequestRetentions.Should().Be(0);
+            return;
+        }
         var current = true;
         using var review = await workflow.ReviewAsync("role.agent.md", store.Session, "original",
             RequestOrigin.LocalUi, () => current, TestContext.Current.CancellationToken);
@@ -112,6 +128,11 @@ public sealed partial class MainViewModelTests
         if (scenario is "source") { shared.Reader.Primary += "\nChanged"; }
         if (scenario is "input") { current = false; }
         if (scenario is "expired") { shared.Time.Now = shared.Time.Now.AddMinutes(3); }
+        if (scenario is "agent-reenabled")
+        {
+            usePolicy.SetDisabled(agentIdentity, true);
+            usePolicy.SetDisabled(agentIdentity, false);
+        }
         if (scenario is not "success")
         {
             await workflow.Invoking(value => value.InvokeAsync(review, RequestOrigin.LocalUi, TestContext.Current.CancellationToken))

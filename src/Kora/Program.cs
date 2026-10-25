@@ -297,6 +297,11 @@ internal static class Program
         services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
             new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
+        services.AddSingleton<ArtifactUsePreferences>();
+        services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore, WindowsCustomizationStore>();
+        services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
+        services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
         services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Application.Mcp.UnavailableMcpConnectionBroker>();
         services.AddSingleton(new Kora.Application.Mcp.McpReadOnlyPolicy([]));
@@ -313,7 +318,7 @@ internal static class Program
             var reconciled = provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
                 .Reconcile([.. embedded.Artifacts, .. disk]);
             return new ArtifactCatalogue(provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt)
-                .Reconcile(reconciled));
+                .Reconcile(reconciled), provider.GetRequiredService<IArtifactUsePolicy>());
         });
         services.AddSingleton<ArtifactCommandRouter>();
         services.AddSingleton(provider => new ArtifactCatalogueReloadService(
@@ -515,12 +520,14 @@ internal static class Program
             provider.GetRequiredService<ProviderModeConfigurationService>(),
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
             provider.GetRequiredService<ISessionProviderProfileStore>(),
-            provider.GetRequiredService<CopilotModelProviderFactory>(),
+            provider.GetRequiredService<HostedModelProviderFactory>(),
             provider.GetRequiredService<HostedTransmissionReviewService>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<SessionConversationService>();
         services.AddSingleton<ScopedInstructionUseBroker>();
+        services.AddSingleton<SessionInstructionScopeBroker>();
+        services.AddSingleton<SessionInstructionScopeCommandService>();
         services.AddSingleton<SessionRequestCommandService>();
         services.AddSingleton<SessionRetentionCommandService>();
         services.AddSingleton<ConversationSearchCommandService>();

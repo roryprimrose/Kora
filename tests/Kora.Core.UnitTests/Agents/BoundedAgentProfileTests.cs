@@ -119,6 +119,18 @@ public sealed class BoundedAgentProfileTests
         act.Should().Throw<InvalidDataException>();
     }
 
+    [Theory]
+    [InlineData("0")]
+    [InlineData("4")]
+    [InlineData("future")]
+    public void ParseRejectsUnsupportedFormatOnOtherwiseValidToolFreeProfile(string format)
+    {
+        var text = ReferencedProfile("disk.kora-profile.instruction.first")
+            .Replace("kora-agent-format: 2", "kora-agent-format: " + format, StringComparison.Ordinal);
+        Action parse = () => Parse(text);
+        parse.Should().Throw<InvalidDataException>();
+    }
+
     [Fact]
     public void VersionTwoDeclaresExactBoundedOwnedIdsWithoutEnablingTools()
     {

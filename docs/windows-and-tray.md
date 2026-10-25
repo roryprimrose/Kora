@@ -9,6 +9,16 @@ Existing saved content remains governed by retention and private recovery. See t
 
 Reasoning/context pickers use the saved model. Model review retains both dependent IDs only if supported; missing, stale or incompatible complete bases require the existing full draft/save. No defaults or individual resets are invented. Current production catalogues have no models; these field controls are unavailable. [Settings and recovery](settings.md#app-default-service-and-desired-profiles) describe the exact boundaries.
 
+## Customizations
+
+Open **Tray > Customizations** for a shared Skills / Instructions / Agents /
+MCP servers / Prompts window with **Built-in**, **Kora**, and **User** source
+groups. Built-ins are read-only; writable sources support reviewed native
+editing, skill component changes, recoverable saves and local-model proposals.
+Every artifact can be persistently disabled in Kora without deleting its files.
+See [Customizations](customizations.md) for exact commands and the separate
+source-write, model-disclosure and runtime-use boundaries.
+
 ## Owned instructions and prompts
 
 Open **Tray > Owned instructions and prompts (native editor)**. Choose Instruction

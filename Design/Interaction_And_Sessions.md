@@ -1153,6 +1153,10 @@ The source is authoritatively reread after native opening/activation and immedia
 
 ### Proposed relatedness routing
 
+The [editor-targeting precedence](#editor-targeting-precedence) below
+applies before this general relatedness policy. Editor-bound or ambiguously
+editor-intended speech is not an unmatched general request.
+
 Explicit targeting wins: input in a session composer continues that session; "new session" starts one; naming a session targets it.
 The same policy applies in collapsed and expanded modes. Explicit selection establishes
 the current conversational reference, not a routing lock: "Select the third session"
@@ -1189,6 +1193,36 @@ automatically marks the control session Done after its lock task.
 Exact session list/switch/new/Done/delete controls and basic factual status work without a model or network.
 A status/history question reads the addressed records and does not resume the subject sessions.
 Relatedness never transfers grants, provider state, sources, or permissions between sessions.
+
+### Editor targeting precedence
+
+**Bounded activated routing with native clarification/review.** A foreground Customizations editor
+may supply one activation-time candidate for model-interpreted editing or
+discussion intent, without a compulsory editor preface. An editor merely being
+open, or a session being selected, is insufficient. The
+[definition-management contract](Definition_Management.md#foreground-editor-voice-targeting)
+owns the complete snapshot, disclosure, choice and draft-review interaction.
+
+Existing dedicated question/approval/dictation capture keeps exclusive input
+ownership and no command fallback. Outside such capture, explicit admitted
+editor/session/New request/local commands precede inferred foreground intent.
+The host pins the candidate at activation, not final recognition or queued UI
+delivery. Routing inference sees only reviewed minimal metadata, not session
+transcripts or definition bodies; its typed proposal cannot confer authority.
+
+An ambiguous editor reference or inferred destination change requires an exact
+target-choice question before any session submission/creation or authoring
+disclosure. A failed, unavailable, stale, cancelled or rejected editor route
+must not use this section's ordinary "no clear match" New session fallback,
+answer an unrelated pending question or rerun the utterance through the global
+parser. A choice authorizes only routing through the selected destination's
+ordinary admission, preserving original voice origin and current eligibility.
+Delivered clarification selects refinement/discussion of the captured artifact
+or Cancel. Selecting another artifact/session/New request requires cancellation
+and its explicit existing route, not automatic held-utterance handoff or a
+model-selected session. General relatedness routing above remains proposed.
+Truly unrelated input without editor context/references retains ordinary
+routing. Background tasks remain isolated and cannot acquire editor input.
 
 ## Concurrent Work and Focus
 

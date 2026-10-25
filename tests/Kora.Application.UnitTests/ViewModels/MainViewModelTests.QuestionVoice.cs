@@ -81,6 +81,9 @@ public sealed partial class MainViewModelTests
     public async Task Exact_reply_never_reaches_command_router_model_network_or_composer()
     {
         var f = await ReplyHostAsync();
+        var editorCalls = 0;
+        f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
+        f.ViewModel.BindCustomizationVoice((_, _, _) => { editorCalls++; return Task.CompletedTask; });
         using var host = new InteractionFixture();
         var question = await host.QuestionAsync();
         await using var replies = f.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,
@@ -95,6 +98,7 @@ public sealed partial class MainViewModelTests
         f.ClipboardReader.Calls.Should().Be(0);
         f.ViewModel.IsVoiceEnabled.Should().BeTrue();
         f.Voice.IsListening.Should().BeFalse();
+        editorCalls.Should().Be(0, "dedicated question capture owns input even with an eligible editor");
         f.ViewModel.Dispose();
     }
 

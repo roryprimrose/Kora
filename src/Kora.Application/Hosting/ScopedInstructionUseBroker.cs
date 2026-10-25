@@ -114,6 +114,7 @@ public sealed class ScopedInstructionUseBroker(
         private readonly Guid epoch;
         private readonly long control;
         private readonly Func<bool> admitted;
+        private readonly long useRevision;
         private int retired;
 
         internal InstructionSourceReview(ScopedInstructionUseBroker owner, SessionWorkspaceEntry target,
@@ -128,6 +129,7 @@ public sealed class ScopedInstructionUseBroker(
             this.control = control;
             Origin = origin;
             this.admitted = admitted;
+            useRevision = owner.catalogue.UseControlRevision;
             Trace = trace;
         }
 
@@ -142,6 +144,7 @@ public sealed class ScopedInstructionUseBroker(
         internal bool IsCurrent(bool captured = false)
         {
             if (Volatile.Read(ref retired) != 0 || !owner.access.CanInspect || !owner.access.CanControl
+                || owner.catalogue.UseControlRevision != useRevision
                 || owner.access.ControlRevision != control || !admitted() || owner.catalogue.IsReloadUnavailable)
             { return false; }
             var current = owner.catalogue.Candidates.SingleOrDefault(candidate => Matches(candidate, snapshot));

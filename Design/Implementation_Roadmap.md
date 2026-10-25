@@ -70,6 +70,22 @@ The earlier detailed retirement slices are superseded by these current contracts
 
 ## Current Delivery
 
+### Adaptive response/session navigation - 2026-10-25
+
+The primary response window expands in place into a resizable left-session-list/right-
+conversation workspace. Explicit reads project existing retained user/assistant/host
+records and ordered read-only activity; a named composer shares existing memory-only
+per-session input and admitted submission. Tray, typed/current-name-activated show,
+expand/collapse and exact presented-page ordinal selection reuse the same native owner.
+Source changes refuse stale positions; historical events never answer or grant.
+Advanced session management and authoritative question windows remain separate.
+
+The approved relatedness policy is mode-independent, with selection as context rather
+than a routing lock. Automatic matching and model-visible session-list context remain
+unavailable, as explicitly scoped by the product owner. This does not qualify providers,
+installed accessibility or physical display behavior. See
+[design and evidence](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25).
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)

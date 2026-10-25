@@ -4,7 +4,6 @@ using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
-using Avalonia.Markup.Xaml;
 using Avalonia.Threading;
 
 using Kora.Application.ViewModels;
@@ -36,7 +35,7 @@ public sealed partial class ResponseWindow : Window
     {
         this.viewModel = viewModel;
         details = detailController;
-        AvaloniaXamlLoader.Load(this);
+        InitializeComponent();
         DataContext = viewModel;
         pushToTalkButton = this.FindControl<Button>("PushToTalkButton")
             ?? throw new InvalidOperationException("The push-to-talk control is unavailable.");
@@ -72,6 +71,7 @@ public sealed partial class ResponseWindow : Window
         Opened += OnOpened;
         Closed += OnClosed;
         PositionChanged += OnPositionChanged;
+        PropertyChanged += OnSessionPresentationChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
         AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -340,6 +340,7 @@ public sealed partial class ResponseWindow : Window
 
     private void OnClosed(object? sender, EventArgs eventArgs)
     {
+        sessionWindowClosed = true;
         viewModel.RetireCurrentResponseSpeech();
         viewModel.EndPushToTalkCommand.Execute(null);
         viewModel.RetireWebResultDetails();
@@ -354,6 +355,7 @@ public sealed partial class ResponseWindow : Window
         if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsVisualResponseVisible), StringComparison.Ordinal)
             && !viewModel.IsVisualResponseVisible)
         {
+            if (IsExpanded && viewModel.CanRevealPrivatePresentation) { return; }
             responseTimeoutTimer.Stop();
             responseInactivity.Stop();
             viewModel.EndPushToTalkCommand.Execute(null);
@@ -460,7 +462,7 @@ public sealed partial class ResponseWindow : Window
     {
         responseTimeoutTimer.Stop();
         responseInactivity.Stop();
-        if (!IsVisible || viewModel.IsResponseAlwaysVisible
+        if (!IsVisible || IsExpanded || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
             || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
             || viewModel.State == AssistantState.Failure)

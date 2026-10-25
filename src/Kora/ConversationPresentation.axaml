@@ -18,6 +18,9 @@
         <Button Name="ReviewSpeechSummarySuggestion" Content="Review speech limit suggestion..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewSpeechSummarySuggestion}"
             AutomationProperties.Name="Review this exact inert answer as one shared future ordinary speech cap; never applies or speaks without separate confirmation" />
+        <Button Name="ReviewPlaybackVolumeSuggestion" Content="Review Kora volume suggestion..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewPlaybackVolumeSuggestion}"
+            AutomationProperties.Name="Review this exact inert answer as shared Kora-only playback volume; never changes system or call volume and requires separate confirmation" />
       </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />

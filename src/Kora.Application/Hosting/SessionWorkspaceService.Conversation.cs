@@ -79,6 +79,10 @@ public sealed partial class SessionWorkspaceService
 
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
+        ReadSettingSuggestionAsync(target, expected, admitted, token);
+
+    public Task<ConversationMessage> ReadSettingSuggestionAsync(SessionWorkspaceEntry target,
+        ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
         ReadAsync(async () =>
         {
             var request = HostActivity.RequireCurrent().Request;
@@ -88,7 +92,7 @@ public sealed partial class SessionWorkspaceService
             if (request.SessionId != target.Authority.SessionId || request.InvocationId is not null
                 || !target.Authority.IsActive || expected.Request.SessionId != target.Authority.SessionId
                 || expected.Generation != target.Authority.Generation || !Live())
-            { throw new InvalidOperationException("Speech limit review requires exact Active-session original-user control."); }
+            { throw new InvalidOperationException("Setting review requires exact Active-session original-user control."); }
             expected.Validate();
             var before = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             var actual = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
@@ -98,7 +102,7 @@ public sealed partial class SessionWorkspaceService
                 expected.Request.RequestId, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (before != target || after != target || actual != expected || final != actual || !Live())
-            { throw new InvalidOperationException("The exact retained speech suggestion source changed; no newer answer was substituted."); }
+            { throw new InvalidOperationException("The exact retained setting suggestion source changed; no newer answer was substituted."); }
             return actual;
         }, token);
 

@@ -467,6 +467,7 @@ public sealed partial class MainViewModelTests
 
     private sealed class SpeechSuggestionModel : IModelTurnAdmission, IModelTurnExecution
     {
+        internal string Answer { get; set; } = "set speech.summary-words to 40";
         internal int Calls { get; private set; }
         public bool IsQuiescent => true;
         public Task WaitForQuiescenceAsync(CancellationToken cancellationToken) => Task.CompletedTask;
@@ -486,7 +487,7 @@ public sealed partial class MainViewModelTests
             Calls++;
             admitted().Should().BeTrue();
             var result = new ModelTurnResult(ModelTurnOutcome.Succeeded, ModelTurnReason.None, turn.Provenance,
-                new("set speech.summary-words to 40", null));
+                new(Answer, null));
             turn.TerminalResult = result;
             return Task.FromResult(result);
         }

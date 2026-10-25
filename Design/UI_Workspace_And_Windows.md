@@ -14,6 +14,69 @@ Apply the [approved realignment](MVP_Scope.md#approved-retirement-and-simplifica
 
 Technical provenance and internal validation remain authoritative; Evidence retains its diagnostic purpose. Saved-draft and public diagnostic scheduling controls are removed. Unsent input follows the [conversation contract](Interaction_And_Sessions.md#conversation-input-realignment), not a document lifecycle.
 
+## Adaptive primary interaction window - 2026-10-25
+
+Approved outcome: participate in independent session conversations and inspect readable results.
+The concrete interaction is Show sessions, select a presented conversation, explicitly read its
+conversation/activity and send a message to its named composer. Kora owns window selection,
+private disclosure and input admission; extensions and model prose cannot own these controls.
+
+The primary [response window](../src/Kora/ResponseWindow.axaml) now expands in place into
+a resizable two-column [session browser](../src/Kora/SessionInteractionView.axaml). Tray
+**Show sessions**, Ctrl+Shift+S, **Show sessions** in the response header and admitted
+show/expand commands reuse that same window. Collapse returns to the original response,
+typed command and live interaction controls. The conversation view remains mounted:
+expansion/collapse does not recreate the session model, move input, save, submit or replay.
+The expanded window does not use the ordinary response inactivity timer.
+
+- The left pane defaults to Active on its first list load, with All/Done filters and
+  explicit Refresh/Next. A list request admits a bounded metadata page, never all
+  transcripts. Opening does not select a default session.
+- The right pane separates retained Conversation (original user text, genuine assistant
+  answers and native action outcomes) from read-only Activity (the existing ordered
+  host task/question/answer/decision receipts). Read/More are explicit source reads.
+  Message/activity Details reuse the original admitted immutable-source resolver.
+  This is not a new aggregate event schema, raw model-reasoning viewer, calculator,
+  tool-trace store or complete exact-grant-change feed.
+- A named session composer uses the existing admitted submit path and per-session
+  memory-only input. Done browsing never resumes work. Advanced provider, retention,
+  search, evidence and lifecycle controls remain under **Session management**.
+- **Current interaction** reveals the original response/question/approval controls
+  inside the same window. Pending legacy interaction is indicated in the header;
+  the independent authoritative native question window remains independent.
+  Historical cards cannot answer, approve or revive a question.
+- Closing the last participating native view protects unsent input through the
+  existing Discard/Cancel owner; privacy/ownership/session retirement revokes content
+  and delayed publication without saving it.
+
+### Presented-list voice selection
+
+Typed or current-name-activated **select the top/first/last/third session** and
+first through twenty-fifth select one exact row of the currently presented loaded
+page. Positions start at the page's top, not the scroll viewport; Last means last
+on that page, not last in the entire retained catalogue. Background work observations
+do not reorder the list. Refresh, filter/order/source replacement, collapse, privacy,
+ownership or disposal invalidates the captured target; missing/stale positions refuse
+instead of selecting a replacement. Selection acknowledges the conversation name in
+native status and preserves other sessions' unsent input. It does not read conversation
+bodies, start listening, dispatch work, resume Done or change question/approval authority.
+
+### Routing is independent of window mode
+
+The approved [relatedness contract](Interaction_And_Sessions.md#proposed-relatedness-routing)
+applies in both modes. Selection supplies conversational context, not a routing lock.
+Explicit session composers/dictation and named targets win. Untargeted general voice
+may match the current Active session, another Active session or a new conversation;
+several plausible matches require a choice including New. A user-requested accepted
+route acknowledges its destination and reveals it in expanded mode while preserving
+the previous input/reading position. Background events never navigate.
+
+This increment delivers deterministic native/typed/activated-voice navigation only.
+Automatic matching, model-visible session-list descriptors and model-callable window
+navigation are not composed. The existing fresh-target New request fallback remains
+truthfully narrower. No runtime, installed accessibility, physical display or provider
+qualification is claimed by headless [adaptive tests](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.cs).
+
 ## Delivered selected-conversation lexical search — 2026-10-13
 
 Sessions and compact conversation share the selected session's bounded chronological conversation search and immutable message details. The [ordinary-search correction](https://github.com/roryprimrose/Kora/pull/428) preserves inclusive submitted-date bounds and meaningful observed task-state choices without restoring raw task/request IDs, sequence/count, generation or revision-range controls.
@@ -280,7 +343,7 @@ Maintained [shared-view tests](../tests/Kora.Windows.IntegrationTests/SessionsCo
 
 ### Workspace surface command evidence
 
-The [typed navigation grammar](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs) owns three exact routes to existing surfaces.
+The [typed navigation grammar](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs) owns exact routes to existing surfaces, including adaptive Sessions and presented-page selection.
 The [application event](../src/Kora.Application/ViewModels/MainViewModel.WorkspaceSurfaces.cs) precedes pending-answer routing and carries original admission; the [native adapter](../src/Kora/WorkspaceSurfaceCommandController.cs) rechecks epochs and compact presentation/selection before invoking the same composed controllers.
 It uses a linked, content-free presentation activity, not model/session authority.
 
@@ -659,6 +722,7 @@ An in-call voice-origin settings rejection offers a fresh UI settings route, not
 ## Selection, Voice Focus, Notifications, and Concurrency
 
 Workspace and compact share one selected UI session; explicit detail windows hold independent read-only item references.
+UI selection supplies context for the mode-independent relatedness policy, not an unconditional voice destination. Explicit composer input remains addressed.
 UI selection, foreground voice question, task execution, and speech playback are separate identities.
 Show the current voice-question session/purpose when one exists; never silently interpret a generic reply as an answer to whichever row was most recently painted.
 User-requested question presentation or Answer by voice selects/revalidates that exact voice target and withdraws the previous target's generic eligibility.

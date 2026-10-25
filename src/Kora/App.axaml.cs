@@ -242,6 +242,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<ScopedInstructionUseBroker>());
             sessionsWindow.Bind();
+            sessionsWindow.CreateInteraction = (state, owner) =>
+                responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
+                    () => sessionsWindow.OpenNewRequest?.Invoke());
             viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
                 sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),

@@ -4,7 +4,7 @@ using Avalonia.Layout;
 
 namespace Kora;
 
-internal sealed class AgentRunWindow : Window
+internal sealed partial class AgentRunWindow : Window
 {
     internal TextBox Source { get; } = new() { PlaceholderText = "Full path to an existing user-owned .agent.md file", IsUndoEnabled = false };
     internal TextBox Input { get; } = new() { AcceptsReturn = true, Height = 90, IsUndoEnabled = false };
@@ -24,7 +24,7 @@ internal sealed class AgentRunWindow : Window
         {
             Text = "Select an EXISTING user-owned .agent.md source. Review reads at most 64 KiB and pins the exact native source. "
                 + "v2 permits up to four exact enabled Kora-owned instruction IDs after separate resolution consent, then full bundle review. "
-                + "No arbitrary files, skills, scripts, recursion, delegation, MCP or hosted transmission. v2 is tool-free; v1 observation tools retain their own permissions. "
+                + "No arbitrary files, executable skills, scripts, recursion, delegation, MCP or hosted transmission. v2 is tool-free; v1 observation tools retain their own permissions. "
                 + "Review is not invocation consent. The local model may be unavailable.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
@@ -34,6 +34,7 @@ internal sealed class AgentRunWindow : Window
         panel.Children.Add(Targets);
         panel.Children.Add(new TextBlock { Text = "Original bounded task (retained in the selected conversation)" });
         panel.Children.Add(Input);
+        AddSharedSkillControls(panel, run);
         Add("Read source and review exact invocation", "Review");
         panel.Children.Add(Review);
         panel.Children.Add(Resolve);
@@ -58,5 +59,6 @@ internal sealed class AgentRunWindow : Window
         Status.Text = string.Empty;
         Confirm.IsEnabled = false;
         Resolve.IsEnabled = false;
+        ClearSharedSkills();
     }
 }

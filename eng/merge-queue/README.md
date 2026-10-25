@@ -105,8 +105,13 @@ protocol:
 
 2. Validate and commit the owned feature, then create or update its single
    same-repository PR targeting main. Use a non-draft PR only when ready;
-   preserve an explicit draft request. Creating a PR does not itself authorize
-   Auto-merge or queue enrollment.
+   preserve an explicit draft request. Under the
+   [Kora delivery default](../../.github/copilot-instructions.md#pull-requests-and-merge-admission),
+   authorization for ready-PR delivery includes protected squash Auto-merge,
+   unless the caller explicitly requests PR-only/no-merge, draft or local-only
+   work. Local implementation alone grants no publication authority. Offer
+   publication and protected Auto-merge together; do not add a routine second
+   permission question after authorized ready-PR publication.
 3. When disabled, retain ordinary protected PR CI and the owning workflow's
    integration procedure. The roadmap coordinator retains its single remote
    lane in this mode. Do not dispatch redundant manual CI.
@@ -136,6 +141,15 @@ protocol:
 7. Verify authoritative merged state, the actual merge SHA and its reachability
    from fresh main before reporting completion or cleaning up.
 
+Use the [Kora PR skill](../../.github/skills/kora-github-pr/SKILL.md#preflight-verify-before-mutating)
+to discover and pin the authenticated repository CLI publisher. Compare any
+explicit caller/handoff expectation and stop on mismatch or missing access;
+successful identity discovery does not require routine account confirmation.
+Keep contributor identities out of shared defaults. Store agent-created PR
+bodies and receipts under the owning workspace's ignored `.scratch`, following
+[repository scratch policy](../../.github/copilot-instructions.md#agent-scratch-and-session-files);
+host-managed storage is outside this repository policy's control.
+
 For coordinated agents, follow the [routine continuation rule](../../.github/agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input):
 publish the handoff through the registered [shared file mailbox](../../.github/agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol)
 and release execution without asking the user whether to stop, wait or check
@@ -151,8 +165,10 @@ including work outside the coordinator, to avoid duplicate feature delivery.
 Concrete conflicts route to the same admitted PR owner; unknown mergeability
 does not authorize mutation. Parent questions never block this loop.
 Multiple orchestration sessions join the same [repository dataset](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-ownership-and-recovery),
-discovered through the common Git metadata directory, with one fenced scheduling
-leader and observing standbys. A successor adopts all nonclosed runs, owners,
+located under the registered coordinator workspace's ignored `.scratch` and
+carried in launch/recovery handoffs, with one fenced scheduling leader and
+observing standbys. Retain that workspace while referenced; do not silently
+migrate a live legacy dataset. A successor adopts all nonclosed runs, owners,
 capacity, pending dispatches and PRs; expired coordinator leadership does not
 prove child or remote work stopped. [Transport retention/cleanup](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-retention-and-cleanup)
 uses checkpointed, reference-aware bounded plans, not deletion when a chat ends

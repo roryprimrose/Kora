@@ -21,6 +21,23 @@ Record a new product decision before materially expanding scope or reopening ret
 
 Existing security, provider, storage and qualification decisions below remain in force. Removing unnecessary product surfaces does not waive their consumed controls or authorize deleting retained data/audit evidence.
 
+## Adaptive interaction and routing - 2026-10-25
+
+The product owner approved one primary compact/expanded interaction window with a
+left-hand session list and readable selected-conversation content. Selection supplies
+context, not an unconditional destination for general voice: relatedness routing remains
+valid in both modes, while explicit session composer/named input wins. This supersedes
+the discussion's intermediate selection-as-voice-lock proposal.
+
+The owner separately approved a bounded first delivery of the adaptive UI and
+deterministic show/ordinal selection, leaving the missing automatic matching service
+and model-visible list context explicitly unavailable. See the
+[delivered boundary](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
+and [routing contract](Interaction_And_Sessions.md#proposed-relatedness-routing).
+Question/approval authority, privacy, retention and provider qualification are unchanged.
+
+## Decision inventory
+
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
 | D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |

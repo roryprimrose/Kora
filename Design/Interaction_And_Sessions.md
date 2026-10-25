@@ -921,6 +921,12 @@ and active Capturing Reply.
 
 ## Three Connected UI Surfaces
 
+The [2026-10-25 adaptive-window increment](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
+combines the primary compact response and bounded session browser into two modes of
+one native window. The legacy management workspace and immutable Details remain
+separate supporting surfaces. Automatic relatedness and model-visible list context
+remain proposed; deterministic show/select navigation does not imply their delivery.
+
 The delivered [compact selected-session projection](UI_Workspace_And_Windows.md#delivered-compact-selected-session-projection) shares one authoritative presentation selection and memory draft with the Sessions workspace.
 Explicit reading and canonical draft/submission actions remain separate from passive navigation, New request and standalone question/approval/voice authority.
 
@@ -1152,6 +1158,12 @@ applies before this general relatedness policy. Editor-bound or ambiguously
 editor-intended speech is not an unmatched general request.
 
 Explicit targeting wins: input in a session composer continues that session; "new session" starts one; naming a session targets it.
+The same policy applies in collapsed and expanded modes. Explicit selection establishes
+the current conversational reference, not a routing lock: "Select the third session"
+followed by "Make that summary shorter" is evidence of relatedness, whereas a clearly
+unrelated general voice request must still consider another Active session or New.
+Dictation explicitly directed into a named session composer is addressed input.
+Window size, passive focus restoration and background events are not explicit targeting.
 An untargeted general voice/global-composer request starts a new session unless clearly related to an Active session.
 Model-assisted matching uses bounded, permitted session descriptors/summaries and the current request, not every transcript or tool result.
 Return a typed route proposal with candidate IDs, evidence references, and expected registry revision.
@@ -1161,6 +1173,15 @@ The host validates lifecycle, identity, permissions, and revision before admissi
 - Several plausible matches: ask a targeted session-choice question, including New session.
 - No clear match or unavailable routing inference: create a new session; offer deterministic session selection rather than guess a relationship.
 - Archived match: offer discovery/history; only an explicit resume decision reactivates it.
+
+An accepted user-requested route acknowledges its session name and provides a correction
+route. In expanded mode it reveals that destination without transferring unsent input
+or losing the previous reading position. Background activity never switches selection.
+Spoken ordinal navigation uses the exact host-held presented-list snapshot, not a model's
+reconstructed order; the bounded implementation counts the loaded page, including Last.
+Session descriptors made available to a future routing model must be bounded, permitted
+and bound to that same presentation; navigation does not authorize transcript assembly
+or hosted disclosure.
 
 The selected UI session does not silently redirect an untargeted voice request or authorize a background action.
 The priority standalone lock exception uses deterministic

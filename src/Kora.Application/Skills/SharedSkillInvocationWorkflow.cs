@@ -11,7 +11,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Skills;
 
 /// <summary>Host-owned review, volatile enablement and exact-session instruction-only invocation.</summary>
-public sealed class SharedSkillInvocationWorkflow(
+public sealed partial class SharedSkillInvocationWorkflow(
     SharedSkillDiscoveryService discovery, SharedSkillUseAdmission admission, ISessionWorkspaceAccess access,
     ISessionWorkspaceStore sessions, SessionWorkspaceService workspace, SessionConversationService conversation,
     ISecurityAuditLog audit, TimeProvider time)

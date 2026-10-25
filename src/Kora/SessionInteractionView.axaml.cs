@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
 
 using Kora.Core.Presentation;
@@ -40,6 +41,30 @@ internal sealed partial class SessionInteractionView : UserControl
         InitializeComponent();
         RefreshSessions.Click += async (_, _) => await Run(model => model.RefreshAsync());
         NextSessions.Click += async (_, _) => await Run(model => model.NextAsync());
+        SearchSessionNames.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync());
+        NextSessionNameSearch.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync(next: true));
+        ClearSessionNameSearch.Click += (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { model.ClearListSearch(); SessionNameQuery.Focus(); }
+        };
+        CancelSessionNameSearch.Click += (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { model.CancelListSearch(); }
+        };
+        SessionNameQuery.KeyDown += async (_, args) =>
+        {
+            if (DataContext is not SessionsViewModel model) { return; }
+            if (args.Key == Key.Enter && model.CanSearchSessionNames)
+            {
+                args.Handled = true;
+                await Run(current => current.SearchSessionNamesAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearListSearch();
+            }
+        };
         ReadConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync(next: true));
         ReadSessionLogs.Click += async (_, _) => await Run(model => model.ReadEvidenceDetailsAsync(EvidenceSource.Log));

@@ -28,16 +28,29 @@
     </DataTemplate>
   </UserControl.Resources>
   <Grid Margin="12" ColumnDefinitions="230,Auto,*" ColumnSpacing="10">
-    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="8">
+    <Grid RowDefinitions="Auto,Auto,Auto,Auto,*,Auto" RowSpacing="8">
       <TextBlock Text="Sessions" FontSize="20" FontWeight="SemiBold" />
       <ComboBox Grid.Row="1" ItemsSource="{Binding SessionFilters}"
           SelectedItem="{Binding SessionFilter, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
           AutomationProperties.Name="Session list lifecycle filter" />
-      <WrapPanel Grid.Row="2">
+      <StackPanel Grid.Row="2" Spacing="6">
+        <TextBlock Text="Conversation name" />
+        <TextBox x:Name="SessionNameQuery" Text="{Binding SessionNameQuery, Mode=TwoWay}"
+            IsEnabled="{Binding CanEditListSearch}" Watermark="Part of a conversation name"
+            AutomationProperties.Name="Search session names; editing does not search or read conversations" />
+        <WrapPanel>
+          <Button x:Name="SearchSessionNames" Content="Search" IsEnabled="{Binding CanSearchSessionNames}" />
+          <Button x:Name="ClearSessionNameSearch" Content="Clear" IsEnabled="{Binding CanEditListSearch}" />
+          <Button x:Name="NextSessionNameSearch" Content="Next matches" IsEnabled="{Binding CanNextSessionNameSearch}"
+              AutomationProperties.Name="Next bounded name search page, including after zero matches" />
+          <Button x:Name="CancelSessionNameSearch" Content="Cancel search" IsEnabled="{Binding CanCancelListSearch}" />
+        </WrapPanel>
+      </StackPanel>
+      <WrapPanel Grid.Row="3">
         <Button x:Name="RefreshSessions" Content="Refresh list" IsEnabled="{Binding CanRead}" />
         <Button x:Name="NextSessions" Content="Next page" IsEnabled="{Binding CanNext}" />
       </WrapPanel>
-      <controls:ScrollableListBox Grid.Row="3" x:Name="SessionList" ItemsSource="{Binding Sessions}"
+      <controls:ScrollableListBox Grid.Row="4" x:Name="SessionList" ItemsSource="{Binding Sessions}"
           SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
           AutomationProperties.Name="Presented session page; spoken positions count from the top, last means last on this page">
         <ListBox.ItemTemplate>
@@ -50,7 +63,7 @@
           </DataTemplate>
         </ListBox.ItemTemplate>
       </controls:ScrollableListBox>
-      <StackPanel Grid.Row="4" Spacing="6">
+      <StackPanel Grid.Row="5" Spacing="6">
         <TextBlock Text="Positions refer to this loaded page, not all saved sessions. Refresh explicitly; background work does not reorder this list."
             TextWrapping="Wrap" Classes="muted" FontSize="11" />
         <Button x:Name="NewConversation" Content="New conversation..." />

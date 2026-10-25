@@ -11,7 +11,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Skills;
 
 /// <summary>Host-owned review, volatile enablement and exact-session instruction-only invocation.</summary>
-public sealed class SharedSkillInvocationWorkflow(
+public sealed partial class SharedSkillInvocationWorkflow(
     SharedSkillDiscoveryService discovery, SharedSkillUseAdmission admission, ISessionWorkspaceAccess access,
     ISessionWorkspaceStore sessions, SessionWorkspaceService workspace, SessionConversationService conversation,
     ISecurityAuditLog audit, TimeProvider time)
@@ -29,8 +29,9 @@ public sealed class SharedSkillInvocationWorkflow(
         { throw new InvalidOperationException("Select one exact pinned compatible v2 Markdown declaration."); }
         var control = access.ControlRevision;
         var consent = discovery.ConsentRevision;
+        var useRevision = discovery.UseRevision;
         bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
-            && discovery.ConsentRevision == consent;
+            && discovery.ConsentRevision == consent && discovery.UseRevision == useRevision && discovery.IsUseAllowed(source, snapshot);
         await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
         var review = new SharedSkillReferenceConsent(this, source, snapshot, Current, time, origin);
         if (!review.IsCurrent) { review.Dispose(); throw new InvalidOperationException("Declaration admission expired."); }
@@ -48,13 +49,16 @@ public sealed class SharedSkillInvocationWorkflow(
         {
             var control = access.ControlRevision;
             var revision = discovery.ConsentRevision;
+            var useRevision = discovery.UseRevision;
             bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
-                && discovery.ConsentRevision == revision && consent.IsReadCurrent;
+                && discovery.ConsentRevision == revision && discovery.UseRevision == useRevision && consent.IsReadCurrent
+                && discovery.IsUseAllowed(consent.Source, consent.Snapshot);
             var snapshot = await discovery.ReadReferencesAsync(consent.Snapshot, consent.Source, admission,
                 Current, origin, token).ConfigureAwait(false);
             if (!consent.IsReadCurrent) { throw new InvalidOperationException("Declared read consent was retired during capture."); }
             bool BundleCurrent() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
-                && discovery.ConsentRevision == revision && time.GetUtcNow() < consent.ExpiresAt;
+                && discovery.ConsentRevision == revision && discovery.UseRevision == useRevision && time.GetUtcNow() < consent.ExpiresAt
+                && discovery.IsUseAllowed(consent.Source, consent.Snapshot);
             return await ReviewAsync(consent.Source, snapshot, BundleCurrent, origin, token).ConfigureAwait(false);
         }
         finally { consent.Dispose(); }
@@ -71,8 +75,9 @@ public sealed class SharedSkillInvocationWorkflow(
         { throw new InvalidOperationException("Only complete compatible zero-tool skills with separately consented declared references are available."); }
         var control = access.ControlRevision;
         var consent = discovery.ConsentRevision;
+        var useRevision = discovery.UseRevision;
         bool Current() => eligible() && access.CanControl && access.CanInspect && access.ControlRevision == control
-            && discovery.ConsentRevision == consent;
+            && discovery.ConsentRevision == consent && discovery.UseRevision == useRevision && discovery.IsUseAllowed(source, snapshot);
         await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, origin);
         var review = new SharedSkillUseReview(this, source, snapshot, Current, time, new(activity.Activity!.Context));

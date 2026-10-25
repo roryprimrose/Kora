@@ -43,6 +43,6 @@ public sealed partial class MainViewModel
             ReportHostInteractionFailure("Navigation unavailable: the native surface route or current private host admission is unavailable. No window or session was created.");
             return;
         }
-        await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted)));
+        await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted, command.SessionPosition)));
     }
 }

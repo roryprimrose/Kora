@@ -265,7 +265,7 @@ public sealed partial class ModelTurnHostTests
     {
         public string Text { get; set; } = AgentProfile;
         public bool Released { get; private set; }
-        public LocalFileMetadata Metadata { get; } = new(@"C:\Users\owner\selected.agent.md", "native-identity", 512, DateTimeOffset.UnixEpoch);
+        public LocalFileMetadata Metadata { get; } = new(Path.GetFullPath("selected.agent.md"), "native-identity", 512, DateTimeOffset.UnixEpoch);
         public Task<IAgentProfileSelection> OpenAsync(string path, CancellationToken token) => Task.FromResult<IAgentProfileSelection>(this);
         public Task<byte[]> ReadAsync(CancellationToken token) => Task.FromResult(Encoding.UTF8.GetBytes(Text));
         public void Dispose() => Released = true;

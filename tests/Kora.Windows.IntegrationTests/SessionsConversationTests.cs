@@ -340,10 +340,11 @@ public sealed partial class SessionsConversationTests
     }
     private sealed class AuditLog : ISecurityAuditLog
     {
+        internal RequestOrigin ExpectedOrigin { get; set; } = RequestOrigin.LocalUi;
         internal List<SecurityAuditEvent> Events { get; } = [];
         public void Write(SecurityAuditEvent auditEvent)
         {
-            HostActivity.RequireCurrent().Request.Origin.Should().Be(RequestOrigin.LocalUi);
+            HostActivity.RequireCurrent().Request.Origin.Should().Be(ExpectedOrigin);
             Events.Add(auditEvent);
         }
     }

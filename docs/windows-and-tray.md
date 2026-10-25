@@ -9,6 +9,16 @@ Existing saved content remains governed by retention and private recovery. See t
 
 Reasoning/context pickers use the saved model. Model review retains both dependent IDs only if supported; missing, stale or incompatible complete bases require the existing full draft/save. No defaults or individual resets are invented. Current production catalogues have no models; these field controls are unavailable. [Settings and recovery](settings.md#app-default-service-and-desired-profiles) describe the exact boundaries.
 
+## Customizations
+
+Open **Tray > Customizations** for a shared Skills / Instructions / Agents /
+MCP servers / Prompts window with **Built-in**, **Kora**, and **User** source
+groups. Built-ins are read-only; writable sources support reviewed native
+editing, skill component changes, recoverable saves and local-model proposals.
+Every artifact can be persistently disabled in Kora without deleting its files.
+See [Customizations](customizations.md) for exact commands and the separate
+source-write, model-disclosure and runtime-use boundaries.
+
 ## Owned instructions and prompts
 
 Open **Tray > Owned instructions and prompts (native editor)**. Choose Instruction
@@ -22,18 +32,100 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Expand and collapse the interaction window
+
+Use **Tray > Show sessions**, **Show sessions** in the response header,
+**Ctrl+Shift+S**, or type `show me the current sessions`. With voice, use the
+current assistant name, for example `Kora, show me the current sessions`.
+The existing response window expands rather than opening another conversation window.
+It is resizable and stays open while you read; ordinary response timeout does not hide it.
+Drag the assistant name in the header to move it. **Hide** dismisses presentation
+without answering or rejecting anything; tray/Show sessions brings it back.
+
+The left pane shows a bounded session page. First load defaults to Active;
+choose All or Done to inspect other lifecycle states. **Refresh list** and
+**Next page** are explicit. Background progress does not rearrange this page.
+No session is selected automatically.
+
+Click a session, or say/type `select the top session`, `select the last session`
+or `select the third session`. Spoken commands require the current name prefix.
+First through twenty-fifth are supported. Positions count from the top of the
+loaded page, not the current scroll position; Last means the last row on that
+page, not the last saved session. Keep the session list displayed when using
+these commands. A missing or changed target is refused rather than replaced.
+
+The right pane has **Conversation** and **Activity**. Use **Read conversation**
+or **Read activity**, then their More buttons, to read retained records.
+User input, any genuine assistant answer and native action outcomes are distinct.
+Activity contains the existing task/question/answer/decision records; it is not
+a complete tool trace or exact-grant-change feed. Historical records and their
+Details are read-only, never live answer or approval buttons.
+
+The composer explicitly sends to the selected conversation. Switching topics
+preserves each topic's separate memory-only unsent text. **Collapse** (or
+`collapse conversation`) returns to the original compact interaction without
+saving, submitting, cancelling work or transferring input. Re-expansion keeps
+the same selection, unsent text and mounted reader. Closing the last view
+protects unsent text with Discard/Cancel. Privacy or ownership retirement clears
+private presentation without saving it.
+
+**Current interaction** shows the original response/question/approval controls
+inside this same window. Selection does not retarget them. Authoritative native
+question windows and **Return to current question** remain independent.
+**Session management** opens the existing advanced workspace for search,
+providers, retention, evidence and lifecycle operations.
+
+Automatic current/other/new conversation matching is not available yet, and
+the session list is not supplied to a model by these navigation commands.
+The approved design uses relatedness routing in both window modes: selection
+supplies context, not a lock for unrelated general voice requests. Today use
+the explicitly addressed composer or the existing fresh-target **New conversation**
+workflow; expansion does not add model availability or permissions.
+
+### Details beside the conversation
+
+After explicitly reading a conversation or selecting an activity receipt, use
+**Message details**, **Open full detailed answer** or **Activity details**.
+The expanded window opens a Details pane beside the conversation and composer;
+it does not open another session-result window or repeat the task.
+Each message link opens that exact original or answer, including earlier results.
+
+Drag the divider to resize both panes. **Hide details** or the reader's Escape
+closes the content, not the conversation or unsent text. **Show details** restores
+the last explicitly chosen available item after fresh admission, or offers a
+chooser. It is disabled until the selected session has observed available details;
+selecting metadata alone does not read result bodies. Reading positions and the
+split are memory-only. The minimum side-by-side window width is 1040; a smaller
+display work area reports Details unavailable rather than hiding the composer.
+
+**Session logs** and **Session audit** explicitly query only this session through
+the existing read-only Evidence owners. They create separately labelled HOST
+result links, not assistant answers. Up to eight bounded pages stay available on
+the observed page; opening an earlier link does not rerun its query. Source
+revalidation may retire changed, removed, due or unavailable content. Switching
+sessions or privacy retirement clears these evidence pages.
+
+Current-response details also use this pane and name their own source; they are
+labelled as separate from the selected conversation and do not retarget its input.
+Supported Markdown renders natively. Mermaid remains labelled source fallback;
+this change does not enable HTML or browser capabilities.
+
 ### Workspace surface navigation
 
-Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. The legacy `open sessions` route is unchanged. No model window-focus route is available.
+Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.
 
-Opening the overview reads nothing. Opening compact retains the exact existing Sessions selection and memory buffer; it does not reload saved content or create a session when no target is selected. Dirty drafts and pending questions/approvals remain with their original target. There is no search, submit, resume, dispatch, implicit selection or all-clear claim.
+Opening the overview reads nothing. Opening compact retains the shared Sessions selection and memory buffer, showing the original response controls; it does not reload saved content or create a session when no target is selected. Show sessions loads a bounded metadata page if none is present, never conversation bodies. Unsent text and pending questions/approvals remain with their original target. No opening submits, resumes, dispatches or supplies an all-clear claim.
 
 Missing native composition or changed original/current ownership, private/call/input epochs or compact source refuses late opening/focus; issue a fresh command after recovery. See [exact syntax](commands.md#open-existing-workspace-surfaces) and [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
 
 ### Compact selected-session conversation
 
 Open **Tray > Compact selected-session conversation** or **Sessions > Compact conversation**.
-Reopening activates the same compact window. It shares the exact selected session and memory composer with the workspace, not a copied buffer or an inferred recent target ([native surface](../src/Kora/CompactSessionWindow.axaml)).
+These production entries now collapse/activate the primary interaction window.
+Expand it to use the selected-conversation composer. The legacy compact surface
+described below remains a compatibility projection, not a second normal primary window.
+All projections share the exact selected session and memory composer, not a copied
+buffer or inferred recent target ([adaptive surface](../src/Kora/SessionInteractionView.axaml)).
 
 With no selected target, open **Sessions / explicit selection**. Selecting metadata does not automatically read conversation bodies or reload a saved draft.
 Use **Read exact conversation**, bounded Next, and **Refresh observed work** explicitly. History reads do not read legacy saved text. Original USER, any separately retained genuine ASSISTANT answer and typed HOST status have distinct roles ([shared actions](../src/Kora/SessionsViewModel.Conversation.cs)).

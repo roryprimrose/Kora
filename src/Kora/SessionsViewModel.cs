@@ -226,6 +226,7 @@ internal sealed partial class SessionsViewModel(
             throw new OperationCanceledException("The selected history receipt or private presentation changed.");
         }
         status = present(content);
+        RememberSelectedDetail(DetailPart.History, record.Id);
     }, passive: true);
     public bool CanHistory => CanRead && Guid.TryParseExact(historySessionId, "D", out var id) && id != Guid.Empty;
     public bool CanNextHistory => CanHistory && history?.Next is not null;
@@ -404,7 +405,7 @@ internal sealed partial class SessionsViewModel(
         status = "Next bounded authority page. Refresh for concurrent additions/changes.";
     });
 
-    public Task SelectAsync(SessionWorkspaceEntry? record)
+    public Task SelectAsync(SessionWorkspaceEntry? record, Func<bool>? admitted = null)
     {
         if (notifying) { return Task.CompletedTask; }
         if (protectingComposer) { Notify(); return Task.CompletedTask; }
@@ -422,11 +423,13 @@ internal sealed partial class SessionsViewModel(
             var sourceEpoch = listSearchEpoch;
             var admission = access.ControlRevision;
             if (!await ProtectComposerAsync()) { return; }
-            if (closed || !access.CanInspect || admission != access.ControlRevision
+            if (closed || !access.CanInspect || admission != access.ControlRevision || admitted?.Invoke() == false
                 || sourceEpoch != listSearchEpoch || !ReferenceEquals(source, sessions)
                 || candidate is not null && !Sessions.Any(row => ReferenceEquals(row, candidate)))
             { throw new OperationCanceledException("The exact session row or source changed during navigation review."); }
             await ReadSelectedAsync(candidate);
+            if (admitted?.Invoke() == false || admission != access.ControlRevision)
+            { throw new OperationCanceledException("The original navigation admission changed."); }
         });
     }
 
@@ -716,6 +719,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearEvidenceDetails();
         ClearConversation();
         ClearProviderReview();
         attachments?.Close();
@@ -754,6 +758,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        detailSelections.Clear();
         ClearUnsent();
         composerBody = string.Empty;
         RevokeListSearchPresentation();
@@ -778,6 +783,7 @@ internal sealed partial class SessionsViewModel(
             NotifyListSearch();
             OnPropertyChanged(nameof(Sessions));
             OnPropertyChanged(nameof(SelectedSessionRecord));
+            OnPropertyChanged(nameof(InteractionTarget));
             OnPropertyChanged(nameof(TaskRecords));
             OnPropertyChanged(nameof(CanInspectTask));
             OnPropertyChanged(nameof(CanCancelTask));

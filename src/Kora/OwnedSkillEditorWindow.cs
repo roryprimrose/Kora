@@ -44,7 +44,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Validate", "Save", "List", "Reopen", "Cancel" })
+        foreach (var action in new[] { "Create", "Validate", "Save", "List", "Reopen", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action.ToLowerInvariant());
@@ -75,13 +75,13 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     public async Task<bool> Review(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>
         await ChooseOnUi("Review complete skill package",
             "Exact new version directory: " + destination
-                + "\nExactly TWO files: manifest.yaml and instructions.md. Local only; tools none; references none. Saved inactive/unselected; invocation unavailable.",
+                + "\nExactly TWO files: manifest.yaml and instructions.md. Local only; tools none; references none. Saved inactive/unselected; use requires separate review and enablement.",
             document.ManifestText, document.Guidance, ["Continue to separate native publication confirmation", "Cancel"], token) == 0;
 
     public async Task<bool> ConfirmPublication(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>
         await ChooseOnUi("Confirm exact new skill publication",
             "Publish this exact reviewed TWO-file package at " + destination
-                + "? Existing versions will never be replaced. The saved package remains inactive and cannot be invoked.",
+                + "? Existing versions will never be replaced. The saved package remains inactive. Use requires a separate exact-version review and enablement.",
             document.ManifestText, document.Guidance, ["Publish exact new version", "Cancel"], token) == 0;
 
     internal async Task<int> DirtyChoice(bool canSave, Func<bool> privateEligible, CancellationToken token)

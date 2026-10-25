@@ -43,7 +43,8 @@ public sealed partial class App
                 Services.GetRequiredService<ISessionWorkspaceStore>(),
                 Services.GetRequiredService<ISessionWorkspaceAccess>(), conversation, admission,
                 Services.GetRequiredService<ISecurityAuditLog>(), Services.GetRequiredService<TimeProvider>(),
-                ActivatorUtilities.CreateInstance<AgentInstructionReferenceResolver>(Services));
+                ActivatorUtilities.CreateInstance<AgentInstructionReferenceResolver>(Services),
+                Services.GetRequiredService<Kora.Core.Artifacts.IArtifactUsePolicy>());
         });
         var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>();
         independentAgentRuns = new(main, factory, Services.GetRequiredService<SessionWorkspaceService>(),

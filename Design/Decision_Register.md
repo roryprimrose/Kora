@@ -21,6 +21,56 @@ Record a new product decision before materially expanding scope or reopening ret
 
 Existing security, provider, storage and qualification decisions below remain in force. Removing unnecessary product surfaces does not waive their consumed controls or authorize deleting retained data/audit evidence.
 
+## Adaptive interaction and routing - 2026-10-25
+
+The product owner approved one primary compact/expanded interaction window with a
+left-hand session list and readable selected-conversation content. Selection supplies
+context, not an unconditional destination for general voice: relatedness routing remains
+valid in both modes, while explicit session composer/named input wins. This supersedes
+the discussion's intermediate selection-as-voice-lock proposal.
+
+The owner separately approved a bounded first delivery of the adaptive UI and
+deterministic show/ordinal selection, leaving the missing automatic matching service
+and model-visible list context explicitly unavailable. See the
+[delivered boundary](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
+and [routing contract](Interaction_And_Sessions.md#proposed-relatedness-routing).
+Question/approval authority, privacy, retention and provider qualification are unchanged.
+
+## Integrated session content pane - 2026-10-25
+
+The product owner approved a contextual content pane inside the primary expanded
+sessions window as the default for complex results, rather than another top-level
+detail/artifact window. Session list, persistent conversation/composer and Details
+appear together with a resizable conversation/Details divider. The owner selected
+a minimum expanded-window width rather than stacking or Conversation/Details tabs;
+resizing/expansion cannot hide the message pane. Show/Hide details controls visibility,
+and Show is disabled when the selected session has no available admitted detail
+references. Each conversation entry may link to different exact results in that same
+pane. Explicit session-command log/audit results can reuse it under the existing
+Evidence and independent retention contracts. The first increment adds no detachable
+content windows.
+
+This advances the existing readable-results and independent-conversation outcomes.
+Kora owns placement, exact session/item binding, private disclosure and trusted
+controls; extensions supply admitted content, not window or approval authority.
+The [workspace contract](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+owns interaction and layout; [information display](Information_Display.md#detailed-information-surface)
+owns the passive renderer shell and existing admission/fallback boundaries.
+Static HTML and live websites remain distinct renderer/security capabilities even
+when presented in the same content area.
+
+This supersedes the separate-window default for session result/detail viewing.
+The bounded native-reader migration now implements retained USER/full ASSISTANT,
+selected activity, ordinary current-response and explicit session log/audit details
+inside that primary window, with brief-answer offers and unchanged full sources.
+Standalone embedded documentation and specialized native previews remain supporting
+surfaces. General result routing, Mermaid and embedded-browser enablement remain
+gated; authoritative questions/approvals and management surfaces are not redesigned
+by this decision. The workspace contract records the exact delivered subset and
+deterministic evidence separately from renderer/provider/native qualification.
+
+## Decision inventory
+
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
 | D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |

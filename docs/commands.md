@@ -2,6 +2,21 @@
 
 **Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
+## Manage customizations
+
+`show customizations`, `show skills`, `show instructions`, `show agents`,
+`show MCP servers` and `show prompts` open the shared categorized native window.
+Use `show me example instruction`, `edit example skill`,
+`add an instruction named example`, `disable example agent`, or
+`enable example MCP server` for the corresponding source-qualified workflow.
+Activated voice uses the current assistant-name prefix.
+
+`refine this artifact <request>` discusses or proposes changes to the currently
+open editable draft only after separate exact local-model disclosure review.
+Accepting a proposal does not save or enable it. Native source/component editing,
+recoverable User-original writes, disabled-use persistence and availability
+limits are described in [Customizations](customizations.md).
+
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
@@ -60,17 +75,44 @@ Missing/revoked/disposed presenters and stale original host, privacy, ownership 
 | Exact typed phrase | Existing native surface |
 |---|---|
 | `open all work` | Bounded All work / attention overview |
-| `open compact conversation` | Compact projection of the current Sessions selection and shared memory composer |
+| `open compact conversation`, `collapse conversation` | Original compact interaction in the primary response window; shared session selection/input remain intact |
+| `open sessions`, `show sessions`, `show me the current sessions`, `expand conversation` | Expand that same window into a bounded session list and selected conversation/activity |
+| `select the top session`, `select the first session`, `select the third session`, `select the last session` | Select one exact row from the displayed session page; first through twenty-fifth supported |
+| `show me the detailed results`, `show detailed results`, `show details` | Accept the exact current-response details offer, or open the selected session's eligible last detail / native chooser |
+| `hide details` | Hide Details without closing the conversation or discarding input |
+| `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
-These phrases accept no extra words, selectors, body queries or punctuation after the phrase; malformed reserved navigation input is refused, not sent to a model. The existing `open sessions` behavior is unchanged.
+These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
 
 Opening activates the same controller/window as tray and UI. It does not create/select/resume a session, discard a dirty buffer, reload a saved draft, submit work, answer a question or confirm an approval.
-No selection means an untargeted compact view, not a new conversation. Catalogue and overview opening perform no read, search, automatic refresh or corpus count; use their explicit metadata controls. All work remains a bounded observer, not an atomic global snapshot or all-clear.
+No selection means no conversation target, not a new conversation. Expanded Sessions
+loads a bounded metadata page when none is present, initially filtered to Active.
+It never loads conversation bodies automatically. All work opening still reads
+nothing and remains a bounded observer, not an atomic global snapshot or all-clear.
+
+Ordinal selection requires the session list to remain presented. Top/first is
+position one; Last is the last item on the loaded page, not in the whole catalogue
+or scroll viewport. Background work does not reorder it. Changed/retired pages,
+privacy/ownership changes and out-of-range positions refuse rather than selecting
+a replacement. Selection preserves unsent input and never resumes a Done session.
+Use the named composer for explicitly addressed messages. Automatic voice
+relatedness matching and model-visible session-list context remain unavailable
+in both modes. See [expanded interaction](windows-and-tray.md#expand-and-collapse-the-interaction-window).
 
 Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
+
+Details reuse the expanded window with a resizable persistent conversation beside
+the reader. Exact message/result links never substitute the newest result or run
+the task again. With no eligible selected-session details, Show is disabled and
+the command explains recovery. Log/audit commands require original local UI
+ownership; activated voice is refused, not relabelled as UI. Result links recheck
+their original sources; they do not broaden session scope, replay a query or grant
+clipboard/model/approval authority.
+See [Details controls](windows-and-tray.md#details-beside-the-conversation)
+and [brief/full answers](responses-and-calls.md#brief-answers-and-full-details).
 
 ## Focus the exact pending native question
 
@@ -853,13 +895,13 @@ Resolve the current question or approval first. Privacy, ownership, call activat
 
 - **open sessions**
 
-The configured-name prefix is supported. This opens the same bounded native
-[Sessions workspace](windows-and-tray.md#minimal-durable-sessions) as the tray
+The configured-name prefix is supported. This expands the same primary
+[interaction window](windows-and-tray.md#expand-and-collapse-the-interaction-window) as the tray
 and compact response's **Ctrl+Shift+S**. It does not change a pending question
 or approval target, create a conversation, resume a session or call a model.
 Done/resume are explicit selected-ID native actions, not inferred from words
 in history or from selecting a row.
-The native workspace also offers **Create empty Active session** and **Rename
+The separate **Session management** workspace offers **Create empty Active session** and **Rename
 selected ID** with bounded durable names and optimistic revisions. These are
 also available through the bounded exact commands below, but not model tools. A name never selects authority,
 and the selected window never redirects global commands. Creation grants no

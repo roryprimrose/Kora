@@ -9,4 +9,12 @@ public enum WorkspaceSurfaceTarget
     AllWork,
     /// <summary>The existing selected-session compact projection.</summary>
     CompactConversation,
+    /// <summary>The expanded primary interaction window and its bounded session list.</summary>
+    Sessions,
+    /// <summary>Select an exact row from the already presented session list.</summary>
+    SelectSession,
+    Details,
+    HideDetails,
+    SessionLogs,
+    SessionAudit,
 }

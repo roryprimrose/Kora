@@ -11,6 +11,28 @@ namespace Kora.Application.UnitTests.Presentation;
 public sealed partial class DetailViewerTests
 {
     [Fact]
+    public void FullAssistantDetailsKeepFindOnTheAnswerWithoutGainingClipboardAuthority()
+    {
+        var request = HostRequest.Create(RequestOrigin.LocalUi);
+        var provenance = new Kora.Core.Dependencies.ModelTurnProvenance(new(Guid.NewGuid()), request,
+            Kora.Core.Dependencies.ModelProviderSelection.OllamaCandidate);
+        var message = new Kora.Core.Conversation.ConversationMessage(request, new(1), 1, 3, DateTimeOffset.UnixEpoch,
+            "original USER", Kora.Core.Dependencies.ModelTurnOutcome.Succeeded, Kora.Core.Dependencies.ModelTurnReason.ProviderOutcome)
+        {
+            Version = 2, Execution = provenance, ExecutionMetadataRevision = 0,
+            AssistantResponse = new(provenance, "complete assistant needle"),
+        };
+        var content = new AdmittedDetailContent(new(new(provenance.Turn.Value), 3), DetailContentKind.Markdown,
+            DetailContentOrigin.RetainedAssistant, DetailSensitivity.DisclosureConfirmationRequired,
+            "Full answer", "Private retained assistant", message.AssistantResponse.Body, conversationMessage: message);
+        var state = new DetailViewerState(content);
+        state.ActiveText.Should().Be(message.AssistantResponse.Body);
+        state.Find("needle", SnapshotFindDirection.First).Should().BeTrue();
+        state.TryGetCopySource(true, true, out _).Should().BeFalse();
+        state.TryGetCopySelection(true, true, 0, 8, out _).Should().BeFalse();
+    }
+
+    [Fact]
     public void GenuineAssistantAnswerRemainsSeparateFromOriginalSourceHostFindAndClipboardAndIsClearedOnRevocation()
     {
         var request = HostRequest.Create(RequestOrigin.LocalUi);

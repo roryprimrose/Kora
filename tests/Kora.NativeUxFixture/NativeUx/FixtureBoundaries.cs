@@ -11,7 +11,7 @@ namespace Kora.NativeUxFixture;
 
 internal static class FixtureBoundaries
 {
-    internal sealed class FixtureAccess : ISessionWorkspaceAccess, IEvidenceQueryAccess, ICapabilityHostAccess,
+    internal sealed class FixtureAccess(bool syntheticVoice = false) : ISessionWorkspaceAccess, IEvidenceQueryAccess, ICapabilityHostAccess,
         ISessionController, IMicrophoneAccessService, IWindowsPrivacyObservationService, ICurrentUserNameProvider
     {
         private bool disposed;
@@ -21,12 +21,16 @@ internal static class FixtureBoundaries
         public bool IsCurrentHost => Open;
         public long ControlRevision { get; private set; }
         public WindowsPrivacySnapshot Current => new(Open ? WindowsSessionState.Unlocked : WindowsSessionState.Unknown,
-            MicrophoneAccessState.Denied, ControlRevision, [], null, null);
+            syntheticVoice ? MicrophoneAccessState.Allowed : MicrophoneAccessState.Denied, ControlRevision,
+            syntheticVoice ? [FixtureVoice.SyntheticMicrophone.Id] : [],
+            syntheticVoice ? FixtureVoice.SyntheticMicrophone.Id : null, null);
         public event EventHandler<WindowsPrivacyChangedEventArgs>? Changed;
         public WindowsPrivacySnapshot Refresh() => Current;
         public bool IsCurrentSessionUnlocked() => Open;
         public string GetAddressName() => "Fixture";
-        public MicrophoneAccessStatus GetStatus() => new(MicrophoneAccessState.Denied, "Fixture: microphone access is prohibited.");
+        public MicrophoneAccessStatus GetStatus() => syntheticVoice
+            ? new(MicrophoneAccessState.Allowed, "Fixture: synthetic capture only; no device access.")
+            : new(MicrophoneAccessState.Denied, "Fixture: microphone access is prohibited.");
         public bool LockCurrentSession() => throw new InvalidOperationException("Fixture cannot lock Windows.");
 
         internal void SetOpen(bool open)
@@ -47,28 +51,50 @@ internal static class FixtureBoundaries
         }
     }
 
-    internal sealed class FixtureVoice : IActivatedVoiceRecognitionService
+    internal sealed class FixtureVoice(bool syntheticCapture = false) : IActivatedVoiceRecognitionService
     {
-        public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized { add { } remove { } }
+        internal static MicrophoneDevice SyntheticMicrophone { get; } = new("fixture-synthetic-microphone", "Synthetic fixture microphone");
+        internal bool SyntheticCapture => syntheticCapture;
+        internal int StartCalls { get; private set; }
+        internal int EndCalls { get; private set; }
+        internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged { add { } remove { } }
         public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted { add { } remove { } }
-        public bool IsListening => false;
+        public bool IsListening { get; private set; }
         public long Generation { get; private set; }
         public long CaptureGeneration => Generation;
         public bool IsAmbientListeningAvailable => false;
-        public bool IsCaptureQuiescent => true;
-        public void InvalidateCapture() => Generation++;
-        public bool AcceptCaptureGeneration(long generation) => false;
-        public IReadOnlyList<MicrophoneDevice> GetMicrophones() => [];
-        public MicrophoneDevice? GetDefaultMicrophone() => null;
+        public bool IsCaptureQuiescent => !IsListening;
+        public void InvalidateCapture() { Generation++; IsListening = false; }
+        public bool AcceptCaptureGeneration(long generation) => syntheticCapture && generation == Generation;
+        public IReadOnlyList<MicrophoneDevice> GetMicrophones() => syntheticCapture ? [SyntheticMicrophone] : [];
+        public MicrophoneDevice? GetDefaultMicrophone() => syntheticCapture ? SyntheticMicrophone : null;
         public Task StartAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
             CancellationToken cancellationToken = default) => throw new InvalidOperationException("Fixture cannot capture audio.");
         public Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
-            CancellationToken cancellationToken = default) => throw new InvalidOperationException("Fixture cannot capture audio.");
-        public Task StopAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task EndCaptureAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
-        public Task EndPushToTalkAsync(CancellationToken cancellationToken = default) => Task.CompletedTask;
+            CancellationToken cancellationToken = default)
+        {
+            if (!syntheticCapture) { throw new InvalidOperationException("Fixture cannot capture audio."); }
+            cancellationToken.ThrowIfCancellationRequested();
+            if (microphone != SyntheticMicrophone && microphone != SystemAudioDevices.Microphone)
+            { throw new InvalidOperationException("Only the synthetic fixture endpoint or its system-default alias is admitted."); }
+            Generation++; StartCalls++; IsListening = true; Started.TrySetResult();
+            return Task.CompletedTask;
+        }
+        public Task StopAsync(CancellationToken cancellationToken = default) { IsListening = false; return Task.CompletedTask; }
+        public Task EndCaptureAsync(CancellationToken cancellationToken = default) => EndPushToTalkAsync(cancellationToken);
+        public Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
+        {
+            if (IsListening) { EndCalls++; IsListening = false; }
+            return Task.CompletedTask;
+        }
+        internal void PublishTranscript(string text)
+        {
+            if (!syntheticCapture) { throw new InvalidOperationException("Synthetic capture was not enabled."); }
+            TranscriptRecognized?.Invoke(this, new(text, 1, Generation));
+        }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 

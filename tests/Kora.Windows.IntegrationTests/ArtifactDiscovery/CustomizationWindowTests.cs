@@ -2,6 +2,7 @@ using System.Text;
 
 using Avalonia;
 using Avalonia.Controls;
+using Avalonia.Controls.Primitives;
 using Avalonia.Headless;
 using Avalonia.Input;
 using Avalonia.Interactivity;
@@ -24,6 +25,54 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class CustomizationWindowTests
 {
+    [Fact]
+    public Task TrayCustomizationEntryReusesTheExistingGuardedManagementWindow() => HeadlessSession.RunAsync(async () =>
+    {
+        using var f = new NativeUxFixtureSession(Path.GetTempPath());
+        await f.InitializeAsync();
+        await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
+        var profile = Path.Combine(f.LocalRoot, "tray-customizations");
+        var store = new WindowsCustomizationStore(f, profile, Path.Combine(f.LocalRoot, "tray-user"));
+        var use = new ArtifactUsePreferences(f);
+        using var catalogue = EmbeddedArtifactCatalogue.Load();
+        var management = new CustomizationManagementService(store, admission, use, catalogue, f.Audit);
+        var directories = new LocalArtifactDirectoryPreferences(f);
+        using var reload = new ArtifactCatalogueReloadService(catalogue, f, directories,
+            new ArtifactDirectoryConfigurationService(directories, f.Audit),
+            new McpServerConfigurationService(f, directories, profile),
+            NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile);
+        var authoring = new Authoring();
+        var ownsHost = true;
+        using var controller = new CustomizationWindowController(f.Main, management, authoring, catalogue, reload,
+            () => ownsHost, () => 1, NullLogger<CustomizationWindowController>.Instance);
+        controller.Bind();
+        var windows = new List<CustomizationWindow>();
+        using var observe = Window.WindowOpenedEvent.AddClassHandler<CustomizationWindow>((view, _) => windows.Add(view));
+        var navigation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var tray = new SystemTrayController(f.Main, NullLogger<SystemTrayController>.Instance,
+            manageCustomizations: () => { controller.Open(); navigation.SetResult(); });
+        var item = TrayIcon.GetIcons(Avalonia.Application.Current!)!.Single().Menu!.Items.OfType<NativeMenuItem>()
+            .Single(item => string.Equals(item.Header, "Kora Customizations", StringComparison.Ordinal));
+        for (var i = 0; i < 2; i++)
+        {
+            ((INativeMenuItemExporterEventsImplBridge)item).RaiseClicked();
+            await navigation.Task.WaitAsync(f.Token);
+            await controller.WaitForOperation();
+            windows.Should().ContainSingle();
+            windows[0].IsVisible.Should().BeTrue();
+            windows[0].Title.Should().Be("Kora Customizations");
+            navigation = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
+        ownsHost = false;
+        ((INativeMenuItemExporterEventsImplBridge)item).RaiseClicked();
+        await navigation.Task.WaitAsync(f.Token);
+        windows.Should().ContainSingle();
+        f.Main.ResponseBody.Should().Contain("Customizations requires the current unlocked owning host");
+        authoring.Calls.Should().Be(0);
+        authoring.InterpretCalls.Should().Be(0);
+        f.Main.IsVoiceEnabled.Should().BeFalse();
+    });
+
     [Theory]
     [InlineData("edit")]
     [InlineData("clarify")]

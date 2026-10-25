@@ -116,7 +116,7 @@ public sealed partial class NewRequestControllerTests
         while (directory is not null && !File.Exists(Path.Combine(directory.FullName, ".github", "copilot-instructions.md")))
         { directory = directory.Parent; }
         var tray = File.ReadAllText(Path.Combine(directory!.FullName, "src", "Kora", "SystemTrayController.cs"));
-        tray.Should().Contain("New request...").And.Contain("RunAfterNativeMenuCloses(newRequest)");
+        tray.Should().Contain("New request").And.Contain("RunAfterNativeMenuCloses(newRequest)");
         var app = File.ReadAllText(Path.Combine(directory.FullName, "src", "Kora", "App.axaml.cs"));
         app.Should().Contain("() => newRequestWindow?.Open()").And.Contain("sessionsWindow.OpenNewRequest = newRequestWindow.Open")
             .And.Contain("newRequestWindow?.Dispose()");

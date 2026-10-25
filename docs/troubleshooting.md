@@ -164,7 +164,7 @@ Kora does not run user-created scripts during this check.
 3. Confirm the microphone card says Windows desktop-app microphone access is
    allowed. If blocked, select **Open Windows microphone settings** in Kora,
    then enable microphone and desktop-app access.
-4. Open **Tray > Voice & audio > Choose microphone...** or **Settings > Speech & audio > Choose microphone**.
+4. Open **Tray > Voice & audio > Choose microphone** or **Settings > Speech & audio > Choose microphone**.
    Refresh devices, confirm **System** has an active Windows default microphone,
    or highlight a specific active endpoint and choose **Save preference only**.
    Duplicate names are distinguished by exact endpoint IDs; unavailable pins
@@ -285,7 +285,7 @@ Open:
 `%LOCALAPPDATA%\Kora\Logs`
 
 Logs are structured JSON, roll daily, and are retained for up to 30 days.
-**Tray > Help > Evidence & diagnostics...** source **DailyLog** can inspect an independent
+**Tray > Help > Evidence & diagnostics** source **DailyLog** can inspect an independent
 bounded prefix of existing daily diagnostic envelopes even when SQLite is
 unavailable. **All** remains SQLite-only. A scan limit is not a complete-file
 search; missing/changed/expired snapshots require a fresh search, while corrupt

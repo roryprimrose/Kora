@@ -64,7 +64,7 @@ System only; it does not enable listening, change consent/permission or reopen
 a run hold. Protected/unknown calls deny original voice mutations.
 
 Choose **Settings > Speech & audio > Choose microphone** or
-**Tray > Voice & audio > Choose microphone...**. This native card works without voice,
+**Tray > Voice & audio > Choose microphone**. This native card works without voice,
 a model or network. Opening it refreshes metadata only. Review System and active
 endpoint names/IDs (duplicate names remain distinct); an unavailable saved pin
 stays visible. Highlighting changes only a local draft. **Save preference only**

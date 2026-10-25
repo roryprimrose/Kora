@@ -1,6 +1,6 @@
 # Instructions, skills, agents and MCP servers
 
-Open **Tray > Customizations...**, type `show customizations`, or use the current
+Open **Tray > Kora Customizations** immediately below **Sessions**, type `show customizations`, or use the current
 assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 

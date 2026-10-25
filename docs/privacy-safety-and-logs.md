@@ -571,7 +571,7 @@ baggage, and cannot promote ordinary logs to the dedicated AuthorityAudit path.
 No source capture, model/provider/network, copy/export/persistence or session
 activity renewal is added.
 
-**Tray > Help > Evidence & diagnostics...** opens a native read-only inspector for actual
+**Tray > Help > Evidence & diagnostics** opens a native read-only inspector for actual
 SQLite diagnostic, typed audit, completed span and explicit link records.
 **DailyLog** additionally inspects existing daily diagnostic JSON independently;
 **All** still selects SQLite only and does not count mirrored file copies.

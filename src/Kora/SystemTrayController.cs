@@ -66,15 +66,21 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(showItem);
         if (newRequest is not null)
         {
-            var newRequestItem = new NativeMenuItem("New request...");
+            var newRequestItem = new NativeMenuItem("New request");
             newRequestItem.Click += (_, _) => RunAfterNativeMenuCloses(newRequest);
             menu.Add(newRequestItem);
         }
         if (inspectSessions is not null)
         {
-            var sessionsItem = new NativeMenuItem("Sessions...");
+            var sessionsItem = new NativeMenuItem("Sessions");
             sessionsItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectSessions);
             menu.Add(sessionsItem);
+        }
+        if (manageCustomizations is not null)
+        {
+            var customizationsItem = new NativeMenuItem("Kora Customizations");
+            customizationsItem.Click += (_, _) => RunAfterNativeMenuCloses(manageCustomizations);
+            menu.Add(customizationsItem);
         }
         menu.Add(new NativeMenuItemSeparator());
         var disableListening = new NativeMenuItem("Disable listening");
@@ -84,19 +90,13 @@ public sealed class SystemTrayController : IDisposable
         menu.Add(voiceAudioItem);
         menu.Add(new NativeMenuItemSeparator());
         menu.Add(settingsItem);
-        if (manageCustomizations is not null)
-        {
-            var customizationsItem = new NativeMenuItem("Customizations...");
-            customizationsItem.Click += (_, _) => RunAfterNativeMenuCloses(manageCustomizations);
-            menu.Add(customizationsItem);
-        }
         var help = new NativeMenu();
         var documentationItem = new NativeMenuItem("Documentation");
         documentationItem.Click += (_, _) => RunAfterNativeMenuCloses(viewModel.ShowDocumentation);
         help.Add(documentationItem);
         if (inspectEvidence is not null)
         {
-            var evidenceItem = new NativeMenuItem("Evidence & diagnostics...");
+            var evidenceItem = new NativeMenuItem("Evidence & diagnostics");
             evidenceItem.Click += (_, _) => RunAfterNativeMenuCloses(inspectEvidence);
             help.Add(evidenceItem);
         }
@@ -184,7 +184,7 @@ public sealed class SystemTrayController : IDisposable
     private void UpdateIdentityText()
     {
         showItem.Header = $"Show {viewModel.AssistantName}";
-        settingsItem.Header = "Settings...";
+        settingsItem.Header = "Settings";
         exitItem.Header = $"Exit {viewModel.AssistantName}";
     }
 
@@ -201,11 +201,11 @@ public sealed class SystemTrayController : IDisposable
         voiceAudio.Add(enable);
         if (chooseMicrophone is { } choose)
         {
-            var chooseItem = new NativeMenuItem("Choose microphone...");
+            var chooseItem = new NativeMenuItem("Choose microphone");
             chooseItem.Click += (_, _) => RunAfterNativeMenuCloses(choose);
             voiceAudio.Add(chooseItem);
         }
-        var voiceSettings = new NativeMenuItem("Speech & audio settings...");
+        var voiceSettings = new NativeMenuItem("Speech & audio settings");
         voiceSettings.Click += (_, _) => RunAfterNativeMenuCloses(() =>
         {
             viewModel.ShowSettings();

@@ -11,7 +11,7 @@ Reasoning/context pickers use the saved model. Model review retains both depende
 
 ## Customizations
 
-Open **Tray > Customizations...** for a shared Skills / Instructions / Agents /
+Open **Tray > Kora Customizations** for a shared Skills / Instructions / Agents /
 MCP servers / Prompts window with **Built-in**, **Kora**, and **User** source
 groups. Built-ins are read-only; writable sources support reviewed native
 editing, skill component changes, recoverable saves and local-model proposals.
@@ -155,7 +155,7 @@ There is no Find clipboard/paste/export, logging, persistence, provider or netwo
 
 ### New request with a fresh session
 
-Open **Tray > New request...** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
+Open **Tray > New request** or **Sessions > New request (fresh target)**. Reopening activates the same window and preserves its isolated memory draft. Relatedness inference is unavailable: this entry never continues the selected, named, recent or Done session and never changes question/approval/voice focus.
 
 Without a mouse, type **open new request** or use activated voice **Kora, open new request** with the current configured name. This opens/activates the same window only; existing dirty/reviewed/held/busy state stays unchanged ([native controller](../src/Kora/NewRequestWindowController.cs)).
 
@@ -545,7 +545,7 @@ Browsing does not resume a Done session or add model context/consent ([catalogue
 
 **Settings > Approvals > Exact operation grants...** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance and stale confirmation.
 
-**Help > Evidence & diagnostics...** offers an explicit **AuthorityAudit** source for
+**Help > Evidence & diagnostics** offers an explicit **AuthorityAudit** source for
 committed typed interaction-store audits, separately from diagnostic **Audit**,
 **All**, **DailyLog** and **CombinedLog**. It shares the existing bounded native
 filter/page/citation display, without copying, export, execution or approval
@@ -589,21 +589,22 @@ The right-click menu contains:
 
 - Read-only generic **input status** (no endpoint ID/name or transcript in the tooltip)
 - **Show Kora**
-- **New request...** (a separate fresh-session composer)
-- **Sessions...**
+- **New request** (a separate fresh-session composer)
+- **Sessions**
+- **Kora Customizations** (skills, instructions, agents, MCP servers and prompts)
 - **Disable listening** (close input for this run, not Stop speaking)
 - **Voice & audio**
   - **Enable listening (push-to-talk readiness)**
-  - **Choose microphone...**
-  - **Speech & audio settings...**
-- **Settings...**
-- **Customizations...** (skills, instructions, agents, MCP servers and prompts)
+  - **Choose microphone**
+  - **Speech & audio settings**
+- **Settings**
 - **Help**
   - **Documentation**
-  - **Evidence & diagnostics...** (read-only)
+  - **Evidence & diagnostics** (read-only)
 - **Exit Kora**
 
 These ten root rows are separated into navigation, input, settings/help and exit groups. Show/Exit and the tooltip use the configured assistant name ([tray implementation](../src/Kora/SystemTrayController.cs)).
+Kora Customizations sits immediately below Sessions and opens the existing shared management window. Tray command labels have no trailing ellipses ([menu construction](../src/Kora/SystemTrayController.cs), [customization workflow](customizations.md)).
 Show Kora is bold as the default action for both single- and double-click. Settings opens only through its explicit menu entry or existing commands ([default-action styling and click routing](../src/Kora/SystemTrayController.cs)).
 There is no Stop speaking entry. Use the existing [speech controls or exact command](commands.md#stop-speech-playback) instead.
 
@@ -639,7 +640,7 @@ The native selections share the same audited preference seam as the bounded
 Commands do not combine selection with Enable or renew consent/permission;
 reset explicitly selects System without releasing manual/run holds.
 
-**Voice & audio > Choose microphone...** opens a non-topmost card with real current
+**Voice & audio > Choose microphone** opens a non-topmost card with real current
 endpoint names/IDs, System/default availability and the retained unavailable pin.
 **Refresh devices** is metadata only. Highlight a current endpoint, then choose
 **Save preference only**; highlighting/closing is not consent or enablement.
@@ -649,7 +650,7 @@ microphone, test capture or durable question bridge is required or claimed.
 Close/Escape does not cancel a task or mark a session Done. Speech Settings
 opens the same card and retains its separate consent and held PTT controls.
 
-Open **Voice & audio > Choose microphone...**, then **Refresh devices**, to refresh microphone metadata without recording.
+Open **Voice & audio > Choose microphone**, then **Refresh devices**, to refresh microphone metadata without recording.
 Refresh is single-flight and has a five-second caller deadline. If Windows
 enumeration is still finishing after a timeout, retry later; repeated clicks
 do not start more workers. Failure reports **Microphone recovery needs

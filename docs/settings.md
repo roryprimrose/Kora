@@ -4,7 +4,7 @@
 
 Open Settings by:
 
-- right-clicking the tray icon and selecting **Settings...**;
+- right-clicking the tray icon and selecting **Settings**;
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 

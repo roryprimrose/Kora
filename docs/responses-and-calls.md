@@ -43,6 +43,30 @@ not just a warning. A later eligible response uses the freshly resolved output;
 unmuting or changing configuration never replays retired speech. This applies
 to **System** and a selected speaker. See [the existing fallback boundary](settings.md#muted-speaker-fallback).
 
+## Brief answers and full details
+
+For complex local answers, Kora requests a short plain-text brief and a complete
+Markdown answer. The response UI and ordinary speech use the brief plus the host's
+offer: **Would you like to view the detailed response?** The complete original
+answer is kept unchanged for Details. If no valid brief is supplied for a complex
+answer, Kora says a detailed response is available rather than inventing a summary
+or silently cutting off the answer. Speech still requires the complete brief,
+host warnings and offer to fit the existing sentence/word caps.
+
+Choose **Yes, show details** or type `show me the detailed results` to expand the
+same interaction window and open the exact result. Activated voice uses the
+current assistant name, for example `Kora, show detailed results`.
+**Not now** declines only this result's offer; it does not delete the full answer
+or change a saved preference. Generic prefix-free Yes is not a new reply channel.
+Questions, approvals and security-sensitive previews keep their original native
+controls and cannot be accepted through a details offer.
+
+Retained conversation entries show the brief and a separate **Open full detailed
+answer** link. **Message details** still opens the exact original USER message.
+The [integrated pane](windows-and-tray.md#details-beside-the-conversation)
+keeps the composer visible while reading either source. Provider/runtime readiness
+remains independent: these presentation controls do not enable a model.
+
 ## Exact current-response window actions
 
 `dismiss current response` and `open current response details` use the same native

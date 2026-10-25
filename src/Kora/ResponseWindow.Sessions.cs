@@ -13,6 +13,20 @@ public sealed partial class ResponseWindow
     internal bool IsExpanded { get; private set; }
     internal bool IsSessionListPresented => IsVisible && SessionWorkspace.IsVisible;
     internal SessionInteractionView SessionView => SessionWorkspace;
+    internal bool PrepareDetailsLayout()
+    {
+        const double minimumWidth = 1040;
+        var screen = Screens.ScreenFromWindow(this) ?? Screens.Primary;
+        if (screen is not null && screen.WorkingArea.Width / RenderScaling < minimumWidth)
+        {
+            viewModel.ReportHostInteractionFailure("Details unavailable: the current display work area cannot fit the minimum 1040-wide side-by-side conversation and Details layout.");
+            return false;
+        }
+        MinWidth = minimumWidth;
+        Width = Math.Max(Width, minimumWidth);
+        KeepOnScreen();
+        return true;
+    }
     internal Func<bool> CaptureSessionListPresentation()
     {
         var epoch = sessionPresentationEpoch;
@@ -67,6 +81,7 @@ public sealed partial class ResponseWindow
             KeepOnScreen();
         }
         if (SessionWorkspace.IsVisible != expanded) { sessionPresentationEpoch++; }
+        if (!expanded) { SessionWorkspace.HideDetails(); }
         SessionWorkspace.IsVisible = expanded;
         CurrentInteractionContent.IsVisible = !expanded;
         CollapseSessions.IsVisible = expanded;
@@ -104,6 +119,10 @@ public sealed partial class ResponseWindow
 
     private void OnSessionPresentationChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
-        if (args.Property == IsVisibleProperty) { sessionPresentationEpoch++; }
+        if (args.Property == IsVisibleProperty)
+        {
+            sessionPresentationEpoch++;
+            if (!IsVisible) { SessionWorkspace.HideDetails(); }
+        }
     }
 }

@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class AdaptiveInteractionTests
+public sealed partial class AdaptiveInteractionTests
 {
     [Fact]
     public async Task ExpandedWorkspaceHasNoOrdinaryInactivityTimerAndHideKeepsUnsentInput()
@@ -234,6 +234,7 @@ public sealed class AdaptiveInteractionTests
         private ResponseWindowController? responses;
         private AllWorkWindowController? all;
         private WorkspaceSurfaceCommandController? commands;
+        private DetailWindowController? details;
         internal ResponseWindow? Window { get; private set; }
         internal SessionsViewModel Model => (SessionsViewModel)Window!.SessionView.DataContext!;
         internal SessionWorkspaceEntry? Done { get; private set; }
@@ -248,12 +249,16 @@ public sealed class AdaptiveInteractionTests
                 false, RequestOrigin.LocalUi, Native.Token);
             var conversation = new SessionConversationService(Native.Interactions, Native.Interactions,
                 Native.Sessions, Native.Access, Admission, TimeProvider.System, NullLogger<SessionConversationService>.Instance);
-            responses = new(Native.Main, NullLogger<ResponseWindowController>.Instance);
+            details = new(Native.Documents, Native.Main, NullLogger<DetailWindowController>.Instance,
+                NullLogger<NativeDetailRenderer>.Instance, NullLogger<StaticHtmlDetailRenderer>.Instance);
+            details.BindHistoryAccess(() => Native.Access.CanInspect);
+            responses = new(Native.Main, NullLogger<ResponseWindowController>.Instance, details);
             Sessions = new(Native.Main, Native.Sessions, Native.Evidence, Native.Access,
-                NullLogger<SessionsViewModel>.Instance, conversation: conversation);
+                NullLogger<SessionsViewModel>.Instance, details: details, conversation: conversation);
             Sessions.CreateInteraction = (model, owner) =>
                 Window = responses.PrepareSessions(model, owner, Sessions.Open, static () => { });
             Sessions.Bind();
+            responses.PrepareDetailsHost = Sessions.PrepareDetailsHost;
             all = new(Native.Main, Native.Sessions, Native.Access, NullLogger<AllWorkViewModel>.Instance, Sessions);
             commands = new(Native.Main, Native.Access, all, Sessions);
             commands.Bind();
@@ -272,6 +277,7 @@ public sealed class AdaptiveInteractionTests
             all?.Dispose();
             Sessions?.Dispose();
             responses?.Dispose();
+            details?.Dispose();
             Native.Dispose();
         }
     }
@@ -279,11 +285,14 @@ public sealed class AdaptiveInteractionTests
     private sealed class NoAdmission : IModelTurnAdmission
     {
         internal int Calls { get; private set; }
+        internal bool AllowUnavailable { get; set; }
         public bool IsQuiescent => true;
         public Task<ModelTurnAdmission> AdmitAsync(ModelTurnChoice choice, ModelContextEnvelope context,
             ModelHandoffReview? review, CancellationToken token)
         {
             Calls++;
+            if (AllowUnavailable) { return Task.FromResult(new ModelTurnAdmission(
+                new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))); }
             throw new InvalidOperationException("Navigation must never admit model execution.");
         }
     }

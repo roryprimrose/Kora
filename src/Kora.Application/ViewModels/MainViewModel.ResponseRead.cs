@@ -112,6 +112,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         RetireResponseReadPlayback();
         uiDispatcher.Post(() => CurrentResponseChanged?.Invoke(this, EventArgs.Empty));
         uiDispatcher.Post(NotifyResponseReadChanged);
+        uiDispatcher.Post(() => OnPropertyChanged(nameof(IsDetailsOfferPending)));
     }
 
     public event EventHandler? CurrentResponseChanged;

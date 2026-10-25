@@ -86,6 +86,14 @@ unavailable, as explicitly scoped by the product owner. This does not qualify pr
 installed accessibility or physical display behavior. See
 [design and evidence](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25).
 
+The later [integrated session content-pane decision](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+is implemented for bounded passive native-text/Markdown, original/assistant
+conversation records, selected activity, ordinary current responses and fixed
+local-UI session log/audit queries. Brief/full-answer presentation and explicit
+native/activated-command offers preserve complete sources without another model
+call. This does not enable general result routing, Mermaid, static HTML or
+embedded browsing; standalone documentation and specialized previews remain.
+
 ### Bounded provider-neutral local-model tool continuation implementation - 2026-10-20
 
 The [tool-loop contract](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)

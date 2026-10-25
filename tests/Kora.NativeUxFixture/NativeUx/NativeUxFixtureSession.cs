@@ -97,7 +97,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             Tasks = new(this);
             Interactions = new(this, Tasks, TimeProvider.System, interactionCheckpoint);
             VersionQuery = new(new(Tasks), Audit, Loggers.CreateLogger<DurableVersionQuery>());
-            Evidence = new(new WindowsSqliteEvidenceReader(sink), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
+            Evidence = new(new WindowsEvidenceReader(new WindowsSqliteEvidenceReader(sink),
+                new WindowsDailyEvidenceReader(this), Interactions), Access, TimeProvider.System, NullLogger<DurableEvidenceQuery>.Instance);
             SharedAdmission = new(Interactions, Interactions, new(Tasks));
             SharedSkills = new(new(this), new DeniedSharedSkillReader(), SharedAdmission, Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);

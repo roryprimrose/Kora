@@ -72,6 +72,34 @@ supplies context, not a lock for unrelated general voice requests. Today use
 the explicitly addressed composer or the existing fresh-target **New conversation**
 workflow; expansion does not add model availability or permissions.
 
+### Details beside the conversation
+
+After explicitly reading a conversation or selecting an activity receipt, use
+**Message details**, **Open full detailed answer** or **Activity details**.
+The expanded window opens a Details pane beside the conversation and composer;
+it does not open another session-result window or repeat the task.
+Each message link opens that exact original or answer, including earlier results.
+
+Drag the divider to resize both panes. **Hide details** or the reader's Escape
+closes the content, not the conversation or unsent text. **Show details** restores
+the last explicitly chosen available item after fresh admission, or offers a
+chooser. It is disabled until the selected session has observed available details;
+selecting metadata alone does not read result bodies. Reading positions and the
+split are memory-only. The minimum side-by-side window width is 1040; a smaller
+display work area reports Details unavailable rather than hiding the composer.
+
+**Session logs** and **Session audit** explicitly query only this session through
+the existing read-only Evidence owners. They create separately labelled HOST
+result links, not assistant answers. Up to eight bounded pages stay available on
+the observed page; opening an earlier link does not rerun its query. Source
+revalidation may retire changed, removed, due or unavailable content. Switching
+sessions or privacy retirement clears these evidence pages.
+
+Current-response details also use this pane and name their own source; they are
+labelled as separate from the selected conversation and do not retarget its input.
+Supported Markdown renders natively. Mermaid remains labelled source fallback;
+this change does not enable HTML or browser capabilities.
+
 ### Workspace surface navigation
 
 Type `open all work` or `open compact conversation`, or use the current assistant-name activated prefix. These exact routes activate the existing tray/UI singleton controllers. `open sessions` now expands the primary interaction window, as do `show sessions`, `show me the current sessions` and `expand conversation`. No model window-focus route is available.

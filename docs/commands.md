@@ -63,6 +63,9 @@ Missing/revoked/disposed presenters and stale original host, privacy, ownership 
 | `open compact conversation`, `collapse conversation` | Original compact interaction in the primary response window; shared session selection/input remain intact |
 | `open sessions`, `show sessions`, `show me the current sessions`, `expand conversation` | Expand that same window into a bounded session list and selected conversation/activity |
 | `select the top session`, `select the first session`, `select the third session`, `select the last session` | Select one exact row from the displayed session page; first through twenty-fifth supported |
+| `show me the detailed results`, `show detailed results`, `show details` | Accept the exact current-response details offer, or open the selected session's eligible last detail / native chooser |
+| `hide details` | Hide Details without closing the conversation or discarding input |
+| `show session logs`, `show session audit` | Explicit bounded diagnostic-log / typed committed-audit query for the selected session; original local UI only |
 
 Activated voice requires the current available assistant name, for example `Kora, open all work`. Renaming replaces that prefix in the recognition grammar.
 These phrases accept no extra words, body queries or trailing punctuation; malformed reserved navigation input is refused, not sent to a model.
@@ -85,6 +88,16 @@ in both modes. See [expanded interaction](windows-and-tray.md#expand-and-collaps
 Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.
 See [native windows](windows-and-tray.md#workspace-surface-navigation) and the [deterministic evidence](../Design/UI_Workspace_And_Windows.md#workspace-surface-command-evidence).
+
+Details reuse the expanded window with a resizable persistent conversation beside
+the reader. Exact message/result links never substitute the newest result or run
+the task again. With no eligible selected-session details, Show is disabled and
+the command explains recovery. Log/audit commands require original local UI
+ownership; activated voice is refused, not relabelled as UI. Result links recheck
+their original sources; they do not broaden session scope, replay a query or grant
+clipboard/model/approval authority.
+See [Details controls](windows-and-tray.md#details-beside-the-conversation)
+and [brief/full answers](responses-and-calls.md#brief-answers-and-full-details).
 
 ## Focus the exact pending native question
 

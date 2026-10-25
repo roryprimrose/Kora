@@ -5,6 +5,8 @@ implemented, with a bounded durable native question/review window; coordinated
 authoritative per-session work and bounded ordered history delivered as below.
 The native exact-session composer/submitted-user-message foundation is delivered
 below; full generated conversations and general concurrent execution remain proposed.
+The integrated session content pane is approved direction, not delivered behavior;
+existing bounded Details windows remain in use until migrated.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 
@@ -77,6 +79,156 @@ navigation are not composed. The existing fresh-target New request fallback rema
 truthfully narrower. No runtime, installed accessibility, physical display or provider
 qualification is claimed by headless [adaptive tests](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.cs).
 
+## Integrated session content pane - 2026-10-25
+
+Status: bounded native-text/Markdown, retained original/assistant answers, selected
+activity and explicit local-UI session log/audit placement implemented. Rich
+diagrams, static HTML and embedded browsing are not enabled by this increment.
+This [product-owner decision](Decision_Register.md#integrated-session-content-pane---2026-10-25)
+advances the approved readable-results and independent-conversation outcomes.
+The concrete scenario is reading a report, Markdown table, diagram, admitted page
+or session-command log/audit result while continuing its session conversation.
+Kora owns layout, exact-target navigation,
+private disclosure and trusted controls; extensions provide admitted content only.
+
+Complex session results open in a contextual **Details** pane within the expanded
+primary window, not another top-level window:
+
+```text
++------------------+---------------------------+---------------------------+
+| Sessions         | Conversation [Show details]| Details: report / diagram|
+| Active/Done/All  | Earlier result [Open] ---->| Rendered | Source         |
+| Selected session | Later result [Open]       | Find | Expand | Hide      |
+| Other sessions   | Message this session...   | Passive content viewport  |
++------------------+---------------------------+---------------------------+
+```
+
+- **Open details/Open result** resolves one exact admitted session/item/revision,
+  expands the primary window if compact, and reveals the Details pane. It does not
+  rerun work, submit input or grant authority. Default hands-free Offer and explicit
+  voice opening use the same route and policy as UI opening.
+- Keep the pane closed until requested or allowed by the existing foreground-only
+  automatic-detail preference. Background completion may indicate available content
+  but never replaces the item being read, selects a session or steals focus.
+- Keep the conversation/message pane and its composer visible beside Details,
+  separated by a pointer- and keyboard-resizable divider. Enforce a minimum expanded
+  window width and minimum pane widths so neither collapses into an unreadable strip.
+  Do not replace conversation with a Details tab or stack the panes on narrow windows.
+  **Expand details**, if offered, adjusts the split only within those minimums;
+  **Back to conversation** focuses the originating message without hiding either pane.
+  If the available work area cannot fit the minimum layout, report the limitation
+  explicitly rather than placing controls off screen or silently using a different
+  layout. The session and item remain named.
+- Provide native **Show details** when hidden and **Hide details** when visible.
+  Hide returns space to the persistent conversation pane and focus to the originating
+  message link or Show control. It does not clear unsent input or delete result links.
+  Show is disabled when there is no selected session or its currently admitted
+  metadata has no available detail references; unknown/stale availability is disabled
+  with an explanation and explicit refresh/recovery route, not treated as empty success.
+  Availability checks do not read all result bodies, scan logs or run commands.
+- Show restores the last explicitly chosen still-eligible reference for that session,
+  repeating source/private admission before rendering. If none was chosen, show the
+  known detail references in a native chooser within the pane, rather than silently
+  selecting the newest result. A remembered title/reference alone is not disclosure
+  authority. Failed admission clears unavailable content and reports the reason.
+- Conversation entries can each expose one or more named native **Open details**
+  links bound to their exact session, originating message/event, item and immutable
+  revision. Activating an earlier or later result reveals the same pane and selects
+  that exact item, even while another item is open. Duplicate titles and later
+  completions cannot retarget a link. Replacement retires old text/Find state and
+  fences delayed renders; unavailable items explain the failure without substituting
+  the latest result. These are host-resolved references, not arbitrary executable
+  links supplied by Markdown, HTML, model prose or log text.
+- Opening, closing, resizing, expanding or changing layouts preserves the session's
+  unsent input and conversation position. It never changes the voice-question target,
+  hides required native interaction controls without a reachable route, or acts as
+  an answer/approval. Keyboard and accessible UI support the same operations.
+- Keep a bounded, memory-only item binding and reading position per session.
+  Switching sessions hides the previous session's content and shows only the newly
+  selected session's own still-admitted in-memory view, or an empty/reopen state.
+  Selection alone performs no source read; restoration needing fresh resolution
+  requires explicit Open. No unrelated item is relabelled as the new session's result.
+- Hiding/closing Details releases its text, Find state and renderer resources, not session work or the
+  composer. Reopening repeats current admission. Collapse hides the content area;
+  hidden browser views must stop renderer-owned activity or be disposed, not continue
+  invisible browsing. Privacy, ownership/source loss, deletion and lock revoke content
+  and fence delayed publication under the existing viewer contract.
+
+### Session-command log and audit details
+
+Reuse the same pane for bounded read-only log/audit records or query-result pages
+explicitly requested through admitted session commands. The command reply can carry
+a named detail reference on its own conversation entry; opening it uses the same
+exact-target route as an earlier report or later diagram. It never reruns the command,
+silently refreshes the query or follows an unbounded live log stream. A fresh query
+or next page is an explicit admitted read with its own source/query binding.
+
+The [Evidence contract](#evidence-mode) remains authoritative for retrieval,
+pagination, filters, typed fields, source/authority labels, redaction and gaps.
+Diagnostics remain observations, audit records retain their typed authoritative
+outcomes, and neither is promoted to a conversation instruction or new action.
+The pane reuses those owners rather than introducing a second evidence store,
+query engine, raw log dump or grant/approval surface. It need not be Markdown when
+typed native record presentation is more faithful.
+
+Every result names its actual session/query scope. A session command does not
+implicitly broaden to other sessions or the whole diagnostic corpus. Independent
+[retention domains](Security_Data_Flows.md#retention-defaults) still apply:
+a conversation link cannot preserve expired log bodies, recover deleted session
+content from longer-lived audit rows or renew access. Expired/revoked/unavailable
+results clear content and show their status; copy/export/model egress retain their
+separate admission. The delivered fixed `show session logs` / `show session audit`
+routes use existing Evidence queries for the selected session only. They require
+original LocalUi admission; activated voice is refused rather than relabelled.
+Other command/retrieval routes remain unavailable.
+
+### Delivery boundary
+
+The [shared native reader](../src/Kora/DetailContentView.axaml) is composed into the
+[expanded session surface](../src/Kora/SessionInteractionView.axaml) for exact
+retained USER, separately retained full ASSISTANT, selected activity and ordinary
+current-response details. The conversation/composer stays mounted. Minimum width
+is 1040 device-independent units with minimum conversation/Details widths of
+320/400; insufficient work area is explicitly unavailable. Hide/Escape releases
+private reader/Find state, retains bounded memory-only reading positions and split
+size, and permits explicit re-resolution. Show restores an eligible last choice
+or presents a native chooser. Current-response details name their own original
+source and are explicitly labelled as separate from the selected conversation.
+
+Completed complex answers expose a brief conversational projection and a native
+offer. **Yes, show details** or `show me the detailed results` opens the exact full
+answer without another model call; **Not now** declines only that offer. The
+complete original answer remains unchanged. Generic prefix-free spoken Yes is
+not an added question channel: activated voice uses the explicit details command.
+Malformed/unstructured complex answers receive an honest availability notice,
+not a fabricated or truncated summary. Ordinary speech caps still apply to the
+complete brief response, host warnings and offer.
+
+Session log/audit commands retain at most eight bounded, separately linked
+in-memory result pages on the observed session page. Reopening revalidates their
+exact source records, never substitutes a fresh query result. The visible evidence
+page is also periodically revalidated; changed, removed, unavailable or newly
+due source projections retire its displayed text. Session/private changes clear
+pages and fence late completions. These HOST entries are not retained ASSISTANT
+answers, durable conversation payloads, clipboard grants or a live log stream.
+The [production-composed regressions](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.Details.cs)
+exercise same-window exact links, input preservation, source labels and retirement.
+
+The smallest useful increment migrates the existing bounded passive native-text/
+Markdown review into this shell, with exact-source fallback and no new producer,
+automatic-routing implementation or renderer enablement. Mermaid, static HTML and
+live websites use this placement only when their own capability/profile is admitted.
+Live sites retain separately labelled native URL/navigation controls and an isolated
+browser lifecycle; shared placement grants no Kora bridge, shared credentials or
+implicit network/context permission.
+
+The first integrated increment has no detachable content windows. Existing supporting
+management and authoritative question/approval surfaces are unchanged. It does not
+require migrating every specialized native preview or authoring workspace. Acceptance
+is owned by the [information-display gate](Acceptance_Criteria.md#information-display-gate);
+deterministic layout/navigation evidence is distinct from renderer enablement and
+installed accessibility/display qualification.
+
 ## Delivered selected-conversation lexical search — 2026-10-13
 
 Sessions and compact conversation share the selected session's bounded chronological conversation search and immutable message details. The [ordinary-search correction](https://github.com/roryprimrose/Kora/pull/428) preserves inclusive submitted-date bounds and meaningful observed task-state choices without restoring raw task/request IDs, sequence/count, generation or revision-range controls.
@@ -102,7 +254,7 @@ This does not switch the Sessions window, voice focus, attention target or curre
 Kora is a concurrent work-session application with voice, mouse, and keyboard interaction, not a single linear conversation with a transient answer popup.
 The compact window stays simple, but is a view into a durable selected session.
 The larger **Sessions workspace contains the session list beside the selected session's full conversation**.
-A separate detail/script viewer supports deeper review without losing the conversation or current question.
+The [integrated content pane](#integrated-session-content-pane---2026-10-25) supports deeper result/script review without losing the conversation or current question; existing bounded Details windows remain delivered behavior until migrated.
 This document owns cross-window layout/navigation; the interaction contract owns lifecycle, routing, concurrency, and typed question semantics.
 Security controls constrain these workflows; they are not a substitute for designing the workflows.
 
@@ -515,6 +667,12 @@ supports deterministic paginated List, Read and Search without a model:
 - All Evidence correlates permitted session, log and audit records by stable
   IDs and time while preserving their source/authority labels.
 
+An explicitly requested session-command result can use the
+[integrated Details pane](#session-command-log-and-audit-details) for the same
+admitted records/pages. Its conversation link names the exact result, not a new
+query or command replay. The presentation location does not broaden source scope,
+retention, model context, copy/export or action authority.
+
 Log and Audit details show the event ID/name, level, category, original message
 template, typed property names/values and scopes in addition to any rendered
 message. Typed filters operate on those fields and preserve value kinds;
@@ -585,7 +743,7 @@ Do not invent remaining steps, completion percentages, or an ETA when the runtim
 +----------------------------------------------------------+
 ```
 
-History lives in the workspace; this viewer expands a particular retained item or task evidence bundle.
+History lives in the workspace; this reader expands a particular retained item or task evidence bundle in the [integrated content pane](#integrated-session-content-pane---2026-10-25), not a mandatory separate window.
 Header/chrome carries session, item type, origin, revision/digest, and unavailable/redacted-source explanations.
 Markdown/HTML rendering follows the bounded safe profiles. Scripts, code
 fences, manifests, configuration, and diffs use the shared language-aware
@@ -608,7 +766,7 @@ Show definition/script-set identity, tracked dependencies and unresolved
 transitive references alongside the approval. Explain best-effort tracking and
 the granting user's responsibility; tab selection/display does not approve code
 or imply that every runtime dependency was discovered.
-A global selection change leaves an explicitly opened item attached to its original session; Back to conversation explicitly selects/navigates to that session/event.
+A selection change preserves the item's original session binding but hides it from the newly selected session's content area. Returning restores only that session's still-admitted in-memory view or an explicit reopen state; Back to conversation navigates to the exact bound session/event.
 Export is an explicit scoped write with preview; retention/deletion does not claim to remove user exports.
 If a source/session is deleted or access is revoked while open, show unavailable and clear denied content under the store/access contract; no invisible stale copy remains model-readable.
 Missing renderers disclose source fallback/unavailable capability without losing basic text or installing dependencies automatically.
@@ -712,7 +870,7 @@ An in-call voice-origin settings rejection offers a fresh UI settings route, not
 
 ## Selection, Voice Focus, Notifications, and Concurrency
 
-Workspace and compact share one selected UI session; explicit detail windows hold independent read-only item references.
+Workspace and compact share one selected UI session; the integrated content pane holds exact read-only item references per session and never retargets one on selection change. Existing bounded Details windows retain their original independent binding until migrated.
 UI selection supplies context for the mode-independent relatedness policy, not an unconditional voice destination. Explicit composer input remains addressed.
 UI selection, foreground voice question, task execution, and speech playback are separate identities.
 Show the current voice-question session/purpose when one exists; never silently interpret a generic reply as an answer to whichever row was most recently painted.

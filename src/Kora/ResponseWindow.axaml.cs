@@ -102,6 +102,8 @@ public sealed partial class ResponseWindow : Window
     private async void OnCurrentResponseDetailsClicked(object? sender, RoutedEventArgs eventArgs) =>
         await RunResponseActionAsync(viewModel.OpenCurrentResponseDetailsAsync);
 
+    private void OnDeclineDetailsOffer(object? sender, RoutedEventArgs eventArgs) => viewModel.DeclineCurrentDetailsOffer();
+
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Avalonia Click requires void; RunResponseActionAsync explicitly reports failures.")]
     private async void OnCancelTaskClicked(object? sender, RoutedEventArgs eventArgs) =>

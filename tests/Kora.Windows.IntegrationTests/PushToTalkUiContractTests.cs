@@ -2,6 +2,8 @@ using System.Xml.Linq;
 
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
 using Avalonia.LogicalTree;
 using Avalonia.VisualTree;
@@ -85,24 +87,44 @@ public sealed class PushToTalkUiContractTests
     }
 
     [Fact]
-    public void Response_window_exposes_hold_to_talk_only_for_disabled_listening_mode()
+    public async Task Response_window_exposes_hold_to_talk_only_for_disabled_listening_mode()
     {
-        var root = SourceRoot();
-        var response = XDocument.Load(Path.Combine(root, "src", "Kora", "ResponseWindow.axaml"));
-        var button = response.Descendants().Single(element =>
-            string.Equals(element.Attribute(XName.Get("Name", "http://schemas.microsoft.com/winfx/2006/xaml"))?.Value,
-                "PushToTalkButton", StringComparison.Ordinal));
-
-        button.Attribute("IsVisible")!.Value.Should().Be("{Binding IsPushToTalkVisible}");
-        button.Attribute("IsEnabled")!.Value.Should().Be("{Binding CanPushToTalk}");
-        button.Attribute("AutomationProperties.Name")!.Value
-            .Should().Be("Push to talk; hold while speaking");
-
-        var codeBehind = File.ReadAllText(Path.Combine(root, "src", "Kora", "ResponseWindow.axaml.cs"));
-        codeBehind.Should().Contain("OnPushToTalkPressed")
-            .And.Contain("OnPushToTalkReleased")
-            .And.Contain("OnPushToTalkCaptureLost")
-            .And.Contain("EndPushToTalkCommand.Execute(null)");
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
+            await fixture.InitializeAsync();
+            fixture.Main.BindVoiceOwnershipGate(static () => true);
+            await fixture.Main.SetVoiceConsentAsync(true);
+            fixture.Main.IsVoiceEnabled.Should().BeTrue();
+            var response = new ResponseWindow(fixture.Main);
+            try
+            {
+                response.Show();
+                response.Activate();
+                response.UpdateLayout();
+                var button = response.FindControl<Button>("PushToTalkButton")!;
+                button.IsVisible.Should().BeFalse();
+                fixture.Voice.StartCalls.Should().Be(0);
+                await fixture.Main.ToggleListeningCommand.ExecuteAsync();
+                response.UpdateLayout();
+                fixture.Main.IsVoiceEnabled.Should().BeFalse();
+                button.IsVisible.Should().BeTrue();
+                button.IsEnabled.Should().BeTrue(fixture.Main.ListeningStatus);
+                ControlAutomationPeer.CreatePeerForElement(button)!.GetName().Should().Be("Push to talk; hold while speaking");
+                button.Focus().Should().BeTrue();
+                response.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                fixture.Voice.StartCalls.Should().Be(1);
+                fixture.Main.IsListening.Should().BeTrue();
+                fixture.Main.CanPushToTalk.Should().BeFalse();
+                button.IsEnabled.Should().BeTrue("the held control must still receive release");
+                response.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                fixture.Voice.EndCalls.Should().Be(1);
+                fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+                fixture.Main.IsListening.Should().BeFalse();
+            }
+            finally { response.Close(); }
+        });
     }
 
     private static string SourceRoot()

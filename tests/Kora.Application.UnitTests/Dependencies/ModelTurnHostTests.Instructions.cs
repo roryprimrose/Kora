@@ -471,12 +471,12 @@ public sealed partial class ModelTurnHostTests
                 + "name: example\ndescription: Example\n---\n" + body, false), kind, "kora-profile", "example"));
 
     private static (ScopedInstructionUseBroker Broker, ArtifactCatalogue Catalogue, InstructionRevisionCatalogue Revisions)
-        InstructionBroker(Fixture f, InstructionSource source, bool activate = true)
+        InstructionBroker(Fixture f, InstructionSource source, bool activate = true, IArtifactUsePolicy? usePolicy = null)
     {
         var revisions = new InstructionRevisionCatalogue(new InstructionPreferences());
         var snapshot = source.Snapshot!;
         var catalogue = new ArtifactCatalogue(revisions.Reconcile(
-            [snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision }]));
+            [snapshot.Document.Definition with { OwnedInstructionRevision = snapshot.Revision }]), usePolicy);
         if (activate) { revisions.CompleteActivation(snapshot, revisions.PrepareActivation(snapshot), catalogue); }
         return (new(catalogue, revisions, source, f, f, f.Time), catalogue, revisions);
     }

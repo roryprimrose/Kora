@@ -37,6 +37,7 @@ public sealed partial class App : Avalonia.Application
     private EvidenceWindowController? evidenceWindow;
     private SkillPackagesWindowController? skillPackagesWindow;
     private OwnedInstructionEditorController? instructionEditor;
+    private CustomizationWindowController? customizations;
     private PromptParameterController? promptParameters;
     private SessionsWindowController? sessionsWindow;
     private NewRequestWindowController? newRequestWindow;
@@ -159,6 +160,16 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>());
             instructionEditor.Bind();
+            customizations = new(viewModel,
+                Services.GetRequiredService<Kora.Application.Definitions.CustomizationManagementService>(),
+                Services.GetRequiredService<Kora.Application.Definitions.CustomizationAuthoringService>(),
+                Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
+                Services.GetRequiredService<ArtifactCatalogueReloadService>(),
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
+                    && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
+                () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
+                Services.GetRequiredService<ILogger<CustomizationWindowController>>());
+            customizations.Bind();
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),
                 Services.GetRequiredService<Kora.Application.Definitions.PromptRequestConsumer>(),
@@ -199,7 +210,8 @@ public sealed partial class App : Avalonia.Application
                 () => attachmentCatalogue?.Open(),
                 () => instructionEditor.Open(),
                 () => newRequestWindow?.Open(),
-                () => sessionsWindow?.OpenCompact());
+                () => sessionsWindow?.OpenCompact(),
+                () => customizations.Open());
             evidenceWindow = new EvidenceWindowController(viewModel,
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
@@ -376,6 +388,8 @@ public sealed partial class App : Avalonia.Application
         }
         systemTray?.Dispose();
         instructionEditor?.Dispose();
+        customizations?.Dispose();
+        customizations = null;
         instructionEditor = null;
         instructionUse?.Dispose();
         instructionUse = null;

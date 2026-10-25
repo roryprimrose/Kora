@@ -2,6 +2,21 @@
 
 **Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
+## Manage customizations
+
+`show customizations`, `show skills`, `show instructions`, `show agents`,
+`show MCP servers` and `show prompts` open the shared categorized native window.
+Use `show me example instruction`, `edit example skill`,
+`add an instruction named example`, `disable example agent`, or
+`enable example MCP server` for the corresponding source-qualified workflow.
+Activated voice uses the current assistant-name prefix.
+
+`refine this artifact <request>` discusses or proposes changes to the currently
+open editable draft only after separate exact local-model disclosure review.
+Accepting a proposal does not save or enable it. Native source/component editing,
+recoverable User-original writes, disabled-use persistence and availability
+limits are described in [Customizations](customizations.md).
+
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the

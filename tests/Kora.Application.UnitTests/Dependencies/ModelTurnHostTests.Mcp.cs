@@ -8,6 +8,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Application.Mcp;
 using Kora.Core.Authorization;
+using Kora.Core.Artifacts;
 using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
@@ -21,6 +22,50 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     private const string McpSchema = """{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32}},"required":["query"]}""";
+
+    [Theory]
+    [InlineData(McpReviewStage.Connection)]
+    [InlineData(McpReviewStage.ToolSelection)]
+    [InlineData(McpReviewStage.Invocation)]
+    public async Task Mcp_disable_reenable_during_approval_permanently_retires_the_old_workflow(McpReviewStage stage)
+    {
+        using var f = new Fixture();
+        var use = new ArtifactUsePreferences(new Kora.Application.UnitTests.Configuration.LocalSharedSkillPreferencesTests.Store());
+        using var source = new McpSource(use);
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var transport = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(transport, f.Time, f);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var approval = new McpApprovals(f);
+        var broker = new McpBroker(source.Account);
+        var service = McpService(f, host, source, broker, approval, await source.Policy());
+        async Task<McpApprovalPresentation> Present(HostOperationProposal proposal, HostRevision generation,
+            McpReview review, Func<bool> admitted, CancellationToken token)
+        {
+            var result = await approval.Present(proposal, generation, review, admitted, token);
+            if (review.Stage == stage)
+            {
+                use.SetDisabled(ArtifactUseIdentity.Mcp(source.ServerId), true);
+                use.SetDisabled(ArtifactUseIdentity.Mcp(source.ServerId), false);
+            }
+            return result;
+        }
+        var submit = () => service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, Present, McpSelect, static () => true, Token);
+        if (stage == McpReviewStage.Invocation)
+        {
+            var failure = await submit.Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+            failure.Which.Request.Should().Be(f.Retained!.Request);
+        }
+        else { (await submit()).Message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded); }
+        f.Retained!.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+        f.Retained.AssistantResponse.Should().BeNull();
+        broker.Methods.Should().Equal(stage == McpReviewStage.Connection ? [] : ["initialize", "tools/list"]);
+        transport.Requests.Should().HaveCount(stage == McpReviewStage.Invocation ? 1 : 0);
+        if (stage == McpReviewStage.Connection) { broker.Connected.Should().BeFalse(); }
+        else { broker.Disposed.Should().BeTrue(); }
+    }
 
     [Theory]
     [InlineData(false, RequestOrigin.LocalUi)]
@@ -214,13 +259,13 @@ public sealed partial class ModelTurnHostTests
         internal Action? BeforeLoad { set => preferences.BeforeLoad = value; }
         internal string ServerId { get; }
         internal McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        internal McpSource()
+        internal McpSource(IArtifactUsePolicy? usePolicy = null)
         {
             Directory.CreateDirectory(directory);
             File = Path.Combine(directory, "source.json");
             System.IO.File.WriteAllText(File, """{"servers":{"reference":{"url":"https://example.com/mcp"}}}""");
             preferences = new McpPreferences(new([], [], [], [], [File], []));
-            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"));
+            Configuration = new(new McpPaths(directory), preferences, Path.Combine(directory, "profile"), usePolicy);
             ServerId = Configuration.Load().Single().Id;
             preferences.Value = new([], [], [], [], [File], [ServerId]);
         }

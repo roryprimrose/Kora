@@ -1,6 +1,7 @@
 using Kora.Application.Configuration;
 using Kora.Core.Auditing;
 using Kora.Core.Skills;
+using Kora.Core.Artifacts;
 
 using Microsoft.Extensions.Logging;
 
@@ -8,13 +9,19 @@ namespace Kora.Application.Skills;
 
 public sealed partial class SharedSkillDiscoveryService(
     LocalSharedSkillPreferences preferences, ISharedSkillSourceReader reader, SharedSkillAdmission admission,
-    ISecurityAuditLog auditLog, ILogger<SharedSkillDiscoveryService> logger)
+    ISecurityAuditLog auditLog, ILogger<SharedSkillDiscoveryService> logger, IArtifactUsePolicy? usePolicy = null)
 {
     private volatile bool observationRequired;
     private readonly Lock consentGate = new();
     private readonly HashSet<Guid> withdrawnIdentities = [];
     private long consentRevision;
     internal long ConsentRevision => Interlocked.Read(ref consentRevision);
+    internal long UseRevision => usePolicy?.Revision ?? 0;
+
+    internal bool IsUseAllowed(SharedSkillSource source, SharedSkillSnapshot snapshot) =>
+        usePolicy?.IsDisabled(ArtifactUseIdentity.File(Path.Combine(
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile),
+            source.ProfileRelativeRoot, snapshot.RelativeFile))) != true;
 
     public Task<IReadOnlyList<SharedSkillSource>> LoadSourcesAsync(Func<bool> eligible, CancellationToken token) =>
         admission.RunAsync(eligible, async (request, session, currentToken) =>

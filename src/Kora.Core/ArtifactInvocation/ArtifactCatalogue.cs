@@ -4,23 +4,46 @@ using Kora.Core.Commands;
 
 namespace Kora.Core.Artifacts;
 
-public sealed class ArtifactCatalogue
+public sealed class ArtifactCatalogue : IDisposable
 {
     private readonly Lock gate = new();
     private ReadOnlyCollection<ArtifactDefinition> artifacts;
     private long reloadFailureRevision;
     private int reloadUnavailable;
+    private readonly IArtifactUsePolicy? usePolicy;
+    private ReadOnlyCollection<ArtifactDefinition>? maskedCandidates;
+    private long maskedUseRevision;
 
-    public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts)
+    public ArtifactCatalogue(IReadOnlyList<ArtifactDefinition> artifacts, IArtifactUsePolicy? usePolicy = null)
     {
         this.artifacts = Validate(artifacts);
+        this.usePolicy = usePolicy;
+        if (usePolicy is not null) { usePolicy.Changed += OnUsePolicyChanged; }
     }
 
     public event EventHandler? Changed;
     public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
 
-    public ReadOnlyCollection<ArtifactDefinition> Candidates => Volatile.Read(ref artifacts);
+    public ReadOnlyCollection<ArtifactDefinition> Candidates
+    {
+        get
+        {
+            if (usePolicy is null) { return Volatile.Read(ref artifacts); }
+            lock (gate)
+            {
+                var revision = usePolicy.Revision;
+                if (maskedCandidates is not null && maskedUseRevision == revision) { return maskedCandidates; }
+                maskedCandidates = new(artifacts.Select(artifact =>
+                    usePolicy.IsDisabled(artifact.UseControlId ?? artifact.Id) || usePolicy.IsDisabled(artifact.Id)
+                        ? artifact with { IsUseEnabled = false, IsUseDisabled = true, PreservesCapturedUse = false }
+                        : artifact).ToArray());
+                maskedUseRevision = revision;
+                return maskedCandidates;
+            }
+        }
+    }
     public long ReloadFailureRevision => Interlocked.Read(ref reloadFailureRevision);
+    public long UseControlRevision => usePolicy?.Revision ?? 0;
     public bool IsReloadUnavailable => Volatile.Read(ref reloadUnavailable) != 0;
     public ReadOnlyCollection<ArtifactDefinition> Artifacts =>
         new(Candidates.Where(artifact => artifact.IsUseEnabled).ToArray());
@@ -39,6 +62,17 @@ public sealed class ArtifactCatalogue
             && string.Equals(artifact.Id, id, StringComparison.Ordinal)
             && string.Equals(artifact.Digest, digest, StringComparison.Ordinal));
 
+    private void OnUsePolicyChanged(object? sender, EventArgs args)
+    {
+        lock (gate) { maskedCandidates = null; }
+        Changed?.Invoke(this, EventArgs.Empty);
+    }
+
+    public void Dispose()
+    {
+        if (usePolicy is not null) { usePolicy.Changed -= OnUsePolicyChanged; }
+    }
+
     public void Publish(IReadOnlyList<ArtifactDefinition> updatedArtifacts)
     {
         Replace(_ => updatedArtifacts, recovered: true);
@@ -56,6 +90,7 @@ public sealed class ArtifactCatalogue
             previous = artifacts;
             validated = Validate(update(previous));
             Volatile.Write(ref artifacts, validated);
+            maskedCandidates = null;
             if (recovered) { Volatile.Write(ref reloadUnavailable, 0); }
         }
         if (!Equivalent(previous, validated))

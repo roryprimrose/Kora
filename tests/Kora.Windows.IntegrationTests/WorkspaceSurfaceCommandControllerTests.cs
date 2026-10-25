@@ -86,11 +86,10 @@ public sealed class WorkspaceSurfaceCommandControllerTests
             await f.Native.InitializeAsync();
             var store = new RefusingWorkspaceStore();
             f.Bind(new(store, new(f.Native.Tasks), f.Native.Access, NullLogger<SessionWorkspaceService>.Instance));
-            foreach (var phrase in Kora.Core.Commands.WorkspaceSurfaceCommand.FixedPhrases)
-            {
-                await f.Run(phrase);
-                f.Native.Main.ResponseBody.Should().NotContain("Navigation unavailable");
-            }
+            await f.Run("open all work");
+            f.Native.Main.ResponseBody.Should().NotContain("Navigation unavailable");
+            await f.Run("open compact conversation");
+            f.Native.Main.ResponseBody.Should().NotContain("Navigation unavailable");
             store.Calls.Should().Be(0);
         });
     }

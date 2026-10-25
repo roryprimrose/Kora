@@ -3,9 +3,10 @@
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
     xmlns:controls="using:Kora.Controls"
+    xmlns:local="using:Kora"
     Title="{Binding AssistantName}"
     Width="560"
-    Height="650"
+    Height="690"
     MinWidth="480"
     MinHeight="570"
     Background="Transparent"
@@ -17,7 +18,20 @@
     TransparencyLevelHint="Transparent"
     KeyDown="OnCancelTaskKeyDown"
     WindowStartupLocation="Manual">
-  <Border
+  <Grid RowDefinitions="Auto,*">
+    <WrapPanel Margin="24,14,24,0">
+      <TextBlock Text="{Binding AssistantName}" FontWeight="SemiBold" Margin="0,6,12,0"
+          Cursor="SizeAll" PointerPressed="OnDragHandlePointerPressed" />
+      <Button x:Name="ExpandSessions" Content="Show sessions" Click="OnExpandSessionsClicked" />
+      <Button x:Name="CollapseSessions" Content="Collapse" Click="OnCollapseSessionsClicked" IsVisible="False" />
+      <Button x:Name="ShowCurrentInteraction" Content="Current interaction" Click="OnCurrentInteractionClicked" IsVisible="False"
+          ToolTip.Tip="Original response, question and approval controls; selecting a session never retargets them." />
+      <Button x:Name="HideInteraction" Content="Hide" Click="OnHideInteractionClicked" IsVisible="False" />
+      <TextBlock Text="Question or approval waiting" IsVisible="{Binding IsResponseInteractionPending}"
+          Margin="10,6" FontWeight="SemiBold" />
+    </WrapPanel>
+    <local:SessionInteractionView x:Name="SessionWorkspace" Grid.Row="1" IsVisible="False" DataContext="{x:Null}" />
+  <Border x:Name="CurrentInteractionContent" Grid.Row="1"
       Margin="12"
       Padding="22"
       Background="{DynamicResource KoraPresencePanelBrush}"
@@ -252,4 +266,5 @@
       </Grid>
     </Grid>
   </Border>
+  </Grid>
 </Window>

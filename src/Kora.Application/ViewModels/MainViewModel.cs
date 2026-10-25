@@ -4490,12 +4490,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteMemoryCommandAsync(memoryCommand, initiator);
             return;
         }
-        if (string.Equals(commandRouter.Match(spokenText, AssistantName).NormalizedTranscript,
-            "open sessions", StringComparison.Ordinal))
-        {
-            ShowSessions();
-            return;
-        }
         var admittedCommand = commandRouter.Match(spokenText, AssistantName).Command;
         if (IsDurableVersionQueryEligible(true, pendingModelQuestion is not null, IsGrantChangePending, IsModelActionApprovalPending)
             && admittedCommand?.Action == BuiltInAction.ShowVersion)

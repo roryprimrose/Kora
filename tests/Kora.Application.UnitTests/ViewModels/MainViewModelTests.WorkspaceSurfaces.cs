@@ -36,6 +36,8 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData("open all work", WorkspaceSurfaceTarget.AllWork)]
     [InlineData("open compact conversation", WorkspaceSurfaceTarget.CompactConversation)]
+    [InlineData("show me the current sessions", WorkspaceSurfaceTarget.Sessions)]
+    [InlineData("select the third session", WorkspaceSurfaceTarget.SelectSession)]
     public async Task WorkspaceNavigationUsesTypedAndCurrentNameVoiceWithoutReasoning(string phrase, WorkspaceSurfaceTarget target)
     {
         var f = await Fixture.CreateInitializedAsync();
@@ -44,6 +46,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.WorkspaceSurfaceRequested += request =>
         {
             request.IsAdmitted().Should().BeTrue();
+            request.SessionPosition.Should().Be(target == WorkspaceSurfaceTarget.SelectSession ? 3 : null);
             observed.Add((request.Target, Kora.Core.Diagnostics.HostActivity.Current?.Request.Origin));
             return Task.CompletedTask;
         };
@@ -60,7 +63,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task WorkspaceNavigationHasExplicitUnavailableAndMalformedBoundariesAndPreservesLegacySessions()
+    public async Task WorkspaceNavigationHasExplicitUnavailableAndMalformedBoundariesAndRoutesSessionsThroughAdmission()
     {
         var f = await Fixture.CreateInitializedAsync();
         await f.RunAsync("open all work");
@@ -72,12 +75,12 @@ public sealed partial class MainViewModelTests
         var sessions = 0;
         f.ViewModel.SessionsRequested += (_, _) => sessions++;
         await f.RunAsync("open sessions");
-        sessions.Should().Be(1);
-        calls.Should().Be(0);
+        sessions.Should().Be(0);
+        calls.Should().Be(1);
         f.Reasoner.Requests.Should().BeEmpty();
         f.Session.IsUnlocked = false;
         await f.RunAsync("open compact conversation");
-        calls.Should().Be(0);
+        calls.Should().Be(1);
     }
 
     [Fact]
@@ -110,6 +113,8 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("choose");
         await f.ViewModel.ActiveReasoningTask!;
         f.ViewModel.CommandText = "unfinished answer";
+        await f.RaiseActivatedTranscriptAsync("Kora, show sessions", 1);
+        await f.RaiseActivatedTranscriptAsync("Kora, select the third session", 1);
         await f.RaiseActivatedTranscriptAsync("Kora, open compact conversation", 1);
         f.ViewModel.IsModelQuestionPending.Should().BeTrue();
         f.ViewModel.CommandText.Should().Be("unfinished answer");
@@ -127,7 +132,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ActiveReasoningTask!;
         await f.RunAsync("open all work");
         f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        calls.Should().Be(3);
+        calls.Should().Be(5);
         f.Session.LockCalls.Should().Be(0);
     }
 

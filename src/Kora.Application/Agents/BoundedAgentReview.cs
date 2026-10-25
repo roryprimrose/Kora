@@ -37,7 +37,9 @@ public sealed class BoundedAgentReview : IDisposable
     internal bool IsRevoked => Volatile.Read(ref revoked) != 0;
     public BoundedAgentProfile Profile { get; }
     public AgentInstructionReferenceReview? References { get; internal set; }
-    public bool IsInvocationReady => !IsRevoked && (References is null || References.Bundle is not null);
+    public AgentSkillReferenceReview? Skill { get; internal set; }
+    public bool IsInvocationReady => !IsRevoked && (References is null || References.Bundle is not null)
+        && (Skill is null || Skill.IsEnabled);
     public SessionWorkspaceEntry Target { get; }
     public string Input { get; }
     public RequestOrigin Origin { get; }
@@ -47,6 +49,9 @@ public sealed class BoundedAgentReview : IDisposable
     internal void PinBundle(AgentInstructionBundle bundle) =>
         SourceRevision = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
             SourceRevision + "\0" + string.Join("\0", bundle.Instructions.Select(item => item.Revision)))));
+    internal void PinSkill() =>
+        SourceRevision = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(
+            SourceRevision + "\0" + Skill!.Snapshot.SourceQualifiedIdentity + "\0" + Skill.Snapshot.RevisionDigest)));
     internal void Consume(BoundedAgentWorkflow owner)
     {
         if (!ReferenceEquals(Owner, owner) || !IsInvocationReady || Interlocked.Exchange(ref consumed, 1) != 0)
@@ -60,6 +65,7 @@ public sealed class BoundedAgentReview : IDisposable
             if (Interlocked.Exchange(ref revoked, 1) == 0)
             {
                 References?.Dispose();
+                Skill?.Dispose();
                 cancellation = revocation.CancelAsync();
             }
         }

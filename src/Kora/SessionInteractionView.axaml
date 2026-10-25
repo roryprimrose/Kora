@@ -1,0 +1,117 @@
+<UserControl x:Class="Kora.SessionInteractionView"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
+  <UserControl.Resources>
+    <DataTemplate x:Key="TimelineMessage">
+      <Border Padding="12" Margin="0,0,0,10" Background="{DynamicResource KoraSurfaceAltBrush}" CornerRadius="8">
+        <StackPanel Spacing="8">
+          <TextBlock Text="{Binding SubmittedAt, StringFormat='You - {0:g}'}" Classes="eyebrow" />
+          <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+          <StackPanel IsVisible="{Binding HasAssistantResponse}" Spacing="6">
+            <TextBlock Text="Kora" Classes="eyebrow" />
+            <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" />
+          </StackPanel>
+          <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect work', StringFormat='Action outcome: {0}'}"
+              TextWrapping="Wrap" Classes="muted" />
+          <TextBlock Text="{Binding Reason, StringFormat='Reason: {0}'}" TextWrapping="Wrap" Classes="muted" />
+          <Button Name="OpenConversationDetail" Content="Message details"
+              IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
+              HorizontalAlignment="Left" />
+        </StackPanel>
+      </Border>
+    </DataTemplate>
+  </UserControl.Resources>
+  <Grid Margin="12" ColumnDefinitions="230,Auto,*" ColumnSpacing="10">
+    <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" RowSpacing="8">
+      <TextBlock Text="Sessions" FontSize="20" FontWeight="SemiBold" />
+      <ComboBox Grid.Row="1" ItemsSource="{Binding SessionFilters}"
+          SelectedItem="{Binding SessionFilter, Mode=TwoWay}" IsEnabled="{Binding CanRead}"
+          AutomationProperties.Name="Session list lifecycle filter" />
+      <WrapPanel Grid.Row="2">
+        <Button x:Name="RefreshSessions" Content="Refresh list" IsEnabled="{Binding CanRead}" />
+        <Button x:Name="NextSessions" Content="Next page" IsEnabled="{Binding CanNext}" />
+      </WrapPanel>
+      <controls:ScrollableListBox Grid.Row="3" x:Name="SessionList" ItemsSource="{Binding Sessions}"
+          SelectedItem="{Binding SelectedSessionRecord, Mode=OneWay}" IsEnabled="{Binding CanRead}"
+          AutomationProperties.Name="Presented session page; spoken positions count from the top, last means last on this page">
+        <ListBox.ItemTemplate>
+          <DataTemplate>
+            <StackPanel Spacing="4" Margin="4">
+              <TextBlock Text="{Binding Metadata.Name.Value, TargetNullValue='Unnamed conversation'}"
+                  FontWeight="SemiBold" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Authority.IsActive, StringFormat='Active: {0}'}" Classes="muted" />
+            </StackPanel>
+          </DataTemplate>
+        </ListBox.ItemTemplate>
+      </controls:ScrollableListBox>
+      <StackPanel Grid.Row="4" Spacing="6">
+        <TextBlock Text="Positions refer to this loaded page, not all saved sessions. Refresh explicitly; background work does not reorder this list."
+            TextWrapping="Wrap" Classes="muted" FontSize="11" />
+        <Button x:Name="NewConversation" Content="New conversation..." />
+        <Button x:Name="ManageSessions" Content="Session management..." />
+      </StackPanel>
+    </Grid>
+    <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
+    <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
+      <TextBlock Text="{Binding InteractionTarget}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"
+          AutomationProperties.Name="Selected conversation; context is not a lock for general voice requests" />
+      <TextBlock Grid.Row="1" Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
+          AutomationProperties.Name="Session navigation outcome or failure" />
+      <TabControl Grid.Row="2">
+        <TabItem Header="Conversation">
+          <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
+            <WrapPanel>
+              <Button x:Name="ReadConversation" Content="Read conversation" IsEnabled="{Binding CanReadConversation}" />
+              <Button x:Name="NextConversation" Content="More messages" IsEnabled="{Binding CanNextConversation}" />
+            </WrapPanel>
+            <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
+              <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+            </ScrollViewer>
+            <TextBlock Grid.Row="2" Text="{Binding ConversationStatus}" Classes="muted" TextWrapping="Wrap" />
+          </Grid>
+        </TabItem>
+        <TabItem Header="Activity">
+          <Grid RowDefinitions="Auto,Auto,*,Auto" RowSpacing="8">
+            <TextBlock Text="Retained host records: questions, answers, work and decisions. Historical records are read-only, never approval controls."
+                TextWrapping="Wrap" Classes="muted" />
+            <WrapPanel Grid.Row="1">
+              <Button x:Name="ReadActivity" Content="Read activity" IsEnabled="{Binding CanHistory}" />
+              <Button x:Name="NextActivity" Content="More activity" IsEnabled="{Binding CanNextHistory}" />
+            </WrapPanel>
+            <controls:ScrollableListBox Grid.Row="2" x:Name="ActivityList" ItemsSource="{Binding HistoryRecords}"
+                SelectedItem="{Binding SelectedHistoryRecord, Mode=OneWay}"
+                AutomationProperties.Name="Inert retained activity for the selected session; never grants or answers">
+              <ListBox.ItemTemplate>
+                <DataTemplate>
+                  <Border Padding="10" Margin="0,0,0,6" Background="{DynamicResource KoraSurfaceAltBrush}" CornerRadius="8">
+                    <StackPanel Spacing="4">
+                      <TextBlock Text="{Binding Kind}" FontWeight="SemiBold" />
+                      <TextBlock Text="{Binding Question}" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Answer}" TextWrapping="Wrap" />
+                      <TextBlock Text="{Binding Decision, StringFormat='Outcome: {0}'}" />
+                      <TextBlock Text="{Binding Availability, StringFormat='Retained content: {0}'}" Classes="muted" />
+                    </StackPanel>
+                  </Border>
+                </DataTemplate>
+              </ListBox.ItemTemplate>
+            </controls:ScrollableListBox>
+            <Button Grid.Row="3" x:Name="ActivityDetails" Content="Selected activity details"
+                IsEnabled="{Binding CanOpenHistoryDetail}" HorizontalAlignment="Left" />
+          </Grid>
+        </TabItem>
+      </TabControl>
+      <TextBox Grid.Row="3" x:Name="SessionComposer" Text="{Binding ComposerBody, Mode=TwoWay}"
+          AcceptsReturn="True" TextWrapping="Wrap" MinHeight="70" MaxHeight="160"
+          IsEnabled="{Binding CanCompose}" PlaceholderText="Message this selected conversation..."
+          AutomationProperties.Name="Memory-only unsent message for the selected conversation; not an answer or approval" />
+      <WrapPanel Grid.Row="4">
+        <Button x:Name="SubmitMessage" Content="Send to this conversation" IsEnabled="{Binding CanSubmitConversation}" />
+        <Button x:Name="DiscardMessage" Content="Discard unsent..." IsEnabled="{Binding ComposerDirty}" />
+      </WrapPanel>
+      <TextBlock Grid.Row="5"
+          Text="General voice relatedness matching is not available yet. This composer explicitly targets the selected conversation. Questions and approvals retain their original controls."
+          TextWrapping="Wrap" Classes="muted" FontSize="11" />
+    </Grid>
+  </Grid>
+</UserControl>

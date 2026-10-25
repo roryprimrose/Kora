@@ -62,6 +62,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 window.Source.PropertyChanged += InputChanged;
                 window.Input.PropertyChanged += InputChanged;
                 window.Targets.SelectionChanged += (_, _) => Retire();
+                BindSharedSkillSelection(window);
                 window.Show();
                 if (!Eligible() || !eligible()) { Close(); }
                 return;
@@ -69,6 +70,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             if (!Eligible() || !active.IsCompleted)
             { throw new InvalidOperationException("Open an exact current agent review and wait for its owned operation."); }
             origin = requestOrigin;
+            if (SelectSharedSkill(command)) { return; }
             if (command.Action is "Source") { window!.Source.Text = command.Argument; Retire(); origin = requestOrigin; return; }
             if (command.Action is "Request") { window!.Input.Text = command.Argument; Retire(); inputOrigin = requestOrigin; return; }
             if (command.Action is "Target")
@@ -105,6 +107,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         if (window is not null)
         {
             window.Confirm.IsEnabled = window.Resolve.IsEnabled = false;
+            window.RetireSharedSkills();
             window.Review.Text = string.Empty;
             window.Result.Text = string.Empty;
         }
@@ -150,7 +153,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 review = await workflow.ReviewAsync(opened.Source.Text ?? string.Empty, target,
                     opened.Input.Text ?? string.Empty, inputOrigin, Current, token);
                 if (!Current()) { await workflow.RevokeAsync(review); review = null; return; }
-                if (review.References is { } referenced)
+                if (review.Skill is not null) { ShowSkillProfile(opened, review); }
+                else if (review.References is { } referenced)
                 {
                     opened.Review.Text = $"LOCAL TEXT -> TEXT; TOOL-FREE\nSESSION {target.Authority.SessionId.Value:D}\n"
                         + $"DECLARED OWNED INSTRUCTION IDS\n{string.Join("\n", review.Profile.References.Select(item => item.Id))}\n"
@@ -169,6 +173,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 if (!Current()) { await workflow.RevokeAsync(captured); review = null; return; }
                 ShowInvocation(opened, captured);
             }
+            else if (await RunSharedSkillActionAsync(action, opened, Current,
+                () => Eligible() && eligible() && ReferenceEquals(window, opened), token)) { }
             else if (action is "Invoke")
             {
                 var captured = review ?? throw new InvalidOperationException("Review the exact invocation first.");
@@ -190,6 +196,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             if (window is { } opened)
             {
                 opened.Confirm.IsEnabled = opened.Resolve.IsEnabled = false;
+                opened.RetireSharedSkills();
                 opened.Result.Text = string.Empty;
                 opened.Status.Text = "Unavailable, revoked, cancelled or unconfirmed. Inspect Sessions before any fresh review. No success or rollback claimed.";
             }
@@ -274,6 +281,6 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     }
     private sealed record AgentTarget(SessionWorkspaceEntry Entry)
     {
-        public override string ToString() => Entry.Authority.SessionId.Value.ToString("D");
+        public override string ToString() => Entry.Metadata?.Name.Value ?? "Active conversation";
     }
 }

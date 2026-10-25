@@ -11,6 +11,7 @@
 
 ## Implementation and scoped guidance
 
+- Keep these repository workflow defaults scoped to Kora; do not change shared skills, personal profiles or global Git/authentication configuration to apply them.
 - Use small cohesive owners, strong types and nullable analysis. Keep policy/serialization authoritative in one place; reuse domain validation and shared admitted actions. Surface failures with repository-standard diagnostics and recovery, never silent defaults or success-shaped fallbacks.
 - Use asynchronous I/O/lifecycle APIs and deterministic disposal. Allow `async void` only at framework event or `ICommand` boundaries with explicit failure handling.
 - Follow the applicable scoped guidance for matching edits and cross-cutting work:
@@ -46,9 +47,18 @@
 - Use [contributor development checks](../CONTRIBUTING.md#development-checks) for pinned SDK, locked restore, build, MTP/xUnit v3/AwesomeAssertions and scheduling commands. Run the smallest covering checks; documentation-only work needs links/headings, exact examples and availability checks, not unnecessary builds or device/provider trials.
 - Do not modify `experiments` as production code or treat experimental evidence as a production contract unless explicitly tasked. Markdown directly under `docs` is embedded end-user guidance; keep developer/CI guidance beside engineering scripts or in contributor documentation.
 
+## Agent scratch and session files
+
+- Put agent-created plans, checkpoints, receipts, captured output, intermediate JSON and PR bodies under `<owning-workspace>\.scratch\<purpose>\<session-or-run-id>`. Resolve an absolute path and verify the existing `.scratch/` ignore rule before writing; use native filesystem operations without installing a scratch helper.
+- Do not choose the host session-state folder, user profile, system temporary directory or common Git metadata for agent-created workspace files. Host-managed Copilot storage and tool-owned output are separate: do not relocate them or claim repository instructions control their paths.
+- For coordinated work, use the single registered workspace scratch root under the coordinator's [shared dataset protocol](agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol). Pass its absolute path and required host access at launch; never substitute each child's relative `.scratch` or bypass an approval boundary.
+- Retain checkpoints and receipts needed by active/resumable owners. Clean only explicitly owned, unreferenced temporary files; do not delete a live dataset or another session's scratch.
+
 ## Pull requests and merge admission
 
 - Follow the [account-safe PR skill](skills/kora-github-pr/SKILL.md) and [merge admission client protocol](../eng/merge-queue/README.md#copilot-and-other-pr-clients). Verify publisher, owned worktree/branch/head, repository and live queue mode before writes; failed/unknown reads confer no authority.
-- Keep one owned same-repository PR to main per ready feature, preserving an explicit draft request. Protected squash Auto-merge needs user/workflow merge authorization, not merely PR-creation authority.
+- Discover and record the authenticated repository `gh` publisher without routine user confirmation. Honor any explicitly recorded expected principal and stop on mismatch or missing access; never infer identity from the Copilot login, Git author or repository owner. Do not hardcode a contributor account.
+- Offer ready-PR publication with protected squash Auto-merge as one delivery action. Authorization for ready-PR delivery includes that enrollment unless the caller explicitly requests draft, PR-only/no-merge or local-only work. Local implementation alone does not authorize publication.
+- Keep one owned same-repository PR to main per ready feature. Preserve explicit publication restrictions and carry the verified publisher and delivery authority across handoffs/resume; do not ask again while that scope remains valid.
 - When hosted mode is enabled, GitHub owns candidate selection, branch updates, dispatch and stale-work cancellation. No main-chasing rebases/force-pushes, manual candidate dispatch or old-ticket reruns. When disabled, retain ordinary protected CI/integration.
 - Inspect current candidate-head App checks and PR/review state; skipped waiting jobs or successful main checks are not admission. Repair the same PR, incorporating App updates. Verify actual merged state and reachability before claiming completion. Never claim unsupported background monitoring or change App installation, secrets, environments, protection, queue mode or durable queue state without separate administrator authorization.

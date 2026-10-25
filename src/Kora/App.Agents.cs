@@ -15,7 +15,8 @@ public sealed partial class App
     {
         var workflow = ActivatorUtilities.CreateInstance<BoundedAgentWorkflow>(Services,
             new WindowsAgentProfileReader(Services.GetRequiredService<WindowsLocalFileInspector>()),
-            ActivatorUtilities.CreateInstance<AgentInstructionReferenceResolver>(Services));
+            ActivatorUtilities.CreateInstance<AgentInstructionReferenceResolver>(Services),
+            CreateAgentSkillReferenceResolver());
         var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>();
         agentRuns = new(main, workflow, Services.GetRequiredService<Kora.Application.Hosting.SessionWorkspaceService>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,

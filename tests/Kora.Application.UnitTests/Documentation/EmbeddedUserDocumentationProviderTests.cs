@@ -200,6 +200,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "troubleshooting",
             "session-instructions",
             "agent-profile-authoring",
+            "claude-requests",
             "owned-skill-authoring",
             "hosted-requests",
             "independent-agent-runs",

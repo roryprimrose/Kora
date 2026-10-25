@@ -85,7 +85,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async Task<ModelTurnAdmission> AdmitSelectionAsync(ModelProviderSelection selection,
         ModelContextEnvelope? context, HostActivity? issuer, CancellationToken cancellationToken,
-        Kora.Core.Providers.ProviderProfileTuple? profile = null, CopilotTurnAuthorization? hostedAuthorization = null)
+        Kora.Core.Providers.ProviderProfileTuple? profile = null, HostedTurnAuthorization? hostedAuthorization = null)
     {
         ArgumentNullException.ThrowIfNull(selection);
         var current = HostActivity.Current;
@@ -163,12 +163,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                     {
                         turn = new(owner, issuer, provenance, context, wire, session.Authority.Generation, task!.Task.Revision,
                             revision, registration);
-                        if (hostedAuthorization is not null && registration.Adapter is CopilotModelTurnAdapter copilot)
+                        if (hostedAuthorization is not null)
                         {
                             var boundTurn = turn;
                             turn.Registration = registration with
                             {
-                                Adapter = copilot.Bind(hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
+                                Adapter = BindHosted(registration.Adapter!, hostedAuthorization, token => HostedCurrentAsync(boundTurn, token)),
                             };
                         }
                         var refreshed = profile is not null && registrationSource is not null
@@ -219,7 +219,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var requested = StartAudit(turn.Provenance);
         using var deadline = new CancellationTokenSource(turn.Context.Constraints is { } constraints
             ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds)
-            : turn.Registration.Adapter is CopilotModelTurnAdapter ? CopilotTurnAuthorization.MaximumDuration : Deadline, time);
+            : turn.Registration.Adapter is CopilotModelTurnAdapter or ClaudeModelTurnAdapter ? HostedTurnAuthorization.MaximumDuration : Deadline, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token);
         ModelTurnResult result;
         try

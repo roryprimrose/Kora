@@ -188,6 +188,38 @@ existing local resolver/factory and uses the same shared host admission gate.
 Deterministic tests cover account setup, final transport, host authorization,
 and original-request answer/refusal retention without live inference.
 
+### Native Claude Messages profile - 2026-10-24
+
+The distinct [Claude HTTPS runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)
+implements a bounded stateless text-only Models/Messages API profile, pinned to
+`anthropic-version: 2023-06-01`. It does not use a CLI, SDK agent, sidecar,
+ambient credential, tools, files, attachments, retained history, memory or
+provider substitution. The shared hosted authorization and final-review owner
+preserves Copilot's public preparation/confirmation semantics. Claude requires
+private native-only credential entry and final physical-send consent.
+
+Independent deployment/account-use terms/cost approval and an actual
+credential/workspace lease precede read-only account-bound Models pagination.
+Unknown/incomplete/duplicate/oversized capability data fails closed. The first
+profile requires native disabled thinking, maps advertised effort options
+without substitution, and exposes an exact host input-token ceiling. It
+independently bounds output tokens and input/output bytes.
+
+Each content-bearing POST is separately disclosed as complete immutable actual
+URI/method/body/noncredential headers. Count Tokens is reviewed content egress,
+not a hidden preflight; Messages requires new consent for the same counted
+input. HTTP redirects, cookies, proxy inheritance and retries are disabled.
+Exact account/profile/session/source authority is checked again before every
+send and answer publication. Cancellation retains ownership of outstanding
+work until joined; transmitted bytes cannot be rolled back.
+
+The shipped [approval source](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)
+is explicitly unavailable. This is implementation, not live enablement or
+qualification. Deterministic account/HTTP seams do not qualify a real account,
+deployment, terms/cost policy or provider. Missing E/Q evidence cannot fake-enable
+Claude or turn it into a Copilot/local fallback. See the
+[complete operation guide](../docs/claude-requests.md).
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)

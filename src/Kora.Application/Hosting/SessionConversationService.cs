@@ -95,7 +95,8 @@ public sealed partial class SessionConversationService(
         ConversationQuestionPresenter? questionPresenter = null,
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
-        Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null)
+        Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
+        bool claude = false)
     {
         RequireOriginalSource(origin);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
@@ -118,7 +119,8 @@ public sealed partial class SessionConversationService(
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
         var now = time.GetUtcNow();
         var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now,
-            copilot ? now.Add(CopilotTurnAuthorization.MaximumDuration) : now.AddSeconds(15))
+            copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
+            claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
         context.RequireCompleteInputLimit();
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
@@ -152,7 +154,11 @@ public sealed partial class SessionConversationService(
                             context = await prepareContext(request, Live, token).ConfigureAwait(false);
                             context.RequireCompleteInputLimit();
                         }
-                        admission = copilot
+                        admission = claude
+                            ? turns is ModelTurnHost claudeHost
+                                ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
+                            : copilot
                             ? turns is ICopilotTurnAdmission hosted
                                 ? await hosted.AdmitCopilotAsync(context, token).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))

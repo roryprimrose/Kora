@@ -8,7 +8,7 @@ namespace Kora.Application.Dependencies;
 public sealed partial class ModelTurnHost
 {
     private async Task<ModelTurnAdmission> AdmitConfiguredProfileAsync(ModelTurnChoice choice, ModelContextEnvelope context,
-        ModelHandoffReview? review, CancellationToken token, CopilotTurnAuthorization? hostedAuthorization = null)
+        ModelHandoffReview? review, CancellationToken token, HostedTurnAuthorization? hostedAuthorization = null)
     {
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown)

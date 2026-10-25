@@ -520,7 +520,7 @@ internal static class Program
             provider.GetRequiredService<ProviderModeConfigurationService>(),
             provider.GetRequiredService<ProviderProfileConfigurationService>(),
             provider.GetRequiredService<ISessionProviderProfileStore>(),
-            provider.GetRequiredService<CopilotModelProviderFactory>(),
+            provider.GetRequiredService<HostedModelProviderFactory>(),
             provider.GetRequiredService<HostedTransmissionReviewService>()));
         services.AddSingleton<IModelTurnAdmission>(provider => provider.GetRequiredService<ModelTurnHost>());
         services.AddSingleton<IModelTurnExecution>(provider => provider.GetRequiredService<ModelTurnHost>());

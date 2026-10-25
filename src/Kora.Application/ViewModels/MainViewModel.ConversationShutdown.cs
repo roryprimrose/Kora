@@ -16,10 +16,15 @@ public sealed partial class MainViewModel
 
     private async Task<Func<bool>?> PrepareConversationShutdown()
     {
-        var shutdown = conversationShutdown;
-        if (shutdown is null) { return static () => true; }
         try
         {
+            if (!await claudeShutdown())
+            {
+                ShowFailure("Exit or restart was not confirmed.", "Claude setup or request resources have not joined. No exit or restart was performed.");
+                return null;
+            }
+            var shutdown = conversationShutdown;
+            if (shutdown is null) { return static () => true; }
             var validation = conversationShutdownCurrent;
             var call = CallPolicyRevision;
             var privacy = privacyObservation.Current.TopologyRevision;

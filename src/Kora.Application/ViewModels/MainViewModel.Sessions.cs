@@ -154,7 +154,17 @@ public sealed partial class MainViewModel
             if (!Eligible()) { return; }
             if (result.RequestSubmission is { } submitted)
             { await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands); }
-            ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
+            if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null))
+            {
+                ShowInformation("Review conversation request.",
+                    "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Active conversation")
+                    + "\nProvider: " + review.Provider + "\nOriginal channel: " + review.Origin
+                    + "\n\nComplete original message:\n" + review.Body
+                    + "\n\nConfirm separately with: session request confirm\nOr discard with: session request cancel"
+                    + "\nThis request review expires after 60 seconds. Each hosted POST still needs separate private native disclosure consent.");
+                sessionPresentationSources.Add(review.Target.Authority.SessionId.Value);
+            }
+            else { ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result))); }
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
             foreach (var row in result.Sessions) { sessionPresentationSources.Add(row.Id); }
         }

@@ -48,7 +48,7 @@ public sealed partial class SessionWorkspaceService
         ReadAsync(() => Conversations.ReadConversationPageAsync(session, cursor, limit, token), token);
 
     public Task<AdmittedDetailContent> ReadConversationDetailAsync(SessionWorkspaceEntry target,
-        ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
+        ConversationMessage expected, Func<bool> admitted, CancellationToken token, bool assistant = false) =>
         ReadAsync(async () =>
         {
             var request = HostActivity.RequireCurrent().Request;
@@ -63,11 +63,16 @@ public sealed partial class SessionWorkspaceService
                 expected.Request.RequestId, token).ConfigureAwait(false);
             if (actualTarget != target || actual != expected)
             { throw new InvalidOperationException("The exact conversation record or session source changed. Refresh; no newer record was substituted."); }
-            var content = new AdmittedDetailContent(new(new(actual.Request.RequestId.Value), actual.Revision),
-                DetailContentKind.PlainText, DetailContentOrigin.RetainedConversation,
-                DetailSensitivity.DisclosureConfirmationRequired, "Retained original USER message",
-                "Private retained original USER text. Separate HOST status is not an assistant answer, execution permission or clipboard authority.",
-                actual.Body, conversationMessage: actual);
+            var answer = assistant ? actual.AssistantResponse
+                ?? throw new InvalidOperationException("This exact message has no retained assistant answer.") : null;
+            var content = new AdmittedDetailContent(new(new(answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
+                assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText,
+                assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
+                DetailSensitivity.DisclosureConfirmationRequired,
+                assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
+                "Private immutable conversation source; not execution permission, an approval or clipboard authority.",
+                answer?.Body ?? actual.Body,
+                conversationMessage: actual);
             var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
                 expected.Request.RequestId, token).ConfigureAwait(false);

@@ -247,6 +247,7 @@ public sealed partial class App : Avalonia.Application
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
                     () => sessionsWindow.OpenNewRequest?.Invoke());
+            responseWindow.PrepareDetailsHost = sessionsWindow.PrepareDetailsHost;
             viewModel.BindSessionRetentionCommands(Services.GetRequiredService<SessionRetentionCommandService>(),
                 sessionsWindow.OpenRetentionReviewAsync);
             newRequestWindow = new(viewModel, Services.GetRequiredService<SessionWorkspaceService>(),

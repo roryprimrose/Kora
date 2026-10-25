@@ -7,6 +7,7 @@ using Kora.Application.ViewModels;
 using Kora.Core.Storage;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
+using Kora.Core.Diagnostics;
 
 using Microsoft.Extensions.Logging;
 
@@ -114,6 +115,36 @@ internal sealed partial class SessionsWindowController(
             if (Live() && source.SelectedSessionRecord == row)
             { source.ReportNavigationStatus("Selected " + source.InteractionTarget + ". No question, permission or work was changed."); }
         };
+    }
+
+    internal async Task ShowDetailsAsync(WorkspaceSurfaceTarget target, Func<bool> admitted)
+    {
+        var state = model;
+        var selected = state?.SelectedSessionRecord;
+        var live = state?.CaptureNavigationEligibility();
+        bool Current() => !disposed && admitted() && state is not null && ReferenceEquals(model, state)
+            && live!() && state.SelectedSessionRecord == selected;
+        if (!Current() || selected is null)
+        {
+            main.ReportHostInteractionFailure("Details unavailable: select a session and explicitly read its conversation or activity first.");
+            return;
+        }
+        if (target is WorkspaceSurfaceTarget.SessionLogs or WorkspaceSurfaceTarget.SessionAudit
+            && HostActivity.Current?.Request.Origin != RequestOrigin.LocalUi)
+        {
+            main.ReportHostInteractionFailure("Log/audit inspection requires an original local UI request. Voice cannot be relabelled as native evidence admission.");
+            return;
+        }
+        await ShowInteractionAsync(true, Current);
+        if (!Current() || interaction is null) { return; }
+        if (target == WorkspaceSurfaceTarget.HideDetails) { interaction.SessionView.HideDetails(); }
+        else if (target is WorkspaceSurfaceTarget.SessionLogs or WorkspaceSurfaceTarget.SessionAudit)
+        {
+            await state!.ReadEvidenceDetailsAsync(target == WorkspaceSurfaceTarget.SessionLogs
+                ? Kora.Core.Diagnostics.EvidenceSource.Log : Kora.Core.Diagnostics.EvidenceSource.AuthorityAudit);
+        }
+        else if (state!.CanShowDetails) { await interaction.SessionView.ShowAvailableDetailsAsync(state, acceptOffer: true); }
+        else { main.ReportHostInteractionFailure(state.DetailsAvailability); }
     }
 
     internal Func<bool> CaptureCompactNavigationEligibility()
@@ -275,16 +306,39 @@ internal sealed partial class SessionsWindowController(
         compact?.Activate();
     }
 
+    private Avalonia.Controls.Window? DetailOwner()
+    {
+        if (CreateInteraction is null) { return window ?? (Avalonia.Controls.Window?)compact; }
+        if (interaction is null)
+        {
+            var opened = CreateInteraction(model!, presentation!);
+            interaction = opened;
+            opened.Closed += (_, _) =>
+            {
+                if (ReferenceEquals(interaction, opened)) { interaction = null; }
+                ReleaseUnusedPresentation();
+            };
+        }
+        return interaction;
+    }
+
+    internal void PrepareDetailsHost()
+    {
+        ObjectDisposedException.ThrowIf(disposed, this);
+        EnsurePresentation();
+        _ = DetailOwner();
+    }
+
     private void EnsurePresentation()
     {
         if (presentation is not null) { return; }
         interactionListInitialized = false;
         model = new(service, evidence, access, logger, localEvents,
-            content => details?.OpenHistoryDetail(content, window ?? (Avalonia.Controls.Window?)compact ?? interaction)
+            content => details?.OpenHistoryDetail(content, DetailOwner())
                 ?? "History details unavailable: the native viewer is not composed.",
             session => details?.RevokeSession(session), memories, attachments, providers, conversation,
             (content, admitted, resolve, token) => details?.OpenConversationDetailAsync(content,
-                window ?? (Avalonia.Controls.Window?)compact ?? interaction, admitted, resolve, token)
+                DetailOwner(), admitted, resolve, token)
                 ?? Task.FromResult("Conversation details unavailable: the native viewer is not composed."),
             session => details?.RevokeConversationSession(session),
             (source, original, admitted, token) => ReviewOriginalMessageReuse?.Invoke(source, original,
@@ -296,6 +350,15 @@ internal sealed partial class SessionsWindowController(
             reviewSpeechSummarySuggestion: main.ReviewSpeechSummarySuggestionAsync,
             confirmSpeechSummarySuggestion: (review, token) => main.ConfirmSpeechSummarySuggestionAsync(review, token),
             answerReads: new SessionAnswerReadWorkflow(service, main));
+        model.PresentEvidenceDetails = (page, admitted, validate) =>
+        {
+            if (DetailOwner() is not ResponseWindow primary)
+            { return "Session evidence Details unavailable: the primary interaction surface is not composed."; }
+            primary.ShowSessions(expanded: true);
+            return primary.SessionView.ShowEvidence(page, admitted, validate)
+                ? "Exact bounded session evidence page opened. Diagnostics are not authorization or effect receipts."
+                : "Session evidence Details unavailable: the original source, selection or display layout changed.";
+        };
         if (ConversationQuestions is { } questions)
         {
             model.QuestionPresenter = (request, generation, spec, expiry, admitted, token) =>

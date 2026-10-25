@@ -11,6 +11,37 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FullAssistantDetailsUseExactRetainedSourceAndCannotInventAMissingAnswer(bool missing)
+    {
+        using var f = new ConversationFixture();
+        var original = Message(f, 1, "original");
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), original.Request, ModelProviderSelection.OllamaCandidate);
+        var expected = missing ? original : original with
+        {
+            Version = 2, Revision = 3, Execution = provenance, ExecutionMetadataRevision = 0,
+            Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome,
+            AssistantResponse = new(provenance, "# complete assistant answer"),
+        };
+        f.Messages = [expected];
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var read = () => f.Service.ReadConversationDetailAsync(new(f.Session, null), expected, () => true, f.Token, assistant: true);
+        if (missing) { await read.Should().ThrowAsync<InvalidOperationException>(); }
+        else
+        {
+            var content = await read();
+            content.Source.Should().Be(expected.AssistantResponse!.Body);
+            content.Origin.Should().Be(DetailContentOrigin.RetainedAssistant);
+            content.Kind.Should().Be(DetailContentKind.Markdown);
+            content.Reference.ItemId.Value.Should().Be(provenance.Turn.Value);
+            f.ExactReads.Should().Be(2);
+        }
+        f.TaskWrites.Should().BeEmpty();
+        f.ControlCalls.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(true)]
     [InlineData(false)]
     public async Task ConversationDetailsResolveOnlyActualExactRecordWithPassiveDoneAndSeparateHost(bool active)

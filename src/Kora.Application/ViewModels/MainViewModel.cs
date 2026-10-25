@@ -26,6 +26,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
+using Kora.Core.Presentation;
 using Kora.Core.Voice;
 
 using Microsoft.Extensions.Logging;
@@ -4170,6 +4171,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var evidenceTraceCommand = EvidenceTraceCommand.Parse(spokenText, AssistantName);
         var pendingQuestionCommand = questionTarget?.Command ?? PendingQuestionCommand.Parse(spokenText, AssistantName);
         var currentResponseCommand = CurrentResponseCommand.Parse(spokenText, AssistantName);
+        if (currentResponseCommand is null && IsDetailsOfferPending
+            && WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.Details)
+        { currentResponseCommand = new(CurrentResponseAction.Details); }
         if (cataloguePreparation is not null)
         {
             await PrepareAttachmentCatalogue(cataloguePreparation, initiator, manualInput);
@@ -5036,8 +5040,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             else
             {
+                var presentation = AnswerPresentation.From(decision.Answer!);
                 PresentResponse(AssistantState.Information, "Local model response",
-                    $"Generated locally; verify important details.\n\n{decision.Answer}",
+                    $"Generated locally; verify important details.\n\n{presentation.Brief}"
+                        + (presentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
                     modelAnswer: new(decision.Answer!));
                 await SpeakCurrentResponseAsync(cancellationToken: cancellation.Token, expectedSpeechRevision: speechRevision);
             }
@@ -6241,6 +6247,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         BindCurrentResponseSpeech(!isInitializing && sourceAssigned is null
             && responseState is AssistantState.Information or AssistantState.Success
             && !IsResponseInteractionPending && !IsGrantEditorVisible, modelAnswer);
+        OnPropertyChanged(nameof(IsDetailsOfferPending));
         NotifyOutputPolicyChanged();
         if (!isInitializing && refreshOutput && SelectedOutputDevice is not null
             && responseState is not (AssistantState.Failure or AssistantState.Listening)

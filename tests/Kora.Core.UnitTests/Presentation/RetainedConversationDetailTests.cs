@@ -12,6 +12,39 @@ namespace Kora.Core.UnitTests.Presentation;
 
 public sealed class RetainedConversationDetailTests
 {
+    [Theory]
+    [InlineData("valid")]
+    [InlineData("source")]
+    [InlineData("kind")]
+    [InlineData("request-reference")]
+    [InlineData("missing-answer")]
+    public void RetainedAssistantRequiresItsOwnExactTurnReferenceAndFullAnswer(string fault)
+    {
+        var original = Message();
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), original.Request, ModelProviderSelection.OllamaCandidate);
+        var answer = new ConversationResponse(provenance, "# Full answer\n\n```mermaid\ngraph TD\n A-->B\n```");
+        var message = original with
+        {
+            Version = 2, Revision = 3, Execution = provenance, ExecutionMetadataRevision = 0,
+            Outcome = ModelTurnOutcome.Succeeded, Reason = ModelTurnReason.ProviderOutcome, AssistantResponse = answer,
+        };
+        if (fault is "missing-answer") { message = original; }
+        var create = () => new AdmittedDetailContent(new(new(fault is "request-reference"
+                ? original.Request.RequestId.Value : provenance.Turn.Value), message.Revision),
+            fault is "kind" ? DetailContentKind.PlainText : DetailContentKind.Markdown,
+            DetailContentOrigin.RetainedAssistant, DetailSensitivity.DisclosureConfirmationRequired,
+            "ASSISTANT", "Exact retained answer, never execution authority",
+            fault is "source" ? "replaced" : answer.Body, conversationMessage: message);
+        if (fault is "valid")
+        {
+            var content = create();
+            content.Source.Should().Be(answer.Body);
+            content.ConversationMessage.Should().Be(message);
+            content.Reference.ItemId.Value.Should().Be(provenance.Turn.Value);
+        }
+        else { create.Should().Throw<InvalidDataException>(); }
+    }
+
     [Fact]
     public void ExactOriginalBytesAndTypedHostStaySeparateFromFinalizedResponseAuthority()
     {

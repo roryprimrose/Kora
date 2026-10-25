@@ -21,6 +21,18 @@ Every pass ends with a durable useful outcome: an accepted launch/repair, an app
 
 This definition is guidance, not an executable scheduler or proof that the host enforces timing, locking, model selection or continuation.
 
+### Required Executable Decision Path
+
+At every fresh session/resume, run [Invoke-Coordinator.ps1](../../eng/Invoke-Coordinator.ps1) with `-RepositoryPath <verified-own-worktree> -Action Read` before new admission. Follow the [entry-point guide](../../eng/coordinator/README.md) for exact schemas/commands. This finite control-plane helper is the permitted exception to the parent CLI ban: it identifies the repository/primary workspace with read-only Git, validates canonical state and applies one locked decision. It never launches workers, reads production source, runs tests, contacts GitHub or executes mailbox text.
+
+For a helper-managed dataset, use its `Claim`, `Register`, `Certify`, `Next`, `Reconcile` and `Consume` actions with current session/epoch/revision. Never hand-edit its allocation counters or reserve outside it. Consume terminal receipts before `Next`; each returned `dispatch` is one newly persisted execution intent. Dispatch once through the supported native host, then reconcile that exact result. A later `Read`/`Next` never reissues the dispatch after an ambiguous/crashed caller. Recheck current authority before a native call; file/native operations are not an atomic transaction.
+
+The deterministic locator is the primary Git workspace's ignored `.scratch\roadmap-coordinator`, shared by its native worktrees, not each new chat's current directory or this run's bootstrap packets. Schema-1 executable state uses the existing dataset/registry/lock roles plus one write-ahead `pending-transition.json`; it is not a second scheduler beside a legacy ledger. `Read` discovers and validates without initialization. Missing/incompatible legacy state is an explicit blocker: resolve the recorded locator and genuinely unjoined commands; do not initialize a new ledger to evade it.
+
+`Initialize` is explicit and requires recorded absence/initialization authority, not an empty native listing. Existing live version-2/native-message datasets keep their existing sole writer/protocol until separately authorized quiescent adoption; this helper does not import, mutate or migrate them. The legacy layout/protocol below applies only to those existing runs; helper-managed state and receipts follow the entry-point guide, not a mixture of both schemas. Unsupported legacy adoption remains a durable limitation, not permission for prose-only admission or a parallel registry.
+
+The maintained [process regressions](../../eng/Test-Coordinator.ps1) run through [contributor/CI validation](../../CONTRIBUTING.md#durable-engineering-coordinator-checks). They test the real entry point across independent processes, not live native sessions or host continuation. Keep those acceptance claims separate.
+
 ### Nonblocking Coordinator Policy
 
 The owning orchestration session never opens a blocking question or waits for user input. This coordinator-specific rule overrides general/profile instructions to stop and ask questions for ambiguous choices; it does not override higher-priority host/security rules or grant missing authority. Record unresolved decisions as pending, hold only affected admissions/mutations fail-closed, and continue scheduling independent authorized work. Route a necessary question to its existing owning child, where blocking input is permitted. A run-wide decision without a child owner stays in the registry and a nonblocking operator notice; do not invent approval or a workaround chat.
@@ -40,7 +52,7 @@ Local commits/scoped checks do not revoke admission. Genuine scope/security conf
 In this coordinator conversation:
 
 - Use native session creation, targeted session metadata, [shared file mailboxes](#shared-file-mailbox-protocol), compact receipts, scoped decision routing and small registry updates.
-- Do not run builds, tests, restores, Git/CLI workflows, network probes, browser automation or synchronous `task`/explore/review agents. A host-required command runner is permitted only for finite, bounded control-plane file I/O or the scheduling timer described below; never use that exception for worker execution or investigation.
+- Do not run builds, tests, restores, general Git/CLI workflows, network probes, browser automation or synchronous `task`/explore/review agents. A host-required runner may invoke the required finite decision helper or bounded control-plane file I/O, never worker execution or investigation.
 - Do not parse TRX/Cobertura, enumerate processes/worktrees, traverse source/tests, inspect production diffs, diagnose failures, repair branches, edit feature code or perform cleanup.
 - Do not wait for a worker, CI run, review, artifact parser, acknowledgment or user answer. Use supported continuation and compact mailbox checks in [continuous scheduling](#continuous-scheduling); no timer-only ticks, busy polling, raw-log watching or repeated fleet discovery.
 - Do not independently redo a worker's completed checks. Ask an asynchronous evidence worker for an exact-head verification receipt.
@@ -288,6 +300,8 @@ Each owner writes its own atomic compact status plus immutable terminal evidence
 
 ### Shared File Mailbox Protocol
 
+For new helper-managed datasets, use the [executable state/receipt contract](../../eng/coordinator/README.md#state-and-trust-boundary). The remaining version-2 transport requirements describe existing legacy runs, not an alternative schema for the helper's registry. Do not migrate live writers or initialize either layout beside another active ledger.
+
 Default to shared filesystem communication, not `send_message`, `write_agent` or peer chat replies. This prevents routine progress, ACK and status traffic from exhausting the reported 100-message host limit. Establish file transport before launch; it is not a fallback to bypass a refused native channel.
 
 The bootstrap worker resolves the owning coordinator workspace and common-Git identity. Default to `<coordinator-workspace>\.scratch\roadmap-coordinator`, with run root `<dataset-root>\runs\<run-id>`, following [repository scratch policy](../copilot-instructions.md#agent-scratch-and-session-files).
@@ -380,6 +394,8 @@ These are required agent operating procedures, not shipped runtime storage/locki
 ### Publication Milestone Protocol
 
 Publish mandatory `pr-enrolled-ci-wait` **immediately** to the registered outbox after actual PR URL/current remote head and authorized Auto readback, with finite consequential commands terminated/joined and no held decision. No final-merge, green-CI, ACK or local full-matrix wait. A status-file-only update is not an event; an atomic mailbox event with readback is sufficient notification without a native message.
+
+Helper-managed owners instead publish the guide's strict schema-1 terminal receipt directly under their registered `owners\<id>` directory; the leader invokes `Consume` on that exact path, then `Next`. Do not feed arbitrary legacy/bootstrap packets into `Consume`, add command fields or rewrite their provenance to pass validation. Release execution once while retaining source/PR ownership; the legacy envelope below is not that helper's schema.
 
 Preserve explicit draft/PR-only exceptions with actual draft state and authority restriction, never invented Auto. Local-only terminal handoffs use `completed`, not fictional PRs. Failed required checks remain blockers.
 

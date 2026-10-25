@@ -96,6 +96,29 @@ checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
 
+### Durable engineering coordinator checks
+
+The roadmap coordinator's required finite decision path is
+[Invoke-Coordinator.ps1](eng/Invoke-Coordinator.ps1), with its canonical locator,
+request/receipt schema and legacy compatibility rules in the
+[engineering coordinator guide](eng/coordinator/README.md). It does not launch
+sessions, run mailbox commands, poll GitHub or install a scheduler.
+
+Run the maintained entry-point regressions in a new ignored output directory:
+
+```powershell
+.\eng\Test-Coordinator.ps1 -OutputDirectory (Join-Path $PWD '.scratch\coordinator-contracts-local')
+```
+
+The [CI workflow](.github/workflows/ci.yml) runs this check in portable validation
+and the `storage-other` Windows shard, retaining process/result evidence. The
+[tests](eng/Test-Coordinator.ps1) invoke separate PowerShell processes against
+local Git fixtures for restart, intent recovery, exact release, capacity races,
+fencing and receipt rejection. They never launch a feature or contact GitHub.
+Offline process proof is not fresh native-session/model/wakeup acceptance; that
+requires separately recorded actual host evidence. No test initializes or
+migrates the user's live coordinator dataset.
+
 ### Microphone metadata refresh ownership
 
 The host publishes the owned refresh task before callbacks can complete it or

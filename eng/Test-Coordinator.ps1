@@ -1,0 +1,353 @@
+#requires -Version 7.5
+[CmdletBinding()]
+param([Parameter(Mandatory)][string] $OutputDirectory)
+. (Join-Path $PSScriptRoot 'Coordinator.Common.ps1')
+New-ProofDirectory $OutputDirectory
+$OutputDirectory = (Resolve-Path -LiteralPath $OutputDirectory).Path
+$entry = Join-Path $PSScriptRoot 'Invoke-Coordinator.ps1'
+$passed = [Collections.Generic.List[string]]::new()
+$script:invocations = 0
+$script:fixture = $null
+$script:snapshot = $null
+$stopwatch = [Diagnostics.Stopwatch]::StartNew()
+
+function Check {
+    param([bool] $Condition, [string] $Name)
+    if (!$Condition) { throw "Failed: $Name" }
+    $passed.Add($Name)
+}
+
+function Start-Entry {
+    param([string] $Action, $Request = @{}, [string] $Leader = 'native-leader', $Snapshot = $null)
+    $script:invocations++
+    $prefix = Join-Path $OutputDirectory ("process-" + $script:invocations)
+    $requestPath = "$prefix.request.json"
+    Write-ProofJson $Request $requestPath
+    $arguments = @('-NoProfile', '-File', $entry, '-RepositoryPath', $script:fixture,
+        '-Session', $Leader, '-RequestPath', $requestPath)
+    if ($Action) { $arguments += @('-Action', $Action) }
+    if ($null -ne $Snapshot) {
+        $arguments += @('-ExpectedEpoch', [string]$Snapshot.epoch, '-ExpectedRevision', [string]$Snapshot.revision)
+    }
+    $info = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
+    $info.UseShellExecute = $false
+    $info.RedirectStandardOutput = $true
+    $info.RedirectStandardError = $true
+    foreach ($argument in $arguments) { $info.ArgumentList.Add($argument) }
+    $process = [Diagnostics.Process]::new()
+    $process.StartInfo = $info
+    if (!$process.Start()) { throw 'Fixture process failed to start.' }
+    return @{ process = $process; output = $process.StandardOutput.ReadToEndAsync()
+        error = $process.StandardError.ReadToEndAsync(); prefix = $prefix; arguments = $arguments }
+}
+
+function Complete-Entry {
+    param($Invocation, [string] $Failure = '')
+    try {
+        $Invocation.process.WaitForExit()
+        $stdout = $Invocation.output.GetAwaiter().GetResult()
+        $stderr = $Invocation.error.GetAwaiter().GetResult()
+        [IO.File]::WriteAllText(($Invocation.prefix + '.stdout.json'), $stdout)
+        [IO.File]::WriteAllText(($Invocation.prefix + '.stderr.txt'), $stderr)
+        Write-ProofJson @{ arguments = $Invocation.arguments; exitCode = $Invocation.process.ExitCode } ($Invocation.prefix + '.result.json')
+        if ($Failure) {
+            if ($Invocation.process.ExitCode -eq 0 -or !$stderr.Contains($Failure)) {
+                throw "Expected '$Failure', got exit $($Invocation.process.ExitCode): $stderr $stdout"
+            }
+            return $null
+        }
+        if ($Invocation.process.ExitCode -ne 0) { throw "Entry point failed: $stderr $stdout" }
+        return $stdout | ConvertFrom-Json -AsHashtable -DateKind String
+    } finally { $Invocation.process.Dispose() }
+}
+
+function Entry {
+    param([string] $Action, $Request = @{}, [string] $Failure = '', [string] $Leader = 'native-leader', $Snapshot = $null)
+    if ($null -eq $Snapshot -and $Action -cnotin @('Initialize', 'Read')) { $Snapshot = $script:snapshot }
+    $result = Complete-Entry (Start-Entry $Action $Request $Leader $Snapshot) $Failure
+    if ($null -ne $result) {
+        if ($result.Contains('state')) { $script:snapshot = $result.state }
+        elseif ($result.Contains('revision')) { $script:snapshot = @{ epoch = $result.epoch; revision = $result.revision } }
+    }
+    return $result
+}
+
+function New-Fixture {
+    param([string] $Name, [string] $Policy = 'ready-auto')
+    $script:fixture = Join-Path $OutputDirectory $Name
+    $script:snapshot = $null
+    New-ProofDirectory $script:fixture
+    & git init --quiet $script:fixture
+    if ($LASTEXITCODE -ne 0) { throw 'Fixture git init failed.' }
+    & git -C $script:fixture remote add origin 'https://github.com/roryprimrose/Kora.git'
+    if ($LASTEXITCODE -ne 0) { throw 'Fixture origin registration failed.' }
+    '.scratch/' | Set-Content -LiteralPath (Join-Path $script:fixture '.gitignore')
+    $result = Entry 'Initialize' @{ legacyAbsenceConfirmed = $true; authorityId = 'fixture-user-authority'
+        publicationPolicy = $Policy; publisher = 'fixture-publisher' }
+    return $result.state
+}
+
+function Register-Owner {
+    param([string] $Id, [string] $Allocation = 'none', [string] $Kind = 'feature', [string] $Scope = '', [string] $Operation = '')
+    if (!$Scope) { $Scope = "src/$Id" }
+    if (!$Operation) { $Operation = $Id }
+    Entry 'Register' @{ ownerId = $Id; operation = $Operation; scopes = @($Scope)
+        kind = $Kind; allocation = $Allocation; evidence = 'Explicit fixture producer lifecycle registration; no native execution.' } | Out-Null
+}
+
+function Certify-Owner {
+    param([string] $Id, [bool] $Repair = $false, [string] $Observed = ([DateTimeOffset]::UtcNow.ToString('o')))
+    Entry 'Certify' @{ ownerId = $Id; repair = $Repair; certification = @{
+        sourceHead = 'a' * 40; inputDigest = 'b' * 64; prObservation = 'complete-offline-pr-fixture'
+        observedUtc = $Observed; approvedOutcome = 'Explicit fixture approved complete operation'; placement = 'Host owned fixture'
+    }} | Out-Null
+}
+
+function Accept-Dispatch {
+    param($Dispatch, [string] $Id)
+    Entry 'Reconcile' @{ executionId = $Dispatch.action.executionId; outcome = 'accepted'; evidence = 'Exact fixture native creation return'
+        dispatcherJoined = $true; nativeIdentity = "native-fixture:$Id"; branch = "fixture/$Id"
+        worktree = (Join-Path $OutputDirectory $Id) } | Out-Null
+}
+
+function New-Handoff {
+    param([string] $Id, [string] $ExecutionId, [string] $Event = 'handoff-one', [int] $Revision = 1)
+    $state = (Entry 'Read').state
+    $owner = @($state.owners | Where-Object id -CEQ $Id)[0]
+    $receipt = @{
+        version = 1; datasetId = $state.datasetId; eventId = $Event; ownerId = $Id; executionId = $ExecutionId
+        revision = $Revision; nativeIdentity = $owner.nativeIdentity; branch = $owner.branch; worktree = $owner.worktree
+        head = 'c' * 40; kind = 'pr-enrolled-ci-wait'; workState = 'stopped'; finiteCommandsJoined = $true
+        runningCommands = @(); heldDecision = $null; publicationPolicy = $state.publicationPolicy
+        prUrl = 'https://github.com/roryprimrose/Kora/pull/1'
+        autoMerge = @{ method = 'SQUASH'; enabledAt = [DateTimeOffset]::UtcNow.ToString('o') }
+    }
+    $path = Join-Path (Join-Path (Join-Path $state.identity.directory 'owners') $Id) "$Event.json"
+    Write-ProofJson $receipt $path
+    return @{ path = $path; receipt = $receipt }
+}
+
+try {
+    foreach ($file in @($entry, (Join-Path $PSScriptRoot 'Coordinator.Common.ps1'), $PSCommandPath)) {
+        $tokens = $null
+        $errors = $null
+        [Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
+        Check ($errors.Count -eq 0) "PowerShell parses: $(Split-Path -Leaf $file)"
+    }
+    $initial = New-Fixture 'restart'
+    $second = Entry 'Read'
+    Check ($second.state.datasetId -ceq $initial.datasetId -and $second.state.authorityId -ceq 'fixture-user-authority' -and
+        $second.state.publicationPolicy -ceq 'ready-auto' -and $second.state.publisher -ceq 'fixture-publisher' -and
+        $second.state.revision -eq 0) 'Second independent process recovers same canonical dataset, publication policy and pinned publisher'
+    Check ($second.monitoring -ceq 'resumable-not-continuously-monitoring') 'Offline state never claims host continuation'
+    Check ((Complete-Entry (Start-Entry '')).kind -ceq 'snapshot') 'Default public entry-point action is read-only recovery'
+    Entry 'Initialize' @{ legacyAbsenceConfirmed = $true; authorityId = 'replacement'
+        publicationPolicy = 'ready-auto'; publisher = 'fixture-publisher' } -Failure 'Dataset already exists' | Out-Null
+    $externalWorktree = Join-Path $OutputDirectory 'linked-worktree'
+    & git -C $script:fixture -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false -c core.hooksPath= add .gitignore
+    & git -C $script:fixture -c user.name=Fixture -c user.email=fixture@example.invalid -c commit.gpgsign=false -c core.hooksPath= commit --quiet -m 'Offline fixture'
+    if ($LASTEXITCODE -ne 0) { throw 'Fixture commit failed.' }
+    & git -C $script:fixture worktree add --quiet -b fixture-linked $externalWorktree
+    if ($LASTEXITCODE -ne 0) { throw 'Fixture worktree failed.' }
+    $primary = $script:fixture
+    $script:fixture = $externalWorktree
+    Check ((Entry 'Read').state.datasetId -ceq $initial.datasetId) 'Different native worktree discovers same primary-workspace state'
+    $script:fixture = $primary
+
+    Register-Owner 'assessor' -Kind evidence
+    Entry 'Recover' @{ ownerId = 'assessor'; reason = 'Five-minute assessment exhausted with one partial candidate' } | Out-Null
+    Register-Owner 'first'
+    Certify-Owner 'first'
+    Register-Owner 'second'
+    Certify-Owner 'second'
+    $first = Entry 'Next'
+    Check ($first.kind -ceq 'dispatch' -and $first.action.ownerId -ceq 'first') 'Partial independently certified candidate dispatches before assessor recovery'
+    Accept-Dispatch $first 'first'
+    $next = Entry 'Next'
+    Check ($next.kind -ceq 'dispatch' -and $next.action.ownerId -ceq 'second' -and $next.charged -eq 2) 'Independent ready candidate reserves vacancy without waiting for first completion'
+    Accept-Dispatch $next 'second'
+    $handoff = New-Handoff 'first' $first.action.executionId
+    $release = Entry 'Consume' @{ receiptPath = $handoff.path }
+    $duplicate = Entry 'Consume' @{ receiptPath = $handoff.path }
+    Check ($release.kind -ceq 'released' -and $duplicate.kind -ceq 'duplicate' -and $duplicate.charged -eq 1) 'Exact stopped publication releases execution once across processes and replay'
+    $state = (Entry 'Read').state
+    $owner = @($state.owners | Where-Object id -CEQ first)[0]
+    Check ($owner.sourceRetained -and $owner.delivery -ceq 'pr-ci-wait' -and
+        $owner.publication.prUrl -ceq $handoff.receipt.prUrl) 'CI delivery and exact publication persist separately from execution and source ownership'
+    $older = New-Handoff 'first' $first.action.executionId 'old-handoff' 0
+    Entry 'Consume' @{ receiptPath = $older.path } -Failure 'Superseded receipt' | Out-Null
+    $newer = New-Handoff 'first' $first.action.executionId 'new-handoff' 2
+    Entry 'Consume' @{ receiptPath = $newer.path } -Failure 'already released' | Out-Null
+    $recovery = Entry 'Next'
+    $blocked = Entry 'Next'
+    Check ($recovery.kind -ceq 'recover-scoped' -and $recovery.action.ownerIds.Count -eq 1 -and
+        $blocked.kind -ceq 'blocked') 'No-result assessment returns one scoped recovery then explicit blocker, not repeated discovery'
+
+    Certify-Owner 'first' -Repair $true
+    Register-Owner 'third'
+    Certify-Owner 'third'
+    $repair = Entry 'Next'
+    Check ($repair.kind -ceq 'dispatch' -and $repair.action.ownerId -ceq 'first') 'Concrete admitted repair selects same retained owner before new feature'
+
+    $null = New-Fixture 'legacy'
+    foreach ($id in 1..6) { Register-Owner "historical-$id" -Kind historical }
+    Register-Owner 'unknown' -Allocation uncertain
+    Register-Owner 'safe'
+    Certify-Owner 'safe'
+    $safe = Entry 'Next'
+    Check ($safe.kind -ceq 'dispatch' -and $safe.charged -eq 2) 'Historical source labels charge zero while genuinely unknown admitted execution remains charged'
+    $targeted = Entry 'Next'
+    $once = Entry 'Next'
+    Check ($targeted.kind -ceq 'reconcile-dispatch' -and $targeted.action.executionIds.Count -eq 2 -and
+        $once.kind -ceq 'blocked' -and $once.charged -eq 2) 'Unknown identities return bounded exact-intent recovery without fleet archaeology or invented release'
+    $state = (Entry 'Read').state
+    $unknownId = @($state.executions | Where-Object ownerId -CEQ unknown)[0].id
+    Entry 'Reconcile' @{ executionId = $unknownId; outcome = 'not-dispatched'; evidence = 'missing chat'
+        dispatcherJoined = $false; nativeIdentity = $null; branch = $null; worktree = $null } -Failure 'No proof' | Out-Null
+
+    $null = New-Fixture 'crash'
+    Register-Owner 'crash-owner'
+    Certify-Owner 'crash-owner'
+    $before = (Entry 'Read').state
+    $registryPath = Join-Path $before.identity.directory 'registry.json'
+    $beforeBytes = [IO.File]::ReadAllBytes($registryPath)
+    $intent = Entry 'Next'
+    [IO.File]::WriteAllBytes($registryPath, $beforeBytes)
+    $recovered = (Entry 'Read').state
+    Check ($recovered.executions.Count -eq 1 -and $recovered.executions[0].id -ceq $intent.action.executionId) 'Fresh process replays write-ahead intent after registry-replacement crash boundary'
+    $notReplayed = Entry 'Next'
+    Check ($notReplayed.kind -ceq 'reconcile-dispatch') 'Intent-before-native-dispatch crash never emits a second launch'
+    Accept-Dispatch $intent 'crash-owner'
+    $readbackLost = Entry 'Next'
+    Check ($readbackLost.kind -ceq 'blocked' -and $readbackLost.charged -eq 1) 'Accepted dispatch survives caller/readback restart without duplicate launch'
+
+    $null = New-Fixture 'races'
+    foreach ($id in 1..9) { Register-Owner "uncertain-$id" -Allocation uncertain }
+    foreach ($id in @('race-a', 'race-b')) { Register-Owner $id; Certify-Owner $id }
+    $state = (Entry 'Read').state
+    $left = Start-Entry 'Next' @{} 'native-leader' $state
+    $right = Start-Entry 'Next' @{} 'native-leader' $state
+    $raceOutputs = @()
+    foreach ($run in @($left, $right)) {
+        $run.process.WaitForExit()
+        if ($run.process.ExitCode -eq 0) { $raceOutputs += ,(Complete-Entry $run) }
+        else { Complete-Entry $run -Failure 'Stale epoch/revision' | Out-Null }
+    }
+    Check (@($raceOutputs | Where-Object kind -CEQ dispatch).Count -eq 1 -and
+        @((Entry 'Read').state.executions | Where-Object phase -CNE released).Count -eq 10) 'Concurrent entry points reserve the last slot at most once under exclusive lock/revision fencing'
+    Entry 'Next' @{} -Failure 'Stale epoch/revision' -Snapshot $state | Out-Null
+    Entry 'Claim' @{} -Failure 'unexpired lease' -Leader 'competing-native-leader' | Out-Null
+    $fresh = (Entry 'Read').state
+    $expired = $fresh | ConvertTo-Json -Depth 40 | ConvertFrom-Json -AsHashtable -DateKind String
+    $expired.leaseUntil = [DateTimeOffset]::UtcNow.AddMinutes(-1).ToString('o')
+    Write-ProofJson $expired (Join-Path $fresh.identity.directory 'registry.json')
+    [IO.File]::Delete((Join-Path $fresh.identity.directory 'pending-transition.json'))
+    $claim = Entry 'Claim' @{} -Leader 'successor-native-leader'
+    Check ($claim.epoch -eq 2 -and $claim.charged -eq 10) 'Expired leadership takeover fences previous epoch without releasing unknown execution'
+    Entry 'Next' @{} -Failure 'Stale epoch/revision' -Snapshot $fresh | Out-Null
+    $lockedPath = Join-Path $fresh.identity.directory 'writer.lock'
+    $held = [IO.FileStream]::new($lockedPath, [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try { Check ((Entry 'Read').reason -ceq 'writer-lock-unavailable') 'Contended writer lock returns bounded blocker without retry or lock deletion' }
+    finally { $held.Dispose() }
+
+    $null = New-Fixture 'receipts'
+    Register-Owner 'receipt-owner'
+    Certify-Owner 'receipt-owner'
+    $dispatch = Entry 'Next'
+    Accept-Dispatch $dispatch 'receipt-owner'
+    $original = New-Handoff 'receipt-owner' $dispatch.action.executionId
+    $invalidCases = @(
+        @{ name = 'string-version'; key = 'version'; value = '1'; failure = 'nonnegative integer' },
+        @{ name = 'unjoined'; key = 'finiteCommandsJoined'; value = $false; failure = 'not proved quiescent' },
+        @{ name = 'running'; key = 'runningCommands'; value = @('command-in-flight'); failure = 'not proved quiescent' },
+        @{ name = 'foreign-dataset'; key = 'datasetId'; value = [guid]::NewGuid().ToString(); failure = 'identity/authority mismatch' },
+        @{ name = 'foreign-owner'; key = 'ownerId'; value = 'unregistered'; failure = 'Cross-owner' },
+        @{ name = 'foreign-native'; key = 'nativeIdentity'; value = 'native:other'; failure = 'identity/authority mismatch' },
+        @{ name = 'foreign-execution'; key = 'executionId'; value = 'unregistered'; failure = 'admitted execution' },
+        @{ name = 'broaden-authority'; key = 'publicationPolicy'; value = 'local-only'; failure = 'identity/authority mismatch' },
+        @{ name = 'commands'; key = 'command'; value = 'must never execute'; failure = 'Unknown field' }
+    )
+    foreach ($case in $invalidCases) {
+        $copy = $original.receipt | ConvertTo-Json -Depth 20 | ConvertFrom-Json -AsHashtable -DateKind String
+        $copy[$case.key] = $case.value
+        $path = Join-Path (Split-Path -Parent $original.path) ($case.name + '.json')
+        Write-ProofJson $copy $path
+        Entry 'Consume' @{ receiptPath = $path } -Failure $case.failure | Out-Null
+        Check (@((Entry 'Read').state.executions | Where-Object phase -CNE released).Count -eq 1) "Rejected $($case.name) receipt preserves charged allocation"
+    }
+    $outside = Join-Path $OutputDirectory 'outside.json'
+    Write-ProofJson $original.receipt $outside
+    Entry 'Consume' @{ receiptPath = $outside } -Failure 'Unregistered owner' | Out-Null
+    $malformed = Join-Path (Split-Path -Parent $original.path) 'malformed.json'
+    '{bad' | Set-Content -LiteralPath $malformed
+    Entry 'Consume' @{ receiptPath = $malformed } -Failure 'Conversion from JSON failed' | Out-Null
+    $oversized = Join-Path (Split-Path -Parent $original.path) 'oversized.json'
+    ('x' * 32769) | Set-Content -LiteralPath $oversized
+    Entry 'Consume' @{ receiptPath = $oversized } -Failure 'Oversized coordinator JSON' | Out-Null
+    $linked = Join-Path (Split-Path -Parent $original.path) 'linked'
+    $linkType = if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }
+    New-Item -ItemType $linkType -Path $linked -Target $OutputDirectory | Out-Null
+    Entry 'Consume' @{ receiptPath = (Join-Path $linked 'outside.json') } -Failure 'Unregistered owner' | Out-Null
+    Check $true 'Out-of-root, malformed, oversized and unregistered linked receipts rejected before release'
+    Entry 'ReleaseSource' @{ ownerId = 'receipt-owner'; mergeSha = 'd' * 40; freshMainSha = 'e' * 40
+        reachabilityEvidence = 'offline exact reachability fixture' } -Failure 'joined execution' | Out-Null
+    Check ((Entry 'Consume' @{ receiptPath = $original.path }).kind -ceq 'released') 'Valid registered handoff remains consumable after hostile receipts'
+    $original.receipt.head = 'f' * 40
+    Write-ProofJson $original.receipt $original.path
+    Entry 'Consume' @{ receiptPath = $original.path } -Failure 'reused with different content' | Out-Null
+    Entry 'ReleaseSource' @{ ownerId = 'receipt-owner'; mergeSha = 'd' * 40; freshMainSha = 'e' * 40
+        reachabilityEvidence = 'offline exact reachability fixture' } | Out-Null
+    $releasedOwner = @((Entry 'Read').state.owners | Where-Object id -CEQ receipt-owner)[0]
+    Check (!$releasedOwner.sourceRetained -and $releasedOwner.sourceRelease.mergeSha -ceq ('d' * 40)) 'Separate authorized source release persists exact reachability provenance, never automatic on CI handoff'
+    $redoPath = Join-Path (Split-Path -Parent (Split-Path -Parent (Split-Path -Parent $original.path))) 'pending-transition.json'
+    '{bad' | Set-Content -LiteralPath $redoPath
+    Entry 'Read' @{} -Failure 'Conversion from JSON failed' | Out-Null
+    Check $true 'Corrupt write-ahead recovery fails closed rather than resetting state'
+
+    $null = New-Fixture 'conflict'
+    Register-Owner 'retained' -Kind historical -Scope 'src/shared'
+    Register-Owner 'overlap' -Scope 'src/shared/consumer'
+    Certify-Owner 'overlap'
+    Register-Owner 'duplicate' -Scope 'src/elsewhere' -Operation retained
+    Certify-Owner 'duplicate'
+    $conflict = Entry 'Next'
+    Check ($conflict.kind -ceq 'blocked' -and $conflict.action.constraints.Count -eq 2) 'Source scope and semantic operation conflicts hold new work even on disjoint paths'
+    $null = New-Fixture 'stale-observation'
+    Register-Owner 'stale'
+    Certify-Owner 'stale' -Observed ([DateTimeOffset]::UtcNow.AddMinutes(-2).ToString('o'))
+    $stale = Entry 'Next'
+    Check ($stale.kind -ceq 'blocked' -and $stale.action.constraints[0].reason -ceq 'refresh-pr-observation') 'Expired PR evidence requires targeted refresh without full-fleet recovery'
+    Certify-Owner 'stale'
+    Entry 'Recover' @{ ownerId = 'stale'; reason = 'Concrete changed consumed source or PR overlap invalidates this candidate only' } | Out-Null
+    Check ((Entry 'Next').kind -ceq 'recover-scoped') 'Known changed inputs invalidate the affected certification instead of dispatching stale work'
+    $state = (Entry 'Read').state
+    $registryPath = Join-Path $state.identity.directory 'registry.json'
+    $savedRegistry = [IO.File]::ReadAllBytes($registryPath)
+    $state.version = '1'
+    Write-ProofJson $state $registryPath
+    Entry 'Read' @{} -Failure 'nonnegative integer' | Out-Null
+    [IO.File]::WriteAllBytes($registryPath, $savedRegistry)
+    Check $true 'Malformed persisted version is rejected rather than reinterpreted'
+
+    $null = New-Fixture 'local-policy' -Policy local-only
+    Register-Owner 'local'
+    Certify-Owner 'local'
+    $localDispatch = Entry 'Next'
+    Accept-Dispatch $localDispatch 'local'
+    $local = New-Handoff 'local' $localDispatch.action.executionId
+    Entry 'Consume' @{ receiptPath = $local.path } -Failure 'not authorized' | Out-Null
+    $local.receipt.kind = 'completed'
+    $local.receipt.prUrl = $null
+    $local.receipt.autoMerge = $null
+    Write-ProofJson $local.receipt $local.path
+    Check ((Entry 'Consume' @{ receiptPath = $local.path }).kind -ceq 'released') 'Persisted local-only authority cannot be promoted by a receipt'
+    Write-ProofJson @{ passed = $passed.ToArray(); count = $passed.Count; independentProcesses = $script:invocations
+        elapsedSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 3); finiteProcessesJoined = $true
+        entryPoint = $entry; evidence = 'Actual finite entry-point processes; offline fixtures, no native launches/GitHub/provider calls.'
+        nativeAcceptance = 'Not run: actual fresh related session, model selection, mailbox wakeup and re-entry remain unverified.' } (Join-Path $OutputDirectory 'tests.json')
+    Write-Output "PASS: $($passed.Count) coordinator checks; $script:invocations independent entry-point processes."
+} catch {
+    Write-ProofJson @{ passed = $passed.ToArray(); failure = $_.Exception.Message; independentProcesses = $script:invocations
+        elapsedSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 3) } (Join-Path $OutputDirectory 'tests.json')
+    throw
+}

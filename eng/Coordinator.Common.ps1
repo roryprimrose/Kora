@@ -1,5 +1,6 @@
 #requires -Version 7.5
 . (Join-Path $PSScriptRoot 'Distribution.Common.ps1')
+. (Join-Path $PSScriptRoot 'Coordinator.Legacy.ps1')
 
 function Assert-CoordinatorFields {
     param($Value, [string[]] $Required, [string[]] $Optional = @())
@@ -132,7 +133,7 @@ function Test-CoordinatorOverlap {
 function Assert-CoordinatorState {
     param($State, $Identity)
     Assert-CoordinatorFields $State @('version', 'datasetId', 'identity', 'revision', 'epoch', 'leader', 'leaseUntil',
-        'lastUtc', 'authorityId', 'publicationPolicy', 'publisher', 'owners', 'executions', 'events', 'continuation')
+        'lastUtc', 'authorityId', 'publicationPolicy', 'publisher', 'owners', 'executions', 'events', 'continuation') @('legacy')
     Assert-CoordinatorNumber $State.version
     if ($State.version -cne 1 -or $State.datasetId -cnotmatch '^[0-9a-f-]{36}$' -or
         (Get-CoordinatorDigest $State.identity) -cne (Get-CoordinatorDigest $Identity)) { throw 'Invalid dataset identity/version.' }
@@ -205,7 +206,43 @@ function Assert-CoordinatorState {
         }
         $executionIds += $execution.id
     }
-    if (@($State.executions | Where-Object phase -cne 'released').Count -gt 10) { throw 'Shared execution ceiling exceeded.' }
+    $charged = @($State.executions | Where-Object phase -cne 'released')
+    if ($State.Contains('legacy')) {
+        Assert-CoordinatorFields $State.legacy @('snapshotDigest', 'executionIds', 'retirements')
+        if ($State.legacy.snapshotDigest -cnotmatch '^[0-9A-F]{64}$' -or
+            $State.legacy.executionIds -isnot [array] -or $State.legacy.retirements -isnot [array]) { throw 'Invalid legacy provenance.' }
+        $importedIds = @()
+        foreach ($entry in $State.legacy.executionIds) {
+            Assert-CoordinatorFields $entry @('id', 'source', 'key')
+            foreach ($key in $entry.Keys) { Assert-CoordinatorText $entry[$key] }
+            if ($entry.id -cnotin $executionIds -or $entry.id -cin $importedIds) { throw 'Lost or duplicate legacy execution.' }
+            $importedIds += $entry.id
+        }
+        $retiredIds = @()
+        foreach ($retirement in $State.legacy.retirements) {
+            Assert-CoordinatorFields $retirement @('executionId', 'retirementAuthority', 'termination', 'remoteReconciliation')
+            Assert-CoordinatorText $retirement.retirementAuthority
+            Assert-CoordinatorText $retirement.remoteReconciliation
+            Assert-CoordinatorTerminationEvidence $retirement.termination $retirement.executionId
+            if ($retirement.executionId -cnotin $importedIds -or $retirement.executionId -cin $retiredIds) {
+                throw 'Invalid legacy retirement identity.'
+            }
+            $execution = @($State.executions | Where-Object id -CEQ $retirement.executionId)[0]
+            if ($execution.phase -cne 'released' -or $execution.evidence -cne (Get-CoordinatorDigest $retirement)) {
+                throw 'Legacy retirement provenance mismatch.'
+            }
+            $retiredIds += $retirement.executionId
+        }
+        foreach ($execution in $State.executions | Where-Object id -CIn $importedIds) {
+            if (($execution.phase -ceq 'released') -ne ($execution.id -cin $retiredIds)) {
+                throw 'Imported execution release lacks retirement evidence.'
+            }
+        }
+    }
+    if ($charged.Count -gt 10 -and (!$State.Contains('legacy') -or
+        @($charged | Where-Object id -CNotIn @($State.legacy.executionIds | ForEach-Object id)).Count)) {
+        throw 'Shared execution ceiling exceeded.'
+    }
     $eventIds = @()
     foreach ($event in $State.events) {
         Assert-CoordinatorFields $event @('id', 'digest')
@@ -242,6 +279,9 @@ function Invoke-CoordinatorOperation {
             if ($Request.kind -cnotin @('feature', 'repair', 'evidence', 'historical') -or
                 $Request.allocation -cnotin @('none', 'uncertain')) { throw 'Invalid registration.' }
             if (@($State.owners | Where-Object id -CEQ $Request.ownerId).Count) { throw 'Owner already registered.' }
+            if ($Request.allocation -ceq 'uncertain' -and @($State.executions | Where-Object phase -CNE released).Count -ge 10) {
+                throw 'Shared execution ceiling exceeded.'
+            }
             $State.owners += @{
                 id = $Request.ownerId; operation = $Request.operation; scopes = $Request.scopes; kind = $Request.kind
                 sourceRetained = $true; candidate = 'none'; certification = $null; nativeIdentity = $null
@@ -297,6 +337,9 @@ function Invoke-CoordinatorOperation {
             $executions = @($State.executions | Where-Object id -CEQ $Request.executionId)
             if ($executions.Count -ne 1) { throw 'Unknown execution intent.' }
             $execution = $executions[0]
+            if ($State.Contains('legacy') -and $execution.id -cin @($State.legacy.executionIds | ForEach-Object id)) {
+                throw 'Imported execution requires exact RetireLegacy evidence.'
+            }
             $owner = Get-CoordinatorOwner $State $execution.ownerId
             Assert-CoordinatorText $Request.evidence
             if ($Request.outcome -cnotin @('accepted', 'uncertain', 'not-dispatched') -or
@@ -318,6 +361,26 @@ function Invoke-CoordinatorOperation {
             }
             $execution.evidence = $Request.evidence
             return @{ kind = 'dispatch-reconciled'; executionId = $execution.id; phase = $execution.phase }
+        }
+        'RetireLegacy' {
+            Assert-CoordinatorFields $Request @('executionId', 'retirementAuthority', 'termination', 'remoteReconciliation')
+            if (!$State.Contains('legacy') -or $Request.executionId -cnotin @($State.legacy.executionIds | ForEach-Object id)) {
+                throw 'Unregistered imported execution.'
+            }
+            Assert-CoordinatorText $Request.retirementAuthority
+            Assert-CoordinatorText $Request.remoteReconciliation
+            Assert-CoordinatorTerminationEvidence $Request.termination $Request.executionId
+            $prior = @($State.legacy.retirements | Where-Object executionId -CEQ $Request.executionId)
+            if ($prior.Count) {
+                if ((Get-CoordinatorDigest $prior[0]) -cne (Get-CoordinatorDigest $Request)) { throw 'Legacy retirement evidence changed.' }
+                return @{ kind = 'duplicate'; executionId = $Request.executionId }
+            }
+            $execution = @($State.executions | Where-Object id -CEQ $Request.executionId)[0]
+            if ($execution.phase -ceq 'released') { throw 'Imported execution already released outside retirement.' }
+            $execution.phase = 'released'
+            $execution.evidence = Get-CoordinatorDigest $Request
+            $State.legacy.retirements += $Request
+            return @{ kind = 'legacy-retired'; executionId = $execution.id; sourceOwnership = 'retained' }
         }
         'Consume' {
             Assert-CoordinatorFields $Request @('receiptPath')
@@ -355,6 +418,9 @@ function Invoke-CoordinatorOperation {
             $executions = @($State.executions | Where-Object { $_.id -ceq $receipt.executionId -and $_.ownerId -ceq $owner.id })
             if ($executions.Count -ne 1) { throw 'Receipt does not name its admitted execution.' }
             $execution = $executions[0]
+            if ($State.Contains('legacy') -and $execution.id -cin @($State.legacy.executionIds | ForEach-Object id)) {
+                throw 'Imported execution requires exact RetireLegacy evidence.'
+            }
             if ($receipt.workState -cne 'stopped' -or $receipt.finiteCommandsJoined -isnot [bool] -or
                 !$receipt.finiteCommandsJoined -or $receipt.runningCommands -isnot [array] -or
                 $receipt.runningCommands.Count -ne 0 -or $null -ne $receipt.heldDecision) { throw 'Execution is not proved quiescent.' }
@@ -385,6 +451,11 @@ function Invoke-CoordinatorOperation {
         'Next' {
             Assert-CoordinatorFields $Request @()
             $charged = @($State.executions | Where-Object phase -CNE 'released')
+            if ($State.Contains('legacy') -and
+                @($charged | Where-Object id -CIn @($State.legacy.executionIds | ForEach-Object id)).Count) {
+                return @{ kind = 'blocked'; reason = 'legacy-reconciliation-required'; charged = $charged.Count
+                    missingInput = 'Exact imported execution termination, retirement authority and remote-mutation reconciliation; no native dispatch.' }
+            }
             $constraints = @()
             $candidates = @($State.owners | Where-Object candidate -CEQ 'ready' | Sort-Object @{ Expression = { $_.kind -cne 'repair' } }, id)
             if ($charged.Count -lt 10) {
@@ -445,14 +516,21 @@ function Invoke-Coordinator {
     $identity = Get-CoordinatorLocation $RepositoryPath
     $directory = $identity.directory
     $request = if ($RequestPath) { Read-CoordinatorJson $RequestPath } else { @{} }
+    if ($Action -ceq 'Adopt') { return Invoke-CoordinatorAdoption $identity $request $Session }
+    if ($Action -ceq 'Initialize' -and @(Get-CoordinatorLegacyLocations $identity).Count) {
+        throw 'Known legacy state exists; initialization refused. Resolve quiescence and use Adopt.'
+    }
     if (!(Test-Path -LiteralPath $directory)) {
-        if ($Action -cne 'Initialize') { throw 'Canonical dataset absent. Resolve legacy locator/authority before explicit initialization.' }
+        if ($Action -cne 'Initialize') {
+            throw "Canonical dataset absent. Resolve legacy locator/authority before explicit initialization. Known legacy locations: $(@(Get-CoordinatorLegacyLocations $identity) -join '; ')"
+        }
         New-Item -ItemType Directory -Path $directory -Force | Out-Null
     }
     Assert-NoLinks $directory -AncestorsOnly
     $lockPath = Join-Path $directory 'writer.lock'
     if (Test-Path -LiteralPath $lockPath) { Assert-NoLinks $lockPath -AncestorsOnly }
     $lock = $null
+    $legacyLocks = @()
     try {
         $lock = [IO.FileStream]::new($lockPath, [IO.FileMode]::OpenOrCreate, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
     } catch [IO.IOException] {
@@ -491,6 +569,7 @@ function Invoke-Coordinator {
         $state = Read-CoordinatorJson $statePath -MaximumBytes 1048576
         Assert-CoordinatorState $state $identity
         if ($state.datasetId -cne $dataset.datasetId) { throw 'Registry dataset mismatch.' }
+        $legacyLocks = Assert-CoordinatorLegacySnapshot $state $directory
         if (Test-Path -LiteralPath $redoPath) {
             $redo = Read-CoordinatorJson $redoPath -MaximumBytes 1048576
             Assert-CoordinatorFields $redo @('previousDigest', 'nextDigest', 'next')
@@ -525,5 +604,8 @@ function Invoke-Coordinator {
         return @{ kind = $result.kind; action = $result; revision = $state.revision; epoch = $state.epoch
             charged = @($state.executions | Where-Object phase -CNE 'released').Count
             monitoring = 'resumable-not-continuously-monitoring' }
-    } finally { $lock.Dispose() }
+    } finally {
+        foreach ($handle in $legacyLocks) { $handle.Dispose() }
+        $lock.Dispose()
+    }
 }

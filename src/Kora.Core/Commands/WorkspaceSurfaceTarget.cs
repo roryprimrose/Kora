@@ -13,4 +13,8 @@ public enum WorkspaceSurfaceTarget
     Sessions,
     /// <summary>Select an exact row from the already presented session list.</summary>
     SelectSession,
+    Details,
+    HideDetails,
+    SessionLogs,
+    SessionAudit,
 }

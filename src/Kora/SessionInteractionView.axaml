@@ -1,8 +1,10 @@
 <UserControl x:Class="Kora.SessionInteractionView"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls">
   <UserControl.Resources>
+    <local:BriefAnswerConverter x:Key="BriefAnswer" />
     <DataTemplate x:Key="TimelineMessage">
       <Border Padding="12" Margin="0,0,0,10" Background="{DynamicResource KoraSurfaceAltBrush}" CornerRadius="8">
         <StackPanel Spacing="8">
@@ -10,7 +12,10 @@
           <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
           <StackPanel IsVisible="{Binding HasAssistantResponse}" Spacing="6">
             <TextBlock Text="Kora" Classes="eyebrow" />
-            <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" />
+            <TextBlock Text="{Binding AssistantResponse.Body, Converter={StaticResource BriefAnswer}}" TextWrapping="Wrap" />
+            <Button Name="OpenAssistantConversationDetail" Content="Open full detailed answer"
+                IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
+                HorizontalAlignment="Left" />
           </StackPanel>
           <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect work', StringFormat='Action outcome: {0}'}"
               TextWrapping="Wrap" Classes="muted" />
@@ -53,9 +58,15 @@
       </StackPanel>
     </Grid>
     <GridSplitter Grid.Column="1" Width="4" ResizeDirection="Columns" />
-    <Grid Grid.Column="2" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
+    <Grid x:Name="ReadingPanes" Grid.Column="2" ColumnDefinitions="*,0,0">
+    <Grid MinWidth="320" RowDefinitions="Auto,Auto,*,Auto,Auto,Auto" RowSpacing="8">
+      <Grid ColumnDefinitions="*,Auto">
       <TextBlock Text="{Binding InteractionTarget}" FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap"
           AutomationProperties.Name="Selected conversation; context is not a lock for general voice requests" />
+      <Button Grid.Column="1" x:Name="ShowSessionDetails" Content="Show details" IsEnabled="{Binding CanShowDetails}"
+          AutomationProperties.Name="Show details available for the selected session"
+          ToolTip.Tip="{Binding DetailsAvailability}" />
+      </Grid>
       <TextBlock Grid.Row="1" Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
           AutomationProperties.Name="Session navigation outcome or failure" />
       <TabControl Grid.Row="2">
@@ -64,9 +75,37 @@
             <WrapPanel>
               <Button x:Name="ReadConversation" Content="Read conversation" IsEnabled="{Binding CanReadConversation}" />
               <Button x:Name="NextConversation" Content="More messages" IsEnabled="{Binding CanNextConversation}" />
+              <Button x:Name="ReadSessionLogs" Content="Session logs" IsEnabled="{Binding CanEvidence}" />
+              <Button x:Name="ReadSessionAudit" Content="Session audit" IsEnabled="{Binding CanEvidence}" />
             </WrapPanel>
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
-              <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+              <StackPanel Spacing="8">
+                <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+                <ContentControl Content="{Binding DetailsOfferMessage}">
+                  <ContentControl.ContentTemplate>
+                    <DataTemplate>
+                      <StackPanel Spacing="6">
+                        <TextBlock Text="Would you like to view the detailed response? You can also say: show detailed results."
+                            TextWrapping="Wrap" />
+                        <WrapPanel>
+                          <Button Name="OpenAssistantConversationDetail" Content="Yes, show this detailed response" />
+                          <Button Name="DeclineSessionDetailsOffer" Content="Not now" />
+                        </WrapPanel>
+                      </StackPanel>
+                    </DataTemplate>
+                  </ContentControl.ContentTemplate>
+                </ContentControl>
+                <ItemsControl ItemsSource="{Binding EvidenceDetails}">
+                  <ItemsControl.ItemTemplate>
+                    <DataTemplate>
+                      <StackPanel Spacing="6" Margin="0,8,0,0">
+                        <TextBlock Text="{Binding Label}" TextWrapping="Wrap" />
+                        <Button Name="OpenSessionEvidence" Content="Open this exact session evidence result" HorizontalAlignment="Left" />
+                      </StackPanel>
+                    </DataTemplate>
+                  </ItemsControl.ItemTemplate>
+                </ItemsControl>
+              </StackPanel>
             </ScrollViewer>
             <TextBlock Grid.Row="2" Text="{Binding ConversationStatus}" Classes="muted" TextWrapping="Wrap" />
           </Grid>
@@ -112,6 +151,18 @@
       <TextBlock Grid.Row="5"
           Text="General voice relatedness matching is not available yet. This composer explicitly targets the selected conversation. Questions and approvals retain their original controls."
           TextWrapping="Wrap" Classes="muted" FontSize="11" />
+    </Grid>
+    <GridSplitter x:Name="DetailsDivider" Grid.Column="1" Width="6" IsVisible="False" ResizeDirection="Columns"
+        ResizeBehavior="PreviousAndNext" Focusable="True"
+        AutomationProperties.Name="Resize conversation and Details panes" />
+    <Grid x:Name="DetailsPane" Grid.Column="2" IsVisible="False" MinWidth="400" RowDefinitions="Auto,*" RowSpacing="8">
+      <Grid ColumnDefinitions="*,Auto">
+        <TextBlock x:Name="DetailsHeading" Text="Details" FontSize="18" FontWeight="SemiBold" TextWrapping="Wrap" />
+        <Button Grid.Column="1" x:Name="HideSessionDetails" Content="Hide details"
+            AutomationProperties.Name="Hide Details without clearing the conversation or unsent message" />
+      </Grid>
+      <ContentControl Grid.Row="1" x:Name="DetailsContent" />
+    </Grid>
     </Grid>
   </Grid>
 </UserControl>

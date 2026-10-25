@@ -98,6 +98,15 @@
           <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
         </StackPanel>
         <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <StackPanel IsVisible="{Binding IsDetailsOfferPending}" Spacing="6">
+          <TextBlock Text="Would you like to view the detailed response?" TextWrapping="Wrap" />
+          <WrapPanel>
+            <Button Content="Yes, show details" Click="OnCurrentResponseDetailsClicked"
+                AutomationProperties.Name="Accept the offer to view this exact current response" />
+            <Button Content="Not now" Click="OnDeclineDetailsOffer"
+                AutomationProperties.Name="Decline this detail offer without discarding the result" />
+          </WrapPanel>
+        </StackPanel>
         <ItemsControl ItemsSource="{Binding WebResultDetailActions}" IsVisible="{Binding HasWebResultDetails}">
           <ItemsControl.ItemTemplate>
             <DataTemplate>

@@ -34,6 +34,7 @@ public sealed class DetailWindowContractTests
         window.Name.LocalName.Should().Be("Window");
         window.Attribute("Topmost")!.Value.Should().Be("False");
         window.Attribute("WindowStartupLocation")!.Value.Should().Be("CenterOwner");
+        document = XDocument.Parse(Read("DetailContentView.axaml"));
         var reader = Named(document, "ContentReader");
         reader.Name.LocalName.Should().Be("TextBox");
         reader.Attribute("IsReadOnly")!.Value.Should().Be("True");
@@ -64,14 +65,14 @@ public sealed class DetailWindowContractTests
         Named(document, "FindSpan").Parent!.Attribute("MaxHeight")!.Value.Should().Be("100");
         Named(document, "FindSummary").Attribute("AutomationProperties.Name")!.Value.Should().Contain("current admitted text only");
         Named(document, "FindSummary").Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Off");
-        Read("DetailWindow.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
+        Read("DetailContentView.axaml").Should().Contain("DynamicResource").And.Contain("Rich HTML copy is not supported")
             .And.Contain("Clipboard content leaves Kora").And.NotContain("Animation").And.NotContain("WebView");
     }
 
     [Fact]
     public void ShellOwnsKeyboardAndClipboardInterceptionAndClearsControlsOnClosure()
     {
-        var source = Read("DetailWindow.axaml.cs");
+        var source = Read("DetailContentView.axaml.cs");
         source.Should().Contain("RoutingStrategies.Tunnel").And.Contain("DetailKeyboardNavigation.Resolve")
             .And.Contain("CopyingToClipboard += BlockAutomaticCopy")
             .And.Contain("CuttingToClipboard += BlockAutomaticCopy")
@@ -80,8 +81,9 @@ public sealed class DetailWindowContractTests
             .And.Contain("reader.SelectionStart = 0").And.Contain("reader.SelectionEnd = 0")
             .And.Contain("reader.Text = string.Empty").And.Contain("renderedDocument.Children.Clear()")
             .And.Contain("selectable: false").And.Contain("reader.SelectAll()")
-            .And.Contain("state.Close()").And.Contain("Show(owner)")
+            .And.Contain("state.Close()")
             .And.NotContain("NotifyPresenceInteraction").And.NotContain("Clipboard.");
+        Read("DetailWindow.axaml.cs").Should().Contain("Show(owner)").And.Contain("Reader.ClearPresentation()");
         Read("NativeDetailClipboard.cs").Should().Contain("SetTextAsync(source)")
             .And.NotContain("TryGet").And.NotContain("Html").And.NotContain("SetFile");
     }

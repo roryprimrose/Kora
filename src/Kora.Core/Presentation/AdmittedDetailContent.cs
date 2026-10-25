@@ -66,17 +66,21 @@ public sealed class AdmittedDetailContent
         {
             throw new InvalidDataException("Web-result source, reference and inert disclosure classification cannot change.");
         }
-        if ((origin == DetailContentOrigin.RetainedConversation) != (conversationMessage is not null))
+        if ((origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant) != (conversationMessage is not null))
         {
             throw new InvalidDataException("Conversation details require their exact retained original USER record and typed HOST observation.");
         }
         if (conversationMessage is not null)
         {
             conversationMessage.Validate();
-            if (kind != DetailContentKind.PlainText || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
-                || reference.ItemId.Value != conversationMessage.Request.RequestId.Value
+            var assistant = origin == DetailContentOrigin.RetainedAssistant;
+            var expectedSource = assistant ? conversationMessage.AssistantResponse?.Body : conversationMessage.Body;
+            if (kind != (assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText)
+                || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
+                || reference.ItemId.Value != (assistant ? conversationMessage.AssistantResponse?.Provenance.Turn.Value
+                    : conversationMessage.Request.RequestId.Value)
                 || reference.Revision != conversationMessage.Revision
-                || !string.Equals(source, conversationMessage.Body, StringComparison.Ordinal))
+                || !string.Equals(source, expectedSource, StringComparison.Ordinal))
             {
                 throw new InvalidDataException("Conversation details cannot change the original body, record reference, revision or inert private classification.");
             }

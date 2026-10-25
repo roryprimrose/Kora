@@ -89,6 +89,12 @@ internal sealed partial class CustomizationWindowController(
         window.Destination.SelectionChanged += (_, _) => InputChanged();
         window.PresentationLost += RetireVoiceTarget;
         window.Activated += (_, _) => PublishVoiceTarget();
+        // Activated can precede IsActive; also observe the committed foreground state.
+        window.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == Window.IsActiveProperty
+                && window is { IsActive: true, IsVisible: true }) { PublishVoiceTarget(); }
+        };
         window.Closing += OnClosing;
         window.Closed += (_, _) => ClearWindow();
         window.Show();
@@ -175,7 +181,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void PublishVoiceTarget()
     {
-        if (busy || window is not { IsActive: true } opened || source is null || !Eligible()) { return; }
+        if (busy || window is not { IsActive: true, IsVisible: true } opened || source is null || !Eligible()) { return; }
         if (voiceTarget is { IsCurrent: true }) { return; }
         var input = main.CaptureCustomizationVoiceEligibility();
         var owner = ownerRevision;

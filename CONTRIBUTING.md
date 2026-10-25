@@ -120,7 +120,8 @@ The [CI workflow](.github/workflows/ci.yml) runs this check in portable validati
 and the `storage-other` Windows shard, retaining process/result evidence. The
 [tests](eng/Test-Coordinator.ps1) invoke separate PowerShell processes against
 local Git fixtures for restart, intent recovery, exact release, capacity races,
-fencing and receipt rejection. They never launch a feature or contact GitHub.
+fencing, receipt rejection, [quiescent legacy adoption](eng/coordinator/README.md#quiescent-legacy-adoption),
+retained overcommit and once-only evidence-bound retirement. They never launch a feature or contact GitHub.
 Offline process proof is not fresh native-session/model/wakeup acceptance; that
 requires separately recorded actual host evidence. No test initializes or
 migrates the user's live coordinator dataset.

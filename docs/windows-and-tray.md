@@ -117,6 +117,17 @@ selecting metadata alone does not read result bodies. Reading positions and the
 split are memory-only. The minimum side-by-side window width is 1040; a smaller
 display work area reports Details unavailable rather than hiding the composer.
 
+Use the native **Back to conversation** button to return keyboard focus to the
+exact original-message or full-answer link that owns the open result. It reveals
+the Conversation tab and scrolls that link into view, leaving Details and its
+Find state open. **Hide details** (also `hide details` through the existing typed
+or current-name-activated route) returns focus to that same link when it is still
+on the observed page, otherwise to **Show details**. Escape retains the existing
+Show-details focus recovery. None of these controls sends input or reruns work.
+Back is unavailable with an explanation for the chooser, activity, evidence,
+current-response details or an origin no longer on the observed message page;
+it never selects another session, reads history or substitutes a newer message.
+
 **Session logs** and **Session audit** explicitly query only this session through
 the existing read-only Evidence owners. They create separately labelled HOST
 result links, not assistant answers. Up to eight bounded pages stay available on

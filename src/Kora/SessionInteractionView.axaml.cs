@@ -4,6 +4,7 @@ using System.Text;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using Kora.Core.Presentation;
 using Kora.Core.Diagnostics;
@@ -88,7 +89,16 @@ internal sealed partial class SessionInteractionView : UserControl
         ManageSessions.Click += (_, _) => ManagementRequested?.Invoke(this, EventArgs.Empty);
         NewConversation.Click += (_, _) => NewConversationRequested?.Invoke(this, EventArgs.Empty);
         ShowSessionDetails.Click += async (_, _) => await Run(model => ShowAvailableDetailsAsync(model));
-        HideSessionDetails.Click += (_, _) => { HideDetails(); ShowSessionDetails.Focus(); };
+        BackToConversation.Click += (_, _) =>
+        {
+            if (!FocusConversationOrigin(activeDetails?.Content))
+            {
+                RefreshReturnNavigation();
+                DetailNavigationStatus.Text = "Return unavailable: the exact originating message is not currently accessible. "
+                    + "Select its session and explicitly read the conversation; no replacement was chosen.";
+            }
+        };
+        HideSessionDetails.Click += (_, _) => HideDetailsAndRestoreFocus();
         evidenceValidation.Tick += async (_, _) => await (EvidenceValidationOperation = RevalidateEvidenceAsync());
         DetachedFromVisualTree += (_, _) => HideDetails();
         DataContextChanged += (_, _) => ObserveModel();
@@ -136,6 +146,41 @@ internal sealed partial class SessionInteractionView : UserControl
             HideDetails();
             if (observedModel?.CanPresentDetails == false) { readingPositions.Clear(); }
         }
+        RefreshReturnNavigation();
+    }
+
+    private ConversationMessage? ConversationOrigin(AdmittedDetailContent? content)
+    {
+        if (!IsVisible || observedModel?.CanPresentDetails != true
+            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant)
+            || content.ConversationMessage is not { } message
+            || observedModel.SelectedSessionRecord?.Authority.SessionId != message.Request.SessionId)
+        { return null; }
+        return observedModel.ConversationMessages.FirstOrDefault(current => current == message);
+    }
+
+    private void RefreshReturnNavigation()
+    {
+        BackToConversation.IsEnabled = DetailsVisible && ConversationOrigin(activeDetails?.Content) is not null;
+        DetailNavigationStatus.Text = BackToConversation.IsEnabled
+            ? "Back to conversation focuses the exact originating message and leaves Details open."
+            : "Return unavailable: this view has no message on the currently observed conversation page. "
+                + "Hide details returns to Show details.";
+    }
+
+    private bool FocusConversationOrigin(AdmittedDetailContent? content)
+    {
+        if (content is null || ConversationOrigin(content) is not { } message) { return false; }
+        ConversationTabs.SelectedItem = ConversationTab;
+        UpdateLayout();
+        var name = content.Origin == DetailContentOrigin.RetainedAssistant
+            ? "OpenAssistantConversationDetail" : "OpenConversationDetail";
+        var origin = ConversationTabs.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
+            string.Equals(button.Name, name, StringComparison.Ordinal) && Equals(button.DataContext, message)
+            && button.IsEffectivelyVisible && button.IsEnabled);
+        if (origin is null || ConversationOrigin(content) != message) { return false; }
+        origin.BringIntoView();
+        return ConversationOrigin(content) == message && origin.Focus();
     }
 
     internal bool ShowDetails(SessionDetailView view, AdmittedDetailContent content)
@@ -172,6 +217,7 @@ internal sealed partial class SessionInteractionView : UserControl
         DetailsDivider.IsVisible = true;
         DetailsPane.IsVisible = true;
         ShowSessionDetails.IsVisible = false;
+        RefreshReturnNavigation();
     }
 
     private void RememberSplit()
@@ -192,6 +238,7 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[1].Width = new(0);
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
+        RefreshReturnNavigation();
         if (IsVisible && observedModel?.CanPresentDetails == true) { ShowSessionDetails.Focus(); }
     }
 
@@ -213,6 +260,15 @@ internal sealed partial class SessionInteractionView : UserControl
         ReadingPanes.ColumnDefinitions[1].Width = new(0);
         ReadingPanes.ColumnDefinitions[2].Width = new(0);
         ShowSessionDetails.IsVisible = true;
+        RefreshReturnNavigation();
+    }
+
+    internal void HideDetailsAndRestoreFocus()
+    {
+        var origin = activeDetails?.Content;
+        HideDetails();
+        if (!FocusConversationOrigin(origin) && IsVisible && observedModel?.CanPresentDetails == true)
+        { ShowSessionDetails.Focus(); }
     }
 
     internal bool ShowEvidence(SessionEvidenceDetail detail, Func<bool> admitted, Func<CancellationToken, Task<bool>> validate)

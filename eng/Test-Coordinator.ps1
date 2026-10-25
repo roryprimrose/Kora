@@ -63,7 +63,7 @@ function Complete-Entry {
 
 function Entry {
     param([string] $Action, $Request = @{}, [string] $Failure = '', [string] $Leader = 'native-leader', $Snapshot = $null)
-    if ($null -eq $Snapshot -and $Action -cnotin @('Initialize', 'Read')) { $Snapshot = $script:snapshot }
+    if ($null -eq $Snapshot -and $Action -cnotin @('Initialize', 'Adopt', 'Read')) { $Snapshot = $script:snapshot }
     $result = Complete-Entry (Start-Entry $Action $Request $Leader $Snapshot) $Failure
     if ($null -ne $result) {
         if ($result.Contains('state')) { $script:snapshot = $result.state }
@@ -73,7 +73,7 @@ function Entry {
 }
 
 function New-Fixture {
-    param([string] $Name, [string] $Policy = 'ready-auto')
+    param([string] $Name, [string] $Policy = 'ready-auto', [switch] $Uninitialized)
     $script:fixture = Join-Path $OutputDirectory $Name
     $script:snapshot = $null
     New-ProofDirectory $script:fixture
@@ -82,6 +82,7 @@ function New-Fixture {
     & git -C $script:fixture remote add origin 'https://github.com/roryprimrose/Kora.git'
     if ($LASTEXITCODE -ne 0) { throw 'Fixture origin registration failed.' }
     '.scratch/' | Set-Content -LiteralPath (Join-Path $script:fixture '.gitignore')
+    if ($Uninitialized) { return }
     $result = Entry 'Initialize' @{ legacyAbsenceConfirmed = $true; authorityId = 'fixture-user-authority'
         publicationPolicy = $Policy; publisher = 'fixture-publisher' }
     return $result.state
@@ -127,8 +128,53 @@ function New-Handoff {
     return @{ path = $path; receipt = $receipt }
 }
 
+function New-TerminationEvidence {
+    param([string] $Subject)
+    return @{ kind = 'joined-command'; subject = $Subject; reference = 'offline fixture completion receipt'
+        executionIdentity = 'fixture exact command and creation identity'; hostIdentity = 'offline fixture host'
+        continuationBoundary = 'Fixture has no native execution or possible later continuation' }
+}
+
+function New-LegacyFixture {
+    param([string] $Name, [int] $ExternalCharges = 1)
+    $null = New-Fixture $Name -Uninitialized
+    $identity = Get-CoordinatorLocation $script:fixture
+    $root = Join-Path (Join-Path $identity.commonGit '.scratch') 'roadmap-coordinator'
+    New-ProofDirectory $root
+    [IO.File]::WriteAllBytes((Join-Path $root 'writer.lock'), [byte[]]@())
+    $dataset = @{ protocolVersion = 2; schemaVersion = 2; datasetId = [guid]::NewGuid().ToString()
+        repository = $identity.repository; commonGitDirectory = $identity.commonGit }
+    $registry = @{ protocolVersion = 2; schemaVersion = 2; datasetId = $dataset.datasetId
+        repository = $identity.repository; commonGitDirectory = $identity.commonGit
+        revision = 12; coordinatorEpoch = 3; leader = @{ session = 'old-native-coordinator' }
+        activeExecutionAllocations = @(@{ ownerSession = 'old-search-owner'; executionTransitionId = 'search-one'; allocationCharge = 1 })
+        externalExecutionCharges = @(foreach ($index in 1..$ExternalCharges) {
+            @{ owner = "external-$index"; chargeId = "external-$index"; allocationCharge = 1 }
+        })
+        retainedOwnership = @(@{ feature = 'unfinished'; ownerSession = 'retained-original'; branch = 'original/unfinished'
+            worktree = (Join-Path $OutputDirectory 'retained-unfinished') })
+        runs = @(@{ publicationPolicy = 'local-only'; grants = @('original-unmodified-grant') })
+        wakeBudget = @{ spent = 6; remaining = 14; priorExpenditure = 'Unknown' }
+        pendingDispatches = @(@{ actionId = 'ambiguous-original-action'; state = 'accepted' })
+        processedEventIds = @('original-event'); unknownRetainedField = 'must-not-disappear' }
+    $repairRoot = Join-Path (Join-Path $script:fixture '.scratch') 'pr-repair-orchestration'
+    New-ProofDirectory $repairRoot
+    [IO.File]::WriteAllBytes((Join-Path $repairRoot 'coordinator.lock'), [byte[]]@())
+    $repair = @{ repository = $identity.repository; revision = 9; schedulingOwner = @{ session = 'old-repair-writer' }
+        currentOwners = @(@{ pr = 473; reservationId = 'original-pr473-repair'; session = 'original-repair-owner'
+            branch = 'original/repair'; actualWorktree = (Join-Path $OutputDirectory 'original-repair') }) }
+    Write-ProofJson $dataset (Join-Path $root 'dataset.json')
+    Write-ProofJson $registry (Join-Path $root 'registry.json')
+    Write-ProofJson $repair (Join-Path $repairRoot 'coordinator.json')
+    return @{ legacyDirectory = $root; datasetDigest = (Get-CoordinatorDigest $dataset)
+        registryDigest = (Get-CoordinatorDigest $registry); repairDigest = (Get-CoordinatorDigest $repair)
+        authorityId = 'fixture-authorized-quiescent-adoption'; inventoryEvidence = 'Complete offline two-ledger inventory'
+        quiescenceEvidence = @((New-TerminationEvidence 'old-native-coordinator'), (New-TerminationEvidence 'old-repair-writer')) }
+}
+
 try {
-    foreach ($file in @($entry, (Join-Path $PSScriptRoot 'Coordinator.Common.ps1'), $PSCommandPath)) {
+    foreach ($file in @($entry, (Join-Path $PSScriptRoot 'Coordinator.Common.ps1'),
+        (Join-Path $PSScriptRoot 'Coordinator.Legacy.ps1'), $PSCommandPath)) {
         $tokens = $null
         $errors = $null
         [Management.Automation.Language.Parser]::ParseFile($file, [ref]$tokens, [ref]$errors) | Out-Null
@@ -341,6 +387,79 @@ try {
     $local.receipt.autoMerge = $null
     Write-ProofJson $local.receipt $local.path
     Check ((Entry 'Consume' @{ receiptPath = $local.path }).kind -ceq 'released') 'Persisted local-only authority cannot be promoted by a receipt'
+
+    $adoption = New-LegacyFixture 'legacy-adoption'
+    $identity = Get-CoordinatorLocation $script:fixture
+    Entry 'Read' -Failure 'Known legacy locations' | Out-Null
+    Entry 'Initialize' @{ legacyAbsenceConfirmed = $true; authorityId = 'cannot-hide-legacy'
+        publicationPolicy = 'ready-auto'; publisher = 'fixture-publisher' } -Failure 'Known legacy state exists' | Out-Null
+    Check (!(Test-Path -LiteralPath $identity.directory)) 'Known hidden legacy and companion ledgers prevent a competing initialized dataset'
+    $missingProof = $adoption | ConvertTo-Json -Depth 40 | ConvertFrom-Json -AsHashtable -DateKind String
+    $missingProof.quiescenceEvidence = @()
+    Entry 'Adopt' $missingProof -Failure 'every legacy writer' | Out-Null
+    $missingProof.quiescenceEvidence = $adoption.quiescenceEvidence
+    $missingProof.quiescenceEvidence[0].kind = 'merged'
+    Entry 'Adopt' $missingProof -Failure 'not termination' | Out-Null
+    $adoption.quiescenceEvidence[0].kind = 'joined-command'
+    $missingDigest = $adoption | ConvertTo-Json -Depth 40 | ConvertFrom-Json -AsHashtable -DateKind String
+    $missingDigest.repairDigest = $null
+    Entry 'Adopt' $missingDigest -Failure 'Exact legacy source digest' | Out-Null
+    Check (!(Test-Path -LiteralPath $identity.directory)) 'Unproved writers, merge-only evidence and omitted companion ledger publish no canonical state'
+    $held = [IO.FileStream]::new((Join-Path $adoption.legacyDirectory 'writer.lock'),
+        [IO.FileMode]::Open, [IO.FileAccess]::ReadWrite, [IO.FileShare]::None)
+    try { Entry 'Adopt' $adoption -Failure 'being used' | Out-Null }
+    finally { $held.Dispose() }
+    $adopted = Entry 'Adopt' $adoption
+    $restarted = (Entry 'Read').state
+    $legacySnapshot = Read-CoordinatorJson (Join-Path $identity.directory 'legacy-snapshot.json') -MaximumBytes 1048576
+    Check ($adopted.charged -eq 3 -and $restarted.datasetId -ceq $legacySnapshot.sources[0].value.datasetId -and
+        $restarted.revision -eq 12 -and $restarted.epoch -eq 4) 'Quiescent adoption preserves dataset and revisions, advances fencing and retains every charge across processes'
+    Check ($legacySnapshot.sources[1].value.wakeBudget.spent -eq 6 -and
+        $legacySnapshot.sources[1].value.pendingDispatches[0].actionId -ceq 'ambiguous-original-action' -and
+        $legacySnapshot.sources[1].value.processedEventIds[0] -ceq 'original-event' -and
+        $legacySnapshot.sources[1].value.unknownRetainedField -ceq 'must-not-disappear' -and
+        $legacySnapshot.sources[2].value.currentOwners[0].session -ceq 'original-repair-owner') 'Complete frozen snapshots retain wake expenditure, ambiguous mutations, event identities and original repair ownership'
+    Check ($restarted.publicationPolicy -ceq 'local-only' -and $null -eq $restarted.publisher -and
+        @($restarted.owners | Where-Object { !$_.sourceRetained -or $_.candidate -cne 'none' }).Count -eq 0 -and
+        @($restarted.owners | Where-Object branch -CEQ 'original/unfinished').Count -eq 1) 'Adoption does not broaden authority, certify work or release unfinished source ownership'
+    Register-Owner 'independent-after-adoption' -Scope 'unrelated'
+    Certify-Owner 'independent-after-adoption'
+    Check ((Entry 'Next').action.reason -ceq 'legacy-reconciliation-required') 'Unresolved imported executions block dispatch even for independently certified unrelated scopes'
+    Entry 'Adopt' $adoption -Failure 'never adopt twice' | Out-Null
+    $executionId = $restarted.executions[0].id
+    Entry 'Reconcile' @{ executionId = $executionId; outcome = 'not-dispatched'; evidence = 'missing chat'
+        dispatcherJoined = $true; nativeIdentity = $null; branch = $null; worktree = $null } -Failure 'RetireLegacy' | Out-Null
+    $retirement = @{ executionId = $executionId; retirementAuthority = 'fixture exact grant retirement approval'
+        termination = (New-TerminationEvidence $executionId); remoteReconciliation = 'Fixture has no remote mutation' }
+    $retirement.termination.kind = 'old-timestamp'
+    Entry 'RetireLegacy' $retirement -Failure 'not termination' | Out-Null
+    $retirement.termination.kind = 'host-lifecycle'
+    $retired = Entry 'RetireLegacy' $retirement
+    $replayed = Entry 'RetireLegacy' $retirement
+    Check ($retired.charged -eq 2 -and $replayed.kind -ceq 'duplicate' -and $replayed.charged -eq 2) 'Exact authorized termination plus remote reconciliation retires one imported grant once, not on merge or age'
+    $retirement.remoteReconciliation = 'changed evidence'
+    Entry 'RetireLegacy' $retirement -Failure 'evidence changed' | Out-Null
+    $sourcePath = $legacySnapshot.sources[1].path
+    $changedSource = $legacySnapshot.sources[1].value
+    $changedSource.revision++
+    Write-ProofJson $changedSource $sourcePath
+    Entry 'Read' -Failure 'Retired legacy source changed' | Out-Null
+    Check $true 'Unexpected legacy resumption blocks canonical recovery rather than running two ledgers'
+
+    $invalidLegacy = New-LegacyFixture 'legacy-invalid-charge'
+    $invalidRegistryPath = Join-Path $invalidLegacy.legacyDirectory 'registry.json'
+    $invalidRegistry = Read-CoordinatorJson $invalidRegistryPath -MaximumBytes 1048576
+    $invalidRegistry.externalExecutionCharges[0].allocationCharge = '1'
+    Write-ProofJson $invalidRegistry $invalidRegistryPath
+    $invalidLegacy.registryDigest = Get-CoordinatorDigest $invalidRegistry
+    Entry 'Adopt' $invalidLegacy -Failure 'nonnegative integer' | Out-Null
+    Check (!(Test-Path -LiteralPath (Get-CoordinatorLocation $script:fixture).directory)) 'Malformed legacy charge types cannot become a normalized counter or publish partial adoption'
+
+    $overcommitted = New-LegacyFixture 'legacy-overcommitted' -ExternalCharges 10
+    $over = Entry 'Adopt' $overcommitted
+    Check ($over.charged -eq 12 -and (Entry 'Next').kind -cne 'dispatch') 'Already overcommitted legacy ledgers retain all charges without granting another execution'
+    Entry 'Register' @{ ownerId = 'extra-unknown'; operation = 'extra-unknown'; scopes = @('src/extra')
+        kind = 'repair'; allocation = 'uncertain'; evidence = 'No spare capacity' } -Failure 'ceiling exceeded' | Out-Null
     Write-ProofJson @{ passed = $passed.ToArray(); count = $passed.Count; independentProcesses = $script:invocations
         elapsedSeconds = [Math]::Round($stopwatch.Elapsed.TotalSeconds, 3); finiteProcessesJoined = $true
         entryPoint = $entry; evidence = 'Actual finite entry-point processes; offline fixtures, no native launches/GitHub/provider calls.'

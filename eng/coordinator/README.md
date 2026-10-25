@@ -55,7 +55,88 @@ Write approved request data to an ignored owning-workspace file, then:
 The [initializer](../Coordinator.Common.ps1) refuses existing data, including
 unknown files, rather than resetting counters. The boolean records the trusted
 caller's authorization/evidence; it cannot itself discover lost processes or
-prove absence. Legacy adoption is deliberately unsupported in this slice.
+prove absence. Known common-Git legacy or workspace PR-repair directories block
+initialization regardless of that boolean.
+
+## Quiescent legacy adoption
+
+This is a bounded engineering recovery operation, not a coordinator scheduling
+tick. The [compatibility adapter](../Coordinator.Legacy.ps1) supports a protocol-2,
+schema-2 scheduler with local-only run authority, plus the primary workspace's
+existing PR-repair ledger. Other schemas/authority scopes fail closed.
+
+Before adoption, the recovery owner must establish the complete recorded source
+inventory and exact termination of each legacy writer, including possible later
+continuations. Missing chats, timestamps, expired leases and merged PRs do not
+establish that. Missing newer run records remain an operational blocker even
+when an older ledger is readable. The adapter validates evidence bindings; it
+does not authenticate hosts or manufacture lifecycle proof.
+
+Supply this [Adopt request](../Coordinator.Legacy.ps1) using the real absolute
+legacy directory, canonical JSON digests from `Get-CoordinatorDigest`, and
+truthfully established evidence references (placeholders below are not proof):
+
+```json
+{
+  "legacyDirectory": "<absolute existing legacy scheduler directory>",
+  "datasetDigest": "<64 uppercase SHA256 hex characters for dataset.json>",
+  "registryDigest": "<64 uppercase SHA256 hex characters for registry.json>",
+  "repairDigest": "<64 uppercase SHA256 hex characters for the companion coordinator.json, or null only when absent>",
+  "authorityId": "<recorded scoped adoption authority>",
+  "inventoryEvidence": "<complete recorded-locator and execution-inventory evidence>",
+  "quiescenceEvidence": [
+    {
+      "kind": "host-lifecycle",
+      "subject": "<exact recorded scheduler leader session>",
+      "reference": "<authoritative lifecycle or joined-command receipt>",
+      "executionIdentity": "<exact original execution identity>",
+      "hostIdentity": "<original machine/host binding>",
+      "continuationBoundary": "<evidence ruling out later execution>"
+    }
+  ]
+}
+```
+
+Use `joined-command` or `host-lifecycle` only. Include a second evidence object
+for the companion repair ledger's exact scheduling session when that ledger
+exists. Its digest and existing lock are mandatory; it cannot be omitted.
+Preserve every discovered recorded locator in the inventory evidence.
+
+```powershell
+.\eng\Invoke-Coordinator.ps1 -RepositoryPath $PWD -Action Adopt `
+  -Session $ExactRecoveryOwner -RequestPath $ApprovedAdoptionRequest
+```
+
+The [adapter](../Coordinator.Legacy.ps1) holds existing legacy locks without
+creating files there. It validates bound snapshots, stages a complete canonical
+dataset under the primary workspace's ignored scratch directory, then publishes
+it with one directory rename. Failed validation publishes nothing. After a
+restart use `Read`, not another `Adopt`; an existing destination is never replaced.
+
+Dataset identity and registry revision are retained; the leadership epoch
+advances. Complete source snapshots retain grants, pending dispatches, original
+owners/branches/worktrees, deduplication, wake expenditure and unknown fields.
+Every scheduler allocation/external charge and every companion current-owner
+reservation imports as charged and uncertain, including stopped or merged labels.
+Cross-ledger aliases are not silently coalesced. Existing overcommit is retained
+without permitting new execution. Imported owners retain conservative source
+scopes until explicitly resolved; adoption certifies no new candidate.
+`Next` blocks all dispatch while any imported execution remains unreconciled,
+even when a newly certified scope appears disjoint.
+
+The [retirement operation](../Coordinator.Common.ps1) requires `executionId`,
+`retirementAuthority`, `termination` (the evidence object above, with the imported
+execution ID as `subject`), and `remoteReconciliation` naming authoritative
+readback of any possible remote mutations. Exact replay is once-only; changed
+proof fails. Retirement releases only that grant, not source ownership or
+publication authority. Imported grants cannot bypass it through `Reconcile` or
+`Consume`. Local-only authority is not promoted by adoption.
+
+Frozen source files and their locks remain retained evidence, not another
+scheduler. Every canonical operation holds their locks and checks their digests;
+resumed legacy mutation, deletion or inaccessibility blocks operation. Do not
+delete the old workspace or resume an old writer. Unavailable writer/command
+proof means **no adoption and no coordinator startup**, not a fresh ledger.
 
 ## State and trust boundary
 
@@ -68,6 +149,7 @@ The [schema validator and transaction runner](../Coordinator.Common.ps1) own:
 | `registry.json` | Current validated snapshot: revision, fenced leader/lease, authority, owners, executions, deduplication and scoped recovery |
 | `pending-transition.json` | One redo record: previous digest, complete next snapshot and next digest, flushed before snapshot replacement |
 | `owners\<id>\*.json` | Registered owner's terminal evidence; only an exact registered-directory receipt can be consumed |
+| `legacy-snapshot.json` | Adopted datasets only: complete immutable original ledgers, source digests, inventory and writer-quiescence provenance |
 
 Each [mutation](../Coordinator.Common.ps1) holds `FileShare.None` across validation,
 expected revision/epoch and three-minute lease checks, operation, redo publication
@@ -90,8 +172,8 @@ recorded authority scope. There is no request/receipt operation that broadens it
 The verified repository publisher is pinned alongside it and returned on dispatch;
 fresh-session recovery never silently repins to another account. Only local-only
 initialization may use a null publisher when no repository publication is admitted.
-Different authority scopes, live legacy import and policy changes require a
-separately designed authorized compatibility transition, not a second registry.
+Different authority scopes, live legacy import and policy changes remain
+unsupported; [quiescent adoption](#quiescent-legacy-adoption) does not broaden them.
 State is capped at 1 MiB and each index at 1,000 records; requests/receipts at
 32 KiB. Full indexes stop rather than prune live deduplication/ownership.
 

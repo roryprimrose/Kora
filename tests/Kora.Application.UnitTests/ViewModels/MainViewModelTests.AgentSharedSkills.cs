@@ -49,6 +49,7 @@ public sealed partial class MainViewModelTests
         }
         var usePolicy = new Kora.Application.Configuration.ArtifactUsePreferences(
             new Kora.Application.UnitTests.Configuration.LocalSharedSkillPreferencesTests.Store());
+        Path.IsPathFullyQualified(reader.Metadata.CanonicalPath).Should().BeTrue();
         var agentIdentity = ArtifactUseIdentity.File(reader.Metadata.CanonicalPath);
         await using var workflow = new BoundedAgentWorkflow(reader, store, store, conversation, model, f.Audit,
             TimeProvider.System, usePolicy: usePolicy, skills: scenario is "no-resolver" ? null : resolver);

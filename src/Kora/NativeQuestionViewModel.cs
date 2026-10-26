@@ -44,6 +44,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private Func<bool> visibleVoicePresenter = static () => false;
     private HostQuestionKey? voiceTarget;
     private int voicePresenterCount;
+    private bool conversationalReplyAttempted;
     internal void BindMcpReview(Kora.Application.Mcp.McpReview review)
     {
         if (question.Proposal is null || !review.IsBoundTo(question.Proposal))
@@ -77,6 +78,19 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         return voiceReplies!.OpenAsync(exact,
             () => ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && IsEditable && Key == exact.Key,
             AcceptVoiceDecision, afterPlayback, CancellationToken.None);
+    }
+
+    internal Task TryConversationalReplyAsync()
+    {
+        if (conversationalReplyAttempted) { return Task.CompletedTask; }
+        if (!CanAnswerByVoice) { return Task.CompletedTask; }
+        conversationalReplyAttempted = true;
+        voiceTarget = Key;
+        var exact = Question;
+        return voiceReplies!.OpenConversationalAsync(exact,
+            () => ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && IsEditable
+                && ReferenceEquals(Question, exact),
+            AcceptVoiceDecision, CancellationToken.None);
     }
 
     internal void StopVoiceReply()

@@ -473,7 +473,7 @@ The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory
 The [command-level transition matrix and mutation-boundary tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.ManagementMatrix.cs) cover each state/action, model-origin rejection and session/ownership/privacy changes.
 [SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
 
-Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
+Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing admission remain separate, undelivered workstreams. The [explicit reviewed model-memory proposal](../docs/model-memory-proposals.md) adds only a strict inert candidate from an actual retained ASSISTANT answer: the original user inspects complete source/channel/turn lineage and exact value/classification, then separately accepts and admits it through the existing session-only admission/audit/store. No answer is automatically converted, used, promoted or learned; stale/private/source/lifecycle closure retires review.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
 
 ### Bounded Selected-Subset Session Memory Disable - 2026-10-18

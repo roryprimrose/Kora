@@ -236,7 +236,8 @@ internal sealed partial class SessionsViewModel
         {
             throw new InvalidOperationException("The exact local event source is no longer current: " + result.Reason + ". Refresh and select separately.");
         }
-        Detail = JsonSerializer.Serialize(result);
+        Detail = result.Event.Source is LocalEventSource.ConversationTask or LocalEventSource.ConversationQuestion
+            ? ConversationNoticeDetail(result) : JsonSerializer.Serialize(result);
         eventDetailPresented = true;
         eventSnapshot = eventSnapshot! with { Events = eventSnapshot.Events.Select(item => item.Event.Id == result.Event.Id ? result : item).ToArray() };
         selectedEvent = eventFilter.Matches(result) ? result : null;

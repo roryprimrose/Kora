@@ -93,6 +93,25 @@ Broader multi-session proactive conversation, detector-driven speech,
 configurable reminders/quiet hours and installed accessibility/release
 acceptance remain gated. All R02 experiment evidence is retained unchanged.
 
+## Actual conversation task notices
+
+The bounded selected-session broker also admits audited **current-run conversation**
+terminal outcomes and exact pending ordinary conversation clarifications. A separate
+content-free reader projection preserves the existing execution `CurrentSource`
+contract: terminal observations never become continuation authority. Successful
+durable terminals are Completed; unavailable/denied terminals are Failed notices;
+uncertain/cancelled dispatched outcomes remain Unknown, never inferred success.
+Model/user text, omitted records and unadmitted submissions cannot create an event.
+
+Conversation task notices expire thirty minutes after the original submission;
+clarifications keep their original earlier expiry. Host-control/privacy/protected-call
+epoch changes retire prior sources, without call-end replay or activity renewal.
+Existing fatigue, quiet, exact source revalidation, suppression, retirement and
+deferral bounds apply unchanged. Existing source enum values and stored receipts
+remain compatible. No ambient observation, question answering, approval, dispatch,
+focus/selection change or unsolicited speech is added. See the
+[conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
+
 ## Native content-free loaded-event filters
 
 Normal Sessions event browsing retains category and reason choices only ([native event presentation](../src/Kora/SessionsViewModel.Events.cs)). Technical identity, profile, generation/revision, lifetime and correlation query widgets are removed.

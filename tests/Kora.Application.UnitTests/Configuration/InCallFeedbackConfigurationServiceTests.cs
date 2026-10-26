@@ -117,7 +117,7 @@ public sealed class InCallFeedbackConfigurationServiceTests : IDisposable
         await fixture.Select(InCallFeedbackMode.Voice);
         fixture.Policy.Current.Should().Be(observation);
         fixture.Policy.Current.SuppressSpeech.Should().BeTrue();
-        fixture.Policy.Current.Authorization(true, true).AllowsReusableGrants.Should().BeFalse();
+        fixture.Policy.Current.Authorization(true, true).AllowsReusableGrants.Should().BeTrue();
     }
 
     [Theory]

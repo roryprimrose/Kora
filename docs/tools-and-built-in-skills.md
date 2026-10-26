@@ -135,10 +135,9 @@ model settings tool is delivered.
 model-action preferences from exact operation grants and committed audit.
 Inspecting a grant or reading history never creates permission.
 
-Current call protection applies the **Ignore reusable grants during calls**
-behavior to reusable model-action grants without deleting them. The proposed
-permission-level migration instead retains grants/levels and defaults spoken
-approvals off; it is not current behavior. Protected voice-originated preference
+Current [session permission levels](session-permission-levels.md) retain
+applicable grants and selected policy during calls and default spoken approvals
+Off. Independent native disclosure/endpoint review remains mandatory. Protected voice-originated preference
 changes require a new eligible UI request, not a later approval click.
 
 ## 8. Skill discovery, registry, and authoring

@@ -9,6 +9,8 @@ internal sealed class BoundedNativeText
     private readonly StringBuilder text = new();
     private int bytes;
 
+    internal int Length => text.Length;
+
     internal void Append(string? value)
     {
         if (value is null) { return; }

@@ -243,6 +243,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "knowledge-sources",
             "code-highlighting",
             "external-browser",
+            "markdown-strikethrough",
             "diagrams",
             "session-routing",
             "model-session-discovery",

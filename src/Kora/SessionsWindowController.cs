@@ -219,6 +219,7 @@ internal sealed partial class SessionsWindowController(
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
         service.SessionMetadataChanging += OnAnswerSourceChanging;
+        service.SessionMetadataChanging += OnDictationSourceChanging;
     }
 
     internal void Open()
@@ -366,6 +367,7 @@ internal sealed partial class SessionsWindowController(
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token));
+        model.BindDictation(main.ComposerDictation);
         model.PresentEvidenceDetails = (page, admitted, validate) =>
         {
             if (DetailOwner() is not ResponseWindow primary)
@@ -544,6 +546,7 @@ internal sealed partial class SessionsWindowController(
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
         service.SessionMetadataChanging -= OnAnswerSourceChanging;
+        service.SessionMetadataChanging -= OnDictationSourceChanging;
         presentation?.Revoke();
         window = null;
         compact = null;

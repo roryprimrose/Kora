@@ -411,6 +411,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             pendingTranscript = null;
             transcriptPublicationReady = false;
             replyAdmission = null;
+            RetireProvisionalObservation();
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
             _ = capture?.ReleaseRecorder();
         }
@@ -1060,6 +1061,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             stream = audioStream;
             capture = null;
             callbacks?.Unsubscribe();
+            RetireProvisionalObservation();
             callbacks = null;
             audioStream = null;
             selectedMicrophone = null;

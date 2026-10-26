@@ -17,6 +17,10 @@ internal sealed class SessionDictationWindow : Window
     private readonly ComposerDictationService? service;
     private readonly Func<bool> sourceCurrent;
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly ProvisionalDictationText provisional = new()
+    {
+        Name = "DictationProvisional", TextWrapping = TextWrapping.Wrap, MaxHeight = 160, ClipToBounds = true,
+    };
     private readonly TextBox original = new() { Name = "DictationOriginal", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90 };
     private readonly TextBox literal = new() { Name = "DictationLiteral", IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 90 };
     private readonly Button dictate = new() { Name = "DictateSession", Content = "Hold to dictate" };
@@ -41,6 +45,7 @@ internal sealed class SessionDictationWindow : Window
         AutomationProperties.SetName(dictate, "Hold Space, Enter or the pointer to dictate into this exact session's unsent memory buffer");
         AutomationProperties.SetName(original, "Complete original unsent message, unchanged until explicit review");
         AutomationProperties.SetName(literal, "Complete literal transcription after confirmed microphone release");
+        AutomationProperties.SetLiveSetting(provisional, AutomationLiveSetting.Off);
         var cancel = new Button { Name = "CancelDictation", Content = "Cancel dictation" };
         var content = new StackPanel { Margin = new(20), Spacing = 12 };
         content.Children.Add(new TextBlock { Text = model.ComposerTarget, TextWrapping = TextWrapping.Wrap });
@@ -51,6 +56,8 @@ internal sealed class SessionDictationWindow : Window
         });
         content.Children.Add(dictate);
         content.Children.Add(status);
+        content.Children.Add(new TextBlock { Text = "Provisional\u2014may change (private; not inserted or sent)" });
+        content.Children.Add(provisional);
         content.Children.Add(new TextBlock { Text = "Original unsent message" });
         content.Children.Add(original);
         content.Children.Add(new TextBlock { Text = "Literal transcription" });
@@ -120,6 +127,7 @@ internal sealed class SessionDictationWindow : Window
             if (service is not null) { service.Changed -= Changed; }
             original.Text = string.Empty;
             literal.Text = string.Empty;
+            provisional.Text = string.Empty;
         };
         Render();
     }
@@ -133,7 +141,7 @@ internal sealed class SessionDictationWindow : Window
         held = true;
         var generation = Interlocked.Increment(ref arm);
         target = model.CaptureDictationTarget();
-        return service.BeginAsync(target, () => !closing && Interlocked.Read(ref arm) == generation
+        return service.BeginAsync(target, () => !closing && IsVisible && Interlocked.Read(ref arm) == generation
             && sourceCurrent(), CancellationToken.None);
     }
 
@@ -165,6 +173,7 @@ internal sealed class SessionDictationWindow : Window
         status.Text = service?.Status ?? "Literal dictation unavailable. Microphone closed.";
         original.Text = review ? service!.OriginalBody : string.Empty;
         literal.Text = review ? service!.LiteralText : string.Empty;
+        provisional.Text = OwnsTurn && sourceCurrent() ? service!.ProvisionalTextFor(target!) : string.Empty;
         append.IsEnabled = review;
         replace.IsEnabled = review;
         dictate.IsEnabled = !closing && sourceCurrent() && model.CanCompose && service is not null;

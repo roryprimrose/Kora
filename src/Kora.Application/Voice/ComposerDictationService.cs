@@ -39,6 +39,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         capture.TranscriptRecognized += Transcript;
         capture.RecognitionFailed += Failed;
         capture.RecognitionCompleted += Completed;
+        capture.CaptureStateChanged += CaptureChanged;
     }
 
     public event EventHandler? Changed;
@@ -92,6 +93,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
                 opened.Context = activity.Activity!.Context;
                 status = "Capturing literal draft text only. Release Dictate to finish; Cancel discards it.";
             }
+            ObserveProvisional(opened);
             activity.Complete(HostOperationOutcome.Completed);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -115,6 +117,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
             if (!opening)
             {
                 current.Releasing = true;
+                ClearProvisional(current);
                 current.Ended = new(TaskCreationOptions.RunContinuationsAsynchronously);
             }
         }
@@ -126,6 +129,8 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
 #pragma warning restore VSTHRD003
             return;
         }
+        ReleaseProvisional(current);
+        Publish();
         using var activity = BeginActivity(current, HostOperation.Request);
         try
         {
@@ -218,10 +223,11 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
             previous = turn;
             turn = null;
             status = reason;
-            if (previous is not null) { retirement = released.Task; }
+            if (previous is not null) { ClearProvisional(previous); retirement = released.Task; }
         }
         if (previous is not null)
         {
+            ReleaseProvisional(previous);
             previous.Target.Source.PropertyChanged -= BufferChanged;
             previous.Literal = null;
             capture.InvalidateCapture();
@@ -273,12 +279,27 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
 
     private void Transcript(object? sender, VoiceTranscriptEventArgs args)
     {
+        Turn current;
         lock (gate)
         {
-            if (turn is not { } current || current.Review || current.Literal is not null
-                || args.Generation != current.Generation || args.Generation != capture.CaptureGeneration || !Eligible(current)) { return; }
+            if (turn is not { } observed || observed.Review || observed.Literal is not null
+                || args.Generation != observed.Generation || args.Generation != capture.CaptureGeneration || !Eligible(observed)) { return; }
+            current = observed;
             current.Literal = args.Transcript;
+            ClearProvisional(current);
+            QueueProvisionalUpdate();
         }
+        ReleaseProvisional(current);
+    }
+
+    private void CaptureChanged(object? sender, VoiceCaptureStateChangedEventArgs args)
+    {
+        lock (gate)
+        {
+            if (turn is not { Generation: >= 0 } current || current.Releasing || current.Review
+                || capture.CaptureGeneration == current.Generation) { return; }
+        }
+        Retire("Dictation capture generation retired. Preview cleared; late results discarded.");
     }
 
     private void Failed(object? sender, VoiceRecognitionFailureEventArgs args)
@@ -292,11 +313,18 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
 
     private void Completed(object? sender, VoiceRecognitionCompletedEventArgs args)
     {
+        Turn current;
+        bool keepFinal;
         lock (gate)
         {
-            if (turn is null || args.Generation != turn.Generation || turn.Releasing
-                || args.Reason is VoiceRecognitionCompletionReason.Recognized or VoiceRecognitionCompletionReason.PushToTalkReleased) { return; }
+            if (turn is null || args.Generation != turn.Generation) { return; }
+            current = turn;
+            ClearProvisional(current);
+            QueueProvisionalUpdate();
+            keepFinal = current.Releasing || args.Reason is VoiceRecognitionCompletionReason.Recognized or VoiceRecognitionCompletionReason.PushToTalkReleased;
         }
+        ReleaseProvisional(current);
+        if (keepFinal) { return; }
         Retire("Dictation ended without a released literal result. Original memory preserved.");
     }
 
@@ -313,6 +341,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         capture.TranscriptRecognized -= Transcript;
         capture.RecognitionFailed -= Failed;
         capture.RecognitionCompleted -= Completed;
+        capture.CaptureStateChanged -= CaptureChanged;
     }
 
     public async ValueTask DisposeAsync()
@@ -339,6 +368,11 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         public string? Literal { get; set; }
         public bool Releasing { get; set; }
         public bool Review { get; set; }
+        public IDisposable? ProvisionalObservation { get; set; }
+        public string ProvisionalText { get; set; } = string.Empty;
+        public string? PendingProvisional { get; set; }
+        public long ProvisionalSequence { get; set; }
+        public bool ProvisionalRetired { get; set; }
         private static TaskCompletionSource Finished()
         {
             var source = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);

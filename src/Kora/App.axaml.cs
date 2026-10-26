@@ -75,6 +75,7 @@ public sealed partial class App : Avalonia.Application
             viewModel = Services.GetRequiredService<MainViewModel>();
             Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
+            viewModel.BindExternalBrowserWorkflow(Services.GetRequiredService<Kora.Application.Network.ExternalBrowser.ExternalBrowserWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
@@ -121,6 +122,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
+            Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>()
+                .BindAuthorizationPolicyGate(viewModel.AuthorizationPolicyGate);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),

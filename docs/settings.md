@@ -1194,12 +1194,15 @@ During protection, all voice-originated voice and in-call preference mutations
 are rejected, including manual clear/reset and ordinary output options masked
 by the call override. Later UI confirmation cannot change voice lineage; start
 a new UI request. Stop speech, disable listening, cancel and read-only status
-remain usable. Protected calls ignore Session/Always reusable model-action
-grants without changing storage; new grant-ignore disabling, temporary overrides
-and speak-once exceptions are unavailable. This is bounded manual behavior, not
+remain usable. Protected calls preserve applicable grants and session action
+levels. **Allow spoken approvals during calls** defaults Off and requires
+fresh native review and explicit downgrade confirmation before enabling.
+Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
 full call/provider/native/audio acceptance.
 
-[The proposed session permission-level design](../Design/Session_Permission_Levels.md#voice-approval-and-protected-calls) will instead keep grants and levels effective during calls and add default-disabled configurable spoken approvals. That migration and selector are not current settings behavior.
+Use [session permission controls](session-permission-levels.md) to review and
+confirm Review all / Model review / Approve all for one exact Active session.
+An unqualified Model reviewer requires your approval; it selects no fallback.
 
 ## Readiness
 

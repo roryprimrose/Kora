@@ -154,6 +154,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             "SELECT * FROM host_observations WHERE session_id=$id ORDER BY request_id;",
             "SELECT * FROM host_questions WHERE session_id=$id ORDER BY question_id;",
             "SELECT * FROM scoped_grants WHERE session_id=$id ORDER BY approval_id;",
+            "SELECT * FROM session_permission WHERE session_id=$id ORDER BY session_id;",
+            "SELECT * FROM session_admissions WHERE session_id=$id ORDER BY admission_id;",
             "SELECT * FROM reviewed_memory WHERE session_id=$id ORDER BY memory_id;",
             "SELECT * FROM session_file WHERE session_id=$id ORDER BY session_id;",
             "SELECT * FROM session_provider_profile WHERE session_id=$id ORDER BY session_id;",

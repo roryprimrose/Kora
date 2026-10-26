@@ -8,6 +8,34 @@ namespace Kora.Application.UnitTests.Communication;
 public sealed class CallCommunicationPolicyTests
 {
     [Fact]
+    public void Unknown_manual_control_evidence_is_a_mandatory_denial_not_grant_revocation()
+    {
+        var observation = new CallPolicyObservation(1, CallState.Unavailable, false, new(true, true, true),
+            ManualControlEvidenceUnavailable: true);
+        var policy = observation.Authorization(true, true);
+        policy.IsUnlocked.Should().BeFalse();
+        policy.OtherMandatoryGatesSatisfied.Should().BeFalse();
+        policy.AllowSpokenApprovalsDuringCalls.Should().BeFalse();
+        policy.AllowsReusableGrants.Should().BeTrue();
+        observation.Authorization(false, false).IsUnlocked.Should().BeFalse();
+    }
+    [Theory]
+    [InlineData(false, CallMutationOutcome.ExactReviewUnavailable)]
+    [InlineData(true, CallMutationOutcome.Applied)]
+    public void Spoken_approval_relaxation_requires_explicit_native_downgrade(bool confirmed, CallMutationOutcome expected)
+    {
+        using var policy = new CallCommunicationPolicy(new Automatic(CallState.Active));
+        policy.SetSettings(new(true, true, true), RequestOrigin.LocalUi, 0, Eligible, static _ => true, confirmed)
+            .Should().Be(expected);
+        policy.WithCurrent(new(true, true, false, true), current => current.AllowsApprovalChannel(RequestOrigin.ActivatedVoice))
+            .Should().Be(confirmed);
+        policy.WithCurrent(new(true, true, false, true), current => current.AllowsApprovalChannel(RequestOrigin.LocalUi))
+            .Should().BeTrue();
+        policy.Dispose();
+        FluentActions.Invoking(() => policy.WithCurrent(new(true, true, false, true), static current => current.IsUnlocked))
+            .Should().Throw<ObjectDisposedException>();
+    }
+    [Fact]
     public async Task PresentationObservationDoesNotWaitForPreferencePersistence()
     {
         using var policy = new CallCommunicationPolicy(new Automatic(CallState.Clear));
@@ -47,7 +75,7 @@ public sealed class CallCommunicationPolicyTests
         using var policy = new CallCommunicationPolicy(automatic);
         policy.Current.IsProtected.Should().Be(protectedAutomatic);
         policy.Current.AllowActivation.Should().BeTrue();
-        policy.Current.Authorization(true, true).AllowsReusableGrants.Should().Be(!protectedAutomatic);
+        policy.Current.Authorization(true, true).AllowsReusableGrants.Should().BeTrue();
         policy.SetManual(true, RequestOrigin.LocalUi, policy.Current.Revision, Eligible).Should().Be(CallMutationOutcome.Applied);
         policy.Current.EffectiveState.Should().Be(CallState.Active);
         policy.Current.SuppressSpeech.Should().BeTrue();

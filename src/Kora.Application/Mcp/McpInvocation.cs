@@ -211,10 +211,14 @@ internal sealed class McpInvocation(
                 || answer.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
                 || stage == McpReviewStage.Connection && answer.AnswerChannel != RequestOrigin.LocalUi)
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }
-            var consumed = await new HostAuthorizationService(interactions, time)
-                .ConsumeAsync(invocation, grant.Id, grant.Revision, token).ConfigureAwait(false);
-            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt)
+            var authorization = new HostAuthorizationService(interactions, time);
+            var consumed = await authorization.ConsumeAsync(invocation, grant.Id, grant.Revision, token).ConfigureAwait(false);
+            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
+                || consumed.Admission is not { } admission)
             { throw new InvalidOperationException("The exact MCP approval is no longer current."); }
+            var dispatched = await authorization.DispatchAsync(invocation, admission, token).ConfigureAwait(false);
+            if (dispatched.Outcome != HostInteractionOutcome.Consumed || dispatched.Admission is not { } dispatch)
+            { throw new InvalidOperationException("The exact MCP policy admission was retired before dispatch."); }
             grants.Add(async checkToken =>
             {
                 var current = HostActivity.RequireCurrent();
@@ -225,6 +229,7 @@ internal sealed class McpInvocation(
                     var decision = await new InteractionTransaction(interactions).RunAsync(invocation, "approval.mcp-revalidate", snapshot =>
                         Live(checkToken) && snapshot.Session.Generation == generation && InteractionTransaction.CanInteract(snapshot)
                             && snapshot.Policy.OtherMandatoryGatesSatisfied
+                            && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
                             && snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id) == receipt
                             && receipt.Status == OperationGrantStatus.Consumed
                             ? (snapshot, new(HostInteractionOutcome.Approved, "exact-mcp-use-current"))

@@ -398,7 +398,11 @@ public sealed partial class ModelTurnHostTests
             Stages.Add(review.Stage);
             var previous = Snapshots.GetValueOrDefault(proposal.Request);
             Snapshots[proposal.Request] = new(f.Task!.Task, f.Session, new(true, true, false, true), proposal,
-                previous?.Questions ?? [], previous?.Grants ?? []);
+                previous?.Questions ?? [], previous?.Grants ?? [])
+            {
+                Permission = previous?.Permission,
+                Admissions = previous?.Admissions ?? [],
+            };
             var authorization = new HostAuthorizationService(this, f.Time);
             var initial = (await authorization.PresentMcpOnceAsync(proposal.Request, review, token)).Question!;
             var completed = Deny ? new(HostInteractionOutcome.Denied, "user-denied")
@@ -432,6 +436,13 @@ public sealed partial class ModelTurnHostTests
             Snapshots[request] = commit.Snapshot;
             if (Fault is "consume-grant" && commit.Decision.Outcome == HostInteractionOutcome.Consumed)
             { return ValueTask.FromResult(commit.Decision with { Grant = null }); }
+            if (Fault is "consume-admission" && commit.Decision.Admission is { Dispatched: false })
+            { return ValueTask.FromResult(commit.Decision with { Admission = null }); }
+            if (commit.Decision.Admission is { Dispatched: true })
+            {
+                if (Fault is "dispatch-denied") { return ValueTask.FromResult(commit.Decision with { Outcome = HostInteractionOutcome.Denied }); }
+                if (Fault is "dispatch-admission") { return ValueTask.FromResult(commit.Decision with { Admission = null }); }
+            }
             return ValueTask.FromResult(commit.Decision);
         }
 

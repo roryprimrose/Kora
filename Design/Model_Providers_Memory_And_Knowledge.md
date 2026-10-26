@@ -80,7 +80,7 @@ are not provider enablement or qualification.
 An explicit native Claude submission or the existing typed/activated request
 review and separate confirmation retains the unchanged original USER body and
 channel. Ordinary/default/local-only reviewed-source routes do not acquire
-Claude authority. This first stateless text-only profile includes no tools,
+Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
@@ -88,6 +88,10 @@ A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
+
+An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
+Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
+Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each has its own adapter,
@@ -410,6 +414,18 @@ remain independent; device-profile/model-proposed memories and provider qualific
 are not implementation prerequisites or implicitly enabled capabilities.
 
 ## User-Governed Durable Memory
+
+### Delivered explicit Device-profile operation
+
+The [Device-profile guide](../docs/profile-memory.md) describes the native
+original-user propose, complete inspect/review, separate admission,
+list/edit/disable/forget and later-conversation one-shot local-only answer.
+The explicit profile route extends the authoritative memory transaction with
+independent lifetime and profile-bound lineage. Existing session transactions,
+typed commands, model proposals and session-context consumers remain
+Session-only. No automatic recall, provider learning, Project/Source scope
+or hosted disclosure is enabled. Historical session-only availability notes
+below describe the earlier increments, not this explicit profile route.
 
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.

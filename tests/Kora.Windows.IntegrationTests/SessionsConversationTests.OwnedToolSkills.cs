@@ -4,11 +4,15 @@ using Avalonia.LogicalTree;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
+using Kora.Application.Network;
 using Kora.Application.Skills;
 using Kora.Core.Authorization;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
+using Kora.Core.Network;
 using Kora.Core.Skills;
+using Kora.Core.Storage;
 using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Storage;
 using Kora.Windows.Skills;
@@ -18,6 +22,125 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnedSinglePageAndSharedTwoSourceSkillsCoexistInOneConversation(bool ownedFirst)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var transport = new PageModelTransport();
+            await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
+            var network = new PageNetworkTransport();
+            await using var composed = new Composition(f, adapter: adapter, pageTransport: network);
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var native = new NativeUxFixtureSession(parent);
+            await native.InitializeAsync();
+            var store = new WindowsOwnedDeclarativeSkillStore(native);
+            var document = OwnedDeclarativeSkillDocument.Create("page-guide", "1.0.0", "Page guide", "One owned page",
+                "Owned guidance stays inert.", OwnedSkillToolSelection.WebPageGet);
+            await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
+            await using var ownedAdmission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+            var owned = new OwnedSkillInvocationWorkflow(store, ownedAdmission, composed.Access, f.Store, composed.Workspace,
+                composed.Conversation, native.Audit, f.Time);
+            var authority = new OwnedSkillAuthoringAuthority(RequestOrigin.LocalUi, static () => true);
+            var reader = new ToolInvocationReader();
+            var discovery = new SharedSkillDiscoveryService(new LocalSharedSkillPreferences(native), reader, native.SharedAdmission,
+                native.Audit, NullLogger<SharedSkillDiscoveryService>.Instance);
+            await discovery.LoadSourcesAsync(static () => true, native.Token);
+            await discovery.RegisterAsync("native selection", static () => true, native.Token);
+            var catalogue = await discovery.DiscoverAsync(reader.Source, static () => true, native.Token);
+            await using var sharedAdmission = new SharedSkillUseAdmission(native.Interactions, native.Interactions, new(native.Tasks));
+            var pipeline = new ReviewedToolSkillInvocationWorkflow(discovery, sharedAdmission, composed.Access, f.Store,
+                composed.Conversation, native.Audit, f.Time);
+            var twoSources = new LocalWebPageScope([new("https://example.com/"), new("https://second.example/")]);
+            var target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+            using (var source = await owned.ReviewAsync("page-guide", "1.0.0", authority, static () => true, native.Token))
+            using (var review = await pipeline.ReviewOwnedAsync(owned, source, target, authority, static () => true, native.Token))
+            {
+                await pipeline.EnableAsync(review, static () => true, RequestOrigin.LocalUi, native.Token);
+                await pipeline.Invoking(flow => flow.PrepareAsync(review, "Compare both.", twoSources,
+                    static () => true, RequestOrigin.LocalUi, native.Token)).Should().ThrowAsync<InvalidOperationException>();
+                review.IsCurrent.Should().BeFalse();
+            }
+            f.Count("conversation_messages").Should().Be(0);
+            network.Sends.Should().Be(0);
+            transport.Requests.Should().BeEmpty();
+            using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
+            host.BindGate(static () => true);
+            host.BindAdmissionRevision(static () => 1);
+            host.BindPrivateRevision(static () => 1);
+            host.BindCallObservation(static () => new(1, Kora.Core.Communication.CallState.Clear, false,
+                Kora.Core.Communication.CallAwareSettings.Default));
+            var approvals = new List<Uri>();
+            async Task<WebPageApprovalPresentation> Approve(HostOperationProposal proposal, HostRevision generation,
+                Uri address, Func<bool> admitted, CancellationToken token)
+            {
+                var receipt = await host.AskConversationAsync(proposal.Request, generation,
+                    new("Exact page approval", QuestionKind.SingleChoice, [new("once", "Approve once")]),
+                    proposal.ExpiresAt, admitted, async state =>
+                    {
+                        approvals.Add(address);
+                        state.Question.Spec.Text.Should().Contain(address.AbsoluteUri);
+                        await state.ReviewAsync();
+                        state.CompleteReviewPresentation(new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance)
+                            .Render(state.ReviewText, Kora.Core.Presentation.DetailContentKind.PlainText).SemanticText);
+                        state.Edit(new(["once"]));
+                        state.CanSubmit.Should().BeTrue(state.Status);
+                        await state.SubmitAsync();
+                        state.Completion.IsCompleted.Should().BeTrue(state.Status);
+                    }, token, proposal, address);
+                return new(receipt.Presented, receipt.Completed);
+            }
+            foreach (var isOwned in new[] { ownedFirst, !ownedFirst })
+            {
+                transport.TwoSources = !isOwned;
+                target = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
+                using var source = isOwned
+                    ? await owned.ReviewAsync("page-guide", "1.0.0", authority, static () => true, native.Token) : null;
+                using var review = isOwned
+                    ? await pipeline.ReviewOwnedAsync(owned, source!, target, authority, static () => true, native.Token)
+                    : await pipeline.ReviewAsync(reader.Source, catalogue.Packages.Single(), target,
+                        static () => true, RequestOrigin.LocalUi, native.Token);
+                review.SourceDescription.Should().Be(isOwned ? "Kora-owned private package" : "Registered shared skill");
+                await pipeline.EnableAsync(review, static () => true, RequestOrigin.LocalUi, native.Token);
+                var scope = isOwned ? new LocalWebPageScope([twoSources.Destinations[0]]) : twoSources;
+                var body = isOwned ? "Explain my owned page." : "Compare my two shared sources.";
+                using var invocation = await pipeline.PrepareAsync(review, body, scope,
+                    static () => true, RequestOrigin.LocalUi, native.Token);
+                var retained = await pipeline.InvokeAsync(invocation, static () => true, Approve, native.Token);
+                retained.Message.Body.Should().Be(body);
+                retained.Message.Request.SessionId.Should().Be(f.Request.SessionId);
+                retained.Message.Request.Origin.Should().Be(RequestOrigin.LocalUi);
+                retained.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+                retained.Message.AssistantResponse!.Body.Should().Be(isOwned
+                    ? "Genuine local summary of the approved public page."
+                    : "Genuine local comparison of both approved public pages.");
+                var last = transport.Requests.Last();
+                last.Context.WebPages!.MaximumCalls.Should().Be(isOwned ? 1 : 2);
+                last.Context.Evidence[0].Content.Should().Contain(isOwned ? document.ManifestText : reader.Text);
+                last.Context.Evidence.Should().OnlyContain(item => item.Disclosure == ModelEvidenceDisclosure.LocalOnly);
+            }
+            approvals.Should().Equal(ownedFirst
+                ? [twoSources.Destinations[0], twoSources.Destinations[0], twoSources.Destinations[1]]
+                : [twoSources.Destinations[0], twoSources.Destinations[1], twoSources.Destinations[0]]);
+            network.Sends.Should().Be(3);
+            transport.Requests.Should().HaveCount(5);
+            f.Count("conversation_messages").Should().Be(2);
+            (await f.Store.ReadGrantsAsync(f.Token)).Should().HaveCount(3)
+                .And.OnlyContain(grant => grant.Status == OperationGrantStatus.Consumed);
+            adapter.IsQuiescent.Should().BeTrue();
+            var saved = (await store.Read("page-guide", "1.0.0", native.Token))!;
+            saved.Document.RevisionDigest.Should().Be(document.RevisionDigest);
+            saved.Document.IsAvailableForInvocation.Should().BeFalse();
+        });
+    }
+
     [Theory]
     [InlineData("success")]
     [InlineData("deny")]
@@ -29,6 +152,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var fallback = new HistoryAdapter();
@@ -157,7 +281,7 @@ public sealed partial class SessionsConversationTests
                     var message = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Should().ContainSingle().Subject;
                     message.Body.Should().Be(original);
                     message.Request.SessionId.Should().Be(f.Request.SessionId);
-                    message.Outcome.Should().Be(scenario is "deny" ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+                    message.Outcome.Should().Be(scenario is "deny" ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded, opened.Status.Text);
                     (message.AssistantResponse?.Body).Should().Be(scenario is "deny" ? null : "Genuine local summary of the approved public page.");
                     transport.Requests.Should().HaveCount(scenario is "deny" ? 1 : 2);
                     var grants = await f.Store.ReadGrantsAsync(f.Token);

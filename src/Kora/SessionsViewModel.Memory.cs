@@ -270,6 +270,7 @@ internal sealed partial class SessionsViewModel
         var control = access.ControlRevision;
         var epoch = selectionEpoch;
         var targetEpoch = memoryEpoch;
+        var profileScope = deviceProfileMemory;
         if (operation != MemoryCommandOperation.List && !MemorySourceCurrent)
         {
             throw new InvalidOperationException("Memory metadata source changed. List again under current private session admission.");
@@ -283,11 +284,13 @@ internal sealed partial class SessionsViewModel
         }
         var command = new MemoryCommand(operation, subject.Value, target?.Id, target?.Revision ?? 0, accept,
             operation is MemoryCommandOperation.Edit or MemoryCommandOperation.Propose ? new(memoryClass, memoryDraft) : null);
-        var result = await (memories ?? throw new InvalidOperationException("Memory management is unavailable."))
-            .ExecuteAsync(command, RequestOrigin.LocalUi,
-                () => !closed && access.CanControl && access.ControlRevision == control
-                    && selectionEpoch == epoch && memoryEpoch == targetEpoch && selected?.Authority == authority,
-                lifetime.Token);
+        var management = memories ?? throw new InvalidOperationException("Memory management is unavailable.");
+        bool Eligible() => !closed && access.CanControl && access.ControlRevision == control
+            && deviceProfileMemory == profileScope && selectionEpoch == epoch
+            && memoryEpoch == targetEpoch && selected?.Authority == authority;
+        var result = await (profileScope
+            ? management.ExecuteDeviceProfileAsync(command, RequestOrigin.LocalUi, Eligible, lifetime.Token)
+            : management.ExecuteAsync(command, RequestOrigin.LocalUi, Eligible, lifetime.Token));
         if (closed || selectionEpoch != epoch || memoryEpoch != targetEpoch || selected?.Authority != authority
             || !access.CanControl || access.ControlRevision != control)
         {

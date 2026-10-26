@@ -19,19 +19,27 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    private static readonly string[] ToolSkillInputFields = ["request", "first", "second", "target"];
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(true, true)]
-    public async Task NativeToolRevisionReviewRequiresSeparateEnablementAndExactActionApprovalBeforeRetention(bool available, bool deny)
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(true, false, true, false)]
+    [InlineData(true, true, true, false)]
+    [InlineData(true, false, true, true)]
+    public async Task NativeToolRevisionReviewRequiresSeparateEnablementAndExactActionApprovalBeforeRetention(bool available, bool deny, bool twoSources, bool stop)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var adapter = new HistoryAdapter();
-            await using var transport = new PageModelTransport();
+            var pendingSecond = new TaskCompletionSource<ModelToolTransportReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var secondEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            await using var transport = new PageModelTransport { TwoSources = twoSources,
+                PendingSecond = stop ? pendingSecond.Task : null, SecondEntered = secondEntered };
             await using var bounded = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             var network = new PageNetworkTransport();
             await using var composed = new Composition(f, adapter: available ? bounded : adapter,
@@ -88,36 +96,102 @@ public sealed partial class SessionsConversationTests
             {
                 opened.Title.Should().Be("Reviewed one-tool shared skill");
                 opened.Instructions.Text.Should().Contain(reader.Text);
+                Avalonia.Automation.AutomationProperties.GetName(opened.SecondAddress).Should().Contain("Second explicit");
+                Avalonia.Automation.AutomationProperties.GetLiveSetting(opened.Status)
+                    .Should().Be(Avalonia.Automation.AutomationLiveSetting.Polite);
+                var statusPeer = Avalonia.Automation.Peers.ControlAutomationPeer.CreatePeerForElement(opened.Status)!;
+                statusPeer.GetName().Should().Contain("Reviewed skill status and recovery").And.Contain(opened.Status.Text);
                 var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
                 async Task Click(string label)
                 {
                     buttons.Single(button => Equals(button.Content, label)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     await controller.ActiveOperation;
                 }
+                async Task RequireEnabled(Button button)
+                {
+                    if (button.IsEnabled) { return; }
+                    var enabled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    void Changed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+                    {
+                        if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled)
+                        { enabled.TrySetResult(); }
+                    }
+                    button.PropertyChanged += Changed;
+                    try
+                    {
+                        if (button.IsEnabled) { enabled.TrySetResult(); }
+                        await Task.WhenAny(enabled.Task, controller.ActiveOperation).WaitAsync(native.Token);
+                        enabled.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
+                    }
+                    finally { button.PropertyChanged -= Changed; }
+                }
                 await Click("Refresh existing Active conversations");
                 opened.Targets.SelectedIndex = 0;
+                const string body = "  original tool request e\u0301\r\n unchanged ";
+                opened.Request.Text = body;
+                opened.Address.Text = "https://example.com/";
+                if (twoSources) { opened.SecondAddress.Text = "https://second.example/"; }
                 await Click("Review exact target and tool revision");
                 adapter.Calls.Should().Be(0);
                 await Click("Enable exact reviewed revision");
                 opened.Status.Text.Should().Contain("authorization");
-                const string body = "  original tool request e\u0301\r\n unchanged ";
-                opened.Request.Text = body;
-                opened.Address.Text = "https://example.com/";
                 await Click("Review exact invocation");
                 opened.Confirm.IsEnabled.Should().BeTrue();
-                opened.Confirmation.Text.Should().Contain(body).And.Contain("ONE host WebPageGet call");
+                opened.Confirmation.Text.Should().Contain(body).And.Contain(twoSources ? "TWO host WebPageGet call" : "ONE host WebPageGet call");
+                if (twoSources) { opened.Confirmation.Text.Should().Contain("https://second.example/").And.Contain("3 model rounds"); }
+                if (twoSources && !deny)
+                {
+                    foreach (var changed in ToolSkillInputFields)
+                    {
+                        var selected = opened.Targets.SelectedItem;
+                        if (changed is "request") { opened.Request.Text = "changed comparison"; }
+                        if (changed is "first") { opened.Address.Text = "https://changed.example/"; }
+                        if (changed is "second") { opened.SecondAddress.Text = "https://changed.example/"; }
+                        if (changed is "target") { opened.Targets.SelectedItem = null; }
+                        opened.Confirm.IsEnabled.Should().BeFalse();
+                        opened.Confirmation.Text.Should().BeEmpty();
+                        opened.Request.Text = body;
+                        opened.Address.Text = "https://example.com/";
+                        opened.SecondAddress.Text = "https://second.example/";
+                        opened.Targets.SelectedItem = selected;
+                        await Click("Review exact target and tool revision");
+                        await Click("Enable exact reviewed revision");
+                        await Click("Review exact invocation");
+                        opened.Confirm.IsEnabled.Should().BeTrue(opened.Status.Text);
+                        network.Sends.Should().Be(0);
+                    }
+                }
                 opened.Confirm.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 if (available)
                 {
+                    for (var page = 0; page < (twoSources ? 2 : 1); page++)
+                    {
+                    if (stop && page == 1)
+                    {
+                        await secondEntered.Task.WaitAsync(native.Token);
+                        var running = controller.ActiveOperation;
+                        buttons.Single(button => Equals(button.Content, "Stop and close reviewed use"))
+                            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        running.IsCompleted.Should().BeFalse();
+                        bounded.IsQuiescent.Should().BeFalse();
+                        pendingSecond.SetResult(new(ModelTurnOutcome.Succeeded, transport.Requests[1].Provenance,
+                            ModelToolProtocol.ParseAssistant("""{"kind":"answer","answer":"late forbidden answer"}"""u8)));
+                        await running.WaitAsync(native.Token);
+                        bounded.IsQuiescent.Should().BeTrue();
+                        opened.IsVisible.Should().BeFalse();
+                        break;
+                    }
                     await Task.WhenAny(approvalOpened.Task, controller.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(60), native.Token);
                     approvalOpened.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
                     var approval = await approvalOpened.Task;
-                    approval.FindControl<TextBlock>("PromptLabel")!.Text.Should().Contain("https://example.com/");
+                    approvalOpened = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                    approval.FindControl<TextBlock>("PromptLabel")!.Text.Should().Contain(page == 0 ? "https://example.com/" : "https://second.example/");
                     approval.FindControl<TextBlock>("TargetLabel")!.Text.Should().Contain(f.Request.SessionId.Value.ToString("D"));
-                    if (deny) { approval.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                    if (deny && page == (twoSources ? 1 : 0)) { approval.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                     else
                     {
                         var review = approval.FindControl<Button>("ReviewQuestion")!;
+                        await RequireEnabled(review);
                         review.IsEnabled.Should().BeTrue(approval.FindControl<TextBlock>("QuestionStatus")!.Text);
                         var exactReview = approval.FindControl<TextBox>("ExactReview")!;
                         var reviewedOperation = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -137,13 +211,25 @@ public sealed partial class SessionsConversationTests
                         finally { exactReview.PropertyChanged -= Reviewed; }
                         approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>().Single().IsChecked = true;
                         var submit = approval.FindControl<Button>("SubmitAnswer")!;
+                        await RequireEnabled(submit);
                         submit.IsEnabled.Should().BeTrue();
                         submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
                     }
                 }
                 await controller.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(30), native.Token);
                 adapter.Calls.Should().Be(0);
                 var retained = await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token);
+                if (stop)
+                {
+                    var message = retained.Messages.Should().ContainSingle().Subject;
+                    message.AssistantResponse.Should().BeNull();
+                    message.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+                    network.Sends.Should().Be(1);
+                    transport.Requests.Should().HaveCount(2);
+                    opened.Confirmation.Text.Should().BeEmpty();
+                    return;
+                }
                 if (available)
                 {
                     opened.Status.Text.Should().Contain(deny ? "Denied" : "Succeeded");
@@ -151,13 +237,14 @@ public sealed partial class SessionsConversationTests
                     message.Request.SessionId.Should().Be(f.Request.SessionId);
                     message.Body.Should().Be(body);
                     message.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
-                    (message.AssistantResponse?.Body).Should().Be(deny ? null : "Genuine local summary of the approved public page.");
-                    transport.Requests.Should().HaveCount(deny ? 1 : 2);
+                    (message.AssistantResponse?.Body).Should().Be(deny ? null : twoSources
+                        ? "Genuine local comparison of both approved public pages." : "Genuine local summary of the approved public page.");
+                    transport.Requests.Should().HaveCount(twoSources ? deny ? 2 : 3 : deny ? 1 : 2);
                     transport.Requests[0].Context.Evidence[0].Content.Should().Be(reader.Text);
-                    network.Sends.Should().Be(deny ? 0 : 1);
+                    network.Sends.Should().Be(twoSources ? deny ? 1 : 2 : deny ? 0 : 1);
                     var grants = await f.Store.ReadGrantsAsync(f.Token);
-                    if (deny) { grants.Should().BeEmpty(); }
-                    else { grants.Should().ContainSingle().Which.Status.Should().Be(OperationGrantStatus.Consumed); }
+                    grants.Should().HaveCount(twoSources ? deny ? 1 : 2 : deny ? 0 : 1);
+                    grants.Should().OnlyContain(grant => grant.Status == OperationGrantStatus.Consumed);
                 }
                 else
                 {

@@ -17,7 +17,12 @@ public static partial class ModelToolProtocol
     {
         ValidateProvenance(provenance);
         using var document = ReadJson(wire, MaximumInputUtf8Bytes);
-        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("McpTool", out _))
+        if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("WebPages", out _))
+        {
+            RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "WebPages");
+            RequireFields(document.RootElement.GetProperty("WebPages"), "Destinations");
+        }
+        else if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("McpTool", out _))
         { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "McpTool"); }
         else if (document.RootElement.ValueKind == JsonValueKind.Object && document.RootElement.TryGetProperty("Constraints", out _))
         { RequireFields(document.RootElement, "SystemPolicy", "UserRequest", "Evidence", "ToolMode", "Tools", "MaximumOutputUtf8Bytes", "Constraints"); }
@@ -34,6 +39,7 @@ public static partial class ModelToolProtocol
         var tools = content.Constraints?.GetTools(content.ToolMode) ?? GetTools(content.ToolMode);
         if (content.SystemPolicy is null || content.UserRequest is null || content.Evidence is null
             || (content.ToolMode == ModelToolMode.McpReadOnly) != (content.McpTool is not null)
+            || content.WebPages is not null && content.ToolMode != ModelToolMode.LocalWebPage
             || content.Tools is null || content.MaximumOutputUtf8Bytes != MaximumOutputUtf8Bytes
             || content.Tools.Length != tools.Count
             || content.Tools.Where((descriptor, index) => descriptor is null
@@ -42,7 +48,7 @@ public static partial class ModelToolProtocol
         var evidence = ModelContextEnvelope.ValidateContent(provenance.Request, content.SystemPolicy,
             content.UserRequest, content.Evidence);
         return new(provenance, content.SystemPolicy, content.UserRequest, evidence, content.ToolMode,
-            ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool);
+            ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool, content.WebPages);
     }
 
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
@@ -57,5 +63,5 @@ public static partial class ModelToolProtocol
 
     private sealed record ContextContent(string SystemPolicy, string UserRequest, ModelContextEvidence[] Evidence,
         ModelToolMode ToolMode, CapabilityDescriptor[] Tools, int MaximumOutputUtf8Bytes,
-        ModelTurnConstraints? Constraints = null, Mcp.McpModelTool? McpTool = null);
+        ModelTurnConstraints? Constraints = null, Mcp.McpModelTool? McpTool = null, Network.LocalWebPageScope? WebPages = null);
 }

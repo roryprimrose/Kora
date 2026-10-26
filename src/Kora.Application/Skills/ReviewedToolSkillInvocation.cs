@@ -1,4 +1,5 @@
 using Kora.Core.Hosting;
+using Kora.Core.Network;
 using Kora.Core.Storage;
 
 namespace Kora.Application.Skills;
@@ -9,14 +10,15 @@ public sealed class ReviewedToolSkillInvocation : IDisposable
     private string body;
     private int consumed;
 
-    internal ReviewedToolSkillInvocation(ReviewedToolSkillReview review, string body, Uri destination)
-    { Review = review; this.body = body; Destination = destination; }
+    internal ReviewedToolSkillInvocation(ReviewedToolSkillReview review, string body, LocalWebPageScope scope)
+    { Review = review; this.body = body; Scope = scope; }
 
     internal ReviewedToolSkillReview Review { get; }
     public SessionWorkspaceEntry Target => Review.Target;
     public RequestOrigin Origin => Review.Origin;
     public string Body => body;
-    public Uri Destination { get; }
+    public LocalWebPageScope Scope { get; }
+    public Uri Destination => Scope.Destinations[0];
 
     internal string Consume()
     {

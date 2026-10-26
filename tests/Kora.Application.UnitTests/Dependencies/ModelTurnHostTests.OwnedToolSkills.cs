@@ -27,6 +27,30 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task OwnedToolScopeCannotExpandThroughSharedTwoSourceOverload(RequestOrigin origin)
+    {
+        using var f = new Fixture(origin);
+        await using var shared = new SharedSkillHarness(f);
+        var pipeline = shared.ToolWorkflow();
+        await using var owned = new OwnedSkillHarness(f, origin, conversation: shared.Conversation);
+        DeclareOwnedWebTool(owned);
+        using var source = await owned.Review();
+        using var review = await pipeline.ReviewOwnedAsync(owned.Workflow, source, new(f.Session, null),
+            owned.Authority, owned.Eligible, Token);
+        await pipeline.EnableAsync(review, owned.Eligible, origin, Token);
+        await pipeline.Invoking(flow => flow.PrepareAsync(review, "Compare both.", TwoSources, owned.Eligible, origin, Token))
+            .Should().ThrowAsync<InvalidOperationException>().WithMessage("An owned tool skill admits exactly one explicit page destination.");
+        review.IsCurrent.Should().BeFalse();
+        source.IsCurrent.Should().BeFalse();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        shared.Reader.Reads.Should().Be(0);
+        owned.Store.Writes.Should().Be(0);
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, false)]
     [InlineData(RequestOrigin.ActivatedVoice, true)]
     public async Task OwnedToolSourceUsesCommonReviewedConsumerWithoutSharedRegistrationOrReads(RequestOrigin origin, bool nearExpiry)

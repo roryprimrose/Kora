@@ -1938,7 +1938,7 @@ Unqualified local providers truthfully report unavailable, without installation,
 
 This is a separate operation from instruction-only use. It supports a registered, single-file declarative `SKILL.md` that declares only `allowed-tools: network.get_web_page`. Scripts, additional files, unresolved references and other tool declarations remain unavailable. Kora does not supply a new bundled page skill; choose and review your own compatible source explicitly ([host workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).
 
-In the shared-source inspector, select **Review selected one-tool use**. Refresh existing Active conversations, select exactly one target and choose **Review exact target and tool revision**. Separately enable that revision, enter the explicit page address and original request, then **Review exact invocation** and confirm. Loading instructions or enabling a revision is not permission to access the page.
+In the shared-source inspector, select **Review selected one-tool use**. Refresh existing Active conversations and select exactly one target. Enter the unchanged original request, the first explicit public page URL and optionally a distinct second URL. Choose **Review exact target and tool revision**, inspect the finite sources and budgets, separately enable that revision, then **Review exact invocation** and confirm. Loading instructions or enabling a revision is not page permission ([review controller](../src/Kora/SharedSkillInvocationController.ToolSkills.cs)).
 
 Typed input and current-name activated voice use the distinct `tool skill` commands:
 
@@ -1946,18 +1946,21 @@ Typed input and current-name activated voice use the distinct `tool skill` comma
 Kora, review tool skill <exact listed declarative skill name>
 Kora, tool skill targets
 Kora, tool skill target <exact displayed Active conversation ID>
+Kora, tool skill address https://example.com/
+Kora, tool skill second address https://example.net/
+Kora, tool skill request <unchanged original prose>
 Kora, tool skill review tool revision
 Kora, tool skill enable
-Kora, tool skill address https://example.com/
-Kora, tool skill request <unchanged original prose>
 Kora, tool skill review invocation
 Kora, tool skill confirm invocation
 Kora, tool skill close
 ```
 
-Use **tool skill next targets** for the next metadata page. Native confirmation and activated-voice commands preserve the reviewed original input channel; changing channel or target requires fresh review. Registration and source discovery remain native-only ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs)).
+Omit the second-address command for existing one-source use; **tool skill clear second address** removes it. Use **tool skill next targets** for the next metadata page. Typed/current-name activated voice share the exact route; changing input, either URL, target or channel requires fresh review and enablement. Registration and source discovery remain native-only ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [input revocation](../src/Kora/SharedSkillInvocationController.cs)).
 
-The host admits at most one call to the existing WebPageGet action, with its own exact-destination, once-only approval. Review the page operation and approve or cancel it separately in the native approval window; a skill or model cannot approve it. The bounded local model loop can then use that untrusted page observation to produce a genuine retained answer in the original conversation.
+The host admits one call per explicit destination, at most two calls and three serial model rounds. Each call needs its own current exact-destination once-only approval. Review and approve or cancel each page operation separately in the native approval window; a skill or model cannot approve it. Both actual inert page observations are required before a two-source comparison can succeed in the original conversation ([finite scope](../src/Kora.Core/Network/LocalWebPageScope.cs), [canonical action reuse](../src/Kora.Application/Network/LocalWebPageWorkflow.cs)).
+
+The preview shows inclusive cumulative input/output UTF-8 byte limits, the per-page inert result limit and the 15-second turn deadline. There are no extra destinations, third calls or hidden retries. Missing/failed sources produce no comparison answer; expired or revoked terminal authority can leave the exact retained request unconfirmed for inspection. **Stop and close reviewed use** cancels and joins actual owned work; cancellation requested is not immediate resource completion ([retained consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs), [lifecycle](../src/Kora/SharedSkillInvocationController.cs)).
 
 The exact source/revision/digest, original channel, target and enablement must stay current. The review expires after two minutes and is single-use; privacy, ownership, source or target changes revoke it. The existing model byte limits and 15-second turn deadline apply. No script, MCP, agent or hosted disclosure is admitted. An unqualified local model remains explicitly unavailable; no automatic fallback or replay is attempted ([retention boundary](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs)).
 

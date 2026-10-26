@@ -11,6 +11,9 @@ public sealed class SharedSkillInvocationCommandTests
     [InlineData("tool skill enable", "Enable")]
     [InlineData("tool skill confirm invocation", "Invoke")]
     [InlineData("tool skill address https://example.com/", "Address")]
+    [InlineData("tool skill second address https://second.example/", "SecondAddress")]
+    [InlineData("Kora, tool skill second address https://second.example/", "SecondAddress")]
+    [InlineData("tool skill clear second address", "SecondAddress")]
     public void ToolCapableCommandsAreExplicitlyDistinct(string input, string action)
     {
         var command = SharedSkillInvocationCommand.Parse(input, "Kora")!;

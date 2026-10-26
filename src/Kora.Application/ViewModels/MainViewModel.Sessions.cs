@@ -159,6 +159,7 @@ public sealed partial class MainViewModel
                 ShowInformation("Review conversation request.",
                     "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Active conversation")
                     + "\nProvider: " + review.Provider + "\nOriginal channel: " + review.Origin
+                    + "\nClaude observation scope: " + (review.ClaudeTools.IsEmpty ? "none (tool-free)" : string.Join(", ", review.ClaudeTools))
                     + "\n\nComplete original message:\n" + review.Body
                     + "\n\nConfirm separately with: session request confirm\nOr discard with: session request cancel"
                     + "\nThis request review expires after 60 seconds. Each hosted POST still needs separate private native disclosure consent.");

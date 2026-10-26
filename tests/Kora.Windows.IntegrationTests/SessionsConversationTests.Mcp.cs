@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Controls;
@@ -62,14 +60,14 @@ public sealed partial class SessionsConversationTests
                 Path.Combine(f.Paths.RoamingRoot, "test-profile"));
             var server = configuration.Load().Single();
             preferences.Value = new([], [], [], [], [], [server.Id]);
-            var broker = new NativeMcpBroker();
+            using var broker = new McpTransportFixture();
             var sourceRevision = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file)));
             var policy = new McpReadOnlyPolicy([new(broker.Account.Destination, broker.Account,
                 sourceRevision, "search", new McpToolSchema(NativeMcpSchema).Digest)]);
             await using var transport = new NativeMcpModel();
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var composed = new Composition(f, adapter: adapter, mcpConfiguration: configuration,
-                mcpBroker: broker, mcpEffects: policy);
+                mcpBroker: broker.Broker, mcpEffects: policy);
             using var native = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             native.BindGate(static () => true);
             native.BindAdmissionRevision(static () => 1);
@@ -175,38 +173,6 @@ public sealed partial class SessionsConversationTests
         internal ArtifactDirectorySettings Value { get; set; } = ArtifactDirectorySettings.Empty;
         public ArtifactDirectorySettings Load() => Value;
         public void Save(ArtifactDirectorySettings settings) => Value = settings;
-    }
-
-    private sealed class NativeMcpBroker : IMcpConnectionBroker, IMcpConnection
-    {
-        public McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        public McpEndpoint Endpoint => Account.Destination;
-        public IReadOnlyList<IPAddress> RemoteAddresses => [IPAddress.Parse("8.8.8.8")];
-        internal bool Disposed { get; private set; }
-        internal bool Connected { get; private set; }
-        internal List<string> Methods { get; } = [];
-        internal int Calls { get; private set; }
-        public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<McpAccountChoice>>([new(Account, "Native delegated test account")]);
-        public Task<IMcpConnection> ConnectAsync(McpAccountReference account, CancellationToken token)
-        { account.Should().Be(Account); Connected = true; return Task.FromResult<IMcpConnection>(this); }
-        public Task<bool> IsCurrentAsync(CancellationToken token) => Task.FromResult(true);
-        public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) => Task.CompletedTask;
-        public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(request.AsMemory());
-            var method = document.RootElement.GetProperty("method").GetString();
-            Methods.Add(method!);
-            if (method is "tools/call") { Calls++; }
-            var json = method switch
-            {
-                "initialize" => """{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"fake","version":"1"}}}""",
-                "tools/list" => "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":" + NativeMcpSchema + "}]}}",
-                _ => """{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"reference 42"}]}}""",
-            };
-            return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(json)));
-        }
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
     }
 
     private sealed class NativeMcpModel : IModelToolTransport

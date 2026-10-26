@@ -62,7 +62,7 @@ internal sealed partial class MemoryAdmissionService
                     if (storage is not null)
                     {
                         // A vanished durable row is not an inspectable cached-body fallback.
-                        foreach (var id in records.Values.Where(row => row.Scope == MemoryScope.Session(boundary!.Session)
+                        foreach (var id in records.Values.Where(row => MatchesObservationScope(row, boundary!)
                             && !volatileIdentities.Contains(row.Id) && !rows.Any(saved => saved.Id == row.Id))
                             .Select(row => row.Id).ToArray())
                         {
@@ -71,7 +71,7 @@ internal sealed partial class MemoryAdmissionService
                     }
                     foreach (var row in rows)
                     {
-                        if (row.Scope.Kind != MemoryScopeKind.Session || row.Scope.Identity != boundary!.Session.Value)
+                        if (!MatchesObservationScope(row, boundary!))
                         {
                             throw new InvalidDataException("Memory storage returned a foreign scope.");
                         }
@@ -80,17 +80,16 @@ internal sealed partial class MemoryAdmissionService
                             records[row.Id] = row;
                         }
                     }
-                    snapshot = [.. records.Values.Where(row => row.Scope.Kind == MemoryScopeKind.Session
-                        && row.Scope.Identity == boundary!.Session.Value
+                    snapshot = [.. records.Values.Where(row => MatchesObservationScope(row, boundary!)
                         && (row.Retention == MemoryRetentionState.Forgotten
-                            || MemoryPolicy.CheckLineage(row, boundary) == MemoryReason.None))
+                            || MemoryPolicy.CheckManagementLineage(row, boundary!) == MemoryReason.None))
                         .OrderBy(row => row.Id.Value)];
                     observed = true;
                 }
             }
             if (storage is not null)
             {
-                var result = await storage.TransactMemoryAsync(issuer.Request, boundary!, rows =>
+                var result = await TransactAsync(issuer.Request, boundary!, rows =>
                 {
                     Observe(rows);
                     return new(new(MemoryOutcome.Succeeded, MemoryReason.None), null, null);
@@ -99,6 +98,7 @@ internal sealed partial class MemoryAdmissionService
                 {
                     throw new InvalidOperationException("The authoritative memory observation was not confirmed.");
                 }
+
             }
             else { Observe([]); }
             lock (stateGate)
@@ -121,4 +121,8 @@ internal sealed partial class MemoryAdmissionService
             throw;
         }
     }
+
+    private bool MatchesObservationScope(MemoryRecord row, MemoryBoundary boundary) =>
+        row.Scope == (scopeKind == MemoryScopeKind.DeviceProfile
+            ? MemoryScope.DeviceProfile(boundary.Profile) : MemoryScope.Session(boundary.Session));
 }

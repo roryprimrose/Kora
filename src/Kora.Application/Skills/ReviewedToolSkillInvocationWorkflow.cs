@@ -109,15 +109,24 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
     public async Task<ReviewedToolSkillInvocation> PrepareAsync(ReviewedToolSkillReview review, string originalRequest, Uri destination,
         Func<bool> eligible, RequestOrigin origin, CancellationToken token)
     {
+        try { return await PrepareAsync(review, originalRequest, new LocalWebPageScope([destination]), eligible, origin, token).ConfigureAwait(false); }
+        catch { review.Dispose(); throw; }
+    }
+
+    public async Task<ReviewedToolSkillInvocation> PrepareAsync(ReviewedToolSkillReview review, string originalRequest, LocalWebPageScope scope,
+        Func<bool> eligible, RequestOrigin origin, CancellationToken token)
+    {
         try
         {
             if (!review.IsEnabled) { throw new InvalidOperationException("Review and separately enable this exact tool-capable revision first."); }
             ConversationText.Validate(originalRequest, submission: true);
-            _ = WebPageAccessBinding.DestinationDigest(destination);
+            ArgumentNullException.ThrowIfNull(scope);
             await ValidateAsync(review, eligible, origin, token).ConfigureAwait(false);
+            if (review.Require(this, origin) is OwnedToolSkillSource && scope.MaximumCalls != 1)
+            { throw new InvalidOperationException("An owned tool skill admits exactly one explicit page destination."); }
             _ = CreateContext(review, new(new(Guid.NewGuid()), review.Target.Authority.SessionId, new(Guid.NewGuid()), origin),
-                originalRequest, destination, time.GetUtcNow());
-            return new(review, originalRequest, destination);
+                originalRequest, scope, time.GetUtcNow());
+            return new(review, originalRequest, scope);
         }
         catch { review.Dispose(); throw; }
     }
@@ -147,7 +156,7 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
                 try
                 {
                     var receipt = await conversation.SubmitReviewedToolSkillAsync(review.Target, body,
-                        (request, now) => CreateContext(review, request, body, invocation.Destination, now), invocation.Destination,
+                        (request, now) => CreateContext(review, request, body, invocation.Scope, now), invocation.Scope,
                         presenter, Current, Validate, [review.Cause], currentOrigin, token).ConfigureAwait(false);
                     audit.Write(entry.WithOutcome(receipt.Message.Outcome == ModelTurnOutcome.Succeeded
                         ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Failed, "retained-terminal"));
@@ -205,15 +214,15 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         { throw new InvalidOperationException("Private original-input tool skill admission is unavailable."); }
     }
 
-    private ModelContextEnvelope CreateContext(ReviewedToolSkillReview review, HostRequest request, string body, Uri destination, DateTimeOffset now)
+    private ModelContextEnvelope CreateContext(ReviewedToolSkillReview review, HostRequest request, string body, LocalWebPageScope scope, DateTimeOffset now)
     {
         var snapshot = review.Require(this, request.Origin);
         var context = new ModelContextEnvelope(request, Policy, body,
             [new(new(Guid.NewGuid()), request, new(1), snapshot.Text, ModelEvidenceDisclosure.LocalOnly),
                 new(new(Guid.NewGuid()), request, new(1),
-                    System.Text.Json.JsonSerializer.Serialize(new { Destination = destination.AbsoluteUri }), ModelEvidenceDisclosure.LocalOnly)],
+                    System.Text.Json.JsonSerializer.Serialize(new { Destinations = scope.Destinations.Select(item => item.AbsoluteUri) }), ModelEvidenceDisclosure.LocalOnly)],
             now, review.ExpiresAt < now.Add(ModelToolProtocol.Deadline) ? review.ExpiresAt : now.Add(ModelToolProtocol.Deadline),
-            ModelToolMode.LocalWebPage);
+            ModelToolMode.LocalWebPage, webPages: scope);
         context.RequireCompleteInputLimit();
         return context;
     }

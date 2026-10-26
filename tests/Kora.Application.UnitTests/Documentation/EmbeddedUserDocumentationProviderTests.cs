@@ -239,6 +239,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "hosted-requests",
             "independent-agent-runs",
             "external-browser",
+            "diagrams",
             "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>

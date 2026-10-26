@@ -245,6 +245,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "diagrams",
             "session-routing",
             "model-session-discovery",
+            "model-memory-proposals",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

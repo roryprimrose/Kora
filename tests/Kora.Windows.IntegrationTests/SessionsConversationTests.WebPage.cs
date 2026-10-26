@@ -103,13 +103,16 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public void Native_local_page_wire_declares_only_real_page_tool_and_strict_address_parameter()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Native_local_page_wire_declares_only_real_page_tool_and_strict_address_parameter(bool twoSources)
     {
         var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), HostRequest.Create(RequestOrigin.LocalUi),
             ModelProviderSelection.OllamaCandidate);
         var envelope = new ModelContextEnvelope(provenance.Request, "local page policy", "get web page https://example.com/",
-            [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15), ModelToolMode.LocalWebPage);
+            [], DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddSeconds(15), ModelToolMode.LocalWebPage,
+            webPages: twoSources ? new([new("https://example.com/"), new("https://second.example/")]) : null);
         var context = ModelToolProtocol.ReadContext(envelope.Serialize(), provenance);
         var request = ModelToolProtocol.CreateRequest(provenance, null, context, [], 1);
         using var wire = JsonDocument.Parse(OllamaToolWire.WriteRequest(request, "fake-model", []));
@@ -119,17 +122,40 @@ public sealed partial class SessionsConversationTests
         parameters.GetProperty("additionalProperties").GetBoolean().Should().BeFalse();
         parameters.GetProperty("required")[0].GetString().Should().Be("address");
         parameters.GetProperty("properties").EnumerateObject().Should().ContainSingle().Which.Name.Should().Be("address");
+        if (twoSources)
+        {
+            var messages = wire.RootElement.GetProperty("messages");
+            messages[1].GetProperty("role").GetString().Should().Be("system");
+            using var scope = JsonDocument.Parse(messages[1].GetProperty("content").GetString()!);
+            scope.RootElement.GetProperty("MaximumCalls").GetInt32().Should().Be(2);
+            scope.RootElement.GetProperty("MaximumRounds").GetInt32().Should().Be(3);
+            scope.RootElement.GetProperty("HostWebPageScope").GetProperty("Destinations").GetArrayLength().Should().Be(2);
+            scope.RootElement.GetProperty("RemainingByteBudget").GetProperty("InputUtf8Bytes").GetInt32()
+                .Should().Be(ModelToolProtocol.MaximumInputUtf8Bytes);
+        }
     }
 
     private sealed class PageModelTransport : IModelToolTransport
     {
+        internal bool TwoSources { get; init; }
+        internal Task<ModelToolTransportReply>? PendingSecond { get; init; }
+        internal TaskCompletionSource? SecondEntered { get; init; }
         internal List<ModelToolRequest> Requests { get; } = [];
         public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
             request.Context.ToolMode.Should().Be(ModelToolMode.LocalWebPage);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
             Requests.Add(request);
-            var message = ModelToolProtocol.ParseAssistant(Requests.Count == 1
+            if (Requests.Count == 2 && PendingSecond is { } pending)
+            {
+                SecondEntered?.TrySetResult();
+                return pending;
+            }
+            var message = ModelToolProtocol.ParseAssistant(TwoSources && Requests.Count == 2
+                ? """{"kind":"toolCalls","calls":[{"callId":"page_2","capabilityId":"network.get_web_page","input":{"address":"https://second.example/"}}]}"""u8
+                : TwoSources && Requests.Count == 3
+                ? """{"kind":"answer","answer":"Genuine local comparison of both approved public pages."}"""u8
+                : Requests.Count == 1
                 ? """{"kind":"toolCalls","calls":[{"callId":"page_1","capabilityId":"network.get_web_page","input":{"address":"https://example.com/"}}]}"""u8
                 : """{"kind":"answer","answer":"Genuine local summary of the approved public page."}"""u8);
             return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,

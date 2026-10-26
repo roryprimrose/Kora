@@ -61,6 +61,8 @@ dependency and does not authorize a blanket owner-only command policy.
 
 ## Completed product realignment
 
+The bounded R08 [provisional local answer increment](Information_Display.md#bounded-provisional-local-answers) adds explicit local tool-free incremental presentation to the ordinary conversation owner, with exact-turn publication, independent cancellation/resource join and final-only ASSISTANT retention. Existing tool/clarification/hosted paths stay buffered; local enablement and broader R08 qualification remain separate ([deterministic host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [native transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
+
 - Product-admission rules are merged in [#419](https://github.com/roryprimrose/Kora/pull/419); native calculator/clock/clipboard-analysis utilities are removed in [#420](https://github.com/roryprimrose/Kora/pull/420).
 - Memory-only unsent input and read-only legacy recovery replace draft documents in [#421](https://github.com/roryprimrose/Kora/pull/421). Read separation, composer chrome and shutdown protection follow in [#424](https://github.com/roryprimrose/Kora/pull/424), [#425](https://github.com/roryprimrose/Kora/pull/425) and [#426](https://github.com/roryprimrose/Kora/pull/426).
 - Engineering-only normal browsing predicates and public diagnostic scheduling are retired in [#422](https://github.com/roryprimrose/Kora/pull/422); historical link correction is [#423](https://github.com/roryprimrose/Kora/pull/423). Internal scheduler/domain/audit/schema compatibility, safe existing-work controls and Evidence/grant diagnostics remain.

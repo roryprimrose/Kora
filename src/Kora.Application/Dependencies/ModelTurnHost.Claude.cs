@@ -12,8 +12,7 @@ public sealed partial class ModelTurnHost
         var issuer = HostActivity.Current;
         if (hostedReviews is null || providerProfileConfiguration is null || sessionProfiles is null || issuer is null
             || issuer.Activity!.IsStopped || issuer.Outcome != HostOperationOutcome.Unknown
-            || !ReferenceEquals(issuer.Request, context.Request) || context.ToolMode != ModelToolMode.None
-            || !context.Evidence.IsEmpty)
+            || !ReferenceEquals(issuer.Request, context.Request) || !ClaudeObservationTools.Supports(context))
         { return new(Finish(ModelTurnOutcome.DeniedEgress, ModelTurnReason.EgressNotAdmitted)); }
         var control = access.ControlRevision;
         bool Live() => Eligible(control) && !issuer.Activity!.IsStopped && issuer.Outcome == HostOperationOutcome.Unknown;

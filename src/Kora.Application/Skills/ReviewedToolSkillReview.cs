@@ -13,17 +13,16 @@ public sealed class ReviewedToolSkillReview : IDisposable
     private readonly Func<bool> current;
     private readonly TimeProvider time;
     private readonly DateTimeOffset created;
-    private SharedSkillSnapshot? snapshot;
+    private ReviewedToolSkillSource? source;
     private bool enabled;
     private bool consumed;
 
-    internal ReviewedToolSkillReview(ReviewedToolSkillInvocationWorkflow owner, SharedSkillSource source,
-        SharedSkillSnapshot snapshot, SessionWorkspaceEntry target, RequestOrigin origin,
+    internal ReviewedToolSkillReview(ReviewedToolSkillInvocationWorkflow owner, ReviewedToolSkillSource source,
+        SessionWorkspaceEntry target, RequestOrigin origin,
         Func<bool> current, TimeProvider time, ActivityLink cause)
     {
         this.owner = owner;
-        Source = source;
-        this.snapshot = snapshot;
+        this.source = source;
         Target = target;
         Origin = origin;
         this.current = current;
@@ -33,20 +32,22 @@ public sealed class ReviewedToolSkillReview : IDisposable
         Cause = cause;
     }
 
-    internal SharedSkillSource Source { get; }
     internal ActivityLink Cause { get; }
     public SessionWorkspaceEntry Target { get; }
     public RequestOrigin Origin { get; }
     public DateTimeOffset ExpiresAt { get; }
-    public string Text { get { lock (gate) { return IsCurrent ? snapshot!.Text! : string.Empty; } } }
+    public string Text { get { lock (gate) { return IsCurrent ? source!.Text : string.Empty; } } }
+    public string SourceDescription { get { lock (gate) { return IsCurrent
+        ? source is OwnedToolSkillSource ? "Kora-owned private package" : "Registered shared skill"
+        : string.Empty; } } }
     public bool IsCurrent
     {
         get
         {
             lock (gate)
             {
-                if (snapshot is null) { return false; }
-                if (!current() || time.GetUtcNow() < created || time.GetUtcNow() >= ExpiresAt)
+                if (source is null) { return false; }
+                if (!current() || !source.IsCurrent || time.GetUtcNow() < created || time.GetUtcNow() >= ExpiresAt)
                 { Dispose(); return false; }
                 return true;
             }
@@ -54,13 +55,13 @@ public sealed class ReviewedToolSkillReview : IDisposable
     }
     public bool IsEnabled { get { lock (gate) { return IsCurrent && enabled && !consumed; } } }
 
-    internal SharedSkillSnapshot Require(ReviewedToolSkillInvocationWorkflow expected, RequestOrigin origin)
+    internal ReviewedToolSkillSource Require(ReviewedToolSkillInvocationWorkflow expected, RequestOrigin origin)
     {
         lock (gate)
         {
             if (!ReferenceEquals(owner, expected) || origin != Origin || !IsCurrent)
             { throw new InvalidOperationException("The exact source, target and original-channel review is no longer admitted."); }
-            return snapshot!;
+            return source!;
         }
     }
 
@@ -87,6 +88,6 @@ public sealed class ReviewedToolSkillReview : IDisposable
 
     public void Dispose()
     {
-        lock (gate) { snapshot = null; enabled = false; }
+        lock (gate) { source?.Dispose(); source = null; enabled = false; }
     }
 }

@@ -698,6 +698,25 @@ receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
 
+## Optional communications activity observations
+
+Optional source observation is a separate device-local setting, not manual call state:
+
+```text
+list call observation settings
+get calls.activity-source
+status calls.activity-source
+set calls.activity-source to WindowsCommunicationsAudio
+set calls.activity-source to None
+reset calls.activity-source
+```
+
+The current activation prefix is optional for exact typed commands.
+These use the same [source control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs) as Settings > Calls.
+The production Windows profile is **unqualified/unavailable**: enable is denied without a write or native subscription, not a working detector claim.
+Protected original voice mutations remain denied; passive status is visual and never opens capture.
+See [source availability and limitations](settings.md#optional-communications-audio-observations).
+
 ## Exact current-run manual call control
 
 Native **Settings > Calls** and typed/already **activated** voice share:
@@ -919,6 +938,15 @@ The complete native preview displays the exact ID, label, generation, metadata r
 Nothing is removed by the command. **Confirm logical disposition** remains a separate deliberate native action with a fresh native request. `confirm session disposition ...` explains this boundary and never confirms; `session delete` and model deletion tools remain unavailable ([native-only one-shot confirmation](../src/Kora.Application/Hosting/SessionWorkspaceService.Disposition.cs)).
 
 Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Review navigation preserves unsent input; the command never saves, submits or discards it ([native launch](../src/Kora/SessionsWindowController.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
+
+For the combined running-work operation, original typed input can open `review session stop-and-delete <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>` for the already selected exact conversation.
+It uses **Review stop and delete**, followed by the separate **Confirm stop and delete** native action; the command itself stops nothing.
+Voice-origin compound deletion is denied before cancellation, including a later native click; independent explicit Stop remains separate ([grammar](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [native route](../src/Kora/SessionsViewModel.StopAndDelete.cs)).
+
+The compound review shows the readable target, exact unsent/pending input and retained-data impact.
+Confirmation closes new conversation dispatch only for that target, requests its exact cancellation, joins actual owned resources, and revalidates before the existing audited logical disposition. Decline changes nothing.
+Expiry, source/control/buffer changes or cancellation prevent delayed deletion; an accepted stop is not rolled back. **Work stopped; not deleted** requires a fresh review.
+Unknown deletion commit/readback requires receipt inspection without replay ([operation owner](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [existing transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
 
 ### Bounded exact-ID session commands
 
@@ -1899,6 +1927,8 @@ This is not a harmlessness or complete dependency-inventory certification
 ([inspection contract](../src/Kora.Core/Skills/SharedSkillSnapshot.cs)).
 
 ### Reviewed instruction-only shared skill invocation
+
+Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
 
 For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
 Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.

@@ -401,6 +401,8 @@ Per-session context/runtime/grant/event isolation, shared/exclusive canonical re
 Unknown resource effects cannot claim safe concurrency; require an enforced exclusive domain or reject unsupported execution.
 UI selection, foreground voice prompt, TTS playback, and execution-slot ownership are independent.
 
+The [ordinary retained consumer](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs) consumes the [host runtime/resource issuer and allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) before execution intent, revalidates the exact grant at commit/dispatch/continuation boundaries and uses per-request physical joins. [Current implementation versus unavailable capacity-two enablement](Work_Management.md#ordinary-session-resource-allocation-implementation) distinguishes this path from the existing special-agent lanes; no hosted runtime is cloned to simulate independence.
+
 An adapter must prove that execution and management requests can make progress independently, using separate sessions or runtime instances where needed.
 Do not share mutable SDK conversation state between lanes.
 A provider that serialises all inference behind a long-running execution call does not satisfy this contract without a separately schedulable management implementation.

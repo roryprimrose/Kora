@@ -8,7 +8,7 @@ using Kora.Core.Interaction;
 namespace Kora.Application.UnitTests.Interaction;
 
 [Collection("Host tracing")]
-public sealed class HostQuestionVoiceReplyServiceTests
+public sealed partial class HostQuestionVoiceReplyServiceTests
 {
     [Theory]
     [InlineData("incoming")]

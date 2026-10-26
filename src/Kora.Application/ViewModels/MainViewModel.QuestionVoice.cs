@@ -25,7 +25,8 @@ public sealed partial class MainViewModel
         }
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
-            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases);
+            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases,
+            () => conversationalReplies?.Get());
         PropertyChanged += OnQuestionVoiceReadinessChanged;
         dictationQuestions = questions;
         questions.ReplyTargetChanging += OnComposerQuestionChanging;

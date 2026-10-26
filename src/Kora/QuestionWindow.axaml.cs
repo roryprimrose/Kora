@@ -108,6 +108,7 @@ public sealed partial class QuestionWindow : Window
                 return;
             }
             await RunInteractionAsync(state.RefreshTargetAsync);
+            await state.TryConversationalReplyAsync();
         };
         expiry.Tick += OnExpiry;
         Opened += (_, _) =>

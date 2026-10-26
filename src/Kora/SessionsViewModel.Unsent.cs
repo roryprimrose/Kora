@@ -13,14 +13,15 @@ internal sealed partial class SessionsViewModel
     private long unsentRevision;
     internal bool HasUnsentMessages => ComposerDirty || unsent.Values.Any(value => value.Body.Length != 0);
 
-    private sealed record UnsentMessage(WorkSessionAuthorization Authority, long Control, string Body, bool Held, bool SourceHeld);
+    private sealed record UnsentMessage(WorkSessionAuthorization Authority, long Control, string Body, bool Held, bool SourceHeld,
+        bool ReplyRequired);
 
     private void RememberUnsent()
     {
         if (closed || !access.CanInspect || selected is not { } target || composerSession != target.Authority.SessionId
             || composerControl != access.ControlRevision) { return; }
         conversationSourceHeld |= composerAuthority != target.Authority;
-        var value = new UnsentMessage(target.Authority, access.ControlRevision, composerBody, conversationHeld, conversationSourceHeld);
+        var value = new UnsentMessage(target.Authority, access.ControlRevision, composerBody, conversationHeld, conversationSourceHeld, assistantReply);
         if (!unsent.TryGetValue(target.Authority.SessionId, out var previous) || previous != value)
         {
             unsent[target.Authority.SessionId] = value;
@@ -59,6 +60,7 @@ internal sealed partial class SessionsViewModel
             return;
         }
         composerBody = value.Body;
+        assistantReply = value.ReplyRequired;
         conversationHeld = value.Held;
         conversationSourceHeld = value.SourceHeld || value.Authority != target.Authority;
         if (conversationHeld || conversationSourceHeld)

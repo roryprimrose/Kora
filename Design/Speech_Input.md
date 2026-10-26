@@ -66,6 +66,9 @@ In particular, token timestamps are not proof of an exact exclusive wake end.
 
 ### Approved development direction and remaining admission evidence
 
+The [opt-in conversational reply increment](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies) reuses the existing local question recognizer only after successful exact foreground question playback.
+Its saved default-off preference does not select or qualify a speech profile, enable ambient wake or grant microphone consent. Explicit native question voice controls remain independent ([host routing](../src/Kora.Application/ViewModels/MainViewModel.QuestionVoice.cs)).
+
 On 2026-10-24 the product owner approved local CPU sherpa-onnx keyword spotting,
 initially English configured names, a narrow Windows native adapter, Silero VAD,
 existing activated-only Windows ASR and conservative no-barge-in playback

@@ -41,8 +41,8 @@ through the existing LocalOnly, tools-none conversation route; the package
 cannot authorize itself. Complete source identity/byte revalidation and the
 32768-byte serialized input limit fail closed, without truncation or provider
 fallback. See [the complete user operation](../docs/owned-skill-authoring.md#review-and-invoke-one-saved-revision).
-This does not deliver generated authoring, general YAML, profile editing,
-tools, references, scripts, hooks or agent execution.
+The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) selects only the existing host WebPageGet binding, saves disabled and separately reviews/enables one exact owned source, Active target, original request/channel and explicit URL. It uses the same [reviewed tool consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) as shared one-tool use, with owned-store admission/freshness rather than shared-root consent.
+Neither version delivers generated authoring, general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.

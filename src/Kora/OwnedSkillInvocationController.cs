@@ -3,17 +3,22 @@ using Kora.Application.Skills;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
 using Kora.Core.Diagnostics;
+using Kora.Core.Skills;
+using Kora.Core.Interaction;
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
 internal sealed partial class OwnedSkillInvocationController(
     MainViewModel main, OwnedSkillInvocationWorkflow workflow, Func<bool> ownsHost,
-    Func<long> ownershipRevision, ILogger<OwnedSkillInvocationController> logger) : IAsyncDisposable
+    Func<long> ownershipRevision, ILogger<OwnedSkillInvocationController> logger,
+    ReviewedToolSkillInvocationWorkflow? toolWorkflow = null, QuestionWindowController? questions = null) : IAsyncDisposable
 {
     private OwnedSkillInvocationWindow? window;
     private OwnedSkillUseReview? review;
     private OwnedSkillInvocation? invocation;
+    private ReviewedToolSkillReview? toolReview;
+    private ReviewedToolSkillInvocation? toolInvocation;
     private OwnedSkillAuthoringAuthority? original;
     private OwnedSkillAuthoringAuthority? requestAuthority;
     private CancellationTokenSource? lifetime;
@@ -68,7 +73,7 @@ internal sealed partial class OwnedSkillInvocationController(
                     () => Eligible() && sourceEligible(), lifetime.Token);
                 if (!Eligible() || !sourceEligible()) { captured.Dispose(); return; }
                 review = captured;
-                var opened = new OwnedSkillInvocationWindow(action => Start(action));
+                var opened = new OwnedSkillInvocationWindow(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);
                 window = opened;
                 opened.Instructions.Text = captured.Text;
                 opened.Request.PropertyChanged += (_, args) =>
@@ -76,7 +81,9 @@ internal sealed partial class OwnedSkillInvocationController(
                     if (args.Property == Avalonia.Controls.TextBox.TextProperty)
                     { RetireConfirmation(); requestAuthority = new(RequestOrigin.LocalUi, Eligible); }
                 };
-                opened.Targets.SelectionChanged += (_, _) => RetireConfirmation();
+                opened.Address.PropertyChanged += (_, args) =>
+                { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); } };
+                opened.Targets.SelectionChanged += (_, _) => { RetireConfirmation(); toolReview?.Dispose(); toolReview = null; };
                 opened.Closed += (_, _) => Retire();
                 opened.Show();
                 if (!Eligible()) { Retire(); return; }
@@ -92,7 +99,13 @@ internal sealed partial class OwnedSkillInvocationController(
             switch (command.Operation)
             {
                 case "enable":
-                    await workflow.EnableAsync(currentReview, authority, Current, token);
+                    if (currentReview.Tool == OwnedSkillToolSelection.WebPageGet)
+                    {
+                        await RequireToolWorkflow().EnableAsync(toolReview
+                            ?? throw new InvalidOperationException("Select a target and review the exact tool revision first."),
+                            Current, authority.Origin, token);
+                    }
+                    else { await workflow.EnableAsync(currentReview, authority, Current, token); }
                     if (Current()) { currentWindow.Status.Text = "Exact revision enabled once, until " + currentReview.ExpiresAt.ToLocalTime() + ". Select an Active target and enter the original request."; }
                     break;
                 case "targets":
@@ -117,6 +130,21 @@ internal sealed partial class OwnedSkillInvocationController(
                     currentWindow.Request.Text = command.Literal;
                     requestAuthority = authority;
                     break;
+                case "url":
+                    currentWindow.Address.Text = command.Literal;
+                    break;
+                case "review-tool":
+                    RetireConfirmation(false);
+                    if (toolReview is not null)
+                    { throw new InvalidOperationException("This target/tool revision was already reviewed. Start a fresh exact source review instead of renewing it."); }
+                    if (currentReview.Tool != OwnedSkillToolSelection.WebPageGet)
+                    { throw new InvalidOperationException("The instruction-only revision does not declare a host tool."); }
+                    var toolTarget = (currentWindow.Targets.SelectedItem as OwnedSkillConversationTarget)?.Entry
+                        ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
+                    toolReview = await RequireToolWorkflow().ReviewOwnedAsync(workflow, currentReview, toolTarget,
+                        authority, Current, token);
+                    currentWindow.Status.Text = "Kora-owned source, exact target and original channel reviewed. Separately Enable; web access still needs per-action approval.";
+                    break;
                 case "review-use":
                     RetireConfirmation(false);
                     var target = (currentWindow.Targets.SelectedItem as OwnedSkillConversationTarget)?.Entry
@@ -127,6 +155,23 @@ internal sealed partial class OwnedSkillInvocationController(
                     using (var request = HostActivity.BeginRoot(HostRequest.Create(inputAuthority.Origin),
                         HostActivityLayer.Desktop, HostOperation.Request))
                     {
+                        if (currentReview.Tool == OwnedSkillToolSelection.WebPageGet)
+                        {
+                            var reviewedTool = toolReview ?? throw new InvalidOperationException("Review and enable the exact tool revision first.");
+                            if (!Uri.TryCreate(currentWindow.Address.Text, UriKind.Absolute, out var destination))
+                            { throw new InvalidOperationException("Enter one explicit absolute public HTTP or HTTPS URL."); }
+                            toolInvocation = await RequireToolWorkflow().PrepareAsync(reviewedTool,
+                                currentWindow.Request.Text ?? "", destination, Exact, inputAuthority.Origin, token);
+                            currentWindow.Confirmation.Text = $"{reviewedTool.SourceDescription}\n{reviewedTool.Text}\n"
+                                + $"TARGET {target.Authority.SessionId.Value:D}\nORIGIN {reviewedTool.Origin}\nLocalOnly; at most ONE host WebPageGet call; "
+                                + $"two model rounds; existing host byte limits and 15-second deadline.\nURL {destination.AbsoluteUri}\n"
+                                + $"Separate per-action approval required.\nORIGINAL REQUEST\n{toolInvocation.Body}";
+                            request.Complete(HostOperationOutcome.Completed);
+                            if (!Exact()) { RetireConfirmation(); return; }
+                            currentWindow.Confirm.IsEnabled = true;
+                            currentWindow.Status.Text = "Review the exact owned source, target, request and URL, then separately confirm.";
+                            break;
+                        }
                         invocation = await workflow.PrepareAsync(currentReview, target, currentWindow.Request.Text ?? "",
                             inputAuthority, Exact, token);
                         request.Complete(HostOperationOutcome.Completed);
@@ -137,11 +182,27 @@ internal sealed partial class OwnedSkillInvocationController(
                     currentWindow.Status.Text = "Review all serialized input, then separately confirm one invocation.";
                     break;
                 case "invoke":
-                    var prepared = invocation ?? throw new InvalidOperationException("Preview the exact invocation before confirming.");
+                    var prepared = invocation;
+                    var preparedTool = toolInvocation;
+                    if (preparedTool is not null && authority.Origin != preparedTool.Origin)
+                    { throw new InvalidOperationException("Confirmation must preserve the exact reviewed original input channel."); }
                     invocation = null;
+                    toolInvocation = null;
                     currentWindow.Confirm.IsEnabled = false;
                     var revision = inputRevision;
-                    var receipt = await workflow.InvokeAsync(prepared, authority, () => Current() && inputRevision == revision, token);
+                    bool ExactInvocation() => Current() && authority.IsCurrent() && inputRevision == revision;
+                    var receipt = preparedTool is not null
+                        ? await RequireToolWorkflow().InvokeAsync(preparedTool, ExactInvocation,
+                            async (proposal, generation, address, admitted, approvalToken) =>
+                            {
+                                if (questions is null) { throw new InvalidOperationException("Native per-action page approval is unavailable."); }
+                                var spec = new QuestionSpec("Exact page approval", QuestionKind.SingleChoice, [new("once", "Approve once")]);
+                                var presentation = await questions.AskConversationAsync(currentWindow, proposal.Request, generation,
+                                    spec, proposal.ExpiresAt, admitted, approvalToken, proposal, address);
+                                return new(presentation.Presented, presentation.Completed);
+                            }, token)
+                        : await workflow.InvokeAsync(prepared ?? throw new InvalidOperationException("Preview the exact invocation before confirming."),
+                            authority, ExactInvocation, token);
                     if (Eligible() && ReferenceEquals(window, currentWindow))
                     {
                         currentWindow.Confirmation.Text = string.Empty;
@@ -156,6 +217,9 @@ internal sealed partial class OwnedSkillInvocationController(
         {
             UseFailed(logger, exception.GetType().Name);
             review?.Dispose();
+            toolReview?.Dispose();
+            toolInvocation?.Dispose();
+            toolInvocation = null;
             invocation?.Dispose();
             invocation = null;
             if (window is { } opened)
@@ -180,9 +244,11 @@ internal sealed partial class OwnedSkillInvocationController(
     private void RetireConfirmation(bool edited = true)
     {
         Interlocked.Increment(ref inputRevision);
-        if (edited && invocation is not null) { review?.Dispose(); }
+        if (edited && (invocation is not null || toolInvocation is not null)) { review?.Dispose(); toolReview?.Dispose(); }
         invocation?.Dispose();
         invocation = null;
+        toolInvocation?.Dispose();
+        toolInvocation = null;
         if (window is { } opened) { opened.Confirmation.Text = string.Empty; opened.Confirm.IsEnabled = false; }
     }
 
@@ -196,11 +262,18 @@ internal sealed partial class OwnedSkillInvocationController(
         lifetime?.Cancel();
         review?.Dispose();
         review = null;
+        toolReview?.Dispose();
+        toolReview = null;
+        toolInvocation?.Dispose();
+        toolInvocation = null;
         invocation?.Dispose();
         invocation = null;
         opened?.Clear();
         opened?.Close();
     }
+
+    private ReviewedToolSkillInvocationWorkflow RequireToolWorkflow() => toolWorkflow
+        ?? throw new InvalidOperationException("The reviewed host tool skill pipeline is unavailable.");
 
     internal async Task CloseAndWait()
     {

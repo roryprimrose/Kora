@@ -46,7 +46,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private static SessionRequestReviewPanel? RequestPanel(Window surface) => surface is ResponseWindow response
         ? response.SessionView.FindControl<SessionRequestReviewPanel>("OriginalRequestReview")
-        : surface.FindControl<SessionRequestReviewPanel>("OriginalRequestReview");
+        : surface.FindNameScope()?.Find<SessionRequestReviewPanel>("OriginalRequestReview");
 
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {

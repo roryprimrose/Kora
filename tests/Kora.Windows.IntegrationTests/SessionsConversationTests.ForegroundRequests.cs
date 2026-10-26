@@ -31,6 +31,48 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ForegroundOwnerAttachesAndRetiresAnAuxiliarySurfaceWithoutARequestPanel(bool namedScope)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new OriginalRequestAdapter();
+            await using var composed = new Composition(f, adapter: adapter);
+            var model = composed.Model;
+            var owner = new SessionsPresentationOwner(model);
+            var window = new Window { DataContext = model, Content = new SessionInteractionView { DataContext = model } };
+            if (namedScope) { NameScope.SetNameScope(window, new NameScope()); }
+            try
+            {
+                owner.Attach(window);
+                window.Show();
+                await ActivateOriginalRequestWindow(window);
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                owner.HasUniqueForegroundWindow.Should().BeTrue();
+                var target = owner.CaptureForegroundConversationTarget();
+                target.Should().NotBeNull();
+                target!.IsCurrent.Should().BeTrue();
+                (await owner.PrepareShutdown()).Should().BeTrue();
+                window.Hide();
+                target.IsCurrent.Should().BeFalse();
+                owner.CaptureForegroundConversationTarget().Should().BeNull();
+                owner.HasUniqueForegroundWindow.Should().BeFalse();
+                adapter.Calls.Should().Be(0);
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+                composed.Turns.IsQuiescent.Should().BeTrue();
+            }
+            finally { owner.Revoke(); }
+        });
+    }
+
+    [Theory]
     [InlineData(false, false, false)]
     [InlineData(true, false, false)]
     [InlineData(false, true, false)]

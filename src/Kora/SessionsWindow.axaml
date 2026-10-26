@@ -167,6 +167,7 @@
             </WrapPanel>
           </StackPanel>
         </Expander>
+        <local:ModelMemoryProposalPanel />
         <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
         <WrapPanel>

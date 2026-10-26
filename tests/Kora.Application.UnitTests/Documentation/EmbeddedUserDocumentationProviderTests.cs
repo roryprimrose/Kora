@@ -239,6 +239,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "independent-agent-runs",
             "external-browser",
             "model-session-discovery",
+            "model-memory-proposals",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

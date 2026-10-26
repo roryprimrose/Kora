@@ -619,11 +619,15 @@ public sealed partial class ModelTurnHostTests : IDisposable
             return new SessionWorkspaceEntry(Session, Metadata);
         }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
-            ValueTask.FromResult(Task);
+            ValueTask.FromResult(TrackPendingRecords
+                ? PendingRecords.Values.Where(item => item.Task.Request.TaskId == task)
+                    .Select(item => new HostTaskObservation(item.Task, item.Message.Generation, "host", true, null)).SingleOrDefault()
+                : Task);
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
-            HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request);
+            if (TrackPendingRecords) { PendingRecords.Values.Select(item => item.Message.Request).Should().Contain(HostActivity.RequireCurrent().Request); }
+            else { HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request); }
             Audits.Add(auditEvent);
             OnAudit?.Invoke(auditEvent);
         }

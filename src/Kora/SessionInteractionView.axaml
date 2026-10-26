@@ -186,6 +186,7 @@
       <StackPanel Grid.Row="5" Spacing="4">
       <TextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact conversation running, stopping or terminal outcome" />
+      <local:PendingConversationPanel />
       <TextBlock
           Text="General voice relatedness matching is not available yet. This composer explicitly targets the selected conversation. Questions and approvals retain their original controls."
           TextWrapping="Wrap" Classes="muted" FontSize="11" />

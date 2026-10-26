@@ -103,6 +103,7 @@
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
+      <local:PendingConversationPanel />
       <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
         <TextBlock Text="Provisional local answer — not retained" TextWrapping="Wrap" />

@@ -109,7 +109,7 @@ public sealed partial class RuntimeResourceAllocatorTests
     }
 
     [Fact]
-    public async Task WaitingCancellationNeverDispatchesAndSameSessionCannotEnterTwice()
+    public async Task WaitingCancellationNeverDispatchesAndPendingSameSessionTurnCannotEnterAllocator()
     {
         var source = new RuntimeSource();
         await using var f = new AgentRunSetTests.Fixture(runtimeCapacity: source, registrationSource: source);
@@ -118,8 +118,13 @@ public sealed partial class RuntimeResourceAllocatorTests
         await source.Started(0, f);
         var two = f.Conversation.SubmitAsync(f.Sessions[1], "two", () => true, Token);
         await source.Started(1, f);
-        await f.Conversation.Invoking(service => service.SubmitAsync(f.Sessions[0], "duplicate", () => true, Token))
-            .Should().ThrowAsync<InvalidOperationException>();
+        var pending = await f.Conversation.SubmitAsync(f.Sessions[0], "next ordinary request", () => true, Token);
+        pending.Task.State.Should().Be(HostTaskState.IntentRecorded);
+        var snapshot = await f.Conversation.ReadPendingConversationAsync(f.Sessions[0], () => true, Token);
+        var queued = snapshot.Turns.Single(item => item.Submission == pending);
+        queued.Position.Should().Be(1);
+        (await f.Conversation.CancelPendingConversationAsync(f.Sessions[0], queued, snapshot.Revision, () => true, Token))
+            .Task.State.Should().Be(HostTaskState.Cancelled);
         var three = f.Conversation.SubmitAsync(f.Sessions[2], "three", () => true, Token);
         var observed = (await f.Conversation.ReadRunningConversationAsync(f.Sessions[2], () => true, Token))!;
         await f.Conversation.CancelRunningConversationAsync(observed.Target, () => true, Token);

@@ -156,8 +156,10 @@ internal sealed partial class SessionsViewModel
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
 
-    public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitConversationCoreAsync(allowQuestion: false);
-    public Task SubmitLocalAnswerAsync() => SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true);
+    public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitOrdinaryConversationAsync(localAnswer: false);
+    public Task SubmitLocalAnswerAsync() => assistantReply
+        ? SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true)
+        : SubmitOrdinaryConversationAsync(localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,

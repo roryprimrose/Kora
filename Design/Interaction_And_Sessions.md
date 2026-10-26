@@ -24,6 +24,18 @@ Ordinary tool-capable Send, clarification and hosted requests retain their exist
 
 ## Conversation Input Realignment
 
+Ordinary Send and the exact typed/activated-voice request-confirm route share
+the [submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns).
+A busy existing Active conversation can accept an immutable pending request
+without waiting for its previous provider turn. Sessions/compact show the
+actual submitted request and position and let the user cancel exactly that
+pending request. Only confirmed success and physical resource closure permit
+automatic next dispatch; held work needs deliberate resume and unchanged
+original authority. Questions, approvals, specialized source workflows and
+unqualified providers retain their existing unavailable/review fences.
+Acceptance is not execution success, action approval, renewed source consent or
+foreground voice targeting. Unsent input remains memory-only and separate.
+
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.

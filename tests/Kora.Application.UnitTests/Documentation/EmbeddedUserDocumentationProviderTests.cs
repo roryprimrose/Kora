@@ -250,17 +250,21 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-instructions",
             "agent-profile-authoring",
             "claude-requests",
+            "conversation-notices",
             "owned-skill-authoring",
             "session-dictation",
             "hosted-requests",
             "folder-answers",
             "independent-agent-runs",
+            "knowledge-sources",
             "code-highlighting",
             "external-browser",
+            "markdown-strikethrough",
             "diagrams",
             "setting-proposals",
             "session-routing",
             "model-session-discovery",
+            "model-memory-proposals",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

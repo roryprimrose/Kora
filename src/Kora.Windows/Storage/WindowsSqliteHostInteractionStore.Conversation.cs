@@ -419,7 +419,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 && task.State == message.ExpectedTaskState
                 && task.Revision.Value == message.Revision
                 && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null
-                && ConversationQuestionsPermitObservation(connection, task, message, session), null);
+                && ConversationQuestionsPermitObservation(connection, task, message, session), null)
+        { ConversationNotice = ObserveConversationNotice(connection, task, message, session) };
     }
 
     private static void RemoveConversation(SqliteConnection connection, SqliteTransaction transaction, HostId<SessionIdentity> session) =>

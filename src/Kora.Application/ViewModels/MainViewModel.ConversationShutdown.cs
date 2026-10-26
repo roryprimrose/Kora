@@ -18,6 +18,7 @@ public sealed partial class MainViewModel
     {
         try
         {
+            await JoinKnowledgeSourcesAsync();
             if (!await claudeShutdown())
             {
                 ShowFailure("Exit or restart was not confirmed.", "Claude setup or request resources have not joined. No exit or restart was performed.");

@@ -15,6 +15,9 @@
         <Button Name="ReviewRegisteredSettingSuggestion" Content="Review setting suggestion..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewRegisteredSettingSuggestion}"
             AutomationProperties.Name="Review this exact inert answer as one registered shared setting proposal; nothing is applied without separate original-user confirmation" />
+        <Button Name="ReviewModelMemoryProposal" Content="Review session-memory proposal..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewModelMemoryProposal}"
+            AutomationProperties.Name="Explicitly inspect this exact answer as one inert session-only memory proposal; separate acceptance and admission, never automatic learning" />
       </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />

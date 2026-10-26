@@ -23,6 +23,11 @@ readiness are available:
    identifies the selected conversation and session.
 3. Hold **Hold to dictate** with the pointer, or focus it and hold Space or Enter.
    A normal button click/automation Invoke is not a capture gesture.
+   With supported hypothesis observation, the read-only **Provisional—may change**
+   area shows private, replace-only feedback while this exact capture is held.
+   It is not inserted, sent or spoken automatically; it offers no copy/export
+   control. Final-only capture remains usable without simulated feedback
+   ([native surface](../src/Kora/SessionDictation/SessionDictationWindow.cs)).
 4. Release the pointer/key. Kora must confirm actual microphone release before
    exposing a review or inserting any literal text.
 5. For nonempty input, inspect the complete original message and literal
@@ -47,3 +52,22 @@ allowing another capture. An unconfirmed release stays unavailable, with an
 explicit recovery status rather than a successful fallback.
 Closing Kora does not introduce disk autosave or change existing unsent-discard and legacy
 read-only recovery behavior.
+
+## Private provisional feedback
+
+The optional feedback uses complete snapshots, at most 512 UTF-16 characters
+and 1,024 strict UTF-8 bytes. Invalid Unicode, unsupported control content or
+an oversized snapshot clears and retires feedback with a visible status; it is
+never repaired, truncated or assembled from split Unicode fragments. At most
+one pending UI update replaces the previous snapshot
+([snapshot limits](../src/Kora.Core/Voice/ProvisionalTranscriptSnapshot.cs),
+[feedback owner](../src/Kora.Application/Voice/ComposerDictationService.Provisional.cs)).
+
+Release, completion, cancellation, expiry and existing source/private capture
+retirement clear feedback and fence late callbacks. Hypotheses do not update
+the unsent message, renew session history/activity or enter diagnostics, audit,
+models, tools, commands, questions or approvals. Accessibility exposes a stable
+provisional label, not a changing private-text announcement; the final review
+remains accessible. This does not enable production literal capture or qualify
+a speech profile ([lifecycle](../src/Kora.Application/Voice/ComposerDictationService.cs),
+[native accessibility](../src/Kora/SessionDictation/ProvisionalDictationText.cs)).

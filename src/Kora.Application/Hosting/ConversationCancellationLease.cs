@@ -12,7 +12,8 @@ internal sealed class ConversationCancellationLease(
 {
     private readonly Lock gate = new();
     private readonly CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(caller);
-    private ConversationExecutionPhase phase = ConversationExecutionPhase.Running;
+    private ConversationExecutionPhase phase = ConversationExecutionPhase.Waiting;
+    private ConversationCancellationTarget currentTarget = target;
     private ModelTurnOutcome? outcome;
     private HostTaskState? taskState;
     private bool accepted;
@@ -20,14 +21,14 @@ internal sealed class ConversationCancellationLease(
     private readonly TaskCompletionSource<ConversationExecutionStatus> physicalCompletion =
         new(TaskCreationOptions.RunContinuationsAsynchronously);
 
-    internal ConversationCancellationTarget Target => target;
+    internal ConversationCancellationTarget Target { get { lock (gate) { return currentTarget; } } }
     internal ActivityLink Link => link;
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "Observes this host-owned lease's asynchronously signalled physical completion, never UI-affine work.")]
     internal Task<ConversationExecutionStatus> JoinPhysicalCompletionAsync() => physicalCompletion.Task;
     internal void ReleasePhysicalCompletion(bool confirmed)
     {
-        physicalCompletion.TrySetResult(confirmed ? Status : new(target, ConversationExecutionPhase.Unconfirmed));
+        physicalCompletion.TrySetResult(confirmed ? Status : new(Target, ConversationExecutionPhase.Unconfirmed));
     }
     internal async Task WaitForPhysicalResourcesAsync(Func<Task> join)
     {
@@ -41,14 +42,23 @@ internal sealed class ConversationCancellationLease(
     internal CancellationToken Token => cancellation.Token;
     internal bool CancellationAccepted { get { lock (gate) { return accepted; } } }
     internal bool CanContinue { get { lock (gate) { return !accepted && admitted(); } } }
-    internal ConversationExecutionStatus Status { get { lock (gate) { return new(target, phase, outcome, taskState); } } }
+    internal ConversationExecutionStatus Status { get { lock (gate) { return new(currentTarget, phase, outcome, taskState); } } }
+
+    internal void Dispatched(HostRevision revision)
+    {
+        lock (gate)
+        {
+            currentTarget = currentTarget with { TaskRevision = revision };
+            if (!accepted) { phase = ConversationExecutionPhase.Running; }
+        }
+    }
 
     internal Task RequestCancellationAsync(Action recordAcceptance)
     {
         lock (gate)
         {
             if (accepted) { return Task.CompletedTask; }
-            if (phase != ConversationExecutionPhase.Running || !admitted())
+            if (phase is not (ConversationExecutionPhase.Running or ConversationExecutionPhase.Waiting) || !admitted())
             { throw new InvalidOperationException("The exact turn no longer accepts cancellation; terminal storage may already own the outcome."); }
             // Required audit precedes the authority change. A failed audit cannot claim acceptance.
             recordAcceptance();

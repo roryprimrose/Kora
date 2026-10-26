@@ -1184,8 +1184,20 @@ public sealed partial class ActivatedVoiceRecognitionTests(
         }
     }
 
-    internal sealed class FakeCapture : IActivatedCapture
+    internal sealed class FakeCapture : IActivatedCapture, IActivatedHypothesisSource
     {
+        public event EventHandler<ActivatedHypothesisEventArgs>? Hypothesized;
+        public void Hypothesis(string text, long sequence = 1, object? sender = null)
+        {
+#pragma warning disable MA0091 // Deliberately inject foreign native senders.
+            Hypothesized?.Invoke(sender ?? this, new(text, sequence));
+#pragma warning restore MA0091
+        }
+        public Action QueueHypothesis(string text, long sequence)
+        {
+            var callback = Hypothesized;
+            return () => callback?.Invoke(this, new(text, sequence));
+        }
         public event ActivatedAudioAvailable? DataAvailable;
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;

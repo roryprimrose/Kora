@@ -1,4 +1,5 @@
 using System.Text.Json;
+
 using Kora.Application.Configuration;
 using Kora.Application.Tools;
 using Kora.Core.Auditing;
@@ -7,6 +8,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Dependencies;
@@ -28,6 +30,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private readonly ISessionProviderProfileStore? sessionProfiles;
     private readonly IModelProviderRegistrationSource? registrationSource;
     private readonly HostedTransmissionReviewService? hostedReviews;
+    private readonly RuntimeResourceAllocator resources;
     private static readonly TimeSpan Deadline = ModelToolProtocol.Deadline;
     private readonly Lock dispatchGate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -41,7 +44,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             lock (dispatchGate)
             {
-                return (quiescence is null || quiescence.Task.IsCompleted)
+                return resources.IsIdle && (quiescence is null || quiescence.Task.IsCompleted)
                     && registrations.All(item => item.Adapter?.IsQuiescent != false);
             }
         }
@@ -55,14 +58,16 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         [
             new(ModelProviderSelection.OllamaCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
             new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, DateTimeOffset.MinValue, null),
-        ], providerModeConfiguration, providerProfileConfiguration, sessionProfiles) { }
+        ], providerModeConfiguration, providerProfileConfiguration, sessionProfiles)
+    { }
 
     internal ModelTurnHost(ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
         ICapabilityHostAccess host, ReadOnlyCapabilityRegistry tools, ISecurityAuditLog audit,
         ILogger<ModelTurnHost> logger, TimeProvider time, ModelProviderRegistration[] registrations,
         ProviderModeConfigurationService? providerModeConfiguration = null, ProviderProfileConfigurationService? providerProfileConfiguration = null,
         ISessionProviderProfileStore? sessionProfiles = null, IModelProviderRegistrationSource? registrationSource = null,
-        HostedTransmissionReviewService? hostedReviews = null)
+        HostedTransmissionReviewService? hostedReviews = null,
+        IRuntimeCapacityQualification? runtimeCapacity = null)
     {
         this.workspace = workspace;
         this.access = access;
@@ -77,6 +82,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         this.sessionProfiles = sessionProfiles;
         this.registrationSource = registrationSource;
         this.hostedReviews = hostedReviews;
+        resources = new(owner, time, audit, runtimeCapacity);
     }
 
     public Task<ModelTurnAdmission> AdmitAsync(ModelProviderSelection selection,
@@ -220,7 +226,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var deadline = new CancellationTokenSource(turn.Context.Constraints is { } constraints
             ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds)
             : turn.Registration.Adapter is CopilotModelTurnAdapter or ClaudeModelTurnAdapter ? HostedTurnAuthorization.MaximumDuration : Deadline, time);
-        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token);
+        using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token,
+            turn.ResourceLease?.Evidence?.Revoked ?? CancellationToken.None);
         ModelTurnResult result;
         try
         {
@@ -391,6 +398,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.ResourceLease is { } resource && !resources.IsCurrent(resource))
+        { return ModelTurnReason.QualificationPending; }
         if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
@@ -484,22 +493,22 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task ObserveLateAsync(Task<ModelProviderReply> pending, DispatchLease released,
         Func<HostActivity> continuation, ModelTurnProvenance provenance)
     {
+        using var activity = continuation();
+        var outcome = HostOperationOutcome.Cancelled;
         try
         {
             await pending.ConfigureAwait(false);
-            using var activity = continuation();
             LateResponse(logger, provenance.Turn.Value);
-            activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception)
         {
             if (released.Lane is not null)
             { lock (dispatchGate) { lateFailures.Add(exception); } }
-            using var activity = continuation();
             Fault(logger, exception.GetType().Name);
-            activity.Complete(HostOperationOutcome.Unknown);
+            outcome = HostOperationOutcome.Unknown;
         }
         finally { ReleaseDispatch(released); }
+        activity.Complete(outcome);
     }
 
     public ValueTask DisposeAsync()
@@ -517,6 +526,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         Task outstanding;
         lock (dispatchGate) { outstanding = quiescence?.Task ?? Task.CompletedTask; }
         await outstanding.ConfigureAwait(false);
+        await resources.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false);
         lock (dispatchGate) { failures.AddRange(lateFailures); }
         if (!IsQuiescent)
         { failures.Add(new InvalidOperationException("The model runtime has not confirmed resource quiescence.")); }

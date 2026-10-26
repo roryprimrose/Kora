@@ -1,5 +1,19 @@
 # Review a request destination
 
+## Deliberately ask the foreground conversation
+
+Use `ask this conversation <original body>` while one visible, eligible Active conversation presenter is foreground. For voice, prefix it with your current assistant name, such as `Nova, ask this conversation ...`. This is an explicit original request, not automatic relatedness or a selection routing lock ([grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs)).
+
+Review the readable conversation name, complete unchanged body, original channel, local-only provider and expiry in **Review original request**. Then choose **Confirm original request once**, or type/say `session request confirm` separately. **Cancel original request** or `session request cancel` discards the memory-only review. It expires after 60 seconds ([review service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+Confirmation retains the original USER message in that exact session and consumes the canonical local conversation host. Only its genuine successful answer is retained as ASSISTANT; an unavailable local provider produces a truthful HOST outcome, never Copilot/Claude fallback. Native confirmation of a voice request preserves its original voice channel ([canonical submission](../src/Kora.Application/Hosting/SessionConversationService.cs)).
+
+The body starts after the single space following `ask this conversation`. Subsequent case, spaces, Unicode and line breaks are unchanged within existing text/credential bounds. Words such as `shutdown` in this body are user content, not another static command. No earlier history, memory or instruction source is authorized, and neither this session's unsent buffer nor another session's input is submitted or overwritten ([request regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
+
+Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. Changing focus, selection, target metadata, session generation, control, privacy or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
+
+## Untargeted requests
+
 An ordinary untargeted local request, typed globally or activated with the current
 assistant name, opens **Review request destination**. The same operation applies
 with the main conversation collapsed or expanded.

@@ -88,6 +88,7 @@
         <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
             AutomationProperties.Name="Session navigation outcome or failure" />
         <local:SessionPermissionControls />
+        <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
       </StackPanel>
       <TabControl Grid.Row="2" x:Name="ConversationTabs">
         <TabItem x:Name="ConversationTab" Header="Conversation">

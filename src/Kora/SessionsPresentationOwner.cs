@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Kora.Application.ViewModels;
 using Kora.Core.Conversation;
 
 namespace Kora;
@@ -22,6 +23,12 @@ internal sealed partial class SessionsPresentationOwner
     {
         try
         {
+            foreach (var panel in surfaces.Select(RequestPanel).OfType<SessionRequestReviewPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join this owner's exact native request operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
             if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
             return await model.ConfirmUnsentDiscardAsync(all: true);
         }
@@ -32,9 +39,12 @@ internal sealed partial class SessionsPresentationOwner
         }
     }
 
-    internal SessionsPresentationOwner(SessionsViewModel model)
+    internal SessionsPresentationOwner(SessionsViewModel model, MainViewModel? requestCommands = null)
     {
         this.model = model;
+        this.requestCommands = requestCommands;
+        model.PropertyChanged += OnForegroundModelChanged;
+        if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted += OnForegroundRequestSubmitted; }
 #pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.
         conversationDetailClick = OpenConversationDetail;
 #pragma warning restore MA0147
@@ -47,6 +57,7 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { throw new InvalidOperationException("The selected-session presentation was closed."); }
         surfaces.Add(surface);
+        ObserveForegroundSurface(surface);
         surface.Activated += Activated;
         surface.Closing += Closing;
         surface.Closed += Closed;
@@ -137,6 +148,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnModelMemoryProposal);
+        ForgetForegroundSurface(surface);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }
@@ -150,6 +162,9 @@ internal sealed partial class SessionsPresentationOwner
         refresh.Stop();
         refresh.Tick -= Refresh;
         model.DecideComposerDraft = null;
+        model.PropertyChanged -= OnForegroundModelChanged;
+        if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted -= OnForegroundRequestSubmitted; }
+        RetireForegroundTarget();
         active = null;
     }
 

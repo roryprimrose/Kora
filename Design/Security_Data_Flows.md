@@ -27,6 +27,8 @@ Queries and one exact match are volatile presentation only: no persistence, logg
 
 ## Exact-session conversation retention boundary
 
+An explicit `ask this conversation <original body>` request uses the [existing native presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), not provider/input identifiers or cached selection. Its [one-use source-bound review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) preserves original voice/UI lineage and validates exact target/currentness through retention and model consumption. It confers no earlier-history, memory or instruction-source permission and never rewrites unsent input.
+
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
 stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
 The 100-message session bound is not an aggregate storage quota. Nothing silently evicts unexpired content or required audit ([unsent input](../src/Kora/SessionsViewModel.Unsent.cs), [read-only recovery](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).

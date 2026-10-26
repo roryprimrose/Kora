@@ -68,6 +68,8 @@ bodies, start listening, dispatch work, resume Done or change question/approval 
 
 ### Routing is independent of window mode
 
+The explicit `ask this conversation <original body>` command binds only the unique current foreground Active presenter, with readable exact native review and a separate one-use confirmation. The [shared presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) supplies this host snapshot; current selection is not permission for other utterances. The [complete operation](Interaction_And_Sessions.md#explicit-original-request-to-the-foreground-conversation) preserves independent unsent buffers and default routing.
+
 The approved [relatedness contract](Interaction_And_Sessions.md#proposed-relatedness-routing)
 applies in both modes. Selection supplies conversational context, not a routing lock.
 Explicit session composers/dictation and named targets win. Untargeted general voice

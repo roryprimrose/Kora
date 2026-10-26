@@ -237,6 +237,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "owned-skill-authoring",
             "session-dictation",
             "hosted-requests",
+            "folder-answers",
             "independent-agent-runs",
             "code-highlighting",
             "external-browser",

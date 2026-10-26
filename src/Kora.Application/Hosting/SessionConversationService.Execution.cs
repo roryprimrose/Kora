@@ -102,7 +102,11 @@ public sealed partial class SessionConversationService
         finally
         {
             // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
-            if (running.CancellationAccepted) { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            if (running.CancellationAccepted)
+            {
+                await running.WaitForPhysicalResourcesAsync(
+                    () => executor.WaitForQuiescenceAsync(CancellationToken.None)).ConfigureAwait(false);
+            }
             ReleaseRunningConversation(running, confirmed);
         }
     }

@@ -8,6 +8,8 @@ namespace Kora.Core.Commands;
 /// <summary>Exact preview-only grammar; no command can confirm disposition.</summary>
 public sealed record SessionDispositionReviewCommand(Guid SessionId, long Generation, long MetadataRevision, string? Error = null)
 {
+    public bool StopRunningWork { get; init; }
+    public const string StopAndDeleteSyntax = "review session stop-and-delete <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>";
     public const string Syntax = "review session disposition <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>";
     public const string Boundary = "Preview only in the private native Sessions window. Nothing is removed. "
         + "Confirm logical disposition requires a separate deliberate native action; typed/voice confirmation is unavailable.";
@@ -25,7 +27,8 @@ public sealed record SessionDispositionReviewCommand(Guid SessionId, long Genera
         if (head.Length < 2 || !(head[0].Equals("review", StringComparison.OrdinalIgnoreCase)
                 || head[0].Equals("confirm", StringComparison.OrdinalIgnoreCase))
             || !head[1].Equals("session", StringComparison.OrdinalIgnoreCase)
-            || head.Length > 2 && !head[2].Equals("disposition", StringComparison.OrdinalIgnoreCase))
+            || head.Length > 2 && !head[2].Equals("disposition", StringComparison.OrdinalIgnoreCase)
+                && !head[2].Equals("stop-and-delete", StringComparison.OrdinalIgnoreCase))
         { return null; }
 
         static SessionDispositionReviewCommand Invalid() => new(Guid.Empty, 0, 0, Syntax + ". " + Boundary);
@@ -38,6 +41,7 @@ public sealed record SessionDispositionReviewCommand(Guid SessionId, long Genera
             || !long.TryParse(words[4], NumberStyles.None, CultureInfo.InvariantCulture, out var generation) || generation < 1
             || !long.TryParse(words[5], NumberStyles.None, CultureInfo.InvariantCulture, out var revision) || revision < 0)
         { return Invalid(); }
-        return new(id, generation, revision);
+        return new(id, generation, revision)
+        { StopRunningWork = head[2].Equals("stop-and-delete", StringComparison.OrdinalIgnoreCase) };
     }
 }

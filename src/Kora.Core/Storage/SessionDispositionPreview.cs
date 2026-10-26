@@ -4,6 +4,7 @@ public sealed record SessionDispositionPreview(
     Guid ConfirmationId, SessionWorkspaceEntry Session, string StoreRevision,
     long Questions, long ScopedGrants, long Observations, long Waits)
 {
+    public SessionStoppedWorkReview? StoppedWork { get; init; }
     public long Attachments { get; init; }
     public long ProviderProfiles { get; init; }
     public long ConversationMessages { get; init; }

@@ -79,6 +79,7 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        communicationActivity?.Refresh();
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
@@ -305,6 +306,7 @@ public sealed partial class MainViewModel
             speechPreparation.Request(null);
         }
         questionVoiceReplies?.CloseAdmission();
+        if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;
@@ -328,6 +330,11 @@ public sealed partial class MainViewModel
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
         communicationPolicy.Changed -= OnCommunicationPolicyChanged;
         communicationPolicy.Dispose();
+        if (communicationActivity is not null)
+        {
+            communicationActivity.Changed -= OnCommunicationActivityChanged;
+            communicationActivity.BindHost(static () => false);
+        }
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;

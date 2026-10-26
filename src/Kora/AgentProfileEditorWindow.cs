@@ -24,7 +24,8 @@ internal sealed class AgentProfileEditorWindow : Window
         var panel = new StackPanel { Margin = new(20), Spacing = 10 };
         panel.Children.Add(new TextBlock
         {
-            Text = "Author a new inert local text profile. No references, tools, execution or selection. "
+            Text = "Author a new inert local text profile: tool-free v1, or v4 declaring exact owned instruction IDs and existing observation tools. "
+                + "Saving never resolves, enables or invokes references or grants tool authority. "
                 + "Only new files under the private owned-agent directory; existing originals reopen read-only.",
             TextWrapping = TextWrapping.Wrap,
         });
@@ -35,7 +36,7 @@ internal sealed class AgentProfileEditorWindow : Window
         panel.Children.Add(NameInput);
         Add("Create new volatile draft", "Create");
         panel.Children.Add(Source);
-        Add("Validate complete v1 source", "Validate");
+        Add("Validate complete v1 or v4 source", "Validate");
         Add("Review Save as new", "Review");
         panel.Children.Add(Review);
         panel.Children.Add(Confirm);
@@ -58,8 +59,10 @@ internal sealed class AgentProfileEditorWindow : Window
     {
         var profile = review.Document.Profile;
         Review.Text = $"NEW ORIGINAL: {review.Destination.DisplayPath}\n"
-            + "CREATE ONLY; NO REPLACEMENT. Local text -> text; references none; tools none; zero calls.\n"
-            + $"Host clamps: rounds {profile.MaximumRounds}, input {profile.MaximumInputUtf8Bytes} bytes, "
+            + "CREATE ONLY; NO REPLACEMENT. Local text -> text; references are unresolved declarations, not enabled guidance.\n"
+            + $"Declared references: {review.Document.Document.Metadata["references"]}\n"
+            + $"Declared tools: {review.Document.Document.Metadata["tools"]}\n"
+            + $"Host clamps: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, input {profile.MaximumInputUtf8Bytes} bytes, "
             + $"output {profile.MaximumOutputUtf8Bytes} bytes, deadline {profile.Deadline.TotalMilliseconds}ms.\n"
             + $"Complete proposed UTF-8 source ({review.Document.Document.ByteCount} bytes, no BOM):\n\n"
             + review.Document.Document.Text

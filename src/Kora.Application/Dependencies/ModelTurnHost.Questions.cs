@@ -37,7 +37,8 @@ public sealed partial class ModelTurnHost
                 (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
                 continuationToken => RevalidateContinuationAsync(turn, continuationToken), token);
         }
-        if (turn.Context.ToolMode != ModelToolMode.None || turn.ConversationTarget is null
+        if (!ModelToolProtocol.AllowsClarification(turn.Context.ToolMode, turn.Provenance.Selection.Provider)
+            || turn.ConversationTarget is null
             || turn.Registration.Adapter is not IModelQuestionTurnAdapter adapter)
         {
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Denied, turn.Provenance.Selection,

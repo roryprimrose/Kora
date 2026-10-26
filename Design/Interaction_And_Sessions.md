@@ -28,6 +28,12 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+### Deliberate exact retained-answer replies
+
+The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.
+
+The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
+
 The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
 
@@ -788,6 +794,16 @@ work; a local hash chain is not same-user/admin tamper prevention.
 
 ## Interaction Principle
 
+### Local read-only conversational clarification - 2026-10-26
+
+The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one choice** in Sessions/compact; the model may call the existing observation tools, ask one bounded choice, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+
+The host owns original request/origin, unique task/session/generation, question identity/revision, SingleChoice schema, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
+
+The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. One question has two-to-four unambiguous labels; free text and repeated/mixed responses are refused. Legacy tool-free questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
 Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.
@@ -841,8 +857,7 @@ The [hosted request regressions](../tests/Kora.Windows.IntegrationTests/HostedSe
 The current implementation provides **Answer by voice** for the authoritative
 host's exact live foreground native question, plus the deliberately selected
 **Hear question, then answer by voice** action. The latter opens one reply only
-after successful playback of that same question. It is not a global automatic
-conversation mode or a Settings preference. Existing consent, listening hold,
+after successful playback of that same question. Existing consent, listening hold,
 unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
@@ -868,6 +883,20 @@ of later hardware/acoustic/installed qualification.
 Host-resolved traces preserve same-request presentation parentage and link
 deferred reply/recovery causes; incoming correlation never selects the question
 or session and carries no transcript content.
+
+### Opt-in exact-playback conversational replies
+
+The device-local **Conversational voice replies** preference starts Off ([shared preference](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+Enabling it in **Settings > Speech & audio** permits the first foreground presentation of a new exact host clarification to speak that question and then open the same one-shot reply, without another click or activation name ([native routing](../src/Kora/NativeQuestionViewModel.cs)).
+
+Only canonical host clarification/local-version questions and host-validated model clarifications qualify. Approvals, egress/consent questions and arbitrary source purposes do not. Successful completion of the exact playback is required before capture; a visual-only card never directly starts transcription ([reply admission](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+
+The preference revision joins the existing exact question/session/presenter, microphone, ownership, privacy and call fences. Replacement, cancellation, timeout, failure, editing or foreground loss retires that attempt ([portable regressions](../tests/Kora.Application.UnitTests/Interaction/HostQuestionVoiceReplyServiceTests.Conversational.cs)).
+Re-activation, preference changes and late callbacks cannot retry or rearm it; native answers and the two explicit voice actions remain available under their existing gates ([native regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Conversational.cs)).
+
+The existing 15-second start window and 60-second utterance limit, accessible status and **Cancel reply** apply ([voice lifecycle](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+This saves only an audited On/Off preference, not audio or transcripts; an invalid/unconfirmed preference holds automatic replies unavailable ([preference storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
+It grants no microphone consent, ambient wake, provider readiness, approval or egress authority. Exact-profile installed/acoustic/hardware enablement and qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ### Broader target behavior
 

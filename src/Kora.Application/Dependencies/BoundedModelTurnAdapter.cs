@@ -112,9 +112,10 @@ internal sealed partial class BoundedModelTurnAdapter(
         try { context = ModelToolProtocol.ReadContext(wire.Span, provenance); }
         catch (InvalidDataException)
         { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-        if (ask is not null && context.ToolMode != ModelToolMode.None)
+        if (ask is not null && !ModelToolProtocol.AllowsClarification(context.ToolMode, provenance.Selection.Provider))
         { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
         var history = new List<ModelToolMessage>();
+        var questionAsked = false;
         var callIds = new HashSet<string>(StringComparer.Ordinal);
         var inputBytes = 0;
         var outputBytes = 0;
@@ -177,8 +178,10 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Finish(provenance, ModelTurnOutcome.Succeeded, ModelTurnReason.None, new(answer.Answer, null)); }
             if (message is ModelClarificationQuestion question)
             {
-                if (ask is null || history.Count != 0)
+                if (ask is null || questionAsked
+                    || context.ToolMode == ModelToolMode.ReadOnly && question.Question.Options.Count == 0)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse); }
+                questionAsked = true;
                 ModelQuestionAnswerMessage replyAnswer;
                 try { replyAnswer = await ask(question, token).ConfigureAwait(false); }
                 catch (OperationCanceledException) { throw; }

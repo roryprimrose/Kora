@@ -9,6 +9,12 @@ namespace Kora.Core.Conversation.ReviewedContext;
 /// <summary>One complete, explicitly selected local conversation context; no source becomes host policy.</summary>
 public static class MixedConversationContext
 {
+    /// <summary>The exact-answer subset of reviewed context, without an implicit original USER, instruction or memory.</summary>
+    public static ModelContextEnvelope CreateReplyEnvelope(HostRequest request, string body,
+        ConversationMessage source, DateTimeOffset now, DateTimeOffset expiresAt) =>
+        ConversationHistoryContext.CreateEnvelope(request, body,
+            [new(source, ConversationHistoryRole.Assistant)], now, expiresAt);
+
     public const string Policy =
         "Kora reviewed mixed conversation context policy v1. UserRequest is the unchanged new original user request. "
         + "Evidence is ordered earlier USER/ASSISTANT history, one selected instruction, then selected SESSION memories. "

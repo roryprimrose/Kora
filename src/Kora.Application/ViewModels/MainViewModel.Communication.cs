@@ -25,6 +25,8 @@ public sealed partial class MainViewModel
     {
         Volatile.Write(ref manualCallNativeAvailable, available ? 1 : 0);
         Interlocked.Increment(ref manualCallNativeRevision);
+        OnPropertyChanged(nameof(CanEnableCommunicationActivity));
+        OnPropertyChanged(nameof(CanChangeCommunicationActivity));
     }
 
     private sealed record ManualCallInput(RequestOrigin Origin, long Revision, Func<bool> Eligible, Func<bool> RetiredEligible)
@@ -85,7 +87,9 @@ public sealed partial class MainViewModel
         ? "Manual call mode is on until you turn it off or restart Kora. Automatic detection is unchanged."
         : "Manual call mode is off. It resets when Kora restarts.";
     public string CallProtectionLimitations =>
-        "Automatic call detection is not available in this version. Your saved response and listening choices are kept. "
+        (communicationActivity is { IsQualified: true }
+            ? "Optional Windows communications audio supplies supporting observations only, not actual-call identification. "
+            : "Automatic call detection is not available in this version. Your saved response and listening choices are kept. ")
         + "Exact grants and the originating session action level remain unchanged during calls. "
         + "Spoken approvals are disabled by default; independent authentication and privacy still apply.";
 
@@ -93,6 +97,9 @@ public sealed partial class MainViewModel
     {
         RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
+        communicationActivity?.BindHost(() => !disposed && callOwnershipEligible()
+            && privacyObservation.Current.SessionState == Kora.Core.Platform.WindowsSessionState.Unlocked,
+            () => (revision?.Invoke() ?? 0, privacyObservation.Current.TopologyRevision));
         settingsOwnershipRevision = revision ?? (static () => 0);
         Interlocked.Increment(ref settingsOwnershipBindingRevision);
         UpdateSpeechPreparation();

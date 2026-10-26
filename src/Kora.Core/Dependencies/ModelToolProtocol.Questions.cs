@@ -6,6 +6,10 @@ namespace Kora.Core.Dependencies;
 public static partial class ModelToolProtocol
 {
     public const int ClarificationSchemaVersion = 2;
+    public const int ReadOnlyClarificationSchemaVersion = 3;
+
+    public static bool AllowsClarification(ModelToolMode mode, ModelProviderIdentity provider) =>
+        provider == ModelProviderIdentity.Ollama && mode is ModelToolMode.None or ModelToolMode.ReadOnly;
 
     private static ModelClarificationQuestion ReadQuestion(JsonElement root)
     {
@@ -25,5 +29,13 @@ public static partial class ModelToolProtocol
         if (history.Length != 2 || history[0] is not ModelClarificationQuestion question
             || history[1] is not ModelQuestionAnswerMessage answer || !ReferenceEquals(answer.Question, question))
         { throw new InvalidDataException("Only one complete exact clarification and host-validated answer may resume this turn."); }
+    }
+
+    private static void ValidateReadOnlyQuestion(ImmutableArray<ModelToolMessage> history, ref int index)
+    {
+        var question = (ModelClarificationQuestion)history[index++];
+        if (question.Question.Options.Count == 0 || index >= history.Length
+            || history[index++] is not ModelQuestionAnswerMessage answer || !ReferenceEquals(answer.Question, question))
+        { throw new InvalidDataException("Read-only continuation requires one complete exact SingleChoice clarification and answer."); }
     }
 }

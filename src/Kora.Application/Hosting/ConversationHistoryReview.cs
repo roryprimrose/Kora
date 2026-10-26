@@ -36,9 +36,12 @@ public sealed class ConversationHistoryReview : IDisposable
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
         Cause = cause;
-        _ = ConversationHistoryContext.CreateEnvelope(
+        var envelope = ConversationHistoryContext.CreateEnvelope(
             new(new(Guid.NewGuid()), target.Authority.SessionId, new(Guid.NewGuid()), origin), body, selections, createdAt, expiresAt);
-        var preview = new StringBuilder(ConversationHistoryContext.Policy).Append("\n\n");
+        var preview = new StringBuilder(ConversationHistoryContext.Policy).Append("\n\nComplete serialized input: ")
+            .Append(envelope.Serialize().Length.ToString(CultureInfo.InvariantCulture))
+            .Append(" / 32768 UTF-8 bytes; ").Append(envelope.Evidence.Length.ToString(CultureInfo.InvariantCulture))
+            .Append(" / 16 evidence items.\n\n");
         foreach (var item in selections)
         {
             preview.Append(item.Role == ConversationHistoryRole.User ? "USER" : "ASSISTANT")

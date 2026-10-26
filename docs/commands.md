@@ -1550,8 +1550,9 @@ While a local model request is generating or any response is being spoken, the
 response window also shows a separate **Cancel task** button. It stops the
 current model request or speech playback; press **Esc** for the same action
 while the button is visible. **Dismiss** hides the response without cancelling
-model work or stopping speech. **Stop speaking** remains the explicit voice
-command for stopping only speech playback.
+model work or stopping speech. **Stop speaking** is the explicit speech-only
+command; spoken interruption requires an eligible original session and a
+separately qualified input profile.
 
 ### Stop speech playback
 - **stop speaking**
@@ -1559,6 +1560,14 @@ command for stopping only speech playback.
 - **be quiet**
 - **stop reading aloud**
 - **stop the voice**
+
+For a retained-answer reading, typed stop validates the original foreground
+conversation and exact playback; native **Cancel reading** is also available.
+Spoken stop uses the session and playback captured at explicit PTT activation,
+never whichever session is selected later. The shipped Windows input profile
+does not yet qualify capture during speech, so this spoken path remains
+unavailable without opening capture or stopping playback. See
+[exact-session interruption and recovery](voice-and-audio.md#exact-session-speech-interruption).
 
 **Stop** cancels the active task; it does not mean stop speaking. Use one of
 the speech-playback phrases to stop the voice instead.

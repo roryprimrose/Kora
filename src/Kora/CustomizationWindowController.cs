@@ -39,7 +39,7 @@ internal sealed partial class CustomizationWindowController(
     private Task active = Task.CompletedTask;
     private CustomizationCommand? pendingCommand;
     private CustomizationVoiceTarget? voiceTarget;
-    private (CustomizationVoiceTarget Target, string Text, Func<bool> Current)? voiceRequest;
+    private CustomizationVoiceRequest? voiceRequest;
     private bool voiceHandoff;
     internal CustomizationVoiceTarget? VoiceTarget => voiceTarget;
 
@@ -116,7 +116,8 @@ internal sealed partial class CustomizationWindowController(
         busy = true;
         var token = lifetime.Token;
         var call = main.CallPolicyRevision;
-        var originalInput = main.CaptureInstructionEditorEligibility();
+        Func<bool> originalInput = action is "Voice"
+            ? () => voiceRequest?.IsAdmitted == true : main.CaptureInstructionEditorEligibility();
         bool Current() => ReferenceEquals(window, opened) && Eligible() && originalInput() && main.CallPolicyRevision == call;
         try
         {
@@ -200,11 +201,11 @@ internal sealed partial class CustomizationWindowController(
             + "\n" + source.Location + "\nActivate voice to request a proposal; this never saves or enables it.";
     }
 
-    internal async Task RouteVoice(CustomizationVoiceTarget target, string text, Func<bool> current)
+    internal async Task RouteVoice(CustomizationVoiceRequest request)
     {
-        if (busy || !ReferenceEquals(target, voiceTarget) || !target.IsCurrent || !current())
+        if (busy || !ReferenceEquals(request.Target, voiceTarget) || !request.IsCurrent)
         { main.ReportHostInteractionFailure("The original editor voice target is no longer current. No session received this input."); return; }
-        voiceRequest = (target, text, current);
+        voiceRequest = request;
         active = Run("Voice");
 #pragma warning disable VSTHRD003 // Join this controller's exact voice operation, including delayed inference release.
         await active;
@@ -213,8 +214,8 @@ internal sealed partial class CustomizationWindowController(
 
     private async Task VoiceCore(Func<bool> current, CancellationToken token)
     {
-        var request = voiceRequest!.Value;
-        bool Exact() => current() && request.Current() && request.Target.IsCurrent;
+        var request = voiceRequest!;
+        bool Exact() => current() && request.IsCurrent;
         RequireCurrent(Exact, token);
         if (source is null || source.IsReadOnly || baseline?.RecoveryDetails is not null)
         { throw new InvalidOperationException("Voice authoring needs an editable artifact without pending recovery. Built-ins require an explicitly chosen Kora copy."); }
@@ -231,23 +232,38 @@ internal sealed partial class CustomizationWindowController(
         RequireCurrent(Exact, token);
         if (intent is CustomizationVoiceIntent.Clarify)
         {
-            var choice = await window.Review("Choose voice target",
+            var originalSource = source;
+            var originalBaseline = baseline;
+            var revision = draftRevision;
+            bool QuestionCurrent() => current() && request.IsAdmitted && ReferenceEquals(source, originalSource)
+                && ReferenceEquals(baseline, originalBaseline) && draftRevision == revision;
+            await using var question = main.CreateCustomizationClarification(request, QuestionCurrent, logger, token);
+            CustomizationVoiceChoice choice;
+            try
+            {
+                choice = await window.ReviewClarification(
                 "Did you mean this artifact?\n" + source.Kind + " / " + source.Scope + " / " + source.Name
                 + "\n" + source.Location
                 + "\n\nREQUEST\n" + request.Text
                 + "\n\nChoose only an artifact refinement or discussion. Nothing has been sent to another session."
                 + "\nFor another artifact, a session, a New request, literal dictation or mixed destinations, cancel and explicitly address the intended target.",
-                token, "Refine this artifact", "Discuss this artifact", "Cancel");
+                question, token);
+            }
+            finally { main.ReleaseCustomizationClarification(question); }
+            if (choice is CustomizationVoiceChoice.Cancel)
+            { if (window is { } presented) { presented.Status.Text = question.Status; } return; }
             RequireCurrent(Exact, token);
-            if (choice is "Cancel") { return; }
-            intent = choice is "Discuss this artifact" ? CustomizationVoiceIntent.Discuss : CustomizationVoiceIntent.Edit;
+            await management.RequireUnchangedSource(originalSource, originalBaseline, Exact, token);
+            RequireCurrent(Exact, token);
+            intent = choice is CustomizationVoiceChoice.Discuss ? CustomizationVoiceIntent.Discuss : CustomizationVoiceIntent.Edit;
         }
         voiceHandoff = true;
         try { window.Request.Text = request.Text; }
         finally { voiceHandoff = false; }
         RequireCurrent(Exact, token);
         await Refine(Exact, token, new(request.Target.Context.Component,
-            intent is CustomizationVoiceIntent.Discuss ? CustomizationAuthoringMode.Discuss : CustomizationAuthoringMode.Edit));
+            intent is CustomizationVoiceIntent.Discuss ? CustomizationAuthoringMode.Discuss : CustomizationAuthoringMode.Edit),
+            revalidateSource: true);
     }
 
     private async Task Refresh(Func<bool> current, CancellationToken token)
@@ -463,7 +479,8 @@ internal sealed partial class CustomizationWindowController(
         { ShowDraft(); RenderSources(); }
     }
 
-    private async Task Refine(Func<bool> current, CancellationToken token, CustomizationAuthoringContext? context = null)
+    private async Task Refine(Func<bool> current, CancellationToken token, CustomizationAuthoringContext? context = null,
+        bool revalidateSource = false)
     {
         if (source is null || source.IsReadOnly || baseline?.RecoveryDetails is not null)
         { throw new InvalidOperationException("Open an editable draft without pending recovery. Built-ins require a Kora copy."); }
@@ -481,7 +498,9 @@ internal sealed partial class CustomizationWindowController(
             + "\n\nREQUEST\n" + request + "\n\n"
             + string.Join("\n\n", frozen.Select(file => "===== " + file.Name + " =====\n" + file.Text));
         if (await window.Review("Review model authoring disclosure", disclosure, token, "Send for local authoring", "Cancel") is not "Send for local authoring" || !Exact()) { return; }
+        if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
         var result = await authoring.Refine(source, frozen, context, request, Exact, token);
+        if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
         if (!Exact()) { throw new InvalidOperationException("The draft changed during generation. Late output was not applied."); }
         if (context.Mode is CustomizationAuthoringMode.Discuss && (result.Files.Count != frozen.Length || result.Files.Any(file =>
             !frozen.Any(original => string.Equals(original.Name, file.Name, StringComparison.Ordinal)
@@ -492,7 +511,11 @@ internal sealed partial class CustomizationWindowController(
         var proposal = result.Explanation + "\n\n" + ReviewText();
         draft = previous;
         if (await window.Review("Review proposed draft", proposal, token, "Use proposed draft", "Cancel") is "Use proposed draft" && Exact())
-        { draft = result.Files.ToList(); draftRevision++; ShowDraft(); window.Status.Text = "Proposal applied to the draft only. Review and save is still required."; }
+        {
+            if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
+            RequireCurrent(Exact, token);
+            draft = result.Files.ToList(); draftRevision++; ShowDraft(); window.Status.Text = "Proposal applied to the draft only. Review and save is still required.";
+        }
     }
 
     private async Task Copy(Func<bool> current, CancellationToken token)

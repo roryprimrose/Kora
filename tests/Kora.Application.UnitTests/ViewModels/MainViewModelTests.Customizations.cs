@@ -27,18 +27,18 @@ public sealed partial class MainViewModelTests
         var calls = 0;
         if (state is not "unbound")
         {
-            f.ViewModel.BindCustomizationVoice((observed, text, current) =>
+            f.ViewModel.BindCustomizationVoice(request =>
             {
-                observed.Should().BeSameAs(target);
-                text.Should().Be("make this clearer");
-                current().Should().BeTrue();
+                request.Target.Should().BeSameAs(target);
+                request.Text.Should().Be("make this clearer");
+                request.IsCurrent.Should().BeTrue();
                 if (state is "ownership")
                 {
                     f.ViewModel.BindVoiceOwnershipGate(static () => false);
-                    current().Should().BeFalse();
+                    request.IsCurrent.Should().BeFalse();
                 }
                 target.Retire();
-                current().Should().BeFalse();
+                request.IsCurrent.Should().BeFalse();
                 calls++;
                 return state is "throw" ? Task.FromException(new IOException("Synthetic editor failure")) : Task.CompletedTask;
             });
@@ -63,7 +63,7 @@ public sealed partial class MainViewModelTests
     {
         var f = await Fixture.CreateInitializedAsync();
         var calls = 0;
-        f.ViewModel.BindCustomizationVoice((_, _, _) => { calls++; return Task.CompletedTask; });
+        f.ViewModel.BindCustomizationVoice(_ => { calls++; return Task.CompletedTask; });
         f.Voice.AfterStart = () => f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
         await f.RaiseActivatedTranscriptAsync("make this instruction clearer", 1);
         calls.Should().Be(0);
@@ -94,7 +94,7 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
         var calls = 0;
-        f.ViewModel.BindCustomizationVoice((_, _, _) => { calls++; return Task.CompletedTask; });
+        f.ViewModel.BindCustomizationVoice(_ => { calls++; return Task.CompletedTask; });
         await f.RaiseActivatedTranscriptAsync(command.StartsWith('/') ? command : "Kora, " + command, 1);
         calls.Should().Be(0);
         f.Reasoner.Requests.Should().BeEmpty();

@@ -113,7 +113,7 @@ public sealed partial class SessionsMemoryFilterTests
             {
                 var tabs = window.GetLogicalDescendants().OfType<TabControl>().Single();
                 tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab =>
-                    string.Equals(tab.Header?.ToString(), "Session memories", StringComparison.Ordinal));
+                    string.Equals(tab.Header?.ToString(), "Memories", StringComparison.Ordinal));
                 window.Activate();
                 var list = window.FindControl<ListBox>("MemoryBatchRecords")!;
                 var review = window.FindControl<Button>("ReviewMemoryBatch")!;

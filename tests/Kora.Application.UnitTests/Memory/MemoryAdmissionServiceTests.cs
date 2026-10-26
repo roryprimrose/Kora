@@ -438,7 +438,11 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
         using var later = fixture.Root();
         (await fixture.Service.UseAsync(admitted.Id, admitted.Revision, MemoryDestination.Local, Token)).Outcome.Should().Be(MemoryOutcome.Succeeded);
         (await fixture.Service.ReviewAsync(pending.Id, pending.Revision, true, Token)).Reason.Should().Be(MemoryReason.ScopeMismatch);
-        (await fixture.Service.EditAsync(pending.Id, pending.Revision, Candidate, Token)).Reason.Should().Be(MemoryReason.ScopeMismatch);
+        var renewed = (await fixture.Service.EditAsync(pending.Id, pending.Revision, Candidate, Token)).Record!;
+        renewed.Lineage.Request.SessionId.Should().Be(fixture.Request.SessionId);
+        renewed.Review.Should().Be(MemoryReviewState.Proposed);
+        renewed.Receipt.Should().BeNull();
+        (await fixture.Service.ReviewAsync(pending.Id, pending.Revision, true, Token)).Outcome.Should().Be(MemoryOutcome.RevisionConflict);
         var edited = (await fixture.Service.EditAsync(admitted.Id, admitted.Revision, Candidate, Token)).Record!;
         edited.Lineage.Request.SessionId.Should().Be(fixture.Request.SessionId);
         edited.Review.Should().Be(MemoryReviewState.Proposed);
@@ -690,8 +694,8 @@ public sealed partial class MemoryAdmissionServiceTests : IDisposable
             Scope = MemoryScope.Session(Request.SessionId);
             Service = CreateService(durable);
         }
-        internal MemoryAdmissionService CreateService(bool durable) =>
-            new(this, this, this, this, this, this, new FixedTime(), durable ? this : null);
+        internal MemoryAdmissionService CreateService(bool durable, MemoryScopeKind scopeKind = MemoryScopeKind.Session) =>
+            new(this, this, this, this, this, this, new FixedTime(), durable ? this : null, scopeKind);
         public ValueTask<MemoryBoundary> ReadMemoryBoundaryAsync(HostRequest request, long controlRevision, CancellationToken token)
         {
             OnBoundaryRead?.Invoke();

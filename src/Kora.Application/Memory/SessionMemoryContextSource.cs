@@ -5,6 +5,7 @@ using Kora.Core.Commands;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Memory;
+using Kora.Core.Memory.DeviceProfile;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
 
@@ -12,7 +13,7 @@ namespace Kora.Application.Memory;
 
 internal sealed class SessionMemoryContextSource(
     SessionWorkspaceService sessions, ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
-    IMemoryStore store, ISecurityAuditLog audit) : ISessionMemoryContextSource
+    IMemoryStore store, ISecurityAuditLog audit, MemoryScopeKind scopeKind = MemoryScopeKind.Session) : ISessionMemoryContextSource
 {
     private long revision;
     private bool closed;
@@ -32,7 +33,7 @@ internal sealed class SessionMemoryContextSource(
     public async Task<SessionMemoryContextSnapshot> ReadAsync(SessionWorkspaceEntry target,
         ImmutableArray<MemorySummary> selection, Func<bool> admitted, CancellationToken token)
     {
-        SessionMemoryContext.ValidateSelection(target, selection);
+        SessionMemoryContext.ValidateSelection(target, selection, scopeKind);
         var issuer = HostActivity.RequireCurrent();
         SessionConversationService.RequireOriginalSource(issuer.Request.Origin);
         if (issuer.Request.SessionId != target.Authority.SessionId)
@@ -86,7 +87,7 @@ internal sealed class SessionMemoryContextSource(
             ImmutableArray<MemoryRecord> records = [];
             var observed = false;
             var expected = new MemoryResult(MemoryOutcome.Succeeded, MemoryReason.None);
-            var result = await store.TransactMemoryAsync(issuer.Request, boundary, rows =>
+            var result = await TransactAsync(issuer.Request, boundary, rows =>
             {
                 if (!Current()) { throw new InvalidOperationException("Memory context source admission changed."); }
                 if (rows.IsDefault || rows.Any(row => row is null))
@@ -102,7 +103,7 @@ internal sealed class SessionMemoryContextSource(
                         || record.Review != summary.Review || record.Retention != summary.Retention
                         || record.CreatedAt != summary.CreatedAt || record.Lineage is null
                         || record.Lineage.Request is null || record.Receipt?.Boundary is null
-                        || record.Lineage.Request.SessionId != target.Authority.SessionId
+                        || scopeKind == MemoryScopeKind.Session && record.Lineage.Request.SessionId != target.Authority.SessionId
                         || MemoryPolicy.Eligible(record, record.Receipt.Boundary, MemoryDestination.Local) != MemoryReason.None
                         || MemoryPolicy.Eligible(record, boundary, MemoryDestination.Local) != MemoryReason.None)
                     { throw new InvalidDataException("The selected memory is stale, foreign or no longer eligible."); }
@@ -134,5 +135,14 @@ internal sealed class SessionMemoryContextSource(
             activity.Complete(HostOperationOutcome.Failed);
             throw;
         }
+
     }
+
+    private ValueTask<MemoryResult> TransactAsync(HostRequest request, MemoryBoundary boundary,
+        Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token) =>
+        scopeKind == MemoryScopeKind.DeviceProfile
+            ? (store as IDeviceProfileMemoryStore
+                ?? throw new InvalidOperationException("Authoritative Device-profile context is unavailable."))
+                .TransactDeviceProfileMemoryAsync(request, boundary, transition, admitted, token)
+            : store.TransactMemoryAsync(request, boundary, transition, admitted, token);
 }

@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -160,7 +161,7 @@ internal sealed partial class SessionsViewModel
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
         Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
-        bool localAnswer = false,
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false,
         CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
@@ -197,6 +198,8 @@ internal sealed partial class SessionsViewModel
                 : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
+            : clarificationTools == ModelToolMode.ReadOnly
+            ? await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
             : pageAddress is null
             ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
             : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter

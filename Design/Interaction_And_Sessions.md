@@ -788,6 +788,16 @@ work; a local hash chain is not same-user/admin tamper prevention.
 
 ## Interaction Principle
 
+### Local read-only conversational clarification - 2026-10-26
+
+The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one choice** in Sessions/compact; the model may call the existing observation tools, ask one bounded choice, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+
+The host owns original request/origin, unique task/session/generation, question identity/revision, SingleChoice schema, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
+
+The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. One question has two-to-four unambiguous labels; free text and repeated/mixed responses are refused. Legacy tool-free questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
 Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.

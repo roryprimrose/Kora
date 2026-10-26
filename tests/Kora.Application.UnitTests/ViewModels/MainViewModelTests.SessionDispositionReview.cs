@@ -16,6 +16,24 @@ public sealed partial class MainViewModelTests
     private const string DispositionInput = "review session disposition 12345678-1234-1234-abcd-123456789012 7 3";
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CompoundReviewKeepsOriginalTypedOrCurrentNameVoiceOriginWithoutModelFallback(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var presenter = new DispositionPresenter();
+        f.ViewModel.BindSessionDispositionReview(presenter);
+        const string input = "review session stop-and-delete 12345678-1234-1234-abcd-123456789012 7 3";
+        if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + input, 1); }
+        else { await f.RunAsync(input); }
+        presenter.Commands.Should().ContainSingle().Which.Should().Be(DispositionTarget with { StopRunningWork = true });
+        presenter.Origins.Should().ContainSingle().Which.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.HostStore.Records.Should().BeEmpty();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+    }
+
+    [Theory]
     [InlineData(false, true)]
     [InlineData(true, true)]
     [InlineData(false, false)]

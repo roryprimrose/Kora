@@ -66,18 +66,35 @@ public sealed partial class SessionWorkspaceService
             pendingDisposition = null;
         }
         // This increment is native UI only. No voice/model or direct arbitrary proposal confirmation.
-        if (origin != RequestOrigin.LocalUi || pending is null || pending.Preview != preview
+        if (origin != RequestOrigin.LocalUi || preview.StoppedWork is not null || pending is null || pending.Preview != preview
             || !access.CanControl || access.ControlRevision != pending.ControlRevision || !admission())
         {
             throw new InvalidOperationException("No matching live native disposition preview. Preview again before explicit confirmation.");
         }
+        return await CommitDispositionAsync(preview, origin,
+            () => access.ControlRevision == pending.ControlRevision && admission(), token).ConfigureAwait(false);
+    }
+
+    internal Task<SessionDispositionReceipt> CommitStoppedDispositionAsync(SessionDispositionPreview preview,
+        RequestOrigin origin, Func<bool> physicallyJoinedAndAdmitted, CancellationToken token)
+    {
+        if (origin != RequestOrigin.LocalUi || preview.StoppedWork is null)
+        { throw new InvalidOperationException("Compound disposition requires original native deletion authority and exact stopped work."); }
+        return CommitDispositionAsync(preview, origin, physicallyJoinedAndAdmitted, token);
+    }
+
+    private async Task<SessionDispositionReceipt> CommitDispositionAsync(SessionDispositionPreview preview,
+        RequestOrigin origin, Func<bool> admission, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!admission()) { throw new InvalidOperationException("Exact disposition authority changed before source revocation."); }
         if (attachmentLifecycle is not null)
         {
             await attachmentLifecycle.RevokeForDisposition(preview.Session.Authority.SessionId).ConfigureAwait(false);
         }
         var receipt = await ControlAsync(preview.Session.Authority.SessionId, origin,
             (request, eligible) => store.DisposeSessionAsync(request, preview, eligible, token), token,
-            () => access.ControlRevision == pending.ControlRevision && admission(), existingSubject: true, terminalCommitted: true).ConfigureAwait(false);
+            admission, existingSubject: true, terminalCommitted: true).ConfigureAwait(false);
         InvalidateWorkOverview(receipt.SessionId);
         SessionRetired?.Invoke(receipt.SessionId);
         if (localEvents is not null) { await localEvents.RetireSessionAsync(receipt.SessionId, token).ConfigureAwait(false); }

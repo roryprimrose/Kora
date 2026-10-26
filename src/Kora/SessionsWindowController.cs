@@ -492,7 +492,9 @@ internal sealed partial class SessionsWindowController(
         bool NativeAdmission() => !disposed && ReferenceEquals(window, owner)
             && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
             && ReferenceEquals(model, state) && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation;
-        return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
+        return command.StopRunningWork
+            ? await state.ReviewStopAndDeleteCommandAsync(command, origin, admitted, NativeAdmission, token)
+            : await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
     }
 
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)

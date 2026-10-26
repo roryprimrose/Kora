@@ -105,6 +105,25 @@ effect/provider scheduler.
 
 ## Committed authority audit inspection
 
+In **Evidence (read-only)**, select a typed audit record and choose **Read
+request outcomes** to read that exact original host request and audit
+correlation. The fresh read stays in its source and original session, without
+the search filters; **Next page** continues the bounded snapshot. The summary
+separates committed interaction audit from diagnostic audit copies and shows
+recorded outcomes. Requested-only means pending **or** missing terminal
+evidence, not success or proof that work is still running. Select an event to
+read its exact outcome/reason and retention state. Missing or unavailable
+evidence is not replaced with another request.
+
+**Inspect related diagnostics** separately reads the selected activity in the
+original session. Select its span, then **Open selected segment** to follow a
+recorded parent or explicit causal link. Missing/foreign segments stay
+unavailable; expired-but-present evidence is labelled. Diagnostic correlation
+never becomes audit, approval or execution authority. Legacy uncorrelated
+diagnostics cannot select a host request. Privacy closure and filter changes
+retire these views. No retry, execution, grant renewal, copy/export or retention
+change occurs.
+
 Native Evidence's optional inclusive **Retained due UTC from / until** filters
 match only admitted retained `EvidenceRecord.DueUtc`, independently of existing
 commit/observation time bounds and AND with every other predicate

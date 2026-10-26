@@ -17,6 +17,7 @@ internal sealed partial class EvidenceViewModel(
     private EvidencePage? page;
     private EvidenceQuery? currentQuery;
     private EvidenceRecord? selected;
+    private EvidenceRecord? inspectedRequest;
     private string status = EvidencePage.StorageDisclosure;
     private string resultText = string.Empty;
     private bool busy;
@@ -32,11 +33,41 @@ internal sealed partial class EvidenceViewModel(
     public bool CanQuery => !busy && !closed && canInspect();
     public bool CanNext => CanQuery && page?.Cursor is not null;
     public bool CanReadTrace => CanQuery && (selected?.Trace is not null || selected?.AuthorityProvenance is not null);
+    public bool CanReadRequest => CanQuery && IsTypedRequest(selected);
+    public bool CanReadActivity => CanQuery && selected?.Host is not null
+        && (selected.Trace is not null || selected.AuthorityProvenance is not null);
+    public string RequestSummary => DescribeRequest();
 
     public Task SearchAsync() => RunAsync(CreateQuery, next: false);
 
     public Task NextAsync() => RunAsync(() => currentQuery
-        ?? throw new InvalidOperationException("Search before requesting a next page."), next: true);
+        ?? throw new InvalidOperationException("Search before requesting a next page."), next: true,
+        requestSubject: inspectedRequest);
+
+    public Task ReadRequestAsync() => RunAsync(() =>
+    {
+        if (!IsTypedRequest(selected))
+        {
+            throw new InvalidOperationException("Select a retained typed audit with its original host request.");
+        }
+        return new()
+        {
+            Source = selected!.Reference.Source,
+            SessionId = selected.Host!.SessionId,
+            RequestId = selected.Host.RequestId,
+            CorrelationId = selected.Audit!.CorrelationId,
+        };
+    }, next: false, requestSubject: selected);
+
+    public Task ReadActivityAsync() => RunAsync(() => new()
+    {
+        Source = EvidenceSource.All,
+        SessionId = selected?.Host?.SessionId
+            ?? throw new InvalidOperationException("Uncorrelated evidence cannot select a host request."),
+        TraceId = selected.Trace?.TraceId ?? selected.AuthorityProvenance?.TraceId
+            ?? throw new InvalidOperationException("Select retained activity correlation."),
+        SpanId = selected.Trace?.SpanId ?? selected.AuthorityProvenance?.SpanId,
+    }, next: false);
 
     public Task ReadTraceAsync() => RunAsync(() => new()
     {
@@ -45,7 +76,7 @@ internal sealed partial class EvidenceViewModel(
             : selected?.Reference.Source == EvidenceSource.DailyLog ? EvidenceSource.DailyLog : EvidenceSource.All,
         TraceId = selected?.Trace?.TraceId ?? selected?.AuthorityProvenance?.TraceId
             ?? throw new InvalidOperationException("Select a record with trace correlation."),
-        SessionId = currentQuery?.SessionId,
+        SessionId = currentQuery?.SessionId ?? selected?.Host?.SessionId,
     }, next: false);
 
     public Task NavigateAsync(EvidenceSegment segment) => RunAsync(() =>
@@ -58,7 +89,7 @@ internal sealed partial class EvidenceViewModel(
         {
             Source = segment.Record?.Source == EvidenceSource.AuthorityAudit ? EvidenceSource.AuthorityAudit : EvidenceSource.All,
             Record = segment.Record ?? throw new InvalidOperationException("This segment is missing or removed; no retained record can be opened."),
-            SessionId = currentQuery?.SessionId,
+            SessionId = currentQuery?.SessionId ?? selected?.Host?.SessionId,
         };
     }, next: false);
 
@@ -73,7 +104,7 @@ internal sealed partial class EvidenceViewModel(
         Notify();
     }
 
-    private async Task RunAsync(Func<EvidenceQuery> create, bool next)
+    private async Task RunAsync(Func<EvidenceQuery> create, bool next, EvidenceRecord? requestSubject = null)
     {
         if (busy || closed) { return; }
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), viewer.SessionId,
@@ -96,6 +127,7 @@ internal sealed partial class EvidenceViewModel(
             if (closed || revision != filterRevision || !canInspect()) { throw new OperationCanceledException("Evidence presentation retired."); }
             currentQuery = target;
             page = result;
+            inspectedRequest = requestSubject;
             selected = null;
             resultText = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result));
             var sourceFailed = target.Source is EvidenceSource.CombinedLog or EvidenceSource.AuthorityAudit
@@ -163,6 +195,7 @@ internal sealed partial class EvidenceViewModel(
     {
         page = null;
         selected = null;
+        inspectedRequest = null;
         currentQuery = null;
         resultText = string.Empty;
         status = message;
@@ -178,6 +211,9 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanQuery));
         OnPropertyChanged(nameof(CanNext));
         OnPropertyChanged(nameof(CanReadTrace));
+        OnPropertyChanged(nameof(CanReadRequest));
+        OnPropertyChanged(nameof(CanReadActivity));
+        OnPropertyChanged(nameof(RequestSummary));
         NotifyFind();
     }
 }

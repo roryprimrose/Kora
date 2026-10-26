@@ -766,6 +766,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        CloseContentSearch();
         detailSelections.Clear();
         ClearUnsent();
         composerBody = string.Empty;
@@ -791,6 +792,7 @@ internal sealed partial class SessionsViewModel(
             NotifyMemories();
             NotifyQueue();
             NotifyListSearch();
+            NotifyContentSearch();
             OnPropertyChanged(nameof(Sessions));
             OnPropertyChanged(nameof(SelectedSessionRecord));
             OnPropertyChanged(nameof(InteractionTarget));

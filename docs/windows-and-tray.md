@@ -286,6 +286,35 @@ Search returns chronological retained messages, not generated summaries. Enter s
 
 The bounded reader validates original identity, revision and snapshot continuity. Queries use whole lexical words, not executable instructions; results never add model context, resume work or establish execution authority ([reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
+### Find a message across conversations
+
+In **Sessions / Session management**, expand **Search conversation content**.
+Enter ordinary words and choose **Search content** (or Enter). Typing alone
+reads nothing. The existing lexical matching rules search original USER text
+and separately retained ASSISTANT answers, not names, drafts or HOST metadata.
+Results show the observed conversation name, source role and retained text.
+Duplicate names do not choose identity.
+
+Choose a result and press Enter or **Open exact selected message**. Kora
+rechecks the original conversation, retained message and sequence snapshot,
+opens its owning conversation at that exact message, and scrolls/focuses the
+matching USER or ASSISTANT text. It never substitutes the current last message.
+The complete original text and existing deliberate Details, reply, read and
+reuse actions remain available under their original permissions; opening a
+match does not execute, speak, copy, submit or resume anything.
+
+Each page returns at most 25 matches from at most eight bounded source reads.
+**Next content matches** continues across messages and conversations; an empty
+page can still have Next. This is a bounded observation of retained sources,
+not an atomic global snapshot or semantic ranking. New messages appear only
+after a fresh search. Stale, deleted, expired, renamed or privacy-revoked
+matches cannot open a replacement. No retention clock or stored history changes.
+
+**Cancel / clear content search** or Escape clears the transient query,
+matches and continuation and cancels pending search/navigation. Closing or
+private-ownership loss clears them too. Query text and matches are not saved,
+logged, added to model context or sent to a provider/network.
+
 ### Search retained assistant answers
 
 Select the exact retained Active or Done session. In the existing conversation role selector choose **ASSISTANT**, enter lexical words unchanged and choose **Search this conversation**. **All** still searches only USER/HOST fields; **ASSISTANT** searches only complete saved answer bodies, never provider/provenance metadata or an absent answer's USER/HOST text ([role policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).

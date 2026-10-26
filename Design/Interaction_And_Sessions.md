@@ -22,6 +22,28 @@ Use **Answer locally (no tools)** for bounded incremental text in the originatin
 
 Ordinary tool-capable Send, clarification and hosted requests retain their existing buffered contracts. Local qualification, session instructions, privacy, current-source generation, input/output budgets, original USER and trusted terminal audit rules remain authoritative; this is no runtime auto-enablement or hosted streaming change ([submission owner](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [host selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)).
 
+## Cross-conversation content search and exact message opening
+
+The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)
+completes ordinary query -> bounded retained USER/ASSISTANT matches -> deliberate
+selection -> exact owning-conversation message placement and matched-field
+scroll/focus. This supports the approved independent-conversation/readable-result
+outcomes; storage permission, source validation and native presentation belong to
+the host, not a model, tool or semantic-search extension.
+
+It composes existing metadata browse, exact-session lexical search, exact retained
+detail revalidation and passive session navigation. Continuations retain original
+source generation, sequence ceiling and head revision internally. Names remain
+labels; copied/equal rows are not native selections. Every opening revalidates
+the message and snapshot without substituting a newer record. Existing message
+actions retain original source authority and unsent session buffers are unchanged.
+
+Queries/results are volatile. Explicit clear/edit/close/privacy/source retirement
+fences late reads; bounds, empty-page continuation and unavailable states are
+truthful. No new schema, index, model/provider/network action, clipboard authority,
+retention renewal or history write is introduced. See the [user operation](../docs/windows-and-tray.md#find-a-message-across-conversations)
+and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContentSearch.cs).
+
 ## Conversation Input Realignment
 
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.

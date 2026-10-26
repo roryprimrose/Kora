@@ -263,6 +263,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "diagrams",
             "setting-proposals",
             "session-routing",
+            "reviewed-context",
             "model-session-discovery",
             "model-memory-proposals",
             "agent-shared-skill-guidance");

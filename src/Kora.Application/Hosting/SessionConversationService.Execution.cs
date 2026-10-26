@@ -143,6 +143,15 @@ public sealed partial class SessionConversationService
                 || Current() && (runtime is not null ? runtime.IsTurnQuiescent(turn) : turns.IsQuiescent));
             if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
             { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
+            if (result.Outcome == ModelTurnOutcome.Succeeded && turn.ValidateAnswerCommit is { } validateAnswer)
+            {
+                var reason = await validateAnswer(token).ConfigureAwait(false);
+                if (reason != ModelTurnReason.None)
+                {
+                    result = new(ModelTurnOutcome.DeniedEgress, reason, turn.Provenance);
+                    answer = null;
+                }
+            }
             var completed = await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
             if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
                 || completed.Message.AssistantResponse != answer || completed.Message.Execution != turn.Provenance

@@ -21,6 +21,12 @@ public sealed partial class OwnedInstructionEditorActions(
     private bool Matches(ArtifactDefinition candidate, string name) =>
         candidate.Kind == Kind && string.Equals(candidate.OwnedInstructionName, name, StringComparison.Ordinal);
 
+    public bool IsRefinementSourceObserved(OwnedInstructionSnapshot original) =>
+        Kind == ArtifactKind.Instruction && !catalogue.IsReloadUnavailable
+        && catalogue.Candidates.Any(candidate => Matches(candidate, original.Name)
+            && string.Equals(candidate.OwnedInstructionRevision, original.Revision, StringComparison.Ordinal)
+            && string.Equals(candidate.Digest, original.Document.Definition.Digest, StringComparison.Ordinal));
+
     public Task<IReadOnlyList<string>> List(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, _, admitted) => await store.List(admitted).ConfigureAwait(false), token);
 

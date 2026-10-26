@@ -3811,6 +3811,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning restore VSTHRD003
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
+            await JoinCustomizationClarification();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
@@ -3991,7 +3992,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         await HandleTranscriptAsync(
             CommandText,
             1,
-            SecurityAuditInitiator.TypedCommand);
+            SecurityAuditInitiator.TypedCommand,
+            foregroundTarget: Volatile.Read(ref foregroundConversationTarget));
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
@@ -4029,9 +4031,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
             var newRequestEligibility = CaptureNewRequestOpeningEligibility(manualInput);
             var editorTarget = Volatile.Read(ref capturedCustomizationVoiceTarget);
+            var foregroundTarget = Volatile.Read(ref foregroundConversationTarget);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4080,7 +4083,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
-        PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget)
+        PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
+        ForegroundConversationTarget? foregroundTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4142,7 +4146,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget, editorTarget);
+            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget, editorTarget,
+            foregroundTarget);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4155,7 +4160,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Func<bool>? newRequestEligibility = null,
         CurrentResponseInput? currentResponseInput = null,
         PendingQuestionCapture? questionTarget = null,
-        Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null)
+        Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
+        ForegroundConversationTarget? foregroundTarget = null)
     {
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
@@ -4530,7 +4536,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && (!commandRouter.IsActivationPrefixed(spokenText, AssistantName)
+                    || sessionCommand.RequestForegroundTarget && !sessionCommand.RequestActivationPrefixed))
             {
                 RetireSessionCommandReviews();
                 ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
@@ -4540,7 +4547,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName),
-                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision);
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)

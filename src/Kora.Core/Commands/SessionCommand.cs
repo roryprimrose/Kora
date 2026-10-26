@@ -16,7 +16,7 @@ public sealed partial record SessionCommand(
     public const int DefaultPageSize = 25;
     public const int MaximumInputBytes = 1024;
     public const int MaximumResultBytes = 65536;
-    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session attachment help", "session request help", "session retention help", "session queue cancellation help", "task help", "queue help"];
+    public static IReadOnlyList<string> DiscoveryPhrases { get; } = ["session help", "session list", "session attachment help", "session request help", "ask this conversation", "session retention help", "session queue cancellation help", "task help", "queue help"];
     public const string AttachmentSyntax =
         "session attachment inspect <session-id> | session attachment help. "
         + "Use a complete canonical lowercase D GUID, never a name, path, URI or selected window. "
@@ -58,14 +58,19 @@ public sealed partial record SessionCommand(
     {
         var text = input.TrimStart();
         var prefix = AssistantNameRules.Normalize(assistantName);
+        if (!text.StartsWith(prefix + ",", StringComparison.OrdinalIgnoreCase)
+            && ParseForegroundRequest(text) is { } foreground)
+        { return foreground; }
+        var activationPrefixed = false;
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase) && text.Length > prefix.Length
             && (text[prefix.Length] == ',' || char.IsWhiteSpace(text[prefix.Length])))
         {
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
+            activationPrefixed = true;
         }
         if (ParseRetention(text, input) is { } retention) { return retention; }
         if (ParseConversationSearch(text) is { } search) { return search; }
-        if (ParseRequest(text) is { } request) { return request; }
+        if (ParseRequest(text) is { } request) { return request with { RequestActivationPrefixed = activationPrefixed }; }
         if (ParseInstructionScopes(text, input) is { } scope) { return scope; }
         text = text.TrimEnd();
         if (text.Equals("queue", StringComparison.OrdinalIgnoreCase)

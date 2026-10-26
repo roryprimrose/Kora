@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class ClaudeUiContractTests
+public sealed partial class ClaudeUiContractTests
 {
     [Fact]
     public async Task Shipped_unavailable_setup_disables_actual_native_credential_control_before_network()

@@ -9,7 +9,8 @@ public sealed partial class ModelTurnHost
         if (turn.QuestionContinuation is not { } questions)
         {
             if (turn.PublishAnswer is { } publish && turn.Context.ToolMode == ModelToolMode.None
-                && turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama
+                && (turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama
+                    || turn.Registration.Adapter is ClaudeModelTurnAdapter { StreamsAnswer: true })
                 && turn.ConversationTarget is not null && turn.Registration.Adapter is IModelAnswerTurnAdapter streaming)
             {
                 var previous = string.Empty;

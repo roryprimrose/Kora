@@ -90,6 +90,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         public TaskCompletionSource? Closing { get; set; }
         public int Opens { get; private set; }
         public int Stops { get; private set; }
+        public TaskCompletionSource StopStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public Func<bool>? Admitted { get; private set; }
         public CancellationToken CaptureToken { get; private set; }
         public async Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
@@ -116,6 +117,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         public async Task StopAsync(CancellationToken cancellationToken = default)
         {
             Stops++;
+            StopStarted.TrySetResult();
             if (StopFailure is not null) { throw StopFailure; }
             IsListening = false;
             if (Closing is not null) { await Closing.Task.WaitAsync(cancellationToken); }

@@ -38,6 +38,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
     internal readonly TextBox CopyNameInput = new() { Width = 240, PlaceholderText = "new-copy-owned-id" };
+    internal readonly TextBox Critique = new()
+    {
+        AcceptsReturn = true, MaxHeight = 100, MinHeight = 40, TextWrapping = TextWrapping.Wrap,
+        PlaceholderText = "Describe how to refine the current owned Instruction body",
+    };
     internal readonly TextBox Source = new()
     {
         AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new("Consolas"),
@@ -134,13 +139,27 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
             Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
-                + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. No model, dictation, scripts, profile writes, rename or restore. "
+                + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
+                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model; complete review and normal Save remain separate. No dictation, scripts, profile writes, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
         };
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
+        var refinementControls = new StackPanel { Spacing = 4 };
+        refinementControls.Children.Add(new TextBlock { Text = "Local body refinement critique (volatile; Instruction only)" });
+        AutomationProperties.SetName(Critique, "Unsent local instruction body refinement critique");
+        refinementControls.Children.Add(Critique);
+        var refine = new Button { Content = "Refine current Instruction body" };
+        AutomationProperties.SetName(refine, "Review local disclosure and generate a complete instruction body proposal without saving");
+        refine.Click += (_, _) => run("Refine");
+        refinementControls.Children.Add(refine);
+        var cancelRefinement = new Button { Content = "Cancel refinement" };
+        cancelRefinement.Click += (_, _) => run("Cancel refinement");
+        refinementControls.Children.Add(cancelRefinement);
+        DockPanel.SetDock(refinementControls, Dock.Top);
+        panel.Children.Add(refinementControls);
         BindSourceSize();
         DockPanel.SetDock(SourceSizeStatus, Dock.Bottom);
         panel.Children.Add(SourceSizeStatus);
@@ -211,6 +230,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
         Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
+        Critique.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();
         SourceSizeStatus.Text = string.Empty;

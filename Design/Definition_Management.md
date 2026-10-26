@@ -247,7 +247,7 @@ edit or an approval.
 
 ### Foreground editor voice targeting
 
-**Status: bounded implementation with native clarification/review.** The product owner selected
+**Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected
 foreground editor plus model-interpreted editing intent, with clarification
 when ambiguous. The delivered route requires neither an "in this editor"
 preface nor a separate editor capture mode. This advances the approved
@@ -259,8 +259,9 @@ definition content and models cannot assign that authority.
 The current target-choice surface offers refinement/discussion of the exact
 captured artifact or Cancel. Another artifact/session/New request requires
 cancellation and its explicit admitted route; there is no automatic transfer
-of the held utterance. Spoken target-choice replies and general model-selected
-session relatedness are not delivered by this increment.
+of the held utterance. **Answer by voice** opens one bounded local successor
+capture for this editor question only. General model-selected session
+relatedness remains unavailable.
 
 An open background editor is not a target. At admitted wake/PTT activation,
 before asynchronous capture or UI dispatch, the host snapshots the eligible
@@ -312,13 +313,30 @@ Clarification offers only actual eligible, source-qualified targets, with
 **Cancel**. The delivered choices are the captured artifact's refinement or
 discussion; separate explicit routes select another destination. A later
 cross-target chooser may include **New request** or sessions only when relevant.
-For example: **Did you mean this instruction, or a session request?** A future admitted spoken answer must belong to this exact question and original
+For example: **Did you mean this instruction, or a session request?** An admitted spoken answer belongs to this exact question and original
 utterance, not a fresh command. Choice expiry, cancellation or invalidation discards the pending
 handoff. Selecting a different destination is a new explicit routing decision,
 not replay through the global parser. It preserves the original voice channel
 and uses that destination's ordinary review/admission; choosing an editor does
 not itself approve disclosure or an edit. No choice may silently substitute a
 different source after the original becomes stale.
+
+The delivered editor question is a volatile, single-consumption continuation of
+the original foreground request, not a persisted session question. It binds the
+exact editor target, source/baseline, draft/component, original request/channel
+and host/privacy/call admission. Native buttons and the separately selected
+**Answer by voice** share the same typed Refine/Discuss/Cancel outcome and
+75-second question expiry; neither extends the original operation's deadline.
+Only that question owner can hand over its original capture generation to its
+acknowledged successor and confirmed release. Global voice-generation fences
+and persisted-question admission are unchanged. The reply is parsed against
+this question's whole-utterance schema, never sent to a command/session parser.
+Invalid, duplicate, foreign or late replies cannot resume another operation.
+Withdrawal, expiry, close and disposal retain ownership until opening and
+capture release join. No held request/reply/question is saved or restored.
+Source freshness is rechecked before resumption, local authoring and draft
+adoption; deletion or revision changes require explicit reload/new input.
+Spoken choice is not disclosure, proposal adoption, Save or enablement consent.
 
 #### Complete editing interaction
 
@@ -658,7 +676,11 @@ or count as user activity/approval.
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
-and body dictation/refinement are not implemented. No model/network is needed.
+and body dictation remain unavailable. Manual editing needs no model/network.
+The bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) now adds native and exact `instructions refine` entry points on this existing editor, not a second profile writer.
+The host freezes the exact draft/body/baseline and unchanged critique; only a qualified local, tool-free volatile context turn may propose a complete replacement body. Metadata/source/encoding remain host-owned, and source preparation/freshness precede review and confirmed normal Save ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+The complete comparison leaves both draft and source untouched. Accepted proposals remain volatile until separately confirmed ordinary Save/readback, which holds changed revisions disabled. Draft/source/critique/private/channel/ownership/expiry changes revoke proposals; no fence stripping, truncation, remote fallback or reference execution is admitted ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [actual operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+Real provider enablement remains unavailable; this is not semantic harmlessness or full conversational/package authoring qualification ([registration](../src/Kora/Program.cs)).
 Create and inspect use an explicit bounded ID; mutations target the open original.
 The closed writer kinds admit only immediate canonical lowercase ASCII `*.instructions.md`
 files in `IApplicationDataPaths.RoamingRoot\Instructions` or `*.prompt.md` in

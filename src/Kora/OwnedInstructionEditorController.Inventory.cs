@@ -15,27 +15,34 @@ internal sealed partial class OwnedInstructionEditorController
     private bool inventoryChoiceWithdrawn;
     private long inventoryEpoch;
     private long inventoryFilterRevision;
+    private bool preservingRefinementInventory;
 
     private void OnInventoryChanged(object? sender, EventArgs args) =>
-        RetireInventory("Catalogue observation changed. Refresh and reselect; the open original/draft is retained.");
+        RetireInventory("Catalogue observation changed. Refresh and reselect; the open original/draft is retained.",
+            preserveRefinement: IsRefinementSourceObserved);
 
     private void OnInventoryReloadFailed(object? sender, ArtifactCatalogueReloadFailedEventArgs args) =>
         RetireInventory("Source/catalogue reload failed. Historical observations are unavailable, not current; Refresh required. Draft retained.");
 
-    private void RetireInventory(string reason)
+    private void RetireInventory(string reason, bool preserveRefinement = false)
     {
         Interlocked.Increment(ref inventoryEpoch);
         var opened = window;
-        if (Dispatcher.UIThread.CheckAccess()) { InvalidateInventory(reason); }
-        else { Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { InvalidateInventory(reason); } }); }
+        if (Dispatcher.UIThread.CheckAccess()) { InvalidateInventory(reason, preserveRefinement); }
+        else { Dispatcher.UIThread.Post(() => { if (ReferenceEquals(window, opened)) { InvalidateInventory(reason, preserveRefinement); } }); }
     }
 
-    private void InvalidateInventory(string reason)
+    private void InvalidateInventory(string reason, bool preserveRefinement = false)
     {
+        preserveRefinement = preserveRefinement && IsRefinementSourceObserved;
+        if (!preserveRefinement) { CancelRefinement(); }
         Interlocked.Increment(ref inventoryEpoch);
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = true;
         window?.RetireBufferFind(clearQuery: true);
-        window?.ClearInventory();
+        // A reviewed-use hold does not change source identity or the frozen body.
+        preservingRefinementInventory = preserveRefinement;
+        try { window?.ClearInventory(); }
+        finally { preservingRefinementInventory = false; }
         window?.ClearValidation();
         window?.SetUseReviewAvailable(false);
         window?.CancelReview();
@@ -65,6 +72,7 @@ internal sealed partial class OwnedInstructionEditorController
         var selected = opened.Files.SelectedItem as OwnedDefinitionInventoryRow;
         if (edited)
         {
+            CancelRefinement();
             Interlocked.Increment(ref inventoryFilterRevision);
             Interlocked.Increment(ref inventoryEpoch);
             Interlocked.Increment(ref sourceRevision);

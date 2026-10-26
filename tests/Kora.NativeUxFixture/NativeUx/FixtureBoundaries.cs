@@ -51,23 +51,30 @@ internal static class FixtureBoundaries
         }
     }
 
-    internal sealed class FixtureVoice(bool syntheticCapture = false) : IActivatedVoiceRecognitionService
+    internal sealed class FixtureVoice(bool syntheticCapture = false) : IQuestionVoiceRecognitionService
     {
         internal static MicrophoneDevice SyntheticMicrophone { get; } = new("fixture-synthetic-microphone", "Synthetic fixture microphone");
         internal bool SyntheticCapture => syntheticCapture;
         internal int StartCalls { get; private set; }
         internal int EndCalls { get; private set; }
+        internal int ReplyCalls { get; private set; }
+        internal TaskCompletionSource ReplyStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
-        public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged { add { } remove { } }
+        public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
         public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted { add { } remove { } }
+        public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted { add { } remove { } }
         public bool IsListening { get; private set; }
         public long Generation { get; private set; }
         public long CaptureGeneration => Generation;
         public bool IsAmbientListeningAvailable => false;
         public bool IsCaptureQuiescent => !IsListening;
-        public void InvalidateCapture() { Generation++; IsListening = false; }
+        public void InvalidateCapture()
+        {
+            Generation++; IsListening = false;
+            CaptureStateChanged?.Invoke(this, new(Generation, false));
+        }
         public bool AcceptCaptureGeneration(long generation) => syntheticCapture && generation == Generation;
         public IReadOnlyList<MicrophoneDevice> GetMicrophones() => syntheticCapture ? [SyntheticMicrophone] : [];
         public MicrophoneDevice? GetDefaultMicrophone() => syntheticCapture ? SyntheticMicrophone : null;
@@ -82,6 +89,14 @@ internal static class FixtureBoundaries
             { throw new InvalidOperationException("Only the synthetic fixture endpoint or its system-default alias is admitted."); }
             Generation++; StartCalls++; IsListening = true; Started.TrySetResult();
             return Task.CompletedTask;
+        }
+        public Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
+            Func<bool> isAdmitted, CancellationToken cancellationToken)
+        {
+            if (!isAdmitted()) { throw new InvalidOperationException("Exact synthetic reply admission retired."); }
+            var opened = BeginPushToTalkAsync(microphone, phrases, cancellationToken: cancellationToken);
+            ReplyCalls++; ReplyStarted.TrySetResult();
+            return opened;
         }
         public Task StopAsync(CancellationToken cancellationToken = default) { IsListening = false; return Task.CompletedTask; }
         public Task EndCaptureAsync(CancellationToken cancellationToken = default) => EndPushToTalkAsync(cancellationToken);

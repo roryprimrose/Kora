@@ -22,6 +22,11 @@ public sealed partial class SessionConversationService
         SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
             ModelTurnChoice.Hosted, token, claude: true);
 
+    public Task<ConversationSubmissionReceipt> SubmitClaudeAnswerStreamAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, CancellationToken token) =>
+        SubmitCoreAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, null,
+            ModelTurnChoice.Hosted, token, claude: true, claudeStreamAnswer: true);
+
     public Task<ConversationSubmissionReceipt> SubmitClaudeObservationsAsync(SessionWorkspaceEntry target, string body,
         IEnumerable<string> toolIds, Func<bool> admitted, CancellationToken token)
     {

@@ -9,6 +9,39 @@ namespace Kora.Core.UnitTests.Artifacts;
 public sealed class ArtifactFileDocumentTests
 {
     [Theory]
+    [InlineData("\n", false)]
+    [InlineData("\r\n", true)]
+    [InlineData("\r", true)]
+    public void BodyReplacementPreservesExactHostHeaderBomAndUntrimmedUnicode(string newline, bool bom)
+    {
+        var header = string.Join(newline, "---", "kora-format: 1", "name: 'example'  ",
+            "description: \"Read only\"", "attribution: Exact host attribution", "---", "");
+        const string body = "  e\u0301\U0001f642\r\n---\nname: untrusted-body\n  ";
+        var original = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(header + "  old\r\n", bom),
+            ArtifactKind.Instruction, "kora-profile", "example");
+        original.Body.Should().Be("  old\r\n");
+        var replacement = original.WithInstructionBody(body);
+        replacement.Body.Should().Be(body);
+        replacement.CopyBytes().Should().Equal(ArtifactFileDocument.Encode(header + body, bom));
+        replacement.Metadata.Should().BeEquivalentTo(original.Metadata);
+        original.Body.Should().Be("  old\r\n");
+        ((Action)(() => original.WithInstructionBody("\ud800"))).Should().Throw<InvalidDataException>();
+        ((Action)(() => original.WithInstructionBody(new string('x', ArtifactDefinition.MaximumContentLength)))).Should().Throw<InvalidDataException>();
+        ((Action)(() => original.WithInstructionBody(" \r\n"))).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void BodyReplacementCannotPromoteAnotherKindOrProfileSourceIntoOwnedInstructionAuthority()
+    {
+        const string text = "---\nname: example\ndescription: Test\n---\nBody";
+        foreach (var (kind, source) in new[] { (ArtifactKind.Prompt, "kora-profile"), (ArtifactKind.Instruction, "user-profile") })
+        {
+            var original = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(text, false), kind, source, "example");
+            ((Action)(() => original.WithInstructionBody("Replacement"))).Should().Throw<InvalidDataException>();
+        }
+    }
+
+    [Theory]
     [InlineData(ArtifactKind.Instruction, "\n", false, "name: example")]
     [InlineData(ArtifactKind.Prompt, "\r\n", true, "name: 'example'  ")]
     [InlineData(ArtifactKind.Instruction, "\r", true, "name : \"example\"")]

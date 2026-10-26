@@ -5,6 +5,18 @@ tool-free conversation answer. It never assembles context or recalls memories
 automatically. Ordinary **Submit exact message** and all separate source reviews
 remain unchanged.
 
+## Reply deliberately to one exact assistant answer
+
+In the native conversation or Sessions window, explicitly read the conversation, then choose **Reply to this answer** on the retained ASSISTANT answer you mean. Reply mode shows that exact complete answer and **Cancel reply**. Write your new follow-up (for example, `expand the second point`) in the session's existing memory-only composer; choosing Reply never pastes old text into your input ([native reply operation](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs)).
+
+Choose **Review exact reply**, or use the ordinary Send/Submit button while Reply mode is active. Inspect the complete earlier ASSISTANT evidence separately from the unchanged NEW USER request and the complete serialized budget. Then choose **Confirm ONE local-only reply** separately. This single-use review expires after **60 seconds**; each further reply needs its own review ([source-bound review](../src/Kora.Application/Hosting/ConversationHistoryReview.cs)).
+
+Only that one exact answer is included, not its original USER message, another answer, memories, instructions or attachments. The same Active conversation retains your unchanged new USER message and a genuine ASSISTANT answer if local model admission succeeds, otherwise an explicit HOST outcome. Source text is inert LocalOnly evidence, never approval, tool instructions or system authority ([shared workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [context policy](../src/Kora.Core/Conversation/ReviewedContext/MixedConversationContext.cs)).
+
+Editing the new follow-up retires its review. Changed/deleted/expired sources, page or session selection changes, Done state, privacy and ownership changes refuse stale sends without silently sending the follow-up alone. Switching away preserves unsent text under the existing per-session policy, but returning requires choosing and reviewing the source again or explicitly cancelling Reply. **Cancel reply** sends nothing, reads no new history and leaves the follow-up unchanged; privacy clearing remains authoritative ([reply state and fences](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs), [unsent policy](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+This native operation has no spoken/typed ordinal Reply command. Existing voice dictation, history reads, Details and original-USER reuse remain separate. No implicit Copilot/Claude routing, hosted egress, tool use, grants, source promotion, future history consent or draft autosave is added. Runtime availability still depends on existing qualified local admission; deterministic fake-model tests do not enable a provider ([interaction evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
+
 ## Select and inspect
 
 1. Select the exact **Active** session. Choose **Read exact conversation** and

@@ -22,6 +22,12 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+### Deliberate exact retained-answer replies
+
+The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.
+
+The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
+
 The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
 

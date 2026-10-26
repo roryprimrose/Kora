@@ -42,6 +42,7 @@ internal sealed partial class SessionsViewModel
                 return;
             }
             RestoreUnsent();
+            RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
             RememberUnsent();
@@ -116,7 +117,8 @@ internal sealed partial class SessionsViewModel
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
         && !conversationHeld && !conversationSourceHeld;
-    public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody);
+    public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody)
+        && (!assistantReply || ReplySourceCurrent);
     public async Task DiscardComposerBufferAsync()
     {
         if (!CanReadConversation) { return; }
@@ -153,7 +155,7 @@ internal sealed partial class SessionsViewModel
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
 
-    public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitConversationCoreAsync(allowQuestion: false);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
@@ -220,9 +222,20 @@ internal sealed partial class SessionsViewModel
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false,
-        RequestOrigin origin = RequestOrigin.LocalUi)
+        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false)
     {
         if (!CanReadConversation) { return; }
+        if (replyOperation)
+        {
+            try { Kora.Application.Hosting.SessionConversationService.RequireOriginalSource(origin); }
+            catch (InvalidOperationException exception)
+            {
+                Failure(logger, exception.GetType().Name);
+                conversationStatus = "Reply requires live original native user authority without channel relabelling. Nothing submitted.";
+                NotifyConversation();
+                return;
+            }
+        }
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
@@ -235,6 +248,8 @@ internal sealed partial class SessionsViewModel
             new(Guid.NewGuid()), origin), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            if (submission && assistantReply && !replyOperation)
+            { throw new InvalidOperationException("Reply mode requires its own exact source review and separate local-only confirmation. Cancel reply before another submission route."); }
             if (submission && (conversationHeld || conversationSourceHeld))
             { throw new InvalidOperationException("Submission is held; inspect the exact conversation/task receipts before proceeding."); }
             await operation(target, Live);
@@ -313,6 +328,7 @@ internal sealed partial class SessionsViewModel
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
         CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
+        ClearAssistantReply();
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
         composerBody = string.Empty;
@@ -326,6 +342,8 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        RestoreUnsent();
+        NotifyAssistantReply();
         NotifyMixedContext();
         NotifyModelMemoryProposal();
         NotifyAnswerRead();
@@ -344,7 +362,6 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
         OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
         NotifyRegisteredSettings();
-        RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();
         NotifyConversationSearch();

@@ -103,6 +103,7 @@
       <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Actual shared conversation submission, unavailable or legacy recovery outcome" />
       <local:ModelMemoryProposalPanel />
+      <local:AssistantReplyPanel />
       <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />

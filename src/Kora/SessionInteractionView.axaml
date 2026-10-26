@@ -13,6 +13,10 @@
           <StackPanel IsVisible="{Binding HasAssistantResponse}" Spacing="6">
             <TextBlock Text="Kora" Classes="eyebrow" />
             <TextBlock Text="{Binding AssistantResponse.Body, Converter={StaticResource BriefAnswer}}" TextWrapping="Wrap" />
+            <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
+                IsEnabled="{Binding $parent[UserControl].DataContext.CanReplyToAnswer}"
+                AutomationProperties.Name="Reply to this exact retained answer; review the full source and unchanged follow-up before separate local-only confirmation"
+                HorizontalAlignment="Left" />
             <Button Name="ReviewModelMemoryProposal" Content="Review session-memory proposal..."
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanReviewModelMemoryProposal}"
                 AutomationProperties.Name="Explicitly inspect this actual retained answer; separate acceptance and session-only memory admission"
@@ -102,6 +106,7 @@
               <StackPanel Spacing="8">
                 <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
                 <local:ModelMemoryProposalPanel />
+                <local:AssistantReplyPanel />
                 <ContentControl Content="{Binding DetailsOfferMessage}">
                   <ContentControl.ContentTemplate>
                     <DataTemplate>

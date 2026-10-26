@@ -1025,6 +1025,21 @@
               <StackPanel Spacing="4">
                 <TextBlock Text="Call detection" Classes="settings-title" />
                 <controls:NamedTextBlock
+                    Text="{Binding CommunicationActivityStatus}"
+                    AutomationProperties.Name="Communications audio observation source, support, freshness and limitations"
+                    AutomationProperties.LiveSetting="Polite"
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Inspect observations" Command="{Binding InspectCommunicationActivityCommand}"
+                          AutomationProperties.Name="Inspect cached communications audio source status" TabIndex="0" />
+                  <Button Content="Use Windows communications audio" Command="{Binding EnableCommunicationActivityCommand}"
+                          IsEnabled="{Binding CanEnableCommunicationActivity}"
+                          AutomationProperties.Name="Select qualified Windows communications audio observations" TabIndex="1" />
+                  <Button Content="Disable automatic observations" Command="{Binding DisableCommunicationActivityCommand}"
+                          IsEnabled="{Binding CanChangeCommunicationActivity}"
+                          AutomationProperties.Name="Explicitly disable only automatic communications observations" TabIndex="2" />
+                </StackPanel>
+                <controls:NamedTextBlock
                     Text="{Binding CallStateStatus}"
                     AutomationProperties.Name="Current call status"
                     AutomationProperties.LiveSetting="Polite"

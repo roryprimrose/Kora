@@ -24,6 +24,26 @@ public sealed partial class ModelTurnHostTests
         using var f = new Fixture(origin) { TrackPendingRecords = true };
         var host = ConfigureCancellation(f);
         await using var service = f.ConversationService(host, execution: host);
+        var terminalReadbacks = new System.Collections.Concurrent.ConcurrentBag<HostRequest>();
+        var terminalPublications = new System.Collections.Concurrent.ConcurrentBag<HostRequest>();
+        f.BeforeTaskRead = () =>
+        {
+            if (HostActivity.Current?.Request is { } request
+                && f.PendingRecords.TryGetValue(request.RequestId, out var retained) && retained.Task.IsTerminal)
+            {
+                terminalPublications.Should().NotContain(request, "terminal readback must stay inside the physical-completion lease");
+                terminalReadbacks.Add(request);
+            }
+            return Task.CompletedTask;
+        };
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Terminal)
+            {
+                terminalReadbacks.Should().Contain(status.Target.Request);
+                terminalPublications.Add(status.Target.Request);
+            }
+        };
         var completions = new System.Collections.Concurrent.ConcurrentBag<ConversationTurnCompletion>();
         var published = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         service.SubmittedConversationCompleted += (_, completion) =>
@@ -78,6 +98,7 @@ public sealed partial class ModelTurnHostTests
         (await service.ReadPendingConversationAsync(target, () => true, Token)).Turns.Should().BeEmpty();
         await published.Task.WaitAsync(Token);
         completions.Should().HaveCount(3).And.OnlyContain(item => item.Failure == null && item.Receipt!.Task.State == HostTaskState.Succeeded);
+        terminalReadbacks.Should().HaveCount(3).And.BeEquivalentTo(terminalPublications);
     }
 
     [Theory]
@@ -252,9 +273,19 @@ public sealed partial class ModelTurnHostTests
         var target = new SessionWorkspaceEntry(f.Session, null);
         var a = await service.SubmitQueuedAsync(target, "active", () => true, Token);
         var b = await service.SubmitQueuedAsync(target, "never dispatch", () => true, Token);
+        f.Adapter.Calls.Should().Be(1);
+        var cancellationRequested = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var cancellation = f.Adapter.RunToken.Register(() => cancellationRequested.TrySetResult());
         var disposal = service.DisposeAsync().AsTask();
-        disposal.IsCompleted.Should().BeFalse("the physical provider ignores cancellation");
-        provider.SetResult(LateAnswer());
+        try
+        {
+            await cancellationRequested.Task.WaitAsync(Token);
+            disposal.IsCompleted.Should().BeFalse("the physical provider ignores cancellation");
+            a.Completion.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            f.ExecutionCompletions.Should().Be(0);
+        }
+        finally { provider.TrySetResult(LateAnswer()); }
         await disposal;
         await service.DisposeAsync();
         f.Adapter.Calls.Should().Be(1);

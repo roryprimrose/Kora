@@ -259,6 +259,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task<ModelTurnResult> ExecuteAsync(ModelTurn turn, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
         { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
@@ -346,7 +348,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
-        var reply = sessionDiscoveries.TryGetValue(turn, out var discovery)
+        var reply = customizationDiscoveries.TryGetValue(turn, out var customizations)
+            ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
+            : sessionDiscoveries.TryGetValue(turn, out var discovery)
             ? await discovery.InvokeAsync(id, input, linked.Token).ConfigureAwait(false)
             : turn.Context.ToolMode == ModelToolMode.McpReadOnly
             ? mcpInvocations.TryGetValue(turn, out var mcp)
@@ -382,6 +386,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
+        { return ModelTurnReason.ToolResultRejected; }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
         { return ModelTurnReason.SessionNotAdmitted; }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);

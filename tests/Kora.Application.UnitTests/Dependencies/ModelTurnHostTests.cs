@@ -510,6 +510,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Func<Task>? BeforeRead { get; set; }
+        internal Func<Task>? BeforeTaskRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
@@ -618,11 +619,14 @@ public sealed partial class ModelTurnHostTests : IDisposable
             }
             return new SessionWorkspaceEntry(Session, Metadata);
         }
-        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
-            ValueTask.FromResult(TrackPendingRecords
+        public async ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
+        {
+            if (BeforeTaskRead is { } before) { await before().ConfigureAwait(false); }
+            return TrackPendingRecords
                 ? PendingRecords.Values.Where(item => item.Task.Request.TaskId == task)
                     .Select(item => new HostTaskObservation(item.Task, item.Message.Generation, "host", true, null)).SingleOrDefault()
-                : Task);
+                : Task;
+        }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
@@ -698,6 +702,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal byte[]? Wire { get; private set; }
         internal ModelTurnProvenance? Provenance { get; private set; }
         internal Kora.Core.Providers.ProviderProfileTuple? Profile { get; private set; }
+        internal CancellationToken RunToken { get; private set; }
         internal Action? OnRun { get; set; }
         internal Task<ModelProviderReply>? Pending { get; set; }
         internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, Task>? OnTool { get; set; }
@@ -709,6 +714,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             Wire = context.ToArray();
             Provenance = provenance;
             Profile = profile;
+            RunToken = token;
             OnRun?.Invoke();
             if (OnTool is { } tool) { await tool(invokeTool); }
             return Pending is { } pending ? await pending : Reply;

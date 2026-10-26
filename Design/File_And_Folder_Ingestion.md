@@ -581,6 +581,30 @@ like system instructions, commands, approvals, or skill definitions.
 
 ## User Experience
 
+### Named device-local folder lifecycle
+
+The dedicated **Settings > Knowledge > Manage knowledge sources** surface now
+implements bounded named device-local folders with separate metadata/read and
+exact complete snapshot/save confirmations, explicit native inspection and
+`lexical-lines-v1` retrieval, reviewed refresh, disable and inventoried removal.
+The [user guide](../docs/knowledge-sources.md) describes current limits and recovery.
+
+This increment reuses the existing nonrecursive immediate-file folder policy:
+32 UTF-8 text/Markdown files, 256 KiB each and 1 MiB combined, with whole-source
+rejection rather than silent exclusions. Up to 16 names are retained in a new
+private `KnowledgeSourcesV1` partition supplied by `IApplicationDataPaths`.
+It does not change the shared interaction schema or store raw content in
+preferences. Publication binds complete metadata and encrypted original-byte
+snapshots atomically; removal revokes first and deletes only inventoried Kora
+copies, clearing the owned persistent journal before reporting success.
+
+Inspection checks original access/identity/membership without rereading content.
+Old revisions become unavailable when refresh starts, including failed refresh.
+Adding, refreshing and enabling are not model consent. Model/source-use
+qualification and hosted disclosure remain unavailable; the sibling volatile
+folder-answer route is independent. This native lifecycle does not claim voice
+commands, recursive sources, embeddings, OCR, watchers or original-file deletion.
+
 ### Adding a source
 
 The user starts from **Settings > Knowledge**, a session's **Add context**

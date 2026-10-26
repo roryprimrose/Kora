@@ -240,6 +240,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "hosted-requests",
             "folder-answers",
             "independent-agent-runs",
+            "knowledge-sources",
             "code-highlighting",
             "external-browser",
             "diagrams",

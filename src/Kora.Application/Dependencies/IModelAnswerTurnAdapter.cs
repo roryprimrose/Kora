@@ -4,7 +4,7 @@ using Kora.Core.Tools;
 
 namespace Kora.Application.Dependencies;
 
-/// <summary>Optional bounded local tool-free provisional presentation on the ordinary host turn.</summary>
+/// <summary>Optional bounded tool-free provisional presentation on an explicitly admitted host turn.</summary>
 internal interface IModelAnswerTurnAdapter
 {
     /// <summary>Runs one owned answer with fresh admission before each provisional publication.</summary>

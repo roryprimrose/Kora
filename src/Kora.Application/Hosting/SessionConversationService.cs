@@ -105,7 +105,7 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false)
+        bool claude = false, bool claudeStreamAnswer = false)
     {
         RequireOriginalSource(origin);
         RequireConversationDispatchOpen(target.Authority.SessionId);
@@ -167,7 +167,7 @@ public sealed partial class SessionConversationService(
 
                         admission = claude
                             ? turns is ModelTurnHost claudeHost
-                                ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted

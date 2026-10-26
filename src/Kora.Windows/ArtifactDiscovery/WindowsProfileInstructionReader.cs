@@ -30,7 +30,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
     public async Task<IProfileInstructionSelection> OpenSelection(string selectedPath, CancellationToken token)
     {
         LocalFilePolicy.ValidatePath(selectedPath);
-        if (!selectedPath.EndsWith(".instructions.md", StringComparison.Ordinal) || !SupportedLocation(selectedPath))
+        if (!selectedPath.EndsWith(".instructions.md", StringComparison.Ordinal) || !SupportedLocation(selectedPath, roaming))
         { throw new InvalidDataException("Select one canonical .instructions.md file from the personal Code or Code - Insiders User prompts/profile prompts locations. Other roots and formats are unavailable."); }
         var selected = await inspector.InspectProfileInstruction(selectedPath, roaming, token).ConfigureAwait(false);
         try
@@ -46,7 +46,7 @@ public sealed class WindowsProfileInstructionReader : IProfileInstructionReader
         catch { selected.Dispose(); throw; }
     }
 
-    private bool SupportedLocation(string path)
+    internal static bool SupportedLocation(string path, string roaming)
     {
         foreach (var editor in new[] { "Code", "Code - Insiders" })
         {

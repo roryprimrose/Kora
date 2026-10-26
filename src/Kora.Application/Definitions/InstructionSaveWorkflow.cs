@@ -17,7 +17,8 @@ public sealed class InstructionSaveWorkflow(OwnedInstructionEditorActions action
     }
 
     public async Task<InstructionSaveOutcome> Save(string name, OwnedInstructionSnapshot? original,
-        string draft, bool delete, IInstructionMutationReview review, Func<bool> eligible, CancellationToken token)
+        string draft, bool delete, IInstructionMutationReview review, Func<bool> eligible, CancellationToken token,
+        bool requireOriginal = false)
     {
         var proposed = delete ? null : actions.PrepareSave(name, original, draft);
         var expected = original;
@@ -28,6 +29,8 @@ public sealed class InstructionSaveWorkflow(OwnedInstructionEditorActions action
             if (!result.Conflict)
             { return new(result.Published || result.Unchanged, result.Deleted, false,
                 result.Published || result.Unchanged ? result.Current : original, result.Unchanged); }
+            if (requireOriginal)
+            { throw new InvalidOperationException("The source changed during refinement Save. Proposal revoked; ordinary Reload/reconcile is required."); }
             var choice = await review.Conflict(result.Current, proposed, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("The conflict review lifetime expired."); }

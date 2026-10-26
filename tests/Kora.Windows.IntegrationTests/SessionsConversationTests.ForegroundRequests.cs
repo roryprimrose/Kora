@@ -16,6 +16,7 @@ using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Commands;
 using Kora.Core.Conversation;
@@ -161,6 +162,13 @@ public sealed partial class SessionsConversationTests
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
                 composed.Turns.IsQuiescent.Should().BeTrue();
+                var resources = composed.Audit.Events.Where(entry => entry.ActionId.StartsWith("runtime.resource.", StringComparison.Ordinal)).ToArray();
+                resources.Select(entry => (entry.ActionId, entry.Outcome)).Should().Equal(
+                    ("runtime.resource.acquire", SecurityAuditOutcome.Requested),
+                    ("runtime.resource.acquire", SecurityAuditOutcome.Succeeded),
+                    ("runtime.resource.release", SecurityAuditOutcome.Requested),
+                    ("runtime.resource.release", SecurityAuditOutcome.Succeeded));
+                resources.Should().OnlyContain(entry => entry.TargetId == message.Execution!.Turn.Value.ToString("D"));
                 await native.Main.ConfirmForegroundRequestAsync();
                 adapter.Calls.Should().Be(1);
                 f.Count("conversation_messages").Should().Be(1);
@@ -253,6 +261,10 @@ public sealed partial class SessionsConversationTests
                     .Single(button => button.Name is "ConfirmOriginalRequest").RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 var submission = panel.Operation;
                 var provenance = await adapter.Started.Task.WaitAsync(f.Token);
+                composed.Audit.Events.Where(entry => string.Equals(entry.ActionId, "runtime.resource.acquire", StringComparison.Ordinal))
+                    .Select(entry => (entry.TargetId, entry.Outcome)).Should().Equal(
+                        (provenance.Turn.Value.ToString("D"), SecurityAuditOutcome.Requested),
+                        (provenance.Turn.Value.ToString("D"), SecurityAuditOutcome.Succeeded));
                 var status = await composed.Conversation.ReadRunningConversationAsync(target, () => true, f.Token);
                 await composed.Conversation.CancelRunningConversationAsync(status!.Target, () => true, f.Token);
                 if (retireSource) { window.Hide(); }
@@ -261,6 +273,8 @@ public sealed partial class SessionsConversationTests
                 composed.Model.DecideComposerDraft = () => Task.FromResult(ComposerDraftDecision.Cancel);
                 var shutdown = owner.PrepareShutdown();
                 shutdown.IsCompleted.Should().BeFalse("voluntary shutdown joins the actual owned native operation");
+                composed.Audit.Events.Should().NotContain(entry => string.Equals(entry.ActionId, "runtime.resource.release", StringComparison.Ordinal),
+                    "cancellation and source retirement cannot release a lease before the actual worker joins");
                 adapter.Release.SetResult(new(ModelTurnOutcome.Succeeded, provenance.Selection, new("forbidden late answer", null)));
                 await submission;
                 (await shutdown).Should().BeFalse("independent unsent input remains protected after the join");
@@ -268,6 +282,10 @@ public sealed partial class SessionsConversationTests
                 retained.AssistantResponse.Should().BeNull();
                 if (!retireSource) { retained.Outcome.Should().Be(ModelTurnOutcome.Cancelled); }
                 composed.Turns.IsQuiescent.Should().BeTrue();
+                composed.Audit.Events.Where(entry => string.Equals(entry.ActionId, "runtime.resource.release", StringComparison.Ordinal))
+                    .Select(entry => (entry.TargetId, entry.Outcome)).Should().Equal(
+                        (provenance.Turn.Value.ToString("D"), SecurityAuditOutcome.Requested),
+                        (provenance.Turn.Value.ToString("D"), SecurityAuditOutcome.Succeeded));
                 composed.Model.ComposerBody.Should().Be("independent unsent input");
             }
             finally

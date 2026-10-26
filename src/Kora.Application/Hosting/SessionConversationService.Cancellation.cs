@@ -60,11 +60,13 @@ public sealed partial class SessionConversationService
             if (!Current() || session.Authority.SessionId != target.Request.SessionId || !session.Authority.IsActive
                 || session.Authority.Generation != target.Generation || task is null || !task.CurrentSource
                 || task.Generation != target.Generation || task.Task.Request != target.Request
-                || task.Task.Revision != target.TaskRevision || task.Task.State != HostTaskState.DispatchRecorded)
+                || task.Task.Revision != target.TaskRevision
+                || task.Task.State is not (HostTaskState.DispatchRecorded or HostTaskState.IntentRecorded))
             { throw new InvalidOperationException("The exact running task/session/generation changed; no cancellation was accepted."); }
             await running.RequestCancellationAsync(() =>
             {
-                if (!Current()) { throw new InvalidOperationException("Cancellation user authority or freshness changed before acceptance."); }
+                if (!Current() || running.Target != target)
+                { throw new InvalidOperationException("Cancellation user authority or exact waiting/running target changed before acceptance."); }
                 var audit = cancellationAudit
                     ?? throw new InvalidOperationException("Trusted cancellation audit is unavailable; cancellation was not accepted.");
                 var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,

@@ -118,7 +118,7 @@ public sealed partial class SessionConversationService(
         }
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
-        if (!Live() || !turns.IsQuiescent)
+        if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
         { throw new InvalidOperationException("Submission requires private original user input and quiescent provider admission."); }
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
         if (actual != target || !actual.Authority.IsActive || !Live())
@@ -148,7 +148,7 @@ public sealed partial class SessionConversationService(
             { throw new InvalidDataException("A fresh submission unexpectedly returned an already terminal request."); }
             ModelTurnResult result;
             ConversationSubmissionReceipt receipt;
-            if (!Live() || !turns.IsQuiescent)
+            if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
             { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
             else
             {
@@ -164,6 +164,7 @@ public sealed partial class SessionConversationService(
                             context = await prepareContext(request, Live, token).ConfigureAwait(false);
                             context.RequireCompleteInputLimit();
                         }
+
                         admission = claude
                             ? turns is ModelTurnHost claudeHost
                                 ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
@@ -234,6 +235,9 @@ public sealed partial class SessionConversationService(
             throw new ConversationSubmissionUnconfirmedException(request, exception);
         }
     }
+
+    private bool ProviderAdmitsSession(HostId<SessionIdentity> session) =>
+        turns is ModelTurnHost runtime ? runtime.CanSubmitConversation(session) : turns.IsQuiescent;
 
     private async Task RejectCredentialAsync(HostId<SessionIdentity> session, HostRevision generation,
         Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi)

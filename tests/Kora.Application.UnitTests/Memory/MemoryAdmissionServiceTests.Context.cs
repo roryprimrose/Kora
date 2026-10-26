@@ -234,12 +234,12 @@ public sealed partial class MemoryAdmissionServiceTests
 
     private sealed partial class Fixture
     {
-        internal SessionMemoryContextSource ContextSource()
+        internal SessionMemoryContextSource ContextSource(MemoryScopeKind scopeKind = MemoryScopeKind.Session)
         {
             MemoryControlEnabled = true;
             var sessions = new Kora.Application.Hosting.SessionWorkspaceService(this, new(this), this,
                 Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Application.Hosting.SessionWorkspaceService>.Instance);
-            return new(sessions, this, this, this, this, this);
+            return new(sessions, this, this, this, this, this, scopeKind);
         }
     }
 }

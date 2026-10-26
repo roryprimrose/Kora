@@ -8569,7 +8569,8 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
             SpeechComponentSetupService? speechComponentSetup = null,
-            Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null)
+            Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
+            bool enableConversationalReplies = false, Exception? conversationalReadFailure = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8607,6 +8608,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            ConversationalPreferences.LoadFailure = conversationalReadFailure;
+            ConversationalConfiguration = enableConversationalReplies
+                ? new(ConversationalPreferences, OutputAdmission, Audit) : null;
             ArtifactPreferences.LoadFailure = artifactReadFailure;
             ArtifactDirectoryConfiguration = enableArtifactConfiguration
                 ? new ArtifactDirectoryConfigurationService(ArtifactPreferences, Audit)
@@ -8759,7 +8763,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
                 clipboardExplanation: clipboardWorkflow,
                 speechInputConfiguration: InputConfiguration,
-                speechComponentSetup: speechComponentSetup);
+                speechComponentSetup: speechComponentSetup,
+                conversationalReplies: ConversationalConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -8779,6 +8784,8 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+        internal Kora.Application.UnitTests.Configuration.ConversationalReplyConfigurationServiceTests.Preferences ConversationalPreferences { get; } = new();
+        public ConversationalReplyConfigurationService? ConversationalConfiguration { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();

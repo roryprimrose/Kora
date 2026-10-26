@@ -428,13 +428,13 @@ public sealed partial class ModelTurnHostTests
             return new(Discovery, use, access ?? model, model, workspace, Conversation, Audit, model.Time);
         }
         internal ReviewedToolSkillInvocationWorkflow ToolWorkflow(bool qualified = true, IModelTurnAdapter? adapter = null,
-            PageNetwork? network = null, PageApprovalStore? approval = null,
+            PageNetwork? network = null, IHostInteractionStore? approval = null,
             ISessionWorkspaceAccess? access = null, TimeProvider? time = null)
         {
             model.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
             model.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
             var host = qualified ? model.ConfiguredProfiles(adapter: adapter) : model.ConfiguredProfiles(production: true);
-            Conversation = PageService(model, host, approval ?? new(model), network ?? new());
+            Conversation = PageService(model, host, approval ?? new PageApprovalStore(model), network ?? new());
             return new(Discovery, use, access ?? model, model, Conversation!, Audit, time ?? model.Time);
         }
         public async ValueTask DisposeAsync() { await use.DisposeAsync(); await native.DisposeAsync(); }

@@ -28,6 +28,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
+
 Kora has one source-qualified artifact invocation route for bundled skills and
 compatible skill, instruction, prompt, and agent definitions. The route is
 available from the typed composer and activated voice:
@@ -578,6 +580,10 @@ call/round and deadline limits, no retries and actual transport termination
 remain mandatory. This is not a running provider, a skill/agent executor or
 permission to use the legacy action selector as a tool loop. Production
 qualification and default enablement remain unavailable.
+
+Explicit [Claude observations](../docs/claude-requests.md#explicit-read-only-observations) reuse this same loop and actual six-ID registry callback, rather than introducing a provider tool engine.
+A bounded advertised subset is frozen by the host; both native Count Tokens and Messages sends, including every result continuation, require separate affirmative final-byte consent.
+Ordinary Claude requests stay tool-free; provider-native tools and other capability groups remain excluded ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 

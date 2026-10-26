@@ -46,6 +46,14 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Conversational voice replies
+
+**Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
+The shared device-local preference defaults Off and uses current original-user/native/call admission, typed requested/terminal audit, atomic preference replacement, exact readback and an unconfirmed-write hold ([configuration owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
+This choice permits a new exact foreground host clarification to finish speaking before one bounded schema reply. It never enables listening by itself, replaces microphone consent or approves an operation ([conversational turn contract](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
+Manual voice/native answers remain available under that contract. This preference is not a new registered model-proposal setting or an alias for session dictation ([shared setting owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
 ### Exact existing Settings-section navigation
 
 Original typed/current-name activated voice uses the [closed seven-phrase grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs) to request only Appearance, Speech & audio (speech/audio/microphone aliases), Responses, Sessions or Calls.

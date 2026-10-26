@@ -172,6 +172,18 @@ public sealed class MemoryPolicyTests
         MemoryPolicy.Eligible(Record, Boundary, destination).Should().Be(MemoryReason.DisclosureNotAdmitted);
 
     [Fact]
+    public void DeviceProfileCannotPromoteModelOriginAndRequiresExactProfileInLaterConversation()
+    {
+        var record = Record with { Scope = MemoryScope.DeviceProfile(Profile) };
+        MemoryPolicy.CheckLineage(record with { Lineage = record.Lineage with { Origin = MemoryProposalOrigin.Model } },
+            Boundary).Should().Be(MemoryReason.LineageUnknown);
+        MemoryPolicy.Eligible(record, Boundary with { Session = new(Guid.NewGuid()), Generation = new(9) },
+            MemoryDestination.Local).Should().Be(MemoryReason.None);
+        MemoryPolicy.Eligible(record, Boundary with { Profile = new(Guid.NewGuid()) }, MemoryDestination.Local)
+            .Should().Be(MemoryReason.ScopeMismatch);
+    }
+
+    [Fact]
     public void Review_requires_pending_state_exact_receipt_revision_and_exact_boundary()
     {
         var reviewed = Record with { Review = MemoryReviewState.Reviewed, Retention = MemoryRetentionState.Pending, Revision = new(2) };

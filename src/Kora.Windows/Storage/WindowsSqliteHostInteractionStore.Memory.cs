@@ -66,7 +66,12 @@ public sealed partial class WindowsSqliteHostInteractionStore
     }
 
     public ValueTask<MemoryResult> TransactMemoryAsync(HostRequest request, MemoryBoundary boundary,
-        Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token)
+        Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted, CancellationToken token) =>
+        TransactMemoryCoreAsync(request, boundary, transition, admitted, MemoryScopeKind.Session, token);
+
+    private ValueTask<MemoryResult> TransactMemoryCoreAsync(HostRequest request, MemoryBoundary boundary,
+        Func<ImmutableArray<MemoryRecord>, MemoryStorageCommit> transition, Func<bool> admitted,
+        MemoryScopeKind scopeKind, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(transition);
         ArgumentNullException.ThrowIfNull(admitted);
@@ -81,7 +86,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 throw new InvalidOperationException("The current private session memory boundary is closed.");
             }
             var all = ReadMemory(connection);
-            var rows = all.Where(row => row.Scope.Identity == request.SessionId.Value).ToImmutableArray();
+            var scope = scopeKind == MemoryScopeKind.DeviceProfile
+                ? MemoryScope.DeviceProfile(boundary.Profile) : MemoryScope.Session(request.SessionId);
+            var rows = all.Where(row => row.Scope == scope).ToImmutableArray();
             var commit = transition(rows);
             if (commit.VolatileIdentityCount < 0)
             {
@@ -100,9 +107,10 @@ public sealed partial class WindowsSqliteHostInteractionStore
             if (commit.Replacement is not { } replacement) { return commit.Result; }
             RequireFreshMetadataIntent(intent);
             ValidateMemoryRecord(replacement, boundary.Profile);
-            if (replacement.Scope.Identity != request.SessionId.Value || commit.Result.Record?.Id != replacement.Id
+            if (replacement.Scope != scope || commit.Result.Record?.Id != replacement.Id
                 || commit.Result.Outcome != MemoryOutcome.Succeeded
-                || MemoryPolicy.CheckLineage(replacement, boundary) != MemoryReason.None)
+                || (replacement.Retention == MemoryRetentionState.Forgotten
+                    ? MemoryPolicy.CheckManagementLineage(replacement, boundary) : MemoryPolicy.CheckLineage(replacement, boundary)) != MemoryReason.None)
             {
                 throw new InvalidDataException("A durable memory mutation must retain exact admitted session lineage.");
             }
@@ -167,8 +175,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
     private static void WriteMemory(SqliteConnection connection, SqliteTransaction transaction, MemoryRecord record, long sequence) =>
         Execute(connection, transaction, """
             INSERT INTO reviewed_memory VALUES($id,$session,$revision,$payload,$audit)
-            ON CONFLICT(memory_id) DO UPDATE SET revision=excluded.revision,payload=excluded.payload,audit_sequence=excluded.audit_sequence;
-            """, ("$id", Id(record.Id)), ("$session", record.Scope.Identity.ToString("D")), ("$revision", record.Revision.Value),
+            ON CONFLICT(memory_id) DO UPDATE SET session_id=excluded.session_id,revision=excluded.revision,payload=excluded.payload,audit_sequence=excluded.audit_sequence;
+            """, ("$id", Id(record.Id)), ("$session", MemoryStorageSession(record).ToString("D")), ("$revision", record.Revision.Value),
             ("$payload", HostInteractionCodec.Encode(MemoryData.From(record))), ("$audit", sequence));
 
     private static ImmutableArray<MemoryRecord> ReadMemory(SqliteConnection connection)
@@ -183,14 +191,14 @@ public sealed partial class WindowsSqliteHostInteractionStore
             if (rows.Count >= MemoryPolicy.MaximumEntries) { throw new InvalidDataException("The memory identity inventory is oversized."); }
             var record = HostInteractionCodec.Decode<MemoryData>(reader.GetString(3)).ToRecord();
             ValidateMemoryRecord(record, profile);
-            if (!Same(Id(record.Id), reader.GetString(0)) || !Same(record.Scope.Identity.ToString("D"), reader.GetString(1))
+            if (!Same(Id(record.Id), reader.GetString(0)) || !Same(MemoryStorageSession(record).ToString("D"), reader.GetString(1))
                 || record.Revision.Value != reader.GetInt64(2))
             {
                 throw new InvalidDataException("The saved memory identity, scope or revision projection conflicts.");
             }
             ValidateRowAuthority(connection, reader.GetInt64(4), MemoryChange(record));
-            var owner = RequireSession(connection, new(record.Scope.Identity));
-            if (record.Retention != MemoryRetentionState.Forgotten
+            var owner = RequireSession(connection, record.Lineage.Request.SessionId);
+            if (record.Scope.Kind == MemoryScopeKind.Session && record.Retention != MemoryRetentionState.Forgotten
                 && (!owner.Authority.IsActive || record.Lineage.SessionGeneration != owner.Authority.Generation))
             {
                 throw new InvalidDataException("Unrevoked memory conflicts with its owning session lifecycle.");
@@ -204,7 +212,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         if (record.Id.Value == Guid.Empty || record.Revision.Value <= 0 || record.Lineage is null
             || record.Lineage.Request is null || record.Lineage.Profile != profile
-            || record.Scope.Kind != MemoryScopeKind.Session || record.Scope.Identity != record.Lineage.Request.SessionId.Value
+            || !ValidMemoryScope(record, profile)
             || record.CreatedAt.Offset != TimeSpan.Zero || record.Lineage.SessionGeneration.Value <= 0
             || record.Lineage.Origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model)
             || record.Lineage.Source is not null || record.Lineage.SourceRevision is not null
@@ -263,7 +271,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
     }
 
     private static MemoryRecord[] MemoryInvalidations(SqliteConnection connection, HostId<SessionIdentity> session) =>
-        ReadMemory(connection).Where(row => row.Scope.Identity == session.Value && row.Retention != MemoryRetentionState.Forgotten)
+        ReadMemory(connection).Where(row => row.Scope.Kind == MemoryScopeKind.Session
+            && row.Scope.Identity == session.Value && row.Retention != MemoryRetentionState.Forgotten)
             .Select(row => row with
             {
                 Revision = new(checked(row.Revision.Value + 1)), Candidate = null, Receipt = null,
@@ -272,17 +281,21 @@ public sealed partial class WindowsSqliteHostInteractionStore
 
     private sealed record MemoryData(HostId<MemoryIdentity> Id, HostRevision Revision, HostId<SessionIdentity> Session,
         MemoryLineage Lineage, MemoryCandidate? Candidate, DateTimeOffset CreatedAt, MemoryReviewState Review,
-        MemoryRetentionState Retention, MemoryReviewReceipt? Receipt)
+        MemoryRetentionState Retention, MemoryReviewReceipt? Receipt,
+        [property: System.Text.Json.Serialization.JsonIgnore(Condition = System.Text.Json.Serialization.JsonIgnoreCondition.WhenWritingNull)]
+        MemoryScopeKind? ScopeKind = null)
     {
         internal static MemoryData From(MemoryRecord record) =>
-            new(record.Id, record.Revision, new(record.Scope.Identity), record.Lineage, record.Candidate,
-                record.CreatedAt, record.Review, record.Retention, record.Receipt);
+            new(record.Id, record.Revision, new(MemoryStorageSession(record)), record.Lineage, record.Candidate,
+                record.CreatedAt, record.Review, record.Retention, record.Receipt,
+                record.Scope.Kind == MemoryScopeKind.Session ? null : record.Scope.Kind);
 
         internal MemoryRecord ToRecord()
         {
             try
             {
-                return new(Id, Revision, MemoryScope.Session(Session), Lineage, Candidate, CreatedAt, Review, Retention, Receipt);
+                return new(Id, Revision, DecodeMemoryScope(ScopeKind, Session, Lineage),
+                    Lineage, Candidate, CreatedAt, Review, Retention, Receipt);
             }
             catch (ArgumentException exception)
             {

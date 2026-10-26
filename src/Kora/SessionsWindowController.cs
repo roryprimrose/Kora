@@ -205,7 +205,7 @@ internal sealed partial class SessionsWindowController(
             var revision = access.ControlRevision;
             bool Live() => !disposed && access.CanControl && access.ControlRevision == revision
                 && ReferenceEquals(model, active) && target is not null && active?.SelectedSessionRecord == target
-                && (window?.IsActive == true || compact?.IsActive == true || interaction?.IsActive == true
+                && (presentation?.HasUniqueForegroundWindow == true
                     || active?.IsMcpActive == true && ConversationQuestions?.IsOwnerInUse == true);
             if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
             token.ThrowIfCancellationRequested();
@@ -419,7 +419,7 @@ internal sealed partial class SessionsWindowController(
                 return selectedOption < 0 ? null : tools[selectedOption].Name;
             };
         }
-        presentation = new(model);
+        presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {
             try

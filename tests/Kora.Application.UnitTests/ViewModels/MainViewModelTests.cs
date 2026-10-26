@@ -9295,7 +9295,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
-        private readonly Queue<Action> deferredPosts = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> deferredPosts = new();
 
         public Task LastInvocation { get; private set; } = Task.CompletedTask;
 
@@ -9364,6 +9364,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public bool IsAmbientListeningAvailable => false;
 
         public bool IsLiteralDictationAvailable { get; set; }
+
+        public bool IsSpeechInterruptionAvailable { get; set; }
 
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
@@ -9644,6 +9646,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public bool RemainSpeakingOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
         public bool IgnoreSpeakCancellation { get; set; }
@@ -9778,7 +9781,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 throw StopException;
             }
-            IsSpeaking = false;
+            IsSpeaking = RemainSpeakingOnStop;
             if (!HoldSpeechCompletionOnStop)
             {
                 SpeakGate?.TrySetResult();

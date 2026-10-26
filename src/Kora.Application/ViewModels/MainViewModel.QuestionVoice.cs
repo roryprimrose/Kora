@@ -79,7 +79,8 @@ public sealed partial class MainViewModel
     {
         var voice = activeSpeechVoice;
         var output = SelectedOutputDevice;
-        if (voice is null || output is null || !eligible() || !IsSpeechResponseEnabled || textToSpeech.IsSpeaking || IsSpeaking)
+        if (voice is null || output is null || !eligible() || !IsSpeechResponseEnabled || textToSpeech.IsSpeaking || IsSpeaking
+            || speechInterruptionActive)
         {
             throw new InvalidOperationException("Exact question playback is unavailable. Capture was not opened.");
         }

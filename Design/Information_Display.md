@@ -256,6 +256,41 @@ full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
 
+#### Exact request outcomes and causal diagnostics
+
+In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
+record and choose **Read request outcomes**. The existing bounded reader freshly
+resolves its original session, host request and typed audit correlation within
+the same source, independently of the search filters. **Next page** preserves
+that exact query and signed snapshot. A readable summary distinguishes requested,
+recorded terminal failure/denial/cancellation/unknown/success, incomplete pages,
+and missing/unavailable evidence. Requested-only evidence means pending **or**
+missing terminal evidence, never proof of running work or success. Select each
+event for its exact typed outcome, reason and retained/expired-but-present state.
+Committed interaction audit remains explicitly distinct from the typed
+diagnostic audit projection; file copies and lookalike flags cannot enter this
+navigation.
+
+**Inspect related diagnostics** explicitly leaves the audit source for the
+existing SQLite diagnostic projection, using only the selected record's retained
+trace/span and original host session. Select its span, then **Open selected
+segment** to follow recorded parent/explicit links. Each hop is a fresh bounded
+read scoped to that session; there is no recursive graph expansion or inferred
+parent. Cycles require explicit user hops, foreign/missing links remain
+unavailable, and expired-but-present segments are labelled. Recorded trace
+correlation is diagnostic data, never audit/effect authority. Uncorrelated legacy
+diagnostics cannot select a request. Filter changes, privacy/ownership loss,
+closure and cancellation retire selection, summary and held reads.
+
+This is host-owned read-only presentation of the existing typed reader/schema,
+not a new audit sink, write policy, grant, retry/execution action, normal
+technical-query route or retention domain. It does not reconstruct omitted
+content, renew grants/session activity or change any due timestamp. The
+[request navigation regressions](../tests/Kora.Windows.IntegrationTests/EvidenceRequestNavigationTests.cs)
+exercise real retained outcomes and causal navigation with unchanged database
+bytes and deterministic retirement. Native installed/accessibility qualification
+remains separate.
+
 #### Exact native Evidence trace preparation
 
 Original typed/current-name ACTIVATED `prepare evidence trace <trace-id>` uses a

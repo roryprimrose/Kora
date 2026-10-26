@@ -698,6 +698,25 @@ receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
 
+## Optional communications activity observations
+
+Optional source observation is a separate device-local setting, not manual call state:
+
+```text
+list call observation settings
+get calls.activity-source
+status calls.activity-source
+set calls.activity-source to WindowsCommunicationsAudio
+set calls.activity-source to None
+reset calls.activity-source
+```
+
+The current activation prefix is optional for exact typed commands.
+These use the same [source control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs) as Settings > Calls.
+The production Windows profile is **unqualified/unavailable**: enable is denied without a write or native subscription, not a working detector claim.
+Protected original voice mutations remain denied; passive status is visual and never opens capture.
+See [source availability and limitations](settings.md#optional-communications-audio-observations).
+
 ## Exact current-run manual call control
 
 Native **Settings > Calls** and typed/already **activated** voice share:

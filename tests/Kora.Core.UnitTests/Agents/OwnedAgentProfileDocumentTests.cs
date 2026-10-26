@@ -91,4 +91,21 @@ public sealed class OwnedAgentProfileDocumentTests
         var parse = () => OwnedAgentProfileDocument.Parse("example", text);
         parse.Should().Throw<InvalidDataException>();
     }
+
+    [Fact]
+    public void VersionFourOriginalCanBeAuthoredWithoutResolvingEnablingOrInvokingReferences()
+    {
+        var text = Source.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+            .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal)
+            .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+        var document = OwnedAgentProfileDocument.Parse("example", text);
+        document.Document.Text.Should().Be(text);
+        document.Profile.References.Single().Id.Should().Be("disk.kora-profile.instruction.example");
+        document.Profile.Tools.Should().Equal("application.get_version");
+        document.Profile.MaximumCalls.Should().Be(1);
+        document.Profile.MaximumRounds.Should().Be(2);
+        var wrongName = () => OwnedAgentProfileDocument.Parse("other", text);
+        wrongName.Should().Throw<InvalidDataException>();
+    }
 }

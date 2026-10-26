@@ -9,6 +9,7 @@ using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -194,19 +195,23 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(true, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(false, false, true)]
+    [InlineData(false, false, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(false, false, false, true)]
+    [InlineData(false, false, true, true)]
+    [InlineData(false, true, false, true)]
+    [InlineData(false, true, true, true)]
     public async Task ExactNativeClarificationUsesExistingQuestionWindowAndRetainsGenuineAnswerOrExplicitFailure(
-        bool text, bool cancel, bool compact)
+        bool text, bool cancel, bool compact, bool readOnly)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var transport = new QuestionTransport(text);
+            await using var transport = new QuestionTransport(text, readOnly);
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var composed = new Composition(f, adapter: adapter);
             using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -242,6 +247,9 @@ public sealed partial class SessionsConversationTests
                         state.Question.Proposal.Should().BeNull();
                         state.Question.Key.Request.Should().Be(request);
                         state.IsApproval.Should().BeFalse();
+                        spec.Kind.Should().Be(text ? QuestionKind.Text : QuestionKind.SingleChoice);
+                        spec.Minimum.Should().Be(1);
+                        spec.Maximum.Should().Be(1);
                         await state.ReviewAsync();
                         presentationState = state.Status + " editable=" + state.IsEditable + " busy=" + state.HasPendingOperation;
                         if (cancel)
@@ -265,7 +273,7 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 model.ComposerBody = "An original request that needs clarification";
-                owner.FindControl<Avalonia.Controls.Button>("SubmitConversationWithClarification")!
+                owner.FindControl<Avalonia.Controls.Button>(readOnly ? "SubmitReadOnlyWithClarification" : "SubmitConversationWithClarification")!
                     .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Avalonia.Controls.Button.ClickEvent));
                 await (workspace?.ConversationOperation ?? compactWindow!.ConversationOperation);
                 presentations.Should().Be(1);
@@ -273,12 +281,13 @@ public sealed partial class SessionsConversationTests
                 retained.Body.Should().Be("An original request that needs clarification");
                 retained.Outcome.Should().Be(cancel ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded, presentationState);
                 (retained.AssistantResponse?.Body).Should().Be(cancel ? null : "Genuine final response after exact clarification");
-                transport.Requests.Should().HaveCount(cancel ? 1 : 2);
+                transport.Requests.Should().HaveCount(readOnly ? cancel ? 2 : 4 : cancel ? 1 : 2);
                 if (!cancel)
                 {
-                    var answer = transport.Requests[1].Messages[1].Should().BeOfType<ModelQuestionAnswerMessage>().Subject;
+                    var answer = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
                     answer.Answer.Text.Should().Be(text ? "Fresh exact user answer" : null);
                     answer.Channel.Should().Be(RequestOrigin.LocalUi);
+                    if (readOnly) { transport.Requests[^1].Messages.OfType<ModelToolResultMessage>().Should().HaveCount(2); }
                 }
                 var persisted = await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token);
                 persisted.Should().Be(retained);
@@ -292,7 +301,7 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private sealed class QuestionTransport(bool text) : IModelToolTransport
+    private sealed class QuestionTransport(bool text, bool readOnly = false) : IModelToolTransport
     {
         internal List<ModelToolRequest> Requests { get; } = [];
 
@@ -300,10 +309,18 @@ public sealed partial class SessionsConversationTests
         {
             cancellationToken.ThrowIfCancellationRequested();
             request.ClarificationAllowed.Should().BeTrue();
-            request.Context.ToolMode.Should().Be(ModelToolMode.None);
+            request.Context.ToolMode.Should().Be(readOnly ? ModelToolMode.ReadOnly : ModelToolMode.None);
+            if (readOnly)
+            {
+                request.Context.Tools.Select(tool => tool.Id).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Select(tool => tool.Id));
+            }
+            else { request.Context.Tools.Should().BeEmpty(); }
             Requests.Add(request);
-            ModelAssistantMessage message = Requests.Count == 1
+            ModelAssistantMessage message = Requests.Count == (readOnly ? 2 : 1)
                 ? new ModelClarificationQuestion(new("Which format?", text ? [] : ["Compact", "Detailed"]))
+                : readOnly && Requests.Count is 1 or 3
+                ? ModelToolProtocol.ParseAssistant(System.Text.Encoding.UTF8.GetBytes(
+                    $$$"""{"kind":"toolCalls","calls":[{"callId":"version_{{{Requests.Count}}}","capabilityId":"application.get_version","input":{}}]}"""))
                 : ModelToolProtocol.ParseAssistant("""{"kind":"answer","answer":"Genuine final response after exact clarification"}"""u8);
             return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,
                 new(ModelToolProtocol.SerializeRequest(request).Length, ModelToolProtocol.SerializeMessage(message).Length)));

@@ -143,9 +143,13 @@ history, memory, attachments or instructions. Models and profiles that are not
 qualified remain explicitly unavailable; this implementation does not enable
 either local inference or hosted egress.
 
+For an ambiguous observation request, use **Ask locally with observations and one choice** instead. For example, ask "Which version or readiness information applies here?", choose the model's **Version**, **Readiness** or **Runtime** option, and receive the answer from the actual admitted host observations. The model may observe first, ask once, then observe again before answering ([submission policy](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+
+This separate local path admits only the six existing read-only observation tools and one two-to-four-option **SingleChoice** question. It does not accept a free-text question, web/MCP calls, effectful actions, settings writes or hosted providers. The original tool-free clarification button and ordinary read-only Submit remain separate ([bounded protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs), [native controls](../src/Kora/SessionsWindow.axaml)).
+
 The model must issue a supported structured question, not prose that looks
-like a question or approval. The supported shape is either two to four
-single-choice labels or free text bounded to 500 characters. Other shapes,
+like a question or approval. The original tool-free path supports either two to four
+single-choice labels or free text bounded to 500 characters; the observation path supports only the single-choice shape. Other shapes,
 including multi-select proposals, are refused rather than converted to yes/no
 or a different answer shape. The ordinary host question controls keep their
 existing declared multi-select rules for other workflows.
@@ -172,6 +176,8 @@ Cancellation, expiry, changed ownership, an unavailable audit/store, a foreign
 answer or any uncertain state prevents continuation. There is no replay,
 automatic retry or provider fallback. Inspect the original conversation/task
 outcome and explicitly start a fresh request when recovery is needed.
+
+The observation path keeps the same original request, turn, complete tool history, unique call IDs and cumulative byte/call/round budgets across the answer. Its 15-second deadline includes waiting for you. Answer data is sent as a lower-trust user message, never system policy, tool-input authority, action approval, a grant, source/context permission or hosted transmission consent ([continuation engine](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs), [native wire](../src/Kora.Windows/Dependencies/OllamaToolWire.cs)).
 
 After a successful continuation, the genuine final ASSISTANT answer is retained
 separately from the original USER message. A refusal or provider failure has an

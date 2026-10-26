@@ -320,6 +320,69 @@ public sealed class McpTransportTests
         f.HandlerDisposed.Should().BeTrue();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Connection_withdrawal_or_existing_deadline_cancels_waiters_without_disposal_or_late_disclosure(bool timeout)
+    {
+        using var f = new McpTransportFixture();
+        var clock = new ExchangeClock();
+        var entered = new TaskCompletionSource<CancellationToken>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Send = async (_, token) =>
+        {
+            entered.SetResult(token);
+            await release.Task;
+            return McpTransportFixture.Json(McpTransportFixture.Initialization);
+        };
+        var connection = timeout ? f.CreateConnection(clock) : await f.Broker.ConnectAsync(f.Account, Token);
+        var pending = Initialize(connection);
+        var actualToken = await entered.Task.WaitAsync(Token);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = actualToken.Register(() => cancelled.TrySetResult());
+        var queued = Initialize(connection);
+        try
+        {
+            if (timeout)
+            {
+                clock.Timers.Should().HaveCount(2);
+                clock.Timers.Should().OnlyContain(timer => timer.Due == TimeSpan.FromSeconds(30) && !timer.Disposed);
+                clock.Fire();
+            }
+            else { await f.Lease.Withdrawn.CancelAsync(); }
+            await cancelled.Task.WaitAsync(Token);
+            await FluentActions.Awaiting(() => queued.WaitAsync(Token)).Should().ThrowAsync<OperationCanceledException>();
+            pending.IsCompleted.Should().BeFalse("cancelling a wait does not join a cancellation-ignoring send");
+            f.Requests.Should().ContainSingle();
+            f.HandlerDisposed.Should().BeFalse();
+            f.Disposed.Should().BeFalse();
+            if (!timeout)
+            {
+                await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<OperationCanceledException>();
+                f.Requests.Should().ContainSingle("withdrawal closes new admission even before disposal starts");
+            }
+            var disposal = connection.DisposeAsync().AsTask();
+            disposal.IsCompleted.Should().BeFalse();
+            release.SetResult();
+            await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+            await disposal;
+            f.Requests.Should().ContainSingle();
+            f.HandlerDisposed.Should().BeTrue();
+            f.Disposed.Should().BeTrue();
+            if (timeout) { clock.Timers.Should().OnlyContain(timer => timer.Disposed); }
+        }
+        finally
+        {
+            release.TrySetResult();
+            try
+            {
+                await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+                await FluentActions.Awaiting(() => queued).Should().ThrowAsync<OperationCanceledException>();
+            }
+            finally { await connection.DisposeAsync(); }
+        }
+    }
+
     [Fact]
     public void Production_handler_disables_all_ambient_or_forwarding_paths()
     {
@@ -447,6 +510,30 @@ public sealed class McpTransportTests
         {
             if (disposing) { inner.Dispose(); }
             base.Dispose(disposing);
+        }
+    }
+
+    private sealed class ExchangeClock : TimeProvider
+    {
+        internal List<ExchangeTimer> Timers { get; } = [];
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new ExchangeTimer(callback, state, dueTime);
+            Timers.Add(timer);
+            return timer;
+        }
+        internal void Fire()
+        {
+            foreach (var timer in Timers.ToArray()) { timer.Fire(); }
+        }
+        internal sealed class ExchangeTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer
+        {
+            internal TimeSpan Due { get; private set; } = due;
+            internal bool Disposed { get; private set; }
+            public bool Change(TimeSpan dueTime, TimeSpan period) { Due = dueTime; return !Disposed; }
+            internal void Fire() { if (!Disposed) { callback(state); } }
+            public void Dispose() => Disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
         }
     }
 }

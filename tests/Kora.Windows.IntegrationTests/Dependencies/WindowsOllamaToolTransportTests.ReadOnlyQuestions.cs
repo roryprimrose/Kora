@@ -11,9 +11,12 @@ namespace Kora.Windows.IntegrationTests.Dependencies;
 public sealed partial class WindowsOllamaToolTransportTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task CombinedNativeHistoryKeepsEveryToolAndExactQuestionAnswerInOriginalOrder(bool toolFirst)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task CombinedNativeHistoryKeepsEveryToolAndExactQuestionAnswerInOriginalOrder(
+        bool toolFirst, bool answerPublisher)
     {
         await using var f = new Fixture();
         using var root = f.Root();
@@ -23,13 +26,20 @@ public sealed partial class WindowsOllamaToolTransportTests
             : f.Bodies.Count == questionRound + 2 ? StructuredResponse("""{"kind":"answer","answer":"Observed answer"}""") : Call));
         var original = f.Request(clarificationAllowed: true);
         var history = new List<ModelToolMessage>();
+        var updates = new List<ModelAnswerUpdate>();
         var input = ModelToolProtocol.MaximumInputUtf8Bytes;
         var output = ModelToolProtocol.MaximumOutputUtf8Bytes;
         for (var round = 1; round <= questionRound + 2; round++)
         {
             var request = ModelToolProtocol.CreateRequest(original.Provenance, original.Profile, original.Context, history,
                 round, new(input, output), clarificationAllowed: true);
-            var reply = await f.Transport.CompleteAsync(request, Token);
+            var reply = answerPublisher
+                ? await f.Transport.CompleteWithAnswerAsync(request, (update, _) =>
+                {
+                    updates.Add(update);
+                    return ValueTask.CompletedTask;
+                }, Token)
+                : await f.Transport.CompleteAsync(request, Token);
             reply.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
             input -= reply.Usage!.InputUtf8Bytes;
             output -= reply.Usage.OutputUtf8Bytes;
@@ -58,6 +68,12 @@ public sealed partial class WindowsOllamaToolTransportTests
         sent.RootElement.GetProperty("tools").GetArrayLength().Should().Be(6);
         sent.RootElement.GetProperty("format").GetProperty("oneOf")[1].GetProperty("properties")
             .GetProperty("options").GetProperty("minItems").GetInt32().Should().Be(2);
+        updates.Should().BeEmpty("read-only clarification must not enter the no-tools provisional answer stream");
+        foreach (var body in f.Bodies)
+        {
+            using var exchange = JsonDocument.Parse(body);
+            exchange.RootElement.GetProperty("stream").GetBoolean().Should().BeFalse();
+        }
     }
 
     [Theory]

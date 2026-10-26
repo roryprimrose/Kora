@@ -18,7 +18,7 @@ public sealed class ModelContextEnvelope
     public ModelContextEnvelope(HostRequest request, string systemPolicy, string userRequest,
         IEnumerable<ModelContextEvidence> evidence, DateTimeOffset createdAt, DateTimeOffset expiresAt,
         ModelToolMode toolMode = ModelToolMode.ReadOnly, ModelTurnConstraints? constraints = null,
-        McpModelTool? mcpTool = null)
+        McpModelTool? mcpTool = null, Network.LocalWebPageScope? webPages = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         ArgumentNullException.ThrowIfNull(systemPolicy);
@@ -26,6 +26,8 @@ public sealed class ModelContextEnvelope
         ArgumentNullException.ThrowIfNull(evidence);
         _ = ModelToolProtocol.GetTools(toolMode);
         _ = constraints?.GetTools(toolMode);
+        if (webPages is not null && toolMode != ModelToolMode.LocalWebPage)
+        { throw new InvalidDataException("Explicit page destinations require the local web-page tool mode."); }
         if ((toolMode == ModelToolMode.McpReadOnly) != (mcpTool is not null))
         { throw new InvalidDataException("An MCP turn requires exactly its reviewed request-owned tool."); }
         if (expiresAt <= createdAt)
@@ -40,6 +42,7 @@ public sealed class ModelContextEnvelope
         ToolMode = toolMode;
         Constraints = constraints;
         McpTool = mcpTool;
+        WebPages = webPages;
         Evidence = ValidateContent(request, systemPolicy, userRequest, evidence);
     }
 
@@ -78,9 +81,15 @@ public sealed class ModelContextEnvelope
     public ModelTurnConstraints? Constraints { get; }
     public IReadOnlyList<CapabilityDescriptor> Tools => Constraints?.GetTools(ToolMode) ?? ModelToolProtocol.GetTools(ToolMode);
     public McpModelTool? McpTool { get; }
+    public Network.LocalWebPageScope? WebPages { get; }
 
     public byte[] Serialize()
     {
+        if (WebPages is not null)
+        {
+            return JsonSerializer.SerializeToUtf8Bytes(new
+            { SystemPolicy, UserRequest, Evidence, ToolMode, Tools, MaximumOutputUtf8Bytes, WebPages });
+        }
         if (McpTool is not null)
         {
             return JsonSerializer.SerializeToUtf8Bytes(new

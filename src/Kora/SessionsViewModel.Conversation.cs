@@ -155,12 +155,14 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true);
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitLocalAnswerAsync() => SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
         Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
-        ModelToolMode clarificationTools = ModelToolMode.None, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false,
+        CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -187,6 +189,8 @@ internal sealed partial class SessionsViewModel
                     mcpResultRequest = request;
                     mcpResultControl = access.ControlRevision;
                 })
+            : localAnswer
+            ? await conversation!.SubmitLocalAnswerAsync(target, body, live, lifetime.Token)
             : claude
             ? claudeObservations
                 ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),

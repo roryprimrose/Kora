@@ -43,8 +43,8 @@ public static partial class ModelToolProtocol
         if (clarificationAllowed && context.ToolMode == ModelToolMode.None) { ValidateQuestionHistory(history); }
         else { ValidateHistory(history, clarificationAllowed); }
         var expectedRound = history.Count(message => message is ModelAssistantMessage) + 1;
-        if (round != expectedRound || round > (context.Constraints?.MaximumRounds ?? MaximumRounds)
-            || history.OfType<ModelAssistantToolCalls>().Sum(item => item.Calls.Length) > (context.Constraints?.MaximumCalls ?? MaximumCalls)
+        if (round != expectedRound || round > (context.WebPages?.MaximumRounds ?? context.Constraints?.MaximumRounds ?? MaximumRounds)
+            || history.OfType<ModelAssistantToolCalls>().Sum(item => item.Calls.Length) > (context.WebPages?.MaximumCalls ?? context.Constraints?.MaximumCalls ?? MaximumCalls)
             || history.OfType<ModelAssistantToolCalls>().Any(item => item.Calls.Any(call =>
                 context.McpTool is { } external
                     ? !string.Equals(external.Id, call.CapabilityId, StringComparison.Ordinal)

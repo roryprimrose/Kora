@@ -16,6 +16,12 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
+## Provisional local answer interaction
+
+Use **Answer locally (no tools)** for bounded incremental text in the originating conversation. Provisional text is labelled, volatile and not spoken automatically; **Stop this answer** in the primary pane and the existing exact-task cancellation controls in Sessions/compact retire it independently of the composer. Only validated completed answers are retained as ASSISTANT; failure/privacy/source/view closure clears or invalidates provisional presentation without manufacturing success ([display contract](Information_Display.md#bounded-provisional-local-answers), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
+
+Ordinary tool-capable Send, clarification and hosted requests retain their existing buffered contracts. Local qualification, session instructions, privacy, current-source generation, input/output budgets, original USER and trusted terminal audit rules remain authoritative; this is no runtime auto-enablement or hosted streaming change ([submission owner](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [host selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)).
+
 ## Conversation Input Realignment
 
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.

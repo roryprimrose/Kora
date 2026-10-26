@@ -109,6 +109,7 @@ public sealed partial class SessionConversationService
             }
             var lease = new ConversationCancellationLease(identity, live, status => RunningConversationChanged?.Invoke(status),
                 new(HostActivity.RequireCurrent().Activity!.Context), token);
+            turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
             runningConversations.Add(identity.Request.SessionId, lease);
             return lease;
         }

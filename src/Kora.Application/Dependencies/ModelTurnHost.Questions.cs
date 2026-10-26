@@ -16,7 +16,7 @@ public sealed partial class ModelTurnHost
                 var previous = string.Empty;
                 return streaming.RunWithAnswerAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
                     (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
-                    continuationToken => RevalidateContinuationAsync(turn, continuationToken), async (update, updateToken) =>
+                    continuationToken => RevalidateAdapterContinuationAsync(turn, continuationToken), async (update, updateToken) =>
                     {
                         update.Validate();
                         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, updateToken);
@@ -25,7 +25,7 @@ public sealed partial class ModelTurnHost
                             || !update.Answer.StartsWith(previous, StringComparison.Ordinal)
                             || System.Text.Encoding.UTF8.GetByteCount(update.Answer)
                                 > (turn.Context.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes)
-                            || await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+                            || await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
                         { throw new InvalidDataException("Exact provisional answer admission changed."); }
                         linked.Token.ThrowIfCancellationRequested();
                         if (!turn.IsRunning || !ConsumerAdmissionCurrent(turn))
@@ -36,7 +36,7 @@ public sealed partial class ModelTurnHost
             }
             return turn.Registration.Adapter!.RunAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
                 (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
-                continuationToken => RevalidateContinuationAsync(turn, continuationToken), token);
+                continuationToken => RevalidateAdapterContinuationAsync(turn, continuationToken), token);
         }
         if (!ModelToolProtocol.AllowsClarification(turn.Context.ToolMode, turn.Provenance.Selection.Provider)
             || turn.ConversationTarget is null
@@ -47,18 +47,33 @@ public sealed partial class ModelTurnHost
         }
         return adapter.RunWithQuestionAsync(turn.Provenance, turn.Profile, turn.Wire.AsMemory(),
             (id, input, toolToken) => InvokeToolAsync(turn, id, input, token, toolToken),
-            continuationToken => RevalidateContinuationAsync(turn, continuationToken), async (question, questionToken) =>
+            continuationToken => RevalidateAdapterContinuationAsync(turn, continuationToken), async (question, questionToken) =>
             {
                 questionToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
-                if (!turn.IsRunning || await RevalidateContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
+                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
                 { throw new InvalidOperationException("Exact original conversation admission changed before clarification."); }
                 var reply = await questions.AskAsync(question.Question, token).ConfigureAwait(false);
                 questionToken.ThrowIfCancellationRequested();
                 token.ThrowIfCancellationRequested();
-                if (!turn.IsRunning || await RevalidateContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
+                if (!turn.IsRunning || await RevalidateAdapterContinuationAsync(turn, token).ConfigureAwait(false) != ModelTurnReason.None)
                 { throw new InvalidOperationException("Exact original conversation admission changed after clarification."); }
                 return new(question, reply.Question.Draft!, reply.Question.AnswerChannel!.Value);
             }, token);
+    }
+
+    private async ValueTask<ModelTurnReason> RevalidateAdapterContinuationAsync(ModelTurn turn, CancellationToken token)
+    {
+        var reason = ModelTurnReason.HostAdmissionClosed;
+        try
+        {
+            reason = await RevalidateContinuationAsync(turn, token).ConfigureAwait(false);
+            return reason;
+        }
+        finally
+        {
+            // Validation failure retires authority, not ownership of the still-running provider.
+            if (reason != ModelTurnReason.None) { turn.Retire(reason); }
+        }
     }
 }

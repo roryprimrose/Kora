@@ -101,6 +101,8 @@ public sealed partial class SessionConversationService
             target.Authority.Generation, turn.TaskRevision, turn.Context.CreatedAt, turn.Context.ExpiresAt);
         lock (cancellationGate)
         {
+            RequireConversationDispatchOpen(identity.Request.SessionId);
+            joinedForDisposition.Remove(identity.Request.SessionId);
             if (runningConversations.ContainsKey(identity.Request.SessionId))
             {
                 throw new InvalidOperationException("The exact session already owns a running conversation.");
@@ -115,6 +117,7 @@ public sealed partial class SessionConversationService
     private void ReleaseRunningConversation(ConversationCancellationLease lease, bool confirmed)
     {
         lock (cancellationGate) { runningConversations.Remove(lease.Target.Request.SessionId); }
+        lease.ReleasePhysicalCompletion(confirmed);
         if (!confirmed)
         { RunningConversationChanged?.Invoke(new(lease.Target, ConversationExecutionPhase.Unconfirmed)); }
     }

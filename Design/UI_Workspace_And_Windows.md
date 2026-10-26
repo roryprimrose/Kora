@@ -619,6 +619,8 @@ Basic list/new/select/Done/resume/delete/status controls do not require a model,
 
 ### Conversation Pane
 
+The [deliberate native Reply operation](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) is shared by the primary conversation, Sessions and compact surface. Its row action chooses one exact retained ASSISTANT answer; visible reply/source/cancel controls use the existing memory-only composer and separate full-source/new-input review followed by one-use local-only confirmation. Choosing Reply is not submission, and ordinary Send outside Reply remains unchanged ([native state](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs), [three-surface execution evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
+
 Show ordered user/assistant exchanges, structured questions, accepted answers, plans, artifacts, approval decisions, and observed actions/results.
 Collapsible task/event groups reduce noise but cannot replace or discard full evidence.
 Streaming responses are visibly provisional until finalized; failed/interrupted streams are retained with honest status.

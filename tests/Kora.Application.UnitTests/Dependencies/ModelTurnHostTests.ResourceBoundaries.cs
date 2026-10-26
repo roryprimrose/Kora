@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
+using Kora.Application.Hosting;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -203,6 +205,93 @@ public sealed partial class ModelTurnHostTests
         skill.Audit.Events.Where(entry => string.Equals(entry.ActionId, "skills.tool-revision.invoke", StringComparison.Ordinal))
             .Select(entry => entry.Outcome).Should().Equal(
                 Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Failed);
+    }
+
+    [Theory]
+    [InlineData("success")]
+    [InlineData("release-audit")]
+    [InlineData("terminal")]
+    public async Task StopAndDeleteObservesExactResourceJoinBeforeAllowingDisposition(string fault)
+    {
+        using var f = new Fixture { CompoundStoreEnabled = true };
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var host = f.CompoundResourceHost();
+        var service = f.ConversationService(host, execution: host);
+        var pending = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = pending.Task;
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var submission = service.SubmitAsync(target, "original resource-owned request", static () => true, Token);
+        var review = await service.ReviewStopAndDeleteAsync(target, RequestOrigin.LocalUi, static () => true, Token);
+        var accepted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Cancelling) { accepted.TrySetResult(); }
+        };
+        var confirming = service.ConfirmStopAndDeleteAsync(review, static () => true, Token);
+        await accepted.Task;
+        confirming.IsCompleted.Should().BeFalse();
+        f.DispositionCommits.Should().Be(0);
+        if (fault is "release-audit")
+        {
+            f.OnAudit = entry =>
+            {
+                if (string.Equals(entry.ActionId, "runtime.resource.release", StringComparison.Ordinal))
+                { throw new IOException("Required resource release audit is unavailable."); }
+            };
+        }
+        if (fault is "terminal") { f.BeforeExecutionComplete = () => throw new IOException("Terminal receipt is unavailable."); }
+        pending.SetResult(LateAnswer());
+        if (fault is "success")
+        {
+            var cancelled = await submission;
+            cancelled.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+            cancelled.Task.State.Should().Be(HostTaskState.Unknown);
+        }
+        else
+        {
+            await submission.Invoking(value => value).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+        }
+        var result = await confirming;
+        f.OnAudit = null;
+        try
+        {
+            result.Outcome.Should().Be(fault switch
+            {
+                "success" => SessionStopAndDeleteOutcome.Deleted,
+                "release-audit" => SessionStopAndDeleteOutcome.StopUnconfirmed,
+                _ => SessionStopAndDeleteOutcome.WorkStoppedNotDeleted,
+            });
+            f.DispositionCommits.Should().Be(fault is "success" ? 1 : 0);
+            f.Retained!.AssistantResponse.Should().BeNull();
+            f.Adapter.Calls.Should().Be(1);
+            host.IsQuiescent.Should().BeTrue();
+            if (fault is "release-audit")
+            {
+                result.Receipt.Should().BeNull();
+                f.ExecutionCompletions.Should().Be(0);
+                f.Retained.Outcome.Should().BeNull();
+                f.Audits.Should().NotContain(entry => string.Equals(entry.ActionId, "runtime.resource.release", StringComparison.Ordinal)
+                    && entry.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+            }
+        }
+        finally
+        {
+            if (fault is "release-audit")
+            {
+                await host.Invoking(value => value.DisposeAsync().AsTask()).Should().ThrowAsync<IOException>()
+                    .WithMessage("Required resource release audit is unavailable.");
+            }
+            else { await host.DisposeAsync(); }
+        }
+    }
+
+    private sealed partial class Fixture
+    {
+        internal ModelTurnHost CompoundResourceHost() =>
+            new(this, this, this, registry, this, this, Time,
+                [new(ModelProviderSelection.OllamaCandidate, Gates(ModelProviderSelection.OllamaCandidate),
+                    Time.Now.AddMinutes(5), Adapter)], ProviderConfiguration, ProfileConfiguration, this);
     }
 
     private sealed class ReportedIdleAdmission(ModelTurnHost host) : IModelTurnAdmission

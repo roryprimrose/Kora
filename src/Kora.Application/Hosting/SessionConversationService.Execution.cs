@@ -163,9 +163,15 @@ public sealed partial class SessionConversationService
             {
                 if (runtime is not null && turn.ResourceLease is not null
                     && (!turn.ResourceDispatched || !token.IsCancellationRequested || running.CancellationAccepted))
-                { await runtime.JoinConversationResourcesAsync(turn, CancellationToken.None).ConfigureAwait(false); }
+                {
+                    await running.WaitForPhysicalResourcesAsync(
+                        () => runtime.JoinConversationResourcesAsync(turn, CancellationToken.None)).ConfigureAwait(false);
+                }
                 else if (runtime is null && running.CancellationAccepted)
-                { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+                {
+                    await running.WaitForPhysicalResourcesAsync(
+                        () => executor.WaitForQuiescenceAsync(CancellationToken.None)).ConfigureAwait(false);
+                }
             }
             finally { ReleaseRunningConversation(running, confirmed); }
         }

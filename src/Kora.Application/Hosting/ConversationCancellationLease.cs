@@ -18,9 +18,27 @@ internal sealed class ConversationCancellationLease(
     private HostTaskState? taskState;
     private bool accepted;
     private Task signal = Task.CompletedTask;
+    private readonly TaskCompletionSource<ConversationExecutionStatus> physicalCompletion =
+        new(TaskCreationOptions.RunContinuationsAsynchronously);
 
     internal ConversationCancellationTarget Target { get { lock (gate) { return currentTarget; } } }
     internal ActivityLink Link => link;
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
+        Justification = "Observes this host-owned lease's asynchronously signalled physical completion, never UI-affine work.")]
+    internal Task<ConversationExecutionStatus> JoinPhysicalCompletionAsync() => physicalCompletion.Task;
+    internal void ReleasePhysicalCompletion(bool confirmed)
+    {
+        physicalCompletion.TrySetResult(confirmed ? Status : new(Target, ConversationExecutionPhase.Unconfirmed));
+    }
+    internal async Task WaitForPhysicalResourcesAsync(Func<Task> join)
+    {
+        try { await join().ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            physicalCompletion.TrySetException(exception);
+            throw;
+        }
+    }
     internal CancellationToken Token => cancellation.Token;
     internal bool CancellationAccepted { get { lock (gate) { return accepted; } } }
     internal bool CanContinue { get { lock (gate) { return !accepted && admitted(); } } }

@@ -28,6 +28,12 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+### Deliberate exact retained-answer replies
+
+The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.
+
+The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
+
 The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
 
@@ -1310,6 +1316,21 @@ Background progress remains in its session; eligible notifications follow proact
 App exit/restart/power preparation coordinates all sessions, not just the selected one.
 
 ## Inactivity, Done, Resume, and Delete
+
+The bounded native **Stop this conversation's running work, then delete this conversation** operation combines existing actions without claiming atomic rollback.
+A single-use exact-source review discloses the target, unsent/pending input, owned running work and existing disposition inventory.
+Separate native confirmation closes only new conversation dispatch for that exact target, requests its host-owned cancellation, joins actual resources and revalidates the reviewed source before the existing audited disposition transaction.
+Opening or declining review has no stop/discard/delete effect ([operation](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [native presentation](../src/Kora/SessionsViewModel.StopAndDelete.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
+The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
+A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
+([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Typed exact-target review uses the same native action. Original voice-origin compound deletion remains unavailable under the existing native deletion boundary and is rejected before any stop; a later click cannot relabel it.
+No model/tool mutation grant, new storage schema, secure physical erasure or remote deletion is added.
+Existing independent retention domains and copy exclusions remain unchanged ([command](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [retention domains](Security_Data_Flows.md#retention-defaults)).
 
 Defaults: **archive after 24 hours of inactivity; delete after 30 days of inactivity**.
 Both are device-local configurable settings, not hard-coded safety constants.

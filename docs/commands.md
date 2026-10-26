@@ -939,6 +939,15 @@ Nothing is removed by the command. **Confirm logical disposition** remains a sep
 
 Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Review navigation preserves unsent input; the command never saves, submits or discards it ([native launch](../src/Kora/SessionsWindowController.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
 
+For the combined running-work operation, original typed input can open `review session stop-and-delete <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>` for the already selected exact conversation.
+It uses **Review stop and delete**, followed by the separate **Confirm stop and delete** native action; the command itself stops nothing.
+Voice-origin compound deletion is denied before cancellation, including a later native click; independent explicit Stop remains separate ([grammar](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [native route](../src/Kora/SessionsViewModel.StopAndDelete.cs)).
+
+The compound review shows the readable target, exact unsent/pending input and retained-data impact.
+Confirmation closes new conversation dispatch only for that target, requests its exact cancellation, joins actual owned resources, and revalidates before the existing audited logical disposition. Decline changes nothing.
+Expiry, source/control/buffer changes or cancellation prevent delayed deletion; an accepted stop is not rolled back. **Work stopped; not deleted** requires a fresh review.
+Unknown deletion commit/readback requires receipt inspection without replay ([operation owner](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [existing transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
 ### Bounded exact-ID session commands
 
 Typed input and **activated** voice share one grammar, with the configured

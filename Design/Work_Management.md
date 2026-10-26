@@ -320,6 +320,8 @@ Waiting/running/Stop use the [same exact-request cancellation owner](../src/Kora
 
 [Reviewed tool-skill submissions](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs) use that same retained-execution join, not an additional host-wide wait. Caller shutdown retains source ownership until the exact dispatched turn joins. Resource admission refusal retains the exact unavailable receipt without dispatching a provider or fetching a page; an unconfirmed owned join still prevents terminal success.
 
+Reviewed stop-and-delete observes the same exact resource join before deletion. A failed physical join or required resource-release audit remains **Stop unconfirmed**, not work-stopped success; confirmed resource closure with an unconfirmed terminal receipt remains **Work stopped; not deleted**. Neither outcome permits deletion or waiting on another session's resource.
+
 This is implementation, not new profile qualification. [Production composition](../src/Kora/OllamaModelProviderFactory.cs) supplies only existing independently qualified single-execution registrations; no production two-capacity qualification source is composed. [Deterministic consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.cs) exercise admitted capacity two without enabling or advertising it for physical hardware/providers. Exact two-capacity enablement evidence remains required.
 
 Bounded independent session execution, including writes to different resources, is required in the revised Slice A3 design.

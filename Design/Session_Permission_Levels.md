@@ -1,6 +1,6 @@
 ---
 title: Session Permission Levels
-status: Proposed feature; product decisions agreed, implementation and qualification outstanding
+status: Exact-session policy and native controls implemented; production reviewer and broader execution qualification unavailable
 date: 2026-10-10
 ---
 
@@ -10,7 +10,15 @@ Let the user choose how Kora authorizes otherwise ungranted actions in one ident
 
 This document owns the proposed level semantics, reviewer protocol, and call-time approval-channel behavior. [Grant types and inheritance](Security_Data_Flows.md#grant-types-and-inheritance) continues to own exact grant applicability/lifetimes; [interaction and sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies) owns question routing and shared voice/UI drafts.
 
-The existing [exact authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [operation binding](../src/Kora.Core/Authorization/ExactOperationBinding.cs) are implementation seams, not evidence that these levels exist. This design does not enable scripts, MCP transports, or model execution that have not passed their independent admission gates.
+The [exact authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [session policy module](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs) implement the grant-first policy and one-invocation admission. This design does not enable scripts, MCP transports, or model execution that have not passed their independent admission gates.
+
+## Delivered Bounded Implementation
+
+The [native guide](../docs/session-permission-levels.md) describes exact Active-session Read/Review/Confirm/Cancel controls in both session surfaces. Version 13 of the private authority store explicitly migrates older sessions to Review all, persists selected policy independently of grants, and resets it with Done/deletion. Resumption cannot revive it. Audit and admission commit together; policy changes retire pending cards, observations and undispatched receipts.
+
+The current external-page/MCP consumers use the same decision and pre-effect policy-revision path, preserving their independent native-only endpoint/account/tool/argument/disclosure reviews. Existing fixed grant-free help and deterministic stop controls remain unchanged. Separate bounded reviewer protocol and deterministic transport fakes exist; no production reviewer is qualified or selected. Model review therefore requires user approval in production. There is no provider fallback, executor self-assessment or speculative runner enablement.
+
+The live call-policy gate serializes exact answer/admission commit with call/setting changes. Native Calls settings provide explicit reviewed spoken-approval enable/disable; default is Off and known older settings migrate Off. Applicable grants and session levels are not withdrawn on call entry. This is deterministic implementation evidence, not automatic detector, physical voice, provider, containment or installed-runtime qualification.
 
 ## Agreed Product Decisions
 
@@ -122,7 +130,7 @@ Recheck call evidence and setting revision atomically at voice answer acceptance
 
 Call clearance never accepts rejected speech, answers a card, reopens capture, restores an ended grant, or replays work. UI approval remains available subject to independent unlocked/ownership/presentation policy. While locked, neither channel can approve.
 
-This deliberately supersedes the proposed `calls.ignoreReusableGrants` behavior: calls restrict the approval channel instead of forcing Once or ignoring reusable grants. The [current manual-call implementation](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07) remains unchanged until a separately tested migration is enabled.
+This supersedes `calls.ignoreReusableGrants`: calls restrict the approval channel instead of forcing Once or ignoring reusable grants. The [manual-call implementation](Call_Aware_Speech.md#delivered-bounded-manual-mode---2026-10-07) keeps its independent capture, output and unknown-evidence protections.
 
 ## Session UX, Lifecycle, and Races
 

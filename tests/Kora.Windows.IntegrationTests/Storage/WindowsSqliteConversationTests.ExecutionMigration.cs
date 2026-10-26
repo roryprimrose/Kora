@@ -26,6 +26,7 @@ public sealed partial class WindowsSqliteConversationTests
             Convert.ToInt64(payload.ExecuteScalar(), System.Globalization.CultureInfo.InvariantCulture)
                 .Should().BeInRange(22769L, 32768L);
         }
+        fixture.DropEmptySessionPermissionSchemaForLegacy();
         fixture.Mutate("ALTER TABLE conversation_messages RENAME TO migration_fixture_messages; "
             + """
             CREATE TABLE conversation_messages(

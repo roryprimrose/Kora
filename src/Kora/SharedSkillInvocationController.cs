@@ -27,6 +27,7 @@ internal sealed partial class SharedSkillInvocationController(
     private long ownerRevision;
     private long callRevision;
     private long inputRevision;
+    private long toolInputRevision;
     private RequestOrigin requestOrigin;
     private Guid? next;
 #pragma warning disable VSTHRD003 // Exposes the owned operation for lifecycle observation without starting another submission.
@@ -78,10 +79,13 @@ internal sealed partial class SharedSkillInvocationController(
             window.SetReferenceConsent(referenceConsent is not null);
             window.Closed += (_, _) => Close();
             window.Request.PropertyChanged += (_, args) =>
-            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
             window.Address.PropertyChanged += (_, args) =>
-            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { RetireConfirmation(); requestOrigin = RequestOrigin.LocalUi; } };
-            window.Targets.SelectionChanged += (_, _) => { RetireConfirmation(); RetireToolReview(); };
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.SecondAddress.PropertyChanged += (_, args) =>
+            { if (args.Property == Avalonia.Controls.TextBox.TextProperty) { InputChanged(); } };
+            window.Targets.SelectionChanged += (_, _) =>
+            { Interlocked.Increment(ref toolInputRevision); RetireConfirmation(); RetireToolReview(); };
             showing = true;
             try { window.Show(); }
             finally
@@ -125,9 +129,10 @@ internal sealed partial class SharedSkillInvocationController(
                 RetireConfirmation();
                 return;
             }
-            if (toolMode && command.Action is "Address")
+            if (toolMode && command.Action is "Address" or "SecondAddress")
             {
-                window.Address.Text = command.Argument;
+                if (command.Action is "Address") { window.Address.Text = command.Argument; }
+                else { window.SecondAddress.Text = command.Argument; }
                 requestOrigin = origin;
                 RetireConfirmation();
                 return;
@@ -156,6 +161,16 @@ internal sealed partial class SharedSkillInvocationController(
         Justification = "Native skill buttons require a void callback; RunReported logs failures and retires the exact review.")]
     private async void Start(string action, RequestOrigin origin)
     {
+        if (action is "Close")
+        {
+            try { await CloseAndWait(); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                UseFailed(logger, exception.GetType().Name);
+                main.ReportHostInteractionFailure("Reviewed skill shutdown is unconfirmed; no resource release or successful receipt claimed.");
+            }
+            return;
+        }
         if (!active.IsCompleted) { return; }
         active = RunReported(action, origin, Eligible);
         await active;
@@ -259,6 +274,14 @@ internal sealed partial class SharedSkillInvocationController(
         toolInvocation?.Dispose();
         toolInvocation = null;
         if (window is not null) { window.Confirm.IsEnabled = false; window.Confirmation.Text = string.Empty; }
+    }
+
+    private void InputChanged()
+    {
+        Interlocked.Increment(ref toolInputRevision);
+        RetireConfirmation();
+        if (toolMode) { RetireToolReview(); }
+        requestOrigin = RequestOrigin.LocalUi;
     }
 
     private void OnPrivacyClosed(object? sender, EventArgs args) => Close();

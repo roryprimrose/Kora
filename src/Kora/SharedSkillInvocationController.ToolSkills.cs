@@ -3,6 +3,9 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Skills;
+using Kora.Core.Network;
+using Kora.Core.Dependencies;
+using Kora.Core.Conversation;
 
 namespace Kora;
 
@@ -13,6 +16,7 @@ internal sealed partial class SharedSkillInvocationController
     private SharedSkillSnapshot? toolSnapshot;
     private ReviewedToolSkillReview? toolReview;
     private ReviewedToolSkillInvocation? toolInvocation;
+    private LocalWebPageScope? toolScope;
 
     private async Task RunTool(string action, RequestOrigin origin, Func<bool> eligible)
     {
@@ -43,9 +47,20 @@ internal sealed partial class SharedSkillInvocationController
             { throw new InvalidOperationException("Review must use the original request channel; enter a fresh request before changing channels."); }
             var target = (opened.Targets.SelectedItem as SharedSkillConversationTarget)?.Entry
                 ?? throw new InvalidOperationException("Select exactly one existing Active conversation.");
-            toolReview = await service.ReviewAsync(toolSource!, toolSnapshot!, target, Current, requestOrigin, token);
+            if (!Uri.TryCreate(opened.Address.Text, UriKind.Absolute, out var first)
+                || !string.IsNullOrEmpty(opened.SecondAddress.Text)
+                    && !Uri.TryCreate(opened.SecondAddress.Text, UriKind.Absolute, out _))
+            { throw new InvalidOperationException("Enter one or two distinct absolute HTTP or HTTPS source URLs; model output cannot select them."); }
+            var scope = new LocalWebPageScope(string.IsNullOrEmpty(opened.SecondAddress.Text)
+                ? [first] : [first, new Uri(opened.SecondAddress.Text, UriKind.Absolute)]);
+            ConversationText.Validate(opened.Request.Text ?? string.Empty, submission: true);
+            var revision = toolInputRevision;
+            toolReview = await service.ReviewAsync(toolSource!, toolSnapshot!, target,
+                () => Current() && toolInputRevision == revision, requestOrigin, token);
             if (!Current()) { RetireToolReview(); return; }
-            opened.Status.Text = "Exact source, digest, target and input channel reviewed. Separately enable the one-tool local model context; no action permission is granted.";
+            toolScope = scope;
+            opened.Confirmation.Text = Describe(scope) + $"\nORIGINAL REQUEST\n{opened.Request.Text}";
+            opened.Status.Text = "Exact source, target, inputs and finite web scope reviewed. Separately enable the local model context; no action permission is granted.";
             return;
         }
         var captured = toolReview ?? throw new InvalidOperationException("Review the exact target and tool revision first.");
@@ -62,15 +77,13 @@ internal sealed partial class SharedSkillInvocationController
             RetireConfirmation();
             var revision = inputRevision;
             using var request = HostActivity.BeginRoot(HostRequest.Create(requestOrigin), HostActivityLayer.Desktop, HostOperation.Request);
-            if (!Uri.TryCreate(opened.Address.Text, UriKind.Absolute, out var destination))
-            { throw new InvalidOperationException("Enter one explicit absolute public HTTP or HTTPS destination; model output cannot select it."); }
-            toolInvocation = await service.PrepareAsync(captured, opened.Request.Text ?? string.Empty, destination,
+            toolInvocation = await service.PrepareAsync(captured, opened.Request.Text ?? string.Empty,
+                toolScope ?? throw new InvalidOperationException("Review the finite web scope first."),
                 () => Reviewed() && inputRevision == revision, requestOrigin, token);
             request.Complete(HostOperationOutcome.Completed);
             if (!Reviewed() || inputRevision != revision) { RetireConfirmation(); return; }
             opened.Confirmation.Text = $"{opened.Instructions.Text}\n\nTARGET {captured.Target.Authority.SessionId.Value:D}\n"
-                + $"ORIGIN {captured.Origin}\nAt most ONE host WebPageGet call; two model rounds; existing host byte limits and 15-second deadline. "
-                + $"DESTINATION {toolInvocation.Destination.AbsoluteUri}\nPer-action permission remains required. No scripts or hosted disclosure.\nORIGINAL REQUEST\n{toolInvocation.Body}";
+                + $"ORIGIN {captured.Origin}\n{Describe(toolInvocation.Scope)}\nORIGINAL REQUEST\n{toolInvocation.Body}";
             opened.Confirm.IsEnabled = true;
             opened.Status.Text = "Confirm this exact revision, local model context, original request and existing target.";
         }
@@ -107,5 +120,14 @@ internal sealed partial class SharedSkillInvocationController
         toolReview = null;
         toolInvocation?.Dispose();
         toolInvocation = null;
+        toolScope = null;
     }
+
+    private static string Describe(LocalWebPageScope scope) =>
+        $"At most {(scope.MaximumCalls == 1 ? "ONE" : "TWO")} host WebPageGet call(s); {scope.MaximumRounds} model rounds; "
+        + $"cumulative {ModelToolProtocol.MaximumInputUtf8Bytes} input / {ModelToolProtocol.MaximumOutputUtf8Bytes} output UTF-8 bytes; "
+        + $"{LocalWebPageTool.Descriptor.Limits.MaximumOutputUtf8Bytes} bytes per inert page result; "
+        + $"{ModelToolProtocol.Deadline.TotalSeconds:0}-second deadline.\n"
+        + string.Join("\n", scope.Destinations.Select((address, index) => $"SOURCE {index + 1}: {address.AbsoluteUri}"))
+        + "\nEach source needs its own current once-only action approval. No scripts or hosted disclosure.";
 }

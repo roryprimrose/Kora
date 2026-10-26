@@ -1,4 +1,5 @@
 using System.Text.Json.Serialization;
+using System.Collections.Immutable;
 
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -10,6 +11,8 @@ public sealed record SessionRequestReview(Guid Id, SessionWorkspaceEntry Target,
     RequestOrigin Origin, DateTimeOffset ExpiresAt,
     SessionRequestReview.ProviderChoice Provider = SessionRequestReview.ProviderChoice.Default)
 {
+    public ImmutableArray<string> ClaudeTools { get; init; } = [];
+
     [JsonConverter(typeof(JsonStringEnumConverter<ProviderChoice>))]
     public enum ProviderChoice { Default, Copilot, Claude }
 }

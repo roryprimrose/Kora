@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>Bounded, tool-free, stateless native Messages profile. All HTTP work remains owned until joined.</summary>
-public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDisposable
+public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsyncDisposable
 {
     private readonly ClaudeAccountBroker accounts;
     private readonly TimeProvider time;
@@ -57,8 +57,9 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
             using var http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !ct.IsCancellationRequested
-                && context.ExpiresAt > time.GetUtcNow() && await current(ct).ConfigureAwait(false)
-                && await accounts.CurrentAsync(account, ct).ConfigureAwait(false);
+                && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
+                && await current(ct).ConfigureAwait(false)
+                && !disposed && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
             var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
                 "/v1/messages/count_tokens", countBody), account, admit, Live, token).ConfigureAwait(false);
             if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
@@ -146,22 +147,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
     {
         using var json = Parse(bytes);
         var root = json.RootElement;
-        if (root.EnumerateObject().Any(property => property.Name is not
-            ("id" or "type" or "role" or "model" or "content" or "stop_reason" or "stop_sequence" or "usage"))
-            || root.GetProperty("type").GetString() is not "message" || root.GetProperty("role").GetString() is not "assistant"
-            || string.IsNullOrWhiteSpace(root.GetProperty("id").GetString())
-            || !string.Equals(root.GetProperty("model").GetString(), profile.Model.Value, StringComparison.Ordinal)
-            || root.GetProperty("stop_reason").GetString() is not "end_turn"
-            || root.GetProperty("stop_sequence").ValueKind != JsonValueKind.Null)
-        { throw new InvalidDataException("Claude did not return an exact final text message."); }
-        var usage = root.GetProperty("usage");
-        if (usage.EnumerateObject().Any(property => property.Name is not
-                ("input_tokens" or "output_tokens" or "cache_creation_input_tokens" or "cache_read_input_tokens"))
-            || !usage.GetProperty("output_tokens").TryGetInt32(out var output) || output <= 0 || output > outputLimit
-            || !usage.GetProperty("input_tokens").TryGetInt32(out var input) || input <= 0 || input > inputLimit
-            || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
-            || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
-        { throw new InvalidDataException("Claude token usage exceeds the exact profile."); }
+        ValidateMessage(root, profile, outputLimit, inputLimit, "end_turn");
         var content = root.GetProperty("content");
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 64)
         { throw new InvalidDataException("Claude final text blocks are missing or oversized."); }
@@ -179,6 +165,26 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
         if (string.IsNullOrWhiteSpace(text) || Encoding.UTF8.GetByteCount(text) > ModelContextEnvelope.MaximumOutputUtf8Bytes)
         { throw new InvalidDataException("Claude final answer is empty or exceeds its byte bound."); }
         return text;
+    }
+
+    internal static void ValidateMessage(JsonElement root, ProviderProfileTuple profile, int outputLimit, int inputLimit, string stopReason)
+    {
+        if (root.EnumerateObject().Any(property => property.Name is not
+            ("id" or "type" or "role" or "model" or "content" or "stop_reason" or "stop_sequence" or "usage"))
+            || root.GetProperty("type").GetString() is not "message" || root.GetProperty("role").GetString() is not "assistant"
+            || string.IsNullOrWhiteSpace(root.GetProperty("id").GetString())
+            || !string.Equals(root.GetProperty("model").GetString(), profile.Model.Value, StringComparison.Ordinal)
+            || !string.Equals(root.GetProperty("stop_reason").GetString(), stopReason, StringComparison.Ordinal)
+            || root.GetProperty("stop_sequence").ValueKind != JsonValueKind.Null)
+        { throw new InvalidDataException("Claude did not return an exact final text message."); }
+        var usage = root.GetProperty("usage");
+        if (usage.EnumerateObject().Any(property => property.Name is not
+                ("input_tokens" or "output_tokens" or "cache_creation_input_tokens" or "cache_read_input_tokens"))
+            || !usage.GetProperty("output_tokens").TryGetInt32(out var output) || output <= 0 || output > outputLimit
+            || !usage.GetProperty("input_tokens").TryGetInt32(out var input) || input <= 0 || input > inputLimit
+            || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
+            || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
+        { throw new InvalidDataException("Claude token usage exceeds the exact profile."); }
     }
 
     public ValueTask DisposeAsync()

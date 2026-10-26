@@ -80,7 +80,7 @@ are not provider enablement or qualification.
 An explicit native Claude submission or the existing typed/activated request
 review and separate confirmation retains the unchanged original USER body and
 channel. Ordinary/default/local-only reviewed-source routes do not acquire
-Claude authority. This first stateless text-only profile includes no tools,
+Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
@@ -88,6 +88,10 @@ A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
+
+An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
+Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
+Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each has its own adapter,

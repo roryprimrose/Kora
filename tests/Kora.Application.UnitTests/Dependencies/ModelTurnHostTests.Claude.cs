@@ -5,6 +5,8 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Tools;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -101,6 +103,36 @@ public sealed partial class ModelTurnHostTests
         runtime.Calls.Should().Be(0);
     }
 
+    [Theory]
+    [InlineData(0)]
+    [InlineData(2)]
+    [InlineData(4)]
+    public async Task ExplicitClaudeObservationRouteReusesRealHostCallbackAndFreshContinuationReview(int approvals)
+    {
+        using var f = new Fixture();
+        var runtime = new ClaudeRuntime(observations: true);
+        var reviews = new HostedTransmissionReviewService(f, f.Time);
+        var host = f.ClaudeProfiles(runtime, reviews);
+        f.Time.ExpectedDeadline = ModelToolProtocol.Deadline;
+        var offered = 0;
+        var versions = 0;
+        f.OnVersion = () => versions++;
+        reviews.ClaudeOffered += review =>
+        {
+            using var presentation = review.Presentation();
+            reviews.Confirm(review, ++offered <= approvals, RequestOrigin.LocalUi).Should().BeTrue();
+        };
+        var receipt = await f.ConversationService(host, execution: host).SubmitClaudeObservationsAsync(
+            new(f.Session, null), "original observation body", [ReadOnlyCapabilityCatalog.Version], () => true, Token);
+        receipt.Message.Body.Should().Be("original observation body");
+        receipt.Message.Outcome.Should().Be(approvals == 4 ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.DeniedEgress);
+        (receipt.Message.AssistantResponse?.Body).Should().Be(approvals == 4 ? "The observed version is 1.0." : null);
+        versions.Should().Be(approvals >= 2 ? 1 : 0);
+        runtime.Context!.Tools.Select(tool => tool.Id).Should().Equal(ReadOnlyCapabilityCatalog.Version);
+        runtime.Context.Evidence.Should().BeEmpty();
+        host.IsQuiescent.Should().BeTrue();
+    }
+
     private sealed partial class Fixture
     {
         internal ModelTurnHost ClaudeProfiles(IClaudeTurnRuntime runtime, HostedTransmissionReviewService reviews,
@@ -112,7 +144,8 @@ public sealed partial class ModelTurnHostTests
             ProviderPreferences.Mode = ModelProviderMode.HostedPreferred;
             var selection = ModelProviderSelection.OllamaCandidate with { Provider = ModelProviderIdentity.Claude };
             var host = new ModelTurnHost(this, this, this, registry, this, this, Time,
-                [new(selection, Gates(selection), Time.Now.AddMinutes(5), new ClaudeModelTurnAdapter(runtime, reviews))],
+                [new(selection, Gates(selection), Time.Now.AddMinutes(5),
+                    new ClaudeModelTurnAdapter(runtime, reviews, Time, NullLogger<BoundedModelTurnAdapter>.Instance))],
                 ProviderConfiguration, configuration ? ProfileConfiguration : null, sessions ? this : null,
                 hostedReviews: composeReviews ? reviews : null);
             ownedHosts.Add(host);
@@ -120,7 +153,7 @@ public sealed partial class ModelTurnHostTests
         }
     }
 
-    private sealed class ClaudeRuntime : IClaudeTurnRuntime
+    private sealed class ClaudeRuntime(bool observations = false) : IClaudeToolTurnRuntime
     {
         public bool IsQuiescent => true;
         internal int Calls { get; private set; }
@@ -133,5 +166,30 @@ public sealed partial class ModelTurnHostTests
             return await admit(new(provenance, profile, new("https://api.anthropic.com/v1/messages"), new byte[] { 123, 125 }, []), token)
                 ? new(ModelTurnOutcome.Succeeded, "genuine Claude answer") : new(ModelTurnOutcome.DeniedEgress);
         }
+
+        public Task<IModelToolTransport?> OpenToolTurnAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
+            ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
+            Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
+        {
+            Calls++; Context = context;
+            return Task.FromResult<IModelToolTransport?>(observations ? new ReviewedClaudeTransport(profile, admit) : null);
+        }
+    }
+
+    private sealed class ReviewedClaudeTransport(ProviderProfileTuple profile,
+        Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit) : IModelToolTransport
+    {
+        private readonly ToolTransport inner = new(VersionCall, FinalAnswer);
+        public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        {
+            foreach (var path in new[] { "count_tokens", "" })
+            {
+                if (!await admit(new(request.Provenance, profile, new("https://api.anthropic.com/v1/messages"
+                    + (path.Length == 0 ? "" : "/" + path)), new byte[] { 123, 125 }, []), cancellationToken))
+                { return new(ModelTurnOutcome.DeniedEgress, request.Provenance); }
+            }
+            return await inner.CompleteAsync(request, cancellationToken);
+        }
+        public ValueTask DisposeAsync() => inner.DisposeAsync();
     }
 }

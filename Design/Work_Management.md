@@ -310,6 +310,16 @@ Pending-request/context execution expiry does not erase durable history or exten
 
 ## Required Concurrent Session Execution
 
+### Ordinary-session resource allocation implementation
+
+The [host allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) issues single-use, owner-checked resource leases before [ordinary retained dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs). Legacy qualification admits only one exclusive execution across unknown physical resources, including hosted single-flight runtimes; it never implies capacity two.
+
+The trusted [runtime qualification seam](../src/Kora.Application/Dependencies/IRuntimeCapacityQualification.cs) can supply current exact provider/account/profile/runtime-generation evidence for two independently owned transports and canonical shared/exclusive resource identities. The allocator rejects unknown identities, shared-resource/profile conflicts, duplicate session ownership and reused active transports. It bounds FIFO waiting to ten requests and at most fifteen seconds, within original context expiry.
+
+Waiting/running/Stop use the [same exact-request cancellation owner](../src/Kora.Application/Hosting/SessionConversationService.Cancellation.cs). Cancellation does not release resources before physical join; each original request joins only its own lease. Failed joins or release-audit failures quarantine affected resources, preventing reuse rather than claiming cancellation or rollback. Required content-free acquisition/release/quarantine audit uses the existing typed audit sink.
+
+This is implementation, not new profile qualification. [Production composition](../src/Kora/OllamaModelProviderFactory.cs) supplies only existing independently qualified single-execution registrations; no production two-capacity qualification source is composed. [Deterministic consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.cs) exercise admitted capacity two without enabling or advertising it for physical hardware/providers. Exact two-capacity enablement evidence remains required.
+
 Bounded independent session execution, including writes to different resources, is required in the revised Slice A3 design.
 Unrestricted parallel agents or multiple concurrent tasks within one session are not implied.
 

@@ -108,6 +108,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("selection")]
     [InlineData("source")]
     [InlineData("task-terminal")]
+    [InlineData("current-state")]
     [InlineData("current-generation")]
     [InlineData("current-revision")]
     [InlineData("current-request")]
@@ -149,6 +150,7 @@ public sealed partial class ModelTurnHostTests
         if (fault is "privacy") { f.CanControl = false; }
         if (fault is "source") { f.Task = f.Task! with { CurrentSource = false }; }
         if (fault is "task-terminal") { f.Task = f.Task! with { Task = f.Task.Task.Next(HostTaskState.Succeeded) }; }
+        if (fault is "current-state") { f.Task = f.Task! with { Task = new(f.Task.Task.Request, f.Task.Task.Revision, HostTaskState.Succeeded) }; }
         if (fault is "current-generation") { f.Session = f.Session with { Generation = new(2) }; }
         if (fault is "current-revision") { f.Task = f.Task! with { Task = new(original.Request, new(3), HostTaskState.DispatchRecorded) }; }
         if (fault is "current-request") { f.Task = f.Task! with { Task = new(HostRequest.Create(RequestOrigin.LocalUi), new(2), HostTaskState.DispatchRecorded) }; }

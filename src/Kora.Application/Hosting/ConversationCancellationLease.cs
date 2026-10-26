@@ -12,25 +12,35 @@ internal sealed class ConversationCancellationLease(
 {
     private readonly Lock gate = new();
     private readonly CancellationTokenSource cancellation = CancellationTokenSource.CreateLinkedTokenSource(caller);
-    private ConversationExecutionPhase phase = ConversationExecutionPhase.Running;
+    private ConversationExecutionPhase phase = ConversationExecutionPhase.Waiting;
+    private ConversationCancellationTarget currentTarget = target;
     private ModelTurnOutcome? outcome;
     private HostTaskState? taskState;
     private bool accepted;
     private Task signal = Task.CompletedTask;
 
-    internal ConversationCancellationTarget Target => target;
+    internal ConversationCancellationTarget Target { get { lock (gate) { return currentTarget; } } }
     internal ActivityLink Link => link;
     internal CancellationToken Token => cancellation.Token;
     internal bool CancellationAccepted { get { lock (gate) { return accepted; } } }
     internal bool CanContinue { get { lock (gate) { return !accepted && admitted(); } } }
-    internal ConversationExecutionStatus Status { get { lock (gate) { return new(target, phase, outcome, taskState); } } }
+    internal ConversationExecutionStatus Status { get { lock (gate) { return new(currentTarget, phase, outcome, taskState); } } }
+
+    internal void Dispatched(HostRevision revision)
+    {
+        lock (gate)
+        {
+            currentTarget = currentTarget with { TaskRevision = revision };
+            if (!accepted) { phase = ConversationExecutionPhase.Running; }
+        }
+    }
 
     internal Task RequestCancellationAsync(Action recordAcceptance)
     {
         lock (gate)
         {
             if (accepted) { return Task.CompletedTask; }
-            if (phase != ConversationExecutionPhase.Running || !admitted())
+            if (phase is not (ConversationExecutionPhase.Running or ConversationExecutionPhase.Waiting) || !admitted())
             { throw new InvalidOperationException("The exact turn no longer accepts cancellation; terminal storage may already own the outcome."); }
             // Required audit precedes the authority change. A failed audit cannot claim acceptance.
             recordAcceptance();

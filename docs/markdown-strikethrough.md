@@ -25,6 +25,9 @@ With an enabled host profile, double tildes around wording, such as
 technology and in Continuous text. Color alone never carries the distinction.
 Ordinary emphasis remains plain semantic text. Unmatched tildes, escaped tildes,
 inline code, indented code and fenced code are literal, not strikethrough.
+Offline code highlighting remains a separate bounded annotation of unchanged
+code source. Its plain-code fallback does not remove wording labels elsewhere
+in the view, and neither annotation enables another Markdown profile.
 
 Open the existing Details view explicitly. Use **Exact source** to inspect the
 unchanged original text, including delimiters, Unicode and line endings.
@@ -48,6 +51,8 @@ refused without truncation.
 Source loss, privacy closure and disposal retire the viewer's source, labelled
 text, Find state and native inline/accessibility content. Nothing is saved,
 sent to a provider, fetched, executed or copied by rendering.
+Code blocks in the same view retire their readers and pending highlighting
+alongside the strikethrough wording.
 
 This is bounded deterministic implementation, not installed accessibility,
 device, provider or release qualification.

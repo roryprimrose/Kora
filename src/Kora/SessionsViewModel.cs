@@ -468,6 +468,7 @@ internal sealed partial class SessionsViewModel(
             retentionSubject = session;
             retentionObservation = observedRetention;
             ApplyWork(snapshot, observedAdmission);
+            await ReadSelectedPermissionAsync();
             Render();
             status = "Fresh passive exact-session navigation. Opening and selection grant nothing; answer only in the original Questions window.";
             // Navigation cannot renew an inspected task cancellation target, even when a question wait was observed.
@@ -489,6 +490,7 @@ internal sealed partial class SessionsViewModel(
         tasks = await service.ReadTasksAsync(record.Authority.SessionId, null, 25, lifetime.Token);
         await RefreshSelectedWorkAsync();
         await ReadSelectedRetentionAsync();
+        await ReadSelectedPermissionAsync();
         Render();
         status = "Passive selected work snapshot. Questions remain exactly bound; no activity, priority, voice target or dispatch changed.";
     }
@@ -723,6 +725,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        ClearSessionPermission();
         ClearEvidenceDetails();
         ClearConversation();
         ClearProviderReview();
@@ -781,6 +784,7 @@ internal sealed partial class SessionsViewModel(
             NotifyWork();
             NotifyConversation();
             NotifyProviderReview();
+            NotifySessionPermission();
             NotifyRetention();
             NotifyMemories();
             NotifyQueue();

@@ -4,6 +4,8 @@ using Avalonia.Layout;
 using Avalonia.Media;
 
 using Kora.Controls;
+using Kora.CodeHighlighting;
+using Kora.Core.Presentation.CodeHighlighting;
 
 using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -30,11 +32,17 @@ internal static class MarkdownDocumentRenderer
             ];
         }
 
+        // Bound the entire view, not just each block; large documents stay ordinary monospace text.
+        var codeBytes = result.Sections.Where(section => section.Code is not null)
+            .Sum(section => (long)section.Code!.Text.Length);
+        var highlight = codeBytes <= CodeHighlightProfile.MaximumUtf8Bytes
+            && result.Sections.Count(section => section.Code is not null) <= 16;
         return result.Sections.Select(section =>
         {
-            var control = CreateText(section.Text, section.Style, selectable);
-            NativeStrikethroughText.Attach(control, section);
-            return (Control)control;
+            var text = CreateText(section.Text, section.Style, selectable);
+            NativeStrikethroughText.Attach(text, section);
+            return section.Code is { } code
+                ? (Control)new NativeCodeBlock(code, text, highlight) : text;
         }).ToArray();
     }
 

@@ -11,6 +11,8 @@ using AwesomeAssertions;
 
 using Kora.Application.Documentation;
 using Kora.Application.Presentation;
+using Kora.CodeHighlighting;
+using Kora.Core.Context;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
 using Kora.Core.Presentation.MarkdownStrikethrough;
@@ -114,6 +116,95 @@ public sealed class MarkdownStrikethroughTests
         control.Text.Should().BeEmpty();
         peer.GetName().Should().BeNullOrEmpty();
         AutomationProperties.GetHelpText(control).Should().BeEmpty();
+    });
+
+    [Theory]
+    [InlineData(1, 0, false)]
+    [InlineData(17, 0, true)]
+    [InlineData(2, 20000, true)]
+    public Task MixedCodeAndStrikethroughPreserveIndependentSourceBudgetsAndPrivateRetirement(
+        int codeCount, int padding, bool viewLimit) => HeadlessSession.RunAsync(async () =>
+    {
+        var codeText = "// ~~literal~~ \u00e9\U0001f600\r\npublic class C { }\r\n"
+            + new string('a', padding) + "\r\n";
+        var source = "Before ~~private old~~ after\r\n\r\n"
+            + string.Join("\r\n", Enumerable.Repeat("```cs\r\n" + codeText + "```\r\n", codeCount));
+        var result = Render(source);
+        result.IsFallback.Should().BeFalse(result.Status);
+        result.Source.Should().Be(source);
+        result.Sections.Should().HaveCount(codeCount + 1);
+        var wording = result.Sections[0];
+        wording.Code.Should().BeNull();
+        wording.Strikethrough.Should().ContainSingle();
+        foreach (var section in result.Sections.Skip(1))
+        {
+            section.Strikethrough.Should().BeEmpty("code cannot acquire a wording annotation");
+            section.Code.Should().NotBeNull();
+            var codeSource = section.Code!;
+            codeSource.Text.Should().Be(codeText);
+            source.Substring(codeSource.SourceStart, codeSource.Text.Length).Should().Be(codeText);
+        }
+        var content = Content(source);
+        var digest = content.Digest;
+        var state = new DetailViewerState(content);
+        var generation = state.Generation;
+        state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback).Should().BeTrue();
+        var copies = 0;
+        var view = new DetailContentView(state, result, (_, _, _) => { copies++; return Task.CompletedTask; });
+        var stack = view.FindControl<StackPanel>("RenderedDocument")!;
+        var strike = stack.Children[0].Should().BeAssignableTo<TextBlock>().Subject;
+        var codeBlocks = stack.Children.OfType<NativeCodeBlock>().ToArray();
+        codeBlocks.Should().HaveCount(codeCount);
+        var window = new Window { Content = view };
+        try
+        {
+            window.Show();
+            foreach (var code in codeBlocks)
+            {
+                await code.Pending;
+                code.Status.Should().Contain(viewLimit ? "ViewLimit" : "Highlighted");
+                code.Reader.Should().NotBeOfType<SelectableTextBlock>();
+                code.Reader.Inlines!.OfType<Run>()
+                    .Should().OnlyContain(run => run.TextDecorations != TextDecorations.Strikethrough);
+                code.PlainToggle.IsChecked = true;
+                code.Reader.Text.Should().Be(codeText);
+            }
+            strike.Inlines!.OfType<Run>().Where(run => run.TextDecorations == TextDecorations.Strikethrough)
+                .Should().ContainSingle().Which.Text.Should().Be("private old");
+            AutomationProperties.GetName(strike).Should().Be(wording.Text);
+            state.SetSource(true);
+            state.ActiveText.Should().Be(source);
+            state.Find("~~literal~~", SnapshotFindDirection.First).Should().BeTrue();
+            state.MatchStart.Should().Be(source.IndexOf("~~literal~~", StringComparison.Ordinal));
+            state.Reference.Should().Be(content.Reference);
+            content.Digest.Should().Be(digest);
+            view.ClearPresentation();
+            view.ClearPresentation();
+            foreach (var code in codeBlocks)
+            {
+                await code.JoinAsync();
+                code.Reader.Text.Should().BeEmpty();
+                code.Reader.Inlines.Should().BeEmpty();
+                AutomationProperties.GetName(code.Reader).Should().BeNullOrEmpty();
+                code.Status.Should().Contain("retired");
+            }
+            strike.Inlines.Should().BeEmpty();
+            strike.Text.Should().BeEmpty();
+            AutomationProperties.GetName(strike).Should().BeNullOrEmpty();
+            AutomationProperties.GetHelpText(strike).Should().BeEmpty();
+            state.Content.Should().BeNull();
+            state.ActiveText.Should().BeEmpty();
+            state.SearchQuery.Should().BeEmpty();
+            state.CompleteRender(generation, "late", "late", false).Should().BeFalse();
+            stack.Children.Should().BeEmpty();
+            copies.Should().Be(0);
+        }
+        finally
+        {
+            view.ClearPresentation();
+            window.Close();
+            foreach (var code in codeBlocks) { await code.JoinAsync(); }
+        }
     });
 
     [Fact]

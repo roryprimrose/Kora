@@ -11,6 +11,7 @@ using Kora.Application.ViewModels;
 using Kora.Core.Presentation;
 using Kora.Core.Context;
 using Kora.Controls;
+using Kora.CodeHighlighting;
 
 namespace Kora;
 
@@ -33,7 +34,7 @@ public sealed partial class DetailContentView : UserControl
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
 
     internal DetailContentView(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource,
-        MainViewModel? typographyHost = null)
+        MainViewModel? typographyHost = null, Diagrams.IMermaidRenderer? mermaidRenderer = null)
     {
         this.state = state;
         this.copySource = copySource;
@@ -53,7 +54,8 @@ public sealed partial class DetailContentView : UserControl
             : MarkdownDocumentRenderer.CreateControls(result, selectable: false);
         foreach (var control in renderedControls)
         {
-            if (typographyHost is not null && control is TextBlock text
+            var text = control is NativeCodeBlock code ? code.Reader : control as TextBlock;
+            if (typographyHost is not null && text is not null
                 && (!result.IsFallback || !ReferenceEquals(control, renderedControls[0])))
             {
                 NativeReaderTypography.Bind(text, typographyHost);
@@ -115,6 +117,7 @@ public sealed partial class DetailContentView : UserControl
         search.PastingFromClipboard += BlockClipboardRead;
         reader.AddHandler(ContextRequestedEvent, BlockContextMenu, RoutingStrategies.Tunnel);
         search.AddHandler(ContextRequestedEvent, BlockContextMenu, RoutingStrategies.Tunnel);
+        AttachMermaid(content, mermaidRenderer);
         state.PropertyChanged += OnStateChanged;
         Refresh();
     }
@@ -291,12 +294,14 @@ public sealed partial class DetailContentView : UserControl
     {
         if (cleared) { return; }
         cleared = true;
+        RetireMermaid();
         state.PropertyChanged -= OnStateChanged;
         state.Close();
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
         reader.Text = string.Empty;
         NativeStrikethroughText.Retire(renderedDocument.Children);
+        foreach (var code in renderedDocument.Children.OfType<NativeCodeBlock>()) { code.Retire(); }
         renderedDocument.Children.Clear();
         search.Text = string.Empty;
         findSpan.Text = null;

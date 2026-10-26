@@ -260,7 +260,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         }
     }
 
-    private sealed class Activated : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
+    private class Activated : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized { add { } remove { } }
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
@@ -268,6 +268,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted { add { } remove { } }
         public bool IsAmbientListeningAvailable => false;
+        public bool IsLiteralDictationAvailable { get; set; }
         public bool IsCaptureQuiescent => !IsListening;
         public bool IsListening { get; private set; }
         public long Generation { get; private set; }

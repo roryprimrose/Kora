@@ -25,7 +25,7 @@ internal sealed partial class SessionsViewModel
     public bool CanRefreshRunningConversation => !closed && access.CanInspect && selected is { Authority.IsActive: true }
         && conversation is not null && !cancellingConversation;
     public bool CanCancelRunningConversation => CanRefreshRunningConversation && access.CanControl
-        && runningConversation is { Phase: ConversationExecutionPhase.Running } current
+        && runningConversation is { Phase: ConversationExecutionPhase.Running or ConversationExecutionPhase.Waiting } current
         && current.Target.Request.SessionId == selected?.Authority.SessionId
         && current.Target.Generation == selected.Authority.Generation;
 
@@ -69,6 +69,7 @@ internal sealed partial class SessionsViewModel
             if (observation.Phase != ConversationExecutionPhase.Running) { provisionalAnswer = null; }
             runningConversationStatus = "Task " + observation.Target.Request.TaskId.Value.ToString("D") + ": " + (observation.Phase switch
             {
+                ConversationExecutionPhase.Waiting => "Waiting for admitted runtime resources. Cancel applies only to this displayed request.",
                 ConversationExecutionPhase.Running => "Running admitted conversation request. Cancel applies only to this displayed task.",
                 ConversationExecutionPhase.Cancelling => "Cancelling requested; waiting for owned resources to terminate. No completed cancellation or rollback is claimed.",
                 ConversationExecutionPhase.Completing => "Terminal storage owns the outcome. Cancellation cannot roll back a committed answer.",

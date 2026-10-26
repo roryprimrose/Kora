@@ -89,6 +89,8 @@ retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
 
+The separate [native text-stream operation](../docs/claude-requests.md#separately-qualified-native-text-streaming) requires positive exact-profile streaming evidence, not buffered approval or a desired profile setting. Only the original USER body enters this native-only, tool-free request. Actual incremental SSE text uses canonical volatile presentation; final-only retention, independent physical-send consent and actual reader/disposal join remain mandatory. The default deployment source stays unavailable ([stream runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
 An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
 Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
 Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
@@ -412,6 +414,8 @@ unchanged new request and total serialized budget; separate single-use confirmat
 admits one local-only tool-free answer or cancellation. Source brokers and retention
 remain independent; device-profile/model-proposed memories and provider qualification
 are not implementation prerequisites or implicitly enabled capabilities.
+
+Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
 
 ## User-Governed Durable Memory
 

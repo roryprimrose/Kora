@@ -653,7 +653,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             public void ConfirmWrite() => Pending = false;
         }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) =>
+            DisposeCompoundSession(request, preview, eligible, token);
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
         {
             Request = request;

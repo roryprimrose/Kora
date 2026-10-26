@@ -10,6 +10,7 @@ internal sealed partial class SessionsWindow : Window
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
     internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
+    internal Task StopAndDeleteOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
     {
@@ -80,6 +81,7 @@ internal sealed partial class SessionsWindow : Window
         {
             if (args.Property == IsVisibleProperty)
             {
+                model.SetStopAndDeleteSurfaceOpen(IsVisible);
                 model.SetRoutineQuietSurfaceOpen(IsVisible);
                 model.SetProviderSurfaceOpen(IsVisible);
             }
@@ -191,6 +193,9 @@ internal sealed partial class SessionsWindow : Window
         Resume.Click += async (_, _) => await model.ChangeLifecycleAsync(active: true);
         PreviewDisposition.Click += async (_, _) => await model.PreviewDispositionAsync();
         ConfirmDisposition.Click += async (_, _) => await model.ConfirmDispositionAsync();
+        ReviewStopAndDelete.Click += async (_, _) => await (StopAndDeleteOperation = model.ReviewStopAndDeleteAsync());
+        ConfirmStopAndDelete.Click += async (_, _) => await (StopAndDeleteOperation = model.ConfirmStopAndDeleteAsync());
+        CancelStopAndDelete.Click += (_, _) => model.CancelStopAndDeleteReview();
         ListMemories.Click += async (_, _) => await model.ListMemoriesAsync();
         BindMemoryContext(model);
         ProposeMemory.Click += async (_, _) => await model.ProposeMemoryAsync();

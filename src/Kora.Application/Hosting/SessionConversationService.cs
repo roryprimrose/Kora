@@ -62,6 +62,11 @@ public sealed partial class SessionConversationService(
             ? SubmitOrdinaryWithScopeAsync(target, body, admitted, beforeRetain, links, origin, token)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
+    internal Task<ConversationSubmissionReceipt> SubmitOriginalLocalAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
+        RequestOrigin origin, CancellationToken token) =>
+        SubmitCoreAsync(target, body, admitted, validateSource, links, origin, null, ModelTurnChoice.Local, token);
+
     /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
     public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
@@ -100,9 +105,10 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false)
+        bool claude = false, bool claudeStreamAnswer = false)
     {
         RequireOriginalSource(origin);
+        RequireConversationDispatchOpen(target.Authority.SessionId);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -112,7 +118,7 @@ public sealed partial class SessionConversationService(
         }
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
-        if (!Live() || !turns.IsQuiescent)
+        if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
         { throw new InvalidOperationException("Submission requires private original user input and quiescent provider admission."); }
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
         if (actual != target || !actual.Authority.IsActive || !Live())
@@ -142,7 +148,7 @@ public sealed partial class SessionConversationService(
             { throw new InvalidDataException("A fresh submission unexpectedly returned an already terminal request."); }
             ModelTurnResult result;
             ConversationSubmissionReceipt receipt;
-            if (!Live() || !turns.IsQuiescent)
+            if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
             { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
             else
             {
@@ -158,9 +164,10 @@ public sealed partial class SessionConversationService(
                             context = await prepareContext(request, Live, token).ConfigureAwait(false);
                             context.RequireCompleteInputLimit();
                         }
+
                         admission = claude
                             ? turns is ModelTurnHost claudeHost
-                                ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted
@@ -228,6 +235,9 @@ public sealed partial class SessionConversationService(
             throw new ConversationSubmissionUnconfirmedException(request, exception);
         }
     }
+
+    private bool ProviderAdmitsSession(HostId<SessionIdentity> session) =>
+        turns is ModelTurnHost runtime ? runtime.CanSubmitConversation(session) : turns.IsQuiescent;
 
     private async Task RejectCredentialAsync(HostId<SessionIdentity> session, HostRevision generation,
         Func<bool> admitted, CancellationToken token, RequestOrigin origin = RequestOrigin.LocalUi)

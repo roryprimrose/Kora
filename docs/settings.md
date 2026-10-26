@@ -156,6 +156,8 @@ An unconfirmed write holds model admission for the run; inspect saved state and 
 
 Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 
+Closing the host or changing topology retires an in-flight discovery without publishing its late metadata or starting playback. Disposal still joins the worker; retirement alone is not a discovery failure ([lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AsyncBoundaryFailures.cs)).
+
 Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 Grant and power-proposal preparation awaits requested audit persistence before exposing an actionable proposal. Retirement removes UI authority immediately; grant publication and consequential dispatch still await successful terminal audit ([approval workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
@@ -467,6 +469,8 @@ Status separates saved choices from models that are ready to use. Unknown, expir
 This is independent of the unchanged **LocalOnly** `providers.default-mode` safety default and existing bootstrap local-model switches. Only subsequent eligible provider-neutral policy turns consume profiles; app edits never reroute/cancel/retry an admitted turn or change the buffered local bootstrap reasoner.
 
 Durable session inheritance/overrides use the separate Sessions controls below. Generic unscoped “Use Claude” and one-turn directives remain deferred; existing [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles) never alias session changes. Larger context choices cannot override Kora's limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
+
+Saving a Claude profile is not streaming approval. **Stream explicitly with Claude (text only, separately qualified)** in Sessions requires separate exact-profile stream evidence; an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming availability, native consent and bounds](claude-requests.md#separately-qualified-native-text-streaming).
 
 ### Review local runtime admission
 

@@ -9343,7 +9343,7 @@ public sealed partial class MainViewModelTests : IDisposable
         }
     }
 
-    private sealed class FakeVoiceRecognitionService(
+    private sealed partial class FakeVoiceRecognitionService(
         ImmediateDispatcher dispatcher,
         List<string> events) : IActivatedVoiceRecognitionService
     {

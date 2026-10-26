@@ -22,11 +22,19 @@ Use **Answer locally (no tools)** for bounded incremental text in the originatin
 
 Ordinary tool-capable Send, clarification and hosted requests retain their existing buffered contracts. Local qualification, session instructions, privacy, current-source generation, input/output budgets, original USER and trusted terminal audit rules remain authoritative; this is no runtime auto-enablement or hosted streaming change ([submission owner](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [host selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)).
 
+The separate native-only **Stream explicitly with Claude (text only, separately qualified)** action now uses the same provisional lifecycle for original-user, tool-free requests. It adds exact-profile stream evidence and separate native physical-send consent, without changing the buffered routes above or enabling the shipped unavailable Claude source ([operation](../docs/claude-requests.md#separately-qualified-native-text-streaming), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
 ## Conversation Input Realignment
 
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+### Deliberate exact retained-answer replies
+
+The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.
+
+The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
 
 The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
@@ -819,6 +827,18 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
 
+### Explicit original request to the foreground conversation
+
+The approved voice/UI-equivalent conversation operation accepts `ask this conversation <original body>` with the current assistant-name activation for voice. The native [presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) publishes one irreversible snapshot of its unique visible, foreground, eligible Active presenter. Selection alone, names, input/model IDs and cached targets cannot provide that snapshot.
+
+The [host input route](../src/Kora.Application/ViewModels/MainViewModel.cs) captures that snapshot before queued voice dispatch. The [request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) freezes the complete body and target for a 60-second one-use review and revalidates original input, exact session/generation/metadata and private control at confirmation and canonical submission fences.
+
+Native **Confirm original request once** and separate `session request confirm` consume the same review without cleansing voice origin ([native decision binding](../src/Kora.Application/ViewModels/MainViewModel.ForegroundRequests.cs)).
+
+This route requests only a local original answer through [SessionConversationService](../src/Kora.Application/Hosting/SessionConversationService.cs), not ordinary scoped-instruction preparation or relatedness routing. It authorizes no prior history, memory or instruction sources. It preserves per-session unsent input, existing unsolicited/new-request behavior and mandatory authentication/hosted physical-send exceptions. Missing local readiness remains a truthful HOST outcome without hosted fallback.
+
+The [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs) traverse parsing, foreground binding, accessible exact preview, separate confirmation, actual deterministic ModelTurnHost execution and private SQLite answer retention. [Portable regressions](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.ForegroundRequests.cs) cover missing/stale snapshots, expiry, cancellation and replay denial. These are implementation evidence, not production model, microphone or installed-native qualification.
+
 ### Delivered explicit exact-session request commands
 
 Typed input and current-name activated voice can deliberately address one exact Active session using the [strict reserved request grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs). This does not add selected-window, session-title, relatedness, pending-question or approval routing.
@@ -1192,6 +1212,44 @@ ordinary Submit remains separate. See the [session dictation guide](../docs/sess
 Production literal capture remains explicitly unqualified and unavailable;
 deterministic platform fakes do not establish speech-profile qualification.
 
+#### Bounded provisional literal feedback
+
+During an explicitly admitted LOCAL existing-session dictation hold, optional
+[hypothesis observation](../src/Kora.Core/Voice/IProvisionalVoiceRecognitionService.cs)
+uses the actual acknowledged capture generation and exact native target. The
+[Windows wrapper](../src/Kora.Windows/Audio/WindowsActivatedCapture.cs) observes
+`System.Speech` hypotheses without expanding microphone lifetime. The shared
+host forwards only activated observations; wake, command dispatch, approvals,
+question replies and New request dictation gain no provisional presentation
+([feedback owner](../src/Kora.Application/Voice/ComposerDictationService.Provisional.cs)).
+
+Complete replace-only snapshots are bounded to 512 UTF-16 characters and
+1,024 strict UTF-8 bytes. Invalid/oversized input visibly retires preview, not
+final-only dictation; older/duplicate/foreign-generation observations cannot
+replace current feedback. One pending UI callback holds no captured text or
+target. Edit/selection/source/private/control/device/call/lock/cancellation,
+expiry, final completion and disposal clear feedback and fence queued work.
+No partial input is inserted, dispatched, retained, copied/exported, spoken,
+logged or used for activity renewal or source/approval authority
+([validation](../src/Kora.Core/Voice/ProvisionalTranscriptSnapshot.cs),
+[native surface](../src/Kora/SessionDictation/SessionDictationWindow.cs)).
+
+Native retirement joins actual recorder, recognizer and stream release. A
+delayed privacy cleanup with no remaining resources must not enqueue new
+release work or revoke the completed stop receipt; outstanding or failed
+native work still prevents quiescence. Deterministic lock/device regressions
+control that ordering without retries or timing sleeps
+([release regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.Quiescence.cs)).
+
+The native read-only `Provisional—may change` area has a stable content-free
+automation label and no live region or value/text editing provider; accessible
+final review remains separate. Only the accepted final transcript enters the
+existing original-input memory publication and subsequent explicitly admitted
+Submit. Deterministic tests cover that complete path through a retained real
+test-model answer, not a disconnected field preview; production literal/profile
+qualification remains unavailable and no hardware/acoustic trial is claimed
+([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ProvisionalDictation.cs)).
+
 ### Explicit retained original USER text reuse — 2026-10-19
 
 An actual currently admitted immutable conversation row in Sessions or compact conversation offers **Review reuse of this original USER text in a New request**. This is content reuse, **never task replay/resumption** or promotion of HOST/model output. Reconstructed/value-equal rows, hidden/private/omitted/revoked records, question answers and generated content are not reuse sources.
@@ -1310,6 +1368,21 @@ Background progress remains in its session; eligible notifications follow proact
 App exit/restart/power preparation coordinates all sessions, not just the selected one.
 
 ## Inactivity, Done, Resume, and Delete
+
+The bounded native **Stop this conversation's running work, then delete this conversation** operation combines existing actions without claiming atomic rollback.
+A single-use exact-source review discloses the target, unsent/pending input, owned running work and existing disposition inventory.
+Separate native confirmation closes only new conversation dispatch for that exact target, requests its host-owned cancellation, joins actual resources and revalidates the reviewed source before the existing audited disposition transaction.
+Opening or declining review has no stop/discard/delete effect ([operation](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [native presentation](../src/Kora/SessionsViewModel.StopAndDelete.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
+The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
+A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
+([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Typed exact-target review uses the same native action. Original voice-origin compound deletion remains unavailable under the existing native deletion boundary and is rejected before any stop; a later click cannot relabel it.
+No model/tool mutation grant, new storage schema, secure physical erasure or remote deletion is added.
+Existing independent retention domains and copy exclusions remain unchanged ([command](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [retention domains](Security_Data_Flows.md#retention-defaults)).
 
 Defaults: **archive after 24 hours of inactivity; delete after 30 days of inactivity**.
 Both are device-local configurable settings, not hard-coded safety constants.

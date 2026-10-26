@@ -26,7 +26,7 @@ internal sealed partial class AgentRunController
         if (command.Action is "SkillTarget")
         {
             window!.Targets.SelectedItem = ExactRow<AgentTarget>(window.Targets,
-                row => row.Entry.Metadata?.Name.Value ?? "Active", command.Argument);
+                row => row.ToString(), command.Argument);
             return true;
         }
         return false;

@@ -725,6 +725,7 @@ internal sealed partial class SessionsViewModel(
 
     private void ClearSelection()
     {
+        CancelStopAndDeleteReview();
         ClearSessionPermission();
         ClearEvidenceDetails();
         ClearConversation();
@@ -781,6 +782,7 @@ internal sealed partial class SessionsViewModel(
         notifying = true;
         try
         {
+            NotifyStopAndDelete();
             NotifyWork();
             NotifyConversation();
             NotifyProviderReview();

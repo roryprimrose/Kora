@@ -36,6 +36,7 @@ public sealed partial class MainViewModel
         internal long InputRevision { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
+        internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -69,6 +70,7 @@ public sealed partial class MainViewModel
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
+            NamedSkillChoiceEligible = namedSkillChoiceCapture?.Invoke() ?? (static () => false),
         };
     }
 

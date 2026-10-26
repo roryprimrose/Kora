@@ -38,6 +38,7 @@ public sealed partial class ResponseWindow
         Action management, Action newConversation)
     {
         SessionWorkspace.DataContext = model;
+        SessionDictation.DataContext = model;
         SessionWorkspace.ManagementRequested += (_, _) => management();
         SessionWorkspace.NewConversationRequested += (_, _) => newConversation();
         owner.Attach(this);
@@ -83,6 +84,7 @@ public sealed partial class ResponseWindow
         if (SessionWorkspace.IsVisible != expanded) { sessionPresentationEpoch++; }
         if (!expanded) { SessionWorkspace.HideDetails(); }
         SessionWorkspace.IsVisible = expanded;
+        SessionDictation.IsVisible = expanded;
         CurrentInteractionContent.IsVisible = !expanded;
         CollapseSessions.IsVisible = expanded;
         ShowCurrentInteraction.IsVisible = expanded;
@@ -111,6 +113,7 @@ public sealed partial class ResponseWindow
     {
         sessionPresentationEpoch++;
         SessionWorkspace.IsVisible = false;
+        SessionDictation.IsVisible = false;
         CurrentInteractionContent.IsVisible = true;
         ExpandSessions.IsVisible = true;
     }

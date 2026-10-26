@@ -7,14 +7,14 @@ namespace Kora.Application.UnitTests.Agents;
 
 public sealed class NamedAgentResolverTests
 {
-    private const string Path = @"C:\KoraTestSources\role.agent.md";
+    private static readonly string SourcePath = Path.GetFullPath("role.agent.md");
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     private static ArtifactFileDocument Document(string name = "Readable role", string body = "Inert guidance.",
         ArtifactKind kind = ArtifactKind.Agent, string command = "role") =>
         ArtifactFileDocument.Parse(ArtifactFileDocument.Encode($"---\nname: {name}\ndescription: Role\n---\n{body}", false),
             kind, "additional", command);
     private static ArtifactDefinition Definition() =>
-        Document().Definition with { UseControlId = ArtifactUseIdentity.File(Path) };
+        Document().Definition with { UseControlId = ArtifactUseIdentity.File(SourcePath) };
 
     [Fact]
     public async Task SelectsOneExactRegisteredRevisionAndRevalidatesTheActualProfileBytes()
@@ -24,10 +24,10 @@ public sealed class NamedAgentResolverTests
         {
             definition.Should().BeSameAs(catalogue.Candidates.Single());
             token.Should().Be(Token);
-            return Task.FromResult(Path);
+            return Task.FromResult(SourcePath);
         });
         var selection = await resolver.ResolveAsync("Readable role", () => true, Token);
-        selection.Path.Should().Be(Path);
+        selection.Path.Should().Be(SourcePath);
         selection.IsCurrent().Should().BeTrue();
         selection.ValidateSource(Document());
         var renamed = () => selection.ValidateSource(Document("Different name"));
@@ -59,11 +59,11 @@ public sealed class NamedAgentResolverTests
         if (scenario is "no-file-binding") { definition = definition with { UseControlId = null }; }
         var second = new ArtifactDefinition("disk.additional.agent.second", ArtifactKind.Agent, "Readable role",
             "Other source", "second", ["second"], "additional", definition.Version, definition.Digest, definition.Content)
-        { UseControlId = ArtifactUseIdentity.File(Path + ".other") };
+        { UseControlId = ArtifactUseIdentity.File(SourcePath + ".other") };
         using var catalogue = new ArtifactCatalogue(scenario is "duplicate" ? [definition, second] : [definition]);
         if (scenario is "reload") { catalogue.ReportReloadFailure(new IOException("Synthetic reload failure.")); }
         var reads = 0;
-        var resolver = new NamedAgentResolver(catalogue, (_, _) => { reads++; return Task.FromResult(Path); });
+        var resolver = new NamedAgentResolver(catalogue, (_, _) => { reads++; return Task.FromResult(SourcePath); });
         var name = scenario is "missing" ? "Missing role" : scenario is "case" ? "readable role" : "Readable role";
         await resolver.Invoking(value => value.ResolveAsync(name, () => scenario is not "ineligible", Token))
             .Should().ThrowAsync<InvalidOperationException>();
@@ -95,10 +95,26 @@ public sealed class NamedAgentResolverTests
             if (scenario is "use") { policy.Revoke(); }
             if (scenario is "cancel") { cancellation.Cancel(); }
             if (scenario is "source-failure") { throw new IOException("Exact source missing."); }
-            return Task.FromResult(scenario is "binding" ? Path + ".other" : Path);
+            return Task.FromResult(scenario is "binding" ? SourcePath + ".other" : SourcePath);
         });
         await resolver.Invoking(value => value.ResolveAsync("Readable role", () => current, cancellation.Token))
             .Should().ThrowAsync<Exception>();
+    }
+
+    [Fact]
+    public async Task RelativeHostSourceCannotProduceASelection()
+    {
+        using var catalogue = new ArtifactCatalogue([Definition()]);
+        var reads = 0;
+        var resolver = new NamedAgentResolver(catalogue, (_, _) =>
+        {
+            reads++;
+            return Task.FromResult("role.agent.md");
+        });
+        var failure = await resolver.Invoking(value => value.ResolveAsync("Readable role", () => true, Token))
+            .Should().ThrowAsync<ArgumentException>();
+        failure.Which.ParamName.Should().Be("canonicalPath");
+        reads.Should().Be(1);
     }
 
     [Fact]

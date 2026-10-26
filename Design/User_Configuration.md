@@ -1121,6 +1121,19 @@ samples, capture/threshold executable, hardware/provider gaps and historical
 receipts have no whole-executable maintained equivalent here: retain all;
 nothing is deleted or rerun.
 
+### Bounded communications activity source
+
+The device-local `calls.activity-source` defaults/resets to `None`.
+Settings > Calls and exact typed/current-name activated `list call observation settings`, `get/status calls.activity-source`, `set calls.activity-source to None|WindowsCommunicationsAudio` and `reset calls.activity-source` share the [host writer](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs), not a caller-selected OS authority.
+
+The [bounded source contract](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) owns normalization, freshness and limitations.
+Native status shows selected source, qualification, automatic evidence, observed UTC time and health.
+Production Windows qualification is unavailable: enable selection is disabled/denied, no native subscription is opened, and saved enabled-but-unavailable state remains Unknown.
+
+Original protected-call voice changes are rejected before mutation or relabelled confirmation.
+Source changes preserve manual mode, grants, microphone consent and independent spoken-approval policy; disable completes only after prior owned observation release.
+Unconfirmed preference/audit/resource evidence remains protective and explicit, never automatic recovery ([preference format](../src/Kora.Application/Configuration/LocalCommunicationActivityPreferences.cs), [regressions](../tests/Kora.Application.UnitTests/Configuration/CommunicationActivityTests.cs)).
+
 ### Proposed full configuration contract
 
 Voice and settings UI use the same typed host configuration service.

@@ -19,6 +19,8 @@ public sealed partial class MainViewModel
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             AuditPersistence, outputDiscoveryPersistence,
             outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
+        if (communicationActivity is not null)
+        { await communicationActivity.JoinAsync().ConfigureAwait(false); }
 #pragma warning restore VSTHRD003
     }
 

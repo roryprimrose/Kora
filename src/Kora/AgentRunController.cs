@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Kora.Application.Agents;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
+using Kora.Core.Agents;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -156,7 +157,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 if (review.Skill is not null) { ShowSkillProfile(opened, review); }
                 else if (review.References is { } referenced)
                 {
-                    opened.Review.Text = $"LOCAL TEXT -> TEXT; TOOL-FREE\nSESSION {target.Authority.SessionId.Value:D}\n"
+                    opened.Review.Text = $"LOCAL TEXT -> TEXT\nSESSION {target.Authority.SessionId.Value:D}\n"
+                        + DescribeToolsAndBudgets(review.Profile)
                         + $"DECLARED OWNED INSTRUCTION IDS\n{string.Join("\n", review.Profile.References.Select(item => item.Id))}\n"
                         + $"EXACT ENABLED CANDIDATES\n{string.Join("\n", referenced.Candidates.Select(item => item.Name + " (" + item.Id + ")"))}\n"
                         + $"COMPLETE PROFILE\n{review.Profile.Document.Text}\n\nORIGINAL INPUT\n{review.Input}";
@@ -208,13 +210,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         var profile = captured.Profile;
         opened.Review.Text = $"{profile.Document.Definition.Name}\nSOURCE {opened.Source.Text}\n"
                     + $"SESSION {captured.Target.Authority.SessionId.Value:D}\nLOCAL TEXT -> TEXT\n"
-                    + $"TOOLS {string.Join(", ", profile.Tools)}\n"
-                    + $"HOST CLAMPS: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, "
-                    + $"input {profile.MaximumInputUtf8Bytes} bytes, output {profile.MaximumOutputUtf8Bytes} bytes, "
-                    + $"deadline {profile.Deadline.TotalMilliseconds}ms\n"
-                    + $"REQUESTED: calls {profile.RequestedCalls}, rounds {profile.RequestedRounds}, "
-                    + $"input {profile.RequestedInputUtf8Bytes}, output {profile.RequestedOutputUtf8Bytes}, "
-                    + $"deadline {profile.RequestedDeadlineMilliseconds}ms\n\n"
+                    + DescribeToolsAndBudgets(profile)
                     + $"COMPLETE INERT PROFILE (UTF-8 BOM: {profile.Document.HasBom})\n{profile.Document.Text}\n\n"
                     + string.Join("\n\n", captured.References?.Bundle?.Instructions.Select(item =>
                         $"COMPLETE INERT INSTRUCTION {item.Document.Definition.Id} (UTF-8 BOM: {item.Document.HasBom})\n{item.Document.Text}") ?? [])
@@ -223,6 +219,15 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 opened.Resolve.IsEnabled = false;
                 opened.Status.Text = "Review exact input, profile, locality, tools and clamped budgets. Separately consent to invoke once.";
     }
+
+    private static string DescribeToolsAndBudgets(BoundedAgentProfile profile) =>
+        $"TOOLS {profile.Document.Metadata["tools"]}; independently permission checked, never granted by guidance.\n"
+        + $"CUMULATIVE HOST CLAMPS: calls {profile.MaximumCalls}, rounds {profile.MaximumRounds}, "
+        + $"input {profile.MaximumInputUtf8Bytes} bytes, output {profile.MaximumOutputUtf8Bytes} bytes, "
+        + $"deadline {profile.Deadline.TotalMilliseconds}ms\n"
+        + $"REQUESTED: calls {profile.RequestedCalls}, rounds {profile.RequestedRounds}, "
+        + $"input {profile.RequestedInputUtf8Bytes}, output {profile.RequestedOutputUtf8Bytes}, "
+        + $"deadline {profile.RequestedDeadlineMilliseconds}ms\n\n";
 
     private void PrivacyClosed(object? sender, EventArgs args) => Close();
     private void MainChanged(object? sender, PropertyChangedEventArgs args) { if (!Eligible()) { Close(); } }

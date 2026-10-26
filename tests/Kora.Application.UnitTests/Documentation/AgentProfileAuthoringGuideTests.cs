@@ -18,5 +18,10 @@ public sealed class AgentProfileAuthoringGuideTests
             .And.Contain("Save / Discard / Cancel").And.Contain("not success or rollback")
             .And.Contain("read-only").And.Contain("does not\nselect, enable or invoke")
             .And.Contain("original typed/activated-voice").And.Contain("ignores cancellation");
+        var combined = guide.Split("```markdown\n", StringSplitOptions.None)[2].Split("```", StringSplitOptions.None)[0];
+        var profile = OwnedAgentProfileDocument.Parse("example", combined).Profile;
+        profile.Tools.Should().Equal("application.get_version");
+        profile.References.Single().Id.Should().Be("disk.kora-profile.instruction.example");
+        guide.Should().Contain("v2/v3 authoring").And.Contain("not resolution consent or enablement");
     }
 }

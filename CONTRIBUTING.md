@@ -72,6 +72,15 @@ in long worktrees without changing production path validation or ACL checks.
 Owned child-process creation and release probes share that exact parent and keep
 their GUID-name, existing-directory and non-reparse ownership checks.
 
+Synthetic definition-edit fixtures must explicitly user-own every enumerated
+inventory root, not only the original file's immediate parent:
+[customization inventory](src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)
+also pins the editor `User` directory as an MCP root when no `mcp.json` exists.
+Create each new fixture root with
+[CreateRestrictedDirectory](src/Kora.Windows/Storage/RestrictedStorageDirectory.cs),
+and assert both owner and protected ACL for `User` and `prompts`, as in the
+[original-edit fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.InstructionOriginal.cs).
+
 Legacy interaction-store fixtures must remove only empty later-version tables
 before declaring an older schema. Use the shared fixture staging helpers;
 never discard current session policy, admission or conversation authority to

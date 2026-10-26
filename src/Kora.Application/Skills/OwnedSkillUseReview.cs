@@ -28,6 +28,10 @@ public sealed class OwnedSkillUseReview : IDisposable
     }
 
     internal ActivityLink Cause { get; }
+    public OwnedSkillToolSelection Tool
+    {
+        get { lock (gate) { return snapshot?.Document.Tool ?? throw new InvalidOperationException("Review the current source first."); } }
+    }
     public DateTimeOffset ExpiresAt { get; }
     public bool IsCurrent
     {

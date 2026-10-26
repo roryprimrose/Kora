@@ -160,7 +160,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         baseline = string.Empty;
         opened.Source.IsReadOnly = false;
         opened.Source.Text = string.Empty;
-        opened.Status.Text = "New volatile draft. Supply the complete v1 source, validate and review Save as new. Nothing saved or selected.";
+        opened.Status.Text = "New volatile draft. Supply the complete v1 or v4 source, validate and review Save as new. Nothing saved or selected.";
     }
 
     private void RequireDraft()
@@ -211,7 +211,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         {
             Retire();
             _ = workflow.Validate(draftName!, opened.Source.Text ?? string.Empty);
-            opened.Status.Text = "Complete tool-free reference-free v1 validated with host-clamped budgets. No write, selection or execution.";
+            opened.Status.Text = "Complete compatible owned profile validated with host-clamped budgets. No write, resolution, enablement, selection or execution.";
             return;
         }
         if (action is "Review")

@@ -37,10 +37,29 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
         {
             using var pins = PinRoot(token);
             using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
-            return Catalogue(pins, token).SingleOrDefault(s => string.Equals(s.Document.Id, id, StringComparison.Ordinal)
-                && string.Equals(s.Document.Version, version, StringComparison.Ordinal));
+            var idPath = ExactChild(directory.Root, id, SharedSkillCatalogue.MaximumPackages + 1);
+            if (idPath is null) { return null; }
+            pins.PinDirectory(idPath);
+            directory.VerifyOwnedSkillDirectory(idPath);
+            var versionPath = ExactChild(idPath, version, SharedSkillCatalogue.MaximumPackages);
+            if (versionPath is null) { return null; }
+            var saved = ReadPackage(versionPath, token);
+            if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
+                || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal))
+            { throw new InvalidDataException("The saved package manifest does not match the exact requested identity."); }
+            return saved;
         }
     }, token);
+
+    private static string? ExactChild(string parent, string name, int maximum)
+    {
+        var entries = Directory.EnumerateFileSystemEntries(parent).Take(maximum + 1).ToArray();
+        if (entries.Length > maximum) { throw new InvalidDataException("The owned skill name inventory exceeds its bound."); }
+        var selected = entries.SingleOrDefault(path => string.Equals(Path.GetFileName(path), name, StringComparison.OrdinalIgnoreCase));
+        if (selected is not null && !string.Equals(Path.GetFileName(selected), name, StringComparison.Ordinal))
+        { throw new InvalidDataException("The exact owned skill path has a noncanonical alias."); }
+        return selected;
+    }
 
     public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
         Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
@@ -243,7 +262,7 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
         using var packagePins = new OwnedSkillPackagePublication();
         var handle = pinnedDirectory ?? packagePins.PinDirectory(path);
         directory.VerifyOwnedSkillDirectory(path);
-        var entries = Directory.EnumerateFileSystemEntries(path).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
+        var entries = Directory.EnumerateFileSystemEntries(path).Take(3).Select(Path.GetFileName).Order(StringComparer.Ordinal).ToArray();
         if (!entries.SequenceEqual(new[] { "instructions.md", "manifest.yaml" }, StringComparer.Ordinal))
         { throw new InvalidDataException("A saved skill must contain exactly manifest.yaml and instructions.md."); }
         var manifestPath = Path.Combine(path, "manifest.yaml");

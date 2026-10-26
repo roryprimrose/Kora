@@ -66,7 +66,6 @@ public sealed partial class ModelToolProtocolTests
     }
 
     [Theory]
-    [InlineData("read-only")]
     [InlineData("no-opt-in")]
     [InlineData("partial")]
     [InlineData("foreign-question")]
@@ -78,7 +77,7 @@ public sealed partial class ModelToolProtocolTests
         var original = Envelope(provenance);
         var context = ModelToolProtocol.ReadContext(new ModelContextEnvelope(provenance.Request,
             original.SystemPolicy, original.UserRequest, [], original.CreatedAt, original.ExpiresAt,
-            fault is "read-only" ? ModelToolMode.ReadOnly : ModelToolMode.None).Serialize(), provenance);
+            ModelToolMode.None).Serialize(), provenance);
         var question = new ModelClarificationQuestion(new("Which format?", ["Compact", "Detailed"]));
         var other = new ModelClarificationQuestion(new("Which format?", ["Compact", "Detailed"]));
         var answer = new ModelQuestionAnswerMessage(fault is "foreign-question" ? other : question,

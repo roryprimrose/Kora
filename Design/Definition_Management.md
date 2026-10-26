@@ -38,6 +38,8 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 ## Product Roles
 
+The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
+
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
@@ -102,6 +104,23 @@ hooks, tools, delegation/concurrency/scheduling, hosted transfer, automatic
 enablement and persistent policies are excluded. Caption and skill-reference
 operations remain independent; this increment does not change their contracts
 or the v1 contract in [Commands, Tools, and Skills](Commands_Tools_And_Skills.md).
+
+### Bounded local agent owned instructions with observation tools (v4)
+
+Explicit `kora-agent-format: 4` combines the v2 exact owned-instruction bundle with a nonempty declared subset of the six original read-only observation IDs in the same serial run.
+It retains every required scalar metadata field, local text input/output and host-clamped budgets. V1 remains reference-free; v2/v3 remain tool-free. No shared skill references are accepted in v4 ([parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
+
+One to four distinct `disk.kora-profile.instruction.<exact-id>` references and one to six distinct canonical tool IDs are required, with positive `maximum-calls`. Unknown/duplicate metadata, unknown kinds, paths, URLs, agent references/cycles, extra tools and unbounded budgets fail closed.
+Tool descriptors/effects come only from the host catalogue; no profile description grants authority ([reference validation](../src/Kora.Core/Agents/AgentInstructionReference.cs), [constraints](../src/Kora.Core/Dependencies/ModelTurnConstraints.cs)).
+
+The existing original native/typed/current-name voice review first shows declared IDs, exact enabled candidates, tool subset and cumulative budgets without reading instructions. Separate resolution consent pins complete source bytes, revision and control epochs.
+Full guidance, original request and exact Active conversation review precedes separate single-use invocation confirmation. Editing, saving and independently enabling an instruction never supplies either consent ([workflow](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs), [native review](../src/Kora/AgentRunController.cs)).
+
+The canonical retained local model/tool loop receives separate immutable LocalOnly evidence and only the reviewed tool subset. Its consumer source fence revalidates the profile and each exact instruction at admission, each tool/continuation boundary and final publication, alongside host/session/generation/privacy authority.
+Source edits or revocation reject further dispatch and late answers without substituting newer content. Stop retains ownership until source/provider/callback work actually joins ([source fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), [dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Native owned authoring accepts v4 through the existing volatile source editor, exact create-only destination review, separate native save confirmation and durable readback. Saved originals remain inert and unselected; no original-replacement or automatic registration is added ([authoring](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+Fake-backed end-to-end tests establish implementation, not provider E or RC Q; unavailable local models remain unavailable ([consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.AgentInstructionsAndTools.cs), [native tests](../tests/Kora.Windows.IntegrationTests/AgentProfileEditorUiTests.cs)).
 
 ## Source and Format Matrix
 
@@ -508,6 +527,12 @@ Source selection/reload/failure/withdrawal, privacy/ownership closure, call-poli
 No reader call, Discover/Recheck/withdrawal, source switch, draft replacement, registration extension or new execution authority occurs on edits/Search/Clear ([native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs), [read-free service tests](../tests/Kora.Application.UnitTests/Skills/SharedSkillDiscoveryServiceTests.cs)).
 
 ## Editing, Ownership, and Confirmation
+
+The bounded personal Instruction-original implementation reuses Customizations and its native file owner. One exact existing personal Code/Code - Insiders native v1 instruction receives a window-lifetime registration review before content reads, then separate complete mutation confirmation. Previous read-only registrations grant no editing scope; unsupported formats retain explicit refusal and the compatible owned-fork alternative ([workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs), [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+The native owner pins/revalidates the registered ancestry and exact original, retains stable write-denying sharing through staging/final comparison, preserves owner/group/DACL and ordinary attributes, and checks exact published identity/bytes. Named streams/unsupported native attributes are refused ([publication](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs), [native access](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.InstructionOriginal.cs)).
+
+Source replacement requires renewed registration; comparison/rebase never writes or merges the draft. Uncertain publication revokes registration and remains disabled pending explicit inspection. This is single-file optimistic publication, not content compare-and-swap or broader writer/enablement qualification ([recovery](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
 
 In the target design, Kora is an editor of supported personal profile definitions
 as well as Kora-owned definitions. Registered originals are directly editable;

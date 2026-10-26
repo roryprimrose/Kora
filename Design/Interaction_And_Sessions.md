@@ -1329,6 +1329,21 @@ App exit/restart/power preparation coordinates all sessions, not just the select
 
 ## Inactivity, Done, Resume, and Delete
 
+The bounded native **Stop this conversation's running work, then delete this conversation** operation combines existing actions without claiming atomic rollback.
+A single-use exact-source review discloses the target, unsent/pending input, owned running work and existing disposition inventory.
+Separate native confirmation closes only new conversation dispatch for that exact target, requests its host-owned cancellation, joins actual resources and revalidates the reviewed source before the existing audited disposition transaction.
+Opening or declining review has no stop/discard/delete effect ([operation](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [native presentation](../src/Kora/SessionsViewModel.StopAndDelete.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
+The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
+A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
+([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Typed exact-target review uses the same native action. Original voice-origin compound deletion remains unavailable under the existing native deletion boundary and is rejected before any stop; a later click cannot relabel it.
+No model/tool mutation grant, new storage schema, secure physical erasure or remote deletion is added.
+Existing independent retention domains and copy exclusions remain unchanged ([command](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [retention domains](Security_Data_Flows.md#retention-defaults)).
+
 Defaults: **archive after 24 hours of inactivity; delete after 30 days of inactivity**.
 Both are device-local configurable settings, not hard-coded safety constants.
 Use the same last-meaningful-activity clock for both; deletion is not 30 days after creation or archive.

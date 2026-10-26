@@ -108,6 +108,7 @@ public sealed partial class SessionConversationService(
         bool claude = false)
     {
         RequireOriginalSource(origin);
+        RequireConversationDispatchOpen(target.Authority.SessionId);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)

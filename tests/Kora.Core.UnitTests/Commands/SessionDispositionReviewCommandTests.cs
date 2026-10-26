@@ -10,6 +10,19 @@ public sealed class SessionDispositionReviewCommandTests
     private const string Valid = "review session disposition " + Id + " 1 0";
 
     [Theory]
+    [InlineData("review session stop-and-delete " + Id + " 1 0", "Kora")]
+    [InlineData("Nova, review session stop-and-delete " + Id + " 1 0", "Nova")]
+    public void ParseCompoundReviewPreservesExplicitIdentityWithoutAddingConfirmation(string input, string name)
+    {
+        var parsed = SessionDispositionReviewCommand.Parse(input, name)!;
+        parsed.StopRunningWork.Should().BeTrue();
+        parsed.SessionId.Should().Be(Guid.Parse(Id));
+        parsed.Error.Should().BeNull();
+        SessionDispositionReviewCommand.Parse("confirm session stop-and-delete " + Id + " 1 0", name)!.Error
+            .Should().NotBeNull();
+    }
+
+    [Theory]
     [InlineData(Valid, "Kora", 1, 0)]
     [InlineData("Nova, " + Valid, "Nova", 1, 0)]
     [InlineData("nova " + Valid, "Nova", 1, 0)]

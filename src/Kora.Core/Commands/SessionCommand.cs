@@ -34,6 +34,7 @@ public sealed partial record SessionCommand(
         + "at most 120 scalars/480 UTF-8 bytes. Inside quotes, double a quote to include it. "
         + "No name, selected-window, delete, general executor or approval targeting. " + AttachmentSyntax + " " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
+        + " " + SessionDispositionReviewCommand.StopAndDeleteSyntax + ". Separate native confirmation required; voice-origin compound deletion is unavailable."
         + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary;
 
     public string PageKind { get; init; } = "tasks";

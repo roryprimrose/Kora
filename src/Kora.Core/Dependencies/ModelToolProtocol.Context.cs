@@ -51,6 +51,7 @@ public static partial class ModelToolProtocol
         ModelToolMode.None => [],
         ModelToolMode.LocalWebPage => Network.LocalWebPageTool.Descriptors,
         ModelToolMode.McpReadOnly => [],
+        ModelToolMode.SessionDiscovery => SessionDiscoveryTool.Descriptors,
         _ => throw new InvalidDataException("The complete turn requires a known host tool mode."),
     };
 

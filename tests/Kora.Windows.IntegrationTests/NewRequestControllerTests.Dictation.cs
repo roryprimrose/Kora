@@ -186,7 +186,7 @@ public sealed partial class NewRequestControllerTests
         });
     }
 
-    private sealed class QualifiedDictationCapture(IActivatedVoiceRecognitionService inner) : IActivatedVoiceRecognitionService
+    internal sealed class QualifiedDictationCapture(IActivatedVoiceRecognitionService inner) : IActivatedVoiceRecognitionService
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized
         { add => inner.TranscriptRecognized += value; remove => inner.TranscriptRecognized -= value; }

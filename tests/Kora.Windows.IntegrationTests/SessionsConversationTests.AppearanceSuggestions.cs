@@ -56,17 +56,27 @@ public sealed partial class SessionsConversationTests
                 appearance.Get(option).Value.Should().Be(before.Value);
                 audit.Events.Should().BeEmpty("model completion cannot write or approve an appearance change");
                 var reviewButton = window.GetVisualDescendants().OfType<Button>()
-                    .Single(button => string.Equals(button.Name, "ReviewAppearanceSuggestion", StringComparison.Ordinal));
+                    .Single(button => string.Equals(button.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal));
                 reviewButton.DataContext.Should().BeSameAs(answer);
                 reviewButton.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.AppearanceOperation;
+                await owner.RegisteredSettingOperation;
+                model.RegisteredSettingsDescription.Should().Contain("appearance.theme").And.Contain("native review only");
+                model.RegisteredSettingSuggestionDescription.Should().Be(model.AppearanceSuggestionDescription);
                 model.AppearanceSuggestionDescription.Should()
                     .Contain(reader ? "current 100 (default); proposed 125 percent" : "current system (default); proposed dark mode")
                     .And.Contain("shared device-local");
                 appearance.Get(option).Should().Be(before);
                 audit.Events.Should().BeEmpty();
-                window.FindControl<Button>("ConfirmAppearanceSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.AppearanceOperation;
+                window.FindControl<Button>("CancelRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
+                appearance.Get(option).Should().Be(before);
+                audit.Events.Should().BeEmpty();
+                model.ConversationMessages.Should().Contain(row => ReferenceEquals(row, answer));
+                await model.ReviewRegisteredSettingSuggestionAsync(answer);
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeTrue(model.ConversationStatus);
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
                 model.ConversationStatus.Should().NotContain("Unconfirmed");
                 appearance.Get(option).Value.Should().Be(reader ? new AppearanceValue.Number(125)
                     : new AppearanceValue.Theme(ApplicationThemeMode.Dark));
@@ -77,6 +87,7 @@ public sealed partial class SessionsConversationTests
                     .Equal(Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
                 model.AppearanceSuggestionDescription.Should().BeEmpty();
                 model.CanConfirmAppearanceSuggestion.Should().BeFalse();
+                model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
                 adapter.Calls.Should().Be(1, "review and confirmation never call a model again");
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);

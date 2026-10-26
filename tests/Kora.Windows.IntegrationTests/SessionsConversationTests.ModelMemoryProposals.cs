@@ -16,10 +16,13 @@ public sealed partial class SessionsConversationTests
     private const string MemoryProposal = """{"version":1,"class":"responsePreference","value":"Prefer short answers."}""";
 
     [Theory]
-    [InlineData(0)]
-    [InlineData(1)]
-    [InlineData(2)]
-    public async Task ModelMemoryNativeExplicitReviewAcceptAndSeparateAdmitUsesActualSessionTransaction(int surface)
+    [InlineData(0, false)]
+    [InlineData(1, false)]
+    [InlineData(2, false)]
+    [InlineData(0, true)]
+    [InlineData(1, true)]
+    [InlineData(2, true)]
+    public async Task ModelMemoryNativeExplicitReviewAcceptAndSeparateAdmitUsesActualSessionTransaction(int surface, bool profileMode)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -32,6 +35,7 @@ public sealed partial class SessionsConversationTests
             await model.RefreshAsync();
             await model.SelectAsync(model.Sessions.Single());
             await model.ReadConversationAsync();
+            model.DeviceProfileMemory = profileMode;
             model.ComposerBody = "Explicitly propose one short-answer preference for this session.";
             await model.SubmitConversationAsync();
             var answer = model.ConversationMessages.Single();
@@ -83,6 +87,8 @@ public sealed partial class SessionsConversationTests
                 inspected.Inspected.Retention.Should().Be(MemoryRetentionState.Enabled);
                 inspected.Inspected.Candidate!.Value.Should().Be("Prefer short answers.");
                 inspected.Inspected.Scope.Should().Be(MemoryScope.Session(answer.Request.SessionId));
+                (await composed.Memories.ExecuteDeviceProfileAsync(new(MemoryCommandOperation.List,
+                    answer.Request.SessionId.Value), RequestOrigin.LocalUi, () => true, f.Token)).Memories.Should().BeEmpty();
                 adapter.Calls.Should().Be(1);
                 f.Count("scoped_grants").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);

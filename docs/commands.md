@@ -1382,9 +1382,9 @@ No review, expired/changed source, pending question/approval or denied original
 channel means no write. The host retains original voice classification even
 after typed/native confirmation. A generic "yes" does not confirm.
 
-Alternatively use **Review speech limit suggestion...** on an exact answer in
-Sessions/compact view and its separate **Confirm exact speech limit change** or
-**Cancel speech limit review** buttons. This changes only one existing cap through
+Alternatively use **Review setting suggestion...** on an exact answer in
+Sessions/compact view and its separate **Confirm exact setting change** or
+**Cancel setting review** buttons. This changes only one existing cap through
 the shared audited settings service; it never speaks/replays the current answer,
 reruns a model, installs a provider or grants model write authority.
 See [the full review and recovery rules](settings.md#review-an-assistant-speech-limit-suggestion).

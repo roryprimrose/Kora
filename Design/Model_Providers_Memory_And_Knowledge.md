@@ -401,7 +401,27 @@ Kora owns context selection for every provider. Provider conversation state,
 SDK transcripts, caches, and native memory features cannot become a second
 authority or an unreviewed durable store.
 
+The [explicit mixed-context operation](../docs/reviewed-context.md) combines whole
+original/assistant history, one enabled owned instruction and existing admitted
+SESSION memories for one exact Active session. Complete review includes the
+unchanged new request and total serialized budget; separate single-use confirmation
+admits one local-only tool-free answer or cancellation. Source brokers and retention
+remain independent; device-profile/model-proposed memories and provider qualification
+are not implementation prerequisites or implicitly enabled capabilities.
+
 ## User-Governed Durable Memory
+
+### Delivered explicit Device-profile operation
+
+The [Device-profile guide](../docs/profile-memory.md) describes the native
+original-user propose, complete inspect/review, separate admission,
+list/edit/disable/forget and later-conversation one-shot local-only answer.
+The explicit profile route extends the authoritative memory transaction with
+independent lifetime and profile-bound lineage. Existing session transactions,
+typed commands, model proposals and session-context consumers remain
+Session-only. No automatic recall, provider learning, Project/Source scope
+or hosted disclosure is enabled. Historical session-only availability notes
+below describe the earlier increments, not this explicit profile route.
 
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.

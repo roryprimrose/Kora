@@ -35,6 +35,22 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void RegisteredSettingGuideDescribesTheClosedUnifiedOperationAndMandatoryChannelExceptions()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var guide = pages.Single(page => string.Equals(page.Id, "setting-proposals", StringComparison.Ordinal)).Markdown;
+        foreach (var descriptor in Kora.Core.Configuration.RegisteredSettings.RegisteredSettingRegistry.Settings)
+        {
+            guide.Should().Contain(descriptor.Id);
+        }
+        guide.Should().Contain("**Review setting suggestion...**").And.Contain("**Confirm exact setting change**")
+            .And.Contain("**Cancel setting review**").And.Contain("both").And.Contain("desired/effective")
+            .And.Contain("Only one native setting review").And.Contain("original local UI request")
+            .And.Contain("Unconfirmed").And.Contain("not success or rollback")
+            .And.Contain("No new static setting aliases").And.Contain("Unqualified/unavailable models remain unavailable");
+    }
+
+    [Fact]
     public void TrayGuideDescribesGroupedNavigationAndRelocatedSpecialistLinks()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -258,6 +274,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "claude-requests",
             "conversation-notices",
             "owned-skill-authoring",
+            "profile-memory",
             "session-dictation",
             "hosted-requests",
             "folder-answers",
@@ -267,7 +284,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "external-browser",
             "markdown-strikethrough",
             "diagrams",
+            "setting-proposals",
             "session-routing",
+            "reviewed-context",
             "model-session-discovery",
             "model-memory-proposals",
             "agent-shared-skill-guidance");

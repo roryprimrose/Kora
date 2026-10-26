@@ -234,9 +234,11 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "agent-profile-authoring",
             "claude-requests",
             "owned-skill-authoring",
+            "session-dictation",
             "hosted-requests",
             "independent-agent-runs",
             "mcp-transport",
+            "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)

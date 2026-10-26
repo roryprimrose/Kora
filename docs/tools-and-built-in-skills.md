@@ -48,10 +48,12 @@ network access, or a change to the separate local-only web-result summary policy
 
 Type **review agent**, or say your current assistant name followed by **review agent**. This opens a separate bounded-run review; loading an ordinary agent artifact is not execution. No default or bundled agent is selected.
 
-1. Enter the full canonical path to an **existing user-owned `.agent.md`** file on a local fixed drive. Protected, hidden/system, reparse and hard-linked sources are unavailable. The explicit [v1 compatibility subset](../Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles) and the [bounded v2 owned-instruction contract](../Design/Definition_Management.md#bounded-local-agent-owned-instruction-references-v2) are accepted; missing or unsupported metadata is rejected.
+1. Enter the full canonical path to an **existing user-owned `.agent.md`** file on a local fixed drive. Protected, hidden/system, reparse and hard-linked sources are unavailable.
+   Use the [v1 subset](../Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles), [tool-free v2 instructions](../Design/Definition_Management.md#bounded-local-agent-owned-instruction-references-v2), or [v4 instructions with tools](../Design/Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4).
 1. Refresh the existing Active conversations and explicitly select one. Enter the exact original task.
-1. Choose **Read source and review exact invocation**. This consents to bounded local profile reading, not invocation. v1 has no references. For v2, first review the declared source-qualified IDs and exact enabled candidates, then separately choose **Consent to read this exact declared instruction set**. Instruction enablement alone is not consent to read or disclose it to the model. No instruction source is read before this separate consent.
-1. Review the complete inert profile and (for v2) every complete instruction source, unchanged original input, exact Active target, local text input/output, tools, requested budgets and host clamps. v2 is tool-free and accepts at most four distinct existing Kora-owned instruction IDs; profile plus instruction sources are at most 64 KiB, with stricter complete-input limits still enforced.
+1. Choose **Read source and review exact invocation**. This consents to bounded local profile reading, not invocation. v1 has no references.
+   For v2/v4, review declared source-qualified IDs, exact enabled candidates, tools and cumulative budgets, then separately choose **Consent to read this exact declared instruction set**. No instruction source is read before this consent ([review workflow](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs)).
+1. Review the complete inert profile and every complete instruction source, unchanged original input, exact Active target, locality, tools and requested/host-clamped cumulative budgets. v2/v4 accept at most four distinct Kora-owned instruction IDs; all sources together are at most 64 KiB, subject to stricter complete-input limits ([bundle](../src/Kora.Core/Agents/AgentInstructionBundle.cs)).
 1. Separately choose **Consent to this exact bounded invocation**. One serial local model/tool turn runs under independent per-tool permissions. A real final answer or truthful terminal failure is retained in that exact conversation; inspect it in **Sessions**. Unavailable runtime is not a successful prompt submission.
 1. **Stop / revoke and join owned execution** (or **agent stop**) closes authority. Closing the window, privacy/ownership changes or source replacement also invalidate use. Resources remain owned until the actual provider terminates; cancellation does not imply physical completion or rollback.
 
@@ -59,7 +61,13 @@ Equivalent typed/current-name activated voice controls are **agent source &lt;fu
 
 v1 can request only the six original recorded read-only observation IDs, and only the exact reviewed subset is advertised or dispatched. v2 requires `tools: none` and `maximum-calls: 0`; its comma-separated `references` are exact IDs such as `disk.kora-profile.instruction.example`, not paths or display labels. There are no arbitrary instruction/file imports, skills, personal-profile instruction originals, recursive agents, hooks, scripts, child agents, concurrent workers, scheduling, MCP, web/power tools, hosted transfer/fallback, automatic enablement or future applicability. All profile/instruction text remains inert guidance, not authority. Caption and skill-reference operations are separate and unchanged.
 
-**Availability:** the execution path remains fail-closed when the separately configured local model is unqualified or unavailable. Deterministic implementation tests do not establish live-model enablement or release qualification.
+**v4 combines instructions and tools in one actual run.** Declare `kora-agent-format: 4`, one to four exact owned instruction IDs, one to six distinct existing observation tool IDs and a positive call budget.
+The model may use only that reviewed subset while following inert guidance; tools remain independently permissioned ([parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs), [canonical dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+The six IDs are `capabilities.list`, `capabilities.get`, `application.get_version`, `readiness.get`, `runtime.list`, and `runtime.get_status`.
+Source edits/revocation block subsequent callbacks, continuation and late answer publication; no reference auto-update occurs. Calls, rounds, input/output bytes and deadline are cumulative, not per instruction ([catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs), [consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.AgentInstructionsAndTools.cs)).
+
+**Availability:** unqualified/unavailable local models remain fail-closed. Fake-backed tests verify implementation only, not live-model enablement or RC qualification ([delivery policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ## Asking Kora to do something
 

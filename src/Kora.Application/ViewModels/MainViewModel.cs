@@ -3810,6 +3810,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning restore VSTHRD003
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
+            await JoinCustomizationClarification();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;

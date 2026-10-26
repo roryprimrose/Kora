@@ -15,6 +15,54 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class PlaybackVolumeConfigurationServiceTests
 {
+    [Fact]
+    public async Task RegisteredVolumeSuggestionRejectsStoppedParentAfterChildRestoresAmbientActivity()
+    {
+        await using var f = new Fixture();
+        var message = VolumeSuggestion();
+        using var input = VolumeInput(message);
+        using var child = new Activity("test.host-child").Start();
+        input.Activity!.Stop();
+        child.Stop();
+        input.Activity.IsStopped.Should().BeTrue();
+        HostActivity.RequireCurrent().Should().BeSameAs(input);
+        await FluentActions.Awaiting(() => PlaybackVolumeSuggestionReview.ReviewAsync(f.Service, f.Policy,
+            new VolumeSuggestionClock(), message, () => true, _ => Task.CompletedTask, f.Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Preferences.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RegisteredVolumeSuggestionRejectsHostSystemSourceAndReusedOriginalRequest()
+    {
+        await using var f = new Fixture();
+        f.Service.Observe();
+        var system = VolumeSuggestion(origin: RequestOrigin.HostSystem);
+        using (VolumeInput(system))
+        {
+            await FluentActions.Awaiting(() => PlaybackVolumeSuggestionReview.ReviewAsync(f.Service, f.Policy,
+                new VolumeSuggestionClock(), system, () => true, _ => Task.CompletedTask, f.Token))
+                .Should().ThrowAsync<InvalidDataException>();
+        }
+        var message = VolumeSuggestion();
+        PlaybackVolumeSuggestionReview review;
+        using (VolumeInput(message))
+        {
+            review = await PlaybackVolumeSuggestionReview.ReviewAsync(f.Service, f.Policy, new VolumeSuggestionClock(),
+                message, () => true, _ => Task.CompletedTask, f.Token);
+        }
+        using (review)
+        using (HostActivity.BeginRoot(message.Request, HostActivityLayer.Application, HostOperation.Request))
+        {
+            await FluentActions.Awaiting(() => review.ConfirmAsync(f.Token)).Should().ThrowAsync<InvalidOperationException>();
+            review.Available.Should().BeTrue();
+        }
+        f.Preferences.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+        f.Playback.SpeechCalls.Should().Be(0);
+    }
+
     private sealed class VolumeSuggestionClock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
@@ -176,8 +224,11 @@ public sealed partial class PlaybackVolumeConfigurationServiceTests
         f.Audit.Events.Should().NotContain(item => item.Outcome == SecurityAuditOutcome.Succeeded);
     }
 
-    [Fact]
-    public async Task VolumeSuggestionTraceLinksExactSourceAndDeferredReviewWithoutIncomingAuthorityOrContent()
+    [Theory]
+    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice)]
+    public async Task VolumeSuggestionTraceLinksExactSourceAndDeferredReviewWithoutIncomingAuthorityOrContent(
+        RequestOrigin originalOrigin, RequestOrigin reviewOrigin)
     {
         await using var f = new Fixture();
         f.Preferences.Value = new(0);
@@ -193,10 +244,10 @@ public sealed partial class PlaybackVolumeConfigurationServiceTests
             },
         };
         ActivitySource.AddActivityListener(trace);
-        var message = VolumeSuggestion(origin: RequestOrigin.ActivatedVoice);
+        var message = VolumeSuggestion(origin: originalOrigin);
         PlaybackVolumeSuggestionReview review;
         ActivityContext reviewed;
-        using (var input = VolumeInput(message))
+        using (var input = VolumeInput(message, reviewOrigin))
         {
             reviewed = input.Activity!.Context;
             review = await PlaybackVolumeSuggestionReview.ReviewAsync(f.Service, f.Policy, new VolumeSuggestionClock(),
@@ -216,7 +267,7 @@ public sealed partial class PlaybackVolumeConfigurationServiceTests
             policy.GetTagItem("kora.source.request.id").Should().Be(message.Request.RequestId.Value);
             policy.GetTagItem("kora.source.task.id").Should().Be(message.Request.TaskId.Value);
             policy.GetTagItem("kora.source.turn.id").Should().Be(message.Execution!.Turn.Value);
-            policy.GetTagItem("kora.source.origin").Should().Be(nameof(RequestOrigin.ActivatedVoice));
+            policy.GetTagItem("kora.source.origin").Should().Be(originalOrigin.ToString());
             policy.Status.Should().Be(ActivityStatusCode.Ok);
             policy.TagObjects.Should().NotContain(tag => Equals(tag.Value, message.Body)
                 || Equals(tag.Value, message.AssistantResponse!.Body));
@@ -292,6 +343,7 @@ public sealed partial class PlaybackVolumeConfigurationServiceTests
     [InlineData("speak quieter")]
     [InlineData("get speech.playback-volume")]
     [InlineData("set speech.windows-rate to 1")]
+    [InlineData("set appearance.theme to dark")]
     [InlineData("set system.volume to 30")]
     public async Task VolumeSuggestionRejectsNoncanonicalMixedRelativeResetAndForeignAnswers(string text)
     {

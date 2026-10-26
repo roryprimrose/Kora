@@ -337,6 +337,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(PlaybackVolumeSuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
         OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
+        NotifyRegisteredSettings();
         RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();

@@ -8,19 +8,13 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Configuration.RegisteredSettings;
 
 namespace Kora.Application.Configuration;
 
 /// <summary>One inert exact retained-answer review; only the admitted volume writer can commit it.</summary>
 public sealed class PlaybackVolumeSuggestionReview : IDisposable
 {
-    public static string ModelPolicy =>
-        "For a requested Kora-only playback volume suggestion, the entire final answer may instead be exactly "
-        + "'set speech.playback-volume to <canonical integer 0-100>'. This is one inert Set suggestion, "
-        + "not approval. No reset, adjustment, batch, commentary, system/device/call volume or other setting. "
-        + "The original user must review the exact retained answer and separately confirm the shared device-local change. "
-        + "Never synthesize or replay this answer; zero blocks future synthesis and preserves full visual output.";
-
     private readonly PlaybackVolumeConfigurationService configuration;
     private readonly CallCommunicationPolicy policy;
     private readonly TimeProvider time;
@@ -80,13 +74,9 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
         if (request.RequestId == message.Request.RequestId || message.Outcome != ModelTurnOutcome.Succeeded)
         { throw new InvalidOperationException("Review requires an exact successful retained original-user answer, not model authority."); }
         var answer = message.AssistantResponse!;
-        var command = PlaybackVolumeCommand.Parse(answer.Body, AssistantNameRules.DefaultName);
-        if (command is not { Operation: AppearanceCommandOperation.Set, Adjustment: null, Value: not null })
+        if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Volume proposal)
         { throw new InvalidDataException("Request one exact speech.playback-volume Set suggestion only."); }
-        var value = PlaybackVolume.Parse(command.Value);
-        if (!string.Equals(answer.Body, $"set {PlaybackVolumeCommand.OptionId} to {value.Percent.ToString(CultureInfo.InvariantCulture)}",
-            StringComparison.Ordinal))
-        { throw new InvalidDataException("A volume suggestion requires the exact single Set form and one canonical decimal integer."); }
+        var value = proposal.Value;
         var state = configuration.Get();
         if (!state.Available)
         { throw new InvalidOperationException("Volume is unavailable. Inspect Settings recovery and explicitly refresh before a fresh review."); }
@@ -106,7 +96,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     {
         var request = RequireInput(reviewRequest.SessionId);
         var confirmation = HostActivity.RequireCurrent();
-        if (request.RequestId == reviewRequest.RequestId || initiator is not
+        if (request.RequestId == reviewRequest.RequestId || request.RequestId == source.Request.RequestId || initiator is not
             (SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand))
         { throw new InvalidOperationException("Confirmation requires separate fresh original-user input."); }
         Func<CancellationToken, Task> validate;
@@ -121,7 +111,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
         activity.Activity.SetTag("kora.source.request.id", source.Request.RequestId.Value);
         activity.Activity.SetTag("kora.source.task.id", source.Request.TaskId.Value);
         activity.Activity.SetTag("kora.source.turn.id", source.Turn.Value);
-        activity.Activity.SetTag("kora.source.origin", sourceOrigin.ToString());
+        activity.Activity.SetTag("kora.source.origin", source.Request.Origin.ToString());
         try
         {
             token.ThrowIfCancellationRequested();
@@ -161,7 +151,7 @@ public sealed class PlaybackVolumeSuggestionReview : IDisposable
     private static HostRequest RequireInput(HostId<SessionIdentity> session)
     {
         var activity = HostActivity.RequireCurrent();
-        if (activity.Outcome != HostOperationOutcome.Unknown
+        if (activity.Activity!.IsStopped || activity.Outcome != HostOperationOutcome.Unknown
             || activity.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || activity.Request.SessionId != session || activity.Request.InvocationId is not null)
         { throw new InvalidOperationException("Volume review requires live original-user input in the exact session."); }

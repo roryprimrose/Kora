@@ -38,6 +38,9 @@ public sealed class DesktopSessionWorkspaceAccessTests
     [Theory]
     [InlineData(CallState.Clear)]
     [InlineData(CallState.Active)]
+    [InlineData(CallState.Suspected)]
+    [InlineData(CallState.Unknown)]
+    [InlineData(CallState.Unavailable)]
     public async Task BindingPreservesOwnershipCallAndPrivacyFencesAndDisposalCannotRestoreAdmission(CallState callState)
     {
         await HeadlessSession.RunAsync(async () =>

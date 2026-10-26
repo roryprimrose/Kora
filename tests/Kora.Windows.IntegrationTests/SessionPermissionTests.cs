@@ -127,7 +127,8 @@ public sealed class SessionPermissionTests
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
-        f.Mutate("DROP TABLE session_admissions; DROP TABLE session_permission; PRAGMA user_version=12;");
+        f.DropEmptySessionPermissionSchemaForLegacy();
+        f.Mutate("PRAGMA user_version=12;");
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);
         var policy = await f.Store.ReadSessionPermissionAsync(f.Request.SessionId, f.Token);
@@ -135,6 +136,35 @@ public sealed class SessionPermissionTests
         policy.Revision.Value.Should().Be(1);
         f.Count("session_admissions").Should().Be(0);
         (await f.Store.ReadGrantsAsync(f.Token)).Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Legacy_fixture_staging_never_discards_current_permission_or_admission_authority(bool admission)
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        if (admission)
+        {
+            var grant = await f.GrantAsync("once");
+            var used = await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token));
+            used.Outcome.Should().Be(HostInteractionOutcome.Consumed);
+            f.Count("session_admissions").Should().Be(1);
+        }
+        else
+        {
+            await Set(f, await f.Store.ReadSessionPermissionAsync(f.Request.SessionId, f.Token), SessionPermissionLevel.ApproveAll);
+            f.Count("session_permission").Should().Be(1);
+        }
+        var before = System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(f.DatabasePath));
+        FluentActions.Invoking(f.DropEmptySessionPermissionSchemaForLegacy).Should().Throw<InvalidOperationException>();
+        FluentActions.Invoking(f.DropEmptyConversationSchemaForLegacy).Should().Throw<InvalidOperationException>();
+        System.Security.Cryptography.SHA256.HashData(File.ReadAllBytes(f.DatabasePath)).Should().Equal(before);
+        f.Reopen();
+        await f.Store.InitializeAsync(f.Token);
+        f.Count("session_admissions").Should().Be(admission ? 1 : 0);
+        f.Count("session_permission").Should().Be(admission ? 0 : 1);
     }
 
     [WindowsFact]

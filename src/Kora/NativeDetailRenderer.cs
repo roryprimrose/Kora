@@ -3,6 +3,7 @@ using System.Globalization;
 using System.Text;
 
 using Kora.Core.Presentation;
+using Kora.Core.Presentation.MarkdownStrikethrough;
 using Kora.Core.Presentation.CodeHighlighting;
 using Kora.CodeHighlighting;
 
@@ -18,7 +19,7 @@ namespace Kora;
 
 internal sealed partial class NativeDetailRenderer(
     ILogger<NativeDetailRenderer> logger, bool available = true, bool pipeTablesAvailable = false,
-    bool checklistsAvailable = false)
+    bool checklistsAvailable = false, bool strikethroughAvailable = false)
 {
     private static readonly ActivitySource ActivitySource =
         new("Kora.Desktop", typeof(NativeDetailRenderer).Assembly.GetName().Version!.ToString());
@@ -61,7 +62,8 @@ internal sealed partial class NativeDetailRenderer(
         var tables = kind == DetailContentKind.Markdown
             && format == NativeDetailFormat.PipeTablesV2 && pipeTablesAvailable;
         var checklists = kind == DetailContentKind.Markdown && format == NativeDetailFormat.MarkdownChecklistsV3;
-        var profile = checklists ? NativeMarkdownChecklistProfile.Name
+        var strikethrough = kind == DetailContentKind.Markdown && format == NativeDetailFormat.MarkdownStrikethroughV4;
+        var profile = strikethrough ? NativeMarkdownStrikethroughProfile.Name : checklists ? NativeMarkdownChecklistProfile.Name
             : tables ? NativeMarkdownTableProfile.Name : NativeDetailProfile.Name;
         NativeDocumentResult Fallback(string text, string reason, string message, DetailContentReference? item,
             int blocks = 0, int nodes = 0, int depth = 0) =>
@@ -106,21 +108,27 @@ internal sealed partial class NativeDetailRenderer(
             return Fallback(source, "ChecklistUnavailable",
                 $"{profile} unavailable pending profile qualification; exact source fallback.", reference);
         }
-        var preflight = Preflight(source, format, tables, checklists);
+        if (strikethrough && !strikethroughAvailable)
+        {
+            return Fallback(source, "StrikethroughUnavailable",
+                $"{profile} unavailable pending profile qualification; exact source fallback.", reference);
+        }
+        var preflight = Preflight(source, format, tables, checklists, strikethrough);
         if (preflight is not null)
         {
             return Fallback(source, "SourcePreflight", preflight, reference);
         }
 
         MarkdownDocument document;
-        try { document = Markdown.Parse(source, checklists ? ChecklistPipeline : tables ? TablePipeline : Pipeline); }
+        try { document = Markdown.Parse(source, strikethrough ? StrikethroughPipeline
+            : checklists ? ChecklistPipeline : tables ? TablePipeline : Pipeline); }
         catch (InvalidOperationException)
         {
             // Markdig's nesting guard throws InvalidOperationException. Never log its source-bearing message.
             return Fallback(source, "ParserGuard", "Parser nesting/error guard; exact source fallback.", reference);
         }
 
-        var validation = Validate(document, tables, checklists);
+        var validation = Validate(document, tables, checklists, strikethrough);
         if (validation.Error is not null)
         {
             return Fallback(source, "Structure", validation.Error, reference,
@@ -132,7 +140,7 @@ internal sealed partial class NativeDetailRenderer(
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
         List<NativeTextSection> sections;
-        try { sections = Flatten(document, source); }
+        try { sections = Flatten(document, source, strikethrough); }
         catch (InvalidDataException)
         {
             return Fallback(source, "SemanticLimit",
@@ -158,7 +166,8 @@ internal sealed partial class NativeDetailRenderer(
         return new(source, semantic,
             $"Rendered {profile} CommonMark text subset. Links are inert; emphasis is plain text."
                 + (tables ? " Tables use complete header-labelled rows, not a visual grid." : string.Empty)
-                + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty),
+                + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty)
+                + (strikethrough ? " Strikethrough wording is labelled display-only text, not a diff, task status, action or permission." : string.Empty),
             false, sections, validation.Blocks, validation.Nodes, validation.Depth);
     }
 
@@ -175,7 +184,7 @@ internal sealed partial class NativeDetailRenderer(
         return new(source, source, message, true, [], blocks, nodes, depth);
     }
 
-    private static string? Preflight(string source, NativeDetailFormat format, bool tables, bool checklists)
+    private static string? Preflight(string source, NativeDetailFormat format, bool tables, bool checklists, bool strikethrough)
     {
         // Conservative lexical rejection complements Markdig's pre-parse nesting cap.
         // False positives stay readable as exact source rather than being partially rendered.
@@ -222,7 +231,7 @@ internal sealed partial class NativeDetailRenderer(
                     ? $"{NativeMarkdownTableProfile.Name} unavailable pending profile qualification; exact source fallback."
                     : "Unsupported Markdown extension/table; exact source fallback.";
             }
-            if (trimmed.Contains("~~", StringComparison.Ordinal)
+            if (!strikethrough && trimmed.Contains("~~", StringComparison.Ordinal)
                 || trimmed.StartsWith(":::", StringComparison.Ordinal)
                 || trimmed.StartsWith("[^", StringComparison.Ordinal)
                 || !checklists && (trimmed.Contains("[ ]", StringComparison.Ordinal)
@@ -246,7 +255,7 @@ internal sealed partial class NativeDetailRenderer(
     }
 
     internal static (string? Error, int Blocks, int Nodes, int Depth) Validate(
-        MarkdownDocument document, bool tables = false, bool checklists = false)
+        MarkdownDocument document, bool tables = false, bool checklists = false, bool strikethrough = false)
     {
         var pending = new Stack<(MarkdownObject Node, int Depth)>();
         pending.Push((document, 0));
@@ -265,7 +274,7 @@ internal sealed partial class NativeDetailRenderer(
                 return ("Structural limit exceeded (512 blocks / 4096 nodes / depth 32); exact source fallback.",
                     blocks, nodes, depth);
             }
-            unsupported ??= Unsupported(entry.Node, tables, checklists);
+            unsupported ??= Unsupported(entry.Node, tables, checklists, strikethrough);
             // Advance siblings without recursively constructing or queuing a large visual tree.
             switch (entry.Node)
             {
@@ -299,7 +308,7 @@ internal sealed partial class NativeDetailRenderer(
         return (unsupported, blocks, nodes, depth);
     }
 
-    private static string? Unsupported(MarkdownObject node, bool tables, bool checklists) =>
+    private static string? Unsupported(MarkdownObject node, bool tables, bool checklists, bool strikethrough) =>
         node switch
         {
             HtmlBlock or HtmlInline => "Unsupported raw HTML; exact source fallback (no HTML/resource loading).",
@@ -308,6 +317,8 @@ internal sealed partial class NativeDetailRenderer(
                 "Unsupported Mermaid; exact source fallback (no diagram execution).",
             EmphasisInline { DelimiterCount: not (1 or 2) } =>
                 "Unsupported emphasis extension; exact source fallback.",
+            EmphasisInline { DelimiterChar: '~' } emphasis when !strikethrough || emphasis.DelimiterCount != 2 =>
+                "Unsupported emphasis extension; exact source fallback.",
             _ when tables && (node.GetType() == typeof(Table) || node.GetType() == typeof(TableRow)
                 || node.GetType() == typeof(TableCell)) => null,
             TaskList when checklists => null,
@@ -315,7 +326,7 @@ internal sealed partial class NativeDetailRenderer(
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
 
-    private static List<NativeTextSection> Flatten(MarkdownDocument document, string source)
+    private static List<NativeTextSection> Flatten(MarkdownDocument document, string source, bool strikethrough)
     {
         var sections = new List<NativeTextSection>();
         var semanticBudget = new BoundedNativeText();
@@ -356,11 +367,12 @@ internal sealed partial class NativeDetailRenderer(
                 }
                 continue;
             }
+            var strikeProjection = strikethrough ? new InlineStrikethroughProjection(entry.Prefix.Length) : null;
             var text = block switch
             {
                 CodeBlock code => code.Lines.ToString(),
                 ThematicBreakBlock => "—",
-                LeafBlock leaf => InlineText(leaf.Inline),
+                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection),
                 _ => throw new InvalidOperationException("The validated native block is unsupported."),
             };
             var style = block switch
@@ -389,12 +401,16 @@ internal sealed partial class NativeDetailRenderer(
                         CodeHighlightProfile.Resolve(fenceLanguage: (block as FencedCodeBlock)?.Info), start);
                 }
             }
-            AddSection(new(entry.Prefix + text, style) { Code = codeSource });
+            AddSection(new(entry.Prefix + text, style)
+            {
+                Code = codeSource,
+                Strikethrough = strikeProjection?.Spans ?? [],
+            });
         }
         return sections;
     }
 
-    private static string InlineText(ContainerInline? root)
+    private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null)
     {
         if (root is null) { return string.Empty; }
         var text = new BoundedNativeText();
@@ -402,6 +418,7 @@ internal sealed partial class NativeDetailRenderer(
         pending.Push((root, false));
         while (pending.TryPop(out var entry))
         {
+            if (entry.Exit && strikethrough?.Exit(entry.Node, text) == true) { continue; }
             if (entry.Exit && entry.Node is LinkInline link)
             {
                 text.Append(" (destination: ");
@@ -420,7 +437,8 @@ internal sealed partial class NativeDetailRenderer(
                     text.Append(" (inert destination)");
                     break;
                 case ContainerInline container:
-                    if (container is LinkInline) { pending.Push((container, true)); }
+                    if (strikethrough?.Enter(container, text) == true || container is LinkInline)
+                    { pending.Push((container, true)); }
                     for (var child = container.LastChild; child is not null; child = child.PreviousSibling)
                     {
                         pending.Push((child, false));

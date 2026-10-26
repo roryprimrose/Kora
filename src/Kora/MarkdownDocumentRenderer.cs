@@ -40,6 +40,7 @@ internal static class MarkdownDocumentRenderer
         return result.Sections.Select(section =>
         {
             var text = CreateText(section.Text, section.Style, selectable);
+            NativeStrikethroughText.Attach(text, section);
             return section.Code is { } code
                 ? (Control)new NativeCodeBlock(code, text, highlight) : text;
         }).ToArray();

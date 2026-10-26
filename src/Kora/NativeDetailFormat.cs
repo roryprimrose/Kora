@@ -11,4 +11,7 @@ internal enum NativeDetailFormat
 
     /// <summary>The separately gated, display-only Markdown checklist profile.</summary>
     MarkdownChecklistsV3,
+
+    /// <summary>The separately gated, passive double-tilde strikethrough profile.</summary>
+    MarkdownStrikethroughV4,
 }

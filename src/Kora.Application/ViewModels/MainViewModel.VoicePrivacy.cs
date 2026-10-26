@@ -203,11 +203,10 @@ public sealed partial class MainViewModel
             var work = Task.Run(async () =>
             {
                 var observed = await outputCatalog.RefreshAsync(token).ConfigureAwait(false);
-                if (disposed || lifecycleAdmissionClosed || privacyObservation.Current.TopologyRevision != topology)
+                if (!disposed && !lifecycleAdmissionClosed && privacyObservation.Current.TopologyRevision == topology)
                 {
-                    throw new InvalidOperationException("Output discovery lost its original host or topology. Refresh under current admission.");
+                    outputConfiguration?.Observe(observed);
                 }
-                outputConfiguration?.Observe(observed);
                 return observed;
             }, token);
             outputDiscoveryPersistence = work;

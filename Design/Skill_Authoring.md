@@ -93,8 +93,8 @@ Registered profile originals remain read-only in this increment. The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
-Conversational refinement, dictation, profile forks, rename/restore and broader
-applicability are not delivered. The same native editor also supports immediate
+Bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) uses this editor's unchanged critique, local-only tool-free proposal, complete comparison and separately confirmed normal Save/readback; changed saved revisions remain disabled ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.

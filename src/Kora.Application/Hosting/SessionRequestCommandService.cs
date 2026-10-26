@@ -3,6 +3,7 @@ using System.Diagnostics;
 using Kora.Core.Commands;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
@@ -66,6 +67,12 @@ public sealed class SessionRequestCommandService(
             {
                 if (!Enum.IsDefined(command.RequestProvider))
                 { throw new InvalidOperationException("An exact supported request provider is required."); }
+                if (!command.RequestClaudeTools.IsEmpty)
+                {
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Claude)
+                    { throw new InvalidOperationException("Observation scope requires an explicit Claude request."); }
+                    _ = ClaudeObservationTools.Constrain(command.RequestClaudeTools);
+                }
                 var body = command.RequestBody ?? throw new InvalidOperationException("An original request body is required.");
                 ConversationText.Validate(body, submission: true);
                 var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
@@ -74,7 +81,7 @@ public sealed class SessionRequestCommandService(
                     || (target.Metadata?.Revision.Value ?? 0) != command.MetadataRevision || !Live())
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
-                    command.RequestProvider);
+                    command.RequestProvider) { ClaudeTools = command.RequestClaudeTools };
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
@@ -118,7 +125,7 @@ public sealed class SessionRequestCommandService(
             {
                 receipt = previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
                     ? await conversation.SubmitReviewedClaudeAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
-                        Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
+                        Revalidate, [previous.Cause], previous.Review.Origin, previous.Review.ClaudeTools, token).ConfigureAwait(false)
                     : previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
                     ? await conversation.SubmitReviewedCopilotAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
                         Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)

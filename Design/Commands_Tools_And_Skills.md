@@ -578,6 +578,10 @@ remain mandatory. This is not a running provider, a skill/agent executor or
 permission to use the legacy action selector as a tool loop. Production
 qualification and default enablement remain unavailable.
 
+Explicit [Claude observations](../docs/claude-requests.md#explicit-read-only-observations) reuse this same loop and actual six-ID registry callback, rather than introducing a provider tool engine.
+A bounded advertised subset is frozen by the host; both native Count Tokens and Messages sends, including every result continuation, require separate affirmative final-byte consent.
+Ordinary Claude requests stay tool-free; provider-native tools and other capability groups remain excluded ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 
 ## Internal Tool Example: Current Session State

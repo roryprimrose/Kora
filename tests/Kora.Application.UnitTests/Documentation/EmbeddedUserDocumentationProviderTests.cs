@@ -284,6 +284,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "external-browser",
             "markdown-strikethrough",
             "diagrams",
+            "mcp-transport",
             "setting-proposals",
             "session-routing",
             "reviewed-context",

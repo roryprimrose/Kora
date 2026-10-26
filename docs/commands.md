@@ -698,6 +698,25 @@ receipt deny success and require a fresh explicit request. This is bounded
 command parity, not a general notification broker, production wake or
 installed/native/runtime acceptance.
 
+## Optional communications activity observations
+
+Optional source observation is a separate device-local setting, not manual call state:
+
+```text
+list call observation settings
+get calls.activity-source
+status calls.activity-source
+set calls.activity-source to WindowsCommunicationsAudio
+set calls.activity-source to None
+reset calls.activity-source
+```
+
+The current activation prefix is optional for exact typed commands.
+These use the same [source control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs) as Settings > Calls.
+The production Windows profile is **unqualified/unavailable**: enable is denied without a write or native subscription, not a working detector claim.
+Protected original voice mutations remain denied; passive status is visual and never opens capture.
+See [source availability and limitations](settings.md#optional-communications-audio-observations).
+
 ## Exact current-run manual call control
 
 Native **Settings > Calls** and typed/already **activated** voice share:
@@ -1908,6 +1927,8 @@ This is not a harmlessness or complete dependency-inventory certification
 ([inspection contract](../src/Kora.Core/Skills/SharedSkillSnapshot.cs)).
 
 ### Reviewed instruction-only shared skill invocation
+
+Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
 
 For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
 Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.

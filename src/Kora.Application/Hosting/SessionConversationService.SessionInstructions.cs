@@ -10,18 +10,25 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
+    /// <summary>Explicit local tool-free answer through the ordinary conversation and instruction owner.</summary>
+    public Task<ConversationSubmissionReceipt> SubmitLocalAnswerAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, CancellationToken token) =>
+        SubmitOrdinaryWithScopeAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, token, localAnswer: true);
+
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
         SessionWorkspaceEntry target, string body, Func<bool> admitted,
         Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
-        CancellationToken token)
+        CancellationToken token, bool localAnswer = false)
     {
         RequireOriginalSource(origin);
         var review = sessionInstructionScopes is null ? null
             : await sessionInstructionScopes.PrepareRequestAsync(target, body, origin, token).ConfigureAwait(false);
         if (review is null)
         {
-            return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin, null,
-                ModelTurnChoice.Default, token).ConfigureAwait(false);
+            ModelContextEnvelope Create(HostRequest request, DateTimeOffset now) =>
+                new(request, Policy, body, [], now, now.AddSeconds(15), ModelToolMode.None);
+            return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
+                localAnswer ? Create : null, localAnswer ? ModelTurnChoice.Local : ModelTurnChoice.Default, token).ConfigureAwait(false);
         }
         List<ActivityLink> causes = links?.ToList() ?? [];
         if (HostActivity.Current?.Activity is { } parent) { causes.Add(new(parent.Context)); }

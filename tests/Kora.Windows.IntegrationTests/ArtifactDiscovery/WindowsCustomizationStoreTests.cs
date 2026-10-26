@@ -10,7 +10,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
-public sealed class WindowsCustomizationStoreTests : IDisposable
+public sealed partial class WindowsCustomizationStoreTests : IDisposable
 {
     private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
         ".net-test-artifacts", "customizations", Guid.NewGuid().ToString("N")));
@@ -34,7 +34,6 @@ public sealed class WindowsCustomizationStoreTests : IDisposable
     [InlineData(CustomizationKind.McpServer, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Prompt, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Skill, CustomizationScope.User)]
-    [InlineData(CustomizationKind.Instruction, CustomizationScope.User)]
     [InlineData(CustomizationKind.Agent, CustomizationScope.User)]
     [InlineData(CustomizationKind.McpServer, CustomizationScope.User)]
     public async Task Complete_create_read_edit_conflict_and_reopen_roundtrip(CustomizationKind kind, CustomizationScope scope)

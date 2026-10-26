@@ -8,6 +8,8 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
+    public event Func<ConversationAnswerPresentation, CancellationToken, ValueTask>? ProvisionalAnswerChanged;
+
     private async Task<ConversationSubmissionReceipt> ExecuteRetainedAsync(SessionWorkspaceEntry target,
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
         Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
@@ -48,6 +50,25 @@ public sealed partial class SessionConversationService
         turn.TaskRevision = dispatched.Task.Revision;
         turn.ConversationTarget = target;
         await using var running = RegisterRunningConversation(target, turn, live, token);
+        turn.PublishAnswer = async (update, publicationToken) =>
+        {
+            bool PresentCurrent() => Current() && running.CanContinue && turn.IsRunning
+                && !running.Token.IsCancellationRequested;
+            publicationToken.ThrowIfCancellationRequested();
+            if (!PresentCurrent())
+            { throw new InvalidOperationException("The exact conversation no longer admits provisional output."); }
+            var handlers = ProvisionalAnswerChanged;
+            if (handlers is null) { return; }
+            var presentation = new ConversationAnswerPresentation(running.Target, update, PresentCurrent);
+            foreach (var handler in handlers.GetInvocationList()
+                .Cast<Func<ConversationAnswerPresentation, CancellationToken, ValueTask>>())
+            {
+                publicationToken.ThrowIfCancellationRequested();
+                if (!PresentCurrent())
+                { throw new InvalidOperationException("Provisional presentation was revoked."); }
+                await handler(presentation, publicationToken).ConfigureAwait(false);
+            }
+        };
         var confirmed = false;
         try
         {
@@ -101,6 +122,7 @@ public sealed partial class SessionConversationService
         }
         finally
         {
+            turn.PublishAnswer = null;
             // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
             if (running.CancellationAccepted)
             {

@@ -66,8 +66,26 @@ public sealed class WebPageGetTests
         result.RedirectCount.Should().Be(1);
         authorized.Should().Equal(
             new Uri("https://example.com/start"),
+            new Uri("https://example.com/start"),
+            new Uri("https://other.example/final"),
             new Uri("https://other.example/final"));
         transport.ResolvedHosts.Should().Equal("example.com", "other.example");
+    }
+
+    [Fact]
+    public async Task RevocationDuringResolutionPreventsThePhysicalConnection()
+    {
+        var transport = new Transport(PublicAddress);
+        var audit = new Audit();
+        var checks = 0;
+        var action = new WebPageGet(transport, audit);
+        var result = await action.ExecuteAsync(new(new("https://example.com/")), SecurityAuditInitiator.LocalUser,
+            (_, _) => ValueTask.FromResult(++checks == 1), TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(WebPageGetOutcome.Denied);
+        result.Reason.Should().Be("address-not-authorized");
+        transport.ResolvedHosts.Should().Equal("example.com");
+        transport.Endpoints.Should().BeEmpty();
+        audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Denied);
     }
 
     [Theory]

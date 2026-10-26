@@ -11,6 +11,9 @@
         <TextBlock Text="ASSISTANT - finalized admitted local-model answer (not original USER or effect evidence)" />
         <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap"
             AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
+        <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
+            IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"
+            AutomationProperties.Name="Reply to this exact displayed retained assistant answer in the same Active conversation; review and separate local-only confirmation required" />
         <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
         <Button Name="ReviewRegisteredSettingSuggestion" Content="Review setting suggestion..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewRegisteredSettingSuggestion}"

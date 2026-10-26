@@ -18,6 +18,16 @@ Responses-tab navigation is not a retained-body, retired-response, model or priv
 
 Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to display additions. Readable complex data, Markdown, admitted browser content, ordinary Find, wrapping and accessibility support the product. Standalone content-analysis buttons and engineering-only normal-workspace filters are not justified by the existence of a viewer or immutable snapshot.
 
+## Bounded provisional local answers
+
+**Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional local answer - not retained**. Existing Send, tool loops, clarification and hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
+
+Only decoded assistant-content snapshots from the bounded native Ollama NDJSON decoder enter this presentation. Every envelope, model identity, field, Unicode string and cumulative wire-byte charge is validated; normal terminal framing and EOF are required. The reconstructed complete answer still passes existing whole-response validation. JSON envelopes, tool calls and nonempty thinking fields cannot become provisional answer text ([decoder](../src/Kora.Windows/Dependencies/OllamaToolWire.Streaming.cs), [whole validation](../src/Kora.Windows/Dependencies/OllamaToolWire.cs), [transport regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
+
+Snapshots remain volatile, inert plain text, without Markdown detail routing, automatic speech, persistence or content logging. Publication awaits the receiving view and revalidates exact host turn, source, session/task generation, private control and native view lifetime. Stop targets that conversation's displayed running task independently of the busy composer; cancellation retires provisional text but does not claim rollback or resource termination ([host fences](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [native lifetime](../src/Kora/SessionsViewModel.ConversationCancellation.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
+
+The original USER remains retained under existing rules. Only a fully validated successful final answer can enter the existing ASSISTANT/HOST/task/audit transaction; malformed, oversized, cancelled or truncated streams cannot retain partial answers. Owned work remains joined before a confirmed terminal outcome. This increment does not enable rejected/unqualified local profiles or qualify hardware, installed accessibility, hosted streaming or provider availability ([retention owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 ## Delivered bounded response-window preference commands
 
 The [exact response-window grammar](../src/Kora.Application/Configuration/ResponseWindowCommand.cs) admits inspect/set/per-option reset for existing device-local AlwaysShow and Topmost, plus four explicit natural on/off phrases.
@@ -35,6 +45,8 @@ Unknown/malformed or externally changed saved state cannot be overwritten using 
 [Deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseWindowCommands.cs) are implementation evidence only: no new hardware, installed UI/accessibility, acoustic, provider or RC qualification is claimed.
 
 ## Delivered retained original USER / typed HOST Details - 2026-10-14
+
+The separate [native Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) displays the exact selected retained ASSISTANT answer as inert LocalOnly evidence beside a distinct unchanged follow-up review, never pasted into the composer or promoted to approval/system authority. Reply has its own cancellation and stale-presenter fences; passive Details and original-USER reuse do not acquire reply or submission authority ([reply owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs)).
 
 After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.
 

@@ -50,6 +50,20 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Conversational voice replies
+
+In **Settings > Speech & audio**, choose **Enable conversational replies** to opt in, or **Turn off** to return to the default. This saves a shared device-local On/Off preference; it does not grant listening permission or make an unavailable microphone or recognizer ready ([settings workflow](../src/Kora.Application/ViewModels/MainViewModel.ConversationalReplies.cs)).
+
+For a new unique foreground host clarification, Kora speaks the exact question with the microphone closed. Only after that playback finishes can you answer without another click or activation name ([question voice owner](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+You have **15 seconds to start**, then at most **60 seconds of speech**. The visible reply status distinguishes playback, awaiting reply and capture; **Cancel reply** closes capture while keeping the native question answerable.
+
+Only one answer matching that question's schema is submitted. Approval and transmission-consent dialogs never open automatic capture ([reply admission](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+Silence, cancellation, failure, changed settings, lost foreground or changed privacy/device/ownership retire the attempt without retry or rearm.
+**Answer by voice**, **Hear question, then answer by voice** and native answer controls remain available under their existing gates. Merely displaying a card does not start transcription ([native question controls](../src/Kora/NativeQuestionViewModel.cs)).
+
+Automatic replies remain unavailable if the saved preference or required audit is unconfirmed; inspect saved state and audit before recovery. Audio and raw transcripts are not saved or logged ([storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
+This feature does not enable ambient name listening, capture during speech playback, barge-in, a new speech provider or unqualified hardware/acoustic profiles ([scope and qualification](../Design/Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
+
 ## Local records and privacy
 
 Kora keeps task records, diagnostic records and security records on this device.
@@ -1137,6 +1151,22 @@ Read-only explanation of the currently resolved mode and any forced visual
 fallback.
 
 ## Calls
+
+### Optional communications audio observations
+
+**Inspect observations** shows the selected source, support, automatic policy evidence, observed UTC time, health and the five-second freshness limit.
+The [bounded Windows profile](../Design/Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) is implemented but **not qualified or enabled** in production.
+**Use Windows communications audio** is disabled, and an exact typed enable request is denied without saving or opening a native subscription.
+
+The device-local `calls.activity-source` defaults to **None**.
+A saved enabled source that becomes unavailable remains **Unknown** and suppresses speech; it is not silently disabled.
+Explicit **Disable automatic observations** resets this source only and waits for owned observation release.
+Manual call mode, grants, listening consent and spoken-approval settings remain unchanged ([shared host control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs)).
+
+Communications audio is at most **Suspected**, not proof of Teams or an actual call.
+Startup, ambiguous/multiple streams, stale health and device/session loss remain Unknown.
+Clear requires the witnessed single-stream transition described by the profile; no audio, transcript, account or network access is requested.
+Protected original voice requests cannot change the source, even through a later Settings click; initiate a fresh native/typed request ([origin rules](../Design/Call_Aware_Speech.md#in-call-settings-origin-gate)).
 
 ### Call detection
 

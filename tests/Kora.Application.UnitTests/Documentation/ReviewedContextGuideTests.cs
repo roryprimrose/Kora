@@ -16,5 +16,8 @@ public sealed class ReviewedContextGuideTests
             .And.Contain("32768 UTF-8").And.Contain("16 evidence items")
             .And.Contain("single-use").And.Contain("two minutes").And.Contain("quiescent")
             .And.Contain("device-profile memory").And.Contain("model memory writes");
+        page.Markdown.Should().Contain("Reply to this answer").And.Contain("Confirm ONE local-only reply")
+            .And.Contain("60 seconds").And.Contain("Cancel reply").And.Contain("memory-only composer")
+            .And.Contain("no spoken/typed ordinal Reply command").And.Contain("silently sending the follow-up alone");
     }
 }

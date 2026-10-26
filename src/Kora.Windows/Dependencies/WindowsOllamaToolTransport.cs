@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>One host-bound native Ollama conversation. Missing evidence never falls back to the legacy reasoner.</summary>
-public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
+public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IModelAnswerTransport
 {
     internal static Uri Endpoint { get; } = new("http://127.0.0.1:11434/");
     private readonly Lock gate = new();
@@ -35,6 +35,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     private int inputBytes;
     private int outputBytes;
     private ModelClarificationQuestion? issuedQuestion;
+    private int issuedQuestionIndex;
 
     public WindowsOllamaToolTransport()
         : this(static _ => null, TimeProvider.System, NullLogger<WindowsOllamaToolTransport>.Instance) { }
@@ -57,7 +58,18 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         this.logger = logger ?? throw new ArgumentNullException(nameof(logger));
     }
 
-    public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+    public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken) =>
+        CompleteOwnedAsync(request, cancellationToken);
+
+    public Task<ModelToolTransportReply> CompleteWithAnswerAsync(ModelToolRequest request,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(publish);
+        return CompleteOwnedAsync(request, cancellationToken, publish);
+    }
+
+    private async Task<ModelToolTransportReply> CompleteOwnedAsync(ModelToolRequest request, CancellationToken cancellationToken,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish = null)
     {
         ArgumentNullException.ThrowIfNull(request);
         TaskCompletionSource completion;
@@ -88,7 +100,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             { return Finish(request, ModelTurnOutcome.Denied); }
             using var activity = HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Runtime);
             ModelToolTransportReply reply;
-            try { reply = await ExchangeAsync(request, cancellationToken).ConfigureAwait(false); }
+            try { reply = await ExchangeAsync(request, publish, cancellationToken).ConfigureAwait(false); }
             catch (InvalidDataException) { reply = Finish(request, ModelTurnOutcome.Denied); }
             catch (OperationCanceledException) { reply = Finish(request, ModelTurnOutcome.Unknown); }
             catch (Exception exception) when (exception is HttpRequestException or IOException)
@@ -110,7 +122,8 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         }
     }
 
-    private async Task<ModelToolTransportReply> ExchangeAsync(ModelToolRequest request, CancellationToken callerToken)
+    private async Task<ModelToolTransportReply> ExchangeAsync(ModelToolRequest request,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken callerToken)
     {
         // Reuse the producer's complete history, provenance, catalogue and byte policy.
         ModelToolProtocol.CreateRequest(request.Provenance, request.Profile, request.Context, request.Messages,
@@ -131,13 +144,15 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         var selected = binding;
         if (selected is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (!Current(request)) { return Finish(request, ModelTurnOutcome.Denied); }
-        if (issuedQuestion is not null && (request.Messages.Length != 2 || !ReferenceEquals(request.Messages[0], issuedQuestion)))
+        if (issuedQuestion is not null && (request.Messages.Length < issuedQuestionIndex + 2
+            || !ReferenceEquals(request.Messages[issuedQuestionIndex], issuedQuestion)))
         { return Finish(request, ModelTurnOutcome.Denied); }
         if (request.Messages.Length < admittedHistory.Length
             || admittedHistory.Where((wire, index) => !wire.AsSpan()
                 .SequenceEqual(ModelToolProtocol.SerializeMessage(request.Messages[index]))).Any())
         { return Finish(request, ModelTurnOutcome.Denied); }
-        var resultBytes = request.Messages.Skip(admittedHistory.Length).OfType<ModelToolResultMessage>()
+        var resultBytes = request.Messages.Skip(admittedHistory.Length)
+            .Where(message => message is ModelToolResultMessage or ModelQuestionAnswerMessage)
             .Sum(result => ModelToolProtocol.SerializeMessage(result).Length);
         var remaining = deadline - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { return Finish(request, ModelTurnOutcome.TimedOut); }
@@ -149,7 +164,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             linked.Token.ThrowIfCancellationRequested();
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
             { return Finish(request, ModelTurnOutcome.Denied); }
-            var body = OllamaToolWire.WriteRequest(request, selected.Model, exchanges);
+            var streaming = publish is not null && request.Context.ToolMode == ModelToolMode.None
+                && !request.ClarificationAllowed && request.Round == 1;
+            var body = OllamaToolWire.WriteRequest(request, selected.Model, exchanges, streaming);
             var inputCharge = Math.Max(body.Length, ModelToolProtocol.SerializeRequest(request).Length);
             var outputLimit = Math.Min(request.Budget.OutputUtf8Bytes,
                 ModelToolProtocol.MaximumOutputUtf8Bytes - outputBytes - resultBytes);
@@ -170,12 +187,19 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             message.Content.Headers.ContentType = new MediaTypeHeaderValue("application/json");
             using var response = await client.SendAsync(message, HttpCompletionOption.ResponseHeadersRead,
                 linked.Token).ConfigureAwait(false);
-            var status = Status(response, message);
+            var status = Status(response, message, streaming);
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
-            var wire = await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false);
-            var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round, request.ClarificationAllowed,
-                request.Context.McpTool);
-            var outputCharge = Math.Max(wire.Length, ModelToolProtocol.SerializeMessage(parsed.Message).Length);
+            var wire = streaming
+                ? await OllamaToolWire.ReadAnswerStreamAsync(response.Content, selected.Model, outputLimit, async answer =>
+                {
+                    if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
+                    { throw new InvalidDataException("Native stream admission changed before publication."); }
+                    await publish!(new(request.Provenance, answer), linked.Token).ConfigureAwait(false);
+                }, linked.Token).ConfigureAwait(false)
+                : new OllamaToolWire.AnswerWire(await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false), 0);
+            var parsed = OllamaToolWire.ReadReply(wire.Terminal, selected.Model, request.Round, request.ClarificationAllowed,
+                request.Context.McpTool, request.Context.ToolMode);
+            var outputCharge = Math.Max(Math.Max(wire.Terminal.Length, wire.Charge), ModelToolProtocol.SerializeMessage(parsed.Message).Length);
             if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
             outputBytes += outputCharge;
             if (!await ObserveAsync(request, linked.Token).ConfigureAwait(false))
@@ -195,9 +219,11 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             }
             else if (parsed.Message is ModelClarificationQuestion question)
             {
-                if (!request.ClarificationAllowed || issuedQuestion is not null)
+                if (!request.ClarificationAllowed || issuedQuestion is not null
+                    || request.Context.ToolMode == ModelToolMode.ReadOnly && question.Question.Options.Count == 0)
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 issuedQuestion = question;
+                issuedQuestionIndex = request.Messages.Length;
             }
             else { CloseConversation(request.Provenance); }
             TransportCompleted(logger, ModelTurnOutcome.Succeeded);
@@ -247,14 +273,15 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         return ModelTurnOutcome.Succeeded;
     }
 
-    internal static ModelTurnOutcome Status(HttpResponseMessage response, HttpRequestMessage request)
+    internal static ModelTurnOutcome Status(HttpResponseMessage response, HttpRequestMessage request, bool streaming = false)
     {
         if (response.RequestMessage?.RequestUri != request.RequestUri
             || (int)response.StatusCode is >= 300 and < 400)
         { return ModelTurnOutcome.DeniedEgress; }
         if (!response.IsSuccessStatusCode) { return ModelTurnOutcome.Unavailable; }
         var type = response.Content.Headers.ContentType;
-        if (type is null || !string.Equals(type.MediaType, "application/json", StringComparison.OrdinalIgnoreCase)
+        if (type is null || !(string.Equals(type.MediaType, "application/json", StringComparison.OrdinalIgnoreCase)
+                || streaming && string.Equals(type.MediaType, "application/x-ndjson", StringComparison.OrdinalIgnoreCase))
             || type.CharSet is { } charset && !string.Equals(charset, "utf-8", StringComparison.OrdinalIgnoreCase)
             || response.Content.Headers.ContentEncoding.Count != 0)
         { return ModelTurnOutcome.Denied; }

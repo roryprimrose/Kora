@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.Json;
 
 using Avalonia.Controls;
+using Avalonia.Automation;
 using Avalonia.Interactivity;
 
 using AwesomeAssertions;
@@ -27,11 +28,13 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    [InlineData(true, true)]
-    public async Task NativeAgentReviewSeparateConsentRetainsRealAnswerAndClearsPrivateBuffersOnStop(bool invoke, bool referenced)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, true)]
+    [InlineData(true, true, true)]
+    public async Task NativeAgentReviewSeparateConsentRetainsRealAnswerAndClearsPrivateBuffersOnStop(bool invoke, bool referenced, bool combined)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -56,6 +59,13 @@ public sealed partial class SessionsConversationTests
                 reader.Text = reader.Text.Replace("kora-agent-format: 1", "kora-agent-format: 2", StringComparison.Ordinal)
                     .Replace("references: none", "references: disk.kora-profile.instruction.example,disk.kora-profile.instruction.second", StringComparison.Ordinal);
             }
+            if (combined)
+            {
+                reader.Text = reader.Text.Replace("kora-agent-format: 2", "kora-agent-format: 4", StringComparison.Ordinal)
+                    .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                    .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal)
+                    .Replace("maximum-rounds: 1", "maximum-rounds: 2", StringComparison.Ordinal);
+            }
             await using var workflow = new BoundedAgentWorkflow(reader, f.Store, composed.Access,
                 composed.Conversation, composed.Turns, composed.Audit, f.Time, new(catalogue, instructions, revisions));
             var controller = new AgentRunController(native.Main, workflow, composed.Workspace,
@@ -68,6 +78,8 @@ public sealed partial class SessionsConversationTests
             var window = opened ?? throw new InvalidOperationException("No admitted bounded agent window.");
             try
             {
+                AutomationProperties.GetName(window.Review).Should().Be("Complete exact agent guidance, tools and cumulative budget review");
+                AutomationProperties.GetName(window.Confirm).Should().Be("Separate confirmation of this exact bounded agent invocation");
                 var buttons = ((StackPanel)((ScrollViewer)window.Content!).Content!).Children.OfType<Button>().ToArray();
                 buttons.Single(button => Equals(button.Content, "Refresh existing Active conversations"))
                     .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
@@ -83,6 +95,11 @@ public sealed partial class SessionsConversationTests
                     window.Confirm.IsEnabled.Should().BeFalse();
                     window.Resolve.IsEnabled.Should().BeTrue();
                     window.Review.Text.Should().Contain("DECLARED OWNED INSTRUCTION IDS").And.Contain("EXACT ENABLED CANDIDATES");
+                    if (combined)
+                    {
+                        window.Review.Text.Should().Contain("TOOLS application.get_version")
+                            .And.Contain("CUMULATIVE HOST CLAMPS: calls 1, rounds 2").And.NotContain("TOOL-FREE");
+                    }
                     instructions.Reads.Should().Be(0);
                     adapter.Calls.Should().Be(0);
                     if (invoke)
@@ -115,8 +132,8 @@ public sealed partial class SessionsConversationTests
                     message.Body.Should().Be("Original native request.");
                     message.AssistantResponse!.Body.Should().Be("earlier ASSISTANT");
                     using var wire = JsonDocument.Parse(adapter.Wire!);
-                    wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
-                    wire.RootElement.GetProperty("Constraints").GetProperty("MaximumCalls").GetInt32().Should().Be(0);
+                    wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(combined ? 1 : 0);
+                    wire.RootElement.GetProperty("Constraints").GetProperty("MaximumCalls").GetInt32().Should().Be(combined ? 1 : 0);
                     if (referenced)
                     {
                         Encoding.UTF8.GetString(adapter.Wire!).Should().Contain("Exact owned example guidance.")
@@ -187,8 +204,10 @@ public sealed partial class SessionsConversationTests
         reader.Released.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task ReferencedAgentResolutionRevokeJoinsIgnoringReadBeforeSourceReleaseAndNeverDiscloses()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReferencedAgentResolutionRevokeJoinsIgnoringReadBeforeSourceReleaseAndNeverDiscloses(bool combined)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -198,7 +217,7 @@ public sealed partial class SessionsConversationTests
         var sources = new AgentOwnedStore();
         var revisions = new InstructionRevisionCatalogue(f.Paths);
         var catalogue = EnabledAgentInstructions(sources, revisions);
-        var reader = ReferencedAgentReader();
+        var reader = ReferencedAgentReader(combined);
         await using var workflow = new BoundedAgentWorkflow(reader, f.Store, composed.Access, composed.Conversation,
             composed.Turns, composed.Audit, f.Time, new(catalogue, sources, revisions));
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
@@ -221,8 +240,10 @@ public sealed partial class SessionsConversationTests
         f.Count("conversation_messages").Should().Be(0);
     }
 
-    [Fact]
-    public async Task ReferencedAgentWithdrawalCancelsAndJoinsIgnoringModelWithoutPublishingLateAnswer()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReferencedAgentWithdrawalCancelsAndJoinsIgnoringModelWithoutPublishingLateAnswer(bool combined)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -232,7 +253,7 @@ public sealed partial class SessionsConversationTests
         var sources = new AgentOwnedStore();
         var revisions = new InstructionRevisionCatalogue(f.Paths);
         var catalogue = EnabledAgentInstructions(sources, revisions);
-        var reader = ReferencedAgentReader();
+        var reader = ReferencedAgentReader(combined);
         await using var workflow = new BoundedAgentWorkflow(reader, f.Store, composed.Access, composed.Conversation,
             composed.Turns, composed.Audit, f.Time, new(catalogue, sources, revisions));
         using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
@@ -260,11 +281,17 @@ public sealed partial class SessionsConversationTests
             && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
     }
 
-    private static NativeAgentReader ReferencedAgentReader()
+    private static NativeAgentReader ReferencedAgentReader(bool combined = false)
     {
         var reader = new NativeAgentReader();
         reader.Text = reader.Text.Replace("kora-agent-format: 1", "kora-agent-format: 2", StringComparison.Ordinal)
             .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal);
+        if (combined)
+        {
+            reader.Text = reader.Text.Replace("kora-agent-format: 2", "kora-agent-format: 4", StringComparison.Ordinal)
+                .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+        }
         return reader;
     }
 

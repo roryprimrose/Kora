@@ -46,6 +46,14 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Conversational voice replies
+
+**Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
+The shared device-local preference defaults Off and uses current original-user/native/call admission, typed requested/terminal audit, atomic preference replacement, exact readback and an unconfirmed-write hold ([configuration owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
+This choice permits a new exact foreground host clarification to finish speaking before one bounded schema reply. It never enables listening by itself, replaces microphone consent or approves an operation ([conversational turn contract](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
+Manual voice/native answers remain available under that contract. This preference is not a new registered model-proposal setting or an alias for session dictation ([shared setting owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
 ### Exact existing Settings-section navigation
 
 Original typed/current-name activated voice uses the [closed seven-phrase grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs) to request only Appearance, Speech & audio (speech/audio/microphone aliases), Responses, Sessions or Calls.
@@ -1112,6 +1120,19 @@ hardware/acoustic acceptance. The speech experiment's file-rendered SAPI
 samples, capture/threshold executable, hardware/provider gaps and historical
 receipts have no whole-executable maintained equivalent here: retain all;
 nothing is deleted or rerun.
+
+### Bounded communications activity source
+
+The device-local `calls.activity-source` defaults/resets to `None`.
+Settings > Calls and exact typed/current-name activated `list call observation settings`, `get/status calls.activity-source`, `set calls.activity-source to None|WindowsCommunicationsAudio` and `reset calls.activity-source` share the [host writer](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs), not a caller-selected OS authority.
+
+The [bounded source contract](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) owns normalization, freshness and limitations.
+Native status shows selected source, qualification, automatic evidence, observed UTC time and health.
+Production Windows qualification is unavailable: enable selection is disabled/denied, no native subscription is opened, and saved enabled-but-unavailable state remains Unknown.
+
+Original protected-call voice changes are rejected before mutation or relabelled confirmation.
+Source changes preserve manual mode, grants, microphone consent and independent spoken-approval policy; disable completes only after prior owned observation release.
+Unconfirmed preference/audit/resource evidence remains protective and explicit, never automatic recovery ([preference format](../src/Kora.Application/Configuration/LocalCommunicationActivityPreferences.cs), [regressions](../tests/Kora.Application.UnitTests/Configuration/CommunicationActivityTests.cs)).
 
 ### Proposed full configuration contract
 

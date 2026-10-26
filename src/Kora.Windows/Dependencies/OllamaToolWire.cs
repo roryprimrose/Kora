@@ -13,14 +13,14 @@ internal static partial class OllamaToolWire
     internal sealed record Reply(ModelAssistantMessage Message, byte[] NativeMessage);
     private static readonly UTF8Encoding StrictUtf8 = new(false, true);
 
-    internal static byte[] WriteRequest(ModelToolRequest request, string model, IReadOnlyList<Exchange> exchanges)
+    internal static byte[] WriteRequest(ModelToolRequest request, string model, IReadOnlyList<Exchange> exchanges, bool streaming = false)
     {
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
             writer.WriteString("model", model);
-            writer.WriteBoolean("stream", false);
+            writer.WriteBoolean("stream", streaming);
             writer.WriteBoolean("think", false);
             writer.WriteStartArray("messages");
             WriteTextMessage(writer, "system", request.Context.SystemPolicy);
@@ -177,28 +177,7 @@ internal static partial class OllamaToolWire
     {
         using var document = ReadJson(bytes);
         var root = document.RootElement;
-        RequireFields(root, ["model", "message", "done"],
-            ["created_at", "done_reason", "total_duration", "load_duration", "prompt_eval_count",
-                "prompt_eval_duration", "eval_count", "eval_duration"]);
-        if (!string.Equals(Text(root, "model"), model, StringComparison.Ordinal)
-            || root.GetProperty("done").ValueKind != JsonValueKind.True)
-        { throw new InvalidDataException("The native response is not a completed response from the host-selected model."); }
-        foreach (var field in root.EnumerateObject())
-        {
-            if (field.Name.EndsWith("_duration", StringComparison.Ordinal) || field.Name.EndsWith("_count", StringComparison.Ordinal))
-            {
-                if (field.Value.ValueKind != JsonValueKind.Number || !field.Value.TryGetInt64(out var value) || value < 0)
-                { throw new InvalidDataException("Invalid native response observations."); }
-            }
-        }
-        if (root.TryGetProperty("created_at", out var created)
-            && (created.ValueKind != JsonValueKind.String
-                || !DateTimeOffset.TryParse(created.GetString(), CultureInfo.InvariantCulture,
-                    DateTimeStyles.RoundtripKind, out _)))
-        { throw new InvalidDataException("Invalid native response timestamp."); }
-        if (root.TryGetProperty("done_reason", out var reason)
-            && (reason.ValueKind != JsonValueKind.String || !string.Equals(reason.GetString(), "stop", StringComparison.Ordinal)))
-        { throw new InvalidDataException("The native response did not terminate normally."); }
+        ValidateReplyEnvelope(root, model, completed: true);
         var message = root.GetProperty("message");
         RequireFields(message, ["role", "content"], ["tool_calls", "thinking"]);
         if (!string.Equals(Text(message, "role"), "assistant", StringComparison.Ordinal)
@@ -254,6 +233,32 @@ internal static partial class OllamaToolWire
             writer.WriteEndObject();
         }
         return new(ModelToolProtocol.ParseAssistant(stream.ToArray(), mcpTool: mcpTool), JsonSerializer.SerializeToUtf8Bytes(message));
+    }
+
+    private static void ValidateReplyEnvelope(JsonElement root, string model, bool completed)
+    {
+        RequireFields(root, ["model", "message", "done"],
+            ["created_at", "done_reason", "total_duration", "load_duration", "prompt_eval_count",
+                "prompt_eval_duration", "eval_count", "eval_duration"]);
+        if (!string.Equals(Text(root, "model"), model, StringComparison.Ordinal)
+            || root.GetProperty("done").ValueKind != (completed ? JsonValueKind.True : JsonValueKind.False))
+        { throw new InvalidDataException("The native response is not a completed response from the host-selected model."); }
+        foreach (var field in root.EnumerateObject())
+        {
+            if (field.Name.EndsWith("_duration", StringComparison.Ordinal) || field.Name.EndsWith("_count", StringComparison.Ordinal))
+            {
+                if (field.Value.ValueKind != JsonValueKind.Number || !field.Value.TryGetInt64(out var value) || value < 0)
+                { throw new InvalidDataException("Invalid native response observations."); }
+            }
+        }
+        if (root.TryGetProperty("created_at", out var created)
+            && (created.ValueKind != JsonValueKind.String
+                || !DateTimeOffset.TryParse(created.GetString(), CultureInfo.InvariantCulture,
+                    DateTimeStyles.RoundtripKind, out _)))
+        { throw new InvalidDataException("Invalid native response timestamp."); }
+        if (root.TryGetProperty("done_reason", out var reason)
+            && (reason.ValueKind != JsonValueKind.String || !string.Equals(reason.GetString(), "stop", StringComparison.Ordinal)))
+        { throw new InvalidDataException("The native response did not terminate normally."); }
     }
 
     private static string Text(JsonElement element, string name)

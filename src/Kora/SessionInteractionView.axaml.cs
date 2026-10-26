@@ -21,6 +21,7 @@ internal sealed partial class SessionInteractionView : UserControl
     internal event EventHandler? ManagementRequested;
     internal event EventHandler? NewConversationRequested;
     internal Task Operation { get; private set; } = Task.CompletedTask;
+    internal Task CancellationOperation { get; private set; } = Task.CompletedTask;
     private SessionDetailView? activeDetails;
     private SessionsViewModel? observedModel;
     private Guid? selectedSession;
@@ -74,6 +75,12 @@ internal sealed partial class SessionInteractionView : UserControl
         NextActivity.Click += async (_, _) => await Run(model => model.ReadHistoryAsync(next: true));
         ActivityDetails.Click += async (_, _) => await Run(model => model.OpenHistoryDetailAsync());
         SubmitMessage.Click += async (_, _) => await Run(model => model.SubmitConversationAsync());
+        SubmitLocalAnswer.Click += async (_, _) => await Run(model => model.SubmitLocalAnswerAsync());
+        StopLocalAnswer.Click += async (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model)
+            { await (CancellationOperation = model.CancelRunningConversationAsync()); }
+        };
         DiscardMessage.Click += async (_, _) => await Run(model => model.DiscardComposerBufferAsync());
         SessionList.SelectionChanged += async (_, args) =>
         {

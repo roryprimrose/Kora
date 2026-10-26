@@ -9,6 +9,27 @@ in the current released adapter. Use push-to-talk, typed input or native control
 PTT is a fallback, not delivery of the primary hands-free interaction.
 See [speech-input implementation and enablement](../Design/Speech_Input.md#current-implementation-boundary).
 
+## Exact-session speech interruption
+
+While reading one retained answer, typed `stop speaking` addresses only the
+original foreground conversation and playback. Native **Cancel reading** remains
+available on that selected answer. Cancellation does not cancel model work,
+modify the retained answer or queue a replay. Completion is reported only after
+owned playback releases; an unconfirmed release remains a recovery failure.
+
+Explicit push-to-talk interruption additionally requires a separately qualified
+speech-input profile. The shipped Windows adapter does **not** claim this
+qualification: PTT during retained-answer playback reports unavailable without
+opening capture or stopping unrelated output. Deterministic host tests exercise
+activation -> original session/playback -> recognized `stop speaking` -> resource
+join -> interrupted status, not acoustic or installed-runtime qualification.
+
+A future qualified profile must preserve the activation-time foreground
+conversation and exact playback. Focus changes, replacement output, retired
+generations or unconfirmed capture release refuse interruption without
+retargeting. Dictation, question replies and ambient audio never become stop
+commands. This does not enable hands-free or full-duplex listening.
+
 ## Speech input profile preference
 
 In **Settings > Speech & audio > Speech input profile**, choose the profile, resource preference and residency, then select **Save speech input**. Changing a selector alone does not save. **Inspect speech input** reports saved preference, desired tuple, effective selection and unavailability separately ([native controls](../src/Kora/SettingsWindow.axaml), [shared action](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs)).

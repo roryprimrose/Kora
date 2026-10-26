@@ -9417,6 +9417,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public bool IsLiteralDictationAvailable { get; set; }
 
+        public bool IsSpeechInterruptionAvailable { get; set; }
+
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
         public bool PreventQuiescence { get; set; }
@@ -9696,6 +9698,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public bool RemainSpeakingOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
         public bool IgnoreSpeakCancellation { get; set; }
@@ -9830,7 +9833,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 throw StopException;
             }
-            IsSpeaking = false;
+            IsSpeaking = RemainSpeakingOnStop;
             if (!HoldSpeechCompletionOnStop)
             {
                 SpeakGate?.TrySetResult();

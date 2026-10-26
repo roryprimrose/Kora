@@ -11,6 +11,13 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed partial class HandsFreeVoiceRecognitionServiceTests
 {
     [Fact]
+    public async Task ExistingCaptureAdaptersDoNotImplyQualifiedSpeechInterruption()
+    {
+        await using var voice = Create(new Activated(), new Stage());
+        ((IActivatedVoiceRecognitionService)voice).IsSpeechInterruptionAvailable.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Wake_only_does_not_transcribe_and_one_final_waits_for_joined_cleanup_and_operation_before_rearm()
     {
         var stage = new Stage();

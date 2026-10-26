@@ -7,8 +7,14 @@ const MAX_CANDIDATES = 10;
 async function reconcile(api, options = {}) {
   api.info(`Starting reconciliation for ${api.repository}; verifying required queue App checks and branch protection.`);
   const result = await reconcileOnce(api, options);
-  if (['blocked', 'continuing', 'merged', 'already-merged', 'retired'].includes(result)) {
-    api.info(`Decision: ${result}; requesting another controller reconciliation on main.`);
+  let continuation = result;
+  if (['merged', 'already-merged'].includes(result)) {
+    api.info(`Decision: ${result}; reconciling the next candidate in this controller run.`);
+    continuation = await reconcileOnce(api, options);
+    api.info(`Post-merge handoff finished: ${continuation}.`);
+  }
+  if (['blocked', 'continuing', 'retired'].includes(continuation)) {
+    api.info(`Decision: ${continuation}; requesting another controller reconciliation on main.`);
     await api.wake();
     api.info('Controller continuation requested.');
   }

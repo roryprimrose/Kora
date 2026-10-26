@@ -277,6 +277,7 @@ public sealed partial class SessionsConversationTests
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal Task<ModelProviderReply>? Pending { get; init; }
+        internal Func<Task<ModelProviderReply>>? Next { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
@@ -286,6 +287,7 @@ public sealed partial class SessionsConversationTests
             Calls++;
             Wire = context.ToArray();
             Entered.TrySetResult();
+            if (Next is { } next) { return await next(); }
             return Pending is { } pending ? await pending
                 : new(ModelTurnOutcome.Succeeded, provenance.Selection, new("Answer from reviewed session fact.", null));
         }

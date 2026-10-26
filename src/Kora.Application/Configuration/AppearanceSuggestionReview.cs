@@ -4,22 +4,16 @@ using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Application.Configuration.RegisteredSettings;
 
 namespace Kora.Application.Configuration;
 
 /// <summary>Inert answer data reviewed by the original local user; never model write authority.</summary>
 public sealed class AppearanceSuggestionReview : IDisposable
 {
-    public static string ModelPolicy =>
-        "For a requested appearance suggestion only, the entire final answer may be one inert suggestion: "
-        + "'set appearance.theme to system', 'set appearance.theme to light', 'set appearance.theme to dark', "
-        + "or 'set appearance.reader-text-scale to <whole percent>' within "
-        + $"{ReaderTextScaleSettings.MinimumPercent}-{ReaderTextScaleSettings.MaximumPercent}. "
-        + "Do not claim it was applied. This is data only: the original user must separately open native review "
-        + "and confirm exact current/proposed values. This appearance operation admits no other setting or write.";
-
     private readonly AppearanceConfigurationService configuration;
     private readonly HostRequest reviewRequest;
+    private readonly HostRequest sourceRequest;
     private readonly Lock gate = new();
     private Func<bool> eligible;
     private Func<CancellationToken, Task>? validateSource;
@@ -29,17 +23,19 @@ public sealed class AppearanceSuggestionReview : IDisposable
     private volatile bool retired;
 
     private AppearanceSuggestionReview(AppearanceConfigurationService configuration, AppearanceOptionState current,
-        AppearanceValue proposed, HostRequest reviewRequest, Func<bool> eligible, Func<CancellationToken, Task> validateSource)
+        AppearanceValue proposed, HostRequest reviewRequest, HostRequest sourceRequest,
+        Func<bool> eligible, Func<CancellationToken, Task> validateSource)
     {
         this.configuration = configuration;
         this.current = current;
         this.proposed = proposed;
         this.reviewRequest = reviewRequest;
+        this.sourceRequest = sourceRequest;
         this.eligible = eligible;
         this.validateSource = validateSource;
     }
 
-    public bool Available { get { lock (gate) { return !consumed && Current(); } } }
+    public bool Available { get { lock (gate) { return !consumed && Current() && configuration.Get(current!.Descriptor.Option) == current; } } }
     public string Description
     {
         get
@@ -70,9 +66,7 @@ public sealed class AppearanceSuggestionReview : IDisposable
             || message.Outcome != ModelTurnOutcome.Succeeded
             || message.AssistantResponse is not { } answer)
         { throw new InvalidOperationException("Appearance review requires the original local UI conversation's admitted successful answer."); }
-        var command = AppearanceCommand.Parse(answer.Body, AssistantNameRules.DefaultName);
-        if (command is not { Operation: AppearanceCommandOperation.Set, Value: not null, Descriptor: not null }
-            || command.Descriptor.Option is not (AppearanceOption.Theme or AppearanceOption.ReaderTextScale))
+        if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Appearance proposal)
         { throw new InvalidDataException("No bounded appearance suggestion: request one exact theme or native reader text scale suggestion."); }
         token.ThrowIfCancellationRequested();
         if (!eligible()) { throw new InvalidOperationException("The original private appearance review source is no longer eligible."); }
@@ -80,21 +74,21 @@ public sealed class AppearanceSuggestionReview : IDisposable
         token.ThrowIfCancellationRequested();
         if (!eligible() || RequireLocalRequest(message.Request.SessionId) != request)
         { throw new InvalidOperationException("The original appearance review input changed."); }
-        var state = configuration.Get(command.Descriptor.Option);
-        return new(configuration, state, command.Value, request, eligible, validateSource);
+        var state = configuration.Get(proposal.Option);
+        return new(configuration, state, proposal.Value, request, message.Request, eligible, validateSource);
     }
 
     public async Task<AppearanceApplyResult> ConfirmAsync(CancellationToken token)
     {
         var request = RequireLocalRequest(reviewRequest.SessionId);
-        if (request.RequestId == reviewRequest.RequestId)
+        if (request.RequestId == reviewRequest.RequestId || request.RequestId == sourceRequest.RequestId)
         { throw new InvalidOperationException("Appearance confirmation requires a separate fresh local user request."); }
         AppearanceOptionState state;
         AppearanceValue value;
         Func<CancellationToken, Task> validate;
         lock (gate)
         {
-            if (!Available)
+            if (consumed || !Current())
             { throw new InvalidOperationException("Appearance review expired. Review a fresh suggestion; nothing was applied."); }
             consumed = true;
             state = current!;

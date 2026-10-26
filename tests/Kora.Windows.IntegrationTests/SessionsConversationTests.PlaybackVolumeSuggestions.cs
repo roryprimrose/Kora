@@ -53,16 +53,17 @@ public sealed partial class SessionsConversationTests
             try
             {
                 var button = window.GetVisualDescendants().OfType<Button>()
-                    .Single(item => string.Equals(item.Name, "ReviewPlaybackVolumeSuggestion", StringComparison.Ordinal));
+                    .Single(item => string.Equals(item.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal));
                 button.DataContext.Should().BeSameAs(answer);
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.PlaybackVolumeOperation;
+                await owner.RegisteredSettingOperation;
+                model.RegisteredSettingSuggestionDescription.Should().Be(model.PlaybackVolumeSuggestionDescription);
                 model.PlaybackVolumeSuggestionDescription.Should().Contain("Current desired: 100%; effective: 100% (default)")
                     .And.Contain($"Proposed: {percent}%").And.Contain("shared device-local").And.Contain("never synthesized or replayed");
                 preferences.Load().Should().BeNull();
                 audit.Events.Should().BeEmpty();
-                window.FindControl<Button>("ConfirmPlaybackVolumeSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.PlaybackVolumeOperation;
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
                 model.ConversationStatus.Should().Contain("saved with committed preference and audit readback");
                 new LocalPlaybackVolumePreferences(f.Paths).Load().Should().Be(new PlaybackVolume(percent));
                 playback.Volume.Should().Be(new PlaybackVolume(percent));

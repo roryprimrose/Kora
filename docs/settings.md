@@ -82,11 +82,11 @@ suggestion, using the registered reader percentage range. This answer is inert
 text, never a command or permission to write. Other answers remain readable
 but cannot be used as appearance suggestions.
 
-Choose **Review appearance suggestion...** on that exact assistant answer in
+Choose **Review setting suggestion...** on that exact assistant answer in
 Sessions or the compact conversation. The native review shows the exact current
 value, whether it is saved or default, proposed value, units and shared
-device-local scope. Separately choose **Confirm exact appearance change** to
-save just that option, or **Cancel appearance review** to change nothing.
+device-local scope. Separately choose **Confirm exact setting change** to
+save just that option, or **Cancel setting review** to change nothing.
 Successful saves use the same shared validation, audit, persistence and live
 appearance refresh as Settings. Failed or stale saves are reported; review
 again rather than automatically retrying.
@@ -98,6 +98,10 @@ revoke review. Protected calls and original voice requests are not eligible
 for this native-only increment; UI confirmation does not relabel a voice
 request. Unqualified or unavailable models remain unavailable and cannot
 produce a reviewable successful answer. No provider is enabled by this feature.
+
+The same [registered-setting review](setting-proposals.md) handles the existing
+spoken-summary and Kora-volume suggestion families without expanding settings
+or granting model write authority. Only one native review is active at a time.
 
 ### Navigate without changing a preference
 
@@ -914,14 +918,14 @@ clear it. No automatic retry, test playback or acoustic audibility claim.
 
 An admitted local model can return exactly `set speech.playback-volume to 30`
 (one canonical integer 0-100). The complete retained successful ASSISTANT answer
-is inert data, never permission. Choose **Review Kora volume suggestion...** on
+is inert data, never permission. Choose **Review setting suggestion...** on
 that exact answer in expanded or compact Sessions. Review displays current
 desired/effective percent, saved/default provenance, proposed percent, shared
 device-local scope and zero-synthesis implications. Review writes nothing and
 never synthesizes or replays the answer.
 
-Choose **Confirm exact Kora volume change** separately within 60 seconds, or
-**Cancel Kora volume review**. Typed/current-name activated routes are
+Choose **Confirm exact setting change** separately within 60 seconds, or
+**Cancel setting review**. Typed/current-name activated routes are
 **review volume suggestion**, **confirm volume change**, **cancel volume review**;
 they use only the exact successful session-submission receipt, never a guessed
 latest answer. Confirmation revalidates source, session, ownership, privacy,
@@ -977,11 +981,11 @@ An admitted local model may return exactly `set speech.summary-words to 40`
 or `set speech.summary-sentences to 2`. This is inert answer data, not a write,
 approval, tool invocation or a request to speak.
 
-Choose **Review speech limit suggestion...** on that exact retained answer in
+Choose **Review setting suggestion...** on that exact retained answer in
 Sessions or the compact conversation. Review the complete **current** and
 **proposed** sentence/word pair, saved/default provenance, unchanged companion,
 shared device-local scope and next-ordinary-speech timing. Then separately choose
-**Confirm exact speech limit change**, or **Cancel speech limit review**.
+**Confirm exact setting change**, or **Cancel setting review**.
 Only the two existing caps are admitted; provider, installed voice and other
 settings are not suggestions for this operation.
 

@@ -51,6 +51,7 @@
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
+          <Button x:Name="OpenMixedContext" Content="Review history, instruction and session memory together" IsEnabled="{Binding CanOpenMixedContext}" />
         </WrapPanel>
         <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
             SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
@@ -169,23 +170,12 @@
           </StackPanel>
         </Expander>
         <local:ModelMemoryProposalPanel />
-        <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
+        <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
         <WrapPanel>
-          <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-          <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-        </WrapPanel>
-        <TextBlock Text="{Binding PlaybackVolumeSuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Current desired and effective Kora-only volume, saved or default provenance, proposed percent, shared device-local scope and zero-synthesis implications" />
-        <WrapPanel>
-          <Button Name="ConfirmPlaybackVolumeSuggestion" Content="Confirm exact Kora volume change" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-          <Button Name="CancelPlaybackVolumeSuggestion" Content="Cancel Kora volume review" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-        </WrapPanel>
-        <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
-        <WrapPanel>
-          <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
-          <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+          <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+          <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
         </WrapPanel>
       </StackPanel>
     </Expander>

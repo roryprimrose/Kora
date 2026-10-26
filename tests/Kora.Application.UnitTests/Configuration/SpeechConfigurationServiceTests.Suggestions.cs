@@ -13,6 +13,53 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class SpeechConfigurationServiceTests
 {
+    [Fact]
+    public async Task RegisteredSpeechSuggestionRejectsStoppedParentAfterChildRestoresAmbientActivity()
+    {
+        using var f = new Fixture();
+        var message = SpeechSuggestion();
+        using var input = BeginSpeechInput(SpeechInput(message));
+        using var child = new Activity("test.host-child").Start();
+        input.Activity!.Stop();
+        child.Stop();
+        input.Activity.IsStopped.Should().BeTrue();
+        HostActivity.RequireCurrent().Should().BeSameAs(input);
+        await FluentActions.Awaiting(() => SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy,
+            new SuggestionClock(), message, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Preferences.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RegisteredSpeechSuggestionRejectsHostSystemSourceAndReusedOriginalRequest()
+    {
+        using var f = new Fixture();
+        var system = SpeechSuggestion(origin: RequestOrigin.HostSystem);
+        using (BeginSpeechInput(SpeechInput(system)))
+        {
+            await FluentActions.Awaiting(() => SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy,
+                new SuggestionClock(), system, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidDataException>();
+        }
+        var message = SpeechSuggestion();
+        SpeechSummarySuggestionReview review;
+        using (BeginSpeechInput(SpeechInput(message)))
+        {
+            review = await SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy, new SuggestionClock(),
+                message, () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+        }
+        using (review)
+        using (BeginSpeechInput(message.Request))
+        {
+            await FluentActions.Awaiting(() => review.ConfirmAsync(TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>();
+            review.Available.Should().BeTrue();
+        }
+        f.Preferences.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
     private sealed class SuggestionClock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
@@ -303,8 +350,11 @@ public sealed partial class SpeechConfigurationServiceTests
         }
     }
 
-    [Fact]
-    public async Task SpeechSuggestionTraceLinksDeferredReviewAndAdmittedSourceWithoutUserTextOrIncomingAuthority()
+    [Theory]
+    [InlineData(RequestOrigin.ActivatedVoice, RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice)]
+    public async Task SpeechSuggestionTraceLinksDeferredReviewAndAdmittedSourceWithoutUserTextOrIncomingAuthority(
+        RequestOrigin originalOrigin, RequestOrigin reviewOrigin)
     {
         using var f = new Fixture();
         var policies = new List<Activity>();
@@ -318,10 +368,10 @@ public sealed partial class SpeechConfigurationServiceTests
             },
         };
         ActivitySource.AddActivityListener(listener);
-        var message = SpeechSuggestion(origin: RequestOrigin.ActivatedVoice);
+        var message = SpeechSuggestion(origin: originalOrigin);
         SpeechSummarySuggestionReview review;
         ActivityContext reviewed;
-        using (var input = BeginSpeechInput(SpeechInput(message)))
+        using (var input = BeginSpeechInput(SpeechInput(message, reviewOrigin)))
         {
             reviewed = input.Activity!.Context;
             review = await SpeechSummarySuggestionReview.ReviewAsync(f.Service, f.Policy, new SuggestionClock(),
@@ -339,7 +389,7 @@ public sealed partial class SpeechConfigurationServiceTests
             policy.GetTagItem("kora.source.request.id").Should().Be(message.Request.RequestId.Value);
             policy.GetTagItem("kora.source.task.id").Should().Be(message.Request.TaskId.Value);
             policy.GetTagItem("kora.source.turn.id").Should().Be(message.Execution!.Turn.Value);
-            policy.GetTagItem("kora.source.origin").Should().Be(nameof(RequestOrigin.ActivatedVoice));
+            policy.GetTagItem("kora.source.origin").Should().Be(originalOrigin.ToString());
             policy.Status.Should().Be(ActivityStatusCode.Ok);
             policy.TagObjects.Should().NotContain(tag => Equals(tag.Value, message.Body)
                 || Equals(tag.Value, message.AssistantResponse!.Body));

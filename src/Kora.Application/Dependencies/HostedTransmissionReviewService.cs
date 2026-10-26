@@ -27,8 +27,8 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     public ClaudeTurnAuthorization PrepareClaudeTurn(ModelContextEnvelope context, ProviderProfileTuple profile)
     {
         var current = ValidatePreparation(context, profile, ProviderService.Claude);
-        if (context.ToolMode != ModelToolMode.None || !context.Evidence.IsEmpty || context.McpTool is not null)
-        { throw new InvalidOperationException("Claude requires an explicit tool-free request without evidence."); }
+        if (!ClaudeObservationTools.Supports(context))
+        { throw new InvalidOperationException("Claude requires an explicit tool-free request or bounded original observation subset, without evidence."); }
         return new(this, current, context, profile);
     }
 

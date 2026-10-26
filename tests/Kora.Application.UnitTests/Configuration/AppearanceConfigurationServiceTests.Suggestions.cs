@@ -12,6 +12,43 @@ namespace Kora.Application.UnitTests.Configuration;
 
 public sealed partial class AppearanceConfigurationServiceTests
 {
+    [Fact]
+    public async Task RegisteredAppearanceSuggestionCannotRelabelAnOriginalSystemSource()
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        var message = Suggestion(origin: RequestOrigin.HostSystem);
+        using var input = BeginSuggestionInput(SuggestionInput(message.Request));
+        await FluentActions.Awaiting(() => AppearanceSuggestionReview.ReviewAsync(fixture.Service, message,
+            () => true, _ => Task.CompletedTask, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidDataException>();
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RegisteredAppearanceSuggestionCannotReuseOriginalModelRequestAsConfirmation()
+    {
+        using var listener = ListenToSuggestions();
+        var fixture = new Fixture();
+        var message = Suggestion();
+        AppearanceSuggestionReview review;
+        using (BeginSuggestionInput(SuggestionInput(message.Request)))
+        {
+            review = await AppearanceSuggestionReview.ReviewAsync(fixture.Service, message, () => true,
+                _ => Task.CompletedTask, TestContext.Current.CancellationToken);
+        }
+        using (review)
+        using (BeginSuggestionInput(message.Request))
+        {
+            await FluentActions.Awaiting(() => review.ConfirmAsync(TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<InvalidOperationException>();
+            review.Available.Should().BeTrue("a rejected input is not a confirmation");
+        }
+        fixture.Store.Writes.Should().Be(0);
+        fixture.Audit.Events.Should().BeEmpty();
+    }
+
     private static ActivityListener ListenToSuggestions()
     {
         var listener = new ActivityListener
@@ -157,6 +194,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("set appearance.reader-text-scale to 999")]
     [InlineData("set appearance.reader-text-scale to 1.25")]
     [InlineData("set appearance.presence-timeout to 10")]
+    [InlineData("set speech.summary-words to 40")]
     [InlineData("reset appearance.theme")]
     [InlineData("set appearance.theme to dark\nand do something else")]
     [InlineData("I changed your theme to dark.")]
@@ -268,6 +306,7 @@ public sealed partial class AppearanceConfigurationServiceTests
         }
         fixture.Store.Text["appearance-theme.txt"] = "Light";
         fixture.Service.Reload();
+        review.Available.Should().BeFalse("the exact reviewed revision is no longer current");
         using (review)
         using (BeginSuggestionInput(SuggestionInput(message.Request)))
         {

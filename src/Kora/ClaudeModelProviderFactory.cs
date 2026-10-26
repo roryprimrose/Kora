@@ -2,11 +2,13 @@ using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
 using Kora.Core.Providers;
 using Kora.Windows.Dependencies;
+using Microsoft.Extensions.Logging;
 
 namespace Kora;
 
 internal sealed class ClaudeModelProviderFactory(ClaudeAccountBroker accounts, ClaudeMessagesRuntime runtime,
-    HostedTransmissionReviewService reviews, TimeProvider time) : IModelProviderRegistrationSource
+    HostedTransmissionReviewService reviews, TimeProvider time,
+    ILogger<BoundedModelTurnAdapter> logger) : IModelProviderRegistrationSource
 {
     public async Task<ModelProviderRegistration?> ResolveAsync(ModelProviderSelection selection, ProviderProfileTuple profile,
         CancellationToken cancellationToken)
@@ -18,7 +20,7 @@ internal sealed class ClaudeModelProviderFactory(ClaudeAccountBroker accounts, C
         return !current ? null : new(selection,
             ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
                 | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
-            catalogue.ValidUntil, new ClaudeModelTurnAdapter(runtime, reviews),
+            catalogue.ValidUntil, new ClaudeModelTurnAdapter(runtime, reviews, time, logger),
             () => catalogue.IsCurrent(time.GetUtcNow()));
     }
 }

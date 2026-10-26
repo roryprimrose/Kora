@@ -55,6 +55,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
+        surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
         surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }
@@ -134,6 +135,7 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
+        surface.RemoveHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnModelMemoryProposal);
         surfaces.Remove(surface);
         if (ReferenceEquals(active, surface)) { active = null; }

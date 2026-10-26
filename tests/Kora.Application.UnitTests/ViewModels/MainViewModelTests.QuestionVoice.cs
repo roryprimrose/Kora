@@ -83,7 +83,7 @@ public sealed partial class MainViewModelTests
         var f = await ReplyHostAsync();
         var editorCalls = 0;
         f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
-        f.ViewModel.BindCustomizationVoice((_, _, _) => { editorCalls++; return Task.CompletedTask; });
+        f.ViewModel.BindCustomizationVoice(_ => { editorCalls++; return Task.CompletedTask; });
         using var host = new InteractionFixture();
         var question = await host.QuestionAsync();
         await using var replies = f.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,

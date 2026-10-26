@@ -5,6 +5,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -329,8 +330,13 @@ public sealed partial class MainViewModelTests
         }
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
-            if (RequestMessage?.Outcome == ModelTurnOutcome.Succeeded)
-            { BeforeSpeechMetadataRead?.Invoke(++speechMetadataReads); }
+            if (SpeechTerminalPublished && RequestMessage?.Outcome == ModelTurnOutcome.Succeeded
+                && HostActivity.Current?.Request != RequestMessage.Request)
+            {
+                var before = BeforeSpeechReceiptMetadataRead;
+                BeforeSpeechReceiptMetadataRead = null;
+                before?.Invoke();
+            }
             return ValueTask.FromResult(Session);
         }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken cancellationToken) =>

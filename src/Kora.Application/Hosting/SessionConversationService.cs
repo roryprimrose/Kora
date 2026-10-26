@@ -200,7 +200,6 @@ public sealed partial class SessionConversationService(
                         bindWebPage?.Invoke(admission.Turn, Live);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
                             token, resolveResponse, onAdmitted, terminalCommitted).ConfigureAwait(false);
-                        await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, token).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);

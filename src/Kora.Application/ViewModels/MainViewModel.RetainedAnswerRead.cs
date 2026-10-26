@@ -17,6 +17,8 @@ public sealed partial class MainViewModel : ISessionAnswerPlayback
         internal HostRequest Request { get; } = request;
         internal Func<bool> Admitted { get; } = admitted;
         internal Func<CancellationToken, Task> Validate { get; } = validate;
+        internal bool Interrupted { get; set; }
+        internal bool InterruptionConfirmed { get; set; }
         internal string Result { get; set; } = "Retained answer was not played completely. The full visual source is unchanged; inspect speech length, privacy and speech readiness before a fresh deliberate request. No successful read or queued replay is claimed.";
     }
 
@@ -35,6 +37,7 @@ public sealed partial class MainViewModel : ISessionAnswerPlayback
     }
 
     private bool CanEnterRetainedAnswerRead => composerDictation?.IsActive != true
+        && !speechInterruptionActive
         && questionVoiceReplies?.IsActive != true && !IsResponseInteractionPending && !IsGrantEditorVisible
         && responseReadDecisionsEligible() && retainedAnswerDecisionsEligible();
 

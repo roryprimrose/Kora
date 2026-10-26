@@ -303,7 +303,7 @@ internal static class Program
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
-        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Application.Mcp.UnavailableMcpConnectionBroker>();
+        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Windows.Mcp.WindowsMcpConnectionBroker>();
         services.AddSingleton(new Kora.Application.Mcp.McpReadOnlyPolicy([]));
         services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
         services.AddKeyedSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt,

@@ -123,10 +123,12 @@ public sealed partial class ModelTurnHostTests
         host.IsQuiescent.Should().BeTrue();
     }
 
-    [Fact]
-    public async Task ReviewedToolRequestConsumesTerminalHookWhenResourceAdmissionIsUnavailableWithoutFetchingPage()
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi)]
+    [InlineData(RequestOrigin.ActivatedVoice)]
+    public async Task ReviewedToolRequestConsumesTerminalHookWhenResourceAdmissionIsUnavailableWithoutFetchingPage(RequestOrigin origin)
     {
-        using var f = new Fixture();
+        using var f = new Fixture(origin);
         await using var skill = new SharedSkillHarness(f);
         await skill.Register();
         DeclareWebTool(skill);
@@ -134,22 +136,73 @@ public sealed partial class ModelTurnHostTests
         var network = new PageNetwork();
         var workflow = skill.ToolWorkflow(adapter: adapter, network: network);
         using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(),
-            new(f.Session, null), skill.Eligible, RequestOrigin.LocalUi, Token);
-        await workflow.EnableAsync(review, skill.Eligible, RequestOrigin.LocalUi, Token);
+            new(f.Session, null), skill.Eligible, origin, Token);
+        await workflow.EnableAsync(review, skill.Eligible, origin, Token);
         using var invocation = await workflow.PrepareAsync(review, "original reviewed request", ToolDestination,
-            skill.Eligible, RequestOrigin.LocalUi, Token);
-        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
+            skill.Eligible, origin, Token);
+        using var root = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
         try
         {
             var receipt = await workflow.InvokeAsync(invocation, skill.Eligible, UnexpectedPageApproval, Token);
             receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
             receipt.Message.Reason.Should().Be(ModelTurnReason.ProviderBusy);
             receipt.Message.Execution.Should().BeNull();
+            receipt.Message.AssistantResponse.Should().BeNull();
+            receipt.Message.Body.Should().Be("original reviewed request");
+            receipt.Message.Request.Origin.Should().Be(origin);
+            receipt.Message.Should().Be(f.Retained);
+            receipt.Task.IsTerminal.Should().BeTrue();
+            receipt.Task.Should().Be(f.Task!.Task);
             f.ExecutionStarts.Should().Be(0);
+            f.ExecutionCompletions.Should().Be(0);
             network.Sends.Should().Be(0);
             adapter.Active.Should().Be(0);
+            adapter.IsQuiescent.Should().BeFalse();
+            review.Text.Should().BeEmpty();
+            invocation.Body.Should().BeEmpty();
+            skill.Audit.Events.Where(entry => string.Equals(entry.ActionId, "skills.tool-revision.invoke", StringComparison.Ordinal))
+                .Select(entry => entry.Outcome).Should().Equal(
+                    Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Failed);
         }
         finally { adapter.Quiescent = true; }
+    }
+
+    [Fact]
+    public async Task ReviewedToolRequestRejectsUnconfirmedResourceReleaseBeforeTerminalRetention()
+    {
+        using var f = new Fixture();
+        await using var skill = new SharedSkillHarness(f);
+        await skill.Register();
+        DeclareWebTool(skill);
+        var network = new PageNetwork();
+        var workflow = skill.ToolWorkflow(network: network);
+        using var review = await workflow.ReviewAsync(skill.Reader.Source, skill.Reader.Snapshot(),
+            new(f.Session, null), skill.Eligible, RequestOrigin.LocalUi, Token);
+        await workflow.EnableAsync(review, skill.Eligible, RequestOrigin.LocalUi, Token);
+        using var invocation = await workflow.PrepareAsync(review, "original reviewed request", ToolDestination,
+            skill.Eligible, RequestOrigin.LocalUi, Token);
+        f.AfterExecutionStart = () => throw new IOException("Execution intent readback is unavailable.");
+        f.OnAudit = entry =>
+        {
+            if (string.Equals(entry.ActionId, "runtime.resource.release", StringComparison.Ordinal))
+            { throw new IOException("Required resource release audit is unavailable."); }
+        };
+        var failure = await workflow.Invoking(value => value.InvokeAsync(invocation, skill.Eligible, UnexpectedPageApproval, Token))
+            .Should().ThrowAsync<Kora.Core.Conversation.ConversationSubmissionUnconfirmedException>();
+        failure.Which.InnerException.Should().BeOfType<IOException>()
+            .Which.Message.Should().Be("Required resource release audit is unavailable.");
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(1);
+        f.ExecutionCompletions.Should().Be(0);
+        f.Retained!.Outcome.Should().BeNull();
+        f.Retained.AssistantResponse.Should().BeNull();
+        f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+        network.Sends.Should().Be(0);
+        review.Text.Should().BeEmpty();
+        invocation.Body.Should().BeEmpty();
+        skill.Audit.Events.Where(entry => string.Equals(entry.ActionId, "skills.tool-revision.invoke", StringComparison.Ordinal))
+            .Select(entry => entry.Outcome).Should().Equal(
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Failed);
     }
 
     private sealed class ReportedIdleAdmission(ModelTurnHost host) : IModelTurnAdmission

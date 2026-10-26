@@ -62,6 +62,11 @@ public sealed partial class SessionConversationService(
             ? SubmitOrdinaryWithScopeAsync(target, body, admitted, beforeRetain, links, origin, token)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
+    internal Task<ConversationSubmissionReceipt> SubmitOriginalLocalAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
+        RequestOrigin origin, CancellationToken token) =>
+        SubmitCoreAsync(target, body, admitted, validateSource, links, origin, null, ModelTurnChoice.Local, token);
+
     /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
     public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>
@@ -100,7 +105,7 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false)
+        bool claude = false, bool claudeStreamAnswer = false)
     {
         RequireOriginalSource(origin);
         RequireConversationDispatchOpen(target.Authority.SessionId);
@@ -162,7 +167,7 @@ public sealed partial class SessionConversationService(
 
                         admission = claude
                             ? turns is ModelTurnHost claudeHost
-                                ? await claudeHost.AdmitClaudeAsync(context, token).ConfigureAwait(false)
+                                ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
                             : copilot
                             ? turns is ICopilotTurnAdmission hosted
@@ -195,7 +200,6 @@ public sealed partial class SessionConversationService(
                         bindWebPage?.Invoke(admission.Turn, Live);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
                             token, resolveResponse, onAdmitted, terminalCommitted).ConfigureAwait(false);
-                        await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, token).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);

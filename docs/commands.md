@@ -17,6 +17,32 @@ Accepting a proposal does not save or enable it. Native source/component editing
 recoverable User-original writes, disabled-use persistence and availability
 limits are described in [Customizations](customizations.md).
 
+## Invoke one registered agent by readable name
+
+Type `agent invoke "Exact readable name" <original task>`, or use the current
+assistant-name prefix for activated voice, for example
+`Kora, agent invoke "Planning helper" Explain the next step.`
+The double quotes delimit one literal, case-sensitive registered agent name.
+The task after the separating space is preserved exactly; it is not another
+command, source path or approval.
+
+Select one existing Active conversation from the native readable list, or use
+`agent conversation <displayed conversation name>`. Then use
+`agent review invocation` to read and review the exact current source, original
+task, conversation and original channel. Any declared reference reads retain
+their separate consent. Finally use **Consent to this exact bounded invocation**
+or `agent confirm invocation`. Review does not run a model. One confirmed bounded
+run retains its genuine answer or explicit terminal failure in that exact
+conversation. `agent stop` closes authority and joins owned work.
+
+Missing, duplicate, disabled, changed or deleted sources refuse without another
+agent, last-good revision or ordinary-model fallback. Names are never technical
+IDs. The source and task are fixed for this command; changing either requires a
+fresh command and review. Voice-origin input keeps its original channel through
+native review and confirmation; existing voice/privacy/call/ownership admission
+can still expire it. No model/definition text can invoke this original-user route.
+See the [complete governed interaction and availability](tools-and-built-in-skills.md#invoke-a-registered-agent-by-readable-name).
+
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
@@ -1965,6 +1991,8 @@ Unqualified local providers truthfully report unavailable, without installation,
 ### Invoke an instruction-only skill by readable name
 
 Enter `use skill <exact declared readable name>`, optionally prefixed with the current assistant name when typing. Activated voice requires the current-name prefix, for example `Kora, use skill concise-review`. This reserved namespace does not fall through to built-in actions, another source or a model when lookup fails ([parser](../src/Kora.Application/Skills/NamedSkillCommand.cs)).
+
+[Customization metadata discovery](tools-and-built-in-skills.md) remains a separate reviewed operation. Command-like text in a skill name or discovery request does not invoke the other operation or enable a skill. Both routes refuse to replace a pending question or approval; the original question remains visible.
 
 The named-use window initially reads no files. Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
 This reads complete package files, not reference bodies or unrelated context. Initial shared-root registration remains a separate native operation ([inspection](../src/Kora.Application/Skills/NamedSkillCatalogue.cs)).

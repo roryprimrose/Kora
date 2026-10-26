@@ -24,14 +24,27 @@ public sealed class SessionRequestCommandService(
     }
 
     public async Task<SessionCommandResult> ExecuteAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admitted, CancellationToken token)
+        Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];
         Pending? previous;
         long attempt;
         lock (gate) { previous = pending; pending = null; attempt = ++epoch; }
         var control = access.ControlRevision;
-        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted();
+        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
+            && (!command.RequestForegroundTarget || foregroundTarget?.IsCurrent == true);
+        if (command.RequestForegroundTarget)
+        {
+            if (command.Operation != SessionCommandOperation.RequestReview || command.SessionId is not null
+                || command.RequestActiveTarget || command.RequestTargetName is not null
+                || command.RequestProvider != SessionRequestReview.ProviderChoice.Default
+                || foregroundTarget is null || !Live())
+            { throw new InvalidOperationException("No unique eligible foreground conversation is current. Show and focus an Active conversation, then request a fresh review. Nothing was submitted."); }
+            var entry = foregroundTarget.Entry;
+            command = command with { SessionId = entry.Authority.SessionId.Value,
+                Generation = entry.Authority.Generation.Value, MetadataRevision = entry.Metadata?.Revision.Value ?? 0 };
+        }
         if (command.RequestUsesPendingReview)
         {
             if (command.SessionId is not null || command.RequestReviewId is not null
@@ -58,7 +71,7 @@ public sealed class SessionRequestCommandService(
         var session = new HostId<SessionIdentity>(command.SessionId
             ?? throw new InvalidOperationException("An exact or unambiguously host-resolved conversation is required."));
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
-            HostActivityLayer.Application, HostOperation.Request);
+            HostActivityLayer.Application, HostOperation.Request, sourceLinks);
         try
         {
             token.ThrowIfCancellationRequested();
@@ -78,14 +91,15 @@ public sealed class SessionRequestCommandService(
                 var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
                 if (target.Authority.SessionId != session || !target.Authority.IsActive
                     || target.Authority.Generation.Value != command.Generation
-                    || (target.Metadata?.Revision.Value ?? 0) != command.MetadataRevision || !Live())
+                    || (target.Metadata?.Revision.Value ?? 0) != command.MetadataRevision || !Live()
+                    || command.RequestForegroundTarget && target != foregroundTarget!.Entry)
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
                     command.RequestProvider) { ClaudeTools = command.RequestClaudeTools };
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context));
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
                 return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
@@ -123,7 +137,10 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
+                receipt = previous.Foreground
+                    ? await conversation.SubmitOriginalLocalAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
+                        Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
+                    : previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
                     ? await conversation.SubmitReviewedClaudeAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
                         Revalidate, [previous.Cause], previous.Review.Origin, previous.Review.ClaudeTools, token).ConfigureAwait(false)
                     : previous.Review.Provider == SessionRequestReview.ProviderChoice.Copilot
@@ -187,5 +204,6 @@ public sealed class SessionRequestCommandService(
         throw new InvalidOperationException("Conversation inventory exceeds the bounded complete resolution limit. Use native Sessions to choose the exact conversation.");
     }
 
-    private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause);
+    private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
+        bool Foreground);
 }

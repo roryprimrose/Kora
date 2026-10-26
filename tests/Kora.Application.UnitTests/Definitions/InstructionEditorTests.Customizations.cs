@@ -14,6 +14,33 @@ namespace Kora.Application.UnitTests.Definitions;
 public sealed partial class InstructionEditorTests
 {
     [Theory]
+    [InlineData("existing")]
+    [InlineData("new")]
+    [InlineData("revision")]
+    [InlineData("source")]
+    [InlineData("destination")]
+    [InlineData("withdrawal")]
+    public async Task Editor_clarification_rechecks_original_source_without_writes(string state)
+    {
+        await using var f = new Fixture();
+        var files = new CustomizationFiles();
+        var expected = files.Current;
+        var source = files.Source;
+        var service = new CustomizationManagementService(files, f.Admission,
+            new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store()), f.Catalogue, f.Audit);
+        if (state is "revision") { files.Current = new(source, "newer", expected.Files); }
+        if (state is "source") { files.Current = new(source with { Id = "file.other" }, expected.Revision, expected.Files); }
+        if (state is "destination") { source = source with { Name = "different" }; }
+        if (state is "withdrawal") { files.AfterRead = () => f.Open = false; }
+        var operation = () => service.RequireUnchangedSource(source, state is "new" or "destination" ? null : expected,
+            f.Eligible, TestContext.Current.CancellationToken);
+        if (state is "existing" or "new") { await operation(); }
+        else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        files.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
     public async Task Policy_enabled_owned_inventory_and_validation_remain_current_until_use_changes(ArtifactKind kind)

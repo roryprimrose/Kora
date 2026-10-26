@@ -22,6 +22,8 @@ Use **Answer locally (no tools)** for bounded incremental text in the originatin
 
 Ordinary tool-capable Send, clarification and hosted requests retain their existing buffered contracts. Local qualification, session instructions, privacy, current-source generation, input/output budgets, original USER and trusted terminal audit rules remain authoritative; this is no runtime auto-enablement or hosted streaming change ([submission owner](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [host selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)).
 
+The separate native-only **Stream explicitly with Claude (text only, separately qualified)** action now uses the same provisional lifecycle for original-user, tool-free requests. It adds exact-profile stream evidence and separate native physical-send consent, without changing the buffered routes above or enabling the shipped unavailable Claude source ([operation](../docs/claude-requests.md#separately-qualified-native-text-streaming), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
 ## Conversation Input Realignment
 
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
@@ -825,6 +827,18 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
 
+### Explicit original request to the foreground conversation
+
+The approved voice/UI-equivalent conversation operation accepts `ask this conversation <original body>` with the current assistant-name activation for voice. The native [presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) publishes one irreversible snapshot of its unique visible, foreground, eligible Active presenter. Selection alone, names, input/model IDs and cached targets cannot provide that snapshot.
+
+The [host input route](../src/Kora.Application/ViewModels/MainViewModel.cs) captures that snapshot before queued voice dispatch. The [request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) freezes the complete body and target for a 60-second one-use review and revalidates original input, exact session/generation/metadata and private control at confirmation and canonical submission fences.
+
+Native **Confirm original request once** and separate `session request confirm` consume the same review without cleansing voice origin ([native decision binding](../src/Kora.Application/ViewModels/MainViewModel.ForegroundRequests.cs)).
+
+This route requests only a local original answer through [SessionConversationService](../src/Kora.Application/Hosting/SessionConversationService.cs), not ordinary scoped-instruction preparation or relatedness routing. It authorizes no prior history, memory or instruction sources. It preserves per-session unsent input, existing unsolicited/new-request behavior and mandatory authentication/hosted physical-send exceptions. Missing local readiness remains a truthful HOST outcome without hosted fallback.
+
+The [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs) traverse parsing, foreground binding, accessible exact preview, separate confirmation, actual deterministic ModelTurnHost execution and private SQLite answer retention. [Portable regressions](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.ForegroundRequests.cs) cover missing/stale snapshots, expiry, cancellation and replay denial. These are implementation evidence, not production model, microphone or installed-native qualification.
+
 ### Delivered explicit exact-session request commands
 
 Typed input and current-name activated voice can deliberately address one exact Active session using the [strict reserved request grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs). This does not add selected-window, session-title, relatedness, pending-question or approval routing.
@@ -1362,6 +1376,7 @@ Opening or declining review has no stop/discard/delete effect ([operation](../sr
 
 Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
 The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+The conversation executor confirms the original terminal readback before releasing its physical-completion lease. Submission returns that confirmed receipt without rereading the original after release, when the reviewed disposition may already have removed it.
 A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
 A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
 ([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).

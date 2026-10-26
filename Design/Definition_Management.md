@@ -247,7 +247,7 @@ edit or an approval.
 
 ### Foreground editor voice targeting
 
-**Status: bounded implementation with native clarification/review.** The product owner selected
+**Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected
 foreground editor plus model-interpreted editing intent, with clarification
 when ambiguous. The delivered route requires neither an "in this editor"
 preface nor a separate editor capture mode. This advances the approved
@@ -259,8 +259,9 @@ definition content and models cannot assign that authority.
 The current target-choice surface offers refinement/discussion of the exact
 captured artifact or Cancel. Another artifact/session/New request requires
 cancellation and its explicit admitted route; there is no automatic transfer
-of the held utterance. Spoken target-choice replies and general model-selected
-session relatedness are not delivered by this increment.
+of the held utterance. **Answer by voice** opens one bounded local successor
+capture for this editor question only. General model-selected session
+relatedness remains unavailable.
 
 An open background editor is not a target. At admitted wake/PTT activation,
 before asynchronous capture or UI dispatch, the host snapshots the eligible
@@ -312,13 +313,30 @@ Clarification offers only actual eligible, source-qualified targets, with
 **Cancel**. The delivered choices are the captured artifact's refinement or
 discussion; separate explicit routes select another destination. A later
 cross-target chooser may include **New request** or sessions only when relevant.
-For example: **Did you mean this instruction, or a session request?** A future admitted spoken answer must belong to this exact question and original
+For example: **Did you mean this instruction, or a session request?** An admitted spoken answer belongs to this exact question and original
 utterance, not a fresh command. Choice expiry, cancellation or invalidation discards the pending
 handoff. Selecting a different destination is a new explicit routing decision,
 not replay through the global parser. It preserves the original voice channel
 and uses that destination's ordinary review/admission; choosing an editor does
 not itself approve disclosure or an edit. No choice may silently substitute a
 different source after the original becomes stale.
+
+The delivered editor question is a volatile, single-consumption continuation of
+the original foreground request, not a persisted session question. It binds the
+exact editor target, source/baseline, draft/component, original request/channel
+and host/privacy/call admission. Native buttons and the separately selected
+**Answer by voice** share the same typed Refine/Discuss/Cancel outcome and
+75-second question expiry; neither extends the original operation's deadline.
+Only that question owner can hand over its original capture generation to its
+acknowledged successor and confirmed release. Global voice-generation fences
+and persisted-question admission are unchanged. The reply is parsed against
+this question's whole-utterance schema, never sent to a command/session parser.
+Invalid, duplicate, foreign or late replies cannot resume another operation.
+Withdrawal, expiry, close and disposal retain ownership until opening and
+capture release join. No held request/reply/question is saved or restored.
+Source freshness is rechecked before resumption, local authoring and draft
+adoption; deletion or revision changes require explicit reload/new input.
+Spoken choice is not disclosure, proposal adoption, Save or enablement consent.
 
 #### Complete editing interaction
 

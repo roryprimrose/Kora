@@ -28,8 +28,11 @@ internal sealed class CustomizationWindow : Window
     internal readonly TextBox FileName = new() { PlaceholderText = @"references\notes.md", MinWidth = 180 };
     internal readonly TextBox Editor = new()
     {
-        AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new("Consolas"),
-        HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.NoWrap,
+        FontFamily = new("Consolas"),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch,
     };
     internal readonly TextBox Request = new() { PlaceholderText = "Describe or discuss a change with Kora...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
@@ -80,7 +83,8 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(PushToTalkButton, "Speak to the selected artifact; hold while speaking");
         ToolTip.SetTip(PushToTalkButton, "Hold to speak to this artifact. Release to review local interpretation; nothing is saved or enabled.");
         var sourceActions = new WrapPanel();
-        foreach (var action in new[] { "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
+        foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
+            "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
         { AddButton(sourceActions, action, action, run); }
         header.Children.Add(sourceActions); header.Children.Add(Files);
         var components = new WrapPanel();
@@ -105,6 +109,8 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(Request, "Definition authoring request");
         AutomationProperties.SetName(NewName, "New artifact ID");
         AutomationProperties.SetName(Destination, "New artifact destination");
+        AutomationProperties.SetName(Status, "Customization operation status and recovery");
+        AutomationProperties.SetLiveSetting(Status, AutomationLiveSetting.Polite);
         SetSource(null, false);
         Deactivated += (_, _) => { if (!openingReview && review?.IsActive != true) { PresentationLost?.Invoke(); } };
         PropertyChanged += (_, change) =>
@@ -121,9 +127,13 @@ internal sealed class CustomizationWindow : Window
         panel.Children.Add(button);
     }
 
-    internal void SetSource(CustomizationSource? source, bool recovery)
+    internal void SetSource(CustomizationSource? source, bool recovery, bool originalRegistered = true)
     {
-        var writable = source is { IsReadOnly: false };
+        var original = source is { Kind: CustomizationKind.Instruction, Scope: CustomizationScope.User };
+        var writable = source is { IsReadOnly: false } && (!original || originalRegistered);
+        actions["Review original registration"].IsEnabled = original;
+        actions["Withdraw original registration"].IsEnabled = original && originalRegistered;
+        actions["Compare external"].IsEnabled = original && originalRegistered;
         var components = writable && source?.Kind == CustomizationKind.Skill && !recovery;
         Editor.IsReadOnly = !writable || recovery;
         actions["Review and save"].IsEnabled = writable;
@@ -162,7 +172,9 @@ internal sealed class CustomizationWindow : Window
             catalogue.Children.Add(new Expander
             {
                 Header = (scope == CustomizationScope.BuiltIn ? "Built-in" : scope.ToString()) + " (" + matches.Length + ")",
-                IsExpanded = true, Content = rows, HorizontalAlignment = HorizontalAlignment.Stretch,
+                IsExpanded = true,
+                Content = rows,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
             });
         }
     }
@@ -190,6 +202,7 @@ internal sealed class CustomizationWindow : Window
         }
         DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
         var body = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(body, title + ": complete exact source and scope review");
         panel.Children.Add(body);
         opened.Content = panel;
         opened.Closed += (_, _) =>

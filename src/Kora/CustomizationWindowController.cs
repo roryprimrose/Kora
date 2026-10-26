@@ -26,6 +26,7 @@ internal sealed partial class CustomizationWindowController(
     private IReadOnlyList<CustomizationSource> sources = [];
     private readonly Dictionary<string, CustomizationSnapshot> bundled = new(StringComparer.Ordinal);
     private CustomizationSource? source;
+    private CustomizationSource? registeredOriginal;
     private CustomizationSnapshot? baseline;
     private List<CustomizationFile> draft = [];
     private string? selectedFile;
@@ -134,6 +135,9 @@ internal sealed partial class CustomizationWindowController(
                     if (await LeaveDraft(Current, token)) { await Create(opened.Scope, Current, token); }
                     break;
                 case "Create Kora copy": await Copy(Current, token); break;
+                case "Review original registration": await RegisterOriginal(Current, token); break;
+                case "Withdraw original registration": await WithdrawOriginal(Current, token); break;
+                case "Compare external": await CompareOriginal(Current, token); break;
                 case "Review and save": await Save(Current, token); break;
                 case "Reload":
                     if (source is not null && await LeaveDraft(Current, token)) { await Inspect(source, false, Current, token); }
@@ -142,7 +146,8 @@ internal sealed partial class CustomizationWindowController(
                     if (source is not null && await LeaveDraft(Current, token)) { await Inspect(source, true, Current, token); }
                     else if (opened.SelectedSource is { } recovery && await LeaveDraft(Current, token)) { await Inspect(recovery, true, Current, token); }
                     break;
-                case "Disable": case "Enable":
+                case "Disable":
+                case "Enable":
                     await ChangeUse(action is "Disable", Current, token); break;
                 case "Refine": await Refine(Current, token); break;
                 case "Add file": case "Rename file": case "Remove file": EditComponent(action); break;
@@ -269,6 +274,11 @@ internal sealed partial class CustomizationWindowController(
         source = selected;
         baseline = null; draft = []; selectedFile = null;
         ShowDraft();
+        if (IsInstructionOriginal(selected) && !management.IsInstructionRegistered(selected))
+        {
+            window!.Status.Text = "Review original registration to disclose this exact file's bounded reading and supported native v1 editing scope. No original content has been read. Existing read-only registration is not edit consent; the separate owned instruction editor also offers Create Kora copy from profile.";
+            return;
+        }
         var snapshot = selected.Scope == CustomizationScope.BuiltIn ? bundled[selected.Id]
             : await management.Read(selected, recovery, current, token);
         RequireCurrent(current, token);
@@ -311,7 +321,8 @@ internal sealed partial class CustomizationWindowController(
             changingBuffer = true;
             window.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
             window.FileName.Text = selectedFile;
-            window.SetSource(source, baseline?.RecoveryDetails is not null);
+            window.SetSource(source, baseline?.RecoveryDetails is not null,
+                source is not null && management.IsInstructionRegistered(source));
         }
         catch (InvalidDataException exception)
         {
@@ -333,7 +344,8 @@ internal sealed partial class CustomizationWindowController(
                 ? selectedFile : source?.PrimaryFile;
             selectedFile = opened.Files.SelectedItem as string;
             opened.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
-            opened.SetSource(source, baseline?.RecoveryDetails is not null);
+            opened.SetSource(source, baseline?.RecoveryDetails is not null,
+                source is not null && management.IsInstructionRegistered(source));
             opened.FileName.Text = selectedFile;
             var artifact = source is null ? null : management.ObservedArtifact(source);
             opened.Details.Text = source is null ? "Select an artifact"
@@ -343,6 +355,10 @@ internal sealed partial class CustomizationWindowController(
                     + (artifact?.IsUseEnabled == true ? "Available through its existing admitted runtime route."
                         : "Use may still require source registration, revision review, compatibility, authentication or a qualified runtime.")
                     + (baseline?.RecoveryDetails is not null ? "\nRecovery required. Review and save resumes only the exact staged proposal." : string.Empty);
+            if (IsInstructionOriginal(source))
+            {
+                opened.Details.Text += "\nSHARED ORIGINAL: other applications and external sync use this file. Registration lasts only for this window; each write still requires separate exact-change native confirmation. Create Kora copy is the independent alternative.";
+            }
         }
         finally { changingBuffer = false; }
     }
@@ -391,6 +407,16 @@ internal sealed partial class CustomizationWindowController(
         var result = new StringBuilder("Destination: " + source!.Scope + " | " + source.Location
             + "\nSaving leaves this artifact disabled in Kora and grants no execution or connection authority.\n"
             + "Multi-file updates are recoverable, not atomic; other applications may observe intermediate files.\n\n");
+        if (IsInstructionOriginal(source))
+        {
+            result.Clear();
+            result.AppendLine("SHARED PERSONAL INSTRUCTION ORIGINAL\n" + source.Location
+                + "\nThis changes the exact original used by other applications and external sync, not a Kora copy."
+                + "\nComplete strict UTF-8 native v1 source is atomically replaced with its BOM, exact proposed newlines/metadata, owner/group/DACL and ordinary file attributes."
+                + "\nThe host compares the complete current identity and bytes immediately before replacement."
+                + "\nThis is optimistic conflict detection, not content compare-and-swap; a final same-name external edit can race replacement."
+                + "\nChanged bytes remain disabled in Kora and require a separate current-content use review. No grants or model authority are inherited.\n");
+        }
         if (baseline?.RecoveryDetails is { } recovery) { result.AppendLine(recovery); }
         foreach (var name in draft.Select(file => file.Name).Union(baseline?.Files.Select(file => file.Name) ?? [], StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
@@ -398,8 +424,8 @@ internal sealed partial class CustomizationWindowController(
             var after = draft.SingleOrDefault(file => string.Equals(file.Name, name, StringComparison.Ordinal));
             result.AppendLine("===== " + name + (before is null ? " [Added]" : after is null ? " [Removed]"
                 : string.Equals(before.Digest, after.Digest, StringComparison.Ordinal) ? " [Unchanged]" : " [Modified]") + " =====");
-            if (before is not null) { result.AppendLine("ORIGINAL\n" + before.Text); }
-            if (after is not null) { result.AppendLine("PROPOSED\n" + after.Text); }
+            if (before is not null) { result.AppendLine("ORIGINAL [UTF-8 BOM: " + before.HasBom + "; bytes: " + before.CopyBytes().Length + "]\n" + before.Text); }
+            if (after is not null) { result.AppendLine("PROPOSED [UTF-8 BOM: " + after.HasBom + "; bytes: " + after.CopyBytes().Length + "]\n" + after.Text); }
         }
         return result.ToString();
     }
@@ -583,6 +609,8 @@ internal sealed partial class CustomizationWindowController(
     private void ClearWindow()
     {
         RetireVoiceTarget();
+        if (source is not null) { management.RetireInstructionRegistration(source); }
+        if (registeredOriginal is not null) { management.RetireInstructionRegistration(registeredOriginal); registeredOriginal = null; }
         var retired = lifetime; lifetime = null;
         var retiredWindow = window;
         window = null; source = null; baseline = null; draft = []; selectedFile = null; sources = []; bundled.Clear();

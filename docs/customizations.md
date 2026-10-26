@@ -32,6 +32,27 @@ source in the window. Ambiguous names require native source selection.
 Choose a new lowercase ID and **Kora** or **User** destination, then **Add**.
 `add an instruction named example` prepares that same new draft. An unnamed
 `add a skill` opens the creation controls; choose its ID before adding.
+For Instructions, **Add** supports Kora destinations only; User originals use the separately reviewed registration below ([destination policy](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)).
+
+### Edit one registered personal instruction original
+
+Select one exact **User / Instructions** row, then **Review original registration**. Before source content is read, the native review discloses the exact personal file, bounded reading and supported editing scope. Registration lasts only for this Customizations window, not across restarts; previous read-only registrations are not edit consent ([registration workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs)).
+
+Only an existing canonical lowercase `*.instructions.md` in a personal Code or Code - Insiders User prompts/profile-prompts location is supported. This increment admits strict UTF-8 native `kora-format: 1`, at most 65,536 file bytes including a retained BOM, and the existing bounded scalar header. Unsupported metadata, scope/globs, hooks, other formats and unsafe/nonlocal targets are refused, never silently rewritten ([native binding](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs), [format](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs)).
+
+After registering, edit the complete exact source in the existing editor. **Review and save** separately displays the source-qualified shared original and complete original/proposed source, including BOM/byte metadata. **Save disabled** confirms that precise mutation, not a fork: other applications and external sync use the same original ([save owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+BOM, proposed line endings, supported metadata/attribution, owner/group/DACL, ordinary file attributes and creation time are preserved. Named streams or unsupported native attributes are refused rather than dropped. Changed bytes require a separate current-content **Enable** review ([native preservation](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.InstructionOriginal.cs), [use review](../src/Kora.Application/Definitions/CustomizationManagementService.cs)).
+
+Conflicts retain the previous base and dirty draft. **Compare external** offers **Keep draft**, **Rebase complete draft**, **Discard and reload**, and **Cancel**. Rebase adopts only the exact reviewed external base, keeping the complete draft unchanged without merging or saving it. Another external change requires another comparison; replacement of the native original requires renewed registration first ([conflict workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs)).
+
+Single-file publication uses the existing optimistic conflict policy, not content compare-and-swap. Native identity and exact bytes are compared after staging immediately before atomic replacement relative to the pinned directory. A same-name replacement can still race that last comparison. Uncertain publication remains held and requires explicit registration/inspection; there is no rollback claim or automatic retry ([policy](../Design/Definition_Management.md#editing-ownership-and-confirmation), [writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+**Withdraw original registration** clears this window's source/draft and revokes pending access/writes without deleting originals or independent Kora copies. Close/privacy/ownership retirement also retires the registration. For a compatible original you do not want to edit in place, the [owned instruction editor's existing **Create Kora copy from profile** route](instruction-editor.md#create-a-disabled-kora-copy-of-a-personal-instruction) remains independent; unsupported content is not automatically adapted ([retirement](../src/Kora/CustomizationWindowController.cs)).
+
+This bounded original editor adds no agent/skill/prompt/package writer, filesystem tool, model-selected path, external editor launch, inherited use/grant or runtime qualification. Existing typed/activated-voice navigation reaches this same native surface; registration and write consent remain native reviews ([entry routes](../src/Kora/CustomizationWindowController.cs), [authority boundary](../Design/Security_Data_Flows.md#application-integrity-and-no-self-modification)).
+
+### Complete draft review
 
 Edit the source directly. Skills can also **Add file**, **Rename file**, and
 **Remove file**, including bounded relative components such as

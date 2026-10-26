@@ -303,6 +303,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
@@ -325,6 +326,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyMixedContext();
         NotifyModelMemoryProposal();
         NotifyAnswerRead();
         ObserveConversationCancellation();
@@ -341,6 +343,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(PlaybackVolumeSuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
         OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
+        NotifyRegisteredSettings();
         RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();

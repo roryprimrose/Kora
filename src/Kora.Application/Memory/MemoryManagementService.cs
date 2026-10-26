@@ -33,6 +33,9 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
         contextTime = time;
         Admission = new(workspace, this.access, host, new SessionMemoryScopeAccess(store, this.access, host),
             audit, logger, time, store);
+        profileAdmission = new(workspace, this.access, host, new SessionMemoryScopeAccess(store, this.access, host),
+            audit, logger, time, store, MemoryScopeKind.DeviceProfile);
+        profileContextSource = new(sessions, workspace, access, host, store, audit, MemoryScopeKind.DeviceProfile);
         sessions.SessionRetired += ExpireSession;
         sessions.SessionLifecycleChanged += ClearSession;
     }
@@ -45,38 +48,47 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     internal void ClearVolatile()
     {
         contextSource.Invalidate();
+        profileContextSource.Invalidate();
         Admission.ClearCache();
+        profileAdmission.ClearCache();
         ClearInspection();
     }
 
     internal void ClearSessionDrafts(HostId<SessionIdentity> session)
     {
         contextSource.Invalidate();
+        profileContextSource.Invalidate();
         Admission.ClearSessionCache(session);
+        profileAdmission.ClearCache();
         ClearInspection();
     }
 
     internal void ExpireSession(HostId<SessionIdentity> session)
     {
         contextSource.Invalidate();
+        profileContextSource.Invalidate();
         Admission.ExpireSession(session);
-        lock (stateGate)
-        {
-            foreach (var id in inspections.Where(pair => pair.Value.Record.Scope.Identity == session.Value)
-                .Select(pair => pair.Key).ToArray()) { inspections.Remove(id); }
-        }
+        profileAdmission.ClearCache();
+        ClearInspection();
     }
 
     private void ClearSession(HostId<SessionIdentity> session)
     {
         contextSource.Invalidate();
+        profileContextSource.Invalidate();
         Admission.ClearSessionCache(session);
+        profileAdmission.ClearCache();
         ClearInspection();
     }
 
-    internal async Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
+    internal Task<MemoryCommandResult> ExecuteAsync(MemoryCommand command, RequestOrigin origin,
         Func<bool> admission, CancellationToken token, MemoryRecord? exactRecord = null,
-        Action<MemoryResult>? completed = null)
+        Action<MemoryResult>? completed = null) =>
+        ExecuteCoreAsync(command, origin, admission, MemoryScopeKind.Session, token, exactRecord, completed);
+
+    private async Task<MemoryCommandResult> ExecuteCoreAsync(MemoryCommand command, RequestOrigin origin,
+        Func<bool> admission, MemoryScopeKind scopeKind, CancellationToken token,
+        MemoryRecord? exactRecord = null, Action<MemoryResult>? completed = null)
     {
         ArgumentNullException.ThrowIfNull(command);
         ArgumentNullException.ThrowIfNull(admission);
@@ -98,7 +110,7 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
         }
         if (command.Operation == MemoryCommandOperation.Invalid) { throw new InvalidOperationException(command.Error); }
         if (command.Operation is not (MemoryCommandOperation.Help or MemoryCommandOperation.List or MemoryCommandOperation.Inspect))
-        { contextSource.Invalidate(); }
+        { contextSource.Invalidate(); profileContextSource.Invalidate(); }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token);
         token = linked.Token;
         await gate.WaitAsync(token).ConfigureAwait(false);
@@ -121,7 +133,8 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
             session.Validate();
             return await sessions.ExecuteMemoryControlAsync(session, origin, Eligible, async (_, eligible) =>
             {
-                var rows = await Admission.ObserveSessionAsync(token).ConfigureAwait(false);
+                var owner = scopeKind == MemoryScopeKind.DeviceProfile ? profileAdmission : Admission;
+                var rows = await owner.ObserveSessionAsync(token).ConfigureAwait(false);
                 MemoryCommandResult result;
                 if (command.Operation == MemoryCommandOperation.Propose)
                 {
@@ -129,14 +142,16 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                     {
                         throw new InvalidOperationException("A new user proposal cannot supply memory identity, revision or review authority.");
                     }
-                    var proposed = await Admission.ProposeAsync(command.Candidate, MemoryScope.Session(session),
+                    var scope = scopeKind == MemoryScopeKind.DeviceProfile
+                        ? await owner.ResolveDeviceProfileScopeAsync(token).ConfigureAwait(false) : MemoryScope.Session(session);
+                    var proposed = await owner.ProposeAsync(command.Candidate, scope,
                         MemoryProposalOrigin.User, token).ConfigureAwait(false);
                     result = new(proposed.Outcome.ToString(), proposed.Reason.ToString())
                     { Memories = proposed.Record is { } created ? [Summary(created)] : [] };
                 }
                 else if (command.Operation == MemoryCommandOperation.List)
                 {
-                    result = new("observed", "Exact active-session metadata only; no recall or disclosure.")
+                    result = new("observed", "Explicit " + scopeKind + " metadata only; no recall or disclosure.")
                     { Memories = [.. rows.Select(Summary)] };
                 }
                 else
@@ -183,11 +198,11 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                         }
                         var mutation = command.Operation switch
                         {
-                            MemoryCommandOperation.Review => Admission.ReviewAsync(id, revision, command.Accept, token),
-                            MemoryCommandOperation.Admit => Admission.AdmitAsync(id, revision, token),
-                            MemoryCommandOperation.Edit => Admission.EditAsync(id, revision, command.Candidate, token),
-                            MemoryCommandOperation.Disable => Admission.DisableAsync(id, revision, token, exactRecord),
-                            MemoryCommandOperation.Forget => Admission.ForgetAsync(id, revision, token, exactRecord),
+                            MemoryCommandOperation.Review => owner.ReviewAsync(id, revision, command.Accept, token),
+                            MemoryCommandOperation.Admit => owner.AdmitAsync(id, revision, token),
+                            MemoryCommandOperation.Edit => owner.EditAsync(id, revision, command.Candidate, token),
+                            MemoryCommandOperation.Disable => owner.DisableAsync(id, revision, token, exactRecord),
+                            MemoryCommandOperation.Forget => owner.ForgetAsync(id, revision, token, exactRecord),
                             _ => throw new InvalidOperationException("Unsupported memory management operation."),
                         };
                         var changed = await mutation.ConfigureAwait(false);
@@ -219,9 +234,11 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
     {
         disposed = true;
         contextSource.Close();
+        profileContextSource.Close();
         sessions.SessionRetired -= ExpireSession;
         sessions.SessionLifecycleChanged -= ClearSession;
         Admission.Dispose();
+        profileAdmission.Dispose();
         ClearInspection();
         await lifetime.CancelAsync().ConfigureAwait(false);
         await gate.WaitAsync(CancellationToken.None).ConfigureAwait(false);

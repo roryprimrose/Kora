@@ -44,8 +44,8 @@ internal sealed partial class SessionsViewModel
             return memoryBatchDetail;
         }
     }
-    public bool CanReviewMemoryBatch => CanReadMemories && MemorySourceCurrent && memoryBatchSelection.Length > 0;
-    public bool CanConfirmMemoryBatch => CanReadMemories && MemorySourceCurrent && memoryBatchReview is not null;
+    public bool CanReviewMemoryBatch => !deviceProfileMemory && CanReadMemories && MemorySourceCurrent && memoryBatchSelection.Length > 0;
+    public bool CanConfirmMemoryBatch => !deviceProfileMemory && CanReadMemories && MemorySourceCurrent && memoryBatchReview is not null;
     public bool CanCancelMemoryBatch => MemorySourceCurrent
         && (memoryBatchReview is not null || memoryBatchCancellation is not null || memoryBatchSelection.Length > 0);
 
@@ -70,6 +70,7 @@ internal sealed partial class SessionsViewModel
 
     private async Task ReviewMemoryBatchCoreAsync()
     {
+        if (deviceProfileMemory) { throw new InvalidOperationException("Device-profile memories use exact individual management, not session batches."); }
         var authority = RequireSelected().Authority;
         var control = access.ControlRevision;
         var epoch = memoryBatchEpoch;

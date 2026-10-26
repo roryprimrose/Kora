@@ -1,6 +1,7 @@
 ﻿using System.Diagnostics;
 using System.Runtime.InteropServices;
 using System.Security.AccessControl;
+using System.Security.Principal;
 using System.Text;
 
 using AwesomeAssertions;
@@ -8,6 +9,7 @@ using AwesomeAssertions;
 using Kora.Core.Artifacts;
 using Kora.Core.Customizations;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
@@ -16,10 +18,17 @@ public sealed partial class WindowsCustomizationStoreTests
     private async Task<CustomizationSource> Original(WindowsCustomizationStore store, byte[]? bytes = null)
     {
         var directory = Path.Combine(root, "editor-profile", "Code", "User", "prompts");
-        Directory.CreateDirectory(directory);
-        await File.WriteAllBytesAsync(Path.Combine(directory, "example.instructions.md"),
-            bytes ?? Encoding.UTF8.GetBytes(CustomizationLayout.Template(CustomizationKind.Instruction, "example")),
-            TestContext.Current.CancellationToken);
+        Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
+        var path = Path.Combine(directory, "example.instructions.md");
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(path,
+            bytes ?? Encoding.UTF8.GetBytes(CustomizationLayout.Template(CustomizationKind.Instruction, "example")));
+        new DirectoryInfo(directory).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
+            .Should().Be(owner);
+        new FileInfo(path).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
+            .Should().Be(owner);
         return (await store.List(TestContext.Current.CancellationToken)).Single(source =>
             source.Scope == CustomizationScope.User && source.Kind == CustomizationKind.Instruction);
     }
@@ -89,7 +98,7 @@ public sealed partial class WindowsCustomizationStoreTests
         if (state is "replaced")
         {
             File.Move(source.Location, source.Location + ".previous");
-            await File.WriteAllBytesAsync(source.Location, original, TestContext.Current.CancellationToken);
+            WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, original);
         }
         await ((Func<Task>)(() => store.RegisterInstruction(proposal, () => state is not "revoked", TestContext.Current.CancellationToken)))
             .Should().ThrowAsync<InvalidOperationException>();
@@ -125,14 +134,14 @@ public sealed partial class WindowsCustomizationStoreTests
             if (state is "replaced")
             {
                 File.Move(source.Location, source.Location + ".previous");
-                await File.WriteAllBytesAsync(source.Location, external, TestContext.Current.CancellationToken);
+                WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, external);
             }
             if (state is "staging-replaced")
             {
                 store.BeforeInstructionFinalComparison = () =>
                 {
                     File.Move(source.Location, source.Location + ".previous");
-                    File.WriteAllBytes(source.Location, external);
+                    WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, external);
                 };
             }
             if (state is "registration-withdrawn") { store.WithdrawInstruction(source); }
@@ -304,8 +313,10 @@ public sealed partial class WindowsCustomizationStoreTests
             }
             else
             {
-                Directory.CreateDirectory(directory);
-                await File.WriteAllBytesAsync(source.Location, before.Files.Single().CopyBytes(), TestContext.Current.CancellationToken);
+                using var identity = WindowsIdentity.GetCurrent();
+                RestrictedStorageDirectory.CreateRestrictedDirectory(directory,
+                    identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable."));
+                WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, before.Files.Single().CopyBytes());
             }
         }
         try
@@ -343,7 +354,7 @@ public sealed partial class WindowsCustomizationStoreTests
         store.AfterInstructionFinalComparison = () =>
         {
             File.Move(source.Location, source.Location + ".old");
-            File.WriteAllBytes(source.Location, external);
+            WindowsOwnedInstructionStoreTests.WriteOwnedFile(source.Location, external);
         };
         var saved = await Save(store, source, before, proposed);
         saved.Files.Single().CopyBytes().Should().Equal(proposed.CopyBytes());

@@ -1,4 +1,7 @@
-﻿using Avalonia.Controls;
+﻿using System.Security.AccessControl;
+using System.Security.Principal;
+
+using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
 
@@ -13,6 +16,7 @@ using Kora.Core.Customizations;
 using Kora.Definitions.Artifacts;
 using Kora.NativeUxFixture;
 using Kora.Windows.Artifacts;
+using Kora.Windows.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
 
@@ -36,10 +40,17 @@ public sealed partial class CustomizationWindowTests
         await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
         var profile = Path.Combine(f.LocalRoot, "personal-editor-profile");
         var directory = Path.Combine(profile, "Code", "User", "prompts");
-        Directory.CreateDirectory(directory);
+        Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
         var path = Path.Combine(directory, "example.instructions.md");
         var original = CustomizationLayout.Template(CustomizationKind.Instruction, "example").Replace("\n", "\r\n", StringComparison.Ordinal);
-        await File.WriteAllBytesAsync(path, ArtifactFileDocument.Encode(original, true), f.Token);
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(path, ArtifactFileDocument.Encode(original, true));
+        new DirectoryInfo(directory).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
+            .Should().Be(owner);
+        new FileInfo(path).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
+            .Should().Be(owner);
         var store = new WindowsCustomizationStore(f, profile, Path.Combine(f.LocalRoot, "personal-user-profile"));
         var use = new ArtifactUsePreferences(f);
         using var catalogue = EmbeddedArtifactCatalogue.Load();

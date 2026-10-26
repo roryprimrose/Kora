@@ -1069,6 +1069,11 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             maximumCaptureTimer = null;
             emptySpeechTimer = null;
             stream?.ClearAndComplete();
+            // Detached cleanup may arrive after StopAsync has already joined these resources.
+            if (current is null && stream is null)
+            {
+                return Task.CompletedTask;
+            }
             releasing = Task.Run(() => ReleaseCaptureResourcesAsync(current, stream), CancellationToken.None);
             TrackResourceOperation(releasing);
         }

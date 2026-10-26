@@ -1220,6 +1220,13 @@ logged or used for activity renewal or source/approval authority
 ([validation](../src/Kora.Core/Voice/ProvisionalTranscriptSnapshot.cs),
 [native surface](../src/Kora/SessionDictation/SessionDictationWindow.cs)).
 
+Native retirement joins actual recorder, recognizer and stream release. A
+delayed privacy cleanup with no remaining resources must not enqueue new
+release work or revoke the completed stop receipt; outstanding or failed
+native work still prevents quiescence. Deterministic lock/device regressions
+control that ordering without retries or timing sleeps
+([release regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.Quiescence.cs)).
+
 The native read-only `Provisional—may change` area has a stable content-free
 automation label and no live region or value/text editing provider; accessible
 final review remains separate. Only the accepted final transcript enters the

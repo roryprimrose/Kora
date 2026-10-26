@@ -252,6 +252,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task<ModelTurnResult> ExecuteAsync(ModelTurn turn, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return Finish(ModelTurnOutcome.Denied, reason, turn.Provenance); }
         if (turn.Profile is not null)
@@ -337,7 +339,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
-        var reply = turn.Context.ToolMode == ModelToolMode.McpReadOnly
+        var reply = sessionDiscoveries.TryGetValue(turn, out var discovery)
+            ? await discovery.InvokeAsync(id, input, linked.Token).ConfigureAwait(false)
+            : turn.Context.ToolMode == ModelToolMode.McpReadOnly
             ? mcpInvocations.TryGetValue(turn, out var mcp)
                 ? await mcp.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "mcp-reviewed-workflow-unavailable")
@@ -371,6 +375,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
+        { return ModelTurnReason.SessionNotAdmitted; }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
         if (reason != ModelTurnReason.None) { return reason; }
         reason = await RevalidateProfileAsync(turn, token).ConfigureAwait(false);

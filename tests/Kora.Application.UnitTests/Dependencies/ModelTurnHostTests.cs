@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
@@ -515,7 +516,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal List<string> Messages { get; } = [];
         internal List<HostRequest> LogRequests { get; } = [];
         public bool IsCurrentHost => Current;
-        public bool CanInspect => CanControl;
+        internal bool Inspect { get; set; } = true;
+        public bool CanInspect => CanControl && Inspect;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
         public string Version { get { OnVersion?.Invoke(); return "1.0"; } }
@@ -609,6 +611,11 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             OnRead?.Invoke();
             if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
+            if (DiscoveryEntries is { } entries && session != Request.SessionId)
+            {
+                return entries.GetValueOrDefault(session.Value)
+                    ?? new(new(session, new(1), false), null);
+            }
             return new SessionWorkspaceEntry(Session, Metadata);
         }
         public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
@@ -655,8 +662,19 @@ public sealed partial class ModelTurnHostTests : IDisposable
         }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; set; }
+        internal Dictionary<Guid, SessionWorkspaceEntry>? DiscoveryEntries { get; set; }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
         {
+            if (DiscoveryEntries is { } entries)
+            {
+                limit.Should().Be(SessionListSearchPage.MaximumScannedRecords);
+                OnRead?.Invoke();
+                var records = entries.Values.OrderBy(entry => entry.Authority.SessionId.Value.ToString("D"),
+                    StringComparer.Ordinal).Where(entry => after is null
+                        || string.CompareOrdinal(entry.Authority.SessionId.Value.ToString("D"), after.Value.ToString("D")) > 0)
+                    .Take(limit).ToImmutableArray();
+                return ValueTask.FromResult(new SessionPage<SessionWorkspaceEntry>(records, null));
+            }
             limit.Should().Be(25);
             OnRead?.Invoke();
             return ValueTask.FromResult(MetadataPage ?? throw new NotSupportedException());

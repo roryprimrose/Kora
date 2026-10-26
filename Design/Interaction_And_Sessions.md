@@ -1150,6 +1150,19 @@ path without real hardware/provider/experiment execution. E/Q, installed,
 hardware, acoustic and provider evidence remains separate and unclaimed;
 portable Release checks and raw 100% line/branch coverage remain merge gates.
 
+### Explicit literal existing-session dictation
+
+The same capture/review owner also accepts a host-captured exact Active session
+and its revisioned, memory-only unsent buffer. A dedicated native dictation
+window is opened from Sessions, compact conversation or the expanded main
+conversation without adding a command route. Selection/source/control/buffer
+changes retire the target, preserve independent session input and suppress late
+publication; synchronous publication revocation rolls back only the owned
+insertion. Actual capture release precedes Append/Replace/Cancel review, and
+ordinary Submit remains separate. See the [session dictation guide](../docs/session-dictation.md).
+Production literal capture remains explicitly unqualified and unavailable;
+deterministic platform fakes do not establish speech-profile qualification.
+
 ### Explicit retained original USER text reuse — 2026-10-19
 
 An actual currently admitted immutable conversation row in Sessions or compact conversation offers **Review reuse of this original USER text in a New request**. This is content reuse, **never task replay/resumption** or promotion of HOST/model output. Reconstructed/value-equal rows, hidden/private/omitted/revoked records, question answers and generated content are not reuse sources.

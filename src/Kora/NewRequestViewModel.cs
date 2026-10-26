@@ -21,9 +21,10 @@ internal sealed partial class NewRequestViewModel : ObservableObject, IDisposabl
     }
 
     public string DictationStatus => Dictation?.Status ?? "Literal dictation unavailable. Microphone closed.";
-    public bool HasDictationReview => Dictation?.HasReview == true;
-    public string DictationOriginal => Dictation?.OriginalBody ?? string.Empty;
-    public string DictationLiteral => Dictation?.LiteralText ?? string.Empty;
+    internal bool OwnsDictation => Dictation?.IsActiveFor(Composer) == true;
+    public bool HasDictationReview => OwnsDictation && Dictation!.HasReview;
+    public string DictationOriginal => HasDictationReview ? Dictation!.OriginalBody : string.Empty;
+    public string DictationLiteral => HasDictationReview ? Dictation!.LiteralText : string.Empty;
     public string Body { get => Composer.Body; set => Composer.Body = value; }
     public string ReviewedBody => Composer.ReviewedBody;
     public string Status => Composer.Status;

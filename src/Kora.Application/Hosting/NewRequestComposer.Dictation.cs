@@ -1,7 +1,19 @@
+using Kora.Application.Voice;
+using Kora.Core.Hosting;
+
 namespace Kora.Application.Hosting;
 
 public sealed partial class NewRequestComposer
 {
+    internal ComposerDictationTarget CaptureDictationTarget()
+    {
+        var revision = DictationRevision;
+        var control = DictationControlRevision;
+        return new(this, Body, HostRequest.Create(RequestOrigin.LocalUi),
+            () => AdmitsDictation(revision, control),
+            (literal, admitted) => InsertDictation(revision, control, literal, admitted));
+    }
+
     internal long DictationRevision => Volatile.Read(ref epoch);
     internal long DictationControlRevision => access.ControlRevision;
 

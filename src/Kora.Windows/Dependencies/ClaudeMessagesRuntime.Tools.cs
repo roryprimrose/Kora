@@ -14,7 +14,7 @@ public sealed partial class ClaudeMessagesRuntime
         var transferred = false;
         try
         {
-            if (disposed || profile.Service != ProviderService.Claude
+            if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request)
                 || context.ToolMode != ModelToolMode.ReadOnly || !ClaudeObservationTools.Supports(context)
                 || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()

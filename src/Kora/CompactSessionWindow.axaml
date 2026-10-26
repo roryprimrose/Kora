@@ -106,7 +106,7 @@
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
       <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
-        <TextBlock Text="Provisional local answer — not retained" TextWrapping="Wrap" />
+        <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
         <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
             AutomationProperties.Name="Unstable provisional local answer; not spoken automatically" />
       </StackPanel>

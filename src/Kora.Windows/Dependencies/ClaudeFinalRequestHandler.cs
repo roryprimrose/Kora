@@ -9,7 +9,8 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
 {
     internal async Task<byte[]?> SendAsync(ClaudeTransmission transmission, ClaudeAccount account,
         Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
-        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token, int maximumResponseBytes = 262144)
+        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token, int maximumResponseBytes = 262144,
+        Func<HttpContent, CancellationToken, Task<byte[]>>? read = null, Action? quarantine = null)
     {
         token.ThrowIfCancellationRequested();
         if (http.DefaultRequestHeaders.Any())
@@ -37,9 +38,16 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
             || !await accounts.CurrentAsync(account, token).ConfigureAwait(false) || !await current(token).ConfigureAwait(false))
         { return null; }
         token.ThrowIfCancellationRequested();
-        using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
-        if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude POST did not return a successful response."); }
-        return await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token).ConfigureAwait(false);
+        var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
+        try
+        {
+            token.ThrowIfCancellationRequested();
+            if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude POST did not return a successful response."); }
+            return read is null
+                ? await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token).ConfigureAwait(false)
+                : await read(response.Content, token).ConfigureAwait(false);
+        }
+        finally { ClaudeAnswerStream.DisposeOwned(response, quarantine); }
     }
 
     internal static ClaudeTransmission Prepare(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple profile,

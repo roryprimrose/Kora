@@ -411,6 +411,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             pendingTranscript = null;
             transcriptPublicationReady = false;
             replyAdmission = null;
+            RetireProvisionalObservation();
             // Initiate native release now; do not wait for UI dispatch or recognition cancellation.
             _ = capture?.ReleaseRecorder();
         }
@@ -1060,6 +1061,7 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             stream = audioStream;
             capture = null;
             callbacks?.Unsubscribe();
+            RetireProvisionalObservation();
             callbacks = null;
             audioStream = null;
             selectedMicrophone = null;
@@ -1067,6 +1069,11 @@ public sealed partial class WindowsVoiceRecognitionService : IQuestionVoiceRecog
             maximumCaptureTimer = null;
             emptySpeechTimer = null;
             stream?.ClearAndComplete();
+            // Detached cleanup may arrive after StopAsync has already joined these resources.
+            if (current is null && stream is null)
+            {
+                return Task.CompletedTask;
+            }
             releasing = Task.Run(() => ReleaseCaptureResourcesAsync(current, stream), CancellationToken.None);
             TrackResourceOperation(releasing);
         }

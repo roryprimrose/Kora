@@ -118,13 +118,23 @@ choose refinement/discussion of this artifact, or **Cancel**. For another
 artifact, a session or a New request, cancel and use its explicit route; Kora
 never forwards a rejected editor utterance automatically.
 
+You can answer this exact clarification with its buttons, or select **Answer by
+voice** and say **Refine this artifact**, **Discuss this artifact**, or
+**Cancel** (the displayed option number also works). This is one bounded local
+reply, not another general command; an unmatched reply cancels without forwarding
+it. The question expires after 75 seconds and never extends the original
+request's deadline. Capture must close completely before the original operation
+continues. If voice is unavailable, use the native choices.
+
 After routing, the request appears in **Describe or discuss a change with Kora**.
 The separate complete-draft disclosure shows the captured component and
 resolved edit/discussion mode as well as every supplied file. That same scope
 reaches authoring without rewriting your request, so **this file** keeps its
 component and choosing discussion remains discussion even for edit-worded
-speech. The proposed-draft review above still applies. Discussion cannot change files. Clarification and review use native
-choices, not an interpretation of "yes" or "save" as approval.
+speech. The proposed-draft review above still applies. Discussion cannot change files.
+The spoken clarification is not approval of disclosure, a proposal, Save or
+enablement: those separate native reviews remain required. "Yes" or "save" is
+not an answer to this clarification.
 
 Focus/presentation, component/source, request/draft or host/privacy/call changes
 retire the original target. Returning to it does not revive old speech or late

@@ -54,6 +54,12 @@ public sealed partial class ModelTurnHostTests
         b.Receipt.Task.State.Should().Be(HostTaskState.IntentRecorded);
         b.Completion.IsCompleted.Should().BeFalse();
         f.Adapter.Calls.Should().Be(1);
+        var retainedBeforeStream = f.RetainCalls;
+        await service.Invoking(value => value.SubmitClaudeAnswerStreamAsync(target, "not a queued Claude request", () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.RetainCalls.Should().Be(retainedBeforeStream, "explicit hosted streaming cannot enter or replace an ordinary pending lane");
+        f.Adapter.Calls.Should().Be(1);
+        c.Completion.IsCompleted.Should().BeFalse();
         var wires = new List<string>();
         f.Adapter.OnRun = () => wires.Add(JsonSerializer.Deserialize<JsonElement>(f.Adapter.Wire!).GetProperty("UserRequest").GetString()!);
         f.Adapter.Pending = null;

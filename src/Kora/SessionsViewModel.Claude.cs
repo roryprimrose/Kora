@@ -13,5 +13,6 @@ internal sealed partial class SessionsViewModel
         set { claudeObservationIds = value; Interlocked.Increment(ref claudeObservationRevision); OnPropertyChanged(); }
     }
     public Task SubmitClaudeConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true);
+    public Task SubmitClaudeAnswerStreamAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true, claudeStreamAnswer: true);
     public Task SubmitClaudeObservationsAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true, claudeObservations: true);
 }

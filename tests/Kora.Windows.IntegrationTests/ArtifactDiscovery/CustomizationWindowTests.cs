@@ -94,9 +94,10 @@ public sealed partial class CustomizationWindowTests
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var f = new NativeUxFixtureSession(parent);
+            using var f = new NativeUxFixtureSession(parent, syntheticVoice: true);
             await f.InitializeAsync();
             f.Main.BindVoiceOwnershipGate(static () => true);
+            await f.Main.SetVoiceConsentAsync(true);
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
             var store = new WindowsCustomizationStore(f, Path.Combine(f.LocalRoot, "test-editor"), Path.Combine(f.LocalRoot, "test-user"));
             var use = new ArtifactUsePreferences(f);
@@ -150,13 +151,15 @@ public sealed partial class CustomizationWindowTests
                 management.IsDisabled((await store.List(TestContext.Current.CancellationToken)).Single()).Should().BeTrue();
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
             }
-            editor!.Activate();
+            await ActivateEditor(editor!);
             var target = controller.VoiceTarget;
             target.Should().NotBeNull(editor.VoiceContext.Text);
             target!.IsCurrent.Should().BeTrue();
             editor.VoiceContext.Text.Should().Contain(target.Context.Name);
             var original = editor.Editor.Text;
-            var operation = controller.RouteVoice(target, "make this clearer", () => true);
+            var operation = controller.RouteVoice(new(target, "make this clearer",
+                Kora.Core.Hosting.HostRequest.Create(Kora.Core.Hosting.RequestOrigin.ActivatedVoice),
+                () => true, () => f.Voice.Generation));
             if (state is "built-in")
             {
                 await operation;
@@ -213,6 +216,8 @@ public sealed partial class CustomizationWindowTests
                     }
                     next = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     Choose(review, state is "clarify-discuss" ? "Discuss this artifact" : "Refine this artifact");
+                    var continued = await Task.WhenAny(next.Task, operation).WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                    continued.Should().BeSameAs(next.Task, editor.Status.Text);
                     review = await next.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
                 }
                 review.Title.Should().Be("Review model authoring disclosure");

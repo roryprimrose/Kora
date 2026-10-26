@@ -89,6 +89,8 @@ retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
 
+The separate [native text-stream operation](../docs/claude-requests.md#separately-qualified-native-text-streaming) requires positive exact-profile streaming evidence, not buffered approval or a desired profile setting. Only the original USER body enters this native-only, tool-free request. Actual incremental SSE text uses canonical volatile presentation; final-only retention, independent physical-send consent and actual reader/disposal join remain mandatory. The default deployment source stays unavailable ([stream runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
 An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
 Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
 Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).

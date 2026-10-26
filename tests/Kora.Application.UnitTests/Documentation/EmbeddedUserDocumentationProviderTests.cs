@@ -252,6 +252,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "claude-requests",
             "conversation-notices",
             "owned-skill-authoring",
+            "profile-memory",
             "session-dictation",
             "hosted-requests",
             "folder-answers",

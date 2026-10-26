@@ -9,6 +9,7 @@ using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
 using Kora.Windows.IntegrationTests.Storage;
 
 using Microsoft.Extensions.Logging.Abstractions;
@@ -246,6 +247,9 @@ public sealed partial class SessionsConversationTests
                         state.Question.Proposal.Should().BeNull();
                         state.Question.Key.Request.Should().Be(request);
                         state.IsApproval.Should().BeFalse();
+                        spec.Kind.Should().Be(text ? QuestionKind.Text : QuestionKind.SingleChoice);
+                        spec.Minimum.Should().Be(1);
+                        spec.Maximum.Should().Be(1);
                         await state.ReviewAsync();
                         presentationState = state.Status + " editable=" + state.IsEditable + " busy=" + state.HasPendingOperation;
                         if (cancel)
@@ -306,6 +310,11 @@ public sealed partial class SessionsConversationTests
             cancellationToken.ThrowIfCancellationRequested();
             request.ClarificationAllowed.Should().BeTrue();
             request.Context.ToolMode.Should().Be(readOnly ? ModelToolMode.ReadOnly : ModelToolMode.None);
+            if (readOnly)
+            {
+                request.Context.Tools.Select(tool => tool.Id).Should().Equal(ReadOnlyCapabilityCatalog.Descriptors.Select(tool => tool.Id));
+            }
+            else { request.Context.Tools.Should().BeEmpty(); }
             Requests.Add(request);
             ModelAssistantMessage message = Requests.Count == (readOnly ? 2 : 1)
                 ? new ModelClarificationQuestion(new("Which format?", text ? [] : ["Compact", "Detailed"]))

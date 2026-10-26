@@ -39,7 +39,7 @@ internal sealed partial class SessionsViewModel
         {
             var review = memoryContextReview;
             if (!MemorySourceCurrent || review?.Current != true) { return string.Empty; }
-            var text = new StringBuilder("Review complete values, classifications, exact session scope and request below. "
+            var text = new StringBuilder("Review complete values, classifications, exact Session or Device-profile scope and request below. "
                 + "Confirm authorizes ONE local-only tool-free turn. No other memory/history/attachments, remembering or hosted transmission. "
                 + "The original request and genuine final answer or HOST failure follow conversation retention; "
                 + "selected source bodies are not copied into retained conversation history.\n");
@@ -67,8 +67,9 @@ internal sealed partial class SessionsViewModel
     {
         if (!MemorySourceCurrent || memoryContextSelection.Any(row => !MemoryRecords.Contains(row)))
         { throw new InvalidOperationException("Refresh and explicitly select exact session memory metadata."); }
-        var workflow = memoryContextWorkflow ??= (memories
-            ?? throw new InvalidOperationException("Memory management is unavailable.")).CreateContextWorkflow();
+        var management = memories ?? throw new InvalidOperationException("Memory management is unavailable.");
+        var workflow = memoryContextWorkflow ??= deviceProfileMemory
+            ? management.CreateDeviceProfileContextWorkflow() : management.CreateContextWorkflow();
         memoryContextReview?.Dispose();
         memoryContextReview = null;
         var review = await workflow.ReviewAsync(target, memoryContextSelection, memoryContextRequest, live, lifetime.Token);

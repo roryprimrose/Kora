@@ -159,7 +159,7 @@ internal sealed partial class SessionsViewModel
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, bool claude = false,
+        Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
         ModelToolMode clarificationTools = ModelToolMode.None, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
@@ -169,6 +169,8 @@ internal sealed partial class SessionsViewModel
         if (useMcp && !HasCurrentMcpOptions)
         { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
+        var observationIds = ClaudeObservationIds;
+        var observationRevision = Interlocked.Read(ref claudeObservationRevision);
         var receipt = useMcp
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
@@ -186,7 +188,10 @@ internal sealed partial class SessionsViewModel
                     mcpResultControl = access.ControlRevision;
                 })
             : claude
-            ? await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
+            ? claudeObservations
+                ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
+                    () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
+                : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : clarificationTools == ModelToolMode.ReadOnly

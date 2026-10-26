@@ -40,15 +40,22 @@ public sealed partial class CustomizationWindowTests
         await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
         var profile = Path.Combine(f.LocalRoot, "personal-editor-profile");
         var directory = Path.Combine(profile, "Code", "User", "prompts");
-        Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
+        var userDirectory = Path.GetDirectoryName(directory)!;
+        Directory.CreateDirectory(Path.GetDirectoryName(userDirectory)!);
         using var identity = WindowsIdentity.GetCurrent();
         var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        RestrictedStorageDirectory.CreateRestrictedDirectory(userDirectory, owner);
         RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
         var path = Path.Combine(directory, "example.instructions.md");
         var original = CustomizationLayout.Template(CustomizationKind.Instruction, "example").Replace("\n", "\r\n", StringComparison.Ordinal);
         WindowsOwnedInstructionStoreTests.WriteOwnedFile(path, ArtifactFileDocument.Encode(original, true));
-        new DirectoryInfo(directory).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
-            .Should().Be(owner);
+        // Inventory also pins the editor User directory as an MCP root.
+        foreach (var inventoryDirectory in new[] { userDirectory, directory })
+        {
+            var security = new DirectoryInfo(inventoryDirectory).GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access);
+            security.GetOwner(typeof(SecurityIdentifier)).Should().Be(owner);
+            security.AreAccessRulesProtected.Should().BeTrue();
+        }
         new FileInfo(path).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
             .Should().Be(owner);
         var store = new WindowsCustomizationStore(f, profile, Path.Combine(f.LocalRoot, "personal-user-profile"));

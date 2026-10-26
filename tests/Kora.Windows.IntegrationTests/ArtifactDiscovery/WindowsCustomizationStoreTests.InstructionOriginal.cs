@@ -18,15 +18,22 @@ public sealed partial class WindowsCustomizationStoreTests
     private async Task<CustomizationSource> Original(WindowsCustomizationStore store, byte[]? bytes = null)
     {
         var directory = Path.Combine(root, "editor-profile", "Code", "User", "prompts");
-        Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
+        var userDirectory = Path.GetDirectoryName(directory)!;
+        Directory.CreateDirectory(Path.GetDirectoryName(userDirectory)!);
         using var identity = WindowsIdentity.GetCurrent();
         var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        RestrictedStorageDirectory.CreateRestrictedDirectory(userDirectory, owner);
         RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
         var path = Path.Combine(directory, "example.instructions.md");
         WindowsOwnedInstructionStoreTests.WriteOwnedFile(path,
             bytes ?? Encoding.UTF8.GetBytes(CustomizationLayout.Template(CustomizationKind.Instruction, "example")));
-        new DirectoryInfo(directory).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
-            .Should().Be(owner);
+        // Inventory also pins the editor User directory as an MCP root.
+        foreach (var inventoryDirectory in new[] { userDirectory, directory })
+        {
+            var security = new DirectoryInfo(inventoryDirectory).GetAccessControl(AccessControlSections.Owner | AccessControlSections.Access);
+            security.GetOwner(typeof(SecurityIdentifier)).Should().Be(owner);
+            security.AreAccessRulesProtected.Should().BeTrue();
+        }
         new FileInfo(path).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
             .Should().Be(owner);
         return (await store.List(TestContext.Current.CancellationToken)).Single(source =>

@@ -20,8 +20,20 @@ public sealed partial class WindowsCustomizationStoreTests
     {
         var token = TestContext.Current.CancellationToken;
         var store = Create();
-        var source = await store.Create(kind, scope, "example", token);
-        await Save(store, source, null, Primary(source, "\nBODY-SECRET"));
+        CustomizationSource source;
+        if (kind == CustomizationKind.Instruction && scope == CustomizationScope.User)
+        {
+            await store.Invoking(value => value.Create(kind, scope, "example", token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            source = await Original(store, Encoding.UTF8.GetBytes(
+                CustomizationLayout.Template(kind, "example") + "\nBODY-SECRET"));
+            store.IsInstructionRegistered(source).Should().BeFalse();
+        }
+        else
+        {
+            source = await store.Create(kind, scope, "example", token);
+            await Save(store, source, null, Primary(source, "\nBODY-SECRET"));
+        }
         if (kind == CustomizationKind.Skill)
         {
             var component = Path.Combine(Path.GetDirectoryName(source.Location)!, "never-read.bin");
@@ -39,6 +51,13 @@ public sealed partial class WindowsCustomizationStoreTests
         first.Description.Should().NotContain("BODY-SECRET");
         first.Source.Should().Be(source);
         (await store.ReadMetadata(source, token)).Should().Be(first);
+        if (kind == CustomizationKind.Instruction && scope == CustomizationScope.User)
+        {
+            store.IsInstructionRegistered(source).Should().BeFalse("metadata review cannot grant edit authority");
+            await store.Invoking(value => value.Read(source, token)).Should().ThrowAsync<InvalidOperationException>();
+            Directory.Exists(Path.Combine(root, "roaming", "Instructions")).Should().BeFalse();
+            Directory.Exists(Path.Combine(root, "local", "DefinitionTransactions")).Should().BeFalse();
+        }
         await File.WriteAllTextAsync(source.Location, Encoding.UTF8.GetString(before) + "\nSource changed.", token);
         var changed = await store.ReadMetadata(source, token);
         changed.Revision.Should().NotBe(first.Revision);

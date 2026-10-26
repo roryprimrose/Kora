@@ -1324,6 +1324,7 @@ Opening or declining review has no stop/discard/delete effect ([operation](../sr
 
 Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
 The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+The conversation executor confirms the original terminal readback before releasing its physical-completion lease. Submission returns that confirmed receipt without rereading the original after release, when the reviewed disposition may already have removed it.
 A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
 A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
 ([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).

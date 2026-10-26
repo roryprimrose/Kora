@@ -23,7 +23,7 @@ public sealed partial class ModelTurnHostTests
     {
         using var f = new Fixture();
         using var root = f.Root();
-        var context = f.Context(toolMode: fault is "tools" ? ModelToolMode.ReadOnly : ModelToolMode.None);
+        var context = f.Context(toolMode: fault is "tools" ? ModelToolMode.LocalWebPage : ModelToolMode.None);
         var turn = (await f.Host.AdmitAsync(ModelProviderSelection.OllamaCandidate, context, Token)).Turn!;
         turn.QuestionContinuation = new(f.Questions, NeverPresent, f.Request, f.Session.Generation,
             context.ExpiresAt, static () => true, f.Time);
@@ -50,7 +50,7 @@ public sealed partial class ModelTurnHostTests
             questionPresenter: NeverPresent);
         var failure = await operation.Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
         failure.Which.InnerException.Should().BeOfType<InvalidOperationException>()
-            .Which.Message.Should().Contain("fresh tool-free turn");
+            .Which.Message.Should().Contain("fresh local tool-free or read-only turn");
         f.ExecutionStarts.Should().Be(0);
         f.Adapter.Calls.Should().Be(0);
     }
@@ -78,7 +78,7 @@ public sealed partial class ModelTurnHostTests
         var live = true;
         var calls = 0;
         var result = await loop.RunWithQuestionAsync(provenance, null,
-            f.Context(toolMode: fault is "tools" ? ModelToolMode.ReadOnly : ModelToolMode.None).Serialize(),
+            f.Context(toolMode: fault is "tools" ? ModelToolMode.LocalWebPage : ModelToolMode.None).Serialize(),
             static (_, _, _) => throw new InvalidOperationException("No tool can execute in a question turn."),
             _ => ValueTask.FromResult(live ? ModelTurnReason.None : ModelTurnReason.HostAdmissionClosed),
             (question, _) =>
@@ -120,7 +120,7 @@ public sealed partial class ModelTurnHostTests
                     fault is "evidence"
                         ? [new(new(Guid.NewGuid()), context.Request, new(1), "Unreviewed source", ModelEvidenceDisclosure.LocalOnly)]
                         : [],
-                    context.CreatedAt, context.ExpiresAt, fault is "tools" ? ModelToolMode.ReadOnly : ModelToolMode.None)
+                    context.CreatedAt, context.ExpiresAt, fault is "tools" ? ModelToolMode.LocalWebPage : ModelToolMode.None)
                 : context;
             var turn = new ModelTurn(original.Owner, original.Issuer, original.Provenance, actualContext,
                 actualContext.Serialize(), original.SessionGeneration, original.TaskRevision,

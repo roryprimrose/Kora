@@ -1,4 +1,5 @@
 using Kora.Application.Interaction;
+using Kora.Application.Configuration;
 using Kora.Application.Voice;
 using Kora.Core.Interaction;
 using Kora.Core.Voice;
@@ -16,6 +17,7 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
     private readonly IQuestionVoiceRecognitionService captureRuntime;
     public QuestionVoiceAdmission? Admission { get; set; } = new(new("mic", "Synthetic"), 1, 1, 1);
     public bool Visible { get; set; } = true;
+    public ConversationalReplyState? Preference { get; set; }
     public bool ThrowPlayback { get; set; }
     public TaskCompletionSource? Playback { get; set; }
     public bool Speaking { get; private set; }
@@ -39,11 +41,14 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
                     if (Playback is not null) { await Playback.Task.WaitAsync(token); }
                 }
                 finally { Speaking = false; }
-            }, NullLogger<HostQuestionVoiceReplyService>.Instance);
+            }, NullLogger<HostQuestionVoiceReplyService>.Instance, conversationalPreference: () => Preference);
     }
 
     public Task OpenAsync(HostQuestionRecord question, bool afterPlayback = false) =>
         Replies.OpenAsync(question, () => Visible, decision => Accepted = decision, afterPlayback, TestContext.Current.CancellationToken);
+
+    public Task OpenConversationalAsync(HostQuestionRecord question) =>
+        Replies.OpenConversationalAsync(question, () => Visible, decision => Accepted = decision, TestContext.Current.CancellationToken);
 
     public async ValueTask DisposeAsync()
     {

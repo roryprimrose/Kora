@@ -2,7 +2,7 @@ using Kora.Core.Artifacts;
 
 namespace Kora.Core.Agents;
 
-/// <summary>A validated inert v1 original, not execution or selection authority.</summary>
+/// <summary>A validated inert owned original, not execution or selection authority.</summary>
 public sealed class OwnedAgentProfileDocument
 {
     private OwnedAgentProfileDocument(string name, BoundedAgentProfile profile)
@@ -17,12 +17,12 @@ public sealed class OwnedAgentProfileDocument
         OwnedInstructionNames.WriteName(name);
         var document = ArtifactFileDocument.Parse(bytes, ArtifactKind.Agent, "kora-profile", name);
         if (!document.Metadata.TryGetValue("kora-agent-format", out var format)
-            || !string.Equals(format, "1", StringComparison.Ordinal))
-        { throw new InvalidDataException("Owned authoring supports only reference-free v1 profiles."); }
+            || format is not ("1" or "4"))
+        { throw new InvalidDataException("Owned authoring supports tool-free reference-free v1 or owned-instruction/observation-tool v4 profiles."); }
         var profile = BoundedAgentProfile.Parse(document);
-        if (profile.Tools.Length != 0
+        if (format is "1" && profile.Tools.Length != 0
             || !string.Equals(document.Metadata["name"], name, StringComparison.Ordinal))
-        { throw new InvalidDataException("A new owned profile requires its exact canonical ID as name, tools none and zero calls."); }
+        { throw new InvalidDataException("A new owned profile requires its exact canonical ID as name; v1 requires tools none and zero calls."); }
         return new(name, profile);
     }
 

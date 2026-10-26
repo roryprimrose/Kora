@@ -121,7 +121,7 @@ public sealed class BoundedAgentProfileTests
 
     [Theory]
     [InlineData("0")]
-    [InlineData("4")]
+    [InlineData("5")]
     [InlineData("future")]
     public void ParseRejectsUnsupportedFormatOnOtherwiseValidToolFreeProfile(string format)
     {
@@ -144,6 +144,61 @@ public sealed class BoundedAgentProfileTests
         tool.Should().Throw<InvalidDataException>();
         Action calls = () => Parse(text.Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal));
         calls.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void VersionFourCombinesExactOwnedReferencesWithCanonicalObservationSubsetAndHostClamps()
+    {
+        var text = Profile.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+            .Replace("references: none", "references: disk.kora-profile.instruction.first, disk.kora-profile.instruction.second", StringComparison.Ordinal)
+            .Replace("tools: application.get_version", "tools: runtime.get_status, application.get_version", StringComparison.Ordinal);
+        var profile = Parse(text);
+        profile.References.Select(item => item.Id).Should().Equal("disk.kora-profile.instruction.first", "disk.kora-profile.instruction.second");
+        profile.Tools.Should().Equal(ReadOnlyCapabilityCatalog.RuntimeStatus, ReadOnlyCapabilityCatalog.Version);
+        profile.SharedSkill.Should().BeNull();
+        profile.Constraints.ToolIds.Should().Equal(profile.Tools);
+        profile.Constraints.GetTools(ModelToolMode.ReadOnly).Should().Equal(
+            ReadOnlyCapabilityCatalog.Descriptors.Single(item => string.Equals(item.Id, ReadOnlyCapabilityCatalog.RuntimeStatus, StringComparison.Ordinal)),
+            ReadOnlyCapabilityCatalog.Descriptors.Single(item => string.Equals(item.Id, ReadOnlyCapabilityCatalog.Version, StringComparison.Ordinal)));
+        profile.MaximumCalls.Should().Be(2);
+        profile.MaximumRounds.Should().Be(2);
+        var all = string.Join(",", ReadOnlyCapabilityCatalog.Descriptors.Select(item => item.Id));
+        Parse(text.Replace("tools: runtime.get_status, application.get_version", "tools: " + all, StringComparison.Ordinal))
+            .Tools.Should().HaveCount(6);
+    }
+
+    [Theory]
+    [InlineData("references", "none")]
+    [InlineData("references", "disk.kora-profile.skill.example")]
+    [InlineData("references", "disk.kora-profile.agent.example")]
+    [InlineData("references", "disk.kora-profile.instruction.first,disk.kora-profile.instruction.first")]
+    [InlineData("references", "disk.kora-profile.instruction.a,disk.kora-profile.instruction.b,disk.kora-profile.instruction.c,disk.kora-profile.instruction.d,disk.kora-profile.instruction.e")]
+    [InlineData("tools", "none")]
+    [InlineData("tools", "application.get_version,application.get_version")]
+    [InlineData("tools", "network.get_web_page")]
+    [InlineData("tools", "capabilities.list,capabilities.get,application.get_version,application.get_readiness,runtime.list,runtime.get_status,extra")]
+    [InlineData("maximum-calls", "0")]
+    [InlineData("maximum-calls", "2147483648")]
+    [InlineData("maximum-rounds", "0")]
+    public void VersionFourRejectsMissingCombinedOperationAndUnknownOrExcessAuthority(string field, string value)
+    {
+        var text = Profile.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+            .Replace("references: none", "references: disk.kora-profile.instruction.first", StringComparison.Ordinal);
+        var line = text.Split('\n').Single(item => item.StartsWith(field + ":", StringComparison.Ordinal));
+        Action parse = () => Parse(text.Replace(line, field + ": " + value, StringComparison.Ordinal));
+        parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("hooks: none")]
+    [InlineData("references: disk.kora-profile.instruction.first")]
+    [InlineData("tools: application.get_version")]
+    public void VersionFourRejectsUnknownOrDuplicateMetadata(string field)
+    {
+        var text = Profile.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+            .Replace("references: none", "references: disk.kora-profile.instruction.first", StringComparison.Ordinal);
+        Action parse = () => Parse(text.Replace("runtime: local", "runtime: local\n" + field, StringComparison.Ordinal));
+        parse.Should().Throw<InvalidDataException>();
     }
 
     [Theory]

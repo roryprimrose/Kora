@@ -20,6 +20,7 @@ public sealed partial class DetailWindowController : IDisposable
     private readonly IUserDocumentationProvider documentation;
     private readonly Func<bool> canAccess;
     private readonly NativeDetailRenderer renderer;
+    private readonly NativeDetailFormat finalizedMarkdownFormat;
     private readonly StaticHtmlDetailRenderer staticHtmlRenderer;
     private readonly IDetailClipboard clipboard;
     private readonly Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView;
@@ -60,7 +61,8 @@ public sealed partial class DetailWindowController : IDisposable
         : this(documentation, () => viewModel.CanRevealPrivatePresentation,
             new NativeDetailRenderer(rendererLogger), new NativeDetailClipboard(),
             (state, result, copy) => new DetailWindow(state, result, copy, viewModel), logger,
-            new StaticHtmlDetailRenderer(staticHtmlLogger))
+            new StaticHtmlDetailRenderer(staticHtmlLogger),
+            finalizedMarkdownFormat: NativeDetailFormat.MarkdownStrikethroughV4)
     {
         this.viewModel = viewModel;
         viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
@@ -73,11 +75,13 @@ public sealed partial class DetailWindowController : IDisposable
     internal DetailWindowController(
         IUserDocumentationProvider documentation, Func<bool> canAccess, NativeDetailRenderer renderer,
         IDetailClipboard clipboard, Func<DetailViewerState, NativeDocumentResult, Func<bool, int?, int, Task>, IDetailView> createView,
-        ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null)
+        ILogger<DetailWindowController> logger, StaticHtmlDetailRenderer? staticHtmlRenderer = null,
+        NativeDetailFormat finalizedMarkdownFormat = NativeDetailFormat.MarkdownChecklistsV3)
     {
         this.documentation = documentation;
         this.canAccess = canAccess;
         this.renderer = renderer;
+        this.finalizedMarkdownFormat = finalizedMarkdownFormat;
         this.staticHtmlRenderer = staticHtmlRenderer ?? new(NullLogger<StaticHtmlDetailRenderer>.Instance);
         this.clipboard = clipboard;
         this.createView = createView;
@@ -322,9 +326,9 @@ public sealed partial class DetailWindowController : IDisposable
         return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
     }
 
-    private static NativeDetailFormat SelectNativeFormat(AdmittedDetailContent content) =>
+    private NativeDetailFormat SelectNativeFormat(AdmittedDetailContent content) =>
         content.Kind == DetailContentKind.Markdown && content.Origin == DetailContentOrigin.FinalizedResponse
-            ? NativeDetailFormat.MarkdownChecklistsV3
+            ? finalizedMarkdownFormat
             : NativeDetailFormat.PipeTablesV2;
 
     private string PublishContent(AdmittedDetailContent content, Window? owner,

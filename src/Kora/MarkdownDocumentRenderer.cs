@@ -30,7 +30,12 @@ internal static class MarkdownDocumentRenderer
             ];
         }
 
-        return result.Sections.Select(section => (Control)CreateText(section.Text, section.Style, selectable)).ToArray();
+        return result.Sections.Select(section =>
+        {
+            var control = CreateText(section.Text, section.Style, selectable);
+            NativeStrikethroughText.Attach(control, section);
+            return (Control)control;
+        }).ToArray();
     }
 
     private static TextBlock CreateText(string text, NativeTextStyle style, bool selectable)

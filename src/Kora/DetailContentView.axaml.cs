@@ -296,6 +296,7 @@ public sealed partial class DetailContentView : UserControl
         reader.SelectionStart = 0;
         reader.SelectionEnd = 0;
         reader.Text = string.Empty;
+        NativeStrikethroughText.Retire(renderedDocument.Children);
         renderedDocument.Children.Clear();
         search.Text = string.Empty;
         findSpan.Text = null;

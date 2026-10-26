@@ -61,6 +61,14 @@ introduced. Native review is a required host adapter, not a model decision.
 Production provider/tool-loop qualification remains unavailable; deterministic
 real-host/fake-transport evidence does not enable a runtime.
 
+### Reviewed customization metadata discovery - 2026-10-26
+
+The separate [customization catalogue](../src/Kora.Core/Tools/CustomizationDiscoveryTools.cs) advertises only `customizations.list` and `customizations.get` in `CustomizationDiscovery` mode. The user chooses one to six supported skill, agent and instruction sources, reviews the exact immutable metadata projection, and confirms one local retained recommendation. This is neither the six legacy host descriptors nor activation/invocation.
+
+The [complete interaction guide](../docs/customizations.md#discover-which-selected-customizations-may-help) defines source/entry choice, original typed/activated routes, private native review, exact fields, currentness, byte bounds, honest coverage and unavailable behavior. The [canonical conversation route](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs) retains the genuine answer or terminal without changing ordinary/read-only/session-discovery paths.
+
+Callbacks expose only frozen reviewed metadata through opaque snapshot refs, with exact selected-source revalidation. No source body, raw identity, path, native handle, MCP/account/configuration, prompt expansion, automatic instruction loading, invocation, grant or hosted disclosure is introduced ([snapshot lifecycle](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [primary-only reader](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Metadata.cs)). Deterministic native/host/fake-model tests do not qualify or enable a real provider.
+
 ### Bounded provider-neutral continuation implementation - 2026-10-20
 
 [ModelToolProtocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs) owns the

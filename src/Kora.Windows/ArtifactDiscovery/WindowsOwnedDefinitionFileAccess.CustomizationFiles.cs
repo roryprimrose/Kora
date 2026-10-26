@@ -52,7 +52,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         catch { pinned.Dispose(); throw; }
     }
 
-    internal sealed record DefinitionFile(byte[] Bytes, string Identity);
+    internal sealed record DefinitionFile(byte[] Bytes, string Identity, DateTime LastWriteTimeUtc);
 
     internal static DefinitionFile? ReadDefinitionFile(string path, int maximumBytes, CancellationToken token)
     {
@@ -74,7 +74,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             if (count == 0) { throw new IOException("The definition component changed during capture."); }
             offset += count;
         }
-        return new(bytes, WindowsFileIdentity.Read(handle));
+        return new(bytes, WindowsFileIdentity.Read(handle), File.GetLastWriteTimeUtc(handle));
     }
 
     internal static string WriteDefinitionFile(string directory, DefinitionDirectory pinned, string name,

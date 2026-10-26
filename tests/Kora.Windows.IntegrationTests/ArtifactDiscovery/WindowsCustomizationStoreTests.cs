@@ -10,7 +10,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
-public sealed class WindowsCustomizationStoreTests : IDisposable
+public sealed partial class WindowsCustomizationStoreTests : IDisposable
 {
     private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
         ".net-test-artifacts", "customizations", Guid.NewGuid().ToString("N")));

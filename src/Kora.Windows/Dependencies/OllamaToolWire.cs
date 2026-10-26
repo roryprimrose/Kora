@@ -162,11 +162,20 @@ internal static partial class OllamaToolWire
             writer.WriteString("type", "string");
             writer.WriteEndObject();
         }
+        else if (descriptor.Input == CapabilityInputShape.MetadataReference)
+        {
+            writer.WriteStartObject("ref");
+            writer.WriteString("type", "string");
+            writer.WriteNumber("minLength", 32);
+            writer.WriteNumber("maxLength", 32);
+            writer.WriteEndObject();
+        }
         writer.WriteEndObject();
-        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.WebPageAddress)
+        if (descriptor.Input is CapabilityInputShape.Id or CapabilityInputShape.WebPageAddress or CapabilityInputShape.MetadataReference)
         {
             writer.WriteStartArray("required");
-            writer.WriteStringValue(descriptor.Input == CapabilityInputShape.Id ? "id" : "address");
+            writer.WriteStringValue(descriptor.Input == CapabilityInputShape.Id ? "id"
+                : descriptor.Input == CapabilityInputShape.MetadataReference ? "ref" : "address");
             writer.WriteEndArray();
         }
         writer.WriteEndObject();

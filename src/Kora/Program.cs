@@ -299,7 +299,10 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
-        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore, WindowsCustomizationStore>();
+        services.AddSingleton<WindowsCustomizationStore>();
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Application.Tools.CustomizationDiscoveryService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();

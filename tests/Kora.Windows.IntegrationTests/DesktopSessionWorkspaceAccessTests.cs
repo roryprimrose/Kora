@@ -38,6 +38,9 @@ public sealed class DesktopSessionWorkspaceAccessTests
     [Theory]
     [InlineData(CallState.Clear)]
     [InlineData(CallState.Active)]
+    [InlineData(CallState.Suspected)]
+    [InlineData(CallState.Unknown)]
+    [InlineData(CallState.Unavailable)]
     public async Task BindingPreservesOwnershipCallAndPrivacyFencesAndDisposalCannotRestoreAdmission(CallState callState)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -56,7 +59,7 @@ public sealed class DesktopSessionWorkspaceAccessTests
             access.Invoking(value => value.Bind(fixture.Main)).Should().Throw<InvalidOperationException>();
             ownership.BindCallbacks(_ => Task.CompletedTask, _ => Task.FromResult(true));
             access.CanInspect.Should().BeTrue();
-            access.CanControl.Should().Be(callState == CallState.Clear);
+            access.CanControl.Should().BeTrue();
             var admittedRevision = access.ControlRevision;
             access.ControlRevision.Should().Be(admittedRevision);
             ownership.UnbindCallbacks();

@@ -14,5 +14,7 @@ public sealed record CallPolicyObservation(
         || IsProtected && Settings.ShowVisualTextDuringCalls;
     public bool AllowActivation => !ManualControlEvidenceUnavailable && (!IsProtected || Settings.AllowVoiceActivationDuringCalls);
     public HostAuthorizationPolicy Authorization(bool unlocked, bool mandatoryGatesSatisfied) =>
-        new(unlocked, mandatoryGatesSatisfied, IsProtected, IgnoreReusableGrants: true);
+        new(unlocked && !ManualControlEvidenceUnavailable, mandatoryGatesSatisfied && !ManualControlEvidenceUnavailable,
+            IsProtected, IgnoreReusableGrants: false,
+            AllowSpokenApprovalsDuringCalls: !ManualControlEvidenceUnavailable && Settings.AllowSpokenApprovalsDuringCalls);
 }

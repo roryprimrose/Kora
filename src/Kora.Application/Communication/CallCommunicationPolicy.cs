@@ -5,7 +5,7 @@ using Kora.Core.Hosting;
 namespace Kora.Application.Communication;
 
 // One run-owned manual layer; automatic evidence and its availability are never rewritten.
-public sealed class CallCommunicationPolicy : IDisposable
+public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPolicyGate
 {
     private readonly Lock sync = new();
     private readonly ICallStateService automatic;
@@ -23,6 +23,15 @@ public sealed class CallCommunicationPolicy : IDisposable
 
     // Presentation reads an immutable observation; consequential admission still takes the commit lock.
     public CallPolicyObservation Current => Volatile.Read(ref current);
+
+    public T WithCurrent<T>(HostAuthorizationPolicy baseline, Func<HostAuthorizationPolicy, T> commit)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            return commit(current.Authorization(baseline.IsUnlocked, baseline.OtherMandatoryGatesSatisfied));
+        }
+    }
 
     public void LoadSettings(CallAwareSettings settings)
     {
@@ -52,7 +61,7 @@ public sealed class CallCommunicationPolicy : IDisposable
     }
 
     public CallMutationOutcome SetSettings(CallAwareSettings settings, RequestOrigin origin, long revision,
-        Func<bool> hostEligible, Func<CallAwareSettings, bool> persist)
+        Func<bool> hostEligible, Func<CallAwareSettings, bool> persist, bool spokenApprovalDowngradeConfirmed = false)
     {
         lock (sync)
         {
@@ -60,7 +69,9 @@ public sealed class CallCommunicationPolicy : IDisposable
             if (denied is { } result) { return result; }
             if (settings == current.Settings) { return CallMutationOutcome.Unchanged; }
             if (!settings.ShowVisualTextDuringCalls && current.Settings.ShowVisualTextDuringCalls
-                || settings.AllowVoiceActivationDuringCalls && !current.Settings.AllowVoiceActivationDuringCalls)
+                || settings.AllowVoiceActivationDuringCalls && !current.Settings.AllowVoiceActivationDuringCalls
+                || settings.AllowSpokenApprovalsDuringCalls && !current.Settings.AllowSpokenApprovalsDuringCalls
+                    && (origin != RequestOrigin.LocalUi || !spokenApprovalDowngradeConfirmed))
             {
                 return CallMutationOutcome.ExactReviewUnavailable;
             }

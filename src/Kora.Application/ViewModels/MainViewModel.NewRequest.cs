@@ -12,8 +12,8 @@ public sealed partial class MainViewModel
 
     private Func<bool> CaptureNewRequestOpeningEligibility(ManualCallInput input)
     {
-        var owner = auditImpactOwnerRevision();
-        var name = assistantNameConfiguration.Get().Revision;
+        var owner = input.NavigationOwnerRevision;
+        var name = input.AssistantNameRevision;
         var decisionFree = !IsResponseInteractionPending;
         return () => decisionFree && input.Origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
             && input.Eligible() && CallPolicyRevision == input.Revision

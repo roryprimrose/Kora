@@ -72,6 +72,12 @@ in long worktrees without changing production path validation or ACL checks.
 Owned child-process creation and release probes share that exact parent and keep
 their GUID-name, existing-directory and non-reparse ownership checks.
 
+Legacy interaction-store fixtures must remove only empty later-version tables
+before declaring an older schema. Use the shared fixture staging helpers;
+never discard current session policy, admission or conversation authority to
+construct a migration case. Repeated grant-use history fixtures must resolve
+a fresh host invocation for each use, not replay one admitted invocation.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

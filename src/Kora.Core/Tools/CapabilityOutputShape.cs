@@ -10,4 +10,5 @@ public enum CapabilityOutputShape
     Runtime,
     WebPage,
     Sessions,
+    CustomizationMetadata,
 }

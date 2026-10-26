@@ -446,11 +446,19 @@ public sealed partial class ModelTurnHostTests
         internal SharedSkillSource Source { get; } = new(Guid.NewGuid(), ".agents\\skills", new string('a', 48));
         internal string Text { get; set; } = Initial;
         internal bool OtherFiles { get; set; }
+        internal bool WrongSource { get; set; }
+        internal Exception? Failure { get; set; }
         internal int Reads { get; private set; }
         internal SharedSkillSnapshot Snapshot() => SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text), OtherFiles);
         public ValueTask<SharedSkillSource> SelectAsync(string selectedRoot, CancellationToken cancellationToken) => ValueTask.FromResult(Source);
         public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken)
-        { Reads++; return ValueTask.FromResult(new SharedSkillCatalogue(Source, [Snapshot()])); }
+        {
+            Reads++;
+            if (Failure is not null) { throw Failure; }
+            return ValueTask.FromResult(WrongSource
+                ? new SharedSkillCatalogue(new(Guid.NewGuid(), ".other\\skills", new string('b', 48)), [])
+                : new SharedSkillCatalogue(Source, [Snapshot()]));
+        }
     }
 
     private sealed class SharedSkillAudit : ISecurityAuditLog

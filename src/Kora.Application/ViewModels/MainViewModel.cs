@@ -609,9 +609,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Tools.CustomizationDiscoveryCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Skills.NamedSkillCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -619,7 +621,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             PreviewVoiceAsync,
             () => SelectedVoice is not null && SelectedOutputDevice is not null
                 && EffectiveOutputDevice is { IsMuted: false }
-                && !IsBusy && !IsListening && !voiceRecognition.IsListening);
+                && !IsBusy && !IsListening && !voiceRecognition.IsListening && !speechInterruptionActive);
         StopSpeechCommand = CreateCommand(StopSpeakingAsync, () => IsSpeaking);
         speechReadOnce = new Kora.Tools.Speech.SpeechReadOnce(this);
         ReadCurrentResponseCommand = CreateCommand(
@@ -3002,6 +3004,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (customizationShutdown is not null && !await customizationShutdown()) { return; }
         await ClosePromptPreparation();
         await CloseAgentRun();
+        await CloseNamedSkillUse();
         await CloseSharedSkillUse();
         await CloseInstructionUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
@@ -3987,12 +3990,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         };
     }
 
-    private async Task RunTypedCommandAsync() =>
+    private async Task RunTypedCommandAsync()
+    {
+        if (retainedAnswerSpeech is not null && IsSpeechInterruptionCommand(CommandText))
+        {
+            await InterruptSessionSpeechAsync(CaptureSpeechInterruptionInput(), voice: false);
+            return;
+        }
         await HandleTranscriptAsync(
             CommandText,
             1,
             SecurityAuditInitiator.TypedCommand,
             foregroundTarget: Volatile.Read(ref foregroundConversationTarget));
+    }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
@@ -4031,9 +4041,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var newRequestEligibility = CaptureNewRequestOpeningEligibility(manualInput);
             var editorTarget = Volatile.Read(ref capturedCustomizationVoiceTarget);
             var foregroundTarget = Volatile.Read(ref foregroundConversationTarget);
+            var speechInput = Volatile.Read(ref capturedSpeechInterruption);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4083,7 +4094,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
         PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
-        ForegroundConversationTarget? foregroundTarget)
+        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4108,6 +4119,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         ApplicationLog.VoiceDispatchGate(logger, eventArgs.Generation, "Admitted");
         IsListening = voiceRecognition.IsListening;
+        if (IsSpeechInterruptionCommand(eventArgs.Transcript))
+        {
+            await InterruptSessionSpeechAsync(speechInput, voice: true);
+            return;
+        }
+        if (speechInput?.Playback is not null || retainedAnswerSpeech is not null)
+        {
+            ReportResponseRead("Only an explicit stop speaking command can interrupt the original session playback. No other command, speech or model work was dispatched.");
+            return;
+        }
         if (questionTarget.Command is not null)
         {
             await HandleTranscriptAsync(eventArgs.Transcript, eventArgs.Confidence,
@@ -4218,6 +4239,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.Skills.NamedSkillCommand.Parse(spokenText, AssistantName) is { } namedSkill)
+        {
+            await ExecuteNamedSkillInvocation(namedSkill, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.Tools.CustomizationDiscoveryCommand.Parse(spokenText, AssistantName) is { } discoveryCommand)
+        {
+            await ExecuteCustomizationDiscovery(discoveryCommand, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -5552,6 +5585,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Func<bool>? additionalEligibility = null, bool boundedExactReadback = false,
         Func<CancellationToken, Task>? validateReadSource = null, CancellationToken cancellationToken = default)
     {
+        if (speechInterruptionActive) { return false; }
         if (additionalEligibility is null && responseReadCancellation is not null)
         {
 #pragma warning disable VSTHRD003 // A replacement response cannot start output until the retired one-shot has released it.
@@ -6036,6 +6070,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             await ClosePromptPreparation();
             await CloseAgentRun();
+            await CloseNamedSkillUse();
             await CloseSharedSkillUse();
             await CloseInstructionUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
@@ -6348,6 +6383,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
+            .Concat([Kora.Application.Tools.CustomizationDiscoveryCommand.Phrase])
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])

@@ -137,7 +137,7 @@ public sealed partial class SessionsConversationTests
 
     private sealed class PageModelTransport : IModelToolTransport
     {
-        internal bool TwoSources { get; init; }
+        internal bool TwoSources { get; set; }
         internal Task<ModelToolTransportReply>? PendingSecond { get; init; }
         internal TaskCompletionSource? SecondEntered { get; init; }
         internal List<ModelToolRequest> Requests { get; } = [];
@@ -151,11 +151,11 @@ public sealed partial class SessionsConversationTests
                 SecondEntered?.TrySetResult();
                 return pending;
             }
-            var message = ModelToolProtocol.ParseAssistant(TwoSources && Requests.Count == 2
+            var message = ModelToolProtocol.ParseAssistant(TwoSources && request.Round == 2
                 ? """{"kind":"toolCalls","calls":[{"callId":"page_2","capabilityId":"network.get_web_page","input":{"address":"https://second.example/"}}]}"""u8
-                : TwoSources && Requests.Count == 3
+                : TwoSources && request.Round == 3
                 ? """{"kind":"answer","answer":"Genuine local comparison of both approved public pages."}"""u8
-                : Requests.Count == 1
+                : request.Round == 1
                 ? """{"kind":"toolCalls","calls":[{"callId":"page_1","capabilityId":"network.get_web_page","input":{"address":"https://example.com/"}}]}"""u8
                 : """{"kind":"answer","answer":"Genuine local summary of the approved public page."}"""u8);
             return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance, message,

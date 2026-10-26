@@ -57,6 +57,10 @@ its runner.
 
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
+Portable fixtures that require host-resolved absolute source paths must construct
+host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
+Keep relative-path rejection intact; fixture portability must not relax source authority.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
@@ -71,6 +75,15 @@ This keeps nested segmented-store fixtures within native directory path limits
 in long worktrees without changing production path validation or ACL checks.
 Owned child-process creation and release probes share that exact parent and keep
 their GUID-name, existing-directory and non-reparse ownership checks.
+
+Synthetic definition-edit fixtures must explicitly user-own every enumerated
+inventory root, not only the original file's immediate parent:
+[customization inventory](src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)
+also pins the editor `User` directory as an MCP root when no `mcp.json` exists.
+Create each new fixture root with
+[CreateRestrictedDirectory](src/Kora.Windows/Storage/RestrictedStorageDirectory.cs),
+and assert both owner and protected ACL for `User` and `prompts`, as in the
+[original-edit fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.InstructionOriginal.cs).
 
 Legacy interaction-store fixtures must remove only empty later-version tables
 before declaring an older schema. Use the shared fixture staging helpers;

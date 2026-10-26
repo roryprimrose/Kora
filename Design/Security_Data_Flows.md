@@ -27,6 +27,10 @@ Queries and one exact match are volatile presentation only: no persistence, logg
 
 ## Exact-session conversation retention boundary
 
+An explicit `ask this conversation <original body>` request uses the [existing native presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), not provider/input identifiers or cached selection. Its [one-use source-bound review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) preserves original voice/UI lineage and validates exact target/currentness through retention and model consumption. It confers no earlier-history, memory or instruction-source permission and never rewrites unsent input.
+
+The [ordinary resource boundary](Work_Management.md#ordinary-session-resource-allocation-implementation) retains original request/channel/context and existing per-task tool/question/egress authority. Only the [host allocator's live issued-lease table](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) confers allocation authority; constructing a qualification record or lease-shaped value cannot consume budget or release another owner's resources. Expiry/revocation/profile/runtime changes close dispatch and answer publication. Unknown physical identity remains globally exclusive; failed physical joins quarantine affected resources. Resource audit contains host turn identity and fixed outcomes, never source text or provider/account details.
+
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
 stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
 The 100-message session bound is not an aggregate storage quota. Nothing silently evicts unexpired content or required audit ([unsent input](../src/Kora/SessionsViewModel.Unsent.cs), [read-only recovery](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
@@ -488,6 +492,11 @@ See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-lock
 ## Call-Aware Output Privacy
 
 Call state and detector preferences are device-local; collect only metadata needed for speech gating.
+The [bounded local communications observer](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) keeps native endpoint/session identifiers volatile inside Windows and exposes only opaque device/generation epochs, sequence, state, timestamp and health to the host.
+Session process IDs only exclude Kora; no executable/window names, content or audio are collected. Source status is not model context, capture consent, speaking permission or grant authority.
+The [host aggregator](../src/Kora.Application/Communication/CommunicationActivityCallStateService.cs) treats selected-but-unavailable, stale, failed and invalid observations as Unknown.
+The unqualified production profile cannot be enabled through native, typed or voice routes; deterministic platform fakes are implementation evidence only.
+Callback retirement and actual worker/COM release remain separate; failed unregister retains the retired owner in quarantine without replacement or late publication.
 Do not record communications audio, meeting contents, participants, or transcripts for detection.
 An optional Graph presence source uses explicitly approved account/network access with least privilege; it cannot operate remotely under local-only mode.
 Current state and speech suppression reasons are not silently sent to models.

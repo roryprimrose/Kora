@@ -10,6 +10,28 @@ namespace Kora.Application.UnitTests.Hosting;
 public sealed partial class SessionWorkspaceServiceTests
 {
     [Theory]
+    [InlineData("origin")]
+    [InlineData("missing")]
+    [InlineData("revoked")]
+    public async Task CompoundCommitRequiresOriginalNativeAuthorityExactWorkAndPhysicalAdmission(string fault)
+    {
+        using var f = new Fixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var preview = await f.Service.PreviewDispositionAsync(f.Session.SessionId, new(1), 0, f.Token);
+        if (fault is not "missing")
+        {
+            var message = new Kora.Core.Conversation.ConversationMessage(f.Request, new(1), 1, 2,
+                DateTimeOffset.UnixEpoch, "original", null, null);
+            preview = preview with { StoppedWork = new(new(Guid.NewGuid(), f.Request, new(1), new(2),
+                DateTimeOffset.UnixEpoch, DateTimeOffset.UnixEpoch.AddMinutes(1)), message) };
+        }
+        var act = async () => await f.Service.CommitStoppedDispositionAsync(preview,
+            fault is "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi,
+            () => fault is not "revoked", f.Token);
+        await act.Should().ThrowAsync<InvalidOperationException>();
+        f.TaskWrites.Should().BeEmpty();
+    }
+    [Theory]
     [InlineData("current")]
     [InlineData("foreign")]
     [InlineData("inspect")]

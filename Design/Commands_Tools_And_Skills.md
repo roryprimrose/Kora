@@ -28,6 +28,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
+
 The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
 
 Kora has one source-qualified artifact invocation route for bundled skills and
@@ -466,6 +468,21 @@ The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileRea
 Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
+
+**Named static invocation:** original typed/current-name activated
+`agent invoke "Exact readable name" <original task>` resolves exactly one
+file-backed Agent from the existing registered catalogue. Missing/duplicate
+names, disabled use, reload failure or changed source refuse without fallback.
+The host resolves only the matching registered source identity within the
+existing bounded roots; the native reader then pins and revalidates its exact
+bytes against the captured catalogue digest before invocation review can
+authorize anything. No new catalogue, engine or approval policy is introduced.
+The same native bounded workflow owns explicit readable Active-target choice,
+complete source/input/channel review, separate reference consents and invocation
+confirmation, original-channel retained terminals and joined cancellation.
+Source/task changes require a new command. See
+[exact syntax](../docs/commands.md#invoke-one-registered-agent-by-readable-name)
+and [complete operation](../docs/tools-and-built-in-skills.md#invoke-a-registered-agent-by-readable-name).
 
 **Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
 Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).

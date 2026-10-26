@@ -50,6 +50,8 @@ Unknown/malformed or externally changed saved state cannot be overwritten using 
 
 ## Delivered retained original USER / typed HOST Details - 2026-10-14
 
+The separate [native Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) displays the exact selected retained ASSISTANT answer as inert LocalOnly evidence beside a distinct unchanged follow-up review, never pasted into the composer or promoted to approval/system authority. Reply has its own cancellation and stale-presenter fences; passive Details and original-USER reuse do not acquire reply or submission authority ([reply owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs)).
+
 After an explicit conversation Read or Search, the [shared native row](../src/Kora/ConversationPresentation.axaml) offers **Details - exact original USER / separate HOST** in Sessions and compact wherever that row is projected. Opening either surface or selecting session metadata reads/opens no Details automatically.
 
 The [canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs) admits only the actual exact-session retained record: immutable request/task/sequence, record revision, original generation/time and byte-exact USER body. [RetainedConversation](../src/Kora.Core/Presentation/AdmittedDetailContent.cs) is a distinct typed origin, not `FinalizedResponse`, history receipts or model authority.

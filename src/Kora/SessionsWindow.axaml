@@ -40,6 +40,7 @@
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
     <local:SessionPermissionControls />
+    <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
@@ -164,6 +165,7 @@
         </StackPanel>
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <local:AssistantReplyPanel />
         <Button x:Name="SessionInstructionScopes" Content="Apply or stop an instruction for this Active session"
             IsEnabled="{Binding CanCompose}"
             AutomationProperties.Name="Review and separately confirm volatile ordinary local session guidance, or stop applying; no hosted or tools" />
@@ -717,6 +719,17 @@
               AutomationProperties.Name="Preview exact selected session ID, revisions, live rows to remove and retained copies; does not delete" />
       <Button x:Name="ConfirmDisposition" Content="Confirm logical disposition" IsEnabled="{Binding CanConfirmDisposition}"
               AutomationProperties.Name="Explicitly confirm the previewed exact session logical disposition; not forensic deletion" />
+      <Button x:Name="ReviewStopAndDelete" Content="Review _stop and delete" IsEnabled="{Binding CanReviewStopAndDelete}"
+              AutomationProperties.Name="Review stopping this selected conversation's running work, then deleting this conversation. Review has no effects." />
+      <Button x:Name="ConfirmStopAndDelete" Content="Confirm stop and _delete" IsEnabled="{Binding CanConfirmStopAndDelete}"
+              AutomationProperties.Name="Affirmatively confirm only the reviewed conversation's stop and logical deletion, including its reviewed input discard." />
+      <Button x:Name="CancelStopAndDelete" Content="Cancel deletion" IsEnabled="{Binding CanCancelStopAndDelete}"
+              AutomationProperties.Name="Cancel this deletion review. Any already accepted stop retains ownership until physical completion." />
+      <ScrollViewer MaxHeight="280" MaxWidth="1000" Focusable="True"
+                    AutomationProperties.Name="Scrollable exact conversation stop and delete review">
+        <TextBlock Text="{Binding StopAndDeleteStatus}" TextWrapping="Wrap"
+                   AutomationProperties.Name="Exact conversation stop and delete review, progress and recovery" />
+      </ScrollViewer>
       <Button x:Name="CloseView" Content="_Close" />
     </WrapPanel>
   </Grid>

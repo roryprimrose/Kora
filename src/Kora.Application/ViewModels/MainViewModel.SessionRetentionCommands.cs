@@ -31,6 +31,7 @@ public sealed partial class MainViewModel
     {
         RetireSpeechSummarySuggestions();
         sessionRequests?.Retire();
+        SetForegroundRequestReview(null);
         sessionRetentionCommands?.Service.Retire();
         conversationSearchCommands?.Retire();
     }

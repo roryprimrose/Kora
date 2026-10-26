@@ -68,6 +68,8 @@ bodies, start listening, dispatch work, resume Done or change question/approval 
 
 ### Routing is independent of window mode
 
+The explicit `ask this conversation <original body>` command binds only the unique current foreground Active presenter, with readable exact native review and a separate one-use confirmation. The [shared presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) supplies this host snapshot; current selection is not permission for other utterances. The [complete operation](Interaction_And_Sessions.md#explicit-original-request-to-the-foreground-conversation) preserves independent unsent buffers and default routing.
+
 The approved [relatedness contract](Interaction_And_Sessions.md#proposed-relatedness-routing)
 applies in both modes. Selection supplies conversational context, not a routing lock.
 Explicit session composers/dictation and named targets win. Untargeted general voice
@@ -618,6 +620,8 @@ Do not rely on color/animation alone; expose state text and readable blocker rea
 Basic list/new/select/Done/resume/delete/status controls do not require a model, internet, or working microphone.
 
 ### Conversation Pane
+
+The [deliberate native Reply operation](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) is shared by the primary conversation, Sessions and compact surface. Its row action chooses one exact retained ASSISTANT answer; visible reply/source/cancel controls use the existing memory-only composer and separate full-source/new-input review followed by one-use local-only confirmation. Choosing Reply is not submission, and ordinary Send outside Reply remains unchanged ([native state](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs), [three-surface execution evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
 
 Show ordered user/assistant exchanges, structured questions, accepted answers, plans, artifacts, approval decisions, and observed actions/results.
 Collapsible task/event groups reduce noise but cannot replace or discard full evidence.

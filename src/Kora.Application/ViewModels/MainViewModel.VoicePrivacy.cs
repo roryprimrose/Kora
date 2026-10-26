@@ -79,6 +79,7 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        communicationActivity?.Refresh();
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
@@ -202,11 +203,10 @@ public sealed partial class MainViewModel
             var work = Task.Run(async () =>
             {
                 var observed = await outputCatalog.RefreshAsync(token).ConfigureAwait(false);
-                if (disposed || lifecycleAdmissionClosed || privacyObservation.Current.TopologyRevision != topology)
+                if (!disposed && !lifecycleAdmissionClosed && privacyObservation.Current.TopologyRevision == topology)
                 {
-                    throw new InvalidOperationException("Output discovery lost its original host or topology. Refresh under current admission.");
+                    outputConfiguration?.Observe(observed);
                 }
-                outputConfiguration?.Observe(observed);
                 return observed;
             }, token);
             outputDiscoveryPersistence = work;
@@ -329,6 +329,11 @@ public sealed partial class MainViewModel
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
         communicationPolicy.Changed -= OnCommunicationPolicyChanged;
         communicationPolicy.Dispose();
+        if (communicationActivity is not null)
+        {
+            communicationActivity.Changed -= OnCommunicationActivityChanged;
+            communicationActivity.BindHost(static () => false);
+        }
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;

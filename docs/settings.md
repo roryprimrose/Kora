@@ -156,6 +156,8 @@ An unconfirmed write holds model admission for the run; inspect saved state and 
 
 Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 
+Closing the host or changing topology retires an in-flight discovery without publishing its late metadata or starting playback. Disposal still joins the worker; retirement alone is not a discovery failure ([lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AsyncBoundaryFailures.cs)).
+
 Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 Grant and power-proposal preparation awaits requested audit persistence before exposing an actionable proposal. Retirement removes UI authority immediately; grant publication and consequential dispatch still await successful terminal audit ([approval workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
@@ -1153,6 +1155,22 @@ Read-only explanation of the currently resolved mode and any forced visual
 fallback.
 
 ## Calls
+
+### Optional communications audio observations
+
+**Inspect observations** shows the selected source, support, automatic policy evidence, observed UTC time, health and the five-second freshness limit.
+The [bounded Windows profile](../Design/Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) is implemented but **not qualified or enabled** in production.
+**Use Windows communications audio** is disabled, and an exact typed enable request is denied without saving or opening a native subscription.
+
+The device-local `calls.activity-source` defaults to **None**.
+A saved enabled source that becomes unavailable remains **Unknown** and suppresses speech; it is not silently disabled.
+Explicit **Disable automatic observations** resets this source only and waits for owned observation release.
+Manual call mode, grants, listening consent and spoken-approval settings remain unchanged ([shared host control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs)).
+
+Communications audio is at most **Suspected**, not proof of Teams or an actual call.
+Startup, ambiguous/multiple streams, stale health and device/session loss remain Unknown.
+Clear requires the witnessed single-stream transition described by the profile; no audio, transcript, account or network access is requested.
+Protected original voice requests cannot change the source, even through a later Settings click; initiate a fresh native/typed request ([origin rules](../Design/Call_Aware_Speech.md#in-call-settings-origin-gate)).
 
 ### Call detection
 

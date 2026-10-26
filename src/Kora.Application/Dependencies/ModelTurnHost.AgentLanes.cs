@@ -57,6 +57,17 @@ public sealed partial class ModelTurnHost
         lock (dispatchGate)
         {
             if (disposed) { return null; }
+            if (turn.ResourceLease is { } resource)
+            {
+                if (!resources.IsCurrent(resource) || resource.Joined) { return null; }
+                if (dispatches.Count == 0) { quiescence = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+                var ordinary = new DispatchLease(turn, null, new(TaskCreationOptions.RunContinuationsAsynchronously));
+                dispatches.Add(ordinary);
+                dispatchRevision++;
+                turn.ResourceDispatched = true;
+                return ordinary;
+            }
+            if (!resources.IsIdle) { return null; }
             var revision = dispatchRevision;
             agentLanes.TryGetValue(turn, out var lane);
             if (lane is not null)
@@ -85,6 +96,15 @@ public sealed partial class ModelTurnHost
     {
         lock (dispatchGate)
         {
+            if (lease.Turn.ResourceLease is { } resource)
+            {
+                try { resources.Join(resource, dispatched: true); }
+                catch (Exception exception)
+                {
+                    Fault(logger, exception.GetType().Name);
+                    lateFailures.Add(exception);
+                }
+            }
             dispatches.Remove(lease);
             dispatchRevision++;
             lease.Released.TrySetResult();

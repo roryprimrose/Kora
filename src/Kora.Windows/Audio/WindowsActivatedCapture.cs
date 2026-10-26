@@ -8,7 +8,7 @@ using NAudio.Wave;
 
 namespace Kora.Windows.Audio;
 
-internal sealed class WindowsActivatedCapture : IActivatedCapture
+internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHypothesisSource
 {
     private readonly Lock sync = new();
     private readonly Lock releaseSync = new();
@@ -22,6 +22,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
     private bool started;
     private int releaseRequested;
     private long recorderReleasedTimestamp;
+    private long hypothesisSequence;
 
     public WindowsActivatedCapture(
         SpeechRecognitionEngine recognizer,
@@ -37,6 +38,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
         this.canStart = canStart;
         recognizer.SpeechDetected += OnSpeechDetected;
         recognizer.SpeechRecognized += OnSpeechRecognized;
+        recognizer.SpeechHypothesized += OnSpeechHypothesized;
         recognizer.SpeechRecognitionRejected += OnSpeechRejected;
         recognizer.RecognizeCompleted += OnCompleted;
         recorder.DataAvailable += OnDataAvailable;
@@ -46,6 +48,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
     public event ActivatedAudioAvailable? DataAvailable;
 
     public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
+    public event EventHandler<ActivatedHypothesisEventArgs>? Hypothesized;
 
     public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;
 
@@ -175,6 +178,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
             recorder.RecordingStopped -= OnRecordingStopped;
             recognizer.SpeechDetected -= OnSpeechDetected;
             recognizer.SpeechRecognized -= OnSpeechRecognized;
+            recognizer.SpeechHypothesized -= OnSpeechHypothesized;
             recognizer.SpeechRecognitionRejected -= OnSpeechRejected;
             recognizer.RecognizeCompleted -= OnCompleted;
             recognizer.Dispose();
@@ -199,6 +203,15 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture
         {
             TranscriptRecognized?.Invoke(this,
                 new VoiceTranscriptEventArgs(eventArgs.Result.Text, eventArgs.Result.Confidence));
+        }
+
+    }
+
+    private void OnSpeechHypothesized(object? sender, SpeechHypothesizedEventArgs eventArgs)
+    {
+        if (ReferenceEquals(sender, recognizer) && Volatile.Read(ref releaseRequested) == 0)
+        {
+            Hypothesized?.Invoke(this, new(eventArgs.Result.Text, Interlocked.Increment(ref hypothesisSequence)));
         }
     }
 

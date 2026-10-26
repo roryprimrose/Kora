@@ -281,7 +281,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
         SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null,
-        ConversationalReplyConfigurationService? conversationalReplies = null)
+        ConversationalReplyConfigurationService? conversationalReplies = null,
+        CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -309,6 +310,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         this.responseOutputPreferences = responseOutputPreferences;
         this.callAwarePreferences = callAwarePreferences;
         communicationPolicy = new CallCommunicationPolicy(callStateService);
+        communicationActivity = callStateService as CommunicationActivityCallStateService;
+        this.communicationActivityConfiguration = communicationActivityConfiguration;
+        if (communicationActivity is not null)
+        {
+            communicationActivity.Changed += OnCommunicationActivityChanged;
+        }
         this.manualCallControl = manualCallControl;
         currentCallState = callStateService.CurrentState;
         this.sessionController = sessionController;
@@ -546,6 +553,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             new(AppearanceCommandOperation.Set), SecurityAuditInitiator.LocalUser,
             SelectedInCallFeedbackChoice ?? throw new InvalidOperationException("Refresh and choose one exact in-call feedback mode.")));
         ResetInCallFeedbackCommand = CreateCommand(() => ExecuteInCallFeedbackCommandAsync(
+            new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
+        InspectCommunicationActivityCommand = CreateCommand(() => ExecuteCommunicationActivityAsync(
+            new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        EnableCommunicationActivityCommand = CreateCommand(() => ExecuteCommunicationActivityAsync(
+            new(AppearanceCommandOperation.Set, CommunicationActivitySelection.WindowsCommunicationsAudio), SecurityAuditInitiator.LocalUser));
+        DisableCommunicationActivityCommand = CreateCommand(() => ExecuteCommunicationActivityAsync(
             new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         RefreshSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Get));
         SaveSpeechTextCommand = CreateCommand(() => RunNativeSpeechTextAsync(AppearanceCommandOperation.Set));
@@ -2053,6 +2066,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         isInitializing = true;
         try
         {
+            if (communicationActivity is not null)
+            {
+                try { communicationActivity.ObservePreferences(); }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException)
+                { ApplicationLog.Error(logger, exception, "Reading communication activity selection"); }
+            }
             var isFirstLaunch = false;
             try
             {
@@ -3971,7 +3990,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         await HandleTranscriptAsync(
             CommandText,
             1,
-            SecurityAuditInitiator.TypedCommand);
+            SecurityAuditInitiator.TypedCommand,
+            foregroundTarget: Volatile.Read(ref foregroundConversationTarget));
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "TranscriptRecognized requires a void event handler; failures are logged and presented by ShowFailure.")]
@@ -4009,9 +4029,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var questionTarget = CapturePendingQuestion(eventArgs.Transcript, beforeRouting: true);
             var newRequestEligibility = CaptureNewRequestOpeningEligibility(manualInput);
             var editorTarget = Volatile.Read(ref capturedCustomizationVoiceTarget);
+            var foregroundTarget = Volatile.Read(ref foregroundConversationTarget);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4060,7 +4081,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async Task HandleRecognizedVoiceTranscriptAsync(
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
-        PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget)
+        PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
+        ForegroundConversationTarget? foregroundTarget)
     {
         if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
@@ -4122,7 +4144,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             eventArgs.Transcript,
             eventArgs.Confidence,
             SecurityAuditInitiator.VoiceCommand,
-            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget, editorTarget);
+            manualInput, responseReadInput, reviewEligibility, newRequestEligibility, currentResponseInput, questionTarget, editorTarget,
+            foregroundTarget);
     }
 
     private async Task HandleTranscriptAsync(
@@ -4135,7 +4158,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Func<bool>? newRequestEligibility = null,
         CurrentResponseInput? currentResponseInput = null,
         PendingQuestionCapture? questionTarget = null,
-        Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null)
+        Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
+        ForegroundConversationTarget? foregroundTarget = null)
     {
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
@@ -4292,6 +4316,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
                 () => ExecuteInstructionEditorCommand(spokenText, manualInput, reviewEligibility));
+            return;
+        }
+        if (CommunicationActivityCommand.Parse(spokenText, AssistantName) is { } activityCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no communications source change was dispatched.";
+                return;
+            }
+            await ExecuteCommunicationActivityAsync(activityCommand, initiator);
             return;
         }
         if (InCallFeedbackCommand.Parse(spokenText, AssistantName) is { } callFeedbackCommand)
@@ -4494,7 +4528,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
-                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+                && (!commandRouter.IsActivationPrefixed(spokenText, AssistantName)
+                    || sessionCommand.RequestForegroundTarget && !sessionCommand.RequestActivationPrefixed))
             {
                 RetireSessionCommandReviews();
                 ShowInformation("Session request denied.", "Use the current assistant-name prefix and exact session grammar. No pending question or model received this input.");
@@ -4504,7 +4539,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision)),
                 commandRouter.IsActivationPrefixed(spokenText, AssistantName),
-                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision);
+                manualInput?.AssistantNameRevision ?? assistantNameConfiguration.Get().Revision, foregroundTarget);
             return;
         }
         if (MemoryCommand.Parse(spokenText, AssistantName) is { } memoryCommand)
@@ -6297,6 +6332,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanInspectInCallFeedback));
         OnPropertyChanged(nameof(CanInspectInCallFeedbackNative));
         OnPropertyChanged(nameof(CanChangeInCallFeedbackNative));
+        OnPropertyChanged(nameof(CanEnableCommunicationActivity));
+        OnPropertyChanged(nameof(CanChangeCommunicationActivity));
     }
 
     private string[] GetRecognitionPhrases()
@@ -6335,6 +6372,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(webSummaryReview is { } summaryReview
                 ? [WebSummaryCommand.ConfirmPrefix + summaryReview.Id.ToString("D")] : [])
             .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
             .Concat(CurrentResponseCommand.FixedPhrases)

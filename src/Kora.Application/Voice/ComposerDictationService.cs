@@ -44,6 +44,8 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
     public event EventHandler? Changed;
     public string Status { get { lock (gate) { return status; } } }
     public bool IsActive { get { lock (gate) { return turn is not null; } } }
+    public bool IsActiveFor(ComposerDictationTarget target) { lock (gate) { return ReferenceEquals(turn?.Target, target); } }
+    public bool IsActiveFor(NewRequestComposer composer) { lock (gate) { return ReferenceEquals(turn?.Target.Source, composer); } }
     public bool HasReview { get { lock (gate) { return turn?.Review == true; } } }
     public string OriginalBody { get { lock (gate) { return turn?.Review == true ? turn.Original : string.Empty; } } }
     public string LiteralText { get { lock (gate) { return turn?.Review == true ? turn.Literal! : string.Empty; } } }
@@ -51,7 +53,10 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
     public Task Quiescence { get { lock (gate) { return retirement; } } }
 #pragma warning restore VSTHRD003
 
-    public async Task BeginAsync(NewRequestComposer composer, Func<bool> exactNativeArm, CancellationToken token)
+    public Task BeginAsync(NewRequestComposer composer, Func<bool> exactNativeArm, CancellationToken token) =>
+        BeginAsync(composer.CaptureDictationTarget(), exactNativeArm, token);
+
+    public async Task BeginAsync(ComposerDictationTarget target, Func<bool> exactNativeArm, CancellationToken token)
     {
         var admission = observe();
         Turn? opened = null;
@@ -59,12 +64,12 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         {
             if (!closed && turn is null && retirement.IsCompletedSuccessfully && capture.IsCaptureQuiescent
                 && capture.IsLiteralDictationAvailable && admission is not null && exactNativeArm()
-                && composer.AdmitsDictation(composer.DictationRevision, composer.DictationControlRevision)
+                && target.IsCurrent()
                 && !token.IsCancellationRequested)
             {
-                opened = new(composer, admission, exactNativeArm, token);
+                opened = new(target, admission, exactNativeArm, token);
                 turn = opened;
-                composer.PropertyChanged += BufferChanged;
+                target.Source.PropertyChanged += BufferChanged;
                 status = "Opening explicitly armed literal dictation. No command or question routing.";
             }
             else { status = "Dictation unavailable: qualified literal transcription, consented PTT readiness, released capture and an exact native buffer are required. Nothing changed."; }
@@ -175,8 +180,8 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
     {
         if (!Eligible(current)) { Retire("Dictation review retired. Original memory preserved."); return; }
         // Do not let binding callbacks revalidate the consumed revision, but retain the native/host admission fence.
-        current.Composer.PropertyChanged -= BufferChanged;
-        var inserted = current.Composer.InsertDictation(current.Revision, current.Control, literal,
+        current.Target.Source.PropertyChanged -= BufferChanged;
+        var inserted = current.Target.Insert(literal,
             () => HostEligible(current));
         Retire(inserted ? "Literal text inserted into private draft memory only. No Create, Save, Submit, answer or execution."
             : "Dictation insertion revoked. Original or newer independent memory preserved.");
@@ -191,7 +196,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         lock (gate)
         {
             return ReferenceEquals(turn, current) && HostEligible(current)
-                && current.Composer.AdmitsDictation(current.Revision, current.Control);
+                && current.Target.IsCurrent();
         }
     }
 
@@ -217,7 +222,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         }
         if (previous is not null)
         {
-            previous.Composer.PropertyChanged -= BufferChanged;
+            previous.Target.Source.PropertyChanged -= BufferChanged;
             previous.Literal = null;
             capture.InvalidateCapture();
             previous.Cancellation.Cancel();
@@ -318,17 +323,15 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
 #pragma warning restore VSTHRD003
     }
 
-    private sealed class Turn(NewRequestComposer composer, ComposerDictationAdmission admission, Func<bool> nativeArm, CancellationToken token)
+    private sealed class Turn(ComposerDictationTarget target, ComposerDictationAdmission admission, Func<bool> nativeArm, CancellationToken token)
     {
-        public NewRequestComposer Composer { get; } = composer;
-        public long Revision { get; } = composer.DictationRevision;
-        public long Control { get; } = composer.DictationControlRevision;
-        public string Original { get; } = composer.Body;
+        public ComposerDictationTarget Target { get; } = target;
+        public string Original { get; } = target.Body;
         public ComposerDictationAdmission Admission { get; } = admission;
         public Func<bool> NativeArm { get; } = nativeArm;
         public CancellationTokenSource Cancellation { get; } = CancellationTokenSource.CreateLinkedTokenSource(token);
         public CancellationTokenRegistration Registration { get; set; }
-        public HostRequest Request { get; } = HostRequest.Create(RequestOrigin.LocalUi);
+        public HostRequest Request { get; } = target.Request;
         public ActivityContext Context { get; set; }
         public TaskCompletionSource Opened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Ended { get; set; } = Finished();

@@ -47,11 +47,11 @@ internal sealed partial class NewRequestWindow
             if (args.Property == Visual.IsVisibleProperty && !IsVisible) { CancelLiteralDictation(); }
         };
         CancelDictation.Click += (_, _) => RunDictation(CancelAndReleaseDictation);
-        AppendDictation.Click += (_, _) => model.Dictation?.Append();
-        ReplaceDictation.Click += (_, _) => model.Dictation?.Replace();
+        AppendDictation.Click += (_, _) => { if (model.OwnsDictation) { model.Dictation!.Append(); } };
+        ReplaceDictation.Click += (_, _) => { if (model.OwnsDictation) { model.Dictation!.Replace(); } };
         AddHandler(KeyDownEvent, (_, args) =>
         {
-            if (args.Key != Key.Escape || model.Dictation?.IsActive != true) { return; }
+            if (args.Key != Key.Escape || !model.OwnsDictation) { return; }
             args.Handled = true;
             RunDictation(CancelAndReleaseDictation);
         }, RoutingStrategies.Tunnel);
@@ -70,14 +70,15 @@ internal sealed partial class NewRequestWindow
     {
         if (!dictationHeld) { return Task.CompletedTask; }
         dictationHeld = false;
-        return model.Dictation!.EndAsync();
+        return model.OwnsDictation ? model.Dictation!.EndAsync() : Task.CompletedTask;
     }
 
     private void CancelLiteralDictation()
     {
         dictationHeld = false;
         Interlocked.Increment(ref dictationArm);
-        model.Dictation?.Retire("Native dictation arm withdrawn. Original memory preserved; late results discarded.");
+        if (model.OwnsDictation)
+        { model.Dictation!.Retire("Native dictation arm withdrawn. Original memory preserved; late results discarded."); }
     }
 
     private async Task CancelAndReleaseDictation()

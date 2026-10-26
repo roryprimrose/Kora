@@ -24,6 +24,7 @@
           Cursor="SizeAll" PointerPressed="OnDragHandlePointerPressed" />
       <Button x:Name="ExpandSessions" Content="Show sessions" Click="OnExpandSessionsClicked" />
       <Button x:Name="CollapseSessions" Content="Collapse" Click="OnCollapseSessionsClicked" IsVisible="False" />
+      <local:SessionDictationButton x:Name="SessionDictation" DataContext="{x:Null}" IsEnabled="{Binding CanCompose}" IsVisible="False" />
       <Button x:Name="ShowCurrentInteraction" Content="Current interaction" Click="OnCurrentInteractionClicked" IsVisible="False"
           ToolTip.Tip="Original response, question and approval controls; selecting a session never retargets them." />
       <Button x:Name="HideInteraction" Content="Hide" Click="OnHideInteractionClicked" IsVisible="False" />

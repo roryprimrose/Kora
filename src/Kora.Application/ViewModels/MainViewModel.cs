@@ -609,6 +609,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Tools.CustomizationDiscoveryCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
@@ -3810,6 +3811,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning restore VSTHRD003
 #pragma warning disable VSTHRD003 // Await owned reply retirement asynchronously so no queued UI commit survives host handoff/close.
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
+            await JoinCustomizationClarification();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
@@ -4235,6 +4237,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.Tools.CustomizationDiscoveryCommand.Parse(spokenText, AssistantName) is { } discoveryCommand)
+        {
+            await ExecuteCustomizationDiscovery(discoveryCommand, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -6366,6 +6374,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
+            .Concat([Kora.Application.Tools.CustomizationDiscoveryCommand.Phrase])
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])

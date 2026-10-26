@@ -7,11 +7,15 @@ public static class QuestionVoiceAnswer
 {
     public static QuestionAnswer? Parse(HostQuestionRecord question, string transcript)
     {
-        if (question.Proposal is not null || string.IsNullOrWhiteSpace(transcript))
+        return question.Proposal is null ? Parse(question.Spec, transcript) : null;
+    }
+
+    public static QuestionAnswer? Parse(QuestionSpec spec, string transcript)
+    {
+        if (string.IsNullOrWhiteSpace(transcript))
         {
             return null;
         }
-        var spec = question.Spec;
         if (spec.Kind == QuestionKind.Text)
         {
             var text = new QuestionAnswer([], transcript);

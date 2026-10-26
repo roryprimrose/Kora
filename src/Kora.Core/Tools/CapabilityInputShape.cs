@@ -6,4 +6,5 @@ public enum CapabilityInputShape
     Page,
     Id,
     WebPageAddress,
+    MetadataReference,
 }

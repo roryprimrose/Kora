@@ -177,12 +177,13 @@ public sealed partial class HostedClaudeSessionRequestTests
         internal HostBoundary Boundary { get; } = new();
         internal ObservationTime TurnTime { get; }
 
-        internal Composition(InteractionStorageFixture fixture)
+        internal Composition(InteractionStorageFixture fixture, bool streamAnswer = false)
         {
             f = fixture; Workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             TurnTime = new(f.Time);
             admission = new(f.Store, f.Store, new(f.Tasks));
-            Http = new() { Time = f.Time };
+            Http = new() { Time = f.Time, Approval = new(DateTimeOffset.UtcNow.AddHours(1),
+                streamAnswer ? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)] : []) };
             Accounts = Http.Create();
             Runtime = new(Accounts, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, Http.CreateHttp);
             Reviews = new(Http, f.Time);

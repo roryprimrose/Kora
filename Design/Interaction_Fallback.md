@@ -242,6 +242,16 @@ Double clicks, delayed events, stale devices/configuration revisions, expired gr
 An expired prompt shows Expired and a request to re-present/revalidate, never a silent lifetime extension.
 Changing input channel does not extend deadlines, weaken action-specific review, or bypass mandatory OS/provider checks. High risk alone does not require mouse input.
 
+The foreground Customizations editor's [target clarification](Definition_Management.md#foreground-editor-voice-targeting)
+is owned by its live volatile editor request, not by a fabricated Active
+conversation or committed session wait. Its native choices and explicitly
+opened bounded voice reply consume the same exact question once. Closing,
+expiry or any stale editor/source/draft/request/channel/host admission cancels
+that continuation and joins owned capture; retained text cannot restore it.
+Other canonical session questions and their voice-reply admission remain
+independent. Original model disclosure and proposed-draft review still follow
+the existing native authoring controls.
+
 Model-generated option text remains untrusted: the host binds each selection to a validated typed proposal.
 A webpage, Markdown button, or skill instruction cannot impersonate a native prompt/control.
 

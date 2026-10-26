@@ -256,7 +256,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUiDispatcher>());
             newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
-            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
+            BindSessionRouting(viewModel);
+            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting);
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
@@ -427,6 +428,8 @@ public sealed partial class App : Avalonia.Application
         workspaceSurfaceCommands = null;
         allWorkWindow?.Dispose();
         allWorkWindow = null;
+        sessionRouting?.Dispose();
+        sessionRouting = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
         newRequestWindow?.Dispose();

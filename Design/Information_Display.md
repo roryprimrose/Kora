@@ -1424,6 +1424,17 @@ Initial render limits: 256 KiB UTF-8 document, 32 KiB per diagram, 500 nodes, 1,
 Exceeding any limit stops that render and provides labelled source/error, leaving queue/status/cancel controls responsive.
 Do not claim a worker is safely terminated unless the actual implementation proves cancellation/resource isolation.
 
+The additive [native Mermaid implementation](../src/Kora/Diagrams/MermaidRenderer.cs)
+uses a finite, bundled C# grammar/layout and a strict output allowlist, not a
+JavaScript engine or document-selected plugin. The [profile guide](../docs/diagrams.md)
+defines its supported flowchart/sequence/class subset and explicit render/cancel
+interaction. It attaches privately to admitted Details without changing the
+shared Markdown/highlighting or source/copy/Find policies. Production native
+qualification is **unavailable by default**; deterministic seam tests do not
+enable that profile. Exact complete source and truthful unavailability remain
+usable. Cancellation retains worker ownership until actual join, and retirement
+fences late output ([behavioral tests](../tests/Kora.Windows.IntegrationTests/DiagramTests.cs)).
+
 ### Other Extensions
 
 Math notation, footnotes, definition lists, and richer diagram types are candidates, not automatically enabled features.

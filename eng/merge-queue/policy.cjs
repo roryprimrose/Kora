@@ -74,9 +74,16 @@ function validateState(state) {
 }
 
 function ready(pr, repository) {
-  return pr.state === 'open' && pr.draft === false && pr.base.ref === 'main'
-    && pr.head.repo?.full_name === repository && pr.auto_merge !== null
-    && pr.auto_merge?.merge_method === 'squash';
+  return readinessIssue(pr, repository) === null;
+}
+
+function readinessIssue(pr, repository) {
+  if (pr.state !== 'open') return 'PR is not open';
+  if (pr.draft !== false) return 'PR is a draft or its draft state is unknown';
+  if (pr.base.ref !== 'main') return 'PR does not target main';
+  if (pr.head.repo?.full_name !== repository) return 'PR is not from this repository';
+  if (pr.auto_merge?.merge_method !== 'squash') return 'squash Auto-merge is not enabled';
+  return null;
 }
 
 function priority(pr) {
@@ -109,4 +116,4 @@ function successfulJobs(jobs) {
 
 module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS,
   invariant, mode, execution,
-  validateState, ready, priority, title, matchingRuns, successfulJobs };
+  validateState, ready, readinessIssue, priority, title, matchingRuns, successfulJobs };

@@ -254,7 +254,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-dictation",
             "hosted-requests",
             "independent-agent-runs",
+            "code-highlighting",
             "external-browser",
+            "diagrams",
             "setting-proposals",
             "model-session-discovery",
             "agent-shared-skill-guidance");

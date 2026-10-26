@@ -55,5 +55,11 @@ jobs:
           script: |
             const { GitHubQueue } = require('./eng/merge-queue/github.cjs');
             const { reconcile } = require('./eng/merge-queue/controller.cjs');
-            const result = await reconcile(new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID));
-            core.notice(`Merge queue: ${result}.`);
+            const api = new GitHubQueue(github, context, core, process.env.QUEUE_APP_ID);
+            let result = 'failed';
+            try {
+              result = await reconcile(api);
+              core.notice(`Merge queue: ${result}.`);
+            } finally {
+              await api.summarize(result);
+            }

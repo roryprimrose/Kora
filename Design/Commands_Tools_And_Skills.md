@@ -467,6 +467,21 @@ Profile prose is inert untrusted guidance: paths, URLs and instructions in it ar
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
+**Named static invocation:** original typed/current-name activated
+`agent invoke "Exact readable name" <original task>` resolves exactly one
+file-backed Agent from the existing registered catalogue. Missing/duplicate
+names, disabled use, reload failure or changed source refuse without fallback.
+The host resolves only the matching registered source identity within the
+existing bounded roots; the native reader then pins and revalidates its exact
+bytes against the captured catalogue digest before invocation review can
+authorize anything. No new catalogue, engine or approval policy is introduced.
+The same native bounded workflow owns explicit readable Active-target choice,
+complete source/input/channel review, separate reference consents and invocation
+confirmation, original-channel retained terminals and joined cancellation.
+Source/task changes require a new command. See
+[exact syntax](../docs/commands.md#invoke-one-registered-agent-by-readable-name)
+and [complete operation](../docs/tools-and-built-in-skills.md#invoke-a-registered-agent-by-readable-name).
+
 **Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
 Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
 

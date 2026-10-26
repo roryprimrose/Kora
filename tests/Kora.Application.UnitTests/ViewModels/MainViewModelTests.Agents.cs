@@ -165,14 +165,14 @@ public sealed partial class MainViewModelTests
             received.Add(command);
             return Task.CompletedTask;
         };
-        foreach (var text in new[] { "review agent", "agent source C:\\role.agent.md", "agent request task",
+        foreach (var text in new[] { "agent invoke \"Readable role\" exact task", "review agent", "agent source C:\\role.agent.md", "agent request task",
             "agent targets", "agent next targets", "agent target exact-id", "agent review invocation",
             "agent review references", "agent consent resolution", "agent confirm invocation", "agent stop" })
         {
             if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + text, 1); }
             else { await f.RunAsync(text); }
         }
-        received.Select(item => item.Action).Should().Equal("Open", "Source", "Request", "Targets",
+        received.Select(item => item.Action).Should().Equal("Named", "Open", "Source", "Request", "Targets",
             "NextTargets", "Target", "Review", "Review", "Resolve", "Invoke", "Stop");
         f.Reasoner.Requests.Should().BeEmpty();
     }

@@ -1253,6 +1253,15 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Knowledge">
+        <StackPanel Margin="30" Spacing="12">
+          <TextBlock Text="Named device-local knowledge folders" FontSize="24" />
+          <TextBlock Text="Review exact bounded text/Markdown membership, retain private Kora copies, explicitly inspect or search, refresh, disable, or remove. Registration never grants model consent."
+                     TextWrapping="Wrap" MaxWidth="700" />
+          <Button x:Name="ManageKnowledgeSources" Content="Manage knowledge sources..."
+                  AutomationProperties.Name="Manage named knowledge sources; opening does not read source content or grant model consent" />
+        </StackPanel>
+      </TabItem>
       <TabItem Header="Custom content">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

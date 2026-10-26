@@ -29,7 +29,8 @@ public sealed partial class SessionConversationService(
         + "No history, memory, attachment, question answer, approval, side effect or hosted egress is admitted by this request. "
         + Configuration.AppearanceSuggestionReview.ModelPolicy + " "
         + Configuration.SpeechSummarySuggestionReview.ModelPolicy + " "
-        + Configuration.PlaybackVolumeSuggestionReview.ModelPolicy;
+        + Configuration.PlaybackVolumeSuggestionReview.ModelPolicy + " "
+        + Kora.Core.Memory.ModelProposals.ModelMemoryProposal.ModelPolicy;
 
     public Task<ConversationDraftSnapshot> ReadDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         workspace.ReadConversationDraftAsync(session, token);

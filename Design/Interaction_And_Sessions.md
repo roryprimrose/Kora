@@ -1179,6 +1179,16 @@ The source is authoritatively reread after native opening/activation and immedia
 
 ### Proposed relatedness routing
 
+The bounded [reviewed destination operation](../docs/session-routing.md) now
+implements host-owned descriptor proposals, exact choice plus New, name
+acknowledgment, pre-submit correction and canonical original-user submission in
+both window modes. It reads one permitted metadata page through
+`SessionWorkspaceService`, not a model-tool catalogue or transcript assembly.
+Production matching remains unqualified and explicitly offers fresh New, with
+deterministic selection available. The native review reveals the destination
+without switching the previous reader or moving any unsent input. Hands-free
+routing replies and automatic selection changes remain unavailable.
+
 The [editor-targeting precedence](#editor-targeting-precedence) below
 applies before this general relatedness policy. Editor-bound or ambiguously
 editor-intended speech is not an unmatched general request.

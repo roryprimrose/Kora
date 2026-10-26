@@ -67,6 +67,7 @@ public sealed partial class SettingsWindow : Window
             ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
         recovery.IsEnabled = chooseMicrophone is not null;
         recovery.Click += (_, _) => chooseMicrophone?.Invoke();
+        BindKnowledgeSources();
     }
 
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;

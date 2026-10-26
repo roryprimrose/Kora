@@ -234,20 +234,37 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-instructions",
             "agent-profile-authoring",
             "claude-requests",
+            "conversation-notices",
             "owned-skill-authoring",
             "session-dictation",
             "hosted-requests",
+            "folder-answers",
             "independent-agent-runs",
+            "knowledge-sources",
             "code-highlighting",
             "external-browser",
             "markdown-strikethrough",
             "diagrams",
+            "session-routing",
             "model-session-discovery",
+            "model-memory-proposals",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
         provider.GetStartPage().Should().Be(first[0]);
+    }
+
+    [Fact]
+    public void RoutingGuideRequiresExactReviewCorrectionAndTruthfulUnqualifiedNewFallback()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "session-routing", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Review this destination**").And.Contain("**Correct destination**")
+            .And.Contain("Production relatedness inference is currently **unqualified**")
+            .And.Contain("one page of 50").And.Contain("does not add hands-free routing replies")
+            .And.Contain("grants, provider state, history, sources and permissions are not moved")
+            .And.Contain("separate audited").And.Contain("no automatic fallback after denial");
     }
 
     [Fact]

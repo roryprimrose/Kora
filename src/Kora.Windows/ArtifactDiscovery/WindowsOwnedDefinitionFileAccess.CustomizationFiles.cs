@@ -16,6 +16,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         internal DefinitionDirectory(Pinned pinned) => this.pinned = pinned;
         internal SafeFileHandle Handle => pinned.Last;
         internal string Identity => WindowsFileIdentity.Read(Handle);
+        internal string BindingIdentity => pinned.BindingIdentity;
         public void Dispose() => pinned.Dispose();
     }
 
@@ -78,7 +79,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
     }
 
     internal static string WriteDefinitionFile(string directory, DefinitionDirectory pinned, string name,
-        byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token)
+        byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token,
+        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null)
     {
         CustomizationFile.ValidateName(name);
         if (name.Contains('\\', StringComparison.Ordinal))
@@ -87,13 +89,17 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         var published = false;
         try
         {
+            using var original = preserveSecurityFrom is null ? null : OpenInstructionOriginalForReplacement(preserveSecurityFrom);
             using var staged = CreatePrivateStaging(temporary);
             VerifyFile(staged, temporary);
             RandomAccess.Write(staged, bytes, 0);
             RandomAccess.FlushToDisk(staged);
+            if (original is not null) { PreserveInstructionSecurity(original, staged); }
+            finalComparison?.Invoke();
             RequireEligible(eligible, token);
             Rename(staged, pinned.Handle, name, replace, token);
             published = true;
+            publicationCommitted?.Invoke();
             return WindowsFileIdentity.Read(staged);
         }
         finally { if (!published && File.Exists(temporary)) { File.Delete(temporary); } }

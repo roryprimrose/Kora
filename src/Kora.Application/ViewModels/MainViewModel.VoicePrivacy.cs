@@ -478,6 +478,7 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
+            await JoinCustomizationClarification();
             await ClosePromptPreparation();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -714,6 +715,7 @@ public sealed partial class MainViewModel
         if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
+        await JoinCustomizationClarification();
         if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
         {
             try { await handsFree.PauseWakeForReplyAsync(); }

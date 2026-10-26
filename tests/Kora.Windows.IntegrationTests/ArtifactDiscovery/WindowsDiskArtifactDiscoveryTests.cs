@@ -15,6 +15,35 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void NamedAgentLookupUsesOnlyRegisteredAgentRootsAndNeverReadsOrRepairsProfileContent()
+    {
+        var agents = Path.Combine(root, "agents");
+        Directory.CreateDirectory(agents);
+        var path = Path.Combine(agents, "role.agent.md");
+        File.WriteAllText(path, "---\nname: Readable role\ndescription: Role\n---\nInert role.");
+        var discovery = new WindowsDiskArtifactDiscovery(
+            [new(agents, ArtifactKind.Agent, "additional", "*.agent.md", 0)]);
+        var selected = discovery.Load().Single();
+        discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken).Should().Be(path);
+        File.WriteAllText(path, "Malformed changed bytes are not a new registration or approved profile.");
+        discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken).Should().Be(path);
+        var cancelled = () => discovery.ResolveAgentPath(selected, new CancellationToken(true));
+        cancelled.Should().Throw<OperationCanceledException>();
+        var unbound = () => discovery.ResolveAgentPath(selected with { UseControlId = null }, TestContext.Current.CancellationToken);
+        unbound.Should().Throw<InvalidOperationException>();
+        var wrongKind = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: Prompt\n---\nInert", false),
+            ArtifactKind.Prompt, "additional", "prompt").Definition;
+        var wrong = () => discovery.ResolveAgentPath(wrongKind, TestContext.Current.CancellationToken);
+        wrong.Should().Throw<InvalidOperationException>();
+        File.Delete(path);
+        var missing = () => discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken);
+        missing.Should().Throw<InvalidOperationException>();
+        for (var i = 0; i < 129; i++) { File.WriteAllText(Path.Combine(agents, $"role-{i}.agent.md"), "No content read."); }
+        var overflow = () => discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken);
+        overflow.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void Load_reads_bounded_skill_prompt_and_instruction_files()
     {
         var skills = Path.Combine(root, "skills");

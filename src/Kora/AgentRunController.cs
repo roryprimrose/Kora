@@ -14,7 +14,7 @@ namespace Kora;
 
 internal sealed partial class AgentRunController(MainViewModel main, BoundedAgentWorkflow workflow,
     SessionWorkspaceService workspace, Func<bool> ownsHost, Func<long> ownerRevision,
-    ILogger<AgentRunController> logger)
+    ILogger<AgentRunController> logger, NamedAgentResolver? namedAgents = null)
 {
     private AgentRunWindow? window;
     private BoundedAgentReview? review;
@@ -27,6 +27,11 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     private Guid? next;
     private RequestOrigin origin;
     private RequestOrigin inputOrigin;
+    private NamedAgentSelection? namedSelection;
+    private Func<bool>? namedEligibility;
+    private NamedAgentCommand? namedCommand;
+    private long contentRevision;
+    private long namedContentRevision;
 #pragma warning disable VSTHRD003 // Exposes only this controller's already-owned operation for lifecycle observation.
     internal Task ActiveOperation => active;
 #pragma warning restore VSTHRD003
@@ -38,9 +43,10 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         main.PropertyChanged += MainChanged;
         main.BindAgentShutdown(Shutdown);
     }
-    private bool Eligible() => window is not null && ownsHost() && ownerRevision() == capturedOwner
+    private bool HostEligible() => window is not null && ownsHost() && ownerRevision() == capturedOwner
         && main.CallPolicyRevision == capturedCall && main.CanRevealPrivatePresentation
         && main.IsSkillReviewCallEligible && !main.IsResponseInteractionPending;
+    private bool Eligible() => HostEligible() && (namedEligibility?.Invoke() ?? true);
 
     private async Task Route(AgentRunCommand command, RequestOrigin requestOrigin, Func<bool> eligible)
     {
@@ -48,8 +54,9 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         {
             if (!eligible()) { throw new InvalidOperationException("Original command admission expired."); }
             if (command.Action is "Stop") { await CloseAndWait(); return; }
-            if (command.Action is "Open")
+            if (command.Action is "Open" or "Named")
             {
+                var named = command.Action is "Named" ? NamedAgentCommand.Parse(command.Argument) : null;
                 await CloseAndWait();
                 capturedOwner = ownerRevision();
                 capturedCall = main.CallPolicyRevision;
@@ -66,12 +73,22 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 BindSharedSkillSelection(window);
                 window.Show();
                 if (!Eligible() || !eligible()) { Close(); }
+                if (named is not null && window is { } opened)
+                {
+                    namedCommand = named;
+                    namedEligibility = eligible;
+                    opened.Source.IsReadOnly = opened.Input.IsReadOnly = true;
+                    active = PrepareNamedAsync(named, opened, eligible);
+                    await JoinActive();
+                }
                 return;
             }
             if (!Eligible() || !active.IsCompleted)
             { throw new InvalidOperationException("Open an exact current agent review and wait for its owned operation."); }
             origin = requestOrigin;
             if (SelectSharedSkill(command)) { return; }
+            if (namedCommand is not null && command.Action is "Source" or "Request")
+            { throw new InvalidOperationException("Start a fresh named-agent command to change its exact source or original task."); }
             if (command.Action is "Source") { window!.Source.Text = command.Argument; Retire(); origin = requestOrigin; return; }
             if (command.Action is "Request") { window!.Input.Text = command.Argument; Retire(); inputOrigin = requestOrigin; return; }
             if (command.Action is "Target")
@@ -93,10 +110,50 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         }
     }
 
+    private async Task PrepareNamedAsync(NamedAgentCommand command, AgentRunWindow opened, Func<bool> eligible)
+    {
+        try
+        {
+            var resolver = namedAgents ?? throw new InvalidOperationException("Named agent source lookup is unavailable in this host.");
+            var token = cancellation!.Token;
+            var selected = await resolver.ResolveAsync(command.Name,
+                () => HostEligible() && eligible() && ReferenceEquals(window, opened), token);
+            namedSelection = selected;
+            namedEligibility = () => eligible() && selected.IsCurrent();
+            opened.Source.Text = selected.Path;
+            opened.Input.Text = command.Input;
+            namedContentRevision = contentRevision;
+            inputOrigin = origin;
+            await ReadTargetsAsync("Targets", opened, eligible, token);
+            if (!Eligible() || !ReferenceEquals(window, opened)) { return; }
+            opened.Status.Text = $"Agent: {selected.Definition.Name}. Select one existing Active conversation by readable name, "
+                + "review the complete exact source and original task, then separately confirm once. No model has run.";
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Failed(logger, exception.GetType().Name);
+            opened.Status.Text = "Named agent unavailable, missing, ambiguous or revoked. No fallback agent or execution. Start a fresh command.";
+            main.ReportHostInteractionFailure("Named agent invocation unavailable. Review the registered sources and start a fresh exact command.");
+        }
+    }
+
+    private async Task ReadTargetsAsync(string action, AgentRunWindow opened, Func<bool> eligible, CancellationToken token)
+    {
+        Guid? after = action is "Targets" ? null : next ?? throw new InvalidOperationException("No next page. Refresh conversations.");
+        Retire();
+        var page = await workspace.ReadMetadataAsync(after, 25, token);
+        if (!Eligible() || !eligible() || !ReferenceEquals(window, opened))
+        { throw new InvalidOperationException("Active conversation inspection admission expired."); }
+        next = page.Next;
+        opened.Targets.ItemsSource = page.Records.Where(item => item.Authority.IsActive).Select(item => new AgentTarget(item)).ToArray();
+        opened.Status.Text = "Explicitly select one existing Active conversation. None was created or resumed.";
+    }
+
     private void InputChanged(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property == Avalonia.Controls.TextBox.TextProperty)
         {
+            contentRevision++;
             Retire();
             if (ReferenceEquals(sender, window?.Input)) { inputOrigin = RequestOrigin.LocalUi; }
         }
@@ -132,18 +189,14 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             var opened = window ?? throw new InvalidOperationException("Agent review is closed.");
             var token = cancellation!.Token;
             var revision = inputRevision;
-            bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && inputRevision == revision;
+            bool Current() => Eligible() && eligible() && ReferenceEquals(window, opened) && inputRevision == revision
+                && (namedCommand is null || namedSelection is not null
+                    && contentRevision == namedContentRevision);
             if (!Current()) { throw new InvalidOperationException("Private host admission changed."); }
             using var activity = HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Desktop, HostOperation.Request);
             if (action is "Targets" or "NextTargets")
             {
-                Guid? after = action is "Targets" ? null : next ?? throw new InvalidOperationException("No next page. Refresh conversations.");
-                Retire();
-                var page = await workspace.ReadMetadataAsync(after, 25, token);
-                if (!Eligible() || !eligible() || !ReferenceEquals(window, opened)) { return; }
-                next = page.Next;
-                opened.Targets.ItemsSource = page.Records.Where(item => item.Authority.IsActive).Select(item => new AgentTarget(item)).ToArray();
-                opened.Status.Text = "Explicitly select one existing Active conversation. None was created or resumed.";
+                await ReadTargetsAsync(action, opened, eligible, token);
             }
             else if (action is "Review")
             {
@@ -151,13 +204,27 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 revision = inputRevision;
                 var target = (opened.Targets.SelectedItem as AgentTarget)?.Entry
                     ?? throw new InvalidOperationException("Select one current Active conversation.");
-                review = await workflow.ReviewAsync(opened.Source.Text ?? string.Empty, target,
-                    opened.Input.Text ?? string.Empty, inputOrigin, Current, token);
+                using (var original = HostActivity.BeginRoot(HostRequest.Create(inputOrigin), HostActivityLayer.Desktop,
+                    HostOperation.Request, [new(activity.Activity!.Context)]))
+                {
+                    try
+                    {
+                        review = await workflow.ReviewAsync(opened.Source.Text ?? string.Empty, target,
+                            opened.Input.Text ?? string.Empty, inputOrigin, Current, token);
+                        original.Complete(HostOperationOutcome.Completed);
+                    }
+                    catch
+                    {
+                        original.Complete(token.IsCancellationRequested ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+                        throw;
+                    }
+                }
+                namedSelection?.ValidateSource(review.Profile.Document);
                 if (!Current()) { await workflow.RevokeAsync(review); review = null; return; }
                 if (review.Skill is not null) { ShowSkillProfile(opened, review); }
                 else if (review.References is { } referenced)
                 {
-                    opened.Review.Text = $"LOCAL TEXT -> TEXT\nSESSION {target.Authority.SessionId.Value:D}\n"
+                    opened.Review.Text = $"LOCAL TEXT -> TEXT\nCONVERSATION {new AgentTarget(target)}\n"
                         + DescribeToolsAndBudgets(review.Profile)
                         + $"DECLARED OWNED INSTRUCTION IDS\n{string.Join("\n", review.Profile.References.Select(item => item.Id))}\n"
                         + $"EXACT ENABLED CANDIDATES\n{string.Join("\n", referenced.Candidates.Select(item => item.Name + " (" + item.Id + ")"))}\n"
@@ -185,8 +252,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 var result = await workflow.InvokeAsync(captured, origin, token);
                 if (!Current()) { return; }
                 opened.Result.Text = result.Message.AssistantResponse?.Body ?? "No assistant answer was produced.";
-                opened.Status.Text = $"Retained terminal {result.Message.Outcome} / {result.Message.Reason}; "
-                    + $"request {result.Message.Request.RequestId.Value:D}. Inspect it in Sessions. No automatic replay.";
+                opened.Status.Text = $"Retained terminal {result.Message.Outcome} / {result.Message.Reason}. "
+                    + "Inspect it in the selected conversation in Sessions. No automatic replay.";
             }
             else { throw new InvalidOperationException("Use an exact agent source, request, target, reference review, resolution consent, invocation review, confirm or stop command."); }
             activity.Complete(HostOperationOutcome.Completed);
@@ -209,7 +276,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
     {
         var profile = captured.Profile;
         opened.Review.Text = $"{profile.Document.Definition.Name}\nSOURCE {opened.Source.Text}\n"
-                    + $"SESSION {captured.Target.Authority.SessionId.Value:D}\nLOCAL TEXT -> TEXT\n"
+                    + $"CONVERSATION {new AgentTarget(captured.Target)}\nORIGINAL CHANNEL {captured.Origin}\nLOCAL TEXT -> TEXT\n"
                     + DescribeToolsAndBudgets(profile)
                     + $"COMPLETE INERT PROFILE (UTF-8 BOM: {profile.Document.HasBom})\n{profile.Document.Text}\n\n"
                     + string.Join("\n\n", captured.References?.Bundle?.Instructions.Select(item =>
@@ -238,6 +305,9 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         var captured = review;
         window = null;
         review = null;
+        namedSelection = null;
+        namedEligibility = null;
+        namedCommand = null;
         captured?.Dispose();
         cancellation?.Cancel();
         opened?.Clear();

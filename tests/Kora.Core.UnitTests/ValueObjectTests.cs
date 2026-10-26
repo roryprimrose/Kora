@@ -415,9 +415,10 @@ public sealed class ValueObjectTests
         settings.Should().Be(equivalent);
         settings.GetHashCode().Should().Be(equivalent.GetHashCode());
         settings.ToString().Should().Contain(nameof(CallAwareSettings.ShowVisualTextDuringCalls));
-        var (showVisualText, allowVoiceActivation) = settings;
+        var (showVisualText, allowVoiceActivation, allowSpokenApprovals) = settings;
         showVisualText.Should().BeTrue();
         allowVoiceActivation.Should().BeTrue();
+        allowSpokenApprovals.Should().BeFalse();
     }
 
     [Theory]

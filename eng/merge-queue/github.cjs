@@ -14,6 +14,7 @@ class GitHubQueue {
     invariant(Number.isSafeInteger(this.appId) && this.appId > 0, 'Missing queue App ID.');
     this.commit = null;
     this.serialized = null;
+    this.messages = [];
   }
 
   async verifyProtection() {
@@ -132,7 +133,7 @@ class GitHubQueue {
       if (error.status !== 409) throw error;
       const { data } = await this.github.rest.actions.getWorkflowRun({ ...this.repo, run_id: runId });
       invariant(data.status === 'completed', 'GitHub refused cancellation of a nonterminal candidate.');
-      this.core.warning('Candidate completed concurrently with cancellation.');
+      this.notice('Candidate completed concurrently with cancellation.');
     }
   }
   async merge(active) {
@@ -141,11 +142,30 @@ class GitHubQueue {
         sha: active.head, merge_method: 'squash' })).data;
     } catch (error) {
       if (![405, 409].includes(error.status)) throw error;
-      this.core.warning(`Protected merge refused: HTTP ${error.status}.`);
+      this.notice(`Protected merge refused: HTTP ${error.status}.`);
       return { merged: false };
     }
   }
-  notice(message) { this.core.warning(message); }
+  info(message) {
+    this.messages.push(message);
+    this.core.info(message);
+  }
+  notice(message) {
+    this.messages.push(`Warning: ${message}`);
+    this.core.warning(message);
+  }
+  async summarize(result) {
+    await this.core.summary
+      .addHeading('Merge queue reconciliation')
+      .addTable([
+        [{ data: 'Repository', header: true }, { data: 'Trigger', header: true }, { data: 'Outcome', header: true }],
+        [this.repository, this.context.eventName, result],
+      ])
+      .addHeading('Observations and decisions', 2)
+      .addCodeBlock(this.messages.join('\n'), 'text')
+      .addRaw(result === 'failed' ? '\nReconciliation failed. Inspect the step error; no successful admission outcome is claimed.\n' : '')
+      .write();
+  }
 }
 
 async function admit({ github, context, inputs }) {

@@ -112,6 +112,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         var grant = await f.GrantAsync("perpetual");
         for (var index = 0; index < 60; index++)
         {
+            f.Request = InteractionStorageFixture.NewRequest(f.Request.SessionId);
+            await f.AdmitAsync(newSession: false);
             grant = (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token))).Grant!;
         }
         var exact = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;

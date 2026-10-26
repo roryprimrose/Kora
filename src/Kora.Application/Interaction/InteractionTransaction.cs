@@ -57,6 +57,7 @@ internal sealed class InteractionTransaction(IHostInteractionStore store)
         {
             grant.Validate();
         }
+        snapshot.EffectivePermission.Validate(snapshot.Session);
         var (next, decision) = transition(snapshot);
         var outcome = decision.Outcome switch
         {

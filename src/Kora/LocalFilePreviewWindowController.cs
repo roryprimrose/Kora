@@ -151,7 +151,9 @@ internal sealed class LocalFilePreviewWindowController : IUserFilePicker, IUserF
                 () => !disposed && ReferenceEquals(window, view) && ReferenceEquals(host.FolderRevision, folderRevision),
                 () => !disposed && ReferenceEquals(window, view) && host.FolderRevision?.Reference == exactSource
                     ? host.RefreshFolderPreviewAsync(exactSource)
-                    : Task.FromException(new InvalidOperationException("The exact folder preview is stale; no refresh was authorized.")));
+                    : Task.FromException(new InvalidOperationException("The exact folder preview is stale; no refresh was authorized.")),
+                (question, current, token) => host.PrepareFolderAnswerAsync(exactSource, question, current, token),
+                (reviewed, current, token) => host.AnswerFolderAsync(reviewed, current, token));
         }
         else if (folderReview is not null)
         {

@@ -1123,6 +1123,18 @@
                     VerticalAlignment="Center" />
               </Grid>
             </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Allow spoken approvals during calls" Classes="settings-title" />
+                <TextBlock Text="{Binding SpokenApprovalsStatus}" TextWrapping="Wrap" Classes="settings-description"
+                    AutomationProperties.Name="Spoken approval setting and explicit downgrade review" />
+                <WrapPanel>
+                  <Button Content="Review spoken approval change" Command="{Binding ReviewSpokenApprovalsCommand}" />
+                  <Button Content="Confirm reviewed change" Command="{Binding ConfirmSpokenApprovalsCommand}" />
+                  <Button Content="Cancel review" Command="{Binding CancelSpokenApprovalsCommand}" />
+                </WrapPanel>
+              </StackPanel>
+            </Border>
           </StackPanel>
         </ScrollViewer>
       </TabItem>

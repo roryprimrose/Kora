@@ -53,6 +53,11 @@ public sealed partial class SettingsWindow : Window
         callsTab = this.FindControl<TabItem>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        PropertyChanged += (_, args) =>
+        {
+            if (args.Property == IsVisibleProperty && !IsVisible) { model.CancelSpokenApprovalReview(); }
+        };
+        Closed += (_, _) => model.CancelSpokenApprovalReview();
         BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {

@@ -52,7 +52,7 @@ internal sealed class DesktopSessionWorkspaceAccess : ISessionWorkspaceAccess, I
         {
             lock (gate)
             {
-                return CanInspect && main is not null && !main.CallObservation.IsProtected;
+                return CanInspect && main is not null;
             }
         }
     }
@@ -62,7 +62,7 @@ internal sealed class DesktopSessionWorkspaceAccess : ISessionWorkspaceAccess, I
         {
             lock (gate)
             {
-                var current = (main?.CallObservation.Revision ?? 0, ownership.AdmissionRevision, privacyEpoch);
+                var current = (0L, ownership.AdmissionRevision, privacyEpoch);
                 if (current != observed) { revision = checked(revision + 1); observed = current; }
                 return revision;
             }

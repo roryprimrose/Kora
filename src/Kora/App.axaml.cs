@@ -122,6 +122,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
+            Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>()
+                .BindAuthorizationPolicyGate(viewModel.AuthorizationPolicyGate);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),

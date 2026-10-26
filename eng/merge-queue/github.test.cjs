@@ -57,7 +57,8 @@ function fixture(overrides = {}) {
       calls.push(['graphql', args]);
       return { repository: { pullRequest: { reviewDecision: null, autoMergeRequest: { enabledAt: ENROLLED } } } };
     } };
-  const core = { warning: message => calls.push(['warning', message]) };
+  const core = { warning: message => calls.push(['warning', message]),
+    info: message => calls.push(['info', message]) };
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
 
@@ -230,4 +231,46 @@ test('normalized pagination preserves empty and multiple workflow run and job re
     assert.deepEqual(await value.api.runs(candidate()), records);
     assert.deepEqual(await value.api.jobs(1), records);
   }
+});
+
+test('decision logs and warnings appear in both the console and awaited Actions summary', async () => {
+  for (const result of ['idle', 'dispatched', 'failed']) {
+    const value = fixture();
+    const summaryCalls = [];
+    let written = false;
+    const summary = {};
+    for (const name of ['addHeading', 'addTable', 'addCodeBlock', 'addRaw']) {
+      summary[name] = (...args) => { summaryCalls.push([name, ...args]); return summary; };
+    }
+    summary.write = async () => {
+      await Promise.resolve();
+      written = true;
+    };
+    value.core.summary = summary;
+    value.api.info('PR #1: skipped; required reviews are not satisfied.');
+    value.api.notice('Candidate dispatch has no observable run; lane held.');
+    await value.api.summarize(result);
+    assert.equal(written, true);
+    assert.deepEqual(value.calls, [
+      ['info', 'PR #1: skipped; required reviews are not satisfied.'],
+      ['warning', 'Candidate dispatch has no observable run; lane held.'],
+    ]);
+    assert.deepEqual(summaryCalls.find(call => call[0] === 'addTable')[1][1],
+      ['owner/repo', 'workflow_dispatch', result]);
+    assert.deepEqual(summaryCalls.find(call => call[0] === 'addCodeBlock').slice(1), [
+      'PR #1: skipped; required reviews are not satisfied.\nWarning: Candidate dispatch has no observable run; lane held.',
+      'text',
+    ]);
+    assert.equal(summaryCalls.find(call => call[0] === 'addRaw')[1].includes('no successful admission outcome'),
+      result === 'failed');
+  }
+});
+
+test('summary write failures propagate rather than claiming a persisted report', async () => {
+  const value = fixture();
+  const summary = {};
+  for (const name of ['addHeading', 'addTable', 'addCodeBlock', 'addRaw']) summary[name] = () => summary;
+  summary.write = async () => { throw new Error('Summary unavailable'); };
+  value.core.summary = summary;
+  await assert.rejects(value.api.summarize('idle'), /Summary unavailable/);
 });

@@ -5,7 +5,7 @@ internal static class HostInteractionSchema
     internal const string Partition = "InteractionStorageV1";
     internal const string FileName = "interaction.db";
     internal const int ApplicationId = 1263489587;
-    internal const int Version = 12;
+    internal const int Version = 13;
     internal static readonly string[] Tables =
     [
         """
@@ -198,5 +198,23 @@ internal static class HostInteractionSchema
         ConversationSchema[1].Replace("revision BETWEEN 1 AND 3", "revision BETWEEN 1 AND 2", StringComparison.Ordinal),
     ];
     internal static readonly string[] LegacyConversationTables = [.. QueueOrderTables, .. LegacyConversationSchema];
-    internal static readonly string[] CurrentTables = [.. QueueOrderTables, .. ConversationSchema];
+    internal static readonly string[] ConversationTables = [.. QueueOrderTables, .. ConversationSchema];
+    internal const string SessionPermissionTable = """
+        CREATE TABLE session_permission(
+            session_id TEXT PRIMARY KEY NOT NULL REFERENCES work_sessions(session_id),
+            generation INTEGER NOT NULL CHECK(generation>0),
+            revision INTEGER NOT NULL CHECK(revision>1),
+            level INTEGER NOT NULL CHECK(level BETWEEN 0 AND 2),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """;
+    internal const string SessionAdmissionTable = """
+        CREATE TABLE session_admissions(
+            admission_id TEXT PRIMARY KEY NOT NULL,
+            session_id TEXT NOT NULL REFERENCES work_sessions(session_id),
+            run_id TEXT NOT NULL,
+            payload TEXT NOT NULL CHECK(length(CAST(payload AS BLOB)) BETWEEN 1 AND 131072),
+            audit_sequence INTEGER NOT NULL REFERENCES security_audit_events(sequence)) STRICT
+        """;
+    internal static readonly string[] CurrentTables =
+        [.. ConversationTables, SessionPermissionTable, SessionAdmissionTable];
 }

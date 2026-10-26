@@ -36,6 +36,8 @@ class Fake {
   approved = true;
   enrolled = ENROLLED;
   calls = [];
+  messages = [];
+  info(message) { this.messages.push(message); }
   async verifyProtection() { this.calls.push(['protection']); }
   async load() { return clone(this.state); }
   async save(state) { this.state = clone(state); this.calls.push(['save', clone(state)]); }
@@ -59,6 +61,154 @@ class Fake {
 const step = (api, options = {}) => reconcile(api, { now: NOW, ticket: TICKET, ...options });
 const count = (api, action) => api.calls.filter(call => call[0] === action).length;
 const labels = (...names) => names.map(name => ({ name }));
+
+test('idle feedback explains an empty queue without dispatching work', async () => {
+  const api = new Fake();
+  api.prs = [];
+  assert.equal(await step(api), 'idle');
+  const trace = api.messages.join('\n');
+  assert.match(trace, /branch protection verified/);
+  assert.match(trace, /no active candidate; 0 blocked revision/);
+  assert.match(trace, new RegExp(`Current main: ${BASE}`));
+  assert.match(trace, /Inspected 0 open PR\(s\); 0 express/);
+  assert.match(trace, /Selection order \(0 candidate\(s\).*none/);
+  assert.match(trace, /Selection exhausted; no runnable candidate/);
+  assert.match(trace, /Reconciliation finished: idle/);
+  assert.equal(count(api, 'dispatch'), 0);
+  assert.equal(count(api, 'wake'), 0);
+});
+
+test('selection feedback explains every exclusion and reservation without echoing PR content', async () => {
+  const api = new Fake();
+  const untrusted = 'UNTRUSTED-CONTENT\n::error::not-a-controller-message';
+  api.prs = [
+    pr(1, { draft: true }), pr(2, { auto_merge: null }),
+    pr(3, { head: { sha: HEAD, repo: { full_name: 'fork/repo' } } }),
+    pr(4), pr(5), pr(6, { mergeable: null }), pr(7),
+    pr(8, { labels: labels(`queue:priority-${untrusted}`) }),
+    pr(9, { mergeable: false }), pr(10, { title: untrusted, body: untrusted,
+      labels: labels(untrusted), head: { sha: HEAD, ref: untrusted, repo: { full_name: 'owner/repo' } } }),
+  ];
+  api.state.blocked = [{ number: 5, head: HEAD, enrollment: ENROLLED, reason: untrusted }];
+  api.enrollment = async number => number === 4 ? null : ENROLLED;
+  api.reviewReady = async number => number !== 7;
+  assert.equal(await step(api), 'dispatched');
+  const trace = [...api.messages, ...api.calls.filter(call => call[0] === 'notice').map(call => call[1])].join('\n');
+  for (const message of [
+    /PR #1: skipped; PR is a draft/, /PR #2: skipped; squash Auto-merge is not enabled/,
+    /PR #3: skipped; PR is not from this repository/, /Inspected 10 open PR\(s\); 7 express/,
+    /PR #4: skipped; no current Auto-merge enrollment/, /PR #5: skipped; head .*quarantined/,
+    /PR #6: skipped; mergeability is unknown/, /PR #7: skipped; required reviews are not satisfied/,
+    /PR #8 has invalid or conflicting/, /PR #9: quarantining head .*Selected PR conflicts/,
+    /Selection order.*#4 \(normal\), #5 \(normal\), #6 \(normal\), #7 \(normal\), #9 \(normal\), #10 \(normal\)/,
+    /PR #10: reserved the candidate lane/, /dispatch intent persisted/, /candidate CI dispatch accepted/,
+    /Reconciliation finished: dispatched/,
+  ]) assert.match(trace, message);
+  assert.equal(trace.includes(untrusted), false);
+  assert.equal(api.state.active.number, 10);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'merge'), 0);
+});
+
+test('live PR reread feedback reports readiness changes instead of reserving stale intent', async () => {
+  const api = new Fake();
+  api.pull = async () => pr(1, { auto_merge: null });
+  assert.equal(await step(api), 'idle');
+  assert.match(api.messages.join('\n'), /PR #1: skipped on live reread; squash Auto-merge is not enabled/);
+  assert.equal(count(api, 'dispatch'), 0);
+});
+
+test('active feedback distinguishes waiting, validation, branch updates and cancellation lane holds', async () => {
+  for (const scenario of ['waiting-for-run', 'validating', 'updating', 'retiring', 'unobservable']) {
+    const api = new Fake();
+    api.state.active = active();
+    if (scenario === 'validating' || scenario === 'retiring') api.workflowRuns = [run({ status: 'in_progress', conclusion: null })];
+    if (scenario === 'updating') {
+      api.state.active = active({ phase: 'updating', dispatchRecorded: false, checks: {} });
+      api.contains = false;
+    }
+    if (scenario === 'retiring' || scenario === 'unobservable') api.prs[0].auto_merge = null;
+    assert.equal(await step(api), scenario === 'unobservable' ? 'retiring' : scenario);
+    const trace = api.messages.join('\n');
+    assert.match(trace, new RegExp(`Reconciling active PR #1;.*ticket ${TICKET}`));
+    assert.match(trace, /Waiting PRs cannot preempt this lane/);
+    const expected = {
+      'waiting-for-run': /no matching workflow run is visible yet; waiting without redispatch/,
+      validating: /matching run 9; status in_progress; conclusion pending; attempt 1/,
+      updating: /branch update is not yet visible; waiting without repeating/,
+      retiring: /requesting cancellation of matching run 9/,
+      unobservable: /recorded dispatch has no observable matching run; lane held/,
+    };
+    assert.match(trace, expected[scenario]);
+    if (scenario === 'retiring') assert.match(trace, /lane held until matching runs are observed terminal/);
+    assert.equal(count(api, 'dispatch'), 0);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'wake'), 0);
+  }
+});
+
+test('terminal validation feedback identifies missing and duplicate required jobs before quarantine', async () => {
+  for (const duplicate of [false, true]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    const job = api.workflowJobs.shift();
+    if (duplicate) api.workflowJobs.push(job, clone(job));
+    assert.equal(await step(api), 'blocked');
+    const trace = api.messages.join('\n');
+    assert.ok(trace.includes(`required job "${job.name}"; ${duplicate ? 2 : 0} match(es); conclusion(s): ${duplicate ? 'success, success' : 'missing'}.`));
+    for (const name of JOBS) assert.ok(trace.includes(`required job "${name}"`));
+    assert.match(trace, /quarantining head .*Candidate validation failed/);
+    assert.match(trace, /Decision: blocked; requesting another controller reconciliation/);
+    assert.match(trace, /Controller continuation requested/);
+    assert.equal(count(api, 'merge'), 0);
+  }
+});
+
+test('successful feedback correlates dispatch and protected merge with exact source evidence', async () => {
+  const api = new Fake();
+  api.contains = false;
+  assert.equal(await step(api), 'updating');
+  assert.match(api.messages.join('\n'), /head does not contain current main; requesting GitHub branch update/);
+  assert.match(api.messages.join('\n'), /branch update request accepted; retaining the lane/);
+  api.contains = true;
+  assert.equal(await step(api), 'dispatched');
+  assert.match(api.messages.join('\n'), /branch update observed; head .* contains current main/);
+  api.workflowRuns = [run()];
+  assert.equal(await step(api), 'merged');
+  const trace = api.messages.join('\n');
+  assert.match(trace, /exact required jobs and final head\/base\/enrollment\/review\/ancestry checks passed; merge intent persisted/);
+  assert.match(trace, new RegExp(`requesting protected squash merge with expected head ${HEAD}`));
+  assert.match(trace, /merge confirmed; candidate lane released/);
+  assert.match(trace, /Reconciliation finished: merged/);
+  assert.equal(count(api, 'update'), 1);
+  assert.equal(count(api, 'dispatch'), 1);
+  assert.equal(count(api, 'merge'), 1);
+});
+
+test('failed operations leave truthful partial feedback, not a successful terminal log', async () => {
+  for (const operation of ['verifyProtection', 'save', 'dispatch', 'wake']) {
+    const api = new Fake();
+    if (operation === 'wake') {
+      api.state.active = active();
+      api.workflowRuns = [run()];
+    }
+    api[operation] = async () => { throw new Error(`Synthetic ${operation} failure`); };
+    await assert.rejects(step(api), new RegExp(`Synthetic ${operation} failure`));
+    const trace = api.messages.join('\n');
+    assert.match(trace, /Starting reconciliation/);
+    assert.doesNotMatch(trace, /Reconciliation finished/);
+    if (operation === 'dispatch') {
+      assert.match(trace, /dispatch intent persisted; requesting CI/);
+      assert.doesNotMatch(trace, /candidate CI dispatch accepted/);
+      assert.equal(api.state.active.dispatchRecorded, true);
+    }
+    if (operation === 'wake') {
+      assert.match(trace, /requesting another controller reconciliation/);
+      assert.doesNotMatch(trace, /Controller continuation requested/);
+    }
+  }
+});
 
 test('mode is explicitly disabled by default and rejects misspelled configuration', () => {
   for (const value of ['', 'disabled']) assert.equal(mode(value), false);

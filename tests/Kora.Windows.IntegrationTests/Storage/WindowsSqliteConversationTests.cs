@@ -245,7 +245,8 @@ public sealed partial class WindowsSqliteConversationTests
         await FinishInitial(f);
         var audit = AuditText(f);
         var history = await f.Store.ReadHistoryAsync(f.Request.SessionId, null, 50, f.Token);
-        f.Mutate("DROP TABLE conversation_drafts; DROP TABLE conversation_messages; PRAGMA user_version=10;");
+        f.DropEmptyConversationSchemaForLegacy();
+        f.Mutate("PRAGMA user_version=10;");
         f.Reopen();
         await f.Store.InitializeAsync(f.Token);
         AuditText(f).Should().Be(audit);

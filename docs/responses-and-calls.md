@@ -358,9 +358,11 @@ recheck call revision, ownership and Windows privacy before applying; stale or
 denied changes are not deferred. Status, stop speech, disable listening and
 cancellation remain available without a call-option mutation.
 
-Session/Always model-action grants are ignored, not removed, during protected
-calls. A current Once approval retains its existing action-name-only authority.
-Call revision changes invalidate pending approvals and undispatched reuse.
+Applicable grants and [session action levels](session-permission-levels.md)
+remain effective during calls. Spoken approvals default Off; rejected speech
+does not answer the pending native card. Already accepted decisions are not
+revoked solely because the call changed. Mandatory privacy, ownership, content
+and execution gates remain independent.
 
 The current Windows bootstrap reports automatic call detection as unavailable.
 An open communications application alone is not treated as proof of a call.

@@ -38,7 +38,7 @@ public sealed class DetailWindowContractTests
         var reader = Named(document, "ContentReader");
         reader.Name.LocalName.Should().Be("TextBox");
         reader.Attribute("IsReadOnly")!.Value.Should().Be("True");
-        reader.Attribute("Grid.Row")!.Value.Should().Be("2");
+        reader.Attribute("Grid.Row")!.Value.Should().Be("3");
         reader.Attribute("ContextMenu")!.Value.Should().Be("{x:Null}");
         reader.Attribute("ContextFlyout")!.Value.Should().Be("{x:Null}");
         reader.Attribute("IsUndoEnabled")!.Value.Should().Be("False");
@@ -57,7 +57,9 @@ public sealed class DetailWindowContractTests
             control.Attribute("TabIndex")!.Value.Should().Be(index.ToString(System.Globalization.CultureInfo.InvariantCulture));
             control.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
         }
-        Named(document, "RenderedViewport").Attribute("Grid.Row")!.Value.Should().Be("2");
+        Named(document, "RenderedViewport").Attribute("Grid.Row")!.Value.Should().Be("3");
+        Named(document, "MermaidContent").Parent!.Attribute("Grid.Row")!.Value.Should().Be("2");
+        Named(document, "MermaidContent").Parent!.Attribute("MaxHeight")!.Value.Should().Be("300");
         Named(document, "ReadingTextToggle").Attribute("Content")!.Value.Should().Contain("selection/search");
         // Native MaxLength would silently shorten the query; the host rejects it visibly.
         Named(document, "SearchInput").Attribute("MaxLength").Should().BeNull();

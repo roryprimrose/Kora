@@ -3,6 +3,8 @@ using System.Globalization;
 using System.Text;
 
 using Kora.Core.Presentation;
+using Kora.Core.Presentation.CodeHighlighting;
+using Kora.CodeHighlighting;
 
 using Markdig;
 using Markdig.Extensions.Tables;
@@ -130,7 +132,7 @@ internal sealed partial class NativeDetailRenderer(
                 validation.Blocks, validation.Nodes, validation.Depth);
         }
         List<NativeTextSection> sections;
-        try { sections = Flatten(document); }
+        try { sections = Flatten(document, source); }
         catch (InvalidDataException)
         {
             return Fallback(source, "SemanticLimit",
@@ -313,7 +315,7 @@ internal sealed partial class NativeDetailRenderer(
             _ => "Unsupported Markdown node/extension; exact source fallback.",
         };
 
-    private static List<NativeTextSection> Flatten(MarkdownDocument document)
+    private static List<NativeTextSection> Flatten(MarkdownDocument document, string source)
     {
         var sections = new List<NativeTextSection>();
         var semanticBudget = new BoundedNativeText();
@@ -370,7 +372,24 @@ internal sealed partial class NativeDetailRenderer(
                 LeafBlock { Inline.FirstChild: TaskList } => NativeTextStyle.Checklist,
                 _ => NativeTextStyle.Paragraph,
             };
-            AddSection(new(entry.Prefix + text, style));
+            CodeSource? codeSource = null;
+            if (block is CodeBlock codeBlock && codeBlock.Lines.Count > 0)
+            {
+                var first = codeBlock.Lines.Lines[0].Slice;
+                var last = codeBlock.Lines.Lines[codeBlock.Lines.Count - 1].Slice;
+                // Markdig slices refer to the admitted string. Never rebuild a colored source from tokens.
+                var start = first.Start;
+                var end = last.End + 1;
+                if (end < source.Length && source[end] == '\r') { end++; }
+                if (end < source.Length && source[end] == '\n') { end++; }
+                var length = end - start;
+                if (start >= 0 && length >= 0 && start <= source.Length - length)
+                {
+                    codeSource = new(source.Substring(start, length),
+                        CodeHighlightProfile.Resolve(fenceLanguage: (block as FencedCodeBlock)?.Info), start);
+                }
+            }
+            AddSection(new(entry.Prefix + text, style) { Code = codeSource });
         }
         return sections;
     }

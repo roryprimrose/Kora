@@ -68,6 +68,33 @@ public sealed class LocalCallAwarePreferencesTests : IDisposable
         action.Should().Throw<ArgumentNullException>();
     }
 
+    [Theory]
+    [InlineData("0,0", false, false)]
+    [InlineData("0,1", false, true)]
+    [InlineData("1,0", true, false)]
+    [InlineData("1,1", true, true)]
+    public void Known_older_preferences_migrate_with_spoken_approvals_disabled(string saved, bool visual, bool activation)
+    {
+        var preferences = CreatePreferences();
+        var directory = Path.Combine(root, "Preferences");
+        Directory.CreateDirectory(directory);
+        File.WriteAllText(Path.Combine(directory, "call-aware-settings.txt"), saved);
+        preferences.Load().Should().Be(new CallAwareSettings(visual, activation, false));
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public void New_preferences_preserve_explicit_spoken_approval_setting(bool visual, bool activation)
+    {
+        var preferences = CreatePreferences();
+        var settings = new CallAwareSettings(visual, activation, true);
+        preferences.Save(settings);
+        preferences.Load().Should().Be(settings);
+    }
+
     public void Dispose()
     {
         if (Directory.Exists(root))

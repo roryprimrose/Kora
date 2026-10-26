@@ -297,6 +297,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
@@ -319,6 +320,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyMixedContext();
         NotifyModelMemoryProposal();
         NotifyAnswerRead();
         ObserveConversationCancellation();

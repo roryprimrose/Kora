@@ -246,6 +246,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "markdown-strikethrough",
             "diagrams",
             "session-routing",
+            "reviewed-context",
             "model-session-discovery",
             "model-memory-proposals",
             "agent-shared-skill-guidance");

@@ -194,7 +194,8 @@ public sealed partial class SessionsViewModelTests
         source.Should().Contain("MemoryDraft, Mode=TwoWay").And.Contain("CanEditMemory")
             .And.Contain("selection is passive").And.Contain("Review exact content: accept")
             .And.Contain("Admit reviewed revision").And.Contain("not forensic erasure");
-        source.Should().Contain("New session memory from draft").And.Contain("CanProposeMemory")
+        source.Should().Contain("_Propose new memory in chosen scope").And.Contain("CanProposeMemory")
+            .And.Contain("DeviceProfileMemory, Mode=TwoWay")
             .And.Contain("no review, admission, recall or transmission");
         document.Descendants().Single(element => element.Name.LocalName is "TextBox"
             && element.Attribute("Text")?.Value.Contains("MemoryDraft", StringComparison.Ordinal) == true)

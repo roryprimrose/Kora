@@ -238,6 +238,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-dictation",
             "hosted-requests",
             "independent-agent-runs",
+            "external-browser",
             "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>

@@ -1,6 +1,8 @@
 using System.Text;
+using System.Collections.Immutable;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 
 namespace Kora.Core.Commands;
@@ -8,16 +10,17 @@ namespace Kora.Core.Commands;
 public sealed partial record SessionCommand
 {
     public const string RequestSyntax =
-        "session request review <session-id> <generation> <metadata-revision> [copilot|claude] -- <original body> | "
+        "session request review <session-id> <generation> <metadata-revision> [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
         + "session request confirm <session-id> <review-id> | session request cancel <session-id> <review-id>. "
         + "The body is everything after the single separator space following --, without normalization. "
         + "Review expires after 60 seconds; confirmation consumes it once and preserves the original channel. "
         + "Optional copilot or claude explicitly selects that service; a separate native final-send disclosure is still mandatory. "
+        + "claude-tools selects one to six distinct original read-only observation IDs, not provider-native effects. "
         + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
         + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered.";
     public const string ReadableRequestSyntax =
-        "session request review active [copilot|claude] -- <original body> | "
-        + "session request review \"<exact readable name>\" [copilot|claude] -- <original body> | "
+        "session request review active [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
+        + "session request review \"<exact readable name>\" [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
         + "session request confirm | session request cancel. "
         + "Active must resolve to exactly one Active conversation; names must resolve uniquely. "
         + "Confirmation consumes only the one host-held request review; it never answers another question or approval.";
@@ -25,6 +28,7 @@ public sealed partial record SessionCommand
     public string? RequestBody { get; init; }
     public Guid? RequestReviewId { get; init; }
     public SessionRequestReview.ProviderChoice RequestProvider { get; init; }
+    public ImmutableArray<string> RequestClaudeTools { get; init; } = [];
     public SessionName? RequestTargetName { get; init; }
     public bool RequestActiveTarget { get; init; }
     public bool RequestUsesPendingReview { get; init; }
@@ -36,8 +40,15 @@ public sealed partial record SessionCommand
             || !words[1].Equals("request", StringComparison.OrdinalIgnoreCase))
         { return null; }
         static SessionCommand Invalid() => new(SessionCommandOperation.Invalid, Error: RequestSyntax + " " + ReadableRequestSyntax);
-        static bool Provider(string value, out SessionRequestReview.ProviderChoice provider)
+        static bool Provider(string value, out SessionRequestReview.ProviderChoice provider, out ImmutableArray<string> tools)
         {
+            tools = [];
+            if (value.StartsWith("claude-tools=", StringComparison.OrdinalIgnoreCase))
+            {
+                provider = SessionRequestReview.ProviderChoice.Claude;
+                try { tools = ClaudeObservationTools.Constrain(value[13..].Split(',')).ToolIds; return true; }
+                catch (InvalidDataException) { return false; }
+            }
             provider = value.Equals("claude", StringComparison.OrdinalIgnoreCase)
                 ? SessionRequestReview.ProviderChoice.Claude : SessionRequestReview.ProviderChoice.Copilot;
             return value.Equals("claude", StringComparison.OrdinalIgnoreCase) || value.Equals("copilot", StringComparison.OrdinalIgnoreCase);
@@ -61,8 +72,9 @@ public sealed partial record SessionCommand
         {
             var targetText = readable[3].TrimEnd();
             var provider = SessionRequestReview.ProviderChoice.Default;
+            ImmutableArray<string> tools = [];
             var lastSpace = targetText.LastIndexOf(' ');
-            if (lastSpace >= 0 && Provider(targetText[(lastSpace + 1)..], out var explicitProvider))
+            if (lastSpace >= 0 && Provider(targetText[(lastSpace + 1)..], out var explicitProvider, out tools))
             { provider = explicitProvider; targetText = targetText[..lastSpace].TrimEnd(); }
             var active = targetText.Equals("active", StringComparison.OrdinalIgnoreCase);
             SessionName? name = null;
@@ -80,12 +92,13 @@ public sealed partial record SessionCommand
                 catch (InvalidDataException) { return Invalid(); }
                 catch (ConversationCredentialException) { return Invalid(); }
                 return new(SessionCommandOperation.RequestReview)
-                { RequestBody = body, RequestProvider = provider, RequestActiveTarget = active, RequestTargetName = name };
+                { RequestBody = body, RequestProvider = provider, RequestClaudeTools = tools, RequestActiveTarget = active, RequestTargetName = name };
             }
         }
         if (parts.Length < 5 || !ExactId(parts[3], out var session)) { return Invalid(); }
         var exactProvider = SessionRequestReview.ProviderChoice.Default;
-        if ((parts.Length == 6 || parts.Length == 7 && Provider(parts[6], out exactProvider))
+        ImmutableArray<string> exactTools = [];
+        if ((parts.Length == 6 || parts.Length == 7 && Provider(parts[6], out exactProvider, out exactTools))
             && parts[2].Equals("review", StringComparison.OrdinalIgnoreCase) && separator >= 0
             && Revision(parts[4], true, out var generation) && Revision(parts[5], false, out var metadata))
         {
@@ -97,6 +110,7 @@ public sealed partial record SessionCommand
             {
                 RequestBody = body,
                 RequestProvider = exactProvider,
+                RequestClaudeTools = exactTools,
             };
         }
         if (parts.Length == 5 && separator < 0 && ExactId(parts[4], out var review))

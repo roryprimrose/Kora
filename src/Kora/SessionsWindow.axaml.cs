@@ -25,6 +25,7 @@ internal sealed partial class SessionsWindow : Window
         InitializeComponent();
         DataContext = model;
         BindHistoryContext(model);
+        BindMixedContext(model);
         BindWorkScrolling();
         BindListPageOrder(model);
         BindInstructionContext(model);

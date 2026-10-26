@@ -9,7 +9,7 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
 {
     internal async Task<byte[]?> SendAsync(ClaudeTransmission transmission, ClaudeAccount account,
         Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
-        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
+        Func<CancellationToken, ValueTask<bool>> current, CancellationToken token, int maximumResponseBytes = 262144)
     {
         token.ThrowIfCancellationRequested();
         if (http.DefaultRequestHeaders.Any())
@@ -34,12 +34,12 @@ internal sealed class ClaudeFinalRequestHandler(HttpClient http, ClaudeAccountBr
             !transmission.Headers.TryGetValue(header.Key, out var disclosed) || !string.Equals(disclosed, header.Value, StringComparison.Ordinal)))
         { throw new InvalidDataException("Physical Claude headers do not match the complete disclosure."); }
         if (!await admit(transmission, token).ConfigureAwait(false)
-            || !await current(token).ConfigureAwait(false) || !await accounts.CurrentAsync(account, token).ConfigureAwait(false))
+            || !await accounts.CurrentAsync(account, token).ConfigureAwait(false) || !await current(token).ConfigureAwait(false))
         { return null; }
         token.ThrowIfCancellationRequested();
         using var response = await http.SendAsync(request, HttpCompletionOption.ResponseHeadersRead, token).ConfigureAwait(false);
         if (!response.IsSuccessStatusCode) { throw new HttpRequestException("Claude POST did not return a successful response."); }
-        return await ClaudeAccountBroker.ReadBoundedAsync(response.Content, 262144, token).ConfigureAwait(false);
+        return await ClaudeAccountBroker.ReadBoundedAsync(response.Content, maximumResponseBytes, token).ConfigureAwait(false);
     }
 
     internal static ClaudeTransmission Prepare(ModelTurnProvenance provenance, Kora.Core.Providers.ProviderProfileTuple profile,

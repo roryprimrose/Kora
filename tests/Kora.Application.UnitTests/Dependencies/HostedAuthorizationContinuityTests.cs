@@ -6,6 +6,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
@@ -36,7 +37,8 @@ public sealed class HostedAuthorizationContinuityTests : IDisposable
         using var root = f.Root();
         var issued = f.Reviews.PrepareClaudeTurn(f.Context, f.Profile);
         issued.Used = fault is "unused" ? 0 : 1;
-        var adapter = new ClaudeModelTurnAdapter(new GuardRuntime(), fault is "owner" ? new(f, f.Time) : f.Reviews);
+        var adapter = new ClaudeModelTurnAdapter(new GuardRuntime(), fault is "owner" ? new(f, f.Time) : f.Reviews,
+            f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
         var registration = new ModelProviderRegistration(f.Provenance.Selection with
             { Provider = fault is "service" ? ModelProviderIdentity.Copilot : ModelProviderIdentity.Claude },
             ModelQualificationGate.None, f.Time.Now.AddMinutes(1), fault is "adapter" ? new GuardAdapter() : adapter);

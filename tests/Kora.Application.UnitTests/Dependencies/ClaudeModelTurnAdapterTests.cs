@@ -6,11 +6,12 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
 [Collection("Host tracing")]
-public sealed class ClaudeModelTurnAdapterTests : IDisposable
+public sealed partial class ClaudeModelTurnAdapterTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -34,8 +35,9 @@ public sealed class ClaudeModelTurnAdapterTests : IDisposable
         using var root = f.Root();
         var authorization = f.Reviews.PrepareClaudeTurn(f.Context, f.Profile);
         var runtime = new Runtime();
-        var adapter = fault is "unbound" ? new ClaudeModelTurnAdapter(runtime, f.Reviews)
-            : new ClaudeModelTurnAdapter(runtime, f.Reviews).Bind(authorization, _ => ValueTask.FromResult(fault is not "current"));
+        var adapter = fault is "unbound" ? new ClaudeModelTurnAdapter(runtime, f.Reviews, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance)
+            : new ClaudeModelTurnAdapter(runtime, f.Reviews, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance)
+                .Bind(authorization, _ => ValueTask.FromResult(fault is not "current"));
         if (fault is "expired") { f.Time.Now = f.Context.ExpiresAt; }
         var provenance = f.Provenance with { Request = fault is "request" ? HostRequest.Create(RequestOrigin.LocalUi) : f.Request };
         var result = await adapter.RunAsync(provenance, fault is "profile" ? f.Profile with { Account = new("foreign") } : f.Profile,
@@ -58,7 +60,7 @@ public sealed class ClaudeModelTurnAdapterTests : IDisposable
         using var root = f.Root();
         var live = true;
         var runtime = new Runtime();
-        var adapter = new ClaudeModelTurnAdapter(runtime, f.Reviews)
+        var adapter = new ClaudeModelTurnAdapter(runtime, f.Reviews, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance)
             .Bind(f.Reviews.PrepareClaudeTurn(f.Context, f.Profile), _ => ValueTask.FromResult(live));
         var offered = 0;
         f.Reviews.ClaudeOffered += review =>
@@ -96,9 +98,11 @@ public sealed class ClaudeModelTurnAdapterTests : IDisposable
         internal ModelTurnProvenance Provenance { get; }
         internal HostedTransmissionReviewService Reviews { get; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
-        internal Fixture()
+        internal Fixture(bool observations = false)
         {
-            Context = new(Request, "policy", "original body", [], Time.Now, Time.Now.AddMinutes(1), ModelToolMode.None);
+            Context = new(Request, "policy", "original body", [], Time.Now, Time.Now.AddMinutes(1),
+                observations ? ModelToolMode.ReadOnly : ModelToolMode.None,
+                observations ? ClaudeObservationTools.Constrain([Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version]) : null);
             Provenance = new(new(Guid.NewGuid()), Request, new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), new(1)));
             Reviews = new(this, Time);
         }

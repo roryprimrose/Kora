@@ -240,6 +240,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "independent-agent-runs",
             "code-highlighting",
             "external-browser",
+            "diagrams",
             "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>

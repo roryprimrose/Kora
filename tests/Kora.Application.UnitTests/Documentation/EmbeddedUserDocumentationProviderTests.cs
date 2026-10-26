@@ -233,6 +233,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "session-instructions",
             "agent-profile-authoring",
             "claude-requests",
+            "conversation-notices",
             "owned-skill-authoring",
             "session-dictation",
             "hosted-requests",

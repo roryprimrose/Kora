@@ -6,7 +6,7 @@ using Kora.Core.Storage;
 
 namespace Kora.Application.Interaction;
 
-public sealed class AuthorityLocalEventSource(
+public sealed partial class AuthorityLocalEventSource(
     ISessionWorkStore work, ISessionWorkspaceAccess access, MaintenanceViewModel maintenance,
     SessionQueueLimits limits, TimeProvider time, SessionQueueConfigurationService? configuration = null) : ILocalEventSource
 {
@@ -18,7 +18,7 @@ public sealed class AuthorityLocalEventSource(
         RequireAdmission(revision);
         var snapshot = await WithLimitsAsync(current => work.ReadWorkAsync(session, revision, current, token).AsTask(), token).ConfigureAwait(false);
         snapshot.RequireSubject(session);
-        var events = FromWork(snapshot, time.GetUtcNow());
+        var events = ReadConversationNotices(snapshot, revision);
         var release = BindMaintenance(maintenance.ReadLocalEvent(session), snapshot);
         RequireAdmission(revision);
         return release is null ? events : events.Append(release).ToArray();
@@ -32,7 +32,7 @@ public sealed class AuthorityLocalEventSource(
         return await WithLimitsAsync(currentLimits => work.WithCurrentWorkAsync(session, revision, currentLimits, snapshot =>
         {
             snapshot.RequireSubject(session);
-            var events = FromWork(snapshot, time.GetUtcNow());
+            var events = ReadConversationNotices(snapshot, revision);
             return maintenance.WithLocalEvent(session, cached =>
             {
                 var release = BindMaintenance(cached, snapshot);

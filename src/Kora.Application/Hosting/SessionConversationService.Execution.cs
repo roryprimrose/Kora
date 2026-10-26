@@ -27,28 +27,10 @@ public sealed partial class SessionConversationService
             || turn.TaskRevision != retained.Task.Revision || turn.ConversationTarget is not null)
         { throw new InvalidDataException("Turn admission does not bind this exact original retained request."); }
         if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
-        if (!Current() || !turns.IsQuiescent || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
+        if (!Current() || !ProviderAdmitsSession(request.SessionId)
+            || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
         { throw new InvalidOperationException("The original source or exact session changed before model execution."); }
-        token.ThrowIfCancellationRequested();
-        if (!Current()) { throw new InvalidOperationException("Original source admission changed before host capture."); }
-        onAdmitted?.Invoke(turn.Provenance);
-        token.ThrowIfCancellationRequested();
-        if (!Current()) { throw new InvalidOperationException("Original source admission changed during host capture."); }
-        var dispatched = await conversations.BeginConversationExecutionAsync(request, turn.Provenance,
-            target.Metadata?.Revision.Value ?? 0, Current, token).ConfigureAwait(false);
-        dispatched.Message.Validate();
-        if (dispatched.Message.Request != request
-            || !string.Equals(dispatched.Message.Body, retained.Message.Body, StringComparison.Ordinal)
-            || dispatched.Message.Generation != target.Authority.Generation || dispatched.Message.Sequence != retained.Message.Sequence
-            || dispatched.Message.Execution != turn.Provenance || dispatched.Message.Revision != 2
-            || dispatched.Task.Request != request || dispatched.Task.State != HostTaskState.DispatchRecorded
-            || dispatched.Task.Revision.Value != 2 || !live())
-        { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
-        var dispatchReadback = await conversations.ReadConversationMessageAsync(request.SessionId, request.RequestId, token).ConfigureAwait(false);
-        if (dispatchReadback != dispatched.Message || !Current())
-        { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }
-        turn.TaskRevision = dispatched.Task.Revision;
-        turn.ConversationTarget = target;
+        var runtime = executor as ModelTurnHost;
         await using var running = RegisterRunningConversation(target, turn, live, token);
         turn.PublishAnswer = async (update, publicationToken) =>
         {
@@ -72,6 +54,55 @@ public sealed partial class SessionConversationService
         var confirmed = false;
         try
         {
+            if (runtime is not null)
+            {
+                RunningConversationChanged?.Invoke(running.Status);
+                ModelTurnReason resourceReason;
+                try
+                {
+                    resourceReason = await runtime.ReserveConversationResourcesAsync(turn,
+                        () => Current() && running.CanContinue, running.Token).ConfigureAwait(false);
+                }
+                catch (OperationCanceledException) when (running.Token.IsCancellationRequested)
+                { resourceReason = ModelTurnReason.CallerCancelled; }
+                if (resourceReason != ModelTurnReason.None)
+                {
+                    running.BeginCompletion();
+                    var cancelled = running.CancellationAccepted || resourceReason == ModelTurnReason.CallerCancelled;
+                    var unavailable = await conversations.CompleteConversationSubmissionAsync(request,
+                        cancelled ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Unavailable,
+                        cancelled ? ModelTurnReason.CallerCancelled : resourceReason, live, token).ConfigureAwait(false);
+                    terminalCommitted?.Invoke();
+                    await RequireSubmissionReadbackAsync(unavailable, target, request, retained.Message.Body,
+                        live, validateSource, token).ConfigureAwait(false);
+                    confirmed = true;
+                    running.Complete(unavailable.Message.Outcome!.Value, unavailable.Task.State);
+                    return unavailable;
+                }
+                if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
+            }
+            token.ThrowIfCancellationRequested();
+            if (!Current()) { throw new InvalidOperationException("Original source admission changed before host capture."); }
+            onAdmitted?.Invoke(turn.Provenance);
+            token.ThrowIfCancellationRequested();
+            if (!Current()) { throw new InvalidOperationException("Original source admission changed during host capture."); }
+            var dispatched = await conversations.BeginConversationExecutionAsync(request, turn.Provenance,
+                target.Metadata?.Revision.Value ?? 0,
+                () => Current() && running.CanContinue && (runtime is null || runtime.ConversationResourcesCurrent(turn)), token).ConfigureAwait(false);
+            dispatched.Message.Validate();
+            if (dispatched.Message.Request != request
+                || !string.Equals(dispatched.Message.Body, retained.Message.Body, StringComparison.Ordinal)
+                || dispatched.Message.Generation != target.Authority.Generation || dispatched.Message.Sequence != retained.Message.Sequence
+                || dispatched.Message.Execution != turn.Provenance || dispatched.Message.Revision != 2
+                || dispatched.Task.Request != request || dispatched.Task.State != HostTaskState.DispatchRecorded
+                || dispatched.Task.Revision.Value != 2 || !live())
+            { throw new IOException("Execution intent readback is unconfirmed; inspect without repeating the turn."); }
+            var dispatchReadback = await conversations.ReadConversationMessageAsync(request.SessionId, request.RequestId, token).ConfigureAwait(false);
+            if (dispatchReadback != dispatched.Message || !Current())
+            { throw new IOException("The original dispatch source readback is unconfirmed; no model turn was repeated."); }
+            turn.TaskRevision = dispatched.Task.Revision;
+            turn.ConversationTarget = target;
+            running.Dispatched(dispatched.Task.Revision);
             RunningConversationChanged?.Invoke(running.Status);
             var result = await executor.RunAsync(turn, () => running.CanContinue, running.Token, validateSource).ConfigureAwait(false);
             if (!ReferenceEquals(turn.TerminalResult, result) || result.Provenance != turn.Provenance
@@ -85,7 +116,10 @@ public sealed partial class SessionConversationService
             }
             // Logical timeout/cancellation is not physical completion. Caller shutdown retains its existing Unknown/recovery path.
             if (!token.IsCancellationRequested)
-            { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            {
+                if (runtime is not null) { await runtime.JoinConversationResourcesAsync(turn, CancellationToken.None).ConfigureAwait(false); }
+                else { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            }
             await running.JoinCancellationAsync().ConfigureAwait(false);
             if (resolveResponse is not null && result.Outcome == ModelTurnOutcome.Succeeded)
             {
@@ -105,7 +139,8 @@ public sealed partial class SessionConversationService
             }
             if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
             token.ThrowIfCancellationRequested();
-            bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded || Current() && turns.IsQuiescent);
+            bool RetainCurrent() => live() && (result.Outcome != ModelTurnOutcome.Succeeded
+                || Current() && (runtime is not null ? runtime.IsTurnQuiescent(turn) : turns.IsQuiescent));
             if (!RetainCurrent() || await store.ReadMetadataAsync(request.SessionId, token).ConfigureAwait(false) != target)
             { throw new InvalidOperationException("The original source or session changed before terminal retention."); }
             var completed = await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
@@ -124,8 +159,21 @@ public sealed partial class SessionConversationService
         {
             turn.PublishAnswer = null;
             // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
-            if (running.CancellationAccepted) { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
-            ReleaseRunningConversation(running, confirmed);
+            try
+            {
+                if (runtime is not null && turn.ResourceLease is not null
+                    && (!turn.ResourceDispatched || !token.IsCancellationRequested || running.CancellationAccepted))
+                {
+                    await running.WaitForPhysicalResourcesAsync(
+                        () => runtime.JoinConversationResourcesAsync(turn, CancellationToken.None)).ConfigureAwait(false);
+                }
+                else if (runtime is null && running.CancellationAccepted)
+                {
+                    await running.WaitForPhysicalResourcesAsync(
+                        () => executor.WaitForQuiescenceAsync(CancellationToken.None)).ConfigureAwait(false);
+                }
+            }
+            finally { ReleaseRunningConversation(running, confirmed); }
         }
     }
 

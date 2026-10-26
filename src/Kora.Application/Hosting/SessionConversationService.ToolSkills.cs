@@ -29,6 +29,7 @@ public sealed partial class SessionConversationService
         if (webPageAction is null || interactions is null || turns is not ModelTurnHost modelHost)
         { throw new InvalidOperationException("The governed local page action and native approval host are unavailable. Nothing was submitted."); }
         LocalWebPageWorkflow? invocation = null;
+        ModelTurn? boundTurn = null;
         var terminalCommitted = false;
         async Task Validate(CancellationToken checkToken)
         {
@@ -50,8 +51,9 @@ public sealed partial class SessionConversationService
             var workflowInvocation = new HostId<InvocationIdentity>(Guid.NewGuid());
             invocation = new(scope.Destinations.Select(destination => (destination,
                 new LocalWebPageInvocation(webPageAction, interactions, presenter, turn.Provenance.Request, target.Authority.Generation,
-                    destination, turn.Context.ExpiresAt, live, time, workflowInvocation, scope))).ToArray());
+                    destination, turn.Context.ExpiresAt, live, time, workflowInvocation, scope, validateSource))).ToArray());
             modelHost.BindWebPage(turn, invocation);
+            boundTurn = turn;
         }
         ModelTurnResult Resolve(ModelTurnResult result) => invocation?.Completed == true
             ? result : new(ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected, result.Provenance);
@@ -62,7 +64,9 @@ public sealed partial class SessionConversationService
         }
         finally
         {
-            if (invocation is not null) { await modelHost.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
+            // Retained execution delegates caller-shutdown joins to the source owner.
+            if (token.IsCancellationRequested && boundTurn is { ResourceDispatched: true })
+            { await modelHost.JoinConversationResourcesAsync(boundTurn, CancellationToken.None).ConfigureAwait(false); }
         }
     }
 }

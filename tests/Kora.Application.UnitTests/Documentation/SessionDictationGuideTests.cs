@@ -22,5 +22,8 @@ public sealed class SessionDictationGuideTests
             .And.Contain("inert text, not commands or approval")
             .And.Contain("independent unsent input")
             .And.Contain("does not introduce disk autosave");
+        guide.Should().Contain("Provisional—may change").And.Contain("512 UTF-16")
+            .And.Contain("1,024 strict UTF-8").And.Contain("Final-only capture")
+            .And.Contain("not inserted, sent or spoken automatically");
     }
 }

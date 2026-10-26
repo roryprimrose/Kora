@@ -2,6 +2,7 @@ using Kora.Application.Memory;
 using Kora.Core.Artifacts;
 using Kora.Core.Commands;
 using Kora.Core.Conversation;
+using Kora.Core.Conversation.ReviewedContext;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -10,13 +11,76 @@ namespace Kora.Application.Hosting.ReviewedContext;
 
 /// <summary>Owns only this explicitly selected mixed review, not the independent source brokers.</summary>
 internal sealed class MixedContextWorkflow(
-    SessionConversationService conversation, SessionMemoryContext memories, ScopedInstructionUseBroker instructions,
+    SessionConversationService conversation, SessionMemoryContext? memories, ScopedInstructionUseBroker? instructions,
     TimeProvider time) : IDisposable
 {
     private MixedContextReview? current;
     private bool disposed;
     private long revision;
     private readonly Lock gate = new();
+    private ConversationHistoryReview? reply;
+    private CancellationTokenSource? replyCancellation;
+    private CancellationTokenSource? replyExecution;
+
+    internal async Task<ConversationHistoryReview> ReviewReplyAsync(SessionWorkspaceEntry target, string body,
+        ConversationMessage source, Func<bool> admitted, CancellationToken token)
+    {
+        SessionConversationService.RequireOriginalSource(RequestOrigin.LocalUi);
+        long version;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            Retire();
+            if (replyExecution is not null)
+            { throw new InvalidOperationException("The previous reply still owns provider resources; wait for its actual completion."); }
+            version = revision;
+        }
+        bool Live() => !Volatile.Read(ref disposed) && Interlocked.Read(ref revision) == version && admitted();
+        var now = time.GetUtcNow();
+        _ = MixedConversationContext.CreateReplyEnvelope(
+            new(new(Guid.NewGuid()), target.Authority.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+            body, source, now, now.AddSeconds(60));
+        var review = await conversation.ReviewHistoryAsync(target, body,
+            [new(source, ConversationHistoryRole.Assistant)], Live, token).ConfigureAwait(false);
+        lock (gate)
+        {
+            if (!Live())
+            { review.Dispose(); throw new OperationCanceledException("The exact reply source or input changed during review."); }
+            replyCancellation = CancellationTokenSource.CreateLinkedTokenSource(token);
+            reply = review;
+        }
+        return review;
+    }
+
+    internal async Task<ConversationSubmissionReceipt> ConfirmReplyAsync(ConversationHistoryReview review,
+        Func<bool> admitted, CancellationToken token)
+    {
+        SessionConversationService.RequireOriginalSource(HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi);
+        CancellationTokenSource execution;
+        lock (gate)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            if (!ReferenceEquals(reply, review) || replyCancellation is null)
+            { throw new InvalidOperationException("Review this workflow's exact answer and unchanged follow-up first; confirmation is single-use."); }
+            execution = replyCancellation;
+            replyExecution = execution;
+            replyCancellation = null;
+            reply = null;
+        }
+        using (review)
+        using (execution)
+        using (var cancellation = CancellationTokenSource.CreateLinkedTokenSource(execution.Token, token))
+        {
+            try
+            {
+                return await conversation.SubmitHistoryAsync(review, admitted, cancellation.Token).ConfigureAwait(false);
+            }
+            finally
+            {
+                lock (gate) { replyExecution = null; }
+            }
+        }
+    }
 
     internal async Task<MixedContextReview> ReviewAsync(SessionWorkspaceEntry target, string body,
         IEnumerable<ConversationHistorySelection> history, ArtifactDefinition instruction,
@@ -24,6 +88,8 @@ internal sealed class MixedContextWorkflow(
         RequestOrigin origin = RequestOrigin.LocalUi)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        var memoryBroker = memories ?? throw new InvalidOperationException("This reply workflow has no memory selection.");
+        var instructionBroker = instructions ?? throw new InvalidOperationException("This reply workflow has no instruction selection.");
         long version;
         lock (gate)
         {
@@ -41,8 +107,8 @@ internal sealed class MixedContextWorkflow(
         try
         {
             await conversation.ValidateMixedHistoryAsync(target, ordered, Live, token).ConfigureAwait(false);
-            source = await instructions.ReviewSourceAsync(target, instruction, Live, token, origin).ConfigureAwait(false);
-            memory = await memories.ReviewAsync(target, selection, body, Live, token, origin).ConfigureAwait(false);
+            source = await instructionBroker.ReviewSourceAsync(target, instruction, Live, token, origin).ConfigureAwait(false);
+            memory = await memoryBroker.ReviewAsync(target, selection, body, Live, token, origin).ConfigureAwait(false);
             var review = new MixedContextReview(this, source, memory, ordered, time, new(activity.Activity!.Context));
             lock (gate)
             {
@@ -73,6 +139,7 @@ internal sealed class MixedContextWorkflow(
         Func<bool> admitted, CancellationToken token)
     {
         SessionConversationService.RequireOriginalSource(HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi);
+        var memoryBroker = memories ?? throw new InvalidOperationException("This reply workflow has no mixed memory source.");
         SessionMemoryContextUse use;
         lock (gate)
         {
@@ -80,7 +147,7 @@ internal sealed class MixedContextWorkflow(
             if (!ReferenceEquals(current, review))
             { throw new InvalidOperationException("Only this workflow's current complete review may be confirmed."); }
             review.Consume(this);
-            try { use = memories.Confirm(review.Memory, admitted, token); }
+            try { use = memoryBroker.Confirm(review.Memory, admitted, token); }
             catch { review.Dispose(); throw; }
         }
         using (review)
@@ -116,7 +183,13 @@ internal sealed class MixedContextWorkflow(
             revision++;
             current?.Dispose();
             current = null;
-            memories.Retire();
+            reply?.Dispose();
+            reply = null;
+            replyCancellation?.Cancel();
+            replyCancellation?.Dispose();
+            replyCancellation = null;
+            replyExecution?.Cancel();
+            memories?.Retire();
         }
     }
 
@@ -126,7 +199,7 @@ internal sealed class MixedContextWorkflow(
         {
             disposed = true;
             Retire();
-            memories.Dispose();
+            memories?.Dispose();
         }
     }
 }

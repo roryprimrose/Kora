@@ -342,6 +342,7 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddSingleton<Kora.Application.Definitions.OwnedInstructionRefinementService>();
         services.AddSingleton<IProfileInstructionReader, WindowsProfileInstructionReader>();
         services.AddSingleton<Kora.Application.Definitions.ProfileInstructionForkWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
@@ -638,7 +639,13 @@ internal static class Program
             new LocalVoiceConsentPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalVoiceConsentPreferences>>()));
-        services.AddSingleton<ICallStateService, UnavailableCallStateService>();
+        services.AddSingleton<LocalCommunicationActivityPreferences>(provider =>
+            new LocalCommunicationActivityPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ICommunicationActivitySource, WindowsCommunicationsActivitySource>();
+        services.AddSingleton<Kora.Application.Communication.CommunicationActivityCallStateService>();
+        services.AddSingleton<CommunicationActivityConfigurationService>();
+        services.AddSingleton<ICallStateService>(provider =>
+            provider.GetRequiredService<Kora.Application.Communication.CommunicationActivityCallStateService>());
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
         services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();
         VoiceInputComposition.Configure(services);

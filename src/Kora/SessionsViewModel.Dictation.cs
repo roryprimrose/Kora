@@ -83,6 +83,6 @@ internal sealed partial class SessionsViewModel
                     NotifyConversation();
                 }
             }
-        });
+        }, ComposerDictationDestination.SessionComposer);
     }
 }

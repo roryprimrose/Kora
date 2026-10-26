@@ -31,7 +31,8 @@ public sealed partial class App
             Services.GetRequiredService<TimeProvider>());
         var use = new OwnedSkillInvocationController(main, useWorkflow,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>());
+            Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>(),
+            ActivatorUtilities.CreateInstance<ReviewedToolSkillInvocationWorkflow>(Services), questionWindow);
         use.Bind();
         namedSkillInvocation = new(main,
             new NamedSkillCatalogue(store, workflow, Services.GetRequiredService<SharedSkillDiscoveryService>(),

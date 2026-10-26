@@ -5,17 +5,17 @@
 Use **Settings > Custom content > Owned instructions and prompts...** or type `instructions editor` / `prompts editor`.
 After ordinary push-to-talk admission, `Kora, instructions editor` focuses the same native surface.
 All write and use reviews remain native; definition-source body dictation and voice-only confirmation are unavailable. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
-No AI model, hosted account or network is involved in editing.
+Manual editing needs no model, hosted account or network. Explicit [local body refinement](#refine-the-current-owned-instruction-body) uses the separately admitted local-only model route; production qualification remains unavailable ([composition](../src/Kora/Program.cs)).
 
 | Kind/source/channel | This increment |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Personal profile instructions | Explicit native exact-file selection, bounded read consent and separately reviewed disabled native v1 Kora copy; no original writer ([workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
-| Voice-only confirmation/body dictation/model refinement | Unavailable; native text editing is the recovery path |
+| Voice-only confirmation/body dictation | Unavailable; native text editing and exact native reviews remain the recovery path |
 
 Use **List**, select an owned ID, then **Inspect**. For a new file enter a lowercase ASCII ID
 (letters, digits and hyphens, at most 64 characters; no paths or device names) and select **Create**.
@@ -33,6 +33,22 @@ controls use `prompts` in place of `instructions`, for example `prompts create
 example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
+
+## Refine the current owned instruction body
+
+Inspect one supported Kora-owned **Instruction**, keep the desired current draft open, and enter an unchanged critique in **Local body refinement critique**. Select **Refine current Instruction body**, type `instructions refine`, or use current-name activated `Kora, instructions refine`. These routes target only the already open same-kind editor; they do not open a filename or accept inline body text ([routing](../src/Kora.Application/ViewModels/MainViewModel.InstructionEditor.cs)).
+
+Review the complete current draft and critique, then explicitly choose **Generate local body proposal**. The model receives only the exact body as untrusted LocalOnly evidence and the unchanged critique as the request. Tools, history, memory, attachments, remote fallback and reference execution are excluded. The host retains metadata, kind, name, source, BOM, encoding and writer authority ([local-context workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+
+The next comparison shows the unchanged current draft and the **complete prepared replacement**, including host-owned metadata. **Use proposal for next Save** keeps only a volatile reviewed proposal: it does not change the editor buffer or write a file. Structural validation is not semantic harmlessness; review the entire proposed body ([native comparison](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
+
+Select normal **Save** and separately **Confirm save** after reviewing the complete source again. Only that confirmed operation uses the existing authoritative writer and readback. A changed revision is disabled until independent exact-use review; saving never enables it. A stale base cannot be overwritten through a refinement proposal ([save workflow](../src/Kora.Application/Definitions/InstructionSaveWorkflow.cs), [save/readback regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+
+Edits to the draft, critique, source identity, name or kind; cancellation; privacy/call/ownership/original-channel retirement; and expiry revoke the proposal. **Cancel refinement** and closing during generation request cancellation but retain ownership until the model actually stops. Manual work is not overwritten. A source conflict requires explicit Reload/reconciliation; retry refinement only after recovery ([lifecycle](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [boundary regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.OwnedInstructionRefinement.cs)).
+
+Unavailable, denied or malformed generation leaves the current draft and unsent critique unchanged and performs no definition write. Invalid output is not fence-stripped or truncated. Unsent content and proposals remain volatile, not conversation/history/cache or diagnostic data; privacy closure clears the private controls ([implementation](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs), [native lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+
+This bounded implementation does not qualify a real provider or model. Production local registrations remain unqualified, so generation reports unavailable until independent enablement requirements are met. Prompts, skills, agents, registered profile originals, executable/hooks and arbitrary paths are outside this operation ([production registration](../src/Kora/Program.cs), [owned-source guard](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
 
 ## Create a disabled Kora copy of a personal instruction
 

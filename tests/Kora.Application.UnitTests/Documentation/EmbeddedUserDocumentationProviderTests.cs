@@ -181,6 +181,20 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void OwnedRefinementGuideSeparatesVolatileProposalConfirmedSaveAndUnavailableQualification()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("## Refine the current owned instruction body")
+            .And.Contain("instructions refine").And.Contain("complete prepared replacement")
+            .And.Contain("does not change the editor buffer or write a file")
+            .And.Contain("Confirm save").And.Contain("saving never enables it")
+            .And.Contain("Structural validation is not semantic harmlessness")
+            .And.Contain("not fence-stripped or truncated")
+            .And.Contain("Production local registrations remain unqualified");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

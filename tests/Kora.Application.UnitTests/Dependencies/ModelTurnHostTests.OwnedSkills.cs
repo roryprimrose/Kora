@@ -414,7 +414,8 @@ public sealed partial class ModelTurnHostTests
         internal SessionConversationService Conversation { get; }
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
-        internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true)
+        internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true,
+            SessionConversationService? conversation = null)
         {
             this.model = model;
             Authority = new(origin, Eligible);
@@ -422,7 +423,7 @@ public sealed partial class ModelTurnHostTests
             Saved = new(Store, admission, Audit);
             var host = qualified ? QualifiedHistoryHost(model) : model.ConfiguredProfiles(production: true);
             var workspace = new SessionWorkspaceService(model, new(model), model, NullLogger<SessionWorkspaceService>.Instance);
-            Conversation = model.ConversationService(host, execution: host);
+            Conversation = conversation ?? model.ConversationService(host, execution: host);
             Workflow = new(Store, admission, inspect ? model : new SharedSkillInspectDenied(), model, workspace,
                 Conversation, Audit, model.Time);
         }

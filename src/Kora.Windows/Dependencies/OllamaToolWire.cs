@@ -33,6 +33,17 @@ internal static partial class OllamaToolWire
                     request.Round,
                 }));
             }
+            if (request.Context.WebPages is { } pages)
+            {
+                WriteTextMessage(writer, "system", JsonSerializer.Serialize(new
+                {
+                    HostWebPageScope = pages,
+                    pages.MaximumCalls,
+                    pages.MaximumRounds,
+                    RemainingByteBudget = request.Budget,
+                    request.Round,
+                }));
+            }
             // Evidence stays serialized lower-trust context data; it is never promoted into system instructions.
             if (!request.Context.Evidence.IsEmpty)
             {

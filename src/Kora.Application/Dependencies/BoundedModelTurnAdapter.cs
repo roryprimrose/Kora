@@ -122,14 +122,14 @@ internal sealed partial class BoundedModelTurnAdapter(
         var started = time.GetUtcNow();
         var inputLimit = context.Constraints?.InputUtf8Bytes ?? ModelToolProtocol.MaximumInputUtf8Bytes;
         var outputLimit = context.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes;
-        var callLimit = context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
+        var callLimit = context.WebPages?.MaximumCalls ?? context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
         for (var round = 1; ; round++)
         {
             var denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
             if (denied is not null) { return denied; }
             ModelToolRequest request;
             if (inputBytes >= inputLimit || outputBytes >= outputLimit
-                || round > (context.Constraints?.MaximumRounds ?? ModelToolProtocol.MaximumRounds))
+                || round > (context.WebPages?.MaximumRounds ?? context.Constraints?.MaximumRounds ?? ModelToolProtocol.MaximumRounds))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             try
             {
@@ -213,7 +213,8 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             catch (InvalidDataException)
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            if (context.ToolMode == ModelToolMode.LocalWebPage && (assistant.Calls.Length != 1 || calls != 0))
+            if (context.ToolMode == ModelToolMode.LocalWebPage
+                && (assistant.Calls.Length != 1 || calls >= (context.WebPages?.MaximumCalls ?? 1)))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Length > callLimit - calls)
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }

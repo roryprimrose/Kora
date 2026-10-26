@@ -126,6 +126,8 @@
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
           <Button x:Name="SubmitClaudeObservations" Content="Submit with reviewed Claude observation subset"
             IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Explicit host-owned read-only observations only. Each physical POST needs new native consent. Unqualified Claude stays unavailable." />
+          <Button x:Name="SubmitClaudeAnswerStream" Content="Stream explicitly with Claude (text only, separately qualified)"
+            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Requires positive exact-profile native text-stream approval. Separate native consent for token count and stream Messages. Provisional text is not retained; only a fully validated final answer is saved. No tools, retry or buffered fallback." />
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
             AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
@@ -156,7 +158,7 @@
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
-          <TextBlock Text="Provisional local answer — not retained" TextWrapping="Wrap" />
+          <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
           <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
               AutomationProperties.Name="Unstable provisional local answer; not spoken automatically" />
         </StackPanel>

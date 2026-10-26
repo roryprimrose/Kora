@@ -24,12 +24,13 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
         return new(this, current, context, profile);
     }
 
-    public ClaudeTurnAuthorization PrepareClaudeTurn(ModelContextEnvelope context, ProviderProfileTuple profile)
+    public ClaudeTurnAuthorization PrepareClaudeTurn(ModelContextEnvelope context, ProviderProfileTuple profile,
+        bool streamAnswer = false)
     {
         var current = ValidatePreparation(context, profile, ProviderService.Claude);
-        if (!ClaudeObservationTools.Supports(context))
+        if (!ClaudeObservationTools.Supports(context) || streamAnswer && context.ToolMode != ModelToolMode.None)
         { throw new InvalidOperationException("Claude requires an explicit tool-free request or bounded original observation subset, without evidence."); }
-        return new(this, current, context, profile);
+        return new(this, current, context, profile, streamAnswer);
     }
 
     private HostActivity ValidatePreparation(ModelContextEnvelope context, ProviderProfileTuple profile, ProviderService service)

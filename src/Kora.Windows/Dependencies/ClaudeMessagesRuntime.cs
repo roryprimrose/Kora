@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>Bounded, tool-free, stateless native Messages profile. All HTTP work remains owned until joined.</summary>
-public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsyncDisposable
+public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IAsyncDisposable
 {
     private readonly ClaudeAccountBroker accounts;
     private readonly TimeProvider time;
@@ -18,7 +18,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsy
     private readonly Lock disposalGate = new();
     private Task? disposal;
     private bool disposed;
-    public bool IsQuiescent => operation.CurrentCount != 0;
+    private volatile bool quarantined;
+    public bool IsQuiescent => !quarantined && operation.CurrentCount != 0;
 
     public ClaudeMessagesRuntime(ClaudeAccountBroker accounts, TimeProvider time, ILogger<ClaudeMessagesRuntime> logger)
         : this(accounts, time, logger, ClaudeAccountBroker.CreateHttpClient) { }
@@ -36,7 +37,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsy
         await operation.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            if (disposed || profile.Service != ProviderService.Claude
+            if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request) || context.ToolMode != ModelToolMode.None
                 || !context.Evidence.IsEmpty || context.McpTool is not null
                 || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
@@ -87,7 +88,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsy
         finally { operation.Release(); }
     }
 
-    internal static byte[] Serialize(ModelContextEnvelope context, ProviderProfileTuple profile, int? outputLimit)
+    internal static byte[] Serialize(ModelContextEnvelope context, ProviderProfileTuple profile, int? outputLimit,
+        bool streamAnswer = false)
     {
         using var memory = new MemoryStream();
         using (var writer = new Utf8JsonWriter(memory))
@@ -107,7 +109,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsy
             if (outputLimit is not null)
             {
                 writer.WriteNumber("max_tokens", outputLimit.Value);
-                writer.WriteBoolean("stream", false);
+                writer.WriteBoolean("stream", streamAnswer);
                 if (profile.Reasoning.Value is not "disabled")
                 {
                     writer.WriteStartObject("output_config");
@@ -195,9 +197,19 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IAsy
     private async Task DisposeCoreAsync()
     {
         disposed = true;
-        await lifetime.CancelAsync().ConfigureAwait(false);
-        await operation.WaitAsync().ConfigureAwait(false);
-        operation.Release();
-        lifetime.Dispose();
+        try { await StopAsync().ConfigureAwait(false); }
+        finally
+        {
+            await operation.WaitAsync().ConfigureAwait(false);
+            operation.Release();
+            ClaudeAnswerStream.DisposeOwned(lifetime, () => quarantined = true);
+        }
+        if (quarantined) { throw new IOException("Claude resource disposal is unconfirmed; runtime remains quarantined."); }
+    }
+
+    private async Task StopAsync()
+    {
+        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        catch { quarantined = true; throw; }
     }
 }

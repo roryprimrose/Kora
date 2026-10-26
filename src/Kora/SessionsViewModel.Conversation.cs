@@ -161,7 +161,7 @@ internal sealed partial class SessionsViewModel
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
         Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
-        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false,
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false, bool claudeStreamAnswer = false,
         CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
@@ -195,7 +195,9 @@ internal sealed partial class SessionsViewModel
             ? claudeObservations
                 ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
                     () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
-                : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
+                : claudeStreamAnswer
+                    ? await conversation!.SubmitClaudeAnswerStreamAsync(target, body, live, lifetime.Token)
+                    : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : clarificationTools == ModelToolMode.ReadOnly

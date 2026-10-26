@@ -1448,6 +1448,8 @@ Controls expose exact advertised provider-managed choices and context presets/to
 
 Only subsequent eligible provider-neutral turns consume these app profiles. Existing admitted turns and buffered bootstrap local reasoning are not rerouted. Durable exact-session controls below are separate; generic unscoped directives and one-turn changes remain future work and are never silently promoted to app scope.
 
+Saving a Claude tuple or approving its buffered operation does not enable native streaming. The separate native-only text-stream action additionally requires positive exact tuple/token-ceiling deployment evidence and a current credential/workspace lease. Unknown evidence and the shipped unavailable source fail closed; no setting supplies that authority ([profile contract](Runtime_Provider_Feasibility.md#native-text-stream-implementation-not-enablement), [user operation](../docs/claude-requests.md#separately-qualified-native-text-streaming)).
+
 ### Delivered exact-session sparse provider overrides
 
 [Session provider policy](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) durably stores service/model/reasoning/context as Inherit app or exact current catalogue-bound values in the private consolidated session SQLite authority. Existing/legacy sessions start all-inherit, never a fabricated hosted choice.

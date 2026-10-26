@@ -96,6 +96,22 @@ Outstanding HTTP/account/model work remains owned until it actually joins;
 exit does not equate cancellation requested with resource quiescence.
 Human reviews are included in the bounded request lifetime.
 
+## Separately qualified native text streaming
+
+In private Sessions, **Stream explicitly with Claude (text only, separately qualified)** submits only the original USER body, without history, memory, tools or source instructions. It uses the same provisional conversation pane, labelled **Provisional answer - not retained**, not a new renderer ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs), [presentation](../src/Kora/SessionsViewModel.ConversationCancellation.cs)).
+
+This native-only operation requires independent positive evidence for the exact model/reasoning/context tuple and its input/output token ceilings, in the current deployment approval and credential/workspace account lease. Existing buffered approval does not admit streaming; missing/new evidence stays unavailable. The shipped approval source remains unavailable ([profile evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [default source](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)).
+
+Count Tokens remains a separately reviewed physical POST. A second native final-byte review shows the actual Messages body with `stream:true`; earlier request review, voice input or counting consent cannot approve it. No implicit selection, retry or buffered fallback occurs ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [physical send](../src/Kora.Windows/Dependencies/ClaudeFinalRequestHandler.cs)).
+
+The decoder consumes actual progressive UTF-8 SSE, including split code points and escaped JSON strings. Only validated text deltas reach provisional presentation. Normal message/block ordering, cumulative token usage, `end_turn`, one `message_stop` and physical EOF are required; unknown events/fields, tools, thinking, citations, provider errors, truncation and `max_tokens` cannot produce success ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [protocol](https://platform.claude.com/docs/en/build-with-claude/streaming)).
+
+The pinned API version remains `2023-06-01`. Both POST bodies cumulatively fit 32768 UTF-8 bytes; counting response plus complete SSE cumulatively fit 4096 bytes, with at most 128 events, JSON depth 24 and 64 ordered text blocks. Bounds are inclusive. Exact catalogue ceilings remain at most 8192 input/4096 output tokens. Reviews and transport share the two-minute deadline ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [version policy](https://platform.claude.com/docs/en/api/versioning)).
+
+Source/session/account/profile/expiry/privacy authority is revalidated before each send, every publication and final commit. Provisional text is volatile inert text, not speech or an ASSISTANT record. Only the completely validated final answer is retained under that same original request; failures retire the preview. Cancellation-ignoring reads stay owned until joined; failed disposal quarantines the runtime rather than claiming quiescence ([host fences](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [composed progressive tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
+
+Ordinary buffered Claude, reviewed Claude observations, typed/activated Claude requests and local/hosted defaults retain their existing behavior. Deterministic fake HTTP tests are implementation evidence, not a live paid-provider/account, installed or hardware qualification ([compatibility tests](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.cs), [stream regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Streaming.cs)).
+
 ## Explicit read-only observations
 
 For current Kora version, dependency readiness or recorded local runtime metadata, use **Submit with reviewed Claude observation subset**, not ordinary Claude Submit. Edit the comma-separated exact scope before submission.

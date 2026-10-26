@@ -6,7 +6,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Application.Dependencies;
 
 internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedTransmissionReviewService reviews,
-    TimeProvider time, ILogger<BoundedModelTurnAdapter> logger) : IModelTurnAdapter
+    TimeProvider time, ILogger<BoundedModelTurnAdapter> logger) : IModelTurnAdapter, IModelAnswerTurnAdapter
 {
     private ClaudeTurnAuthorization? authorization;
     private Func<CancellationToken, ValueTask<bool>>? current;
@@ -14,10 +14,29 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
     internal bool Owns(ClaudeTurnAuthorization issued) => reviews.Current(issued);
     internal ClaudeModelTurnAdapter Bind(ClaudeTurnAuthorization issued, Func<CancellationToken, ValueTask<bool>> remainsCurrent) =>
         new(runtime, reviews, time, logger) { authorization = issued, current = remainsCurrent };
+    internal bool StreamsAnswer => authorization?.StreamAnswer == true;
 
-    public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+    public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken) =>
+        RunCoreAsync(provenance, profile, context, invokeTool, null, cancellationToken);
+
+    public Task<ModelProviderReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken) =>
+        RunCoreAsync(provenance, profile, context, invokeTool, async (update, token) =>
+        {
+            update.Validate();
+            if (update.Provenance != provenance
+                || await validateContinuation(token).ConfigureAwait(false) != ModelTurnReason.None)
+            { throw new InvalidDataException("Claude provisional host admission changed."); }
+            await publish(update, token).ConfigureAwait(false);
+        }, cancellationToken);
+
+    private async Task<ModelProviderReply> RunCoreAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
         if (authorization is null || current is null || profile != authorization.Profile
             || !ReferenceEquals(provenance.Request, authorization.Context.Request)
@@ -30,7 +49,21 @@ internal sealed class ClaudeModelTurnAdapter(IClaudeTurnRuntime runtime, HostedT
             ReferenceEquals(transmission.Provenance, provenance) && transmission.Profile == profile
                 ? reviews.ReviewAsync(authorization, transmission, Live, token) : ValueTask.FromResult(false);
         ModelProviderReply result;
-        if (authorization.Context.ToolMode == ModelToolMode.ReadOnly)
+        if (authorization.StreamAnswer)
+        {
+            if (publish is null || runtime is not IClaudeAnswerTurnRuntime streaming)
+            { return new(ModelTurnOutcome.Unavailable, provenance.Selection); }
+            var reply = await streaming.RunWithAnswerAsync(provenance, profile, authorization.Context,
+                Review, Live, async (update, token) =>
+                {
+                    if (!await Live(token).ConfigureAwait(false))
+                    { throw new InvalidDataException("Claude provisional account/source authority changed."); }
+                    await publish(update, token).ConfigureAwait(false);
+                }, cancellationToken).ConfigureAwait(false);
+            result = new(reply.Outcome, provenance.Selection,
+                reply.Outcome == ModelTurnOutcome.Succeeded ? new LocalModelResponse(reply.Answer, null) : null);
+        }
+        else if (authorization.Context.ToolMode == ModelToolMode.ReadOnly)
         {
             if (runtime is not IClaudeToolTurnRuntime tools)
             { return new(ModelTurnOutcome.Unavailable, provenance.Selection); }

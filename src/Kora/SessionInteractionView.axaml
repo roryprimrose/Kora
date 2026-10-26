@@ -102,8 +102,8 @@
               <StackPanel Spacing="8">
                 <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
                 <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
-                  <TextBlock Text="Provisional local answer — not retained; only a validated completed answer is saved."
-                      TextWrapping="Wrap" AutomationProperties.Name="Provisional local answer, not retained" />
+                  <TextBlock Text="Provisional answer — not retained; only a validated completed answer is saved."
+                      TextWrapping="Wrap" AutomationProperties.Name="Provisional answer, not retained" />
                   <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
                       AutomationProperties.Name="Unstable provisional answer text; not spoken automatically" />
                 </StackPanel>

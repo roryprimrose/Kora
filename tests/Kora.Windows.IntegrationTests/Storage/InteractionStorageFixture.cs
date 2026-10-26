@@ -200,8 +200,18 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         internal DateTimeOffset Now { get; set; } = new(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
         internal long MonotonicTicks { get; set; }
+        internal bool UseFrozenTimers { get; set; }
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => MonotonicTicks;
         public override DateTimeOffset GetUtcNow() => Now;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            UseFrozenTimers ? new FrozenTimer() : base.CreateTimer(callback, state, dueTime, period);
+
+        private sealed class FrozenTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }

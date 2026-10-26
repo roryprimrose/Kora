@@ -28,7 +28,7 @@ save it. Selecting a profile is not permission to transmit.
 In the private Sessions window, choose the current Active conversation, enter
 the original message and use **Submit explicitly with Claude (separate
 disclosure reviews)**. Ordinary Submit does not silently select Claude.
-The first native HTTPS profile is stateless text-only with thinking disabled:
+The default native HTTPS profile is stateless text-only with thinking disabled:
 no tools, files, history, attachments, memory, agents, delegation or instructions
 from other sources are included. Advertised native effort options map directly
 to the wire; a rejected combination is not changed or retried.
@@ -95,3 +95,34 @@ late answer publication. They cannot retract bytes already transmitted.
 Outstanding HTTP/account/model work remains owned until it actually joins;
 exit does not equate cancellation requested with resource quiescence.
 Human reviews are included in the bounded request lifetime.
+
+## Explicit read-only observations
+
+For current Kora version, dependency readiness or recorded local runtime metadata, use **Submit with reviewed Claude observation subset**, not ordinary Claude Submit. Edit the comma-separated exact scope before submission.
+Only these six original host capabilities are selectable; no files, web, MCP, settings changes, memory, history or provider-native tools are included ([scope policy](../src/Kora.Core/Dependencies/ClaudeObservationTools.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+```text
+capabilities.list
+capabilities.get
+application.get_version
+readiness.get
+runtime.list
+runtime.get_status
+```
+
+Typed or current-name activated voice requests can select the same bounded subset. Review the displayed original body, channel, conversation and exact tools, then confirm separately. A native confirmation never relabels original voice input ([request route](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+```text
+session request review active claude-tools=application.get_version,readiness.get,runtime.get_status -- What version and readiness does Kora report?
+session request confirm
+```
+
+The native send review shows the actual advertised schemas. Claude can only propose calls; the canonical host revalidates authority and executes its own read-only capability. The correlated result is inert data, not instructions or approval.
+Each continuation has a new Count Tokens POST and a new Messages POST: **each needs fresh native consent**, including the complete tool result. Denying either prevents that send and any final answer ([host loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs), [native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+
+The complete observation turn permits at most six calls and seven exchanges within 15 seconds, including reviews, with cumulative 32768-byte input and 4096-byte output limits. Both physical request bodies, raw responses, framing and sanitized host results consume the budgets.
+Unknown fields/names, duplicate call IDs, mixed prose/tool proposals, unsupported blocks and incomplete or oversized responses terminate without retry.
+Only a genuine final text answer is retained as ASSISTANT; intermediate proposals are not answers ([constraints](../src/Kora.Core/Dependencies/ClaudeObservationTools.cs), [translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs)).
+
+Changing the selected tool scope invalidates the current operation even if restored later. Account/catalogue/profile/session/privacy revocation and cancellation deny further sends and late publication; actual HTTP work remains owned until joined.
+The shipped approval source remains **unavailable**; these controls do not enable a deployment, approve costs or initiate any live trial ([native scope](../src/Kora/SessionsViewModel.Claude.cs), [unavailable approval](../src/Kora.Windows/Dependencies/UnavailableClaudeDeploymentApprovalSource.cs)).

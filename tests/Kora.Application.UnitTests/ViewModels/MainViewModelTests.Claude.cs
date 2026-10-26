@@ -34,6 +34,7 @@ public sealed partial class MainViewModelTests
     [InlineData("active", "")]
     [InlineData("active", "copilot")]
     [InlineData("active", "claude")]
+    [InlineData("active", "claude-tools=application.get_version")]
     [InlineData("\"Readable topic\"", "claude")]
     public async Task Readable_typed_and_voice_review_keep_identifiers_internal_and_retain_original_source(string selector, string provider)
     {
@@ -50,6 +51,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be("Review conversation request.");
         f.ViewModel.ResponseBody.Should().Contain(body).And.Contain("session request confirm")
             .And.NotContain(store.Session.Authority.SessionId.Value.ToString("D"));
+        if (provider.StartsWith("claude-tools=", StringComparison.Ordinal))
+        { f.ViewModel.ResponseBody.Should().Contain("Claude observation scope: application.get_version"); }
         store.RequestRetentions.Should().Be(0);
         await f.RunAsync("session request confirm");
         store.RequestMessage!.Body.Should().Be(body);

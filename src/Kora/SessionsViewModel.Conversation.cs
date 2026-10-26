@@ -154,11 +154,14 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true);
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitLocalAnswerAsync() => SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, bool claude = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
+        bool localAnswer = false,
+        CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -167,6 +170,8 @@ internal sealed partial class SessionsViewModel
         if (useMcp && !HasCurrentMcpOptions)
         { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
+        var observationIds = ClaudeObservationIds;
+        var observationRevision = Interlocked.Read(ref claudeObservationRevision);
         var receipt = useMcp
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
@@ -183,8 +188,13 @@ internal sealed partial class SessionsViewModel
                     mcpResultRequest = request;
                     mcpResultControl = access.ControlRevision;
                 })
+            : localAnswer
+            ? await conversation!.SubmitLocalAnswerAsync(target, body, live, lifetime.Token)
             : claude
-            ? await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
+            ? claudeObservations
+                ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
+                    () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
+                : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
             : pageAddress is null
@@ -297,6 +307,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
@@ -319,6 +330,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyMixedContext();
         NotifyModelMemoryProposal();
         NotifyAnswerRead();
         ObserveConversationCancellation();
@@ -335,6 +347,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(PlaybackVolumeSuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
         OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
+        NotifyRegisteredSettings();
         RestoreUnsent();
         NotifyInstructionContext();
         NotifyHistoryContext();

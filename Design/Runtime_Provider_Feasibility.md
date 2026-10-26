@@ -193,7 +193,7 @@ and original-request answer/refusal retention without live inference.
 The distinct [Claude HTTPS runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)
 implements a bounded stateless text-only Models/Messages API profile, pinned to
 `anthropic-version: 2023-06-01`. It does not use a CLI, SDK agent, sidecar,
-ambient credential, tools, files, attachments, retained history, memory or
+ambient credential, files, attachments, retained history, memory or
 provider substitution. The shared hosted authorization and final-review owner
 preserves Copilot's public preparation/confirmation semantics. Claude requires
 private native-only credential entry and final physical-send consent.
@@ -219,6 +219,10 @@ qualification. Deterministic account/HTTP seams do not qualify a real account,
 deployment, terms/cost policy or provider. Missing E/Q evidence cannot fake-enable
 Claude or turn it into a Copilot/local fallback. See the
 [complete operation guide](../docs/claude-requests.md).
+
+The separately selected [Claude observation transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs) now translates only an explicit bounded subset of the original six host-owned read-only tools for the [existing host loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
+The default text operation remains tool-free. Each round separately reviews Count Tokens and Messages; provider names, call IDs, unknown fields and native blocks confer no host authority.
+Strict client-tool-only proposal messages, exact schemas, cumulative physical byte accounting and same-account/catalogue lifetime are deterministic implementation boundaries, not account/provider qualification ([wire translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs), [portable schemas](../src/Kora.Core/Tools/ReadOnlyCapabilitySchema.cs)).
 
 ### RT1 .NET outcome: selected source-built profile passes
 

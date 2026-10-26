@@ -851,6 +851,15 @@ slice above; the original provider/voice slice supplies no rate authority.
 
 ### Delivered bounded spoken summary limits (R10)
 
+The [closed registered-setting proposal registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs)
+now owns bounded inspection and the [shared suggestion parser/model policy](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)
+for the existing theme, reader-text-scale, two spoken-summary caps and Kora-only
+playback-volume subset. Both native conversation sizes use one exact-answer
+Review/Confirm/Cancel path through the existing family validators and audited
+writers. No new setting family, model write tool, static command aliases,
+provider qualification or authentication exception is introduced.
+See the [complete user interaction and recovery](../docs/setting-proposals.md).
+
 The [retained-answer review](../src/Kora.Application/Configuration/SpeechSummarySuggestionReview.cs)
 completes the registered-setting model proposal route for these two caps only.
 The canonical request policy advertises one inert exact Set, using the existing
@@ -863,7 +872,7 @@ timing. A distinct fresh original-user confirmation consumes a memory-only,
 60-second, revision/source-bound review through the existing speech proposal,
 atomic call-policy/write and typed audit path. Source or confirmation voice
 classification is preserved, including later native confirmation. Appearance
-review remains a separate native-only operation. Existing direct setters/resets
+uses the shared surface but remains original-local-UI/native-only. Existing direct setters/resets
 are unchanged; no option, cap, batch, provider qualification or approval grant is
 added. Uncertain writes require explicit Settings/audit inspection, not retry,
 rollback claims or fabricated success. The current answer is never shortened,

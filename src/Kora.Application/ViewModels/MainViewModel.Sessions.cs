@@ -31,6 +31,8 @@ public sealed partial class MainViewModel
         ConversationSearchCommandService? searches = null)
     {
         conversationSearchCommands?.Retire();
+        sessionRequests?.Retire();
+        SetForegroundRequestReview(null);
         sessionCommands = service;
         sessionRequests = requests;
         conversationSearchCommands = searches;
@@ -49,7 +51,7 @@ public sealed partial class MainViewModel
 
     internal async Task ExecuteSessionCommandAsync(SessionCommand command, SecurityAuditInitiator initiator,
         Func<bool>? originalScopeEligibility = null, bool scopeActivationPrefixed = false,
-        long? originalScopeNameRevision = null)
+        long? originalScopeNameRevision = null, ForegroundConversationTarget? foregroundTarget = null)
     {
         if (disposed) { return; }
         if (command.Operation == SessionCommandOperation.Invalid)
@@ -80,6 +82,12 @@ public sealed partial class MainViewModel
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
         var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand;
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
+            && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
+                && foregroundTarget?.IsCurrent == true
+                && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
+                && privacyObservation.Current.TopologyRevision == topologyRevision
+                && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
+                && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
             && (!command.IsRetentionCommand || privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
@@ -107,8 +115,11 @@ public sealed partial class MainViewModel
                 "The workspace mutation gate requires a clear/unavailable call observation. No delayed mutation or later confirmation is queued.");
             return;
         }
+        var originalForegroundReview = foregroundRequestReview;
         try
         {
+            var foregroundConfirmation = originalForegroundReview is not null;
+            if (requestCommand) { SetForegroundRequestReview(null); }
             if (command.IsInstructionScope)
             {
                 await ExecuteSessionInstructionScopeAsync(command, origin,
@@ -149,12 +160,21 @@ public sealed partial class MainViewModel
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
                 : requestCommand
                 ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
-                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None)
+                    .ExecuteAsync(command, origin, Eligible, CancellationToken.None, foregroundTarget)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);
             if (!Eligible()) { return; }
             if (result.RequestSubmission is { } submitted)
-            { await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands); }
-            if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null))
+            {
+                if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
+                await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands);
+            }
+            if (command.RequestForegroundTarget && result.RequestReview is { } foregroundReview)
+            {
+                SetForegroundRequestReview(foregroundReview);
+                Transcript = "Review the complete original request in the foreground conversation. Confirm separately or cancel; nothing has been submitted.";
+                sessionPresentationSources.Add(foregroundReview.Target.Authority.SessionId.Value);
+            }
+            else if (result.RequestReview is { } review && (command.RequestActiveTarget || command.RequestTargetName is not null))
             {
                 ShowInformation("Review conversation request.",
                     "Conversation: " + (review.Target.Metadata?.Name.Value ?? "Active conversation")
@@ -164,6 +184,15 @@ public sealed partial class MainViewModel
                     + "\n\nConfirm separately with: session request confirm\nOr discard with: session request cancel"
                     + "\nThis request review expires after 60 seconds. Each hosted POST still needs separate private native disclosure consent.");
                 sessionPresentationSources.Add(review.Target.Authority.SessionId.Value);
+            }
+            else if (foregroundConfirmation)
+            {
+                ShowInformation(result.RequestSubmission is null ? "Original request review discarded." : "Conversation request retained.",
+                    "Conversation: " + (originalForegroundReview!.Target.Metadata?.Name.Value ?? "Unnamed conversation")
+                    + (result.RequestSubmission is { } completed
+                        ? "\nHOST outcome: " + completed.Message.Outcome + " / " + completed.Message.Reason
+                            + "\nInspect this original request in the same conversation. No provider fallback or automatic retry."
+                        : "\n" + result.Message));
             }
             else { ShowInformation("Session command " + result.Outcome + ".", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result))); }
             if (command.SessionId is { } id) { sessionPresentationSources.Add(id); }
@@ -188,7 +217,8 @@ public sealed partial class MainViewModel
                 exception.Message + " Resolve current questions/work and privacy/ownership/storage gates, "
                 + "then inspect the exact ID and revisions before a fresh request. "
                 + "A mutation may already have committed before a receipt failure; no rollback or automatic retry is claimed.");
-            ShowFailure("Session command not confirmed.", Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
+            ShowFailure("Session command not confirmed.", command.RequestForegroundTarget || originalForegroundReview is not null
+                ? result.Message : Encoding.UTF8.GetString(SessionCommandResult.Serialize(result)));
         }
     }
 }

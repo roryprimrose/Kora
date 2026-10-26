@@ -112,6 +112,7 @@ public sealed class McpModelProtocolTests
             reply with { Version = new("1", "test") },
             reply with { Readiness = new([], 0, null) },
             reply with { Runtimes = new([], 0, null) },
+            reply with { Sessions = new([], 0, null) },
             reply with { Runtime = new("test", RuntimeLocality.Local, CapabilityAvailability.Available, null, "test", null, false) },
             reply with { WebPage = new(HostRequest.Create(RequestOrigin.LocalUi), new("https://example.com/"),
                 new("https://example.com/"), DateTimeOffset.UnixEpoch, "text", false, "text/plain") },

@@ -12,6 +12,30 @@ namespace Kora.Application.UnitTests.Memory;
 
 public sealed partial class MemoryAdmissionServiceTests
 {
+    [Theory]
+    [InlineData(MemoryProposalOrigin.Model, MemoryReason.UserIntentRequired)]
+    [InlineData(MemoryProposalOrigin.User, MemoryReason.LineageUnknown)]
+    public async Task RetainedModelSourceCannotAcquireDeviceProfileAuthority(
+        MemoryProposalOrigin origin, MemoryReason expected)
+    {
+        using var f = new Fixture(durable: true);
+        using var profile = f.CreateService(true, MemoryScopeKind.DeviceProfile);
+        using var root = f.Root();
+        var source = new HostRequest(new(Guid.NewGuid()), f.Request.SessionId,
+            new(Guid.NewGuid()), RequestOrigin.LocalUi);
+
+        var result = await profile.ProposeAsync(Candidate, MemoryScope.DeviceProfile(f.Profile),
+            origin, Token, source);
+
+        result.Outcome.Should().Be(MemoryOutcome.Denied);
+        result.Reason.Should().Be(expected);
+        result.Record.Should().BeNull();
+        f.Stored.Should().BeEmpty();
+        (await profile.ObserveSessionAsync(Token)).Should().BeEmpty();
+        f.Audits.Should().NotContain(row => row.ActionId == "memory.propose"
+            && row.Outcome == SecurityAuditOutcome.Succeeded);
+    }
+
     [Fact]
     public async Task DeviceProfileRequiresExplicitRouteAndFreshUserReviewAndSurvivesSessionRetirement()
     {

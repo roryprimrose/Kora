@@ -179,6 +179,12 @@ internal sealed partial class MemoryManagementService : IAsyncDisposable, IMemor
                     }
                     else
                     {
+                        if (record.Lineage.Origin == MemoryProposalOrigin.Model
+                            && record.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
+                            && command.Operation is MemoryCommandOperation.Review or MemoryCommandOperation.Admit)
+                        {
+                            throw new InvalidOperationException("Use the source-bound model-memory review to accept or admit this candidate; ordinary memory commands cannot bypass retained-source validation.");
+                        }
                         if (command.Operation == MemoryCommandOperation.Review)
                         {
                             lock (stateGate)

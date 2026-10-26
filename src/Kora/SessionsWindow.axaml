@@ -39,6 +39,7 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <local:SessionPermissionControls />
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
@@ -167,6 +168,7 @@
             </WrapPanel>
           </StackPanel>
         </Expander>
+        <local:ModelMemoryProposalPanel />
         <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
         <WrapPanel>

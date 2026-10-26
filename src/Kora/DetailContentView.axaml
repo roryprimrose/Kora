@@ -5,7 +5,7 @@
     xmlns:controls="using:Kora.Controls"
     Background="{DynamicResource KoraWindowBackgroundBrush}"
     Foreground="{DynamicResource KoraForegroundBrush}">
-  <Grid RowDefinitions="Auto,Auto,*,Auto" Margin="12" RowSpacing="8">
+  <Grid RowDefinitions="Auto,Auto,Auto,*,Auto" Margin="12" RowSpacing="8">
     <!-- Trusted native chrome never enters the content viewport. -->
     <ScrollViewer Grid.Row="0" MaxHeight="180" VerticalScrollBarVisibility="Auto">
     <StackPanel Spacing="4">
@@ -72,17 +72,20 @@
       </WrapPanel>
     </StackPanel>
     </ScrollViewer>
-    <ScrollViewer x:Name="RenderedViewport" Grid.Row="2" VerticalScrollBarVisibility="Auto"
+    <ScrollViewer Grid.Row="2" MaxHeight="300" VerticalScrollBarVisibility="Auto">
+      <ContentControl x:Name="MermaidContent" />
+    </ScrollViewer>
+    <ScrollViewer x:Name="RenderedViewport" Grid.Row="3" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Passive native Markdown structure">
       <StackPanel x:Name="RenderedDocument" Spacing="4" Margin="12" />
     </ScrollViewer>
-    <TextBox x:Name="ContentReader" Grid.Row="2" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
+    <TextBox x:Name="ContentReader" Grid.Row="3" IsReadOnly="True" AcceptsReturn="True" IsUndoEnabled="False"
              TextWrapping="Wrap" TabIndex="13" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
              AutomationProperties.Name="Passive immutable detail text"
              Background="{DynamicResource KoraSurfaceAltBrush}"
              Foreground="{DynamicResource KoraForegroundBrush}"
              ScrollViewer.VerticalScrollBarVisibility="Auto" />
-    <controls:NamedTextBlock x:Name="RenderStatus" Grid.Row="3" TextWrapping="Wrap"
+    <controls:NamedTextBlock x:Name="RenderStatus" Grid.Row="4" TextWrapping="Wrap"
                AutomationProperties.Name="Detail rendering and clipboard status" />
   </Grid>
 </UserControl>

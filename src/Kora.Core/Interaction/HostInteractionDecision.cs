@@ -1,4 +1,5 @@
 using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
 
 namespace Kora.Core.Interaction;
 
@@ -7,4 +8,5 @@ public sealed record HostInteractionDecision(
     HostInteractionOutcome Outcome,
     string Reason,
     HostQuestionRecord? Question = null,
-    OperationGrant? Grant = null);
+    OperationGrant? Grant = null,
+    SessionPermissionAdmission? Admission = null);

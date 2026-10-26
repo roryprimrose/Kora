@@ -28,6 +28,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
+
 The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
 
 Kora has one source-qualified artifact invocation route for bundled skills and
@@ -467,6 +469,9 @@ Profile prose is inert untrusted guidance: paths, URLs and instructions in it ar
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
+**Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
+Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
+
 The host maintains related but distinct registries:
 
 - A command/intent catalogue maps canonical phrases and aliases to host actions or original bundled skill/task identities.
@@ -554,6 +559,9 @@ Model: tool definitions, skill summaries, request/context        |
 9. Kora renders the response under speech, privacy, and locked-session policy. Cancellation invalidates pending calls/approvals and suppresses late model responses.
 
 Native SDK function/tool calling and typed inference responses are alternative transports for this contract.
+
+The [local observation-and-choice conversation](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) composes the existing host question service with the canonical six-tool read-only loop. It permits one SingleChoice question between complete serial exchanges, never an action approval or new tool capability. Native/activated-voice replies use the existing exact question owner, and the actual final answer is retained on the original request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs), [user interaction](../docs/responses-and-calls.md#conversation-clarification)).
+
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.

@@ -12,6 +12,8 @@ The body starts after the single space following `ask this conversation`. Subseq
 
 Missing, competing, hidden, Done, read-only or stale presenters refuse without choosing another target or creating a session. Changing focus, selection, target metadata, session generation, control, privacy or original voice/call/name admission requires a fresh review; returning to the old view cannot revive it. Keyboard activation and readable automation values use the same native confirmation path ([presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), [headless evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs)).
 
+Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
+
 ## Untargeted requests
 
 An ordinary untargeted local request, typed globally or activated with the current

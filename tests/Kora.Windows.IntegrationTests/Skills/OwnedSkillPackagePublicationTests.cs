@@ -39,6 +39,25 @@ public sealed class OwnedSkillPackagePublicationTests
         store.Publish(document, eligible ?? (static () => true), operation => Task.FromResult(operation()), token);
 
     [Fact]
+    public async Task ExactReadNeverOpensAnotherSavedPackageAndRejectsUninspectedSelectedMembers()
+    {
+        using var paths = new OwnedStorageFixture();
+        var store = new WindowsOwnedDeclarativeSkillStore(paths);
+        var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "literal",
+            OwnedSkillToolSelection.WebPageGet);
+        await Save(store, document, Token);
+        var other = OwnedDeclarativeSkillDocument.Create("another", "1.0.0", "Another", "Description", "other");
+        await Save(store, other, Token);
+        await File.WriteAllTextAsync(Path.Combine(store.Destination(other), "manifest.yaml"), "unreadable metadata", Token);
+        var saved = (await store.Read("example", "1.0.0", Token))!;
+        saved.Document.RevisionDigest.Should().Be(document.RevisionDigest);
+        (await store.Read("absent", "1.0.0", Token)).Should().BeNull();
+        (await store.Read("example", "2.0.0", Token)).Should().BeNull();
+        await File.WriteAllTextAsync(Path.Combine(store.Destination(document), "uninspected.md"), "never admitted", Token);
+        await store.Invoking(value => value.Read("example", "1.0.0", Token)).Should().ThrowAsync<InvalidDataException>();
+    }
+
+    [Fact]
     public async Task WholeDirectoryCommitDurableBothFileReadbackAndNewStoreReopenRemainInactive()
     {
         using var paths = new OwnedStorageFixture();

@@ -490,6 +490,11 @@ See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-lock
 ## Call-Aware Output Privacy
 
 Call state and detector preferences are device-local; collect only metadata needed for speech gating.
+The [bounded local communications observer](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) keeps native endpoint/session identifiers volatile inside Windows and exposes only opaque device/generation epochs, sequence, state, timestamp and health to the host.
+Session process IDs only exclude Kora; no executable/window names, content or audio are collected. Source status is not model context, capture consent, speaking permission or grant authority.
+The [host aggregator](../src/Kora.Application/Communication/CommunicationActivityCallStateService.cs) treats selected-but-unavailable, stale, failed and invalid observations as Unknown.
+The unqualified production profile cannot be enabled through native, typed or voice routes; deterministic platform fakes are implementation evidence only.
+Callback retirement and actual worker/COM release remain separate; failed unregister retains the retired owner in quarantine without replacement or late publication.
 Do not record communications audio, meeting contents, participants, or transcripts for detection.
 An optional Graph presence source uses explicitly approved account/network access with least privilege; it cannot operate remotely under local-only mode.
 Current state and speech suppression reasons are not silently sent to models.

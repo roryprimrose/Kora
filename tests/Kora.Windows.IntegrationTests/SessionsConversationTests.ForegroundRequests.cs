@@ -10,6 +10,7 @@ using Avalonia.Input;
 using Avalonia.Input.Raw;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -30,10 +31,12 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task ForegroundOriginalRequestTraversesActualParserNativeReviewHostAndPrivateAnswerRetention(bool voice, bool keyboard)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(true, false, true)]
+    public async Task ForegroundOriginalRequestTraversesActualParserNativeReviewHostAndPrivateAnswerRetention(bool voice, bool keyboard, bool compact)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -50,7 +53,7 @@ public sealed partial class SessionsConversationTests
             native.Main.CommandText = "set assistant name to Nova";
             await native.Main.RunTypedCommand.ExecuteAsync();
             var owner = new SessionsPresentationOwner(composed.Model, native.Main);
-            var window = new SessionsWindow(composed.Model, owner);
+            Window window = compact ? new CompactSessionWindow(composed.Model, owner) : new SessionsWindow(composed.Model, owner);
             window.Show();
             await ActivateOriginalRequestWindow(window);
             try
@@ -121,8 +124,33 @@ public sealed partial class SessionsConversationTests
                 f.Count("conversation_messages").Should().Be(1);
                 WindowsSqliteConversationTests.AuditText(f).Should().NotContain(body)
                     .And.NotContain("Genuine local original-request answer");
+
+                window.FindControl<ListBox>("AnswerSourceRecords")!.ScrollIntoView(message);
+                window.UpdateLayout();
+                Dispatcher.UIThread.RunJobs();
+                var reply = window.GetVisualDescendants().OfType<Button>()
+                    .Single(button => button.Name is "ReplyToAssistantAnswer" && ReferenceEquals(button.DataContext, message));
+                reply.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.ReplyOperation;
+                composed.Model.HasAssistantReply.Should().BeTrue(composed.Model.ConversationStatus);
+                composed.Model.ReplySourceText.Should().Contain(message.AssistantResponse.Body);
+                composed.Model.ComposerBody.Should().Be("independent unsent input");
+                await composed.Model.ReviewAssistantReplyAsync();
+                composed.Model.CanConfirmAssistantReply.Should().BeTrue(composed.Model.ConversationStatus);
+                var originalTarget = owner.CaptureForegroundConversationTarget()!;
+                window.Hide();
+                window.Show();
+                await ActivateOriginalRequestWindow(window);
+                originalTarget.IsCurrent.Should().BeFalse();
+                await composed.Model.ConfirmAssistantReplyAsync();
+                composed.Model.CanConfirmAssistantReply.Should().BeFalse();
+                composed.Model.CancelAssistantReply();
+                composed.Model.ComposerBody.Should().Be("independent unsent input");
+                adapter.Calls.Should().Be(1, "a retired reply presenter cannot submit or fall back to plain input");
+                f.Count("conversation_messages").Should().Be(1);
+                composed.Turns.IsQuiescent.Should().BeTrue();
             }
-            finally { window.ClosePrivate(); }
+            finally { owner.Revoke(); }
         });
     }
 

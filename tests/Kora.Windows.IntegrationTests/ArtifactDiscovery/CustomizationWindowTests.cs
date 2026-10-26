@@ -23,7 +23,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class CustomizationWindowTests
+public sealed partial class CustomizationWindowTests
 {
     [Fact]
     public Task TrayCustomizationEntryReusesTheExistingGuardedManagementWindow() => HeadlessSession.RunAsync(async () =>

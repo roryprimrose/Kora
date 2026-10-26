@@ -119,14 +119,16 @@ public sealed class CallPolicyCompositionTests
         var document = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SettingsWindow.axaml"));
         var tab = document.Descendants().Single(e => string.Equals(e.Name.LocalName, "TabItem", StringComparison.Ordinal)
             && string.Equals(e.Attribute("Header")?.Value, "Calls", StringComparison.Ordinal));
-        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand" })
+        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand",
+            "InspectCommunicationActivityCommand", "EnableCommunicationActivityCommand", "DisableCommunicationActivityCommand" })
         {
             var button = tab.Descendants().Single(e => string.Equals(e.Attribute("Command")?.Value,
                 "{Binding " + command + "}", StringComparison.Ordinal));
             button.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
             button.Attribute("TabIndex").Should().NotBeNull();
         }
-        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "ManualCallConfigurationStatus", "CallProtectionLimitations" })
+        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "ManualCallConfigurationStatus", "CallProtectionLimitations",
+            "CommunicationActivityStatus" })
         {
             tab.Descendants().Should().Contain(e => e.Attribute("Text") != null && e.Attribute("Text")!.Value == "{Binding " + status + "}");
         }

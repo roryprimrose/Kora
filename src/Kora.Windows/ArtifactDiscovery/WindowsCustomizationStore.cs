@@ -20,7 +20,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
 
     public WindowsCustomizationStore(IApplicationDataPaths paths)
         : this(paths, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)) { }
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+    { }
 
     internal WindowsCustomizationStore(IApplicationDataPaths paths, string profileRoaming, string profile)
     {
@@ -94,6 +95,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
                 OwnedInstructionNames.WriteName(name);
                 if (scope is not (CustomizationScope.Kora or CustomizationScope.User))
                 { throw new InvalidDataException("Built-in definitions cannot be written."); }
+                if (scope == CustomizationScope.User && kind == CustomizationKind.Instruction)
+                { throw new InvalidOperationException("This increment edits one existing registered original only. Create a Kora instruction or select an existing personal original instead."); }
                 var root = Roots().First(root => root.Kind == kind && root.Scope == scope);
                 var file = kind == CustomizationKind.Skill ? Path.Combine(root.Path, name, "SKILL.md")
                     : Path.Combine(root.Path, kind == CustomizationKind.McpServer ? "mcp.json" : name + Suffix(kind));
@@ -114,9 +117,19 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
         lock (gate)
         {
             var target = Resolve(source);
+            if (IsInstructionOriginal(source)) { RequireInstructionRegistration(target, token); }
             if (File.Exists(JournalPath(target)))
             { throw new InvalidOperationException("This source has an interrupted transaction. Review recovery before editing or enabling it."); }
-            return Expose(target, Capture(target, token));
+            var snapshot = Expose(target, Capture(target, token));
+            if (IsInstructionOriginal(source))
+            {
+                WindowsOwnedDefinitionFileAccess.InspectInstructionOriginal(source.Location, token);
+                var document = ArtifactFileDocument.Parse(snapshot.Files.Single().CopyBytes(), ArtifactKind.Instruction,
+                    "profile-instruction", source.Name);
+                document.RequireProfileInstructionSource();
+                RequireInstructionRegistration(target, token);
+            }
+            return snapshot;
         }
     }, token);
 

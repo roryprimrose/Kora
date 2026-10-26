@@ -4529,6 +4529,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
+            .Concat(["review pending action"])
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(Kora.Core.Context.ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
@@ -9295,13 +9296,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
-        private readonly Queue<Action> deferredPosts = new();
+        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> deferredPosts = new();
 
         public Task LastInvocation { get; private set; } = Task.CompletedTask;
 
         public InvalidOperationException? InvokeException { get; set; }
 
         public Action? BeforeInvoke { get; set; }
+        public Func<Task>? BeforeInvokeAsync { get; set; }
 
         public Action? BeforePost { get; set; }
         public bool DeferPosts { get; set; }
@@ -9325,8 +9327,16 @@ public sealed partial class MainViewModelTests : IDisposable
             var callback = BeforeInvoke;
             BeforeInvoke = null;
             callback?.Invoke();
-            LastInvocation = action();
+            var asynchronous = BeforeInvokeAsync;
+            BeforeInvokeAsync = null;
+            LastInvocation = asynchronous is null ? action() : InvokeAfterAsync(asynchronous, action);
             return LastInvocation;
+        }
+
+        private static async Task InvokeAfterAsync(Func<Task> before, Func<Task> action)
+        {
+            await before();
+            await action();
         }
 
         public void Post(Action action)

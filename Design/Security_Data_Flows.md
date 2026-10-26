@@ -1,5 +1,30 @@
 # Security and Data Flows
 
+## Exact pending model-action presence activation
+
+The [presence review route](Ambient_UI.md#exact-pending-model-action-attention)
+projects an opaque, volatile target from the existing pending model-action
+owner, not a new approval registry. Its original host request/session, epoch,
+audit reference and host/private lifetime are captured at admission. Deferred
+reasoning and an existing model clarification preserve that original host
+context through causal links; retained text cannot reconstruct it.
+
+Ctrl-right-click, native tray/keyboard and already-activated voice capture that
+same target before deferred dispatch. They never follow workspace selection,
+reuse a withdrawn target or treat activation as confirmation. The separate
+native decision controls bind the displayed original target, retire carried
+gestures on rebinding/detachment and retain their presentation guard.
+Supersession, withdrawal, changed artifact, privacy/ownership loss and disposal
+fail closed without disclosing another review or dispatching an action.
+
+Existing approval audit, call-channel, artifact, preparation, grant and execution
+checks remain authoritative, including the existing committed native-decision
+semantics on call entry. Voice capture generations still gate callbacks; they
+are not review identities. Attention ends only when the original pending owner
+retires the review, not when a window opens/closes. There are no new grants,
+saved targets, retention domains, model identities, listeners or providers, and
+no review content/identifiers are added to telemetry.
+
 ## Private retained attachment metadata search boundary
 
 The [retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) exposes bounded metadata Browse/exact-session navigation and meaningful lifecycle/type/copy-status/byte filters, not engineering source/profile/revision/digest queries. Selected displayed-text Find remains volatile and inert.

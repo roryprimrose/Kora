@@ -87,6 +87,39 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 
 ## State language
 
+### Exact pending model-action attention
+
+An already-admitted model-action proposal keeps presence in warm-amber Waiting
+until the authoritative proposal is confirmed, rejected or retired. Attention
+contains no proposal text or technical identifiers. It is not a second review
+registry, a grant, or evidence that the action has completed.
+
+Ctrl + right-click on interactive presence opens that exact captured proposal;
+Ctrl + left-drag remains reposition-only. The keyboard-accessible native tray
+command **Review pending action**, or already-activated
+**"Kora, review pending action"** (using the configured assistant name), opens the
+same original review. No new listening or capture path is enabled. Passive
+attention never activates a window.
+
+Opening uses the existing response surface's original action description and
+separate Once / This session / Always / Reject controls, with existing artifact
+single-use and call-channel restrictions. It never approves or executes.
+Affirmative controls require a fresh gesture after their initial 500-ms
+presentation guard; focus goes to the composer, not approval.
+
+The volatile host-owned target binds the original host request/session, review
+epoch, audit, host ownership generation/binding/revision and privacy topology.
+Selection and voice-capture generation are not review targets. Voice callbacks
+retain their existing activation/generation fences. The original confirmation
+path still owns its input-preparation and grant-revision checks across awaits;
+a separate confirmation gesture does not create a newer review target.
+Replacement, withdrawal, privacy/ownership loss, changed artifact, disposal or
+late callbacks fail closed without following a newer review or changing another
+session. Closing/hiding presentation is not action completion; only the original
+owner's retirement clears attention. Targets are not saved, replayable or
+model-supplied. Deterministic native tests are implementation evidence, not
+physical keyboard, screen-reader, provider or installed qualification.
+
 | State | Colour family | Motion | Persistence |
 |---|---|---|---|
 | Idle / Wake Listening | None on presence surface | None | Presence hidden; wake-listening status remains visible in tray/status UI |

@@ -43,6 +43,7 @@ public sealed partial class MainWindow : Window
     private bool initialized;
     private bool positionInitialized;
     private bool shutdownRequested;
+    private readonly PresenceReviewGesture reviewGesture;
 
     public MainWindow()
         : this(
@@ -61,6 +62,7 @@ public sealed partial class MainWindow : Window
         ILogger<PresenceRenderWorker> rendererLogger)
     {
         this.viewModel = viewModel;
+        reviewGesture = new(viewModel);
         this.logger = logger;
         this.rendererLogger = rendererLogger;
         this.initializeHost = initializeHost;
@@ -90,6 +92,8 @@ public sealed partial class MainWindow : Window
         AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnPointerPressed;
+        PointerReleased += OnPresencePointerReleased;
+        PointerCaptureLost += (_, _) => reviewGesture.Cancel();
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -530,6 +534,7 @@ public sealed partial class MainWindow : Window
 
     private void HidePresenceWindow()
     {
+        reviewGesture.Cancel();
         nativePresence?.Suspend();
         presenceInputTimer.Stop();
         IsHitTestVisible = false;
@@ -546,14 +551,34 @@ public sealed partial class MainWindow : Window
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
-        if (presenceInput?.InterceptsMouse == true
-            && viewModel.CanRevealPrivatePresentation
-            && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
-            && eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = eventArgs.GetCurrentPoint(this);
+        var button = point.Properties.IsLeftButtonPressed ? MouseButton.Left
+            : point.Properties.IsRightButtonPressed ? MouseButton.Right : MouseButton.None;
+        var intent = reviewGesture.Press(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers, button);
+        if (intent == PresencePointerIntent.Review)
+        {
+            eventArgs.Handled = true;
+            eventArgs.Pointer.Capture(this);
+            return;
+        }
+        if (intent == PresencePointerIntent.Drag)
         {
             eventArgs.Handled = true;
             viewModel.NotifyPresenceInteraction();
             BeginMoveDrag(eventArgs);
+        }
+    }
+
+    private void OnPresencePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
+    {
+        var target = reviewGesture.Release(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers,
+            eventArgs.InitialPressMouseButton, new Rect(Bounds.Size).Contains(eventArgs.GetPosition(this)));
+        if (eventArgs.InitialPressMouseButton == MouseButton.Right) { eventArgs.Pointer.Capture(null); }
+        if (target is not null && !shutdownRequested)
+        {
+            eventArgs.Handled = true;
+            HostRequestRunner.Run(RequestOrigin.LocalUi, () => viewModel.ActivateModelActionReview(target),
+                HostActivityLayer.Desktop, HostOperation.Presentation);
         }
     }
 

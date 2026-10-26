@@ -127,16 +127,25 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.NameInput.Text = "";
                     opened.DescriptionInput.Text = "";
                     opened.Guidance.Text = "";
+                    opened.Tool.SelectedIndex = 0;
                     dirty = false;
                     uncertain = false;
-                    opened.Report("New volatile instruction-only draft. Supply metadata and literal guidance, then Validate.");
+                    opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
                     break;
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
+                case "tool":
+                    opened.Tool.SelectedIndex = command.Literal switch
+                    {
+                        "web-page-get" => 1,
+                        "none" => 0,
+                        _ => throw new InvalidOperationException("Select only no tools or host WebPageGet."),
+                    };
+                    break;
                 case "validate":
                     validated = opened.Document();
-                    opened.Report("Valid native v1 TWO-file package. No publication, enablement or invocation.");
+                    opened.Report("Valid native TWO-file package. No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(); break;
                 case "list":
@@ -157,6 +166,8 @@ internal sealed partial class OwnedSkillEditorController(
                 case "next-targets":
                 case "target":
                 case "request":
+                case "url":
+                case "review-tool":
                 case "review-use":
                 case "invoke":
                 case "close-use":
@@ -210,6 +221,7 @@ internal sealed partial class OwnedSkillEditorController(
         opened.NameInput.Text = saved.Document.Name;
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
+        opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
         validated = null;
         dirty = false;
         uncertain = false;

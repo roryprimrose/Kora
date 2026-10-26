@@ -95,6 +95,8 @@ public sealed class OwnedSkillInvocationWorkflow(
         {
             RequireAction(authority, eligible, token);
             if (!review.IsEnabled) { throw new InvalidOperationException("Review and separately enable the exact saved revision first."); }
+            if (review.Require(this).Document.Tool != OwnedSkillToolSelection.None)
+            { throw new InvalidOperationException("Tool-declaring revisions require the separate reviewed host tool pipeline."); }
             ConversationText.Validate(originalRequest, submission: true);
             await ValidateAsync(review, authority, eligible, token).ConfigureAwait(false);
             await RequireTargetAsync(target, eligible, token).ConfigureAwait(false);
@@ -152,7 +154,7 @@ public sealed class OwnedSkillInvocationWorkflow(
         }
     }
 
-    private async Task ValidateAsync(OwnedSkillUseReview review, OwnedSkillAuthoringAuthority authority,
+    internal async Task ValidateAsync(OwnedSkillUseReview review, OwnedSkillAuthoringAuthority authority,
         Func<bool> eligible, CancellationToken token)
     {
         try

@@ -4559,6 +4559,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
             .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
@@ -8570,7 +8571,9 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
             SpeechComponentSetupService? speechComponentSetup = null,
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
-            bool enableConversationalReplies = false, Exception? conversationalReadFailure = null)
+            bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
+            Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8709,7 +8712,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 AudioPreferences,
                 OutputPreferences,
                 CallPreferences,
-                CallState,
+                (ICallStateService?)communicationActivity ?? CallState,
                 Session,
                 Process,
                 Dispatcher,
@@ -8764,7 +8767,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 clipboardExplanation: clipboardWorkflow,
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
-                conversationalReplies: ConversationalConfiguration);
+                conversationalReplies: ConversationalConfiguration,
+                communicationActivityConfiguration: communicationActivityConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -9046,9 +9050,12 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public static async Task<Fixture> CreateInitializedAsync(bool subscribeToWindowActions = true)
+        public static async Task<Fixture> CreateInitializedAsync(bool subscribeToWindowActions = true,
+            Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
         {
-            var fixture = new Fixture(subscribeToWindowActions);
+            var fixture = new Fixture(subscribeToWindowActions, communicationActivity: communicationActivity,
+                communicationActivityConfiguration: communicationActivityConfiguration);
             fixture.Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
             fixture.Voice.DefaultMicrophoneId = "0";
             await fixture.ViewModel.InitializeAsync();

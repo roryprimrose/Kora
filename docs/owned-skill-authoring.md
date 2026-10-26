@@ -1,8 +1,8 @@
-# Create an instruction-only skill
+# Create and use a declarative skill
 
 Kora-owned skill authoring creates a new immutable native package. It does not
 enable, select, advertise or invoke the saved skill. Shared-profile discovery,
-reference consent and reviewed shared-skill invocation are separate operations.
+reference consent and reviewed shared-skill invocation are separate operations ([authoring workflow](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
 
 ## Complete operation
 
@@ -65,7 +65,7 @@ Saving, listing and reopening never invoke a model. To use one saved package:
    unavailable/failed terminal, in that exact conversation. An unqualified
    provider stays unavailable; there is no hosted fallback or automatic retry.
 
-No tools, MCP, scripts, hooks, references or nested agents are admitted.
+The native v1 operation admits no tools, MCP, scripts, hooks, references or nested agents ([instruction-only consumer](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
 A valid saved 64 KiB package may exceed the **32768-byte complete serialized
 input** limit. Invocation then fails visibly before submission; no content is
 truncated. The exact private non-reparse package directory, both file identities
@@ -102,7 +102,7 @@ references: none
 ```
 
 All eight fields are required exactly once. Unknown or duplicate fields,
-executable/dependency/hook metadata, tools and references are rejected. This is
+executable/dependency/hook metadata, v1 tools and references are rejected. This is
 a closed plain-scalar format, not a general YAML object loader. Names and
 descriptions use bounded one-line plain text, not quoting or YAML syntax.
 The manifest has eight LF-terminated lines.
@@ -119,6 +119,26 @@ trailing or doubled hyphens and are at most 64 characters. Windows device names,
 paths and private staging names are rejected. Versions have three canonical
 decimal components, each at most four digits, with no leading zeros except `0`.
 Every immutable version counts toward the 32-package catalogue limit.
+
+## Author and use one host WebPageGet skill
+
+Native v2 adds only a declaration of the existing host `network.get_web_page` capability. It does not add another web utility, tool implementation, permission parser, shared-source registration or network grant. Native v1 and its instruction-only use remain unchanged ([closed formats](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs), [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).
+
+1. Create a new ID/version and supply name, description and literal guidance as above.
+2. In **Host capability declaration**, select **Host WebPageGet only (native v2)**, or enter `owned skill tool web-page-get`. `owned skill tool none` selects v1. The selection is host-defined, not an arbitrary model-supplied tool ID.
+3. Validate, Save, inspect both complete files and separately confirm publication. The immutable package is saved disabled; nothing runs. V2 has the same eight fields, with exactly `kora-skill-format: 2` and `tools: network.get_web_page`.
+4. Use the exact saved ID/version. Inspect its complete manifest and instructions. Refresh/select one existing Active conversation; enter your original request and one explicit public HTTP/HTTPS URL in the native URL field or `owned skill url: https://example.com/`.
+5. Choose **Review exact target and tool revision** (`owned skill review-tool`), then separately **Enable exact reviewed revision once**. Review/enablement is volatile, source-bound and at most two minutes; it does not grant web permission.
+6. Preview with `owned skill review-use`. Review the Kora-owned source, target, original channel/request, exact URL, local-only evidence and bounds: at most one host WebPageGet action, two model rounds, 32768-byte complete input and the existing 15-second model deadline.
+7. Separately confirm `owned skill invoke`. A tool proposal still opens the canonical native **Exact page approval**. Review the exact session/URL/effect and approve once, or deny. Neither saved content nor revision enablement can approve it.
+8. After approval, the actual host tool returns bounded inert page evidence to the same local model turn. Only the model's genuine final answer (or truthful terminal) is retained with your original request in the selected conversation. There is no automatic retry, fallback, second destination or page-to-permission promotion.
+9. Close/cancel to stop. Cancellation joins actual reads, tool and model work before release; late work cannot publish an answer after admission retires. Inspect an unconfirmed retained request before any fresh attempt.
+
+These routes share the existing native and exact typed/current-name activated controls. Publication confirmation and per-action approval retain their native/authentication/channel exceptions. Changed target/request/URL after preview, draft/revision, ownership, privacy or call state retires pending authority; repeated confirmation cannot replay a use ([native controller](../src/Kora/OwnedSkillInvocationController.cs), [whole-operation regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedToolSkills.cs)).
+
+The owned reader checks only the selected package's complete members, exact identities and exact bytes, without opening another package or shared root. Source freshness is checked again across asynchronous approval, resolution/tool execution and final publication. Unknown required fields, extra/uninspected files, references, scripts, executable closure, arbitrary effects/tools, hooks, MCP, hosted transfer, model-selected destinations and general YAML remain excluded ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs), [action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+
+Deterministic fake provider/transport tests prove implementation only. Native/provider/hardware/installed enablement and RC qualification remain unqualified; unavailable local composition fails visibly without network/provider fallback ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedToolSkills.cs), [I/E/Q policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ## Publication and recovery
 

@@ -8571,6 +8571,7 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
             SpeechComponentSetupService? speechComponentSetup = null,
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
+            bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
         {
@@ -8610,6 +8611,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            ConversationalPreferences.LoadFailure = conversationalReadFailure;
+            ConversationalConfiguration = enableConversationalReplies
+                ? new(ConversationalPreferences, OutputAdmission, Audit) : null;
             ArtifactPreferences.LoadFailure = artifactReadFailure;
             ArtifactDirectoryConfiguration = enableArtifactConfiguration
                 ? new ArtifactDirectoryConfigurationService(ArtifactPreferences, Audit)
@@ -8763,6 +8767,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 clipboardExplanation: clipboardWorkflow,
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
+                conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
@@ -8783,6 +8788,8 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+        internal Kora.Application.UnitTests.Configuration.ConversationalReplyConfigurationServiceTests.Preferences ConversationalPreferences { get; } = new();
+        public ConversationalReplyConfigurationService? ConversationalConfiguration { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();

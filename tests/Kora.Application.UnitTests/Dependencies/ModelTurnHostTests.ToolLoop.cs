@@ -397,7 +397,7 @@ public sealed partial class ModelTurnHostTests
         transport.Requests.Should().BeEmpty();
     }
 
-    private static BoundedModelTurnAdapter CreateLoop(Fixture fixture, ToolTransport transport) =>
+    private static BoundedModelTurnAdapter CreateLoop(Fixture fixture, IModelToolTransport transport) =>
         new(transport, fixture.Time, fixture);
 
     private static async Task<ModelTurnResult> RunLoop(Fixture fixture, ModelTurnHost host, CancellationToken? token = null)

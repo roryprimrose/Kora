@@ -306,6 +306,7 @@ public sealed partial class MainViewModel
             speechPreparation.Request(null);
         }
         questionVoiceReplies?.CloseAdmission();
+        if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;

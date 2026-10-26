@@ -28,6 +28,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
+
 Kora has one source-qualified artifact invocation route for bundled skills and
 compatible skill, instruction, prompt, and agent definitions. The route is
 available from the typed composer and activated voice:
@@ -465,6 +467,9 @@ Profile prose is inert untrusted guidance: paths, URLs and instructions in it ar
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
+**Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
+Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
+
 The host maintains related but distinct registries:
 
 - A command/intent catalogue maps canonical phrases and aliases to host actions or original bundled skill/task identities.
@@ -552,6 +557,9 @@ Model: tool definitions, skill summaries, request/context        |
 9. Kora renders the response under speech, privacy, and locked-session policy. Cancellation invalidates pending calls/approvals and suppresses late model responses.
 
 Native SDK function/tool calling and typed inference responses are alternative transports for this contract.
+
+The [local observation-and-choice conversation](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) composes the existing host question service with the canonical six-tool read-only loop. It permits one SingleChoice question between complete serial exchanges, never an action approval or new tool capability. Native/activated-voice replies use the existing exact question owner, and the actual final answer is retained on the original request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs), [user interaction](../docs/responses-and-calls.md#conversation-clarification)).
+
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.
@@ -575,6 +583,10 @@ call/round and deadline limits, no retries and actual transport termination
 remain mandatory. This is not a running provider, a skill/agent executor or
 permission to use the legacy action selector as a tool loop. Production
 qualification and default enablement remain unavailable.
+
+Explicit [Claude observations](../docs/claude-requests.md#explicit-read-only-observations) reuse this same loop and actual six-ID registry callback, rather than introducing a provider tool engine.
+A bounded advertised subset is frozen by the host; both native Count Tokens and Messages sends, including every result continuation, require separate affirmative final-byte consent.
+Ordinary Claude requests stay tool-free; provider-native tools and other capability groups remain excluded ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 

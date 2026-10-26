@@ -1,17 +1,72 @@
 using AwesomeAssertions;
 
 using Kora.Application.Configuration;
+using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Configuration;
+using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Auditing;
 using Kora.Core.Communication;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Voice;
 
+using Microsoft.Extensions.Logging.Abstractions;
+
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(CallState.Unknown)]
+    [InlineData(CallState.Suspected)]
+    public async Task Communications_observations_retire_conversational_capture_without_disabling_the_shared_preference_or_replaying(CallState state)
+    {
+        await using var activity = new CommunicationActivityFixture();
+        var fixture = new Fixture(enableConversationalReplies: true, enableQuestionReplies: true,
+            communicationActivity: activity.Observations, communicationActivityConfiguration: activity.Configuration);
+        fixture.VoiceConsent.Consent = true;
+        fixture.Voice.Microphones = [new("mic", "Synthetic")];
+        fixture.Voice.DefaultMicrophoneId = "mic";
+        fixture.ViewModel.BindConversationalReplyNativeLifetime(static () => true);
+        await fixture.ViewModel.InitializeAsync();
+        await activity.Observations.JoinAsync();
+        await fixture.ViewModel.EnableConversationalRepliesCommand.ExecuteAsync();
+        await fixture.ViewModel.EnableCommunicationActivityCommand.ExecuteAsync();
+        fixture.ViewModel.AutomaticCallState.Should().Be(CallState.Unknown);
+        fixture.Voice.IsListening.Should().BeFalse();
+        activity.Source.Signal(CallState.Clear, activity.Time.GetUtcNow());
+        await fixture.ViewModel.CallClosureTask;
+
+        using var host = new InteractionFixture();
+        var question = await host.QuestionAsync();
+        await using var replies = fixture.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,
+            NullLogger<HostQuestionVoiceReplyService>.Instance)!;
+        await replies.OpenConversationalAsync(question, static () => true, _ => { }, activity.Token);
+        fixture.Voice.IsListening.Should().BeTrue();
+        fixture.TextToSpeech.SpokenText.Should().Be(question.Spec.Text);
+        var captures = fixture.Voice.StartCalls;
+        var spoken = fixture.TextToSpeech.SpokenText;
+
+        activity.Source.Signal(state, activity.Time.GetUtcNow());
+        await fixture.ViewModel.CallClosureTask;
+        await replies.Quiescence;
+        fixture.ViewModel.AutomaticCallState.Should().Be(state);
+        fixture.ViewModel.IsProtectedCall.Should().BeTrue();
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
+        fixture.ViewModel.AreConversationalRepliesEnabled.Should().BeTrue();
+        fixture.ConversationalPreferences.Value.Should().BeTrue();
+        activity.Preferences.Load().Should().Be(CommunicationActivitySelection.WindowsCommunicationsAudio);
+        host.Store.Snapshot.Questions.Single().Status.Should().Be(Kora.Core.Interaction.QuestionStatus.Pending);
+
+        activity.Source.Signal(CallState.Clear, activity.Time.GetUtcNow());
+        await fixture.ViewModel.CallClosureTask;
+        fixture.Voice.StartCalls.Should().Be(captures);
+        fixture.Voice.IsListening.Should().BeFalse();
+        fixture.TextToSpeech.SpokenText.Should().Be(spoken);
+        await fixture.ViewModel.DisposeAsync();
+    }
+
     [Fact]
     public async Task Selected_source_reaches_native_consumer_and_invalidates_active_speech_before_dispatch_without_capture_or_replay()
     {

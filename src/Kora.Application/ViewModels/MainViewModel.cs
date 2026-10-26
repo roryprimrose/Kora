@@ -281,6 +281,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Context.ClipboardExplanationWorkflow? clipboardExplanation = null,
         SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null,
+        ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
@@ -435,6 +436,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     () => HandleCommandException(exception)), canExecute);
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
+        InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -6298,6 +6300,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanInspectWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
+        OnPropertyChanged(nameof(CanChangeConversationalReplies));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));

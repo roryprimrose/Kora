@@ -304,6 +304,7 @@ internal sealed partial class SessionsViewModel
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
+        CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
@@ -318,6 +319,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyModelMemoryProposal();
         NotifyAnswerRead();
         ObserveConversationCancellation();
         NotifyConversationCancellation();

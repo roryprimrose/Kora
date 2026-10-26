@@ -37,7 +37,15 @@ public sealed record LocalEvent(
         _ => 1,
     };
     [JsonIgnore]
-    public string Summary => Type switch
+    public string Summary => Source is LocalEventSource.ConversationTask or LocalEventSource.ConversationQuestion
+        ? Type switch
+        {
+            LocalEventType.Completed => "An admitted conversation task completed with a durable successful receipt.",
+            LocalEventType.Failed => "An admitted conversation task ended without a successful answer; inspect its exact status.",
+            LocalEventType.Unknown => "An admitted conversation task has an Unknown outcome; no replay or retry is authorised.",
+            _ => "An exact pending conversation clarification needs an answer in the separate Questions surface; this notice cannot answer it.",
+        }
+        : Type switch
     {
         LocalEventType.Queued => "A " + ReadName + " read is queued; manual dispatch remains separate.",
         LocalEventType.Current => "A " + ReadName + " read is currently admitted.",
@@ -82,7 +90,11 @@ public sealed record LocalEvent(
             || (Source == LocalEventSource.CachedMaintenance
                 ? Type != LocalEventType.MaintenanceAvailable || TaskId is not null || Origin != RequestOrigin.HostSystem || QueueReason is not null
                 : TaskId is null || Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-                    || (Source == LocalEventSource.LocalVersionQuestion
+                    || (Source is LocalEventSource.ConversationTask or LocalEventSource.ConversationQuestion
+                        ? QueueReason is not null || (Source == LocalEventSource.ConversationQuestion
+                            ? Type != LocalEventType.UserAttention
+                            : Type is not (LocalEventType.Completed or LocalEventType.Failed or LocalEventType.Unknown))
+                        : Source == LocalEventSource.LocalVersionQuestion
                         ? Type != LocalEventType.UserAttention || QueueReason is not null
                         : Type is LocalEventType.UserAttention or LocalEventType.MaintenanceAvailable || QueueReason is null)))
         {

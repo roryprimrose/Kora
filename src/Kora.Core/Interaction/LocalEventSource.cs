@@ -1,3 +1,3 @@
 namespace Kora.Core.Interaction;
 
-public enum LocalEventSource { LocalVersionQueue, LocalVersionQuestion, CachedMaintenance }
+public enum LocalEventSource { LocalVersionQueue, LocalVersionQuestion, CachedMaintenance, ConversationTask, ConversationQuestion }

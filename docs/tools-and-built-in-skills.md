@@ -63,6 +63,8 @@ v1 can request only the six original recorded read-only observation IDs, and onl
 
 ## Asking Kora to do something
 
+For one ambiguous conversational observation request, **Ask locally with observations and one choice** in Sessions or its compact view runs the existing six read-only observation tools, permits one bounded native/activated-voice choice, and retains the actual final answer in the original conversation. See the [complete interaction and unavailable boundaries](responses-and-calls.md#conversation-clarification). A choice is not approval, permission, source consent or a reusable grant.
+
 Type a command or hold push-to-talk and use the configured assistant name.
 Exact phrases take precedence; unmatched requests require a verified local
 model. Models propose, while Kora validates and applies approval/privacy policy.

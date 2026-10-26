@@ -66,6 +66,8 @@ internal sealed partial class SessionsWindow : Window
         BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
+        SubmitReadOnlyWithClarification.Click += async (_, _) =>
+            await (ConversationOperation = model.SubmitReadOnlyWithClarificationAsync());
         SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
         ReadMcpOptions.Click += async (_, _) => await (ConversationOperation = model.ReadMcpOptionsAsync());
         SubmitMcp.Click += async (_, _) => await (ConversationOperation = model.SubmitMcpConversationAsync());

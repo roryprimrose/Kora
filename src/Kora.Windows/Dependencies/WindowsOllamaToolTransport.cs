@@ -35,6 +35,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
     private int inputBytes;
     private int outputBytes;
     private ModelClarificationQuestion? issuedQuestion;
+    private int issuedQuestionIndex;
 
     public WindowsOllamaToolTransport()
         : this(static _ => null, TimeProvider.System, NullLogger<WindowsOllamaToolTransport>.Instance) { }
@@ -131,13 +132,15 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
         var selected = binding;
         if (selected is null) { return Finish(request, ModelTurnOutcome.Unavailable); }
         if (!Current(request)) { return Finish(request, ModelTurnOutcome.Denied); }
-        if (issuedQuestion is not null && (request.Messages.Length != 2 || !ReferenceEquals(request.Messages[0], issuedQuestion)))
+        if (issuedQuestion is not null && (request.Messages.Length < issuedQuestionIndex + 2
+            || !ReferenceEquals(request.Messages[issuedQuestionIndex], issuedQuestion)))
         { return Finish(request, ModelTurnOutcome.Denied); }
         if (request.Messages.Length < admittedHistory.Length
             || admittedHistory.Where((wire, index) => !wire.AsSpan()
                 .SequenceEqual(ModelToolProtocol.SerializeMessage(request.Messages[index]))).Any())
         { return Finish(request, ModelTurnOutcome.Denied); }
-        var resultBytes = request.Messages.Skip(admittedHistory.Length).OfType<ModelToolResultMessage>()
+        var resultBytes = request.Messages.Skip(admittedHistory.Length)
+            .Where(message => message is ModelToolResultMessage or ModelQuestionAnswerMessage)
             .Sum(result => ModelToolProtocol.SerializeMessage(result).Length);
         var remaining = deadline - time.GetUtcNow();
         if (remaining <= TimeSpan.Zero) { return Finish(request, ModelTurnOutcome.TimedOut); }
@@ -174,7 +177,7 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             if (status != ModelTurnOutcome.Succeeded) { return Finish(request, status); }
             var wire = await ReadBoundedAsync(response.Content, outputLimit, linked.Token).ConfigureAwait(false);
             var parsed = OllamaToolWire.ReadReply(wire, selected.Model, request.Round, request.ClarificationAllowed,
-                request.Context.McpTool);
+                request.Context.McpTool, request.Context.ToolMode);
             var outputCharge = Math.Max(wire.Length, ModelToolProtocol.SerializeMessage(parsed.Message).Length);
             if (outputCharge > outputLimit) { return Finish(request, ModelTurnOutcome.Denied); }
             outputBytes += outputCharge;
@@ -195,9 +198,11 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport
             }
             else if (parsed.Message is ModelClarificationQuestion question)
             {
-                if (!request.ClarificationAllowed || issuedQuestion is not null)
+                if (!request.ClarificationAllowed || issuedQuestion is not null
+                    || request.Context.ToolMode == ModelToolMode.ReadOnly && question.Question.Options.Count == 0)
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 issuedQuestion = question;
+                issuedQuestionIndex = request.Messages.Length;
             }
             else { CloseConversation(request.Provenance); }
             TransportCompleted(logger, ModelTurnOutcome.Succeeded);

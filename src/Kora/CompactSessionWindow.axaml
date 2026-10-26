@@ -102,6 +102,7 @@
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
       <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Actual shared conversation submission, unavailable or legacy recovery outcome" />
+      <local:ModelMemoryProposalPanel />
       <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
           AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
       <WrapPanel>

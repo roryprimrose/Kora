@@ -13,6 +13,10 @@
           <StackPanel IsVisible="{Binding HasAssistantResponse}" Spacing="6">
             <TextBlock Text="Kora" Classes="eyebrow" />
             <TextBlock Text="{Binding AssistantResponse.Body, Converter={StaticResource BriefAnswer}}" TextWrapping="Wrap" />
+            <Button Name="ReviewModelMemoryProposal" Content="Review session-memory proposal..."
+                IsEnabled="{Binding $parent[UserControl].DataContext.CanReviewModelMemoryProposal}"
+                AutomationProperties.Name="Explicitly inspect this actual retained answer; separate acceptance and session-only memory admission"
+                HorizontalAlignment="Left" />
             <Button Name="OpenAssistantConversationDetail" Content="Open full detailed answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
                 HorizontalAlignment="Left" />
@@ -80,8 +84,11 @@
           AutomationProperties.Name="Show details available for the selected session"
           ToolTip.Tip="{Binding DetailsAvailability}" />
       </Grid>
-      <TextBlock Grid.Row="1" Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
-          AutomationProperties.Name="Session navigation outcome or failure" />
+      <StackPanel Grid.Row="1" Spacing="6">
+        <TextBlock Text="{Binding Status}" Classes="muted" TextWrapping="Wrap"
+            AutomationProperties.Name="Session navigation outcome or failure" />
+        <local:SessionPermissionControls />
+      </StackPanel>
       <TabControl Grid.Row="2" x:Name="ConversationTabs">
         <TabItem x:Name="ConversationTab" Header="Conversation">
           <Grid RowDefinitions="Auto,*,Auto" RowSpacing="8">
@@ -94,6 +101,7 @@
             <ScrollViewer Grid.Row="1" VerticalScrollBarVisibility="Auto">
               <StackPanel Spacing="8">
                 <ItemsControl ItemsSource="{Binding ConversationMessages}" ItemTemplate="{StaticResource TimelineMessage}" />
+                <local:ModelMemoryProposalPanel />
                 <ContentControl Content="{Binding DetailsOfferMessage}">
                   <ContentControl.ContentTemplate>
                     <DataTemplate>

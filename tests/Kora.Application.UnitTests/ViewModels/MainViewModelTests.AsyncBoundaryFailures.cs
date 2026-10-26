@@ -141,8 +141,16 @@ public sealed partial class MainViewModelTests
         };
         if (modelAction) { await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync(); }
         else { await fixture.ViewModel.ConfirmGrantChangeAsync(); }
-        fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
-        fixture.Session.LockCalls.Should().Be(0);
+        if (modelAction && string.Equals(transition, "call", StringComparison.Ordinal))
+        {
+            fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle().Which.Action.Should().Be(BuiltInAction.LockMachine);
+            fixture.Session.LockCalls.Should().Be(1);
+        }
+        else
+        {
+            fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
+            fixture.Session.LockCalls.Should().Be(0);
+        }
     }
 
     [Fact]

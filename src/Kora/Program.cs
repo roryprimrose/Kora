@@ -407,6 +407,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
         services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
         services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
+        ExternalBrowserComposition.Configure(services);
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
@@ -676,6 +677,7 @@ internal static class Program
         services.AddSingleton<SessionAttachmentCatalogueService>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
+        services.AddSingleton<Kora.Tools.Files.FolderAnswers.LocalFolderAnswer>();
         services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();

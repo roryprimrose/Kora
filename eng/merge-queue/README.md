@@ -227,6 +227,33 @@ permission; there is no separate App permission to disable those APIs. Keep its
 private key restricted to trusted main workflows rather than treating the
 permission name as a review-approval restriction.
 
+## Controller feedback
+
+Open a **Merge queue controller** run and expand **Reconcile selected candidate**
+for live progress. The run's job summary retains the same observations and
+decisions, with its trigger and final outcome, so `idle` is not the only feedback:
+
+- Protection verification, current main, active phase and blocked-revision counts.
+- Inspected PR counts, skip reasons (draft, foreign source, missing squash
+  Auto-merge, missing live enrollment, quarantined revision, unknown mergeability
+  or unmet reviews), and priority/PR-number selection order.
+- Reserved PR/head/base/ticket, branch-update and CI-dispatch requests, matching
+  run identity/status and every required job's match count and conclusion.
+- Stale-candidate retirement, cancellation and lane-hold reasons, exact-evidence
+  revalidation, protected merge requests/confirmation and controller continuation.
+
+Routine progress uses informational log lines; existing exceptional conditions
+remain warnings. Failures propagate to Actions, while the summary retains
+observations made before the failure and labels the outcome `failed`.
+It does not turn partial work into successful admission. Summaries require the
+step to reach its finalizer; runner termination or failure before reconciliation
+starts may prevent them.
+
+The trace contains scheduling metadata, not PR titles, bodies, arbitrary label
+text, event payloads, credentials or API response dumps. Logs and summaries are
+diagnostics, never merge authority. Queue state/schema, eligibility, permissions,
+required checks and retry/cancellation behavior are unchanged.
+
 ## Durable scheduling and cancellation
 
 ### Merge confirmation and native Auto-merge

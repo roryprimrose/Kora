@@ -1,0 +1,15 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    x:Class="Kora.ModelMemoryProposalPanel">
+  <StackPanel Spacing="8">
+    <TextBox Text="{Binding ModelMemoryProposalDescription, Mode=OneWay}" IsReadOnly="True"
+        AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="480"
+        AutomationProperties.Name="Complete original USER and ASSISTANT lineage, exact session memory value and classification; lower-trust proposal, not approval" />
+    <WrapPanel>
+      <Button Name="AcceptModelMemoryProposal" Content="Accept exact session candidate" IsEnabled="{Binding CanAcceptModelMemoryProposal}" />
+      <Button Name="RejectModelMemoryProposal" Content="Reject candidate" IsEnabled="{Binding CanAcceptModelMemoryProposal}" />
+      <Button Name="AdmitModelMemoryProposal" Content="Admit accepted session memory" IsEnabled="{Binding CanAdmitModelMemoryProposal}" />
+      <Button Name="CancelModelMemoryProposal" Content="Cancel without saving" />
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

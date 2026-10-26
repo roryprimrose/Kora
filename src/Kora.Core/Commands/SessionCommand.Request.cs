@@ -17,7 +17,8 @@ public sealed partial record SessionCommand
         + "Optional copilot or claude explicitly selects that service; a separate native final-send disclosure is still mandatory. "
         + "claude-tools selects one to six distinct original read-only observation IDs, not provider-native effects. "
         + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
-        + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered.";
+        + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered. "
+        + ForegroundRequestSyntax;
     public const string ReadableRequestSyntax =
         "session request review active [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
         + "session request review \"<exact readable name>\" [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
@@ -32,9 +33,34 @@ public sealed partial record SessionCommand
     public SessionName? RequestTargetName { get; init; }
     public bool RequestActiveTarget { get; init; }
     public bool RequestUsesPendingReview { get; init; }
+    public bool RequestForegroundTarget { get; init; }
+    public bool RequestActivationPrefixed { get; init; }
+    public const string ForegroundRequestSyntax =
+        "ask this conversation <original body>. Review the complete message and current foreground conversation, "
+        + "then separately use session request confirm or session request cancel. "
+        + "One visible eligible Active conversation presenter is required. No new conversation or hosted fallback.";
+
+    private static SessionCommand? ParseForegroundRequest(string text)
+    {
+        const string foreground = "ask this conversation";
+        if (text.Equals("ask this", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("ask this", StringComparison.OrdinalIgnoreCase) && text.Length > 8
+                && char.IsWhiteSpace(text[8]))
+        {
+            if (!text.StartsWith(foreground + " ", StringComparison.OrdinalIgnoreCase))
+            { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
+            var body = text[(foreground.Length + 1)..];
+            try { ConversationText.Validate(body, submission: true); }
+            catch (InvalidDataException) { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
+            catch (ConversationCredentialException) { return new(SessionCommandOperation.Invalid, Error: ForegroundRequestSyntax); }
+            return new(SessionCommandOperation.RequestReview) { RequestBody = body, RequestForegroundTarget = true };
+        }
+        return null;
+    }
 
     private static SessionCommand? ParseRequest(string text)
     {
+        if (ParseForegroundRequest(text) is { } foreground) { return foreground; }
         var words = text.Split(' ', 4, StringSplitOptions.RemoveEmptyEntries);
         if (words.Length < 2 || !words[0].Equals("session", StringComparison.OrdinalIgnoreCase)
             || !words[1].Equals("request", StringComparison.OrdinalIgnoreCase))

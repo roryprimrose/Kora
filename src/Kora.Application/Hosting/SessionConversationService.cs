@@ -62,6 +62,11 @@ public sealed partial class SessionConversationService(
             ? SubmitOrdinaryWithScopeAsync(target, body, admitted, beforeRetain, links, origin, token)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
+    internal Task<ConversationSubmissionReceipt> SubmitOriginalLocalAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
+        RequestOrigin origin, CancellationToken token) =>
+        SubmitCoreAsync(target, body, admitted, validateSource, links, origin, null, ModelTurnChoice.Local, token);
+
     /// <summary>Explicit hosted request; selection and preparation never replace final-byte disclosure approval.</summary>
     public Task<ConversationSubmissionReceipt> SubmitCopilotAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null) =>

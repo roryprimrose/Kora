@@ -825,6 +825,18 @@ Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
 
+### Explicit original request to the foreground conversation
+
+The approved voice/UI-equivalent conversation operation accepts `ask this conversation <original body>` with the current assistant-name activation for voice. The native [presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) publishes one irreversible snapshot of its unique visible, foreground, eligible Active presenter. Selection alone, names, input/model IDs and cached targets cannot provide that snapshot.
+
+The [host input route](../src/Kora.Application/ViewModels/MainViewModel.cs) captures that snapshot before queued voice dispatch. The [request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) freezes the complete body and target for a 60-second one-use review and revalidates original input, exact session/generation/metadata and private control at confirmation and canonical submission fences.
+
+Native **Confirm original request once** and separate `session request confirm` consume the same review without cleansing voice origin ([native decision binding](../src/Kora.Application/ViewModels/MainViewModel.ForegroundRequests.cs)).
+
+This route requests only a local original answer through [SessionConversationService](../src/Kora.Application/Hosting/SessionConversationService.cs), not ordinary scoped-instruction preparation or relatedness routing. It authorizes no prior history, memory or instruction sources. It preserves per-session unsent input, existing unsolicited/new-request behavior and mandatory authentication/hosted physical-send exceptions. Missing local readiness remains a truthful HOST outcome without hosted fallback.
+
+The [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs) traverse parsing, foreground binding, accessible exact preview, separate confirmation, actual deterministic ModelTurnHost execution and private SQLite answer retention. [Portable regressions](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.ForegroundRequests.cs) cover missing/stale snapshots, expiry, cancellation and replay denial. These are implementation evidence, not production model, microphone or installed-native qualification.
+
 ### Delivered explicit exact-session request commands
 
 Typed input and current-name activated voice can deliberately address one exact Active session using the [strict reserved request grammar](../src/Kora.Core/Commands/SessionCommand.Request.cs). This does not add selected-window, session-title, relatedness, pending-question or approval routing.

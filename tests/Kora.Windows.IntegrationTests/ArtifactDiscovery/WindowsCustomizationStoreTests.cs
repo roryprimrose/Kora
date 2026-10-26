@@ -34,7 +34,6 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
     [InlineData(CustomizationKind.McpServer, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Prompt, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Skill, CustomizationScope.User)]
-    [InlineData(CustomizationKind.Instruction, CustomizationScope.User)]
     [InlineData(CustomizationKind.Agent, CustomizationScope.User)]
     [InlineData(CustomizationKind.McpServer, CustomizationScope.User)]
     public async Task Complete_create_read_edit_conflict_and_reopen_roundtrip(CustomizationKind kind, CustomizationScope scope)

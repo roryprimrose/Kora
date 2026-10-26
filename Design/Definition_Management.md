@@ -38,6 +38,8 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 ## Product Roles
 
+The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
+
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
@@ -525,6 +527,12 @@ Source selection/reload/failure/withdrawal, privacy/ownership closure, call-poli
 No reader call, Discover/Recheck/withdrawal, source switch, draft replacement, registration extension or new execution authority occurs on edits/Search/Clear ([native tests](../tests/Kora.Windows.IntegrationTests/SkillMetadataSearchWindowTests.cs), [read-free service tests](../tests/Kora.Application.UnitTests/Skills/SharedSkillDiscoveryServiceTests.cs)).
 
 ## Editing, Ownership, and Confirmation
+
+The bounded personal Instruction-original implementation reuses Customizations and its native file owner. One exact existing personal Code/Code - Insiders native v1 instruction receives a window-lifetime registration review before content reads, then separate complete mutation confirmation. Previous read-only registrations grant no editing scope; unsupported formats retain explicit refusal and the compatible owned-fork alternative ([workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs), [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+The native owner pins/revalidates the registered ancestry and exact original, retains stable write-denying sharing through staging/final comparison, preserves owner/group/DACL and ordinary attributes, and checks exact published identity/bytes. Named streams/unsupported native attributes are refused ([publication](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs), [native access](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.InstructionOriginal.cs)).
+
+Source replacement requires renewed registration; comparison/rebase never writes or merges the draft. Uncertain publication revokes registration and remains disabled pending explicit inspection. This is single-file optimistic publication, not content compare-and-swap or broader writer/enablement qualification ([recovery](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
 
 In the target design, Kora is an editor of supported personal profile definitions
 as well as Kora-owned definitions. Registered originals are directly editable;

@@ -7,6 +7,8 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
+    internal MixedContextWorkflow CreateReplyContextWorkflow() => new(this, null, null, time);
+
     internal MixedContextWorkflow CreateMixedContextWorkflow(
         Kora.Application.Memory.SessionMemoryContext memories, ScopedInstructionUseBroker instructions) =>
         new(this, memories, instructions, time);

@@ -36,13 +36,13 @@ public static partial class ModelToolProtocol
             if (profile.Service != ProviderProfileRules.ServiceFor(provenance.Selection.Provider))
             { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
         }
-        var history = messages.Take(MaximumCalls * 2 + 1).ToImmutableArray();
-        if (clarificationAllowed && context.ToolMode != ModelToolMode.None)
-        { throw new InvalidDataException("Clarification turns are tool-free."); }
+        var history = messages.Take(MaximumCalls * 2 + 3).ToImmutableArray();
+        if (clarificationAllowed && !AllowsClarification(context.ToolMode, provenance.Selection.Provider))
+        { throw new InvalidDataException("Clarification requires a local tool-free or original read-only turn."); }
         if (context.ToolMode == ModelToolMode.None && !clarificationAllowed && !history.IsEmpty)
         { throw new InvalidDataException("A tool-free turn cannot contain any tool history."); }
-        if (clarificationAllowed) { ValidateQuestionHistory(history); }
-        else { ValidateHistory(history); }
+        if (clarificationAllowed && context.ToolMode == ModelToolMode.None) { ValidateQuestionHistory(history); }
+        else { ValidateHistory(history, clarificationAllowed); }
         var expectedRound = history.Count(message => message is ModelAssistantMessage) + 1;
         if (round != expectedRound || round > (context.WebPages?.MaximumRounds ?? context.Constraints?.MaximumRounds ?? MaximumRounds)
             || history.OfType<ModelAssistantToolCalls>().Sum(item => item.Calls.Length) > (context.WebPages?.MaximumCalls ?? context.Constraints?.MaximumCalls ?? MaximumCalls)
@@ -71,7 +71,9 @@ public static partial class ModelToolProtocol
         using (var writer = new Utf8JsonWriter(stream))
         {
             writer.WriteStartObject();
-            writer.WriteNumber("schemaVersion", request.ClarificationAllowed ? ClarificationSchemaVersion : SchemaVersion);
+            writer.WriteNumber("schemaVersion", request.ClarificationAllowed
+                ? request.Context.ToolMode == ModelToolMode.ReadOnly ? ReadOnlyClarificationSchemaVersion : ClarificationSchemaVersion
+                : SchemaVersion);
             writer.WritePropertyName("context");
             writer.WriteRawValue(request.Context.Wire.AsSpan());
             writer.WriteStartArray("messages");

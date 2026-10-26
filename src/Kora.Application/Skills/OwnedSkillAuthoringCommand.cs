@@ -6,9 +6,10 @@ namespace Kora.Application.Skills;
 
 public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = null, string? Version = null, string? Literal = null)
 {
-    public const string Syntax = "owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill validate | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
+    public const string Syntax = "owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill tool none|web-page-get | owned skill validate | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         Array.AsReadOnly(new[] { "owned skill editor", "owned skill list", "owned skill validate", "owned skill save", "owned skill cancel",
+            "owned skill tool none", "owned skill tool web-page-get", "owned skill review-tool",
             "owned skill enable", "owned skill targets", "owned skill next-targets", "owned skill review-use", "owned skill invoke", "owned skill close-use" });
 
     public static OwnedSkillAuthoringCommand? Parse(string input, string assistantName)
@@ -18,7 +19,7 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         if (!normalized.StartsWith("owned skill ", StringComparison.OrdinalIgnoreCase)) { return null; }
         if (Encoding.UTF8.GetByteCount(input) > SharedSkillSnapshot.MaximumBytes + 512)
         { return new("Invalid"); }
-        foreach (var field in new[] { "name", "description", "guidance", "request" })
+        foreach (var field in new[] { "name", "description", "guidance", "request", "url" })
         {
             var prefix = "owned skill " + field + ": ";
             if (normalized.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
@@ -33,8 +34,11 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         {
             var operation = words[2].ToLowerInvariant();
             return new(operation is "editor" or "list" or "validate" or "save" or "cancel" or "enable" or "targets"
-                or "next-targets" or "review-use" or "invoke" or "close-use" ? operation : "Invalid");
+                or "next-targets" or "review-tool" or "review-use" or "invoke" or "close-use" ? operation : "Invalid");
         }
+        if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("tool", StringComparison.OrdinalIgnoreCase)
+            && words[3].ToLowerInvariant() is "none" or "web-page-get")
+        { return new("tool", Literal: words[3].ToLowerInvariant()); }
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("target", StringComparison.OrdinalIgnoreCase)
             && Guid.TryParseExact(words[3], "D", out var target) && string.Equals(target.ToString("D"), words[3], StringComparison.Ordinal))
         { return new("target", Literal: words[3]); }

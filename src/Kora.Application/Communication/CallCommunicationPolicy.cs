@@ -17,6 +17,7 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
         this.automatic = automatic;
         current = new(0, automatic.CurrentState, false, CallAwareSettings.Default);
         automatic.StateChanged += OnAutomaticChanged;
+        lock (sync) { SynchronizeAutomatic(); }
     }
 
     public event EventHandler? Changed;
@@ -29,6 +30,7 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
         lock (sync)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+            SynchronizeAutomatic();
             return commit(current.Authorization(baseline.IsUnlocked, baseline.OtherMandatoryGatesSatisfied));
         }
     }
@@ -84,6 +86,7 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
     {
         lock (sync)
         {
+            if (!disposed) { SynchronizeAutomatic(); }
             if (disposed || current.ManualControlEvidenceUnavailable || !hostEligible()) { return CallMutationOutcome.HostUnavailable; }
             if (revision != current.Revision) { return CallMutationOutcome.StaleObservation; }
             if (!current.Authorization(true, true).AllowsVoiceOrCallSettings(origin))
@@ -120,6 +123,7 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
     {
         lock (sync)
         {
+            if (!disposed) { SynchronizeAutomatic(); }
             return disposed || current.SuppressSpeech || !hostEligible() ? Task.CompletedTask : start();
         }
     }
@@ -130,10 +134,12 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
         {
             if (!disposed)
             {
-                Publish(current with { AutomaticState = automatic.CurrentState });
+                SynchronizeAutomatic();
             }
         }
     }
+
+    private void SynchronizeAutomatic() => Publish(current with { AutomaticState = automatic.CurrentState });
 
     private CallMutationOutcome Publish(CallPolicyObservation observation)
     {

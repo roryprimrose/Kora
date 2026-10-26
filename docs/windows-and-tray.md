@@ -830,6 +830,15 @@ There is no normal enqueue, dispatch, reorder or expired replacement route; reta
 
 ### Logical session disposition
 
+For a conversation with running work, **Review stop and delete** offers **Stop this conversation's running work, then delete this conversation** as one separately confirmed operation. Review itself stops nothing and preserves input.
+Read the conversation name, exact unsent/pending input and retained-data disclosure, then explicitly choose **Confirm stop and delete** or **Cancel deletion**.
+The review is scrollable and keyboard-focusable; neither opening it nor pressing a navigation control confirms deletion ([native controls](../src/Kora/SessionsWindow.axaml), [presentation owner](../src/Kora/SessionsViewModel.StopAndDelete.cs)).
+
+After confirmation, Kora waits for the exact owned provider/tool resources, not merely a cancelled token or terminal task label. New work, metadata/generation/source or private-control changes invalidate deletion.
+Cancel deletion while joining prevents delayed deletion but does not abandon an accepted stop's resource ownership. **Work stopped; not deleted** is a partial outcome, not rollback: obtain fresh review before deletion.
+Unconfirmed deletion receipts require inspection, not automatic retry. Only confirmed deletion discards the reviewed conversation's input; other memory buffers, independent audit/diagnostics, Perpetual grants and external copies keep their existing rules
+([coordinator](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [disposition scope](../src/Kora.Core/Storage/SessionDispositionPreview.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.StopAndDelete.cs)).
+
 For explicit removal from the live workspace, select the exact existing ID and
 choose **Preview logical disposition**. Review the displayed ID, name (only a
 label), generation, metadata revision, row counts and retained-data warning.

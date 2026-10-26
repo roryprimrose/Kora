@@ -1,0 +1,19 @@
+<UserControl xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls"
+    x:Class="Kora.AssistantReplyPanel">
+  <StackPanel Spacing="8" IsVisible="{Binding HasAssistantReply}">
+    <controls:NamedTextBlock Text="{Binding ReplySourceText}" TextWrapping="Wrap"
+        AutomationProperties.Name="Exact earlier assistant reply source, inert local-only evidence, not new user input" />
+    <WrapPanel>
+      <Button Name="ReviewAssistantReply" Content="_Review exact reply" IsEnabled="{Binding CanReviewAssistantReply}"
+          AutomationProperties.Name="Review the complete exact answer and unchanged follow-up before any submission" />
+      <Button Name="ConfirmAssistantReply" Content="_Confirm ONE local-only reply" IsEnabled="{Binding CanConfirmAssistantReply}"
+          AutomationProperties.Name="Separately submit this reviewed reply once to the same Active conversation" />
+      <Button Name="CancelAssistantReply" Content="Cancel _reply"
+          AutomationProperties.Name="Cancel reply without sending, recalling history or changing the unsent follow-up" />
+    </WrapPanel>
+    <controls:NamedTextBlock Text="{Binding ReplyReviewText}" TextWrapping="Wrap"
+        AutomationProperties.Name="Complete exact reply review: earlier assistant evidence and separate unchanged new user request" />
+  </StackPanel>
+</UserControl>

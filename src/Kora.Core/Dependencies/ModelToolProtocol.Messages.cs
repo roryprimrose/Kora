@@ -163,12 +163,19 @@ public static partial class ModelToolProtocol
         writer.WriteEndObject();
     }
 
-    private static void ValidateHistory(ImmutableArray<ModelToolMessage> messages)
+    private static void ValidateHistory(ImmutableArray<ModelToolMessage> messages, bool clarificationAllowed)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var questionSeen = false;
         var index = 0;
         while (index < messages.Length)
         {
+            if (clarificationAllowed && !questionSeen && messages[index] is ModelClarificationQuestion)
+            {
+                ValidateReadOnlyQuestion(messages, ref index);
+                questionSeen = true;
+                continue;
+            }
             if (messages[index++] is not ModelAssistantToolCalls assistant
                 || assistant.Calls.Length > MaximumCalls - ids.Count)
             { throw new InvalidDataException("History must contain only complete serial tool exchanges."); }

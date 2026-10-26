@@ -53,13 +53,20 @@ internal static partial class OllamaToolWire
                 }));
             }
             WriteTextMessage(writer, "user", request.Context.UserRequest);
-            if (request.ClarificationAllowed) { WriteQuestionHistory(writer, request); }
             var index = 0;
-            foreach (var exchange in exchanges)
+            var exchangeIndex = 0;
+            while (index < request.Messages.Length)
             {
-                if (index >= request.Messages.Length
-                    || request.Messages[index++] is not ModelAssistantToolCalls calls
-                    || !ModelToolProtocol.SerializeMessage(calls).AsSpan()
+                if (request.ClarificationAllowed && request.Messages[index] is ModelClarificationQuestion)
+                {
+                    WriteTextMessage(writer, "assistant", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(request.Messages[index++])));
+                    WriteTextMessage(writer, "user", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(request.Messages[index++])));
+                    continue;
+                }
+                if (exchangeIndex >= exchanges.Count || request.Messages[index++] is not ModelAssistantToolCalls calls)
+                { throw new InvalidDataException("Native continuation contains an unobserved assistant exchange."); }
+                var exchange = exchanges[exchangeIndex++];
+                if (!ModelToolProtocol.SerializeMessage(calls).AsSpan()
                         .SequenceEqual(ModelToolProtocol.SerializeMessage(exchange.Calls)))
                 { throw new InvalidDataException("Native continuation does not match the observed assistant exchange."); }
                 writer.WriteRawValue(exchange.NativeMessage);
@@ -76,10 +83,10 @@ internal static partial class OllamaToolWire
                     writer.WriteRawValue(resultWire);
                 }
             }
-            if (!request.ClarificationAllowed && index != request.Messages.Length)
+            if (exchangeIndex != exchanges.Count)
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }
             writer.WriteEndArray();
-            if (request.ClarificationAllowed) { WriteQuestionFormat(writer); }
+            if (request.ClarificationAllowed) { WriteQuestionFormat(writer, request.Context.ToolMode); }
             if (request.Context.ToolMode != ModelToolMode.None)
             {
                 writer.WriteStartArray("tools");
@@ -193,7 +200,7 @@ internal static partial class OllamaToolWire
     }
 
     internal static Reply ReadReply(byte[] bytes, string model, int round, bool clarificationAllowed = false,
-        Kora.Core.Mcp.McpModelTool? mcpTool = null)
+        Kora.Core.Mcp.McpModelTool? mcpTool = null, ModelToolMode toolMode = ModelToolMode.None)
     {
         using var document = ReadJson(bytes);
         var root = document.RootElement;
@@ -205,13 +212,13 @@ internal static partial class OllamaToolWire
                 && (thinking.ValueKind != JsonValueKind.String || thinking.GetString()!.Length != 0))
         { throw new InvalidDataException("Only a complete native assistant message without hidden reasoning is admitted."); }
         var content = Text(message, "content");
-        if (clarificationAllowed)
+        if (clarificationAllowed && !message.TryGetProperty("tool_calls", out _))
         {
-            if (message.TryGetProperty("tool_calls", out _))
-            { throw new InvalidDataException("Clarification responses cannot request tools."); }
             return new(ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true),
                 JsonSerializer.SerializeToUtf8Bytes(message));
         }
+        if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)
+        { throw new InvalidDataException("Only an original read-only clarification turn may request tools."); }
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {

@@ -71,6 +71,8 @@ Callbacks expose only frozen reviewed metadata through opaque snapshot refs, wit
 
 ### Bounded provider-neutral continuation implementation - 2026-10-20
 
+The additive [read-only clarification protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs) uses request schema 3 only for an explicitly admitted local read-only question turn. Schema 1 read-only-only and schema 2 tool-free question requests retain their formats. Complete serial tool-result history may contain one exact SingleChoice question/host answer pair; the answer is user data, not a tool call or authority. The [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserves chronological assistant/tool/assistant/user history and rejects mixed content/tool responses. See the [complete interaction](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26).
+
 [ModelToolProtocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs) owns the
 closed immutable assistant-call, host-result and final-answer messages and the
 [portable transport seam](../src/Kora.Core/Dependencies/IModelToolTransport.cs).

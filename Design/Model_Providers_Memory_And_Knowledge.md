@@ -403,6 +403,18 @@ authority or an unreviewed durable store.
 
 ## User-Governed Durable Memory
 
+### Delivered explicit Device-profile operation
+
+The [Device-profile guide](../docs/profile-memory.md) describes the native
+original-user propose, complete inspect/review, separate admission,
+list/edit/disable/forget and later-conversation one-shot local-only answer.
+The explicit profile route extends the authoritative memory transaction with
+independent lifetime and profile-bound lineage. Existing session transactions,
+typed commands, model proposals and session-context consumers remain
+Session-only. No automatic recall, provider learning, Project/Source scope
+or hosted disclosure is enabled. Historical session-only availability notes
+below describe the earlier increments, not this explicit profile route.
+
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.
 

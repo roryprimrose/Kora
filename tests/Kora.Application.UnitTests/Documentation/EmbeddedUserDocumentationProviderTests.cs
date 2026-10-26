@@ -234,6 +234,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "agent-profile-authoring",
             "claude-requests",
             "owned-skill-authoring",
+            "profile-memory",
             "session-dictation",
             "hosted-requests",
             "independent-agent-runs",

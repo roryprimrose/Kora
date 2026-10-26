@@ -12,7 +12,7 @@ namespace Kora.Application.Memory;
 internal sealed partial class MemoryAdmissionService(
     ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
     IMemoryScopeAccess scopes, ISecurityAuditLog audit, ILogger<MemoryAdmissionService> logger,
-    TimeProvider time, IMemoryStore? storage = null) : IDisposable
+    TimeProvider time, IMemoryStore? storage = null, MemoryScopeKind scopeKind = MemoryScopeKind.Session) : IDisposable
 {
     private readonly Dictionary<HostId<MemoryIdentity>, MemoryRecord> records = [];
     private readonly HashSet<HostId<MemoryIdentity>> volatileIdentities = [];
@@ -76,12 +76,18 @@ internal sealed partial class MemoryAdmissionService(
             }
             if (operation != MemoryOperation.Propose)
             {
-                scope ??= current?.Scope ?? MemoryScope.Session(request.SessionId);
+                scope ??= current?.Scope;
             }
             var control = access.ControlRevision;
             var before = await scopes.ResolveAsync(request, token).ConfigureAwait(false);
+            if (operation != MemoryOperation.Propose)
+            {
+                scope ??= scopeKind == MemoryScopeKind.DeviceProfile && before is not null
+                    ? MemoryScope.DeviceProfile(before.Profile) : MemoryScope.Session(request.SessionId);
+            }
             MemoryResult result;
-            var reason = storage is not null && scope?.Kind != MemoryScopeKind.Session
+            var reason = storage is not null && (scope?.Kind != scopeKind
+                || scopeKind is not (MemoryScopeKind.Session or MemoryScopeKind.DeviceProfile))
                 ? MemoryReason.ScopeMismatch : MemoryPolicy.CheckBoundary(scope, before);
             if (reason != MemoryReason.None)
             {
@@ -188,7 +194,7 @@ internal sealed partial class MemoryAdmissionService(
                     && (id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), original));
             }
         }
-        var result = await storage!.TransactMemoryAsync(issuer.Request, boundary, rows =>
+        var result = await TransactAsync(issuer.Request, boundary, rows =>
         {
             lock (stateGate)
             {
@@ -263,6 +269,10 @@ internal sealed partial class MemoryAdmissionService(
     {
         if (operation == MemoryOperation.Propose)
         {
+            if (scope.Kind == MemoryScopeKind.DeviceProfile && origin != MemoryProposalOrigin.User)
+            {
+                return new(MemoryOutcome.Denied, MemoryReason.UserIntentRequired);
+            }
             if (origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model))
             {
                 return new(MemoryOutcome.Denied, MemoryReason.LineageUnknown);
@@ -277,7 +287,8 @@ internal sealed partial class MemoryAdmissionService(
         }
         if (current is null) { return new(MemoryOutcome.NotFound, MemoryReason.Missing); }
         if (current.Revision != expected) { return new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch); }
-        var lineageReason = MemoryPolicy.CheckLineage(current, boundary);
+        var lineageReason = operation is MemoryOperation.Edit or MemoryOperation.Forget
+            ? MemoryPolicy.CheckManagementLineage(current, boundary) : MemoryPolicy.CheckLineage(current, boundary);
         if (lineageReason != MemoryReason.None)
         {
             return new(MemoryOutcome.Denied, lineageReason);

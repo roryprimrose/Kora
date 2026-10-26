@@ -10,7 +10,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora;
 
 /// <summary>Owns one revocable exact-turn transport; no endpoint or process identity comes from the model.</summary>
-internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestionTurnAdapter
+internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestionTurnAdapter, IModelAnswerTurnAdapter
 {
     private readonly WindowsOllamaRuntimeResolver resolver;
     private readonly WindowsOllamaQualification receipt;
@@ -49,10 +49,17 @@ internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestion
         Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>> ask, CancellationToken cancellationToken) =>
         RunOwnedAsync(provenance, profile, context, invokeTool, validateContinuation, ask, cancellationToken);
 
+    public Task<ModelProviderReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken) =>
+        RunOwnedAsync(provenance, profile, context, invokeTool, validateContinuation, null, cancellationToken, publish);
+
     private async Task<ModelProviderReply> RunOwnedAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
-        Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask, CancellationToken token)
+        Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask, CancellationToken token,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish = null)
     {
         using var turnLifetime = CancellationTokenSource.CreateLinkedTokenSource(token, receipt.Revoked);
         bool Live() => !turnLifetime.IsCancellationRequested && receipt.IsCurrent(time.GetUtcNow())
@@ -77,7 +84,9 @@ internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestion
         {
             adapter = new BoundedModelTurnAdapter(createTransport(binding), time,
                 logging.CreateLogger<BoundedModelTurnAdapter>());
-            return ask is null
+            return publish is not null
+                ? await adapter.RunWithAnswerAsync(provenance, profile, context, invokeTool, Guard, publish, turnLifetime.Token).ConfigureAwait(false)
+                : ask is null
                 ? await adapter.RunAsync(provenance, profile, context, invokeTool, Guard, turnLifetime.Token).ConfigureAwait(false)
                 : await adapter.RunWithQuestionAsync(provenance, profile, context, invokeTool, Guard, ask, turnLifetime.Token).ConfigureAwait(false);
         }

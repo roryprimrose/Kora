@@ -23,7 +23,7 @@ public sealed class BoundedAgentProfile
         Document = document;
         Tools = tools;
         var metadata = document.Metadata;
-        References = metadata["kora-agent-format"] is "2" ? AgentInstructionReference.Parse(metadata["references"]) : [];
+        References = metadata["kora-agent-format"] is "2" or "4" ? AgentInstructionReference.Parse(metadata["references"]) : [];
         SharedSkill = metadata["kora-agent-format"] is "3" ? new AgentSharedSkillReference(metadata["references"]) : null;
         RequestedCalls = ReadLimit(metadata, "maximum-calls", allowZero: true);
         RequestedRounds = ReadLimit(metadata, "maximum-rounds");
@@ -58,13 +58,13 @@ public sealed class BoundedAgentProfile
         if (document.Definition.Kind != ArtifactKind.Agent || metadata.Count != Fields.Count
             || metadata.Keys.Any(key => !Fields.Contains(key)))
         { throw new InvalidDataException("An executable agent profile requires exactly the supported metadata fields."); }
-        if (metadata["kora-agent-format"] is not ("1" or "2" or "3"))
+        if (metadata["kora-agent-format"] is not ("1" or "2" or "3" or "4"))
         { throw new InvalidDataException("The agent format is unsupported."); }
         Require(metadata, "runtime", "local");
         Require(metadata, "input", "text");
         Require(metadata, "output", "text");
         if (string.Equals(metadata["kora-agent-format"], FormatVersion, StringComparison.Ordinal)) { Require(metadata, "references", "none"); }
-        else
+        else if (metadata["kora-agent-format"] is "2" or "3")
         {
             Require(metadata, "tools", "none");
             Require(metadata, "maximum-calls", "0");
@@ -72,7 +72,8 @@ public sealed class BoundedAgentProfile
         var value = metadata["tools"];
         var tools = string.Equals(value, "none", StringComparison.Ordinal)
             ? ImmutableArray<string>.Empty : value.Split(',').Select(item => item.Trim()).ToImmutableArray();
-        if (tools.Length > SupportedTools.Count
+        if (metadata["kora-agent-format"] is "4" && tools.IsEmpty
+            || tools.Length > SupportedTools.Count
             || tools.Distinct(StringComparer.Ordinal).Count() != tools.Length
             || tools.Any(tool => !SupportedTools.Contains(tool)))
         { throw new InvalidDataException("Agent tools must be distinct exact host read-only capability IDs, or 'none'."); }

@@ -11,6 +11,8 @@ internal sealed partial class NativeQuestionHost
 {
     private HostRequest? mcpObservationRequest;
     private long mcpObservationRevision;
+    private HostRequest? pageObservationRequest;
+    private long pageObservationRevision;
 
     internal async Task<ConversationQuestionPresentation> AskConversationAsync(HostRequest request,
         HostRevision generation, QuestionSpec spec, DateTimeOffset expiresAt, Func<bool> admitted,
@@ -49,6 +51,7 @@ internal sealed partial class NativeQuestionHost
                 || callObservation is null))
             { throw new InvalidOperationException("The exact page proposal and current native policy observation are required."); }
             var isMcp = mcpReview is not null || mcpSelection;
+            var isPage = webProposal is not null && !isMcp;
             if (isMcp && mcpObservationRequest != request)
             {
                 if (mcpReview?.Stage != Kora.Application.Mcp.McpReviewStage.Connection)
@@ -56,11 +59,17 @@ internal sealed partial class NativeQuestionHost
                 mcpObservationRequest = request;
                 mcpObservationRevision = 0;
             }
+            if (isPage && pageObservationRequest != request)
+            {
+                pageObservationRequest = request;
+                pageObservationRevision = 0;
+            }
             var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: webProposal is not null || mcpSelection)
                 ?? new(Eligible(), false, false, true);
             var observation = await store.PublishTrustedSnapshotAsync(request, policy, webProposal,
-                expectedObservationRevision: isMcp ? mcpObservationRevision : 0, token);
+                expectedObservationRevision: isMcp ? mcpObservationRevision : isPage ? pageObservationRevision : 0, token);
             if (isMcp) { mcpObservationRevision = observation.Value; }
+            if (isPage) { pageObservationRevision = observation.Value; }
             var created = webProposal is null
                 ? await questions.CreateAsync(request, spec, expiresAt, token)
                 : mcpReview is not null

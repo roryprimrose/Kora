@@ -11,7 +11,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests.Dependencies;
 
 [Collection("Host tracing")]
-public sealed class ClaudeMessagesRuntimeTests : IDisposable
+public sealed partial class ClaudeMessagesRuntimeTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

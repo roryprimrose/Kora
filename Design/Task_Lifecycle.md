@@ -95,6 +95,10 @@ grant gate before Running.
 Awaiting Clarification supplies missing intent/inputs; it never satisfies
 Awaiting Approval. Approval replies stay bound to the host proposal.
 
+The [bounded local observation clarification](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) waits inside the same dispatched conversation task and physical provider ownership. One exact SingleChoice answer resumes the same provenance-bound loop; complete prior tool exchanges, unique call IDs, monotonic rounds and cumulative bytes/calls/deadline are not reset. The existing 15-second turn deadline includes the question wait ([adapter](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/WindowsOllamaToolTransport.cs)).
+
+Cancellation withdraws continuation and late output immediately but retains physical resource ownership until the question/voice/provider operations actually join. Stale session/generation/profile/source, expired or foreign question receipts cannot resume or retain an answer. No request replay, approval conversion or successful-effect claim follows a choice or cancellation ([host execution](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [native join](../src/Kora/NativeQuestionHost.Conversation.cs)).
+
 Running records correlated structured observations/receipts and returns
 approved bounded results to the task runtime for continued reasoning.
 The final model answer is presentation, not evidence of a completed effect.

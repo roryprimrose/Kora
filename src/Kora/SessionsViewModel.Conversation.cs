@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -154,11 +155,14 @@ internal sealed partial class SessionsViewModel
     }, sourceRead: true);
 
     public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitLocalAnswerAsync() => SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, bool claude = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false,
+        CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -167,6 +171,8 @@ internal sealed partial class SessionsViewModel
         if (useMcp && !HasCurrentMcpOptions)
         { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
+        var observationIds = ClaudeObservationIds;
+        var observationRevision = Interlocked.Read(ref claudeObservationRevision);
         var receipt = useMcp
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
@@ -183,10 +189,17 @@ internal sealed partial class SessionsViewModel
                     mcpResultRequest = request;
                     mcpResultControl = access.ControlRevision;
                 })
+            : localAnswer
+            ? await conversation!.SubmitLocalAnswerAsync(target, body, live, lifetime.Token)
             : claude
-            ? await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
+            ? claudeObservations
+                ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
+                    () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
+                : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
+            : clarificationTools == ModelToolMode.ReadOnly
+            ? await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
             : pageAddress is null
             ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
             : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter

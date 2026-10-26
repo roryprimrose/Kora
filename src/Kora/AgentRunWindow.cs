@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Layout;
 
@@ -24,10 +25,18 @@ internal sealed partial class AgentRunWindow : Window
         {
             Text = "Select an EXISTING user-owned .agent.md source. Review reads at most 64 KiB and pins the exact native source. "
                 + "v2 permits up to four exact enabled Kora-owned instruction IDs after separate resolution consent, then full bundle review. "
-                + "No arbitrary files, executable skills, scripts, recursion, delegation, MCP or hosted transmission. v2 is tool-free; v1 observation tools retain their own permissions. "
+                + "v4 combines those pinned instructions with a declared subset of the six existing observation tools in the same run. "
+                + "No arbitrary files, executable skills, scripts, recursion, delegation, MCP or hosted transmission. v2/v3 remain tool-free; all observation tools retain their own permissions. "
                 + "Review is not invocation consent. The local model may be unavailable.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
+        AutomationProperties.SetName(Source, "Exact existing owned agent source path");
+        AutomationProperties.SetName(Input, "Original agent request");
+        AutomationProperties.SetName(Targets, "Exact Active conversation for this agent");
+        AutomationProperties.SetName(Review, "Complete exact agent guidance, tools and cumulative budget review");
+        AutomationProperties.SetName(Result, "Retained agent answer or terminal");
+        AutomationProperties.SetName(Resolve, "Separate consent to resolve exact declared owned instructions");
+        AutomationProperties.SetName(Confirm, "Separate confirmation of this exact bounded agent invocation");
         panel.Children.Add(Source);
         Add("Refresh existing Active conversations", "Targets");
         Add("Next conversation page", "NextTargets");

@@ -10,6 +10,40 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task TwoSourceSkillCommandsShareCurrentNameActivatedAndTypedRouteWithoutModelRetargeting(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", Kora.Core.Auditing.SecurityAuditInitiator.LocalUser);
+        var commands = new List<SharedSkillInvocationCommand>();
+        f.ViewModel.SharedSkillInvocationRequested += (command, origin, eligible) =>
+        {
+            command.ToolCapable.Should().BeTrue();
+            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            eligible().Should().BeTrue();
+            commands.Add(command);
+            return Task.CompletedTask;
+        };
+        foreach (var input in new[]
+        {
+            "review tool skill two-source-comparison", "tool skill targets", "tool skill target exact-id",
+            "tool skill address https://example.com/", "tool skill second address https://second.example/",
+            "tool skill clear second address", "tool skill second address https://second.example/",
+            "tool skill request   exact comparison  ", "tool skill review tool revision", "tool skill enable",
+            "tool skill review invocation", "tool skill confirm invocation", "tool skill close",
+        })
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + input, 1); }
+            else { await f.RunAsync(input); }
+        }
+        commands.Select(command => command.Action).Should().Equal("Review", "Targets", "Target", "Address",
+            "SecondAddress", "SecondAddress", "SecondAddress", "Request", "ReviewToolRevision", "Enable", "Prepare", "Invoke", "Close");
+        commands.Single(command => command.Action is "Request").Argument.Should().Be("  exact comparison  ");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task SharedSkillCommandsPreserveOriginalTypedOrActivatedVoiceChannelAndExactRequest(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

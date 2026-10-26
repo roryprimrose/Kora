@@ -18,8 +18,10 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class AgentProfileEditorUiTests
 {
-    [Fact]
-    public async Task ActualCommandsNativeConfirmationDurableInventoryAndReadOnlyReopenCompleteOperation()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ActualCommandsNativeConfirmationDurableInventoryAndReadOnlyReopenCompleteOperation(bool combined)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -45,12 +47,25 @@ public sealed class AgentProfileEditorUiTests
             { f.Main.CommandText = command; await f.Main.RunTypedCommand.ExecuteAsync(); }
             await Run("agent author create example");
             editor.Should().NotBeNull();
-            await Run("agent author source " + WindowsOwnedAgentProfileStoreTests.Source);
+            var source = WindowsOwnedAgentProfileStoreTests.Source;
+            if (combined)
+            {
+                source = source.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+                    .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal)
+                    .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+                    .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal);
+            }
+            await Run("agent author source " + source);
             await Run("agent author validate");
             var target = Path.Combine(f.RoamingRoot, "OwnedAgents-v1", "example.agent.md");
             File.Exists(target).Should().BeFalse();
             await Run("agent author save as new");
-            editor!.Review.Text.Should().Contain(WindowsOwnedAgentProfileStoreTests.Source).And.Contain(target);
+            editor!.Review.Text.Should().Contain(source).And.Contain(target);
+            if (combined)
+            {
+                editor.Review.Text.Should().Contain("Declared references: disk.kora-profile.instruction.example")
+                    .And.Contain("Declared tools: application.get_version").And.Contain("Host clamps: calls 1");
+            }
             File.Exists(target).Should().BeFalse();
             editor.Confirm.IsEnabled.Should().BeTrue();
             nextDialog = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -61,12 +76,12 @@ public sealed class AgentProfileEditorUiTests
             File.Exists(target).Should().BeFalse();
             Click(dialog!, "Save as new");
             await controller.ActiveOperation;
-            File.ReadAllText(target).Should().Be(WindowsOwnedAgentProfileStoreTests.Source);
+            File.ReadAllText(target).Should().Be(source);
             editor.Source.IsReadOnly.Should().BeTrue();
             await Run("agent author list");
             editor.Inventory.SelectedItem.Should().BeNull();
             await Run("agent author inspect example");
-            editor.Source.Text.Should().Be(WindowsOwnedAgentProfileStoreTests.Source);
+            editor.Source.Text.Should().Be(source);
             editor.Source.IsReadOnly.Should().BeTrue();
             editor.Status.Text.Should().Contain("Not selected, enabled or invoked");
             await f.Main.ExitAsync();

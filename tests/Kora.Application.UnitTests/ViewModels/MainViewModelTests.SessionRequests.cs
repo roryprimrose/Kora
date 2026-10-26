@@ -28,8 +28,11 @@ public sealed partial class MainViewModelTests
             .And.Contain("Local-only").And.Contain("unavailable");
     }
 
-    [Fact]
-    public async Task UndefinedRequestProviderIsRejectedBeforeRetentionOrAnyModelAdmission()
+    [Theory]
+    [InlineData("provider")]
+    [InlineData("tools-provider")]
+    [InlineData("tools-invalid")]
+    public async Task UndefinedRequestProviderOrScopeIsRejectedBeforeRetentionOrAnyModelAdmission(string fault)
     {
         var fixture = await Fixture.CreateInitializedAsync();
         var store = new SessionCommandStore(fixture);
@@ -39,9 +42,22 @@ public sealed partial class MainViewModelTests
             TimeProvider.System, NullLogger<SessionConversationService>.Instance);
         var commands = new SessionRequestCommandService(workspace, conversation, store, TimeProvider.System);
         var command = new SessionCommand(SessionCommandOperation.RequestReview, store.Session.Authority.SessionId.Value, 1, 0)
-        { RequestBody = "original", RequestProvider = (SessionRequestReview.ProviderChoice)99 };
-        await commands.Invoking(value => value.ExecuteAsync(command, RequestOrigin.LocalUi, () => true,
-            TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        {
+            RequestBody = "original",
+            RequestProvider = fault is "provider" ? (SessionRequestReview.ProviderChoice)99
+                : fault is "tools-invalid" ? SessionRequestReview.ProviderChoice.Claude : SessionRequestReview.ProviderChoice.Default,
+            RequestClaudeTools = fault is "provider" ? [] : ["unknown"],
+        };
+        if (fault is "tools-invalid")
+        {
+            await commands.Invoking(value => value.ExecuteAsync(command, RequestOrigin.LocalUi, () => true,
+                TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidDataException>();
+        }
+        else
+        {
+            await commands.Invoking(value => value.ExecuteAsync(command, RequestOrigin.LocalUi, () => true,
+                TestContext.Current.CancellationToken)).Should().ThrowAsync<InvalidOperationException>();
+        }
         store.RequestRetentions.Should().Be(0);
         admission.DefaultCalls.Should().Be(0);
         admission.CopilotCalls.Should().Be(0);

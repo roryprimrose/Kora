@@ -13,6 +13,28 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void TwoSourceSkillExampleUsesOnlyAdmittedDeclarativePageToolAndExactCommands()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var guide = pages.Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal)).Markdown;
+        const string start = "```markdown\n---\nname: two-source-comparison";
+        var normalized = guide.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var offset = normalized.IndexOf(start, StringComparison.Ordinal);
+        offset.Should().BeGreaterThanOrEqualTo(0);
+        var text = normalized[(offset + "```markdown\n".Length)..].Split("```", StringSplitOptions.None)[0];
+        var snapshot = Kora.Core.Skills.SharedSkillSnapshot.Parse(Guid.NewGuid(), "two-source-comparison\\SKILL.md",
+            Encoding.UTF8.GetBytes(text), false);
+        snapshot.DeclaredTools.Should().Equal(Kora.Core.Network.WebPageCapability.Id);
+        snapshot.UnavailableReasons.Should().Equal("declared-tools-unavailable");
+        snapshot.Text.Should().Contain("Cite each source URL").And.Contain("either source is missing or failed");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("tool skill second address https://example.net/")
+            .And.Contain("tool skill clear second address")
+            .And.Contain("three serial model rounds")
+            .And.Contain("Stop and close reviewed use");
+    }
+
+    [Fact]
     public void RegisteredSettingGuideDescribesTheClosedUnifiedOperationAndMandatoryChannelExceptions()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -252,6 +274,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "claude-requests",
             "conversation-notices",
             "owned-skill-authoring",
+            "profile-memory",
             "session-dictation",
             "hosted-requests",
             "folder-answers",
@@ -261,6 +284,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "external-browser",
             "markdown-strikethrough",
             "diagrams",
+            "mcp-transport",
             "setting-proposals",
             "session-routing",
             "reviewed-context",

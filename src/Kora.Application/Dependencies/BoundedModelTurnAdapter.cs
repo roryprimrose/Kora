@@ -9,7 +9,7 @@ namespace Kora.Application.Dependencies;
 /// <summary>Serial, volatile host-owned continuation. It cannot acquire tool or egress authority.</summary>
 internal sealed partial class BoundedModelTurnAdapter(
     IModelToolTransport transport, TimeProvider time, ILogger<BoundedModelTurnAdapter> logger)
-    : IModelTurnAdapter, IModelQuestionTurnAdapter, IAsyncDisposable
+    : IModelTurnAdapter, IModelQuestionTurnAdapter, IModelAnswerTurnAdapter, IAsyncDisposable
 {
     private readonly Lock gate = new();
     private readonly CancellationTokenSource lifetime = new();
@@ -39,11 +39,17 @@ internal sealed partial class BoundedModelTurnAdapter(
         CancellationToken cancellationToken) =>
         StartAsync(provenance, profile, context, invokeTool, validateContinuation, ask, cancellationToken);
 
+    public Task<ModelProviderReply> RunWithAnswerAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
+        ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
+        Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken) =>
+        StartAsync(provenance, profile, context, invokeTool, validateContinuation, null, cancellationToken, publish);
+
     private Task<ModelProviderReply> StartAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
         Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken, Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish = null)
     {
         ArgumentNullException.ThrowIfNull(provenance);
         ArgumentNullException.ThrowIfNull(invokeTool);
@@ -57,14 +63,14 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Task.FromResult(Finish(provenance, ModelTurnOutcome.Unavailable, ModelTurnReason.ProviderBusy)); }
             running = released = new(TaskCreationOptions.RunContinuationsAsynchronously);
         }
-        return RunOwnedAsync(provenance, profile, context, invokeTool, validateContinuation, ask, released, cancellationToken);
+        return RunOwnedAsync(provenance, profile, context, invokeTool, validateContinuation, ask, released, publish, cancellationToken);
     }
 
     private async Task<ModelProviderReply> RunOwnedAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> wire, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
         Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask, TaskCompletionSource released,
-        CancellationToken cancellationToken)
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken cancellationToken)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         try
@@ -75,7 +81,7 @@ internal sealed partial class BoundedModelTurnAdapter(
             try
             {
                 var result = await ContinueAsync(provenance, profile, wire, invokeTool, validateContinuation, ask,
-                    linked.Token).ConfigureAwait(false);
+                    publish, linked.Token).ConfigureAwait(false);
                 activity.Complete(result.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                     : result.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                     : result.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
@@ -99,15 +105,17 @@ internal sealed partial class BoundedModelTurnAdapter(
     private async Task<ModelProviderReply> ContinueAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
         ReadOnlyMemory<byte> wire, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
         Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
-        Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask, CancellationToken token)
+        Func<ModelClarificationQuestion, CancellationToken, Task<ModelQuestionAnswerMessage>>? ask,
+        Func<ModelAnswerUpdate, CancellationToken, ValueTask>? publish, CancellationToken token)
     {
         ModelToolContext context;
         try { context = ModelToolProtocol.ReadContext(wire.Span, provenance); }
         catch (InvalidDataException)
         { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-        if (ask is not null && context.ToolMode != ModelToolMode.None)
+        if (ask is not null && !ModelToolProtocol.AllowsClarification(context.ToolMode, provenance.Selection.Provider))
         { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolUseNotPermitted); }
         var history = new List<ModelToolMessage>();
+        var questionAsked = false;
         var callIds = new HashSet<string>(StringComparer.Ordinal);
         var inputBytes = 0;
         var outputBytes = 0;
@@ -115,14 +123,14 @@ internal sealed partial class BoundedModelTurnAdapter(
         var started = time.GetUtcNow();
         var inputLimit = context.Constraints?.InputUtf8Bytes ?? ModelToolProtocol.MaximumInputUtf8Bytes;
         var outputLimit = context.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes;
-        var callLimit = context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
+        var callLimit = context.WebPages?.MaximumCalls ?? context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
         for (var round = 1; ; round++)
         {
             var denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
             if (denied is not null) { return denied; }
             ModelToolRequest request;
             if (inputBytes >= inputLimit || outputBytes >= outputLimit
-                || round > (context.Constraints?.MaximumRounds ?? ModelToolProtocol.MaximumRounds))
+                || round > (context.WebPages?.MaximumRounds ?? context.Constraints?.MaximumRounds ?? ModelToolProtocol.MaximumRounds))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             try
             {
@@ -134,7 +142,21 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             var requestBytes = ModelToolProtocol.SerializeRequest(request).Length;
             ModelToolTransportReply reply;
-            try { reply = await transport.CompleteAsync(request, token).ConfigureAwait(false); }
+            try
+            {
+                reply = publish is not null && ask is null && context.ToolMode == ModelToolMode.None
+                    && provenance.Selection.Provider == ModelProviderIdentity.Ollama && transport is IModelAnswerTransport streaming
+                    ? await streaming.CompleteWithAnswerAsync(request, async (update, updateToken) =>
+                    {
+                        update.Validate();
+                        if (update.Provenance != provenance
+                            || await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false) is not null)
+                        { throw new InvalidDataException("Provisional answer admission changed."); }
+                        updateToken.ThrowIfCancellationRequested();
+                        await publish(update, token).ConfigureAwait(false);
+                    }, token).ConfigureAwait(false)
+                    : await transport.CompleteAsync(request, token).ConfigureAwait(false);
+            }
             catch (InvalidDataException)
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
             denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
@@ -156,8 +178,10 @@ internal sealed partial class BoundedModelTurnAdapter(
             { return Finish(provenance, ModelTurnOutcome.Succeeded, ModelTurnReason.None, new(answer.Answer, null)); }
             if (message is ModelClarificationQuestion question)
             {
-                if (ask is null || history.Count != 0)
+                if (ask is null || questionAsked
+                    || context.ToolMode == ModelToolMode.ReadOnly && question.Question.Options.Count == 0)
                 { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse); }
+                questionAsked = true;
                 ModelQuestionAnswerMessage replyAnswer;
                 try { replyAnswer = await ask(question, token).ConfigureAwait(false); }
                 catch (OperationCanceledException) { throw; }
@@ -192,7 +216,8 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             catch (InvalidDataException)
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            if (context.ToolMode == ModelToolMode.LocalWebPage && (assistant.Calls.Length != 1 || calls != 0))
+            if (context.ToolMode == ModelToolMode.LocalWebPage
+                && (assistant.Calls.Length != 1 || calls >= (context.WebPages?.MaximumCalls ?? 1)))
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }
             if (assistant.Calls.Length > callLimit - calls)
             { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.ToolLoopBudgetExceeded); }

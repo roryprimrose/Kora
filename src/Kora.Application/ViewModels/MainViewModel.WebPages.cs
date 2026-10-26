@@ -1,7 +1,9 @@
 using Kora.Application.Network;
+using Kora.Application.Network.ExternalBrowser;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Network;
+using Kora.Core.Network.ExternalBrowser;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Presentation;
@@ -28,6 +30,43 @@ public sealed partial class MainViewModel
     public IReadOnlyList<DetailContentReference> WebResultDetailActions =>
         WebResultDetailsReference is { } reference ? [reference] : [];
     public string WebResultDetailStatus { get; private set; } = string.Empty;
+    private ExternalBrowserWorkflow? externalBrowser;
+
+    public void BindExternalBrowserWorkflow(ExternalBrowserWorkflow workflow)
+    {
+        ArgumentNullException.ThrowIfNull(workflow);
+        ObjectDisposedException.ThrowIf(disposed, this);
+        if (externalBrowser is not null) { throw new InvalidOperationException("The external-browser workflow is already composed."); }
+        externalBrowser = workflow;
+    }
+
+    public ExternalBrowserReview PrepareExternalBrowser(DetailContentReference reference)
+    {
+        var snapshot = CurrentWebResultDetails()?.WebResult;
+        if (snapshot is null || snapshot.Reference != reference)
+        { throw new InvalidOperationException("The exact web-result source or private host is no longer available."); }
+        var privacy = privacyObservation.Current.TopologyRevision;
+        var recovery = Interlocked.Read(ref voiceRecoveryRevision);
+        var call = CallPolicyRevision;
+        var response = Interlocked.Read(ref webResponseRevision);
+        bool Current() => !disposed && IsCallMutationHostEligible && !IsResponseInteractionPending
+            && !IsBusy && !IsWebPageRetrievalActive && !IsWebSummaryActive
+            && privacyObservation.Current.TopologyRevision == privacy
+            && Interlocked.Read(ref voiceRecoveryRevision) == recovery && CallPolicyRevision == call
+            && Interlocked.Read(ref webResponseRevision) == response
+            && ReferenceEquals(CurrentWebResultDetails()?.WebResult, snapshot);
+        return (externalBrowser ?? throw new InvalidOperationException("The native external-browser workflow is unavailable."))
+            .Prepare(snapshot, Current);
+    }
+
+    public bool IsExternalBrowserReviewCurrent(ExternalBrowserReview review) =>
+        externalBrowser?.IsCurrent(review) == true;
+
+    public Task<ExternalBrowserLaunchOutcome> ConfirmExternalBrowserAsync(Guid reviewId) =>
+        (externalBrowser ?? throw new InvalidOperationException("The native external-browser workflow is unavailable."))
+        .ConfirmAsync(reviewId, () => !disposed && IsCallMutationHostEligible, CancellationToken.None);
+
+    public void CancelExternalBrowserReview() => externalBrowser?.Retire();
 
     internal void ReportWebResultDetailStatus(string status)
     {
@@ -51,6 +90,7 @@ public sealed partial class MainViewModel
 
     internal void RetireWebResultDetails(bool retireControl = true)
     {
+        CancelExternalBrowserReview();
         RetireWebSummary();
         if (retireControl) { Interlocked.Increment(ref webControlGeneration); }
         Interlocked.Increment(ref webPresentationGeneration);
@@ -82,6 +122,7 @@ public sealed partial class MainViewModel
         if (webPageCancellation is { } cancellation) { await cancellation.CancelAsync(); }
 #pragma warning disable VSTHRD003 // Exit yields the UI while the separately owned retrieval reaches its finally and signals the asynchronous release TCS.
         await webPageQuiescence;
+        if (externalBrowser is not null) { await externalBrowser.RetireAndWaitAsync(); }
 #pragma warning restore VSTHRD003
     }
 

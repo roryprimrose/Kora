@@ -221,6 +221,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "voice-and-audio",
             "responses-and-calls",
             "settings",
+            "session-permission-levels",
             "commands",
             "tools-and-built-in-skills",
             "customizations",
@@ -238,6 +239,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "hosted-requests",
             "independent-agent-runs",
             "code-highlighting",
+            "external-browser",
             "model-session-discovery",
             "agent-shared-skill-guidance");
         first.Should().OnlyContain(page =>
@@ -262,7 +264,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
         page.Markdown.Should().Contain("General concurrent workers/provider scheduling remain unqualified");
         page.Markdown.Should().Contain("combined script-set hash");
-        page.Markdown.Should().Contain("Ignore reusable grants during calls");
+        page.Markdown.Should().Contain("retain")
+            .And.Contain("applicable grants and selected policy during calls")
+            .And.Contain("Off");
     }
 
     [Fact]

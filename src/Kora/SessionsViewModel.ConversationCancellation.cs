@@ -1,5 +1,6 @@
 using Avalonia.Threading;
 
+using Kora.Application.Hosting;
 using Kora.Core.Conversation;
 
 namespace Kora;
@@ -10,6 +11,15 @@ internal sealed partial class SessionsViewModel
     private bool observingConversationCancellation;
     private bool cancellingConversation;
     private string runningConversationStatus = "No running conversation observed. Refresh running work to inspect this exact session.";
+    private ConversationAnswerPresentation? provisionalAnswer;
+    private long provisionalEpoch;
+    private long provisionalControl;
+    public string ProvisionalAnswer => provisionalAnswer is { } answer && !closed && access.CanInspect
+        && access.ControlRevision == provisionalControl && selectionEpoch == provisionalEpoch
+        && answer.Target.Request.SessionId == selected?.Authority.SessionId
+        && answer.Target.Generation == selected.Authority.Generation && answer.IsCurrent()
+        ? answer.Update.Answer : string.Empty;
+    public bool HasProvisionalAnswer => ProvisionalAnswer.Length != 0;
 
     public string RunningConversationStatus => !closed && access.CanInspect ? runningConversationStatus : "Private running-work presentation cleared.";
     public bool CanRefreshRunningConversation => !closed && access.CanInspect && selected is { Authority.IsActive: true }
@@ -24,6 +34,25 @@ internal sealed partial class SessionsViewModel
         if (closed || conversation is null || observingConversationCancellation) { return; }
         observingConversationCancellation = true;
         conversation.RunningConversationChanged += PresentConversationExecution;
+        conversation.ProvisionalAnswerChanged += PresentProvisionalAnswerAsync;
+    }
+
+    private async ValueTask PresentProvisionalAnswerAsync(ConversationAnswerPresentation answer, CancellationToken token)
+    {
+        var epoch = selectionEpoch;
+        var revision = access.ControlRevision;
+        await Dispatcher.UIThread.InvokeAsync(() =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (closed || !access.CanInspect || access.ControlRevision != revision || selectionEpoch != epoch
+                || answer.Target.Request.SessionId != selected?.Authority.SessionId
+                || answer.Target.Generation != selected.Authority.Generation || !answer.IsCurrent()) { return; }
+            provisionalAnswer = answer;
+            provisionalEpoch = epoch;
+            provisionalControl = revision;
+            OnPropertyChanged(nameof(ProvisionalAnswer));
+            OnPropertyChanged(nameof(HasProvisionalAnswer));
+        });
     }
 
     private void PresentConversationExecution(ConversationExecutionStatus observation)
@@ -37,6 +66,7 @@ internal sealed partial class SessionsViewModel
             if (runningConversation is { } current && current.Target == observation.Target
                 && current.Phase > observation.Phase) { return; }
             runningConversation = observation;
+            if (observation.Phase != ConversationExecutionPhase.Running) { provisionalAnswer = null; }
             runningConversationStatus = "Task " + observation.Target.Request.TaskId.Value.ToString("D") + ": " + (observation.Phase switch
             {
                 ConversationExecutionPhase.Running => "Running admitted conversation request. Cancel applies only to this displayed task.",
@@ -66,6 +96,7 @@ internal sealed partial class SessionsViewModel
             else
             {
                 runningConversation = null;
+                provisionalAnswer = null;
                 runningConversationStatus = "No active admitted conversation lease in this exact session. Retained task receipts remain authoritative.";
                 NotifyConversationCancellation();
             }
@@ -116,6 +147,7 @@ internal sealed partial class SessionsViewModel
         if (closed && observingConversationCancellation && conversation is not null)
         {
             conversation.RunningConversationChanged -= PresentConversationExecution;
+            conversation.ProvisionalAnswerChanged -= PresentProvisionalAnswerAsync;
             observingConversationCancellation = false;
         }
         NotifyConversationCancellation();
@@ -126,5 +158,7 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(RunningConversationStatus));
         OnPropertyChanged(nameof(CanRefreshRunningConversation));
         OnPropertyChanged(nameof(CanCancelRunningConversation));
+        OnPropertyChanged(nameof(ProvisionalAnswer));
+        OnPropertyChanged(nameof(HasProvisionalAnswer));
     }
 }

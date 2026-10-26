@@ -127,6 +127,7 @@ public sealed partial class SessionsConversationTests
     [InlineData("selection")]
     [InlineData("privacy")]
     [InlineData("hosted")]
+    [InlineData("stale-local")]
     [InlineData("wrong-row")]
     [InlineData("presenter")]
     [InlineData("expiry")]
@@ -167,6 +168,13 @@ public sealed partial class SessionsConversationTests
         }
         if (change is "privacy") { composition.Access.CanInspect = false; composition.Access.ControlRevision++; }
         if (change is "hosted") { await model.SubmitCopilotConversationAsync(); }
+        if (change is "stale-local")
+        {
+            presenter = false;
+            await model.SubmitLocalAnswerAsync();
+            model.ConversationStatus.Should().Contain("Reply mode requires");
+            model.HasAssistantReply.Should().BeTrue();
+        }
         if (change is "origin")
         {
             using var root = Kora.Core.Diagnostics.HostActivity.BeginRoot(

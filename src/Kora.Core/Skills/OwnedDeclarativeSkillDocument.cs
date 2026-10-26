@@ -1,9 +1,10 @@
 using System.Globalization;
 using System.Text;
+using Kora.Core.Network;
 
 namespace Kora.Core.Skills;
 
-/// <summary>The closed native v1 two-file format. Guidance is data, never executable metadata.</summary>
+/// <summary>The closed native two-file formats. Guidance is data, never executable metadata.</summary>
 public sealed class OwnedDeclarativeSkillDocument
 {
     private static readonly UTF8Encoding Encoding = new(false, true);
@@ -11,20 +12,25 @@ public sealed class OwnedDeclarativeSkillDocument
     private readonly byte[] instructions;
 
     private OwnedDeclarativeSkillDocument(string id, string version, string name, string description,
-        byte[] manifest, byte[] instructions)
+        byte[] manifest, byte[] instructions, OwnedSkillToolSelection tool)
     {
         Id = id;
         Version = version;
         Name = name;
         Description = description;
+        Tool = tool;
         this.manifest = manifest;
         this.instructions = instructions;
+        RevisionDigest = SkillPackageDigest.Compute(SkillPackageDigest.DefinitionVersion,
+            [new("manifest.yaml", "owned.manifest", manifest), new("instructions.md", "owned.instructions", instructions)]);
     }
 
     public string Id { get; }
     public string Version { get; }
     public string Name { get; }
     public string Description { get; }
+    public OwnedSkillToolSelection Tool { get; }
+    public string RevisionDigest { get; }
     public string ManifestText => Encoding.GetString(manifest);
     public string Guidance => Encoding.GetString(instructions);
     public ReadOnlyMemory<byte> ManifestBytes => manifest;
@@ -47,12 +53,18 @@ public sealed class OwnedDeclarativeSkillDocument
     }
 
     public static OwnedDeclarativeSkillDocument Create(string id, string version, string name,
-        string description, string guidance)
+        string description, string guidance, OwnedSkillToolSelection tool = OwnedSkillToolSelection.None)
     {
         RequireIdentity(id, version);
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        var text = $"kora-skill-format: 1\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: none\nreferences: none\n";
+        var (format, declaration) = tool switch
+        {
+            OwnedSkillToolSelection.None => ("1", "none"),
+            OwnedSkillToolSelection.WebPageGet => ("2", WebPageCapability.Id),
+            _ => throw new InvalidDataException("Select only an existing supported host capability."),
+        };
+        var text = $"kora-skill-format: {format}\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: {declaration}\nreferences: none\n";
         try { return Parse(Encoding.GetBytes(text), Encoding.GetBytes(guidance)); }
         catch (EncoderFallbackException exception)
         { throw new InvalidDataException("Skill text must be well-formed Unicode.", exception); }
@@ -84,9 +96,14 @@ public sealed class OwnedDeclarativeSkillDocument
         }
         string Field(string key) => fields.TryGetValue(key, out var value) ? value
             : throw new InvalidDataException("Unknown or missing native skill metadata.");
-        if (Field("kora-skill-format") is not "1" || Field("runtime") is not "local"
-            || Field("tools") is not "none" || Field("references") is not "none")
-        { throw new InvalidDataException("Only native v1 local, tool-free, reference-free skills can be saved."); }
+        var tool = (Field("kora-skill-format"), Field("tools")) switch
+        {
+            ("1", "none") => OwnedSkillToolSelection.None,
+            ("2", WebPageCapability.Id) => OwnedSkillToolSelection.WebPageGet,
+            _ => throw new InvalidDataException("Only native v1 tool-free or v2 exact host WebPageGet declarations are supported."),
+        };
+        if (Field("runtime") is not "local" || Field("references") is not "none")
+        { throw new InvalidDataException("Only local, reference-free native skills can be saved."); }
         var id = Field("id");
         var version = Field("version");
         RequireIdentity(id, version);
@@ -94,7 +111,7 @@ public sealed class OwnedDeclarativeSkillDocument
         var description = Field("description");
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray());
+        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray(), tool);
     }
 
     private static void RequireText(string text)

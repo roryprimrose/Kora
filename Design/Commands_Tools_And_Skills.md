@@ -28,6 +28,8 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
+
 Kora has one source-qualified artifact invocation route for bundled skills and
 compatible skill, instruction, prompt, and agent definitions. The route is
 available from the typed composer and activated voice:

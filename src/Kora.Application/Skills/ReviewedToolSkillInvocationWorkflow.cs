@@ -37,7 +37,7 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         await discovery.ValidateForUseAsync(snapshot, source, admission, Current, origin, token).ConfigureAwait(false);
         await RequireTargetAsync(target, Current, token).ConfigureAwait(false);
         using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, origin);
-        var review = new ReviewedToolSkillReview(this, source, snapshot, target, origin, Current, time, new(activity.Activity!.Context));
+        var review = new ReviewedToolSkillReview(this, new SharedToolSkillSource(source, snapshot), target, origin, Current, time, new(activity.Activity!.Context));
         if (!review.IsCurrent)
         {
             review.Dispose();
@@ -48,11 +48,41 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         return review;
     }
 
+    public async Task<ReviewedToolSkillReview> ReviewOwnedAsync(OwnedSkillInvocationWorkflow workflow,
+        OwnedSkillUseReview source, SessionWorkspaceEntry target, OwnedSkillAuthoringAuthority authority,
+        Func<bool> eligible, CancellationToken token)
+    {
+        try
+        {
+            SessionConversationService.RequireOriginalSource(authority.Origin);
+            if (source.Require(workflow).Document.Tool != OwnedSkillToolSelection.WebPageGet)
+            { throw new InvalidOperationException("Select an inspected native v2 package declaring only the existing host WebPageGet."); }
+            bool Current() => eligible() && source.IsCurrent && authority.IsCurrent();
+            await workflow.ValidateAsync(source, authority, Current, token).ConfigureAwait(false);
+            await RequireTargetAsync(target, Current, token).ConfigureAwait(false);
+            using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Policy, authority.Origin);
+            var review = new ReviewedToolSkillReview(this, new OwnedToolSkillSource(workflow, source, authority),
+                target, authority.Origin, Current, time, new(activity.Activity!.Context));
+            if (!review.IsCurrent)
+            { review.Dispose(); throw new InvalidOperationException("Owned source or target review expired."); }
+            activity.Complete(HostOperationOutcome.Completed);
+            return review;
+        }
+        catch { source.Dispose(); throw; }
+    }
+
     public async Task EnableAsync(ReviewedToolSkillReview review, Func<bool> eligible, RequestOrigin origin, CancellationToken token)
     {
         try
         {
             await ValidateAsync(review, eligible, origin, token).ConfigureAwait(false);
+            if (review.Require(this, origin) is OwnedToolSkillSource owned)
+            {
+                await owned.Workflow.EnableAsync(owned.Review, owned.Authority,
+                    () => eligible() && review.IsCurrent, token).ConfigureAwait(false);
+                review.Enable(this, origin);
+                return;
+            }
             await admission.RunAsync(origin, () => eligible() && review.IsCurrent, async (request, session, live, currentToken) =>
                 await admission.CommitAsync(request, session, live, () =>
                 {
@@ -142,8 +172,18 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         {
             SessionConversationService.RequireOriginalSource(origin);
             Require(eligible, token);
-            await discovery.ValidateForUseAsync(review.Require(this, origin), review.Source, admission,
-                () => eligible() && review.IsCurrent, origin, token).ConfigureAwait(false);
+            var source = review.Require(this, origin);
+            if (source is OwnedToolSkillSource owned)
+            {
+                await owned.Workflow.ValidateAsync(owned.Review, owned.Authority,
+                    () => eligible() && review.IsCurrent, token).ConfigureAwait(false);
+            }
+            else
+            {
+                var shared = (SharedToolSkillSource)source;
+                await discovery.ValidateForUseAsync(shared.Snapshot, shared.Registration, admission,
+                    () => eligible() && review.IsCurrent, origin, token).ConfigureAwait(false);
+            }
             await RequireTargetAsync(review.Target, () => eligible() && review.IsCurrent, token).ConfigureAwait(false);
             _ = review.Require(this, origin);
         }
@@ -169,7 +209,7 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
     {
         var snapshot = review.Require(this, request.Origin);
         var context = new ModelContextEnvelope(request, Policy, body,
-            [new(new(Guid.NewGuid()), request, new(1), snapshot.Text!, ModelEvidenceDisclosure.LocalOnly),
+            [new(new(Guid.NewGuid()), request, new(1), snapshot.Text, ModelEvidenceDisclosure.LocalOnly),
                 new(new(Guid.NewGuid()), request, new(1),
                     System.Text.Json.JsonSerializer.Serialize(new { Destination = destination.AbsoluteUri }), ModelEvidenceDisclosure.LocalOnly)],
             now, review.ExpiresAt < now.Add(ModelToolProtocol.Deadline) ? review.ExpiresAt : now.Add(ModelToolProtocol.Deadline),
@@ -178,8 +218,8 @@ public sealed class ReviewedToolSkillInvocationWorkflow(
         return context;
     }
 
-    private static SecurityAuditEvent Approval(SharedSkillSnapshot snapshot, HostRequest request, string action,
+    private static SecurityAuditEvent Approval(ReviewedToolSkillSource snapshot, HostRequest request, string action,
         SecurityAuditCategory category) =>
         new(request.RequestId.Value, category, action, SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser,
-            $"shared-revision.{snapshot.SourceId:N}.{snapshot.RevisionDigest}");
+            snapshot.AuditIdentity);
 }

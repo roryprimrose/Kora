@@ -2,7 +2,7 @@
 
 Status: bounded bundled catalogue and explicit shared-profile native inspection delivered.
 The separate [reviewed instruction-only workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs) supports volatile exact-revision enablement and one local-only zero-tool invocation, including the explicitly declared, separately consented [v2 Markdown bundle](#explicit-local-markdown-references-v2).
-The separate [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) admits a declarative shared revision declaring only the host's WebPageGet binding, with independent model-context consent and per-action authorization. General tool-dependent invocation and Kora-specific authoring remain proposed.
+The [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) admits a declarative shared revision or a separately authored native v2 owned package declaring only the host's WebPageGet binding, with independent model-context consent and per-action authorization. Owned use has its own private store/control admission, not shared-root consent; the existing shared one-source API is unchanged. [Complete owned operation and exclusions](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 

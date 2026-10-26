@@ -40,7 +40,7 @@ public sealed partial class SessionConversationService
         void Bind(ModelTurn turn, Func<bool> live)
         {
             invocation = new(webPageAction, interactions, presenter, turn.Provenance.Request, target.Authority.Generation,
-                destination, turn.Context.ExpiresAt, live, time);
+                destination, turn.Context.ExpiresAt, live, time, validateSource);
             modelHost.BindWebPage(turn, invocation);
         }
         ModelTurnResult Resolve(ModelTurnResult result) => invocation?.Completed == true

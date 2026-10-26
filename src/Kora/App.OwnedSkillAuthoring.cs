@@ -2,6 +2,7 @@ using Kora.Application.Hosting;
 using Kora.Application.Skills;
 using Kora.Application.ViewModels;
 using Kora.Core.Auditing;
+using Kora.Core.Artifacts;
 using Kora.Core.Dependencies;
 using Kora.Core.Storage;
 using Kora.Windows.Skills;
@@ -14,6 +15,7 @@ namespace Kora;
 public sealed partial class App
 {
     private OwnedSkillEditorController? ownedSkillEditor;
+    private NamedSkillInvocationController? namedSkillInvocation;
 
     private void BindOwnedSkillAuthoring(MainViewModel main)
     {
@@ -32,6 +34,14 @@ public sealed partial class App
             Services.GetRequiredService<ILogger<OwnedSkillInvocationController>>(),
             ActivatorUtilities.CreateInstance<ReviewedToolSkillInvocationWorkflow>(Services), questionWindow);
         use.Bind();
+        namedSkillInvocation = new(main,
+            new NamedSkillCatalogue(store, workflow, Services.GetRequiredService<SharedSkillDiscoveryService>(),
+                Services.GetRequiredService<ISessionWorkspaceAccess>(), Services.GetRequiredService<IArtifactUsePolicy>(),
+                Services.GetRequiredService<TimeProvider>()),
+            useWorkflow, Services.GetRequiredService<SharedSkillInvocationWorkflow>(),
+            () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
+            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>());
+        namedSkillInvocation.Bind();
         ownedSkillEditor = new(main, workflow, admission,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use);

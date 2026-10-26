@@ -165,11 +165,7 @@ public sealed class OwnedSkillInvocationWorkflow(
             {
                 var actual = await store.Read(expected.Document.Id, expected.Document.Version, admitted).ConfigureAwait(false);
                 Require(live, admitted);
-                if (actual is null || !string.Equals(actual.DirectoryIdentity, expected.DirectoryIdentity, StringComparison.Ordinal)
-                    || !string.Equals(actual.ManifestIdentity, expected.ManifestIdentity, StringComparison.Ordinal)
-                    || !string.Equals(actual.InstructionsIdentity, expected.InstructionsIdentity, StringComparison.Ordinal)
-                    || !actual.Document.ManifestBytes.Span.SequenceEqual(expected.Document.ManifestBytes.Span)
-                    || !actual.Document.InstructionBytes.Span.SequenceEqual(expected.Document.InstructionBytes.Span))
+                if (actual is null || !expected.IsSameRevision(actual))
                 { throw new InvalidDataException("The exact private saved package changed, was replaced or is missing. Review again."); }
                 return true;
             }, token).ConfigureAwait(false);

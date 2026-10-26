@@ -65,6 +65,9 @@ Save, enablement and execution each have distinct decisions.
 
 ### Local Markdown-reference skills
 
+For supported single-file instruction-only shared skills and native owned instruction-only packages, the [readable-name invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name) uses explicit native inspection, immutable source choices and the existing canonical reviewed local-model workflows.
+Names grant no authority; reference/tool/executable routes remain separate ([host](../src/Kora/NamedSkillInvocationController.cs)).
+
 A registered shared-profile skill can explicitly declare up to four local
 Markdown references using the [v2 format](../Design/Skill_Storage.md#explicit-local-markdown-references-v2).
 Listing a source does not read their contents or authorize use. Review the

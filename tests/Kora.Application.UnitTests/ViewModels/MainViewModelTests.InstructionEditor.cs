@@ -22,6 +22,8 @@ public sealed partial class MainViewModelTests
     [InlineData("Kora, instructions compare", "Compare", null)]
     [InlineData("instructions rebase", "Rebase", null)]
     [InlineData("Kora, instructions rebase", "Rebase", null)]
+    [InlineData("instructions refine", "Refine", null)]
+    [InlineData("Kora, instructions refine", "Refine", null)]
     [InlineData("instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("Kora, instructions copy new-copy", "Save as new copy", "new-copy")]
     [InlineData("instructions reload", "Reload", null)]
@@ -84,6 +86,8 @@ public sealed partial class MainViewModelTests
         await f.RunAsync("instructions validate example");
         await f.RunAsync("instructions compare example");
         await f.RunAsync("instructions rebase example");
+        await f.RunAsync("instructions refine example");
+        await f.RunAsync("prompts refine");
         await f.RunAsync("instructions unknown");
         await f.RunAsync("instructions disable example");
         await f.RunAsync("instructions stop-use extra");
@@ -107,6 +111,46 @@ public sealed partial class MainViewModelTests
         f.ViewModel.BindOwnedInstructionFreshness(null);
         await f.ViewModel.ExitAsync();
         f.ViewModel.BindInstructionEditorShutdown(null);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RefinementCapturesOriginalEligibilityAndRetiresItOnCallChange(bool routed)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        Func<bool>? captured = null;
+        if (routed)
+        {
+            f.ViewModel.OwnedInstructionEditorRequested += (_, _) =>
+            { captured = f.ViewModel.CaptureInstructionRefinementEligibility(); return Task.CompletedTask; };
+            await f.RunAsync("instructions refine");
+        }
+        else { captured = f.ViewModel.CaptureInstructionRefinementEligibility(); }
+        captured!().Should().BeTrue();
+        f.CallState.SetState(CallState.Active);
+        captured().Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RefinementVoiceEntryRequiresCurrentNameAndPreservesOriginalChannel(bool prefixed)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var calls = 0;
+        f.ViewModel.OwnedInstructionEditorRequested += (operation, _) =>
+        {
+            operation.Should().Be("Refine");
+            Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(Kora.Core.Hosting.RequestOrigin.ActivatedVoice);
+            f.ViewModel.CaptureInstructionRefinementEligibility()().Should().BeTrue();
+            calls++;
+            return Task.CompletedTask;
+        };
+        await f.RaiseActivatedTranscriptAsync(prefixed ? "Kora, instructions refine" : "instructions refine", 1);
+        calls.Should().Be(prefixed ? 1 : 0);
+        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Theory]

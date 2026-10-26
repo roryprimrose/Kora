@@ -239,6 +239,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "hosted-requests",
             "independent-agent-runs",
             "external-browser",
+            "diagrams",
             "session-routing",
             "model-session-discovery",
             "agent-shared-skill-guidance");

@@ -33,7 +33,7 @@ public sealed partial class DetailContentView : UserControl
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
 
     internal DetailContentView(DetailViewerState state, NativeDocumentResult result, Func<bool, int?, int, Task> copySource,
-        MainViewModel? typographyHost = null)
+        MainViewModel? typographyHost = null, Diagrams.IMermaidRenderer? mermaidRenderer = null)
     {
         this.state = state;
         this.copySource = copySource;
@@ -115,6 +115,7 @@ public sealed partial class DetailContentView : UserControl
         search.PastingFromClipboard += BlockClipboardRead;
         reader.AddHandler(ContextRequestedEvent, BlockContextMenu, RoutingStrategies.Tunnel);
         search.AddHandler(ContextRequestedEvent, BlockContextMenu, RoutingStrategies.Tunnel);
+        AttachMermaid(content, mermaidRenderer);
         state.PropertyChanged += OnStateChanged;
         Refresh();
     }
@@ -291,6 +292,7 @@ public sealed partial class DetailContentView : UserControl
     {
         if (cleared) { return; }
         cleared = true;
+        RetireMermaid();
         state.PropertyChanged -= OnStateChanged;
         state.Close();
         reader.SelectionStart = 0;

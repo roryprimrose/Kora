@@ -59,17 +59,18 @@ public sealed partial class SessionsConversationTests
             try
             {
                 var button = window.GetVisualDescendants().OfType<Button>()
-                    .Single(item => string.Equals(item.Name, "ReviewSpeechSummarySuggestion", StringComparison.Ordinal));
+                    .Single(item => string.Equals(item.Name, "ReviewRegisteredSettingSuggestion", StringComparison.Ordinal));
                 button.DataContext.Should().BeSameAs(answer);
                 button.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.SpeechSummaryOperation;
+                await owner.RegisteredSettingOperation;
+                model.RegisteredSettingSuggestionDescription.Should().Be(model.SpeechSummarySuggestionDescription);
                 model.SpeechSummarySuggestionDescription.Should().Contain("Current: 3 sentences, 80 words (default)")
                     .And.Contain($"Proposed: {sentences} sentences, {words} words").And.Contain("shared device-local")
                     .And.Contain("NEXT ordinary speech");
                 preferences.LoadSummaryLimits().Should().BeNull();
                 audit.Events.Should().BeEmpty();
-                window.FindControl<Button>("ConfirmSpeechSummarySuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await owner.SpeechSummaryOperation;
+                window.FindControl<Button>("ConfirmRegisteredSettingSuggestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await owner.RegisteredSettingOperation;
                 model.ConversationStatus.Should().NotContain("Unconfirmed");
                 new LocalTextToSpeechPreferences(f.Paths, NullLogger<LocalTextToSpeechPreferences>.Instance)
                     .LoadSummaryLimits().Should().Be(new SpokenSummaryLimits(sentences, words));

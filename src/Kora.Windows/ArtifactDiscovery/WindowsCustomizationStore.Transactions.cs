@@ -30,6 +30,8 @@ public sealed partial class WindowsCustomizationStore
         CustomizationFile[] files, Func<bool> eligible, CancellationToken token)
     {
         RequireEligible(eligible, token);
+        if (IsInstructionOriginal(target.Source))
+        { return PublishInstructionOriginal(target, expected, files, eligible, token); }
         using var root = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, true, token);
         using var journalRoot = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(JournalDirectory, true, token);
         var current = Capture(target, token);
@@ -103,6 +105,7 @@ public sealed partial class WindowsCustomizationStore
         lock (gate)
         {
             var target = Resolve(source);
+            if (IsInstructionOriginal(source)) { RequireInstructionRegistration(target, token); }
             var journal = ReadJournal(target, token)
                 ?? throw new InvalidOperationException("There is no unfinished transaction for this source.");
             var current = Capture(target, token);

@@ -351,7 +351,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
             Marshal.Copy(descriptor, 0, memory, descriptor.Length);
             Marshal.StructureToPtr(new SecurityAttributes { Length = Marshal.SizeOf<SecurityAttributes>(), Descriptor = memory }, attributes, false);
             // NtSetInformationFile must finish before its native status buffer and cancellation ownership retire.
-            return CreateFile(path, 0xC0010000, 0, attributes, 1, 0x00200000, nint.Zero);
+            return CreateFile(path, 0xC00F0000, 0, attributes, 1, 0x00200000, nint.Zero);
         }
         finally { Marshal.FreeHGlobal(attributes); Marshal.FreeHGlobal(memory); }
     }
@@ -384,6 +384,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess(IApplicationDataP
     {
         private readonly List<SafeFileHandle> handles = [];
         internal SafeFileHandle Last => handles[^1];
+        internal string BindingIdentity => Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+            System.Text.Encoding.UTF8.GetBytes(string.Join('\0', handles.Select(WindowsFileIdentity.Read)))));
         internal void Add(SafeFileHandle handle) => handles.Add(handle);
         public void Dispose() { foreach (var handle in handles) { handle.Dispose(); } }
     }

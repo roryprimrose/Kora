@@ -413,6 +413,8 @@ admits one local-only tool-free answer or cancellation. Source brokers and reten
 remain independent; device-profile/model-proposed memories and provider qualification
 are not implementation prerequisites or implicitly enabled capabilities.
 
+Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
+
 ## User-Governed Durable Memory
 
 ### Delivered explicit Device-profile operation

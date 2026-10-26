@@ -162,6 +162,7 @@
         </StackPanel>
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <local:AssistantReplyPanel />
         <Button x:Name="SessionInstructionScopes" Content="Apply or stop an instruction for this Active session"
             IsEnabled="{Binding CanCompose}"
             AutomationProperties.Name="Review and separately confirm volatile ordinary local session guidance, or stop applying; no hosted or tools" />

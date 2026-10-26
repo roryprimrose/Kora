@@ -119,6 +119,15 @@ test('controller wakes on both priority label additions and removals without tru
   assert.doesNotMatch(controller, /github\.event\.label|context\.payload\.label/);
 });
 
+test('merge and CI events wake the serialized trusted controller without waiting for the recovery timer', () => {
+  assert.match(controller, /pull_request_target:\n    branches: \[main\]\n    types: \[[^\]]*\bclosed\b[^\]]*\]/);
+  assert.match(controller, /\n  push:\n    branches: \[main\]/);
+  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    types: \[requested, completed\]/);
+  assert.match(controller, /\n  schedule:\n    - cron: '\*\/5 \* \* \* \*'/);
+  assert.match(controller, /\n  workflow_dispatch:/);
+  assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+});
+
 test('controller workflow awaits its summary on success and preserves reconciliation failures', async () => {
   const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
     .split('\n').map(line => line.replace(/^            /, '')).join('\n');

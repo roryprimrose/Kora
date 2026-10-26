@@ -1210,6 +1210,44 @@ ordinary Submit remains separate. See the [session dictation guide](../docs/sess
 Production literal capture remains explicitly unqualified and unavailable;
 deterministic platform fakes do not establish speech-profile qualification.
 
+#### Bounded provisional literal feedback
+
+During an explicitly admitted LOCAL existing-session dictation hold, optional
+[hypothesis observation](../src/Kora.Core/Voice/IProvisionalVoiceRecognitionService.cs)
+uses the actual acknowledged capture generation and exact native target. The
+[Windows wrapper](../src/Kora.Windows/Audio/WindowsActivatedCapture.cs) observes
+`System.Speech` hypotheses without expanding microphone lifetime. The shared
+host forwards only activated observations; wake, command dispatch, approvals,
+question replies and New request dictation gain no provisional presentation
+([feedback owner](../src/Kora.Application/Voice/ComposerDictationService.Provisional.cs)).
+
+Complete replace-only snapshots are bounded to 512 UTF-16 characters and
+1,024 strict UTF-8 bytes. Invalid/oversized input visibly retires preview, not
+final-only dictation; older/duplicate/foreign-generation observations cannot
+replace current feedback. One pending UI callback holds no captured text or
+target. Edit/selection/source/private/control/device/call/lock/cancellation,
+expiry, final completion and disposal clear feedback and fence queued work.
+No partial input is inserted, dispatched, retained, copied/exported, spoken,
+logged or used for activity renewal or source/approval authority
+([validation](../src/Kora.Core/Voice/ProvisionalTranscriptSnapshot.cs),
+[native surface](../src/Kora/SessionDictation/SessionDictationWindow.cs)).
+
+Native retirement joins actual recorder, recognizer and stream release. A
+delayed privacy cleanup with no remaining resources must not enqueue new
+release work or revoke the completed stop receipt; outstanding or failed
+native work still prevents quiescence. Deterministic lock/device regressions
+control that ordering without retries or timing sleeps
+([release regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.Quiescence.cs)).
+
+The native read-only `Provisional—may change` area has a stable content-free
+automation label and no live region or value/text editing provider; accessible
+final review remains separate. Only the accepted final transcript enters the
+existing original-input memory publication and subsequent explicitly admitted
+Submit. Deterministic tests cover that complete path through a retained real
+test-model answer, not a disconnected field preview; production literal/profile
+qualification remains unavailable and no hardware/acoustic trial is claimed
+([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ProvisionalDictation.cs)).
+
 ### Explicit retained original USER text reuse — 2026-10-19
 
 An actual currently admitted immutable conversation row in Sessions or compact conversation offers **Review reuse of this original USER text in a New request**. This is content reuse, **never task replay/resumption** or promotion of HOST/model output. Reconstructed/value-equal rows, hidden/private/omitted/revoked records, question answers and generated content are not reuse sources.

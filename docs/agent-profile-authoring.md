@@ -30,11 +30,32 @@ deadline-ms: 1000
 Explain only the supplied text. Do not request external resources.
 ```
 
-**agent author validate** checks the complete existing v1 format, UTF-8 size and
-budgets without writing, selecting or running anything. Requested budgets remain
-subject to the existing host clamps. Only local text input/output, references none,
-tools none and zero calls are supported here. V2 references, scripts and hooks
-are not authoring options.
+**agent author validate** checks the complete v1 or v4 format, UTF-8 size and budgets without writing, resolving references, enabling, selecting or running anything. V1 authoring still requires references none, tools none and zero calls.
+V4 authoring adds the combined owned-instruction/observation-tool declaration below; v2/v3 authoring, scripts and hooks remain unsupported ([owned document validation](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+
+For a role that follows owned guidance and observes the application version in the same run:
+
+```markdown
+---
+name: example
+description: Explain the observed version using exact owned guidance
+kora-agent-format: 4
+runtime: local
+input: text
+output: text
+references: disk.kora-profile.instruction.example
+tools: application.get_version
+maximum-calls: 1
+maximum-rounds: 2
+maximum-input-bytes: 32768
+maximum-output-bytes: 4096
+deadline-ms: 15000
+---
+Follow the separately reviewed guidance. Observe the version only if needed for the original request.
+```
+
+Replace the reference with your exact independently enabled Kora-owned instruction ID. Saving is an inert new original, not resolution consent or enablement.
+Later [run review](tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile) requires separate source resolution, complete guidance/tools/cumulative-budget review, and exact single-use invocation confirmation ([workflow](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs)).
 
 **agent author save as new** prepares a review showing the **complete proposed
 source**, exact new destination and inert status. Review is not consent to write.

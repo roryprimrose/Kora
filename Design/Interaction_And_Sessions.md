@@ -841,8 +841,7 @@ The [hosted request regressions](../tests/Kora.Windows.IntegrationTests/HostedSe
 The current implementation provides **Answer by voice** for the authoritative
 host's exact live foreground native question, plus the deliberately selected
 **Hear question, then answer by voice** action. The latter opens one reply only
-after successful playback of that same question. It is not a global automatic
-conversation mode or a Settings preference. Existing consent, listening hold,
+after successful playback of that same question. Existing consent, listening hold,
 unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
@@ -868,6 +867,20 @@ of later hardware/acoustic/installed qualification.
 Host-resolved traces preserve same-request presentation parentage and link
 deferred reply/recovery causes; incoming correlation never selects the question
 or session and carries no transcript content.
+
+### Opt-in exact-playback conversational replies
+
+The device-local **Conversational voice replies** preference starts Off ([shared preference](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+Enabling it in **Settings > Speech & audio** permits the first foreground presentation of a new exact host clarification to speak that question and then open the same one-shot reply, without another click or activation name ([native routing](../src/Kora/NativeQuestionViewModel.cs)).
+
+Only canonical host clarification/local-version questions and host-validated model clarifications qualify. Approvals, egress/consent questions and arbitrary source purposes do not. Successful completion of the exact playback is required before capture; a visual-only card never directly starts transcription ([reply admission](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+
+The preference revision joins the existing exact question/session/presenter, microphone, ownership, privacy and call fences. Replacement, cancellation, timeout, failure, editing or foreground loss retires that attempt ([portable regressions](../tests/Kora.Application.UnitTests/Interaction/HostQuestionVoiceReplyServiceTests.Conversational.cs)).
+Re-activation, preference changes and late callbacks cannot retry or rearm it; native answers and the two explicit voice actions remain available under their existing gates ([native regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Conversational.cs)).
+
+The existing 15-second start window and 60-second utterance limit, accessible status and **Cancel reply** apply ([voice lifecycle](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+This saves only an audited On/Off preference, not audio or transcripts; an invalid/unconfirmed preference holds automatic replies unavailable ([preference storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
+It grants no microphone consent, ambient wake, provider readiness, approval or egress authority. Exact-profile installed/acoustic/hardware enablement and qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ### Broader target behavior
 

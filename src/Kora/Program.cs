@@ -412,6 +412,9 @@ internal static class Program
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechTextConfigurationService>();
+        services.AddSingleton<IConversationalReplyPreferences>(provider =>
+            new LocalConversationalReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ConversationalReplyConfigurationService>();
         services.AddSingleton<DesktopSessionWorkspaceAccess>();
         services.AddSingleton<ISessionWorkspaceAccess>(provider => provider.GetRequiredService<DesktopSessionWorkspaceAccess>());
         services.AddSingleton<SessionWorkspaceService>();

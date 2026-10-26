@@ -153,7 +153,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private BuiltInAction? pendingModelAction;
     private LocalModelArtifact? pendingModelActionArtifact;
     private SecurityAuditEvent? pendingModelActionAudit;
-    private long pendingModelActionCallRevision;
     private GrantChange? pendingGrantChange;
     private SecurityAuditEvent? pendingGrantChangeAudit;
     private LocalModelQuestion? pendingModelQuestion;
@@ -2525,11 +2524,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .AppendLine();
         AppendGrantSection(builder, "This session", sessionAllowedModelActions);
         AppendGrantSection(builder, "Always on this device", alwaysAllowedModelActions);
-        if (AreReusableGrantsIgnored)
-        {
-            builder.AppendLine("Ignored during call; single-use approval required. Stored reusable grants are unchanged.")
-                .AppendLine();
-        }
         builder.AppendLine("## Change a grant")
             .AppendLine()
             .AppendLine("Say \"manage grants\" to prepare an add, edit, or removal. Every proposed change must be confirmed in the response window.");
@@ -5017,7 +5011,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     }
                     pendingModelAction = action;
                     pendingModelActionArtifact = artifact;
-                    pendingModelActionCallRevision = callRevision;
                     pendingModelActionAudit = proposedAudit;
                     OnPropertyChanged(nameof(IsModelActionApprovalPending));
                     OnPropertyChanged(nameof(IsApprovalPending));
@@ -5305,12 +5298,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Denied model-action approval outside the eligible host generation");
             return;
         }
-        if (pendingModelAction is not null && pendingModelActionCallRevision != CallPolicyRevision)
-        {
-            await ClearPendingModelActionAsync("call-policy-changed");
-            ShowInformation("Call policy changed.", "The previous approval is no longer applicable. Initiate a fresh request; nothing was replayed.");
-            return;
-        }
         if (pendingModelActionArtifact is { } pendingArtifact
             && (!artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
                 || scope != ModelApprovalScope.Once))
@@ -5339,10 +5326,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ApplicationLog.Information(logger, "Denied model-action approval after a Windows privacy transition");
                 return;
             }
-            if (callRevision != CallPolicyRevision || AreReusableGrantsIgnored && scope != ModelApprovalScope.Once)
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && !communicationPolicy.Current.Authorization(IsHostInputEligible, true)
+                    .AllowsApprovalChannel(RequestOrigin.ActivatedVoice))
             {
-                ShowInformation("Fresh single-use approval is required.",
-                    "Call policy changed or reusable grants are ignored. No grant was changed and no action was dispatched.");
+                ShowInformation("Spoken approvals disabled during call; UI available.",
+                    "The pending operation remains unapproved. No grant was changed and rejected speech will not be replayed.");
                 return;
             }
 
@@ -5352,22 +5341,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     requireAssistantNameForVoiceApproval,
                     alwaysAllowedModelActions.Append(action).Distinct(),
                     initiator, () => ReferenceEquals(pendingModelActionAudit, approval)
-                        && CallPolicyRevision == callRevision
                         && Interlocked.Read(ref reusableGrantRevision) == expectedGrantRevision))
             {
                 return;
             }
-            if (!ReferenceEquals(pendingModelActionAudit, approval) || !IsHostInputEligible
-                || CallPolicyRevision != callRevision) { return; }
+            if (!ReferenceEquals(pendingModelActionAudit, approval) || !IsHostInputEligible) { return; }
             await ClearPendingModelActionAsync($"approved-{scope.ToString().ToLowerInvariant()}");
             if (disposed || !IsHostInputEligible
                 || preparation != Interlocked.Read(ref approvalPreparationRevision)) { return; }
-            if (callRevision != CallPolicyRevision)
-            {
-                ShowInformation("Call policy changed.",
-                    "The approval became stale while its audit receipt completed. No action was dispatched or reusable grant published.");
-                return;
-            }
             if (modelPreferenceWriteActive || Interlocked.Read(ref reusableGrantRevision) != expectedGrantRevision)
             {
                 ShowFailure("The grant changed before confirmation.", "A concurrent revocation retired this approval continuation. No action was dispatched or grant published.");
@@ -5987,9 +5968,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
         var restartDispatched = false;
-        var callRevision = CallPolicyRevision;
         var privacyRevision = privacyObservation.Current.TopologyRevision;
-        bool Eligible() => IsCallMutationHostEligible && CallPolicyRevision == callRevision
+        bool Eligible() => IsCallMutationHostEligible
             && privacyObservation.Current.TopologyRevision == privacyRevision;
         var audit = await StartAuditAsync(
             SecurityAuditCategory.ApplicationExecution,
@@ -6036,8 +6016,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
             {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "call-policy-changed");
-                ShowInformation("Call policy changed.", "The model authorization became stale before restart; no restart was dispatched.");
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
+                ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before restart; no restart was dispatched.");
                 return;
             }
             lifecycleAdmissionClosed = true;
@@ -6074,9 +6054,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         ClearClipboardPreview();
         ClearFilePreview();
-        var callRevision = CallPolicyRevision;
         var privacyRevision = privacyObservation.Current.TopologyRevision;
-        bool Eligible() => IsCallMutationHostEligible && CallPolicyRevision == callRevision
+        bool Eligible() => IsCallMutationHostEligible
             && privacyObservation.Current.TopologyRevision == privacyRevision;
         var audit = await StartAuditAsync(
             SecurityAuditCategory.ProtectedOperation,
@@ -6089,8 +6068,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 && isModelActionDispatchActive);
             if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
             {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "call-policy-changed");
-                ShowInformation("Call policy changed.", "The model authorization became stale before lock; no lock was dispatched.");
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
+                ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before lock; no lock was dispatched.");
                 return;
             }
             if (sessionController.LockCurrentSession())

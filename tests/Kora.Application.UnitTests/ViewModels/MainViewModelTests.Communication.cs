@@ -33,7 +33,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.CurrentCallState.Should().Be(CallState.Active);
         fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.AreReusableGrantsIgnored.Should().BeTrue();
+        fixture.ViewModel.AreReusableGrantsIgnored.Should().BeFalse();
         await fixture.ViewModel.ClearManualCallCommand.ExecuteAsync();
         fixture.ViewModel.IsManualCallActive.Should().BeFalse();
         fixture.ViewModel.IsProtectedCall.Should().Be(remainsProtected);
@@ -212,7 +212,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Fact]
-    public async Task Protected_calls_ignore_legacy_reuse_without_revoking_and_pre_call_approvals_are_stale()
+    public async Task Protected_calls_preserve_saved_reuse_without_minting_another_grant()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
@@ -222,19 +222,16 @@ public sealed partial class MainViewModelTests
         fixture.CallState.SetState(CallState.Unknown);
         await fixture.RunAsync("please secure this computer");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle();
-        fixture.ViewModel.GetGrantDocument().Should().Contain("Ignored during call");
-        await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
-        fixture.Session.LockCalls.Should().Be(0);
+        fixture.ViewModel.GetGrantDocument().Should().NotContain("Ignored during call");
         fixture.CallState.SetState(CallState.Clear);
-        await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Session.LockCalls.Should().Be(1);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         await fixture.RunAsync("please secure this computer");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.Session.LockCalls.Should().Be(2);
     }
 
     [Fact]
@@ -340,7 +337,7 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(BuiltInAction.LockMachine)]
     [InlineData(BuiltInAction.RestartApplication)]
-    public async Task Legacy_reusable_authorization_is_rechecked_after_asynchronous_audio_shutdown(BuiltInAction action)
+    public async Task Applicable_saved_authorization_is_not_withdrawn_solely_by_call_entry_during_audio_shutdown(BuiltInAction action)
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
@@ -350,9 +347,28 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.BeforeStop = () => fixture.CallState.SetState(CallState.Unknown);
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.Session.LockCalls.Should().Be(action == BuiltInAction.LockMachine ? 1 : 0);
+        if (action == BuiltInAction.RestartApplication) { fixture.Events.Should().Contain("process.restart"); }
+        fixture.Audit.Events.Should().NotContain(e => e.Outcome == SecurityAuditOutcome.Denied && e.ReasonCode == "call-policy-changed");
+    }
+
+    [Theory]
+    [InlineData(BuiltInAction.LockMachine)]
+    [InlineData(BuiltInAction.RestartApplication)]
+    public async Task Mandatory_ownership_loss_during_audio_shutdown_still_prevents_an_approved_effect(BuiltInAction action)
+    {
+        var fixture = new Fixture();
+        fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
+        fixture.Reasoner.Action = action;
+        fixture.ApprovalPreferences.Save(new(true, [action]));
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.BeforeStop = () => fixture.ViewModel.BindCallOwnershipGate(static () => false);
+        await fixture.RunAsync("carry out the requested action");
+        await fixture.ViewModel.ActiveReasoningTask!;
         fixture.Session.LockCalls.Should().Be(0);
         fixture.Events.Should().NotContain("process.restart");
-        fixture.Audit.Events.Should().Contain(e => e.Outcome == SecurityAuditOutcome.Denied && e.ReasonCode == "call-policy-changed");
+        fixture.Audit.Events.Should().Contain(entry => entry.Outcome == SecurityAuditOutcome.Denied
+            && entry.ReasonCode == "host-admission-changed");
     }
 
     [Theory]
@@ -376,12 +392,12 @@ public sealed partial class MainViewModelTests
         };
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(0);
-        fixture.ViewModel.ResponseTitle.Should().Be("Saved permission is not eligible.");
+        fixture.Session.LockCalls.Should().Be(ownershipLost ? 0 : 1);
+        if (ownershipLost) { fixture.ViewModel.ResponseTitle.Should().Be("Saved permission is not eligible."); }
     }
 
     [Fact]
-    public async Task Call_entry_during_pending_once_confirmation_cannot_dispatch_or_grant_reuse()
+    public async Task Call_entry_after_native_once_acceptance_does_not_revoke_the_committed_decision()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
@@ -395,9 +411,9 @@ public sealed partial class MainViewModelTests
                 && !fixture.ViewModel.IsModelActionApprovalPending) { fixture.CallState.SetState(CallState.Active); }
         };
         await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Session.LockCalls.Should().Be(1);
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
-        fixture.ViewModel.ResponseTitle.Should().Be("Call policy changed.");
+        fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
     }
 
     [Theory]

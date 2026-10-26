@@ -30,6 +30,9 @@ public sealed partial class ModelTurnHostTests
     [InlineData("answer-channel")]
     [InlineData("connection-voice")]
     [InlineData("consume-grant")]
+    [InlineData("consume-admission")]
+    [InlineData("dispatch-denied")]
+    [InlineData("dispatch-admission")]
     public async Task Mcp_native_approval_identity_scope_and_answer_cannot_be_forged(string fault)
     {
         using var f = new Fixture();

@@ -13,6 +13,7 @@ public sealed class EmbeddedUserDocumentationProvider : IUserDocumentationProvid
         "voice-and-audio",
         "responses-and-calls",
         "settings",
+        "session-permission-levels",
         "commands",
         "tools-and-built-in-skills",
         "customizations",

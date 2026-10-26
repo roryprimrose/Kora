@@ -115,12 +115,13 @@ reopening capture or replaying output. Changed input needs explicit fresh
 listening enablement/PTT. These are process-memory effects, not an atomic
 persisted manual flag. Lost outcome evidence or unconfirmed resource closure
 does not certify rollback: a separate explicit run-owned
-`ManualControlEvidenceUnavailable` hold prevents speech, activation and reusable
-grant admission, without changing automatic observations or saved flags.
+`ManualControlEvidenceUnavailable` hold prevents speech, activation and action
+admission through mandatory host gates, without revoking grants or changing automatic observations or saved flags.
 Further manual mutations cannot use that unknown state as authority.
 
-The saved `CallAwareSettings` tuple, defaults, Perpetual/session grant records
-and unavailable `ExactReviewUnavailable` relaxation path remain unchanged.
+Perpetual/session grant records remain unchanged. The additive spoken-approval
+preference defaults Off, including known older saved tuples. Other unavailable
+`ExactReviewUnavailable` relaxation paths remain unchanged.
 Restart starts manual-off with the composed detector still unavailable. This
 does not deliver automatic detection, persisted call state, new settings/model
 tools, speak-once, output mode/volume, microphone/consent, or full R15.
@@ -240,11 +241,11 @@ The model-facing `calls.*`, `speech.*`, and `settings.*` boundaries are defined 
 
 ## Ignoring Reusable Grants During Calls
 
-The former proposed default-On `calls.ignoreReusableGrants` setting is superseded by [Spoken Approvals During Calls](#spoken-approvals-during-calls). Keep this heading for historical links. Current reusable-grant suppression remains described in the [delivered manual-mode boundary](#delivered-bounded-manual-mode---2026-10-07); it is not the target behavior for the new feature.
+The former default-On `calls.ignoreReusableGrants` behavior is superseded by [Spoken Approvals During Calls](#spoken-approvals-during-calls). Keep this heading for historical links. Call entry does not withdraw applicable grants or selected session levels.
 
 ## Spoken Approvals During Calls
 
-Propose device-local **`calls.allowSpokenApprovals`**, **Off by default**. During manual Active, supported enabled Active/Suspected, or enabled Unknown/stale/failed call evidence, reject spoken Once/Session/Always approval and disclosure-consent answers while preserving the pending UI card. UI can select every otherwise valid grant duration; calls do not force Once.
+Device-local **`calls.allowSpokenApprovals`** is **Off by default**. During manual Active, supported enabled Active/Suspected, or enabled Unknown/stale/failed call evidence, reject spoken Once/Session/Always approval and disclosure-consent answers while preserving the pending UI card. UI can select every otherwise valid grant duration; calls do not force Once.
 
 Existing applicable grants, preapproved destinations and the selected Review all / Model review / Approve all level remain effective. Call entry does not revoke/ignore those grants or turn automatic admission into a fresh-approval requirement. Safe and Approve-all eligible actions can continue without prompting; independent consent and mandatory gates still apply.
 

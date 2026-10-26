@@ -62,8 +62,12 @@ internal sealed class LocalWebPageInvocation(
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "exact-page-approval-required"); }
             var authorization = new HostAuthorizationService(store, time);
             var consumed = await authorization.ConsumeAsync(invocation, grant.Id, grant.Revision, token).ConfigureAwait(false);
-            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt)
+            if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
+                || consumed.Admission is not { } admission)
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "page-approval-not-current"); }
+            var dispatched = await authorization.DispatchAsync(invocation, admission, token).ConfigureAwait(false);
+            if (dispatched.Outcome != HostInteractionOutcome.Consumed || dispatched.Admission is not { } dispatch)
+            { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "page-admission-retired"); }
 
             async ValueTask<bool> Current(Uri address, CancellationToken checkToken)
             {
@@ -75,6 +79,7 @@ internal sealed class LocalWebPageInvocation(
                     return Live(checkToken) && snapshot.Session.Generation == generation
                         && InteractionTransaction.CanInteract(snapshot) && snapshot.Policy.OtherMandatoryGatesSatisfied
                         && snapshot.Proposal == proposal && current == receipt
+                        && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
                         && current.Status == OperationGrantStatus.Consumed
                         ? (snapshot, new(HostInteractionOutcome.Approved, "exact-page-use-current"))
                         : InteractionTransaction.Reject(snapshot, "exact-page-use-retired");

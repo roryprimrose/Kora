@@ -213,8 +213,7 @@ public sealed partial class SessionsViewModelTests
         Read("Program.cs").Should().Contain("ISessionWorkspaceStore>(interactions)");
         Read("App.axaml.cs").Should().Contain("sessionsWindow?.Dispose()");
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("IsCapabilityAdmissionOpen").And.Contain("IsHandoffRecoveryRequired")
-            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision")
-            .And.Contain("!main.CallObservation.IsProtected");
+            .And.Contain("CanRevealPrivatePresentation").And.Contain("ControlRevision");
         Read("DesktopSessionWorkspaceAccess.cs").Should().Contain("OnPrivacyClosure").And.Contain("AdmissionRevision");
         source.Should().NotContain("Enqueue local version").And.Contain("Confirm clear displayed pending queue");
         code.Should().Contain("model.RefreshWorkAsync").And.NotContain("model.DispatchQueueAsync")

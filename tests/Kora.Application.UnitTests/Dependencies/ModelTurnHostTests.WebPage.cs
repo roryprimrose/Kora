@@ -239,6 +239,9 @@ public sealed partial class ModelTurnHostTests
     [InlineData("answer-channel")]
     [InlineData("retired")]
     [InlineData("consume-grant")]
+    [InlineData("consume-admission")]
+    [InlineData("dispatch-denied")]
+    [InlineData("dispatch-admission")]
     public async Task Forged_native_approval_receipts_never_reach_dns_or_transport(string fault)
     {
         using var f = new Fixture();
@@ -482,6 +485,13 @@ public sealed partial class ModelTurnHostTests
             Snapshot = result.Snapshot;
             if (Fault is "consume-grant" && result.Decision.Outcome == HostInteractionOutcome.Consumed)
             { return ValueTask.FromResult(result.Decision with { Grant = null }); }
+            if (Fault is "consume-admission" && result.Decision.Admission is { Dispatched: false })
+            { return ValueTask.FromResult(result.Decision with { Admission = null }); }
+            if (result.Decision.Admission is { Dispatched: true })
+            {
+                if (Fault is "dispatch-denied") { return ValueTask.FromResult(result.Decision with { Outcome = HostInteractionOutcome.Denied }); }
+                if (Fault is "dispatch-admission") { return ValueTask.FromResult(result.Decision with { Admission = null }); }
+            }
             return ValueTask.FromResult(result.Decision);
         }
     }

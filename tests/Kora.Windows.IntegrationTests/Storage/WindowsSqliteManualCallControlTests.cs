@@ -172,7 +172,8 @@ public sealed class WindowsSqliteManualCallControlTests
         policy.Current.ManualControlEvidenceUnavailable.Should().BeTrue();
         policy.Current.SuppressSpeech.Should().BeTrue();
         policy.Current.AllowActivation.Should().BeFalse();
-        policy.Current.Authorization(true, true).AllowsReusableGrants.Should().BeFalse();
+        policy.Current.Authorization(true, true).AllowsReusableGrants.Should().BeTrue();
+        policy.Current.Authorization(true, true).OtherMandatoryGatesSatisfied.Should().BeFalse();
         f.Count("security_audit_events").Should().Be(4);
     }
 

@@ -24,6 +24,7 @@ internal sealed partial class SessionInteractionView : UserControl
     internal Task CancellationOperation { get; private set; } = Task.CompletedTask;
     private SessionDetailView? activeDetails;
     private SessionsViewModel? observedModel;
+    private readonly ReplyPresentationFence replyPresentation;
     private Guid? selectedSession;
     private readonly Dictionary<DetailContentReference, DetailReadingPosition> readingPositions = [];
     private GridLength conversationWidth = new(1, GridUnitType.Star);
@@ -41,6 +42,8 @@ internal sealed partial class SessionInteractionView : UserControl
     public SessionInteractionView()
     {
         InitializeComponent();
+        replyPresentation = new(this);
+        ConversationTabs.SelectionChanged += (_, _) => replyPresentation.Retire();
         RefreshSessions.Click += async (_, _) => await Run(model => model.RefreshAsync());
         NextSessions.Click += async (_, _) => await Run(model => model.NextAsync());
         SearchSessionNames.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync());
@@ -125,7 +128,14 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         try
         {
-            if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }
+            if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
+                && DataContext is SessionsViewModel)
+            {
+                args.Handled = true;
+                var presenter = replyPresentation.Capture();
+                await Run(current => current.ReplyToAnswerAsync(replySource, presenter));
+            }
+            else if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }
                 && DataContext is SessionsViewModel model)
             { args.Handled = true; model.DismissDetailsOffer(message); }
             else if (args.Source is Button { Name: "OpenSessionEvidence", DataContext: SessionEvidenceDetail detail })

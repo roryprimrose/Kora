@@ -38,6 +38,8 @@ See the [editor guide](../docs/instruction-editor.md#find-within-selected-displa
 
 ## Product Roles
 
+The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
+
 | Kind | Value and application |
 |---|---|
 | Skill | Primary reusable capability: selection guidance, inputs, workflow, and references to admitted tools or resources. Explicit voice/UI invocation and qualified model selection resolve the same enabled immutable revision. |
@@ -656,7 +658,11 @@ or count as user activity/approval.
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
-and body dictation/refinement are not implemented. No model/network is needed.
+and body dictation remain unavailable. Manual editing needs no model/network.
+The bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) now adds native and exact `instructions refine` entry points on this existing editor, not a second profile writer.
+The host freezes the exact draft/body/baseline and unchanged critique; only a qualified local, tool-free volatile context turn may propose a complete replacement body. Metadata/source/encoding remain host-owned, and source preparation/freshness precede review and confirmed normal Save ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+The complete comparison leaves both draft and source untouched. Accepted proposals remain volatile until separately confirmed ordinary Save/readback, which holds changed revisions disabled. Draft/source/critique/private/channel/ownership/expiry changes revoke proposals; no fence stripping, truncation, remote fallback or reference execution is admitted ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [actual operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+Real provider enablement remains unavailable; this is not semantic harmlessness or full conversational/package authoring qualification ([registration](../src/Kora/Program.cs)).
 Create and inspect use an explicit bounded ID; mutations target the open original.
 The closed writer kinds admit only immediate canonical lowercase ASCII `*.instructions.md`
 files in `IApplicationDataPaths.RoamingRoot\Instructions` or `*.prompt.md` in

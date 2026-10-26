@@ -14,8 +14,14 @@ public sealed partial class ModelTurnHost : IModelTurnExecution
     {
         ArgumentNullException.ThrowIfNull(turn);
         ArgumentNullException.ThrowIfNull(admitted);
-        if (turn.Owner != owner || !consumerAdmissions.TryAdd(turn, new(admitted, validateSource)))
+        if (turn.Owner != owner
+            || turn.ResourceLease is null && !consumerAdmissions.TryAdd(turn, new(admitted, validateSource)))
         { return new(ModelTurnOutcome.Denied, ModelTurnReason.HostContextRequired); }
+        if (turn.ResourceLease is not null)
+        {
+            consumerAdmissions.Remove(turn);
+            consumerAdmissions.Add(turn, new(admitted, validateSource));
+        }
         // The fence remains attached to the single-use capability, including any late adapter/tool callback.
         return await RunAsync(turn, token).ConfigureAwait(false);
     }
@@ -30,9 +36,9 @@ public sealed partial class ModelTurnHost : IModelTurnExecution
             lock (dispatchGate)
             {
                 if (IsQuiescent) { return; }
-                if (quiescence is null || quiescence.Task.IsCompleted)
-                { throw new InvalidOperationException("Provider termination is unconfirmed; the host remains unavailable."); }
-                outstanding = quiescence!.Task;
+                if (quiescence is not null && !quiescence.Task.IsCompleted) { outstanding = quiescence.Task; }
+                else if (!resources.IsIdle) { outstanding = resources.WaitForQuiescenceAsync(cancellationToken); }
+                else { throw new InvalidOperationException("Provider termination is unconfirmed; the host remains unavailable."); }
             }
             await outstanding.WaitAsync(cancellationToken).ConfigureAwait(false);
         }

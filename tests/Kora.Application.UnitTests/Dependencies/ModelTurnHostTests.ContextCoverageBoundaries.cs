@@ -94,7 +94,7 @@ public sealed partial class ModelTurnHostTests
     {
         using var f = new Fixture();
         var host = QualifiedHistoryHost(f);
-        var service = f.ConversationService(host, execution: host);
+        var service = f.ConversationService(new ReportedIdleAdmission(host), execution: host);
         Task<ConversationSubmissionReceipt>? competing = null;
         service.RunningConversationChanged += state =>
         {

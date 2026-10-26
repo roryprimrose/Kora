@@ -3,6 +3,8 @@ namespace Kora.Core.Conversation;
 /// <summary>Separates an accepted cancellation from resource termination and confirmed terminal storage.</summary>
 public enum ConversationExecutionPhase
 {
+    /// <summary>The original retained request is waiting for host-owned resources, not executing.</summary>
+    Waiting = -1,
     /// <summary>The exact admitted turn can still accept cancellation.</summary>
     Running,
     /// <summary>Cancellation was accepted; owned work is still being joined.</summary>

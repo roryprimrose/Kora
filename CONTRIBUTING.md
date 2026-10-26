@@ -91,6 +91,15 @@ never discard current session policy, admission or conversation authority to
 construct a migration case. Repeated grant-use history fixtures must resolve
 a fresh host invocation for each use, not replay one admitted invocation.
 
+Personal-instruction metadata fixtures use an existing owner-only original,
+not the forbidden create route. Metadata observation must not register that
+original for editing, create a Kora copy or publish a transaction journal.
+Stop-and-delete regressions coordinate terminal publication and disposition
+with completion signals so a post-release readback race cannot hide behind
+test-runner scheduling. Speech receipt-pinning fixtures inject changes after
+terminal publication and outside the submission's host scope, not at a
+particular count of internal metadata reads.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

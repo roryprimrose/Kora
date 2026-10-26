@@ -9,6 +9,15 @@ public static partial class ModelToolProtocol
         ValidateText(reply.Reason);
         if (reply.Mcp is not null)
         { throw new InvalidDataException("External content cannot be returned without an exact external tool."); }
+        if (CustomizationDiscoveryTools.FindExact(call.CapabilityId) is { } customization)
+        {
+            var customizationInput = CapabilityInputPolicy.Read(customization, call.InputJson);
+            if (customizationInput.DenialReason is not null || !CustomizationDiscoveryTools.Matches(reply, call.CapabilityId, customizationInput))
+            { throw new InvalidDataException("Customization metadata must match the exact reviewed result shape."); }
+            return;
+        }
+        if (reply.Customizations is not null)
+        { throw new InvalidDataException("Customization metadata cannot be returned by another tool."); }
         if (string.Equals(call.CapabilityId, SessionDiscoveryTool.Id, StringComparison.Ordinal))
         {
             var sessionInput = CapabilityInputPolicy.Read(SessionDiscoveryTool.Descriptor, call.InputJson);

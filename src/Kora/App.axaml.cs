@@ -75,6 +75,7 @@ public sealed partial class App : Avalonia.Application
             viewModel = Services.GetRequiredService<MainViewModel>();
             Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
+            viewModel.BindExternalBrowserWorkflow(Services.GetRequiredService<Kora.Application.Network.ExternalBrowser.ExternalBrowserWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);

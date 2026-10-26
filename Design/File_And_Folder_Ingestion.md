@@ -13,6 +13,17 @@ Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Dat
 [Internal Model Tools](Internal_Model_Tools.md), and
 [Implementation Roadmap](Implementation_Roadmap.md#optional-and-deferred-work).
 
+## Explicit volatile folder-grounded local answer implementation
+
+The [folder answer guide](../docs/folder-answers.md) describes the separate question,
+complete bounded excerpt/citation review, local-only answer confirmation and exact
+immutable citation navigation over the existing volatile folder revision. This
+does not register, persist, recursively ingest or automatically refresh a folder.
+The composed sensitive-content/source-use policy and unqualified runtime remain
+unavailable; this implementation does not enable them or claim model-quality/RC
+qualification. No evidence means no model call, and no unsupported or invalid
+response becomes a fabricated answer. Managed named sources remain separate.
+
 ## Delivered passive native decoded-text measurement
 
 The [native measurement partial](../src/Kora/LocalFilePreviewWindow.Measurement.cs)

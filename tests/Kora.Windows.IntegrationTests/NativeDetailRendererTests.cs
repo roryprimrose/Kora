@@ -35,7 +35,10 @@ public sealed class NativeDetailRendererTests
         result.Status.Should().Contain("inert").And.Contain("plain text");
         var controls = MarkdownDocumentRenderer.CreateControls(result);
         controls.Should().HaveCount(result.Sections.Count);
-        controls.Should().OnlyContain(control => control is SelectableTextBlock);
+        controls.Should().OnlyContain(control => control is SelectableTextBlock
+            || control is Kora.CodeHighlighting.NativeCodeBlock);
+        controls.OfType<Kora.CodeHighlighting.NativeCodeBlock>().Should()
+            .OnlyContain(block => block.Reader is SelectableTextBlock);
     });
 
     [Theory]
@@ -173,10 +176,13 @@ public sealed class NativeDetailRendererTests
         var result = Renderer.Render("# Heading\n\n```text\ncode\n```");
         var controls = MarkdownDocumentRenderer.CreateControls(result, selectable: false);
         controls.Should().HaveCount(2);
-        controls.Should().OnlyContain(control => control.GetType() == typeof(TextBlock));
+        controls.Should().OnlyContain(control => control.GetType() == typeof(TextBlock)
+            || control is Kora.CodeHighlighting.NativeCodeBlock);
         ((TextBlock)controls[0]).FontSize.Should().Be(32);
-        ((TextBlock)controls[1]).FontSize.Should().Be(13);
-        ((TextBlock)controls[1]).Text.Should().Contain("code");
+        var code = ((Kora.CodeHighlighting.NativeCodeBlock)controls[1]).Reader;
+        code.Should().BeOfType<TextBlock>();
+        code.FontSize.Should().Be(13);
+        code.Text.Should().Contain("code");
     });
 
     [Fact]

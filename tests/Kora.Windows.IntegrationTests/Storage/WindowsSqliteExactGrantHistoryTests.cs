@@ -175,6 +175,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         var grant = await f.GrantAsync("perpetual");
         for (var i = 0; i < 60; i++)
         {
+            f.Request = InteractionStorageFixture.NewRequest(f.Request.SessionId);
+            await f.AdmitAsync(newSession: false);
             grant = (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token))).Grant!;
         }
         var exact = (await f.Store.InspectExactGrantAsync(grant.Id, f.Token))!;
@@ -204,6 +206,8 @@ public sealed partial class WindowsSqliteExactGrantHistoryTests
         f.Time.Now.Should().Be(clock);
         // Appended authority is not pulled into an earlier immutable ceiling.
         var first = await Read(f, exact, viewer);
+        f.Request = InteractionStorageFixture.NewRequest(f.Request.SessionId);
+        await f.AdmitAsync(newSession: false);
         await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token));
         (await Read(f, exact, viewer, first.Next)).AuditCeiling.Should().Be(first.AuditCeiling);
     }

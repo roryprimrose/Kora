@@ -26,6 +26,7 @@ internal sealed partial class RestrictedSqliteDatabase
     private readonly RestrictedSqliteMigration? queueOrderMigration;
     private readonly RestrictedSqliteMigration? conversationMigration;
     private readonly RestrictedSqliteMigration? conversationExecutionMigration;
+    private readonly RestrictedSqliteMigration? sessionPermissionMigration;
     private readonly Action<SqliteConnection>? migrationAdmission;
     private readonly int version;
 
@@ -38,7 +39,8 @@ internal sealed partial class RestrictedSqliteDatabase
         RestrictedSqliteMigration? providerProfileMigration = null,
         RestrictedSqliteMigration? queueOrderMigration = null,
         RestrictedSqliteMigration? conversationMigration = null,
-        RestrictedSqliteMigration? conversationExecutionMigration = null)
+        RestrictedSqliteMigration? conversationExecutionMigration = null,
+        RestrictedSqliteMigration? sessionPermissionMigration = null)
     {
         directory = new RestrictedStorageDirectory(paths, includeKeys: false, partitionName: partition);
         databasePath = Path.Combine(directory.Root, fileName);
@@ -56,8 +58,9 @@ internal sealed partial class RestrictedSqliteDatabase
         this.queueOrderMigration = queueOrderMigration;
         this.conversationMigration = conversationMigration;
         this.conversationExecutionMigration = conversationExecutionMigration;
+        this.sessionPermissionMigration = sessionPermissionMigration;
         this.migrationAdmission = migrationAdmission;
-        version = currentVersion ?? conversationExecutionMigration?.ToVersion ?? conversationMigration?.ToVersion ?? queueOrderMigration?.ToVersion ?? providerProfileMigration?.ToVersion ?? attachmentMigration?.ToVersion ?? memoryMigration?.ToVersion ?? retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
+        version = currentVersion ?? sessionPermissionMigration?.ToVersion ?? conversationExecutionMigration?.ToVersion ?? conversationMigration?.ToVersion ?? queueOrderMigration?.ToVersion ?? providerProfileMigration?.ToVersion ?? attachmentMigration?.ToVersion ?? memoryMigration?.ToVersion ?? retentionMigration?.ToVersion ?? latestMigration?.ToVersion ?? finalMigration?.ToVersion
             ?? continuation?.ToVersion ?? migration?.ToVersion ?? 1;
     }
 
@@ -321,7 +324,8 @@ internal sealed partial class RestrictedSqliteDatabase
         ApplyMigration(connection, providerProfileMigration, queueOrderMigration?.PreviousSchema ?? schema, token);
         ApplyMigration(connection, queueOrderMigration, conversationMigration?.PreviousSchema ?? schema, token);
         ApplyMigration(connection, conversationMigration, conversationExecutionMigration?.PreviousSchema ?? schema, token);
-        ApplyMigration(connection, conversationExecutionMigration, schema, token);
+        ApplyMigration(connection, conversationExecutionMigration, sessionPermissionMigration?.PreviousSchema ?? schema, token);
+        ApplyMigration(connection, sessionPermissionMigration, schema, token);
     }
 
     private void ApplyMigration(SqliteConnection connection, RestrictedSqliteMigration? step,

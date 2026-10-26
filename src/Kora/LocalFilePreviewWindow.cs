@@ -57,7 +57,9 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
 
     internal void ShowFolderRevision(LocalFolderRevision revision,
         Func<string, LocalFileRetrievalMode, CancellationToken, Task<LocalFileSearchResult>> search, Func<bool> isCurrent,
-        Func<Task> refresh)
+        Func<Task> refresh,
+        Func<string, Func<bool>, CancellationToken, Task<Kora.Core.Context.FolderAnswers.FolderAnswerPreparation>>? prepareAnswer = null,
+        Func<Kora.Core.Context.FolderAnswers.FolderAnswerReview, Func<bool>, CancellationToken, Task<LocalFileAnswerResult>>? answerFolder = null)
     {
         Title = "Immutable complete local folder preview (untrusted plain text)";
         var body = Compose(Describe(revision.Review) + $"\nFolder revision: {revision.Reference.RevisionId:D}",
@@ -93,6 +95,10 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         ShowSearch(body, search, isCurrent, folder: true,
             _ => Task.FromResult(revision.Files), file => files.SelectedItem = file);
         ShowRefresh(body, refresh, folder: true);
+        if (prepareAnswer is not null && answerFolder is not null)
+        {
+            ShowFolderAnswer(body, revision, prepareAnswer, answerFolder, isCurrent, file => files.SelectedItem = file);
+        }
     }
 
     internal void ShowRevision(LocalFileRevision revision,
@@ -452,6 +458,7 @@ internal sealed partial class LocalFilePreviewWindow(Action<string> reportFailur
         wrappingViewport = null;
         ClearSourceMeasurement();
         ClearAnswer();
+        ClearFolderAnswer();
         ClearAttachmentAnswer();
         ClearNavigation();
         SetFindSource(null);

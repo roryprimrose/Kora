@@ -67,6 +67,25 @@ The [integrated pane](windows-and-tray.md#details-beside-the-conversation)
 keeps the composer visible while reading either source. Provider/runtime readiness
 remains independent: these presentation controls do not enable a model.
 
+### Reading headings and final tables
+
+In rendered Markdown **Details**, use **Go to heading** buttons for local
+document links. Click, Enter or Space focuses the exact heading in this result.
+Missing or invalid targets report a status; external links stay inert.
+
+When an independently available table profile renders a final Markdown table,
+use arrow keys between its headers and cells, Home/End across a row, or
+Ctrl+Home/End for the first header/last cell. Activate a header to sort ascending
+ordinal text, then again for descending. Equal values keep original order.
+**Reset table order** restores original order and the last focused cell.
+Reopening starts in original order. Sorting never edits the answer.
+
+**Continuous text** and **Exact source** retain their existing selection and
+literal Find behavior. No table action copies content or grants clipboard
+access. Closing or retiring the original result retires its navigation too.
+An unavailable table profile still shows the complete source, not an incomplete
+table; these controls do not enable an unqualified profile.
+
 ## Exact current-response window actions
 
 `dismiss current response` and `open current response details` use the same native

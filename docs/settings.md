@@ -156,6 +156,8 @@ An unconfirmed write holds model admission for the run; inspect saved state and 
 
 Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
 
+Closing the host or changing topology retires an in-flight discovery without publishing its late metadata or starting playback. Disposal still joins the worker; retirement alone is not a discovery failure ([lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AsyncBoundaryFailures.cs)).
+
 Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
 Grant and power-proposal preparation awaits requested audit persistence before exposing an actionable proposal. Retirement removes UI authority immediately; grant publication and consequential dispatch still await successful terminal audit ([approval workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).

@@ -1919,6 +1919,8 @@ This is not a harmlessness or complete dependency-inventory certification
 
 ### Reviewed instruction-only shared skill invocation
 
+Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
+
 For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
 Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.
 Refresh and explicitly select one existing Active conversation, enter your original request, choose **Review exact invocation** and confirm the exact skill/request/target.

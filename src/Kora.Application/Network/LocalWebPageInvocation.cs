@@ -21,7 +21,7 @@ internal sealed class LocalWebPageInvocation(
     WebPageGet action, IHostInteractionStore store, WebPageApprovalPresenter present,
     HostRequest original, HostRevision generation, Uri destination, DateTimeOffset expiresAt,
     Func<bool> admitted, TimeProvider time, HostId<InvocationIdentity>? workflowInvocation = null,
-    LocalWebPageScope? workflowScope = null)
+    LocalWebPageScope? workflowScope = null, Func<CancellationToken, Task>? validateSource = null)
 {
     private int used;
     internal Uri Destination => destination;
@@ -75,6 +75,19 @@ internal sealed class LocalWebPageInvocation(
             async ValueTask<bool> Check(Uri address, CancellationToken checkToken, bool continuation)
             {
                 if (address != destination || !Live(checkToken)) { return false; }
+                if (validateSource is not null)
+                {
+                    var cause = HostActivity.RequireCurrent();
+                    using var sourceCheck = HostActivity.BeginRoot(original, HostActivityLayer.Application, HostOperation.Policy,
+                        [new ActivityLink(cause.Activity!.Context)]);
+                    try
+                    {
+                        await validateSource(checkToken).ConfigureAwait(false);
+                        sourceCheck.Complete(HostOperationOutcome.Completed);
+                    }
+                    catch (OperationCanceledException) { sourceCheck.Complete(HostOperationOutcome.Cancelled); throw; }
+                    catch { sourceCheck.Complete(HostOperationOutcome.Failed); throw; }
+                }
                 var transaction = new InteractionTransaction(store);
                 var observed = await transaction.RunAsync(invocation, "approval.web-page-revalidate", snapshot =>
                 {

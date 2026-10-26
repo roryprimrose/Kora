@@ -61,6 +61,13 @@ public sealed class WebPageGet(
                     .OrderBy(address => address.AddressFamily)
                     .ThenBy(address => Convert.ToHexString(address.GetAddressBytes()), StringComparer.Ordinal)
                     .First();
+                if (!await authorize(current, timeout.Token).ConfigureAwait(false))
+                {
+                    return Complete(
+                        new(WebPageGetOutcome.Denied, "address-not-authorized", current, RedirectCount: redirects),
+                        auditEvent,
+                        activity);
+                }
                 var response = await transport.SendAsync(current, endpoint, timeout.Token).ConfigureAwait(false);
                 try
                 {

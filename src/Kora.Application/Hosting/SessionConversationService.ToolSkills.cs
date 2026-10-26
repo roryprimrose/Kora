@@ -50,7 +50,7 @@ public sealed partial class SessionConversationService
             var workflowInvocation = new HostId<InvocationIdentity>(Guid.NewGuid());
             invocation = new(scope.Destinations.Select(destination => (destination,
                 new LocalWebPageInvocation(webPageAction, interactions, presenter, turn.Provenance.Request, target.Authority.Generation,
-                    destination, turn.Context.ExpiresAt, live, time, workflowInvocation, scope))).ToArray());
+                    destination, turn.Context.ExpiresAt, live, time, workflowInvocation, scope, validateSource))).ToArray());
             modelHost.BindWebPage(turn, invocation);
         }
         ModelTurnResult Resolve(ModelTurnResult result) => invocation?.Completed == true

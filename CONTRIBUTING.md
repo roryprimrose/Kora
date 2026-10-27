@@ -135,6 +135,8 @@ Paging gestures await the existing Next readiness notification when passive
 work refresh is outstanding; draining dispatcher jobs does not join that I/O.
 The portable speech-quarantine fixture observes the actual output-stop entry
 before submitting a new request and releases its held stop in `finally`.
+Native cancellation and clarification fixtures separately await exact-task
+terminal UI publication after the real operation/resource join.
 
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 

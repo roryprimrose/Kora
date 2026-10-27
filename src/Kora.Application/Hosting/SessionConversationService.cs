@@ -29,7 +29,8 @@ public sealed partial class SessionConversationService(
         + "Return a bounded final answer only. " + AnswerPresentation.ModelPolicy + " Use only the host's admitted read-only tools if needed. "
         + "No history, memory, attachment, question answer, approval, side effect or hosted egress is admitted by this request. "
         + Configuration.RegisteredSettings.RegisteredSettingSuggestions.ModelPolicy + " "
-        + Kora.Core.Memory.ModelProposals.ModelMemoryProposal.ModelPolicy;
+        + Kora.Core.Memory.ModelProposals.ModelMemoryProposal.ModelPolicy + " "
+        + ModelHistoryContextProposal.ModelPolicy;
 
     public Task<ConversationDraftSnapshot> ReadDraftAsync(HostId<SessionIdentity> session, CancellationToken token) =>
         workspace.ReadConversationDraftAsync(session, token);

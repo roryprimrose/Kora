@@ -87,6 +87,7 @@
         <WrapPanel>
           <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
           <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
+          <Button x:Name="ReviewModelHistoryContext" Content="Review context for selected model advisory" IsEnabled="{Binding CanOpenModelHistoryContext}" />
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />

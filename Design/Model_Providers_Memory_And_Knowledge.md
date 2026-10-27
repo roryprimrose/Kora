@@ -35,6 +35,36 @@ The actual production outcome remains HOST Unavailable; test-only qualified/fake
 
 ## Product Decision
 
+### Implemented model-advised review of same-conversation history
+
+For the approved explicit local answering outcome, an ordinary final answer may
+carry the strict inert `{"version":1,"advisory":"HISTORYREVIEW"}` object. Only
+that discriminator and version are admitted; model-supplied message/session
+identities, replacement questions and authority fields are rejected. The
+ordinary policy can suggest review, but grants no history read or disclosure.
+
+The native selected-answer action binds the exact authoritative retained
+advisory request/body/revision/execution and Active session generation/metadata.
+The original user selects whole already observed messages strictly before that
+turn, reviews their full text with the host's unchanged original question and
+LOCAL/no-tools destination, then separately confirms once. The existing
+history-review and retained-submit lifecycle performs actual local inference,
+terminal retention and exact readback, preserving LocalUi/ActivatedVoice origin
+without exposing a voice-consent bypass. The advisory source is a validity pin,
+not implicitly included evidence.
+
+Privacy, original input/presentation/lifetime, source revisions, expiry and
+ownership remain live fences through review, retention, dispatch and answer
+publication. The 60-second advisory deadline cannot be renewed by another
+review; cancellation revokes consent while joining outstanding ignoring work.
+Unsent composer bytes, manual history, replies and local-first handoffs remain
+independent. No automatic context folding, cross-session recall, default memory,
+tools, hosted fallback, automatic speech or source-content diagnostics are
+admitted. Missing runtime qualification remains truthful HOST Unavailable;
+deterministic adapter/native tests establish implementation, not enablement or
+provider/physical qualification. See the [complete interaction](../docs/reviewed-context.md#answer-the-original-question-after-a-model-history-advisory)
+and [shared host route](../src/Kora.Application/Hosting/SessionConversationService.History.cs).
+
 Kora supports qualified local inference through Ollama and separately
 qualified hosted inference through GitHub Copilot, Anthropic Claude, and
 OpenAI Codex. It does not require every user or session to use local and hosted

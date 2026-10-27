@@ -448,6 +448,7 @@ internal sealed partial class SessionsWindowController(
                     ? receipt.Completed.Question?.Draft?.Text : null;
             };
         }
+        BindAdditionalRegisteredSettingSuggestions(model, main);
         presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {

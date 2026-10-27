@@ -1,6 +1,6 @@
 const { randomUUID } = require('node:crypto');
-const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, invariant, validateState,
-  ready, readinessIssue, priority, matchingRuns, successfulJobs } = require('./policy.cjs');
+const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS, invariant, validateState,
+  ready, readinessIssue, priority, matchingRuns, requiredJobsState, terminalJobs } = require('./policy.cjs');
 
 const MAX_CANDIDATES = 10;
 
@@ -50,12 +50,13 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
         : jobs.find(job => job.name === name)?.conclusion === 'success' ? 'success' : conclusion, message);
     }
   }
-  async function block(active, message) {
+  async function block(active, message, retainLane = false) {
     api.info(`PR #${active.number}: quarantining head ${active.head} for the current enrollment; ${message}`);
     if (active.mergeStarted !== undefined) await api.finishCheck(active.checks[GATE], 'failure', message);
     else await complete(active, 'failure', message);
     state.blocked.push({ number: active.number, head: active.head, enrollment: active.enrollment, reason: message });
-    state.active = null;
+    if (retainLane) active.phase = 'retiring';
+    else state.active = null;
     await persist();
     api.notice(message);
   }
@@ -96,7 +97,16 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
     api.info(`PR #${active.number}: candidate CI dispatch accepted; waiting for its matching workflow run.`);
     return 'dispatched';
   }
-  async function quiescent(active, runs) {
+  async function observeJobs(run) {
+    const jobs = await api.jobs(run.id, run.run_attempt);
+    invariant(Array.isArray(jobs) && jobs.every(job => job && Number.isSafeInteger(job.id) && job.id > 0
+      && job.run_id === run.id && job.run_attempt === run.run_attempt && job.head_sha === run.head_sha),
+      'Candidate job source, run or attempt changed; refusing merge authority.');
+    invariant(new Set(jobs.map(job => job.id)).size === jobs.length,
+      'Duplicate candidate job identities; refusing partial or repeated pagination.');
+    return jobs;
+  }
+  async function quiescent(active, runs, observedJobs) {
     for (const run of runs.filter(run => run.status !== 'completed')) {
       api.info(`PR #${active.number}: requesting cancellation of matching run ${run.id} (${run.status}).`);
       await api.cancel(run.id);
@@ -112,6 +122,16 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
         api.notice('Candidate dispatch has no observable run. The lane remains held pending cancellation or reviewed state repair.');
       return false;
     }
+    let terminal = true;
+    for (const run of runs) {
+      const jobs = observedJobs ?? await observeJobs(run);
+      if (!terminalJobs(jobs)) {
+        api.info(`PR #${active.number}: run ${run.id} is completed but job metadata is incomplete; requesting cancellation and retaining the lane.`);
+        await api.cancel(run.id);
+        terminal = false;
+      }
+    }
+    if (!terminal) return false;
     api.info(`PR #${active.number}: candidate work is quiescent; lane may be released.`);
     return true;
   }
@@ -140,8 +160,12 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       await persist();
       const terminal = await quiescent(active, runs);
       const message = 'Candidate head, base or queue intent changed. Validation is not merge evidence.';
-      if (active.mergeStarted !== undefined) await api.finishCheck(active.checks[GATE], 'cancelled', message);
-      else await complete(active, 'cancelled', message);
+      const quarantined = state.blocked.some(item => item.number === active.number
+        && item.head === active.head && item.enrollment === active.enrollment);
+      if (!quarantined) {
+        if (active.mergeStarted !== undefined) await api.finishCheck(active.checks[GATE], 'cancelled', message);
+        else await complete(active, 'cancelled', message);
+      }
       if (!terminal) return 'retiring';
       state.active = null;
       await persist();
@@ -192,14 +216,38 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       }
       return 'validating';
     }
-    const jobs = await api.jobs(run.id);
+    const jobs = await observeJobs(run);
     for (const name of JOBS) {
       const matches = jobs.filter(job => job.name === name);
       api.info(`Run ${run.id}: required job "${name}"; ${matches.length} match(es); conclusion(s): ${matches.map(job => job.conclusion ?? 'pending').join(', ') || 'missing'}.`);
     }
-    if (run.conclusion !== 'success' || !successfulJobs(jobs)) {
-      await block(active, 'Candidate validation failed, was cancelled, or omitted a required job.');
-      return 'blocked';
+    const jobState = requiredJobsState(jobs);
+    if (run.conclusion !== 'success' || jobState === 'failure') {
+      const terminal = await quiescent(active, runs, jobs);
+      await block(active, 'Candidate validation failed, was cancelled, or duplicated a required job.', !terminal);
+      return terminal ? 'blocked' : 'retiring';
+    }
+    if (active.jobObservationStarted !== undefined) {
+      const elapsed = now - Date.parse(active.jobObservationStarted);
+      invariant(elapsed >= 0, 'Required-job observation clock moved before the recorded observation.');
+      if (elapsed >= JOB_OBSERVATION_MS) {
+        const terminal = await quiescent(active, runs, jobs);
+        await block(active,
+          'Required-job metadata was not confirmed within ten minutes. Validation is not merge evidence; uncertain work retains the lane.', !terminal);
+        return terminal ? 'blocked' : 'retiring';
+      }
+    }
+    if (jobState === 'pending' || !terminalJobs(jobs)) {
+      if (MERGE_PHASES.includes(active.phase)) {
+        return unconfirmedMerge(active,
+          'Merge outcome is unconfirmed and required-job metadata is incomplete. The lane remains held; no automatic merge retry.');
+      }
+      if (active.jobObservationStarted === undefined) {
+        active.jobObservationStarted = now.toISOString();
+        await persist();
+      }
+      api.info(`PR #${active.number}: required job metadata is incomplete; lane held without attestation until ${new Date(Date.parse(active.jobObservationStarted) + JOB_OBSERVATION_MS).toISOString()}. Reobserve through hosted events or scheduled reconciliation.`);
+      return 'waiting-for-jobs';
     }
     const latest = await api.pull(active.number);
     if ((await api.main()) !== active.base || latest.head.sha !== active.head
@@ -219,6 +267,11 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
       await block(active, 'Candidate review requirements changed. Re-enable auto-merge after review.');
       return 'blocked';
     }
+    const latestRuns = matchingRuns(await api.runs(active), active);
+    invariant(latestRuns.length === 1 && latestRuns[0].id === run.id
+      && latestRuns[0].head_sha === active.base && latestRuns[0].run_attempt === 1
+      && latestRuns[0].status === 'completed' && latestRuns[0].conclusion === 'success',
+      'Candidate workflow identity or terminal evidence changed during validation; refusing merge authority.');
     if (MERGE_PHASES.includes(active.phase)) {
       if (active.phase === 'merge-unconfirmed') {
         api.info(`PR #${active.number}: merge outcome remains unconfirmed; lane held without retry.`);
@@ -236,6 +289,7 @@ async function reconcileOnce(api, { now = new Date(), ticket } = {}) {
         'The protected merge outcome remains unconfirmed after ten minutes. The lane remains held; inspect before withdrawing or renewing queue intent.');
     }
     // Record merge intent before checks can trigger native Auto-merge or the request can lose its response.
+    delete active.jobObservationStarted;
     active.phase = 'merging';
     active.mergeStarted = now.toISOString();
     await persist();

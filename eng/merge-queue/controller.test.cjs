@@ -1,8 +1,8 @@
 const { test } = require('node:test');
 const assert = require('node:assert/strict');
 const { reconcile } = require('./controller.cjs');
-const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS,
-  mode, validateState, ready, priority, title, successfulJobs } = require('./policy.cjs');
+const { CHECKS, GATE, JOBS, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
+  mode, validateState, ready, priority, title, requiredJobsState, terminalJobs, successfulJobs } = require('./policy.cjs');
 
 const BASE = 'a'.repeat(40);
 const HEAD = 'b'.repeat(40);
@@ -31,7 +31,8 @@ class Fake {
   base = BASE;
   prs = [pr()];
   workflowRuns = [];
-  workflowJobs = JOBS.map(name => ({ name, conclusion: 'success' }));
+  workflowJobs = JOBS.map((name, index) => ({ id: index + 1, name, status: 'completed',
+    conclusion: 'success', run_id: 9, run_attempt: 1, head_sha: BASE }));
   contains = true;
   approved = true;
   enrolled = ENROLLED;
@@ -151,20 +152,23 @@ test('active feedback distinguishes waiting, validation, branch updates and canc
   }
 });
 
-test('terminal validation feedback identifies missing and duplicate required jobs before quarantine', async () => {
+test('terminal workflow feedback distinguishes missing jobs from duplicate required jobs without releasing uncertain work', async () => {
   for (const duplicate of [false, true]) {
     const api = new Fake();
     api.state.active = active();
     api.workflowRuns = [run()];
     const job = api.workflowJobs.shift();
-    if (duplicate) api.workflowJobs.push(job, clone(job));
-    assert.equal(await step(api), 'blocked');
+    if (duplicate) api.workflowJobs.push(job, { ...job, id: 100 });
+    assert.equal(await step(api), duplicate ? 'retiring' : 'waiting-for-jobs');
     const trace = api.messages.join('\n');
     assert.ok(trace.includes(`required job "${job.name}"; ${duplicate ? 2 : 0} match(es); conclusion(s): ${duplicate ? 'success, success' : 'missing'}.`));
     for (const name of JOBS) assert.ok(trace.includes(`required job "${name}"`));
-    assert.match(trace, /quarantining head .*Candidate validation failed/);
-    assert.match(trace, /Decision: blocked; requesting another controller reconciliation/);
-    assert.match(trace, /Controller continuation requested/);
+    if (duplicate) assert.match(trace, /quarantining head .*Candidate validation failed/);
+    else assert.match(trace, /required job metadata is incomplete/);
+    assert.equal(api.state.active.number, 1);
+    assert.equal(api.state.blocked.length, duplicate ? 1 : 0);
+    assert.equal(count(api, 'wake'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
     assert.equal(count(api, 'merge'), 0);
   }
 });
@@ -188,6 +192,224 @@ test('successful feedback correlates dispatch and protected merge with exact sou
   assert.equal(count(api, 'update'), 1);
   assert.equal(count(api, 'dispatch'), 1);
   assert.equal(count(api, 'merge'), 1);
+});
+
+test('completed-success workflow with a nonterminal installer waits, then admits exact terminal success once', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  const installer = api.workflowJobs.find(job => job.name === CHECKS[2]);
+  Object.assign(installer, { status: 'in_progress', conclusion: null,
+    steps: [{ name: 'Build', conclusion: 'success' }, { name: 'Complete job', conclusion: 'success' }] });
+  const reserved = clone(api.state.active);
+  assert.equal(await step(api), 'waiting-for-jobs');
+  assert.equal(api.state.active.ticket, reserved.ticket);
+  assert.equal(api.state.active.head, reserved.head);
+  assert.equal(api.state.active.base, reserved.base);
+  assert.equal(api.state.active.enrollment, reserved.enrollment);
+  assert.equal(api.state.active.jobObservationStarted, NOW.toISOString());
+  assert.deepEqual(api.state.blocked, []);
+  for (const action of ['finish', 'merge', 'dispatch', 'cancel', 'wake']) assert.equal(count(api, action), 0);
+  assert.match(api.messages.join('\n'), /required job metadata is incomplete.*lane held/);
+  Object.assign(installer, { status: 'completed', conclusion: 'success' });
+  assert.equal(await step(api, { now: new Date(NOW.valueOf() + 60_000) }), 'merged');
+  assert.equal(await step(api), 'idle');
+  assert.equal(count(api, 'merge'), 1);
+  assert.equal(count(api, 'finish'), 4);
+  assert.ok(api.calls.filter(call => call[0] === 'finish').every(call => call[2] === 'success'));
+});
+
+test('incomplete and unknown job observations never infer success from workflow or step conclusions', async () => {
+  for (const status of ['queued', 'waiting', 'pending', 'requested', 'in_progress', 'unknown', null, undefined, 'completed']) {
+    for (const conclusion of [null, undefined, 'unknown', 'success']) {
+      if (status === 'completed' && conclusion === 'success') continue;
+      const api = new Fake();
+      api.state.active = active();
+      api.workflowRuns = [run()];
+      Object.assign(api.workflowJobs.at(-1), { status, conclusion, steps: [{ conclusion: 'success' }] });
+      assert.equal(await step(api), 'waiting-for-jobs', `${status}/${conclusion}`);
+      assert.deepEqual(api.state.blocked, []);
+      for (const action of ['finish', 'merge', 'dispatch', 'wake', 'cancel']) assert.equal(count(api, action), 0);
+    }
+  }
+});
+
+test('a later terminal job failure quarantines the same head and enrollment without admitting it', async () => {
+  for (const conclusion of ['failure', 'cancelled', 'timed_out', 'skipped', 'neutral', 'action_required', 'stale']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    const installer = api.workflowJobs.find(job => job.name === CHECKS[2]);
+    Object.assign(installer, { status: 'in_progress', conclusion: null });
+    assert.equal(await step(api), 'waiting-for-jobs');
+    Object.assign(installer, { status: 'completed', conclusion });
+    assert.equal(await step(api, { now: new Date(NOW.valueOf() + 60_000) }), 'blocked');
+    assert.equal(api.state.active, null);
+    assert.equal(api.state.blocked[0].head, HEAD);
+    assert.equal(api.state.blocked[0].enrollment, ENROLLED);
+    assert.equal(count(api, 'merge'), 0);
+    assert.ok(api.calls.filter(call => call[0] === 'finish').every(call => call[2] === 'failure'));
+    assert.equal(await step(api), 'idle');
+  }
+});
+
+test('required-job observation deadline survives restart without extension and retires uncertain work at the exact bound', async () => {
+  for (const missing of [false, true]) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    if (missing) api.workflowJobs.pop();
+    else Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    assert.equal(await step(api), 'waiting-for-jobs');
+    const restarted = new Fake();
+    restarted.state = clone(api.state);
+    restarted.workflowRuns = clone(api.workflowRuns);
+    restarted.workflowJobs = clone(api.workflowJobs);
+    restarted.prs.push(pr(2));
+    assert.equal(await step(restarted, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS - 1) }), 'waiting-for-jobs');
+    assert.equal(restarted.state.active.jobObservationStarted, NOW.toISOString());
+    assert.equal(await step(restarted, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS) }), 'retiring');
+    assert.equal(restarted.state.active.phase, 'retiring');
+    assert.match(restarted.state.blocked[0].reason, /not confirmed within ten minutes/);
+    assert.equal(count(restarted, 'cancel'), 1);
+    const finished = count(restarted, 'finish');
+    assert.equal(finished, 4);
+    assert.equal(await step(restarted, { now: new Date(NOW.valueOf() + 3 * JOB_OBSERVATION_MS) }), 'retiring');
+    assert.equal(restarted.state.blocked.length, 1);
+    assert.equal(count(restarted, 'finish'), finished);
+    assert.equal(count(restarted, 'merge'), 0);
+    assert.equal(count(restarted, 'dispatch'), 0);
+    restarted.workflowJobs = new Fake().workflowJobs;
+    assert.equal(await step(restarted, { now: new Date(NOW.valueOf() + 4 * JOB_OBSERVATION_MS) }), 'retired');
+    assert.equal(restarted.state.active, null);
+    assert.equal(count(restarted, 'merge'), 0);
+    assert.equal(await step(restarted), 'dispatched');
+    assert.equal(restarted.state.active.number, 2);
+  }
+});
+
+test('success arriving at or after the recorded observation deadline cannot revive the ticket', async () => {
+  const api = new Fake();
+  api.state.active = active({ jobObservationStarted: NOW.toISOString() });
+  api.workflowRuns = [run()];
+  assert.equal(await step(api, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS) }), 'blocked');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'merge'), 0);
+  assert.equal(await step(api), 'idle');
+});
+
+test('a terminal failure cannot release a lane containing another nonterminal job', async () => {
+  const api = new Fake();
+  api.state.active = active();
+  api.workflowRuns = [run()];
+  api.workflowJobs[0].conclusion = 'failure';
+  Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+  assert.equal(await step(api), 'retiring');
+  assert.equal(api.state.blocked.length, 1);
+  assert.equal(count(api, 'cancel'), 1);
+  const finished = count(api, 'finish');
+  assert.equal(await step(api), 'retiring');
+  assert.equal(count(api, 'finish'), finished);
+  Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+  assert.equal(await step(api), 'retired');
+  assert.equal(api.state.active, null);
+  assert.equal(count(api, 'merge'), 0);
+});
+
+test('stale or merged tickets with incomplete job metadata retain ownership until exact jobs terminate', async () => {
+  for (const change of ['head', 'base', 'enrollment', 'intent', 'merged']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    assert.equal(await step(api), 'waiting-for-jobs');
+    if (change === 'head') api.prs[0].head.sha = OTHER;
+    if (change === 'base') api.base = OTHER;
+    if (change === 'enrollment') api.enrolled = NOW.toISOString();
+    if (change === 'intent') api.prs[0].auto_merge = null;
+    if (change === 'merged') Object.assign(api.prs[0], { merged: true, state: 'closed' });
+    assert.equal(await step(api), 'retiring', change);
+    assert.equal(api.state.active.number, 1);
+    assert.equal(count(api, 'cancel'), 1);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+    Object.assign(api.workflowJobs.at(-1), { status: 'completed', conclusion: 'cancelled' });
+    assert.equal(await step(api), change === 'merged' ? 'already-merged' : 'retired');
+    assert.equal(api.state.active, null);
+  }
+});
+
+test('job correlation, repeated identities and lookup errors are explicit and cannot produce attestation', async () => {
+  for (const change of ['run_id', 'run_attempt', 'head_sha', 'id', 'duplicate', 'malformed', '401', '403', '404', '429', '500']) {
+    const api = new Fake();
+    api.state.active = active();
+    api.workflowRuns = [run()];
+    if (change === 'run_id') api.workflowJobs[0].run_id = 10;
+    if (change === 'run_attempt') api.workflowJobs[0].run_attempt = 2;
+    if (change === 'head_sha') api.workflowJobs[0].head_sha = OTHER;
+    if (change === 'id') api.workflowJobs[0].id = null;
+    if (change === 'duplicate') api.workflowJobs.push(clone(api.workflowJobs[0]));
+    if (change === 'malformed') api.workflowJobs = null;
+    if (/^\d+$/.test(change)) api.jobs = async () => { throw new Error(`HTTP ${change}`); };
+    await assert.rejects(step(api), /Candidate job|Duplicate candidate|HTTP/);
+    assert.equal(api.state.active.ticket, TICKET);
+    assert.deepEqual(api.state.blocked, []);
+    for (const action of ['finish', 'merge', 'dispatch', 'wake']) assert.equal(count(api, action), 0);
+  }
+});
+
+test('job pagination or cancellation errors preserve the recorded deadline and uncertain lane', async () => {
+  for (const boundary of ['jobs', 'cancel']) {
+    const api = new Fake();
+    api.state.active = active({ jobObservationStarted: NOW.toISOString() });
+    api.workflowRuns = [run()];
+    Object.assign(api.workflowJobs.at(-1), { status: 'in_progress', conclusion: null });
+    api[boundary] = async () => { throw new Error(`Failed ${boundary}`); };
+    await assert.rejects(step(api, { now: new Date(NOW.valueOf() + JOB_OBSERVATION_MS) }), /Failed/);
+    assert.equal(api.state.active.jobObservationStarted, NOW.toISOString());
+    assert.equal(count(api, 'finish'), 0);
+    assert.equal(count(api, 'merge'), 0);
+    assert.equal(count(api, 'dispatch'), 0);
+  }
+});
+
+test('a changed workflow identity across job lookup cannot launder a successful old attempt or ticket', async () => {
+  for (const change of ['run', 'attempt', 'head', 'ticket', 'duplicate', 'status', 'conclusion']) {
+    const api = new Fake();
+    api.state.active = active();
+    let reads = 0;
+    api.runs = async () => {
+      if (++reads === 1) return [run()];
+      if (change === 'duplicate') return [run(), run({ id: 10 })];
+      return [run({
+        ...(change === 'run' ? { id: 10 } : {}),
+        ...(change === 'attempt' ? { run_attempt: 2 } : {}),
+        ...(change === 'head' ? { head_sha: OTHER } : {}),
+        ...(change === 'ticket' ? { display_title: 'another ticket' } : {}),
+        ...(change === 'status' ? { status: 'in_progress' } : {}),
+        ...(change === 'conclusion' ? { conclusion: null } : {}),
+      })];
+    };
+    await assert.rejects(step(api), /workflow identity or terminal evidence changed/);
+    assert.equal(api.state.active.phase, 'dispatched');
+    for (const action of ['finish', 'merge', 'dispatch', 'wake']) assert.equal(count(api, action), 0);
+  }
+});
+
+test('required-job observation timestamps are canonical, phase-bound and monotonic', async () => {
+  for (const jobObservationStarted of [null, 2026, 'invalid', '2026-01-01T12:00:00Z', '2025-01-01T00:00:00.000Z']) {
+    assert.throws(() => validateState({ version: 1, blocked: [], active: active({ jobObservationStarted }) }), /observation timestamp/);
+  }
+  for (const phase of ['updating', 'reserved']) {
+    assert.throws(() => validateState({ version: 1, blocked: [],
+      active: active({ phase, dispatchRecorded: false, jobObservationStarted: NOW.toISOString() }) }), /observation timestamp/);
+  }
+  const api = new Fake();
+  api.state.active = active({ jobObservationStarted: new Date(NOW.valueOf() + 1).toISOString() });
+  api.workflowRuns = [run()];
+  await assert.rejects(step(api), /observation clock moved before/);
+  assert.equal(count(api, 'finish'), 0);
+  assert.equal(count(api, 'merge'), 0);
 });
 
 test('failed operations leave truthful partial feedback, not a successful terminal log', async () => {
@@ -548,13 +770,25 @@ test('an invalidated reservation with no recorded dispatch can release the lane 
 });
 
 test('all exact required jobs must pass; skipped, missing and duplicate jobs never qualify', () => {
-  const jobs = JOBS.map(name => ({ name, conclusion: 'success' }));
+  const jobs = JOBS.map(name => ({ name, status: 'completed', conclusion: 'success' }));
   assert.equal(successfulJobs(jobs), true);
   assert.equal(successfulJobs(jobs.slice(1)), false);
   assert.equal(successfulJobs([...jobs, jobs[0]]), false);
   for (const conclusion of ['skipped', 'neutral', 'cancelled', 'failure', null]) {
     assert.equal(successfulJobs([{ ...jobs[0], conclusion }, ...jobs.slice(1)]), false);
   }
+  assert.equal(requiredJobsState(jobs.slice(1)), 'pending');
+  assert.equal(requiredJobsState([...jobs, jobs[0]]), 'failure');
+  for (const status of ['in_progress', 'queued', undefined]) {
+    const incomplete = [{ ...jobs[0], status }, ...jobs.slice(1)];
+    assert.equal(requiredJobsState(incomplete), 'pending');
+    assert.equal(successfulJobs(incomplete), false);
+    assert.equal(terminalJobs(incomplete), false);
+  }
+  assert.equal(terminalJobs(jobs), true);
+  assert.equal(terminalJobs(jobs.slice(1)), false);
+  assert.equal(terminalJobs([...jobs, jobs[0]]), false);
+  assert.equal(terminalJobs([...jobs, { name: 'optional', status: 'in_progress', conclusion: null }]), false);
 });
 
 test('full successful validation is attested before the exact protected squash merge', async () => {

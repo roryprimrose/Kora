@@ -16,6 +16,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     internal readonly TextBox Guidance = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
     internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
+    internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
     private readonly TextBlock status = new() { TextWrapping = TextWrapping.Wrap };
     private Window? review;
     private readonly Func<bool> eligible;
@@ -42,6 +43,9 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         AutomationProperties.SetName(Tool, "Exact existing host capability");
         fields.Children.Add(new TextBlock { Text = "Host capability declaration (not permission)" });
         fields.Children.Add(Tool);
+        InputFormat.SelectionChanged += (_, _) => DraftChanged?.Invoke();
+        AutomationProperties.SetName(InputFormat, "Explicit guidance input format");
+        fields.Children.Add(InputFormat);
         AutomationProperties.SetName(Guidance, "Literal declarative workflow guidance");
         fields.Children.Add(new TextBlock
         {
@@ -81,6 +85,11 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             0 => OwnedSkillToolSelection.None,
             1 => OwnedSkillToolSelection.WebPageGet,
             _ => throw new InvalidOperationException("Select one supported host capability declaration."),
+        }, InputFormat.SelectedIndex switch
+        {
+            0 => OwnedSkillGuidanceFormat.Literal,
+            1 => OwnedSkillGuidanceFormat.RequiredLiteralInputs,
+            _ => throw new InvalidOperationException("Select one supported guidance input format."),
         });
 
     public async Task<bool> Review(OwnedDeclarativeSkillDocument document, string destination, CancellationToken token) =>

@@ -76,6 +76,11 @@ internal sealed partial class OwnedSkillInvocationController(
                 var opened = new OwnedSkillInvocationWindow(action => Start(action), captured.Tool == OwnedSkillToolSelection.WebPageGet);
                 window = opened;
                 opened.Instructions.Text = captured.Text;
+                opened.LiteralInputs.Configure(captured.RequiredNames, (_, _) =>
+                {
+                    RetireConfirmation();
+                    requestAuthority = new(RequestOrigin.LocalUi, Eligible);
+                });
                 opened.Request.PropertyChanged += (_, args) =>
                 {
                     if (args.Property == Avalonia.Controls.TextBox.TextProperty)
@@ -130,6 +135,12 @@ internal sealed partial class OwnedSkillInvocationController(
                     currentWindow.Request.Text = command.Literal;
                     requestAuthority = authority;
                     break;
+                case "input":
+                    if (command.InputName is null || !currentWindow.LiteralInputs.Inputs.TryGetValue(command.InputName, out var input))
+                    { throw new InvalidDataException("Select an exact declared required literal input name."); }
+                    input.Text = command.Literal;
+                    requestAuthority = authority;
+                    break;
                 case "url":
                     currentWindow.Address.Text = command.Literal;
                     break;
@@ -173,7 +184,7 @@ internal sealed partial class OwnedSkillInvocationController(
                             break;
                         }
                         invocation = await workflow.PrepareAsync(currentReview, target, currentWindow.Request.Text ?? "",
-                            inputAuthority, Exact, token);
+                            inputAuthority, Exact, token, currentWindow.LiteralInputs.Capture());
                         request.Complete(HostOperationOutcome.Completed);
                     }
                     if (!Exact()) { invocation.Dispose(); invocation = null; return; }

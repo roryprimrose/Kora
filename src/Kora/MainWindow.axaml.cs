@@ -15,6 +15,7 @@ using Kora.Core.Configuration;
 using Kora.Core.Voice;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Presentation;
 using Kora.Application.Hosting;
 using Kora.Controls;
 using Kora.Windows.Presentation;
@@ -31,6 +32,7 @@ public sealed partial class MainWindow : Window
     private readonly ILogger<PresenceRenderWorker> rendererLogger;
     private readonly bool useNativePresence;
     private readonly PresenceControl presence;
+    private readonly PresenceMotionBinding? motionPreference;
     private readonly DispatcherTimer presenceTimeoutTimer;
     private readonly PresentationInactivityTimeout presenceInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
@@ -58,7 +60,7 @@ public sealed partial class MainWindow : Window
     }
 
     internal MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger, bool useNative, bool initializeHost,
-        ILogger<PresenceRenderWorker> rendererLogger)
+        ILogger<PresenceRenderWorker> rendererLogger, IMotionPreferenceSource? motionSource = null)
     {
         this.viewModel = viewModel;
         this.logger = logger;
@@ -103,6 +105,9 @@ public sealed partial class MainWindow : Window
                 ? WindowsPresenceWindowInput.CreateForNativeRenderer(handle)
                 : new WindowsPresenceWindowInput(handle);
             InitializeNativePresence();
+            motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
+                action => Dispatcher.UIThread.Post(action), ReportMotionPreferenceFailure);
+            motionPreference.SetEligible(viewModel.CanRevealPrivatePresentation);
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
@@ -214,9 +219,14 @@ public sealed partial class MainWindow : Window
         }
 
         initialized = true;
-        presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
+        motionPreference?.Refresh();
+        if (windowActionFailed)
+        {
+            HidePresenceWindow();
+            return;
+        }
         RestorePosition();
         if (useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
         {
@@ -371,7 +381,8 @@ public sealed partial class MainWindow : Window
             case WindowAction.Show:
                 DesktopLog.Debug(logger, "Showing the presence");
                 CancelPendingHide();
-                presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
+                motionPreference?.Refresh();
+                if (windowActionFailed) { return; }
                 EnsurePositionOnConnectedScreen();
                 ShowPresenceWindow();
                 presence.IsPresenceVisible = true;
@@ -469,6 +480,7 @@ public sealed partial class MainWindow : Window
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        motionPreference?.SetEligible(viewModel.CanRevealPrivatePresentation);
         if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
         {
             viewModel.RefreshSpeechPlaybackFrame();

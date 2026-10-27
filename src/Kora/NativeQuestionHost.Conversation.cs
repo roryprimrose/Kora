@@ -18,7 +18,7 @@ internal sealed partial class NativeQuestionHost
         HostRevision generation, QuestionSpec spec, DateTimeOffset expiresAt, Func<bool> admitted,
         Func<NativeQuestionViewModel, Task> present, CancellationToken token,
         HostOperationProposal? webProposal = null, Uri? webAddress = null,
-        Kora.Application.Mcp.McpReview? mcpReview = null, bool mcpSelection = false)
+        Kora.Application.Mcp.McpReview? mcpReview = null, bool mcpSelection = false, bool mcpInput = false)
     {
         if (disposed || !canInteract() || !admitted() || HostActivity.RequireCurrent().Request != request
             || request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
@@ -37,20 +37,26 @@ internal sealed partial class NativeQuestionHost
                 or Kora.Application.Mcp.McpReviewStage.ToolSelection;
             if (!Eligible() || task is not { CurrentSource: true }
                 || (preparingMcp
-                    ? task.Task.State != HostTaskState.IntentRecorded || task.Task.Revision.Value != 1
+                    ? !(task.Task.State == HostTaskState.IntentRecorded && task.Task.Revision.Value == 1
+                        || string.Equals(task.Source, "local-context", StringComparison.Ordinal) && task.Task.State == HostTaskState.DispatchRecorded
+                            && task.Task.Revision.Value == 2)
                     : task.Task.State != HostTaskState.DispatchRecorded || task.Task.Revision.Value != 2)
                 || !request.IsWithinIntent(task.Task.Request) || task.Generation != generation)
             { throw new InvalidOperationException("The original conversation task is no longer dispatched in this exact generation."); }
             if (mcpSelection && (webProposal is not null || mcpReview is not null
                 || !string.Equals(spec.SourceId, "mcp-tool-selection", StringComparison.Ordinal)))
             { throw new InvalidOperationException("Only an original host-owned MCP selection question may use preparation authority."); }
+            if (mcpInput && (mcpSelection || webProposal is not null || mcpReview is not null
+                || !string.Equals(task.Source, "local-context", StringComparison.Ordinal) || spec.Kind != QuestionKind.Text
+                || !string.Equals(spec.SourceId, "mcp-tool-arguments", StringComparison.Ordinal)))
+            { throw new InvalidOperationException("Only the exact original-user MCP dispatch can request bounded tool input."); }
             if (webProposal is not null && (webProposal.Request != request
                 || (mcpReview is null ? webAddress is null || !WebPageAccessBinding.Matches(webProposal, webAddress)
                     : webAddress is not null || !mcpReview.IsBoundTo(webProposal))
                 || webProposal.ExpiresAt != expiresAt
                 || callObservation is null))
             { throw new InvalidOperationException("The exact page proposal and current native policy observation are required."); }
-            var isMcp = mcpReview is not null || mcpSelection;
+            var isMcp = mcpReview is not null || mcpSelection || mcpInput;
             var isPage = webProposal is not null && !isMcp;
             if (isMcp && mcpObservationRequest != request)
             {
@@ -64,7 +70,7 @@ internal sealed partial class NativeQuestionHost
                 pageObservationRequest = request;
                 pageObservationRevision = 0;
             }
-            var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: webProposal is not null || mcpSelection)
+            var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: webProposal is not null || mcpSelection || mcpInput)
                 ?? new(Eligible(), false, false, true);
             var observation = await store.PublishTrustedSnapshotAsync(request, policy, webProposal,
                 expectedObservationRevision: isMcp ? mcpObservationRevision : isPage ? pageObservationRevision : 0, token);

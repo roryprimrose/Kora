@@ -348,6 +348,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
+        turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
         var reply = customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)
@@ -366,6 +367,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
         }
+        turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.GeneratingAnswer);
         return reply;
     }
 

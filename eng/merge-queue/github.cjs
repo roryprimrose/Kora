@@ -122,9 +122,18 @@ class GitHubQueue {
       event: 'workflow_dispatch', branch: 'main',
       created: `>=${new Date(Date.parse(active.created) - 5 * 60_000).toISOString()}`, per_page: 100 });
   }
-  async jobs(runId) {
-    return this.github.paginate(this.github.rest.actions.listJobsForWorkflowRun, { ...this.repo,
-      run_id: runId, filter: 'latest', per_page: 100 });
+  async jobs(runId, attempt = 1) {
+    invariant(Number.isSafeInteger(attempt) && attempt > 0, 'Unknown candidate job attempt.');
+    let expected;
+    const jobs = await this.github.paginate(this.github.rest.actions.listJobsForWorkflowRunAttempt, { ...this.repo,
+      run_id: runId, attempt_number: attempt, per_page: 100 }, ({ data }) => {
+      invariant(Array.isArray(data) && Number.isSafeInteger(data.total_count) && data.total_count >= 0
+        && (expected === undefined || expected === data.total_count), 'Incomplete or inconsistent candidate job pagination.');
+      expected = data.total_count;
+      return data;
+    });
+    invariant(Array.isArray(jobs) && jobs.length === expected, 'Incomplete candidate job pagination.');
+    return jobs;
   }
   async cancel(runId) {
     try {

@@ -9,6 +9,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Auditing;
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
+using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
@@ -4516,6 +4517,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
+        {
+            await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
+            return;
+        }
         if (PlaybackVolumeSuggestionCommand.Parse(spokenText, AssistantName) is { } volumeSuggestionCommand)
         {
             await ExecutePlaybackVolumeSuggestionAsync(volumeSuggestionCommand, initiator,
@@ -6422,6 +6429,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

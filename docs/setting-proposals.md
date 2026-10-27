@@ -13,12 +13,16 @@ The supported subset is closed:
 | `speech.summary-words` | Integer 1-80 | Native or existing exact typed/activated-voice review |
 | `speech.summary-sentences` | Integer 1-3 | Native or existing exact typed/activated-voice review |
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
+| `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
-`set speech.summary-words to 40`, or `set speech.playback-volume to 30`.
+`set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
+`set responses.default-mode to VoiceOnly`.
 Numeric speech suggestions use canonical decimal digits, without signs,
 leading zeroes, fractions or commentary. Mixed settings, batches, resets,
 relative changes and other setting families are not admitted as suggestions.
+Response-mode answers require the exact spelling and case shown above; numeric
+enum values, aliases, surrounding commentary and batches are rejected.
 
 ## Review, confirm or cancel
 
@@ -29,6 +33,9 @@ relative changes and other setting families are not admitted as suggestions.
    shared device-local scope and effects. Speech limits show **both** caps and
    preserve the companion cap. Volume shows desired/effective percentages and
    explains that zero blocks future synthesis while retaining full visual output.
+   Response mode shows saved/default provenance, desired and configured effective
+   modes, the exact proposal, future-output timing and mandatory visual/privacy/call
+   exceptions. It changes the shared device default, not session/task/queue/call overrides.
 3. Separately choose **Confirm exact setting change** to consume this review
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.
@@ -37,7 +44,7 @@ Only one native setting review is active at a time. A new review retires the
 old one. The original request, answer, session, preference revision, private
 control/ownership and call admission remain bound throughout source checks and
 confirmation. A copied message, stale page, changed settings or a changed source
-cannot silently select a newer answer. Speech and volume reviews expire after
+cannot silently select a newer answer. Speech, volume and response-mode reviews expire after
 60 seconds. Closing or losing private control retires the review.
 
 ## Activated voice and mandatory exceptions
@@ -45,9 +52,13 @@ cannot silently select a newer answer. Speech and volume reviews expire after
 The existing exact **review speech limit suggestion**, **confirm speech limit
 change**, **cancel speech limit review** and **review volume suggestion**,
 **confirm volume change**, **cancel volume review** operations remain available.
+Response mode uses **review response mode suggestion**, **confirm response mode
+change**, and **cancel response mode review** through the same retained-source
+and admitted preference writer as native review.
 Activated voice requires the current assistant-name prefix, voice consent and
 eligible call policy. They use the exact host-pinned successful session request,
-never a guessed latest answer. No new static setting aliases are added.
+never a guessed latest answer. No new static setting aliases are added; these
+review commands do not execute model text as a direct setting command.
 
 Original voice provenance survives later typed/native confirmation; a protected
 or unknown call cannot be laundered into local UI authority. Appearance stays
@@ -61,6 +72,12 @@ Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,
 not truncation or regeneration of the current answer. No system/device/call
 volume, provider, microphone, consent, grant or unrelated preference is changed.
+
+Response-mode confirmation affects the **next** eligible response only. Even
+`VoiceOnly` retains the complete visual answer for warnings, security, questions,
+approvals, interrupted or unavailable speech and other mandatory recovery.
+Privacy and call suppression always win; saving a mode never grants speech
+permission or restarts the selected answer.
 
 A failed terminal audit or readback can follow a persisted write. **Unconfirmed
 is not success or rollback.** Inspect Settings and audit receipts, explicitly

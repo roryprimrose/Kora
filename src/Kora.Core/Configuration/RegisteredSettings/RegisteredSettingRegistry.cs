@@ -14,6 +14,9 @@ public static class RegisteredSettingRegistry
         new(RegisteredSetting.PlaybackVolume, "speech.playback-volume",
             "future Kora-only speech volume, never system/device/call volume", "percent",
             0, PlaybackVolume.MaximumPercent, false),
+        new(RegisteredSetting.ResponseMode, "responses.default-mode",
+            "future response output preference with mandatory full visual, privacy and call exceptions", "mode",
+            null, null, false),
     ]);
 
     public static RegisteredSettingDescriptor Get(RegisteredSetting setting) =>

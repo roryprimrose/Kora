@@ -106,6 +106,11 @@ public sealed class PresenceControl : Control, IDisposable
     internal bool CanInteract => CanRender() && IsPresenceVisible
         && State != AssistantState.Hidden && animation.Current.Opacity > 0;
 
+    internal PresenceRenderInputs CaptureRenderInputs(bool isLightTheme, double width, double height, double scaling) =>
+        new(State, IsSpeaking, SpeechOutputLevel, IsSpeechScalingEnabled, SpeechScaleAmountPercent,
+            DotDensityPercent, DotSizePercent, MovementSpeedPercent, isLightTheme, !IsMotionEnabled,
+            IsPresenceVisible, width, height, scaling);
+
     internal void BindPresentationEligibility(Func<bool> eligibility)
     {
         authoritativeEligibility = eligibility;

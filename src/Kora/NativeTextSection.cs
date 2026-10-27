@@ -11,4 +11,5 @@ internal sealed record NativeTextSection(string Text, NativeTextStyle Style)
     internal string? HeadingId { get; init; }
     internal ImmutableArray<NativeDocumentLink> Links { get; init; } = [];
     internal NativeTablePart? Table { get; init; }
+    internal IReadOnlyList<NativeExternalDocumentLink> ExternalLinks { get; init; } = [];
 }

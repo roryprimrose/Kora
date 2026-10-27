@@ -71,7 +71,8 @@ remains independent: these presentation controls do not enable a model.
 
 In rendered Markdown **Details**, use **Go to heading** buttons for local
 document links. Click, Enter or Space focuses the exact heading in this result.
-Missing or invalid targets report a status; external links stay inert.
+Missing or invalid targets report a status; external links require separate review
+and confirmation as described below, never document-local activation.
 
 When an independently available table profile renders a final Markdown table,
 use arrow keys between its headers and cells, Home/End across a row, or
@@ -85,6 +86,22 @@ literal Find behavior. No table action copies content or grants clipboard
 access. Closing or retiring the original result retires its navigation too.
 An unavailable table profile still shows the complete source, not an incomplete
 table; these controls do not enable an unqualified profile.
+
+### Review a final-answer external link
+
+An available final-answer Markdown profile can show **Review external link**
+beside a parsed destination. Pointer activation or Enter/Space requests a
+separate native review of the original selected source token and exact HTTPS
+destination. It does not retrieve or open anything. Only **Open this exact
+destination once** in that review requests the registered external browser.
+Cancel leaves the source unchanged.
+
+Generated links remain untrusted, not retrieved-page provenance. Existing
+destination, network-mode, privacy and browser-permission checks still apply;
+offline/local-only mode never changes automatically. Source replacement,
+retirement or withdrawal invalidates the review. No automatic fetch, model
+call, new grant or clipboard permission is introduced. Unavailable renderer
+profiles retain their labelled source fallback without active links.
 
 ## Exact current-response window actions
 

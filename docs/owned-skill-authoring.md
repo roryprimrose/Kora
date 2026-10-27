@@ -143,6 +143,51 @@ The owned reader checks only the selected package's complete members, exact iden
 
 Deterministic fake provider/transport tests prove implementation only. Native/provider/hardware/installed enablement and RC qualification remain unqualified; unavailable local composition fails visibly without network/provider fallback ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedToolSkills.cs), [I/E/Q policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+## Required literal guidance inputs
+
+Choose **Required literal guidance inputs (native v3; no tools)** in the editor,
+or `owned skill inputs required-literal`, before Validate and Save. Write
+`${input:topic}` in guidance to declare a required literal field. For example,
+`Compare ${input:topic} with the original task.` declares `topic`. Native v3
+requires at least one such field; `owned skill inputs none` restores literal
+guidance. WebPageGet and required-input formats cannot be combined.
+
+The v3 manifest uses `kora-skill-format: 3`, `tools: none`, `references: none`
+and the additional exact scalar `inputs: required-literal`. All other fields and
+the two-file publication/reopen operation are unchanged. Formats 1 and 2,
+including any `${input:...}` text, stay literal: existing saved bytes are never
+reinterpreted.
+
+On Use, the same private input controls used for owned prompts collect every
+declared field. Enter a value natively, or use typed/current-name activated
+voice `owned skill input topic: <literal>`. Values preserve whitespace and
+Unicode without normalization. Names use the existing required-literal contract:
+at most eight distinct names, each 1–64 lowercase ASCII letters, digits or
+hyphens, beginning with a letter. Repeated occurrences share one field.
+Every value is nonblank, at most 512 UTF-16 units / 2048 strict UTF-8 bytes.
+Expanded guidance is at most 4096 UTF-16 units / 16384 UTF-8 bytes, including
+every repeated value. Invalid Unicode, missing/extra bindings, unknown
+placeholders, defaults, expressions and dynamic file bindings are rejected.
+Substitution is single-pass: `${input:other}` inside a supplied value stays
+literal and is never expanded again.
+
+Preview shows the exact original manifest and guidance, input bindings and
+expanded guidance, alongside the unchanged original task, current policy,
+original channel and exact destination conversation. It uses the same canonical
+owned-skill workflow for direct ID/version and readable-name selection. Separate
+confirmation still invokes only the admitted local tool-free model and retains
+its genuine answer in the original selected conversation. Inputs are private
+volatile state, not a Prompt artifact or new permission. Only the original task
+and final answer/terminal are conversation content; field values are not
+separately saved or included in diagnostics, audit or activity metadata.
+
+Changing a value after preview retires confirmation and requires fresh source
+review and enablement. Source edits/deletion, privacy withdrawal, channel,
+provider or session changes and cancellation retain existing fail-closed checks
+and actual model joining. Closing clears fields and preview. Parameterized
+guidance cannot be silently used through incompatible shared/agent guidance
+references; their existing explicit-format rejection policy is unchanged.
+
 ## Publication and recovery
 
 Only the exact validated generation can be reviewed and confirmed. Editing any

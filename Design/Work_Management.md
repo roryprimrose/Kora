@@ -259,6 +259,72 @@ Retired fixed-read replacement workflows do not create new tasks. Retained histo
 
 ## Queue and Dispatch
 
+### Ordinary submitted conversation turns
+
+The [ordinary conversation owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+accepts another explicitly submitted request to an exact existing Active
+conversation while its previous turn runs. Acceptance physically retains the
+immutable original USER body and task intent with the existing typed audit.
+Qualified admission captures the original provider/account/model, policy,
+serialized context and reviewed instruction sources before reporting queued
+position. Unqualified providers return their existing unavailable outcome,
+never a success-shaped queued fallback. Questions, approvals, hosted review,
+MCP and other specialized operations retain their separate admission fences.
+
+Arrival order is authoritative, with at most ten pending requests per session
+using the existing domain maximum. There is no new queue-settings product,
+allocator, reorder surface, eviction or aggregate storage quota. The existing
+100-message session and complete input bounds still apply. Concurrent admission
+to the same session is explicitly refused until the first acceptance completes,
+not silently replayed. Independent sessions have independent admission lanes.
+
+Eligibility is bounded by both the existing thirty-minute pending default and
+the **unchanged original context/source authorization expiry**, whichever is
+earlier. In particular, ordinary local input still has its original fifteen-second
+context lifetime; queueing does not turn it into thirty-minute consent.
+Expiry retains a denied HOST/task outcome without resource acquisition or
+provider dispatch. A fresh explicit request/review is required, not automatic
+deadline extension. The active provider budget remains owned by the runtime
+and begins at dispatch.
+
+Only successful, confirmed terminal retention after the preceding physical
+resource join permits automatic next dispatch. Failure, pending/active
+cancellation or uncertainty holds the addressed lane; **Resume held dispatch**
+is deliberate and cannot renew original authority. The exact ledger transaction
+also refuses a later request before an earlier live intent or alongside another
+dispatched turn. Unknown/unclassified work and pending questions cannot become
+queue authority. The existing runtime allocator alone owns execution resources;
+pending turns acquire no lease and the queue never waits globally for other
+sessions.
+
+Before dispatch, the same original source/session/generation/metadata,
+privacy/control, provider policy/profile/qualification and context fences run
+again. No later global setting, foreground selection, new history, grant or
+unseen prior answer is substituted. Invalidated authority becomes an explicit
+denied or unconfirmed/held recovery outcome, never a renewed grant or fallback.
+Deferred execution uses a fresh activity linked to the captured admitted context
+while retaining the host-issued request/channel and trusted typed audit.
+Bodies and reviewed sources are not telemetry.
+
+Sessions and compact conversation share factual pending position, the submitted
+USER input, exact selected pending cancellation and held/resume controls.
+Cancellation wins atomically against dispatch, preserves submitted history and
+unrelated requests, and has zero provider/egress/resource effects for that
+pending turn. Active cancellation stays with the existing running-turn owner.
+Logical cancellation and caller observation retirement do not release physical
+resources; the service retains and joins its workers, quarantining uncertain
+late output through the runtime. Restart uses existing Interrupted/Unknown
+history recovery and never replays pending requests.
+
+The composer clears only after real accepted intent, then remains available
+for another request or independent memory-only unsent text. Selection changes
+after acceptance do not retarget submitted work; results remain in the original
+conversation. This is bounded implementation, not new provider/hardware
+qualification, foreground-relative voice authority, effect execution or
+revival of the retired diagnostic scheduler.
+
+### Broader proposed management policy
+
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
 - Default order is arrival order. Contextual reordering requires a clear user instruction and acknowledgement; the delivered bounded route is the separately reviewed exact adjacent pending pair above.
 - A task needing clarification keeps its position and blocks dispatch at that position until clarified, removed, or explicitly deferred.

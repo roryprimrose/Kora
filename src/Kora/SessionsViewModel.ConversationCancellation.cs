@@ -35,6 +35,8 @@ internal sealed partial class SessionsViewModel
         observingConversationCancellation = true;
         conversation.RunningConversationChanged += PresentConversationExecution;
         conversation.ProvisionalAnswerChanged += PresentProvisionalAnswerAsync;
+        conversation.PendingConversationChanged += PresentPendingConversation;
+        conversation.SubmittedConversationCompleted += PresentSubmittedConversation;
     }
 
     private async ValueTask PresentProvisionalAnswerAsync(ConversationAnswerPresentation answer, CancellationToken token)
@@ -97,6 +99,9 @@ internal sealed partial class SessionsViewModel
             else
             {
                 runningConversation = null;
+                pendingConversation = null;
+                pendingConversationTurns = [];
+                selectedPendingConversation = null;
                 provisionalAnswer = null;
                 runningConversationStatus = "No active admitted conversation lease in this exact session. Retained task receipts remain authoritative.";
                 NotifyConversationCancellation();
@@ -149,6 +154,8 @@ internal sealed partial class SessionsViewModel
         {
             conversation.RunningConversationChanged -= PresentConversationExecution;
             conversation.ProvisionalAnswerChanged -= PresentProvisionalAnswerAsync;
+            conversation.PendingConversationChanged -= PresentPendingConversation;
+            conversation.SubmittedConversationCompleted -= PresentSubmittedConversation;
             observingConversationCancellation = false;
         }
         NotifyConversationCancellation();
@@ -161,5 +168,6 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(CanCancelRunningConversation));
         OnPropertyChanged(nameof(ProvisionalAnswer));
         OnPropertyChanged(nameof(HasProvisionalAnswer));
+        NotifyPendingConversation();
     }
 }

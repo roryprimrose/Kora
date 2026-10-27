@@ -319,6 +319,13 @@ public sealed class AgentRunSetTests
             Messages.TryAdd(request.RequestId, new(request, generation, 1, 1, Time.Now, body, null, null)).Should().BeTrue();
             return ValueTask.FromResult(Publish(request, HostTaskState.IntentRecorded));
         }
+        public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
+            HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+            Func<bool> admitted, CancellationToken token)
+        {
+            predecessors.Should().OnlyContain(item => item.SessionId == request.SessionId && Messages.ContainsKey(item.RequestId));
+            return RetainConversationMessageAsync(request, generation, expectedMetadataRevision, body, admitted, token);
+        }
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
         {

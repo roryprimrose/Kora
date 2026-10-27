@@ -32,6 +32,7 @@ public sealed class DependencySetupWorkflow(
                 SetupTaskState.Completed,
                 "Validating local inference readiness.");
             var statuses = await bootstrapper.ProbeAsync(cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             var inference = statuses.Single(status =>
                 string.Equals(status.Id, LocalModelTaskId, StringComparison.Ordinal));
             if (inference.Readiness != DependencyReadiness.Ready)

@@ -179,6 +179,83 @@ public sealed class DependencyBootstrapperTests(
         probe.Calls.Should().Be(2);
     }
 
+    [Theory]
+    [InlineData(DependencyReadiness.Ready, false)]
+    [InlineData(DependencyReadiness.Missing, false)]
+    [InlineData(DependencyReadiness.Failed, false)]
+    [InlineData(DependencyReadiness.Ready, true)]
+    [InlineData(DependencyReadiness.Missing, true)]
+    [InlineData(DependencyReadiness.Failed, true)]
+    public async Task Cancelled_normal_probe_completion_is_joined_without_publishing_or_continuing(
+        DependencyReadiness readiness, bool tracked)
+    {
+        using var cancellation = new CancellationTokenSource();
+        HeldCompletionProbe probe = tracked ? new HeldSetupCompletionProbe() : new HeldCompletionProbe();
+        probe.Readiness = readiness;
+        var later = new RecordingProbe();
+        using var bootstrapper = new DependencyBootstrapper(
+            [new StubProbe("storage", DependencyReadiness.Ready), probe, later], Logger);
+        bootstrapper.RecordObservation(new("local.inference", "Runtime", DependencyReadiness.Ready, "Old check."));
+        var check = bootstrapper.ProbeAsync(cancellation.Token);
+        try
+        {
+            await probe.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await cancellation.CancelAsync();
+
+            check.IsCompleted.Should().BeFalse("cancellation must not abandon the outstanding probe");
+            probe.Exited.Should().BeFalse();
+            later.WasCalled.Should().BeFalse();
+        }
+        finally
+        {
+            probe.Release.TrySetResult();
+            var complete = () => check;
+            await complete.Should().ThrowAsync<OperationCanceledException>();
+        }
+
+        probe.Exited.Should().BeTrue();
+        later.WasCalled.Should().BeFalse();
+        bootstrapper.Observations.Should().ContainSingle().Which.Status.Id.Should().Be("storage");
+        bootstrapper.Tasks.ActiveTask.Should().BeNull();
+        if (tracked)
+        {
+            bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Cancelled);
+        }
+        else
+        {
+            bootstrapper.Tasks.Tasks.Should().BeEmpty();
+        }
+
+        probe.Readiness = DependencyReadiness.Ready;
+        var fresh = await bootstrapper.ProbeAsync(TestContext.Current.CancellationToken);
+        fresh.Should().HaveCount(3);
+        bootstrapper.Observations.Should().Contain(item =>
+            item.Status.Id == "local.inference" && item.Status.Readiness == DependencyReadiness.Ready);
+        later.WasCalled.Should().BeTrue();
+    }
+
+    private class HeldCompletionProbe : IDependencyProbe
+    {
+        public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        public DependencyReadiness Readiness { get; set; }
+        public bool Exited { get; private set; }
+
+        public async ValueTask<DependencyStatus> ProbeAsync(CancellationToken cancellationToken)
+        {
+            Entered.TrySetResult();
+            await Release.Task;
+            Exited = true;
+            return new("local.inference", "Local model", Readiness, "Final check.");
+        }
+    }
+
+    private sealed class HeldSetupCompletionProbe : HeldCompletionProbe, ISetupDependencyProbe
+    {
+        public string TaskId => "local.inference";
+        public string TaskName => "Local model";
+    }
+
     private sealed class BlockingProbe : IDependencyProbe
     {
         public TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);

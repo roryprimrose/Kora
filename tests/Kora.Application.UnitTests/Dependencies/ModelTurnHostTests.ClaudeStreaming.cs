@@ -1,6 +1,7 @@
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
@@ -11,14 +12,15 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task ClaudeStreamUsesCanonicalProvisionalOwnerWithFinalOnlySameRequestRetention(bool fail)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    public async Task ClaudeStreamUsesCanonicalProvisionalOwnerWithFinalOnlySameRequestRetention(bool fail, bool cancel)
     {
         using var f = new Fixture();
         var runtime = new HostClaudeStream { Fail = fail };
         var host = f.ClaudeProfiles(runtime, new(f, f.Time));
-        var service = f.ConversationService(host, execution: host);
+        await using var service = f.ConversationService(host, execution: host);
         var updates = new List<ConversationAnswerPresentation>();
         service.ProvisionalAnswerChanged += (update, _) =>
         {
@@ -27,7 +29,8 @@ public sealed partial class ModelTurnHostTests
             updates.Add(update);
             return ValueTask.CompletedTask;
         };
-        var pending = service.SubmitClaudeAnswerStreamAsync(new(f.Session, null), "original Claude input", () => true, Token);
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var pending = service.SubmitClaudeAnswerStreamAsync(target, "original Claude input", () => true, Token);
         await runtime.Entered.Task.WaitAsync(Token);
         try
         {
@@ -35,12 +38,36 @@ public sealed partial class ModelTurnHostTests
             updates[0].IsCurrent().Should().BeTrue();
             pending.IsCompleted.Should().BeFalse();
             f.Retained!.AssistantResponse.Should().BeNull();
+            var retained = f.Retained;
+            var retainCalls = f.RetainCalls;
+            await service.Invoking(value => value.SubmitQueuedAsync(target, "not an ordinary Claude request", () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+            f.RetainCalls.Should().Be(retainCalls);
+            f.Retained.Should().Be(retained);
+            (await service.ReadPendingConversationAsync(target, () => true, Token)).Turns.Should().BeEmpty();
+            if (cancel)
+            {
+                var running = (await service.ReadRunningConversationAsync(target, () => true, Token))!;
+                (await service.CancelRunningConversationAsync(running.Target, () => true, Token))
+                    .Phase.Should().Be(ConversationExecutionPhase.Cancelling);
+                updates[0].IsCurrent().Should().BeFalse();
+                pending.IsCompleted.Should().BeFalse("the stream ignores cancellation until its physical release");
+                host.IsQuiescent.Should().BeFalse();
+                f.ExecutionCompletions.Should().Be(0);
+                f.Retained.AssistantResponse.Should().BeNull();
+            }
         }
         finally { runtime.Release.TrySetResult(); }
         var receipt = await pending;
-        receipt.Message.AssistantResponse?.Body.Should().Be(fail ? null : "safe preview complete");
+        receipt.Message.AssistantResponse?.Body.Should().Be(fail || cancel ? null : "safe preview complete");
+        receipt.Message.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled
+            : fail ? ModelTurnOutcome.Unknown : ModelTurnOutcome.Succeeded);
+        receipt.Message.Body.Should().Be("original Claude input");
         receipt.Message.Request.Should().Be(updates[0].Target.Request);
         updates.Should().OnlyContain(update => !update.IsCurrent());
+        f.ExecutionCompletions.Should().Be(1);
+        host.IsQuiescent.Should().BeTrue();
+        runtime.Streams.Should().Be(1);
         runtime.Buffered.Should().Be(0);
     }
 
@@ -86,6 +113,7 @@ public sealed partial class ModelTurnHostTests
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal bool Fail { get; init; }
         internal int Buffered { get; private set; }
+        internal int Streams { get; private set; }
         public Task<ClaudeTurnReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple profile,
             ModelContextEnvelope context, Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit,
             Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
@@ -95,6 +123,7 @@ public sealed partial class ModelTurnHostTests
             Func<CancellationToken, ValueTask<bool>> current,
             Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken token)
         {
+            Streams++;
             await publish(new(provenance, "safe preview"), token);
             Entered.TrySetResult();
             await Release.Task;

@@ -238,10 +238,12 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
         {
+            SelectPendingRecord(request);
             admitted().Should().BeTrue();
             ExecutionStarts++;
             Retained = Retained! with { Version = 2, Revision = 2, Execution = provenance, ExecutionMetadataRevision = metadataRevision };
             Task = Task! with { Task = Task.Task.Next(HostTaskState.DispatchRecorded) };
+            RememberPendingRecord();
             var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
             AfterExecutionStart?.Invoke();
             return ValueTask.FromResult(StartReceiptFault switch
@@ -259,6 +261,7 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationExecutionAsync(HostRequest request,
             ModelTurnResult result, Func<bool> admitted, CancellationToken token)
         {
+            SelectPendingRecord(request);
             BeforeExecutionComplete?.Invoke();
             admitted().Should().BeTrue();
             ExecutionCompletions++;
@@ -269,6 +272,7 @@ public sealed partial class ModelTurnHostTests
                     ? ConversationResponse.FromResult(result, Retained.Execution!) : null,
             };
             Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
+            RememberPendingRecord();
             var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
             if (BadExecutionReadback) { Retained = Retained with { Body = "different durable original" }; }
             return ValueTask.FromResult(TerminalReceiptFault switch

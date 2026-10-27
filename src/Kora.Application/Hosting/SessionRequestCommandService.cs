@@ -115,11 +115,12 @@ public sealed class SessionRequestCommandService(
             }
             if (command.Operation != SessionCommandOperation.RequestConfirm)
             { throw new InvalidOperationException("Only explicit request review, confirm or cancel is supported."); }
+            var accepted = false;
             bool OriginalLive()
             {
                 lock (gate)
                 {
-                    return epoch == attempt && Live() && previous.SourceAdmitted()
+                    return (accepted || epoch == attempt) && Live() && previous.SourceAdmitted()
                         && access.ControlRevision == previous.ControlRevision && time.GetUtcNow() < previous.Review.ExpiresAt;
                 }
             }
@@ -147,7 +148,8 @@ public sealed class SessionRequestCommandService(
                     ? await conversation.SubmitReviewedCopilotAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
                         Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
                     : await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
-                        Revalidate, [previous.Cause], previous.Review.Origin).ConfigureAwait(false);
+                        Revalidate, [previous.Cause], previous.Review.Origin,
+                        accepted: () => { lock (gate) { accepted = true; } }).ConfigureAwait(false);
                 submission.Complete(HostOperationOutcome.Completed);
             }
             catch
@@ -156,7 +158,9 @@ public sealed class SessionRequestCommandService(
                 throw;
             }
             activity.Complete(HostOperationOutcome.Completed);
-            return new("retained", "Exact original USER request retained with its original channel and terminal HOST/task outcome. Inspect these receipts; no fallback or automatic replay.")
+            return new("retained", receipt.Message.Outcome is null
+                ? "Exact original USER request accepted and pending in its original conversation/channel. Inspect submitted work for position or exact cancellation; no execution success, fallback or authority renewal is implied."
+                : "Exact original USER request retained with its original channel and terminal HOST/task outcome. Inspect these receipts; no fallback or automatic replay.")
             { RequestSubmission = receipt };
         }
         catch (OperationCanceledException)

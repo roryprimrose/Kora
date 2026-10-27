@@ -27,6 +27,20 @@ Queries and one exact match are volatile presentation only: no persistence, logg
 
 ## Exact-session conversation retention boundary
 
+The [ordinary submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns)
+stores actual original request/task history, not unsent drafts or renewed
+authority. Pending turns hold no runtime lease, grant or provider transmission.
+Original provider/profile, serialized body/context, reviewed sources and input
+channel stay bound to their admission; dispatch repeats the existing source,
+session, privacy, qualification, consent and expiry fences. A later setting or
+foreground selection cannot retarget them. Original context expiry is never
+extended to the queue's longer maximum. Exact pending cancellation and
+held/resume controls use trusted typed audit; the ledger atomically enforces
+FIFO and one dispatched conversation task, while the runtime remains the sole
+resource allocator. Failure/Unknown/source withdrawal holds or denies work,
+and restart never replays it. Deferred activities link captured admission
+context without content, secrets or identity in baggage.
+
 An explicit `ask this conversation <original body>` request uses the [existing native presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), not provider/input identifiers or cached selection. Its [one-use source-bound review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) preserves original voice/UI lineage and validates exact target/currentness through retention and model consumption. It confers no earlier-history, memory or instruction-source permission and never rewrites unsent input.
 
 The [ordinary resource boundary](Work_Management.md#ordinary-session-resource-allocation-implementation) retains original request/channel/context and existing per-task tool/question/egress authority. Only the [host allocator's live issued-lease table](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) confers allocation authority; constructing a qualification record or lease-shaped value cannot consume budget or release another owner's resources. Expiry/revocation/profile/runtime changes close dispatch and answer publication. Unknown physical identity remains globally exclusive; failed physical joins quarantine affected resources. Resource audit contains host turn identity and fixed outcomes, never source text or provider/account details.

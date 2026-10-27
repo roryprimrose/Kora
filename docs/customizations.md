@@ -24,6 +24,25 @@ plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather
 than silently omitting components.
 
+## Discover which selected customizations may help
+
+Type `discover customizations <your question>` or use the current assistant-name activated-voice prefix. With no question, enter it in the private native window. This is a separate metadata-only operation, not the complete-file editing or authoring route below ([original routes](../src/Kora.Application/ViewModels/MainViewModel.CustomizationDiscovery.cs), [native window](../src/Kora/CustomizationDiscoveryWindow.cs)).
+
+1. **Refresh supported source choices** lists the supported Kora roaming and User profile skill, agent and instruction choices without reading definition bodies or MCP configuration. Nothing is selected automatically. Private source-path labels distinguish choices but are never shared with the model.
+2. Deliberately select one to six exact entries across the kinds and one existing Active conversation. Enter or review your original question. No conversation is created, resumed or inferred.
+3. **Read selected primary metadata and preview exact shared fields** reads only those primary definitions, not skill-package components. Review the original question and the complete bounded metadata reply: opaque per-snapshot `ref`, `kind`, readable `name`, bounded `description`, safe `sourceCategory`, `compatible`, `enabled` and `availability`.
+4. **Share only this reviewed metadata for ONE local answer** submits the unchanged question through the canonical conversation route. The local model can call only `customizations.list` and `customizations.get` over the frozen selection, then produce a genuine recommendation. The original question and genuine answer or truthful terminal outcome are retained in the selected conversation; host-added scope text records how many reviewed entries were actually served.
+
+These steps share one [reviewed snapshot owner](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [read-only native metadata projection](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Metadata.cs) and [canonical retained submission](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs). Choosing sources or reviewing metadata never enables a definition, loads instructions, grants authority, registers effects or invokes a recommendation.
+
+`compatible` means supported metadata parsing, **not executable compatibility**. `enabled` reflects current admitted catalogue/use control for the exact observed digest; a missing, held, disabled or unmatched candidate is not reported as enabled. `availability: NotObserved` explicitly means executable readiness was not established ([projection](../src/Kora.Application/Tools/CustomizationDiscoveryService.cs)).
+
+The snapshot expires after two minutes and is single-use. Input, selection, session, privacy, ownership, source or use-control changes require a fresh choice/review. Invalid, missing, changed, interrupted or revoked sources report failure rather than an empty/current or last-good catalogue. Cancel/close retires disclosure immediately; model work remains owned until actual termination, and late answers cannot publish ([freshness owner](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [retention lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-8 bytes per description, 1,024-byte complete callback input, 4,096-byte complete callback reply and 8,192 cumulative reply bytes. Paging stays inside the selected snapshot; `get` accepts only its opaque refs. Unknown fields, queries, paths, forged refs and invalid pages are rejected; oversized fields/results are not truncated ([wire contract](../src/Kora.Core/Tools/CustomizationDiscoveryTools.cs), [input policy](../src/Kora.Core/Tools/CapabilityInputPolicy.cs)).
+
+The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
+
 ## Edit or add
 
 Use `show me example instruction` or `edit example skill`, or select an exact

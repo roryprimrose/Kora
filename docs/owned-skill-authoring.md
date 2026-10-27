@@ -41,6 +41,9 @@ Save authority. Drafts are not autosaved.
 
 ## Review and invoke one saved revision
 
+For an exact readable-name request spanning owned and registered shared instruction-only skills, use the [named invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name).
+It includes explicit local inspection, source disambiguation and complete canonical review/confirmation, not automatic selection or invocation. The direct ID/version route below remains available ([named host](../src/Kora/NamedSkillInvocationController.cs)).
+
 Saving, listing and reopening never invoke a model. To use one saved package:
 
 1. Select an exact saved ID/version and choose **Use**, or enter

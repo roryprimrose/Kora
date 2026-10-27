@@ -7,7 +7,7 @@ using Kora.Core.Dependencies;
 
 namespace Kora.Windows.Artifacts;
 
-public sealed partial class WindowsCustomizationStore : ICustomizationStore
+public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICustomizationMetadataStore
 {
     private readonly IApplicationDataPaths paths;
     private readonly string profileRoaming;
@@ -30,7 +30,11 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
         this.profile = profile;
     }
 
-    public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) => Task.Run(() =>
+    public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) => ListCore(false, token);
+
+    public Task<IReadOnlyList<CustomizationSource>> ListMetadataSources(CancellationToken token) => ListCore(true, token);
+
+    private Task<IReadOnlyList<CustomizationSource>> ListCore(bool metadataOnly, CancellationToken token) => Task.Run(() =>
     {
         lock (gate)
         {
@@ -38,6 +42,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
             foreach (var root in Roots())
             {
                 token.ThrowIfCancellationRequested();
+                if (metadataOnly && !Kora.Core.Tools.CustomizationDiscoveryTools.IsSupported(root.Kind)) { continue; }
                 if (!Directory.Exists(root.Path)) { continue; }
                 using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(root.Path, false, token);
                 if (root.Kind == CustomizationKind.Skill)
@@ -70,7 +75,7 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore
                 }
                 if (found.Count > 512) { throw new InvalidDataException("Customization inventory exceeds 512 entries."); }
             }
-            foreach (var recovery in ListJournalTargets(token))
+            foreach (var recovery in metadataOnly ? [] : ListJournalTargets(token))
             {
                 if (!found.Any(source => string.Equals(source.Id, recovery.Source.Id, StringComparison.Ordinal)))
                 { Add(found, recovery); }

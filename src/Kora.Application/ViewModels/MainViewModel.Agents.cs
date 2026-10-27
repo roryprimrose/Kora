@@ -12,6 +12,7 @@ public sealed partial class MainViewModel
     public void BindAgentShutdown(Func<Task>? close) => agentShutdown = close;
     private async Task CloseAgentRun()
     {
+        if (discoveryShutdown is { } discovery) { await discovery(); }
         if (agentAuthoringShutdown is { } close && !await close())
         { throw new OperationCanceledException("Agent authoring close was cancelled; shutdown is not approved."); }
         await Task.WhenAll(agentShutdown?.Invoke() ?? Task.CompletedTask, CloseAgentRunSet());

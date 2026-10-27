@@ -84,6 +84,32 @@ Speech output moves independently through queued, speaking, stopped, and finishe
 Partial visual output may appear during Running and remains labelled incomplete until terminal success.
 Queueing, contextual routing, dispatch, and status semantics are defined in [Work Management](Work_Management.md).
 
+## Explicit failed-conversation recovery
+
+The native failed-request review admits a deliberately new ordinary request,
+not replay or a transition of its predecessor. An exact retained version-2 USER
+message and matching terminal task revision supply immutable input and recorded
+original provider selection. They do not supply current execution, consent or
+egress authority. Legacy/pre-dispatch failures without that provider record
+remain explicitly unavailable; unknown, interrupted, cancelled, timed-out,
+successful and live sources cannot be relabelled confirmed failure.
+
+Review freezes the current original-session provider/account/profile
+expectation under existing private control and the ordinary 60-second review
+lifetime. Separate one-shot confirmation carries the typed failed source through
+ordinary acceptance, the settled FIFO lane and final host source validation.
+Source/task/message revision, session, provider/default/profile/account and
+privacy changes require fresh review or denial, including immediately before
+physical dispatch. Existing model-context expiry and each hosted final-byte
+consent remain independent. No original context deadline is invented or renewed.
+
+The original terminal failure and user input remain unchanged; one new task
+retains only its genuine new terminal answer/outcome. Held lanes still require
+their existing explicit Resume, and queue bounds, resource ownership, joins,
+late-output suppression, audit and retention are unchanged. No live-predecessor
+exemption, handoff transaction, automatic retry/backoff, fallback, mutating-tool
+replay, composer replacement, disk autosave or new permission is introduced.
+
 ## Request Interpretation and Tool Results
 
 [Commands, Tools, Skills, and Model Interaction](Commands_Tools_And_Skills.md)

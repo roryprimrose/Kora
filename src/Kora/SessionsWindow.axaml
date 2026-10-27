@@ -61,6 +61,15 @@
         <WrapPanel>
           <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
           <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
+          <Button x:Name="ReviewFailedRetry" Content="Review selected failed request for a NEW attempt"
+              IsEnabled="{Binding CanReviewFailedRetry}" />
+        </WrapPanel>
+        <TextBox x:Name="FailedRetryReview" Text="{Binding FailedRetryReviewText}" IsReadOnly="True"
+            AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260"
+            AutomationProperties.Name="Complete original failed input, original provider and task source, current account profile and new-attempt review expiry" />
+        <WrapPanel>
+          <Button x:Name="ConfirmFailedRetry" Content="Confirm one NEW attempt" IsEnabled="{Binding CanConfirmFailedRetry}" />
+          <Button x:Name="CancelFailedRetry" Content="Decline failed-request review" IsEnabled="{Binding CanConfirmFailedRetry}" />
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />

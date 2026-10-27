@@ -19,6 +19,7 @@ internal sealed partial class SessionsViewModel
         set
         {
             if (ReferenceEquals(selectedAnswerRecord, value)) { return; }
+            ClearFailedRetry();
             CancelAnswerRead();
             selectedAnswerRecord = value is not null && ConversationMessages.Any(item => ReferenceEquals(item, value))
                 ? value : null;
@@ -126,6 +127,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyAnswerRead()
     {
+        NotifyFailedRetry();
         if (selectedAnswerRecord is not null
             && !ConversationMessages.Any(item => ReferenceEquals(item, selectedAnswerRecord)))
         {

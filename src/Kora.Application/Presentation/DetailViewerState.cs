@@ -23,14 +23,17 @@ public sealed class DetailViewerState : ObservableObject
     private long generation = 1;
     private Func<bool>? readAdmission;
     private Func<bool>? findAdmission;
+    private Guid renderToken;
+    private Func<CancellationToken, Task<bool>>? validateSource;
 
     public DetailViewerState(AdmittedDetailContent content, Func<bool>? sourceReadAdmission = null,
-        Func<bool>? findAdmission = null)
+        Func<bool>? findAdmission = null, Func<CancellationToken, Task<bool>>? validateSource = null)
     {
         ArgumentNullException.ThrowIfNull(content);
         this.content = content;
         readAdmission = sourceReadAdmission;
         this.findAdmission = findAdmission;
+        this.validateSource = validateSource;
         Reference = content.Reference;
         status = $"Rendering {content.Profile}.";
     }
@@ -59,6 +62,30 @@ public sealed class DetailViewerState : ObservableObject
     public string FindText => findHost ? HostText : ActiveText;
     public string AssistantText => !CanRead() ? string.Empty : content!.ConversationMessage?.AssistantResponse?.Body ?? string.Empty;
 
+    public bool CanInteractWithFinalDocument => CanRead() && readAdmission is not null
+        && renderState == DetailRenderState.Rendered && content!.Kind == DetailContentKind.Markdown
+        && content.Origin is DetailContentOrigin.FinalizedResponse or DetailContentOrigin.RetainedAssistant;
+
+    public FinalDocumentSource CaptureFinalDocument()
+    {
+        if (!CanInteractWithFinalDocument)
+        { throw new InvalidOperationException("Exact host-admitted rendered final Markdown is required for document interaction."); }
+        return new(this, content!, renderToken);
+    }
+
+    internal bool IsFinalDocumentCurrent(FinalDocumentSource source) =>
+        // This owner never replaces content; every render and closure rotates its token.
+        CanRead() && renderToken == source.RenderToken;
+
+    internal bool RequiresSourceValidation => validateSource is not null;
+
+    internal async Task<bool> ValidateFinalDocumentAsync(FinalDocumentSource source, CancellationToken token)
+    {
+        if (token.IsCancellationRequested || !IsFinalDocumentCurrent(source)) { return false; }
+        if (validateSource is { } validate && !await validate(token)) { Close(); return false; }
+        return !token.IsCancellationRequested && IsFinalDocumentCurrent(source);
+    }
+
     public bool CompleteRender(long renderGeneration, string semanticText, string message, bool fallback)
     {
         ArgumentNullException.ThrowIfNull(semanticText);
@@ -78,6 +105,7 @@ public sealed class DetailViewerState : ObservableObject
             throw new InvalidDataException("An empty semantic projection is not successful rendering; retain the exact source fallback.");
         }
         renderedText = semanticText;
+        renderToken = Guid.NewGuid();
         renderState = fallback ? DetailRenderState.SourceFallback : DetailRenderState.Rendered;
         status = message;
         ResetSearch();
@@ -223,7 +251,9 @@ public sealed class DetailViewerState : ObservableObject
         content = null;
         readAdmission = null;
         findAdmission = null;
+        validateSource = null;
         renderedText = string.Empty;
+        renderToken = Guid.Empty;
         generation++;
         renderState = DetailRenderState.Closed;
         findHost = false;

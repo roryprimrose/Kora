@@ -30,11 +30,13 @@ A denied or ambiguous editor route is never retried as a general request.
 
 ## Choose, acknowledge, correct, submit
 
-- A qualified local matcher may propose one related Active conversation or several
-  exact candidates. The choice always includes **New conversation (fresh session)**.
+- The host makes one tools-free local matching inference over permitted metadata.
+  An admitted, qualified local provider may propose one related Active conversation
+  or several exact candidates. The choice always includes **New conversation (fresh session)**.
 - No clear match, or unqualified/unavailable inference, offers fresh **New**.
-  Production relatedness inference is currently **unqualified**: it does not guess
-  from a name, current selection, focus, recent activity or window size.
+  Unqualified production providers remain unavailable; composing matching does not
+  qualify them. The host never substitutes a guess from current selection, focus,
+  recent activity or window size.
 - Choose **Review this destination** to acknowledge the exact name. Nothing has
   been submitted or created yet.
 - **Correct destination** offers the bounded host-presented Active conversations
@@ -71,6 +73,14 @@ Only the explicit typed **No match** or **Unavailable** outcome offers New.
 There is no automatic fallback after denial, cancellation, expiry or uncertain
 creation/submission. Inspect a disclosed exact attempt before taking further action.
 
-Deterministic matcher and headless-native tests establish implementation behavior,
+Matching runs in its own original-channel control session, never a user destination.
+Its physical inference resources are joined and its outcome recorded before review
+opens. After acknowledgment, a separate ordinary conversation turn receives the exact
+original body and channel; only that turn's genuine final answer is retained once.
+The routing proposal is never retained as an assistant answer. Closing or revoking
+routing while inference is running suppresses late proposals and retains ownership
+until actual termination, without submitting New.
+
+Deterministic admitted-provider and headless-native/private-store tests establish implementation behavior,
 not qualification of a production inference engine, microphone, installed-native
 accessibility profile or answering provider.

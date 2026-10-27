@@ -122,9 +122,12 @@ position one; Last is the last item on the loaded page, not in the whole catalog
 or scroll viewport. Background work does not reorder it. Changed/retired pages,
 privacy/ownership changes and out-of-range positions refuse rather than selecting
 a replacement. Selection preserves unsent input and never resumes a Done session.
-Use the named composer for explicitly addressed messages. Automatic voice
-relatedness matching and model-visible session-list context remain unavailable
-in both modes. See [expanded interaction](windows-and-tray.md#expand-and-collapse-the-interaction-window).
+Use the named composer for explicitly addressed messages. Untargeted requests use
+[reviewed local relatedness](session-routing.md): one permitted metadata page,
+local tools-free inference when qualified, exact destination acknowledgment and
+separate original-request submission in both modes. Navigation commands do not
+disclose the session list to a model.
+See [expanded interaction](windows-and-tray.md#expand-and-collapse-the-interaction-window).
 
 Native composition and original/current private ownership, input, call/privacy epochs and compact source must remain admitted through queued opening; otherwise initiate a fresh command. Protected calls refuse these routes.
 Model navigation is explicitly unavailable: these window-focus actions are not added to bootstrap or the six read-only model descriptors.

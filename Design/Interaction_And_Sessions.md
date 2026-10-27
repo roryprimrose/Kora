@@ -1271,10 +1271,21 @@ implements host-owned descriptor proposals, exact choice plus New, name
 acknowledgment, pre-submit correction and canonical original-user submission in
 both window modes. It reads one permitted metadata page through
 `SessionWorkspaceService`, not a model-tool catalogue or transcript assembly.
-Production matching remains unqualified and explicitly offers fresh New, with
-deterministic selection available. The native review reveals the destination
+Production composition now includes one tools-none, LocalOnly inference in a
+routing-specific canonical original-input control domain established before the
+metadata snapshot. The control identity is excluded from routing destinations.
+Strict bounded JSON maps only host-presented indexes/evidence into the existing
+proposal; the shared routing service validates candidate cardinality, evidence and
+revision. Inference resources physically join and canonical control outcomes commit
+before review is returned. Unqualified local providers remain unavailable and
+explicitly offer reviewed New, with deterministic selection available.
+The native review reveals the destination
 without switching the previous reader or moving any unsent input. Hands-free
-routing replies and automatic selection changes remain unavailable.
+routing replies and automatic selection changes remain unavailable. After separate
+confirmation, unchanged canonical conversation submission sends the original body
+and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
+not the routing proposal, is retained. Cancellation and source closure suppress late
+review and join the owned inference without fallback submission.
 
 The [editor-targeting precedence](#editor-targeting-precedence) below
 applies before this general relatedness policy. Editor-bound or ambiguously
@@ -1302,7 +1313,7 @@ route. In expanded mode it reveals that destination without transferring unsent 
 or losing the previous reading position. Background activity never switches selection.
 Spoken ordinal navigation uses the exact host-held presented-list snapshot, not a model's
 reconstructed order; the bounded implementation counts the loaded page, including Last.
-Session descriptors made available to a future routing model must be bounded, permitted
+Session descriptors made available to routing inference must be bounded, permitted
 and bound to that same presentation; navigation does not authorize transcript assembly
 or hosted disclosure.
 

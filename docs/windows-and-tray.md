@@ -94,12 +94,13 @@ question windows and **Return to current question** remain independent.
 **Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
 
-Automatic current/other/new conversation matching is not available yet, and
-the session list is not supplied to a model by these navigation commands.
+Untargeted requests use [reviewed local relatedness](session-routing.md), not
+automatic destination submission. The session list is not supplied to a model by
+these navigation commands.
 The approved design uses relatedness routing in both window modes: selection
-supplies context, not a lock for unrelated general voice requests. Today use
-the explicitly addressed composer or the existing fresh-target **New conversation**
-workflow; expansion does not add model availability or permissions.
+supplies context, not a lock for unrelated general voice requests. Exact composers
+and the fresh-target **New conversation** workflow remain available independently;
+expansion does not add model availability or permissions.
 
 ### Details beside the conversation
 

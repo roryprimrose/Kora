@@ -13,7 +13,7 @@ using Kora.Windows.Presentation;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class PresenceRendererTests
+public sealed partial class PresenceRendererTests
 {
     private static readonly int[] DensityLevels = [25, 100, 200];
 

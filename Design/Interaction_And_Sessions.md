@@ -1315,6 +1315,18 @@ The source is authoritatively reread after native opening/activation and immedia
 
 ### Proposed relatedness routing
 
+Explicit non-destructive readable-name browsing is separate from request
+relatedness. `open conversation "<name>"` / `read conversation "<name>"`
+uses the existing exact-name metadata search, one bounded currently permitted
+page, no preselected row and a separate native exact-choice acknowledgment.
+Original LocalUi/ActivatedVoice admission, private control revision, source
+metadata/generation/lifecycle and a 60-second lifetime are revalidated before
+publishing real retained conversation history in the existing interaction
+window. No model, original-request submission, task creation, lifecycle change
+or disk unsent-input write is part of browsing. Pending question/review/dictation
+input cannot become this global command. The source-owned native chooser
+retires on source change, cancellation, replacement, privacy or disposal.
+
 The bounded [reviewed destination operation](../docs/session-routing.md) now
 implements host-owned descriptor proposals, exact choice plus New, name
 acknowledgment, pre-submit correction and canonical original-user submission in

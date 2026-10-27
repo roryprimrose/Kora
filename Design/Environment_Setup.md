@@ -365,6 +365,15 @@ Verify publisher/integrity, restrict redirects/arguments, and respect protected-
 An external installer capable of touching protected Kora resources must be constrained/mediated or rejected; trusting its name is insufficient.
 
 Use resumable, idempotent steps and verify after cancellation/restart instead of trusting old success markers.
+Cancelling an approved local-model setup during final health verification joins
+the outstanding check before reporting **Setup cancelled**. Even if that check
+returns normally, it must not publish a fresh readiness observation or complete
+the original setup successfully after cancellation. Independently completed
+checks retain their observations; cancellation does not roll back installed
+bytes, remove existing assets or stop a user-owned server. Inspect partial
+progress with an explicit fresh readiness check, and review any new installation
+separately. Cancellation does not automatically retry, reinstall or invoke the
+model, and a fresh observation alone does not qualify or enable the runtime.
 Keep temporary downloads separate and clean up only known owned staging content.
 Do not roll back or uninstall pre-existing user components.
 Record partial/unknown machine changes and require reconciliation before retrying an uncertain installation.

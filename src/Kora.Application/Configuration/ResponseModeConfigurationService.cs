@@ -68,7 +68,8 @@ public sealed class ResponseModeConfigurationService(
         }
     }
 
-    public async Task RefreshAsync(RequestOrigin origin, Func<bool> eligible, CancellationToken cancellationToken)
+    public async Task RefreshAsync(RequestOrigin origin, Func<bool> eligible, CancellationToken cancellationToken,
+        long? expectedPreferenceRevision = null)
     {
         var entered = false;
         var expectedRevision = 0L;
@@ -79,6 +80,8 @@ public sealed class ResponseModeConfigurationService(
                 lock (gate)
                 {
                     if (applying) { throw new InvalidOperationException("Response preference is committing."); }
+                    if (expectedPreferenceRevision is { } reviewed && reviewed != revision)
+                    { throw new InvalidOperationException("The reviewed response-mode revision changed before fresh admission."); }
                     applying = true;
                     entered = true;
                     var value = Read();

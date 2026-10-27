@@ -10,12 +10,15 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
-    [InlineData(true, DependencyReadiness.Ready)]
-    [InlineData(true, DependencyReadiness.Missing)]
-    [InlineData(true, DependencyReadiness.Failed)]
-    [InlineData(false, DependencyReadiness.Ready)]
+    [InlineData(true, DependencyReadiness.Ready, false)]
+    [InlineData(true, DependencyReadiness.Missing, false)]
+    [InlineData(true, DependencyReadiness.Failed, false)]
+    [InlineData(false, DependencyReadiness.Ready, false)]
+    [InlineData(false, DependencyReadiness.Missing, false)]
+    [InlineData(false, DependencyReadiness.Failed, false)]
+    [InlineData(false, DependencyReadiness.Ready, true)]
     public async Task Original_setup_joins_final_verification_and_reports_the_owned_cancellation_or_success(
-        bool cancel, DependencyReadiness readiness)
+        bool cancel, DependencyReadiness readiness, bool failProbe)
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
@@ -23,6 +26,14 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.InitializeAsync();
         fixture.Probe.Status = fixture.Probe.Status with { Readiness = readiness, Detail = "Final verification." };
         fixture.Probe.Gate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var setupStates = new List<SetupTask>();
+        fixture.ViewModel.PropertyChanged += (_, args) =>
+        {
+            if (string.Equals(args.PropertyName, nameof(fixture.ViewModel.SetupTasks), StringComparison.Ordinal))
+            {
+                setupStates.AddRange(fixture.ViewModel.SetupTasks);
+            }
+        };
         var continuation = new HeldProbeContinuation();
         var originalContext = SynchronizationContext.Current;
         Task install;
@@ -44,11 +55,30 @@ public sealed partial class MainViewModelTests
             }
             fixture.LocalModel.Calls.Should().Be(1);
             fixture.ViewModel.IsLocalModelSetupActive.Should().BeTrue();
-            fixture.Probe.Gate.SetResult();
+            fixture.ViewModel.SetupTasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Running);
+            setupStates.Should().OnlyContain(task => task.State == SetupTaskState.Running,
+                "installation is not the completion of Install and verify");
+            fixture.ViewModel.LocalModelSetupStatus.Should().Be("Validating local inference readiness.");
+            fixture.ViewModel.LocalModelSetupProgress.Should().NotBe(100);
+            fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeTrue();
+            fixture.ViewModel.CanInstallLocalModel.Should().BeFalse();
+            fixture.ViewModel.RefreshCommand.CanExecute(null).Should().BeFalse();
+            fixture.ViewModel.CommandText = "cancel task";
+            fixture.ViewModel.RunTypedCommand.CanExecute(null).Should().BeTrue();
+            if (failProbe)
+            {
+                fixture.Probe.Gate.SetException(new IOException("Verification failed."));
+            }
+            else
+            {
+                fixture.Probe.Gate.SetResult();
+            }
             await continuation.WaitForPostAsync(TestContext.Current.CancellationToken);
             if (cancel)
             {
                 await fixture.RunAsync("cancel task");
+                fixture.ViewModel.ResponseTitle.Should().Be("Cancelling local model setup.");
+                fixture.ViewModel.SetupTasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Running);
             }
             install.IsCompleted.Should().BeFalse("the original operation must join the held final probe");
             fixture.ViewModel.IsLocalModelSetupActive.Should().BeTrue();
@@ -66,6 +96,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsLocalModelSetupActive.Should().BeFalse();
         fixture.ViewModel.IsLocalModelSetupProgressIndeterminate.Should().BeFalse();
         fixture.ViewModel.SetupTasks.Should().NotContain(task => task.State == SetupTaskState.Running);
+        setupStates.Count(task => task.State != SetupTaskState.Running).Should().Be(1);
         fixture.LocalModel.Calls.Should().Be(1);
         fixture.PowerShell.InstallCalls.Should().Be(0);
         fixture.Reasoner.Requests.Should().BeEmpty();
@@ -90,7 +121,7 @@ public sealed partial class MainViewModelTests
             fixture.LocalModel.Calls.Should().Be(1);
             fixture.Reasoner.Requests.Should().BeEmpty();
         }
-        else
+        else if (readiness == DependencyReadiness.Ready && !failProbe)
         {
             fixture.ViewModel.ResponseTitle.Should().Be("Local model is ready.");
             fixture.ViewModel.LocalModelSetupStatus.Should().Be("Final verification.");
@@ -100,6 +131,19 @@ public sealed partial class MainViewModelTests
                 .Which.Readiness.Should().Be(DependencyReadiness.Ready);
             AssertAuditPair(fixture, SecurityAuditCategory.ResourceWrite, "local-model.install",
                 SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Succeeded);
+        }
+        else
+        {
+            fixture.ViewModel.ResponseTitle.Should().Be("Local model setup failed.");
+            fixture.ViewModel.ResponseBody.Should().Be(failProbe
+                ? "Verification failed."
+                : "Local inference did not pass the readiness check: Final verification.");
+            fixture.ViewModel.LocalModelSetupProgress.Should().NotBe(100);
+            fixture.ViewModel.SetupTasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Failed);
+            fixture.ViewModel.Dependencies.Should().ContainSingle()
+                .Which.Readiness.Should().Be(DependencyReadiness.Missing);
+            AssertAuditPair(fixture, SecurityAuditCategory.ResourceWrite, "local-model.install",
+                SecurityAuditInitiator.LocalUser, SecurityAuditOutcome.Failed, "setup-failed");
         }
     }
 

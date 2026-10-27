@@ -7,6 +7,8 @@ namespace Kora;
 
 internal sealed partial class SessionsViewModel
 {
+    private readonly Kora.Application.IUiDispatcher conversationDispatcher =
+        conversationPresentationDispatcher ?? new AvaloniaUiDispatcher();
     private ConversationExecutionStatus? runningConversation;
     private bool observingConversationCancellation;
     private bool cancellingConversation;
@@ -59,10 +61,13 @@ internal sealed partial class SessionsViewModel
 
     private void PresentConversationExecution(ConversationExecutionStatus observation)
     {
+        var epoch = selectionEpoch;
         var revision = access.ControlRevision;
+        var target = selected;
         void Present()
         {
             if (closed || !access.CanInspect || access.ControlRevision != revision
+                || selectionEpoch != epoch || selected != target
                 || observation.Target.Request.SessionId != selected?.Authority.SessionId
                 || observation.Target.Generation != selected.Authority.Generation) { return; }
             if (runningConversation is { } current && current.Target == observation.Target
@@ -82,7 +87,7 @@ internal sealed partial class SessionsViewModel
             NotifyConversationCancellation();
         }
         if (Dispatcher.UIThread.CheckAccess()) { Present(); }
-        else { Dispatcher.UIThread.Post(Present); }
+        else { conversationDispatcher.Post(Present); }
     }
 
     public async Task RefreshRunningConversationAsync()

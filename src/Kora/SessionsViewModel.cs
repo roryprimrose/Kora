@@ -43,7 +43,8 @@ internal sealed partial class SessionsViewModel(
     Func<Kora.Core.Conversation.ConversationMessage, Func<bool>, Func<CancellationToken, Task>, CancellationToken,
         Task<Kora.Application.Configuration.PlaybackVolumeSuggestionReview>>? reviewPlaybackVolumeSuggestion = null,
     Func<Kora.Application.Configuration.PlaybackVolumeSuggestionReview, CancellationToken, Task<bool>>?
-        confirmPlaybackVolumeSuggestion = null) : ObservableObject
+        confirmPlaybackVolumeSuggestion = null,
+    Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();

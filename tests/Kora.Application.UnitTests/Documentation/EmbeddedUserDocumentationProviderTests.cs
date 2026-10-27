@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using AwesomeAssertions;
+using AwesomeAssertions.Execution;
 
 using Kora.Application.Documentation;
 using Kora.Application.Configuration;
@@ -294,7 +295,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var second = provider.GetPages();
 
         first.Should().BeSameAs(second);
-        first.Select(page => page.Id).Should().Equal(
+        first.Select(page => page.Id).Should().ContainInOrder(
             "readme",
             "getting-started",
             "voice-and-audio",
@@ -333,6 +334,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "model-session-discovery",
             "model-memory-proposals",
             "agent-shared-skill-guidance");
+        AssertInventoryMatchesManifest(first, ReadRawGuideManifest());
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
@@ -645,6 +647,72 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Inventory_oracle_preserves_preferred_order_title_sort_and_manifest_order_for_title_ties()
+    {
+        UserDocumentationPage[] manifest =
+        [
+            new("zeta", "Alpha custom", "# Alpha custom"),
+            new("settings", "A settings", "# A settings"),
+            new("readme", "Z start", "# Z start"),
+            new("second", "Same title", "# Same title"),
+            new("first", "same title", "# same title"),
+            new("alpha", "Zulu custom", "# Zulu custom"),
+        ];
+        var provider = CreateProvider(manifest
+            .Select(page => ($"Kora.Docs.{page.Id}.md", page.Markdown)).ToArray());
+        var pages = provider.GetPages();
+
+        pages.Select(page => page.Id).Should().Equal(
+            "readme", "settings", "zeta", "second", "first", "alpha");
+        AssertInventoryMatchesManifest(pages, manifest);
+    }
+
+    [Theory]
+    [InlineData("omitted")]
+    [InlineData("extra")]
+    [InlineData("duplicated")]
+    [InlineData("misordered")]
+    [InlineData("wrong-title")]
+    [InlineData("wrong-content")]
+    public void Inventory_oracle_rejects_catalogues_that_differ_from_the_raw_manifest(string mutation)
+    {
+        UserDocumentationPage[] manifest =
+        [
+            new("settings", "Settings", "# Settings"),
+            new("readme", "Start", "# Start"),
+            new("new-guide", "Additional guide", "# Additional guide"),
+        ];
+        List<UserDocumentationPage> catalogue = [manifest[1], manifest[0], manifest[2]];
+        switch (mutation)
+        {
+            case "omitted":
+                catalogue.RemoveAt(2);
+                break;
+            case "extra":
+                catalogue.Add(new("unexpected", "Unexpected", "# Unexpected"));
+                break;
+            case "duplicated":
+                catalogue.Add(catalogue[2]);
+                break;
+            case "misordered":
+                (catalogue[0], catalogue[1]) = (catalogue[1], catalogue[0]);
+                break;
+            case "wrong-title":
+                catalogue[2] = catalogue[2] with { Title = "Wrong title" };
+                break;
+            case "wrong-content":
+                catalogue[2] = catalogue[2] with { Markdown = "# Additional guide\nChanged" };
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+
+        using var scope = new AssertionScope();
+        AssertInventoryMatchesManifest(catalogue, manifest);
+        scope.Discard().Should().NotBeEmpty();
+    }
+
+    [Fact]
     public void Missing_documentation_resources_are_rejected()
     {
         var provider = CreateProvider(("Kora.Other.ignore.md", "# Ignore"));
@@ -690,6 +758,85 @@ public sealed class EmbeddedUserDocumentationProviderTests
 
         action.Should().Throw<InvalidDataException>()
             .WithMessage("*no level-one heading*");
+    }
+
+    private static UserDocumentationPage[] ReadRawGuideManifest()
+    {
+        var assembly = typeof(UserDocumentationPage).Assembly;
+        var manifest = new List<UserDocumentationPage>();
+        foreach (var name in assembly.GetManifestResourceNames())
+        {
+            if (!name.StartsWith("Kora.Docs.", StringComparison.Ordinal)
+                || !name.EndsWith(".md", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(name)
+                ?? throw new InvalidOperationException($"Missing raw guide resource: {name}");
+            using var reader = new StreamReader(stream);
+            var markdown = reader.ReadToEnd();
+            using var lines = new StringReader(markdown);
+            string? title = null;
+            while (lines.ReadLine() is { } line)
+            {
+                var heading = line.Trim();
+                if (heading.StartsWith("# ", StringComparison.Ordinal))
+                {
+                    title = heading[2..].Trim();
+                    break;
+                }
+            }
+
+            title.Should().NotBeNullOrWhiteSpace(because: $"raw resource {name} must have a title");
+            manifest.Add(new UserDocumentationPage(name["Kora.Docs.".Length..^".md".Length], title!, markdown));
+        }
+
+        manifest.Should().NotBeEmpty();
+        manifest.Select(page => page.Id).Should().OnlyHaveUniqueItems();
+        return manifest.ToArray();
+    }
+
+    private static void AssertInventoryMatchesManifest(
+        IReadOnlyList<UserDocumentationPage> catalogue,
+        IReadOnlyList<UserDocumentationPage> manifest)
+    {
+        // These are the fixed navigation slots; all other guides use their source title.
+        string[] preferred =
+        [
+            "readme",
+            "getting-started",
+            "voice-and-audio",
+            "responses-and-calls",
+            "settings",
+            "session-permission-levels",
+            "commands",
+            "tools-and-built-in-skills",
+            "customizations",
+            "instruction-editor",
+            "conversation-instructions",
+            "windows-and-tray",
+            "privacy-safety-and-logs",
+            "skill-and-task-execution-design",
+            "troubleshooting",
+        ];
+        var expected = manifest.Select((page, index) => (Page: page, ManifestIndex: index)).ToArray();
+        Array.Sort(expected, (left, right) =>
+        {
+            var leftSlot = Array.IndexOf(preferred, left.Page.Id);
+            var rightSlot = Array.IndexOf(preferred, right.Page.Id);
+            var navigation = (leftSlot < 0 ? preferred.Length : leftSlot)
+                .CompareTo(rightSlot < 0 ? preferred.Length : rightSlot);
+            if (navigation != 0)
+            {
+                return navigation;
+            }
+
+            var title = StringComparer.CurrentCultureIgnoreCase.Compare(left.Page.Title, right.Page.Title);
+            return title != 0 ? title : left.ManifestIndex.CompareTo(right.ManifestIndex);
+        });
+
+        catalogue.Should().Equal(expected.Select(item => item.Page));
     }
 
     private static EmbeddedUserDocumentationProvider CreateProvider(

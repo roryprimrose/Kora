@@ -374,7 +374,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                     Retire(current, "Listening disabled. Native question remains answerable; no answer was submitted.");
                     return;
                 }
-                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript);
+                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript, current.Admission.ActivationName);
                 if (answer is null)
                 {
                     Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");

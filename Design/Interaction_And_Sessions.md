@@ -935,9 +935,18 @@ question edits/expiry/answer, privacy/ownership/call/device loss, failures and
 closure synchronously retire admission and fence delayed callbacks. Capture
 returns to closed/ordinary explicit PTT readiness, not Wake Listening.
 
-Answers match only the exact schema, with no optional assistant-name stripping
-and no command, tool, composer or session-routing fallback. Proposal/approval
-questions are refused; approval readback specificity and grants are unchanged.
+Choice answers match the existing bare schema first, then may use one optional
+validated current configured activation-name prefix, separated by whitespace or
+a comma, before that same exact label/number/`option N` answer (for example,
+`Nova Yes` or `Nova, option 2` when the configured name is Nova). Bare labels,
+including ambiguous labels starting with the name, retain their existing meaning;
+free-text answers are never stripped or normalized. The question-specific
+admission captures the name, and name changes retire playback/capture/delayed
+delivery through the same admission fence without retry or rearm.
+There is no command, tool, composer or session-routing fallback; the existing
+privacy-reducing Stop-listening route remains before schema parsing, even for
+an assistant named Stop or a matching option label. Proposal/approval questions
+are refused; approval readback specificity and grants are unchanged.
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained
@@ -1314,6 +1323,18 @@ The source is authoritatively reread after native opening/activation and immedia
 [Portable cases](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.MessageReuse.cs) and [native/private-store cases](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.MessageReuse.cs) are added. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. This consumes only the existing original-record reader, private admission, New request composer and inert pane I subset. No runtime/model/provider/egress/wake/profile-original writer is enabled; E/Q, installed accessibility, physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed.
 
 ### Proposed relatedness routing
+
+Explicit non-destructive readable-name browsing is separate from request
+relatedness. `open conversation "<name>"` / `read conversation "<name>"`
+uses the existing exact-name metadata search, one bounded currently permitted
+page, no preselected row and a separate native exact-choice acknowledgment.
+Original LocalUi/ActivatedVoice admission, private control revision, source
+metadata/generation/lifecycle and a 60-second lifetime are revalidated before
+publishing real retained conversation history in the existing interaction
+window. No model, original-request submission, task creation, lifecycle change
+or disk unsent-input write is part of browsing. Pending question/review/dictation
+input cannot become this global command. The source-owned native chooser
+retires on source change, cancellation, replacement, privacy or disposal.
 
 The bounded [reviewed destination operation](../docs/session-routing.md) now
 implements host-owned descriptor proposals, exact choice plus New, name

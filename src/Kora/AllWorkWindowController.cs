@@ -11,11 +11,16 @@ namespace Kora;
 
 internal sealed class AllWorkWindowController(
     MainViewModel main, SessionWorkspaceService service, ISessionWorkspaceAccess access,
-    ILogger<AllWorkViewModel> logger, SessionsWindowController sessions) : IDisposable
+    ILogger<AllWorkViewModel> logger, SessionsWindowController sessions) : IDisposable, IAsyncDisposable
 {
     private AllWorkWindow? window;
     private long openedRevision;
     private bool disposed;
+    private Task<WorkspaceSurfaceNavigationOutcome> waitingQuestionOperation =
+        Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
+#pragma warning disable VSTHRD003 // Exposes only this controller's exact owned read for lifecycle observation.
+    internal Task<WorkspaceSurfaceNavigationOutcome> WaitingQuestionOperation => waitingQuestionOperation;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {
@@ -23,6 +28,29 @@ internal sealed class AllWorkWindowController(
         service.WorkOverviewInvalidated += OnInvalidated;
     }
     internal void Open() => Open(static () => true);
+    internal Task<WorkspaceSurfaceNavigationOutcome> ShowWaitingQuestionsAsync(WorkspaceSurfaceNavigation navigation)
+    {
+        if (disposed || !waitingQuestionOperation.IsCompleted)
+        {
+            return Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
+        }
+        Open(navigation.IsAdmitted);
+        if (window is not { DataContext: AllWorkViewModel model } opened)
+        {
+            return Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
+        }
+        var revision = openedRevision;
+        bool Admitted() => !disposed && ReferenceEquals(window, opened) && access.CanInspect
+            && openedRevision == revision && access.ControlRevision == revision && navigation.IsAdmitted();
+        waitingQuestionOperation = model.ReadWaitingQuestionsAsync(navigation with { IsAdmitted = Admitted });
+        return waitingQuestionOperation;
+    }
+
+    internal void RetireWaitingQuestionsIfStale()
+    {
+        if (window?.DataContext is AllWorkViewModel model) { model.RetireWaitingQuestionsIfStale(); }
+    }
+
     internal void Open(Func<bool> admitted)
     {
         if (disposed || !access.CanInspect || !admitted())
@@ -67,5 +95,13 @@ internal sealed class AllWorkWindowController(
         service.WorkOverviewInvalidated -= OnInvalidated;
         window?.Close();
         window = null;
+    }
+
+    public async ValueTask DisposeAsync()
+    {
+        Dispose();
+#pragma warning disable VSTHRD003 // Join the original owned operation, including cancellation-ignoring storage.
+        await waitingQuestionOperation;
+#pragma warning restore VSTHRD003
     }
 }

@@ -9,6 +9,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Auditing;
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
+using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
@@ -4183,6 +4184,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+            && (!CanEnterRetainedAnswerRead || editorTarget is not null))
+        {
+            ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
+            return;
+        }
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
         var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
@@ -4508,6 +4515,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
         {
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
+        if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
+        {
+            await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
         if (PlaybackVolumeSuggestionCommand.Parse(spokenText, AssistantName) is { } volumeSuggestionCommand)
@@ -6416,6 +6429,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

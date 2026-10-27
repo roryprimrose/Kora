@@ -316,7 +316,8 @@ public sealed partial class SessionsConversationTests
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
                 NullLogger<SessionConversationService>.Instance, execution: turns, cancellationAudit: Audit, interactions: f.Store,
                 webPageAction: pageTransport is null ? null : new(pageTransport, Audit),
-                mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects);
+                mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects,
+                explicitTaskCoordinator: new(f.Tasks));
             Conversation = conversation;
             if (localFirst)
             {

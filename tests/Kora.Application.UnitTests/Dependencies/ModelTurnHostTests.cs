@@ -668,6 +668,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             Request = request;
             Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
+            ExplicitIntentRecorded?.Invoke();
             return ValueTask.FromResult(Task.Task);
         }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();

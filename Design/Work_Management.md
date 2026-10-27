@@ -71,6 +71,35 @@ The [All work window](../src/Kora/AllWorkWindow.axaml) retains lifecycle, name/e
 
 Raw task/request correlation predicates and authority/queue/count-range widgets are removed. Displayed provenance, explicit omissions/unavailable/output-bound status and full consumed-source validation remain mandatory. Browsing neither dispatches/resumes work, answers a question, changes voice focus nor renews activity.
 
+### Waiting-question overview through typed and activated voice requests
+
+The approved concurrent-conversation outcome includes **show sessions needing an
+answer**, optionally activated by the current assistant name. This host-owned
+operation opens/reuses native All work and completes one actual bounded
+`SessionWorkspaceService.ReadWorkOverviewAsync` observation. It is not a tool,
+MCP operation or skill: private presentation, source admission and original input
+currency remain host responsibilities.
+
+The fresh query is Needs answer only, first page, all stored lifecycles, no
+carried-over name/exact-ID or task-state predicates. Native Needs answer plus
+Refresh remains equivalent; ordinary open all work stays read-free. No saved
+filter or new technical predicate is introduced.
+
+The original host request/channel and deferred causal continuation survive UI
+dispatch and the read. Changed input, name, call, privacy, ownership, source,
+filters or window retire publication, page/selection and Find authority.
+Cancellation/close own and join the original returned read task, including
+noncooperative storage. The existing ten-second authority deadline is not
+renewed and is not a physical-shutdown guarantee. Failed, busy, disposed or
+withdrawn readers never report completed navigation as a completed observation.
+
+Waiting groups retain explicit unavailable/output-bound rows, omitted question
+counts, source scope and Next status, including zero-match pages with Next.
+No page or end-of-observation proves nobody is waiting. The operation never
+answers/retargets a question, consumes a review, submits composer text, dispatches,
+resumes, grants, renews activity or invokes a provider. See the
+[user guide](../docs/waiting-questions.md) for the complete interaction.
+
 ## Delivered native authority observation
 
 The [bounded R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)

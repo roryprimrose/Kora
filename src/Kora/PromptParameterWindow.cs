@@ -2,7 +2,6 @@
 using Avalonia.Layout;
 using Avalonia.Media;
 using Kora.Application.Definitions;
-using Kora.Core.Artifacts;
 using Kora.Core.Storage;
 
 namespace Kora;
@@ -41,22 +40,11 @@ internal sealed class PromptParameterWindow : Window
                 + "Production generation is unavailable: no qualified adapter/model. Use checks fresh request admission; it cannot install, authenticate or fall back.",
             TextWrapping = TextWrapping.Wrap,
         });
-        foreach (var name in draft.RequiredNames)
-        {
-            var input = new TextBox { AcceptsReturn = true, MaxLength = OwnedPromptTemplate.MaximumValueLength, MinHeight = 42 };
-            Inputs.Add(name, input);
-            top.Children.Add(new TextBlock { Text = name + " (required; 512 UTF-16 / 2048 UTF-8 maximum)" });
-            top.Children.Add(input);
-            var voice = new Button { Content = "Speak input " + name, IsEnabled = speak is not null };
-            SpeakInputs.Add(name, voice);
-            voice.Click += (_, _) => speak?.Invoke(name);
-            voice.LostFocus += (_, _) => cancelVoice?.Invoke();
-            top.Children.Add(voice);
-            input.PropertyChanged += (_, change) =>
-            {
-                if (change.Property == TextBox.TextProperty) { edit(name, input.Text ?? string.Empty); }
-            };
-        }
+        var fields = new PrivateLiteralInputControls();
+        fields.Configure(draft.RequiredNames, edit, speak, cancelVoice);
+        foreach (var pair in fields.Inputs) { Inputs.Add(pair.Key, pair.Value); }
+        foreach (var pair in fields.SpeakInputs) { SpeakInputs.Add(pair.Key, pair.Value); }
+        top.Children.Add(fields);
         CancelVoice.Click += (_, _) => cancelVoice?.Invoke();
         top.Children.Add(CancelVoice);
         top.Children.Add(VoiceStatus);

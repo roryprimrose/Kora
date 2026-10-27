@@ -25,6 +25,7 @@ internal sealed partial class SessionsWindow : Window
         this.owner = owner ?? new(model);
         InitializeComponent();
         DataContext = model;
+        BindContentSearch(model);
         BindHistoryContext(model);
         BindMixedContext(model);
         BindWorkScrolling();

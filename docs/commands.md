@@ -17,6 +17,32 @@ Accepting a proposal does not save or enable it. Native source/component editing
 recoverable User-original writes, disabled-use persistence and availability
 limits are described in [Customizations](customizations.md).
 
+## Invoke one registered agent by readable name
+
+Type `agent invoke "Exact readable name" <original task>`, or use the current
+assistant-name prefix for activated voice, for example
+`Kora, agent invoke "Planning helper" Explain the next step.`
+The double quotes delimit one literal, case-sensitive registered agent name.
+The task after the separating space is preserved exactly; it is not another
+command, source path or approval.
+
+Select one existing Active conversation from the native readable list, or use
+`agent conversation <displayed conversation name>`. Then use
+`agent review invocation` to read and review the exact current source, original
+task, conversation and original channel. Any declared reference reads retain
+their separate consent. Finally use **Consent to this exact bounded invocation**
+or `agent confirm invocation`. Review does not run a model. One confirmed bounded
+run retains its genuine answer or explicit terminal failure in that exact
+conversation. `agent stop` closes authority and joins owned work.
+
+Missing, duplicate, disabled, changed or deleted sources refuse without another
+agent, last-good revision or ordinary-model fallback. Names are never technical
+IDs. The source and task are fixed for this command; changing either requires a
+fresh command and review. Voice-origin input keeps its original channel through
+native review and confirmation; existing voice/privacy/call/ownership admission
+can still expire it. No model/definition text can invoke this original-user route.
+See the [complete governed interaction and availability](tools-and-built-in-skills.md#invoke-a-registered-agent-by-readable-name).
+
 ## Prepare an exact Evidence trace filter
 
 Type `prepare evidence trace 0123456789abcdef0123456789abcdef`, or use the
@@ -939,6 +965,15 @@ Nothing is removed by the command. **Confirm logical disposition** remains a sep
 
 Stale generations/revisions, lost private/native ownership, busy or unbound presentation, cancellation and replaced previews require a fresh review. Review navigation preserves unsent input; the command never saves, submits or discards it ([native launch](../src/Kora/SessionsWindowController.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DispositionReview.cs)).
 
+For the combined running-work operation, original typed input can open `review session stop-and-delete <canonical-D-guid> <positive-generation> <nonnegative-metadata-revision>` for the already selected exact conversation.
+It uses **Review stop and delete**, followed by the separate **Confirm stop and delete** native action; the command itself stops nothing.
+Voice-origin compound deletion is denied before cancellation, including a later native click; independent explicit Stop remains separate ([grammar](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [native route](../src/Kora/SessionsViewModel.StopAndDelete.cs)).
+
+The compound review shows the readable target, exact unsent/pending input and retained-data impact.
+Confirmation closes new conversation dispatch only for that target, requests its exact cancellation, joins actual owned resources, and revalidates before the existing audited logical disposition. Decline changes nothing.
+Expiry, source/control/buffer changes or cancellation prevent delayed deletion; an accepted stop is not rolled back. **Work stopped; not deleted** requires a fresh review.
+Unknown deletion commit/readback requires receipt inspection without replay ([operation owner](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [existing transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
 ### Bounded exact-ID session commands
 
 Typed input and **activated** voice share one grammar, with the configured
@@ -1515,8 +1550,9 @@ While a local model request is generating or any response is being spoken, the
 response window also shows a separate **Cancel task** button. It stops the
 current model request or speech playback; press **Esc** for the same action
 while the button is visible. **Dismiss** hides the response without cancelling
-model work or stopping speech. **Stop speaking** remains the explicit voice
-command for stopping only speech playback.
+model work or stopping speech. **Stop speaking** is the explicit speech-only
+command; spoken interruption requires an eligible original session and a
+separately qualified input profile.
 
 ### Stop speech playback
 - **stop speaking**
@@ -1524,6 +1560,14 @@ command for stopping only speech playback.
 - **be quiet**
 - **stop reading aloud**
 - **stop the voice**
+
+For a retained-answer reading, typed stop validates the original foreground
+conversation and exact playback; native **Cancel reading** is also available.
+Spoken stop uses the session and playback captured at explicit PTT activation,
+never whichever session is selected later. The shipped Windows input profile
+does not yet qualify capture during speech, so this spoken path remains
+unavailable without opening capture or stopping playback. See
+[exact-session interruption and recovery](voice-and-audio.md#exact-session-speech-interruption).
 
 **Stop** cancels the active task; it does not mean stop speaking. Use one of
 the speech-playback phrases to stop the voice instead.
@@ -1952,6 +1996,30 @@ The complete serialized context must fit the existing 32768-byte envelope; nothi
 The unchanged original request is retained separately from typed untrusted local-only skill evidence; all tools and hosted fallback are denied.
 Unqualified local providers truthfully report unavailable, without installation, network fallback or replay
 ([review lifetime](../src/Kora.Application/Skills/SharedSkillUseReview.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs), [host regression tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SharedSkills.cs)).
+
+### Invoke an instruction-only skill by readable name
+
+Enter `use skill <exact declared readable name>`, optionally prefixed with the current assistant name when typing. Activated voice requires the current-name prefix, for example `Kora, use skill concise-review`. This reserved namespace does not fall through to built-in actions, another source or a model when lookup fails ([parser](../src/Kora.Application/Skills/NamedSkillCommand.cs)).
+
+[Customization metadata discovery](tools-and-built-in-skills.md) remains a separate reviewed operation. Command-like text in a skill name or discovery request does not invoke the other operation or enable a skill. Both routes refuse to replace a pending question or approval; the original question remains visible.
+
+The named-use window initially reads no files. Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
+This reads complete package files, not reference bodies or unrelated context. Initial shared-root registration remains a separate native operation ([inspection](../src/Kora.Application/Skills/NamedSkillCatalogue.cs)).
+
+Every exact-name match appears as a numbered source-qualified choice, including unavailable kinds or excluded sources. No row is selected automatically, even for a unique match. Choose the readable row and **Review exactly the selected source choice**, or enter `skill choice <displayed number>`.
+A number is bound internally to the exact choice set captured when that input arrived; replacement inspection cannot retarget queued input ([choice binding](../src/Kora/NamedSkillInvocationController.cs)).
+
+Names are case-sensitive ordinal text, at most 128 UTF-16 units, without trimming, fuzzy matching or Unicode normalization. Invalid Unicode, control/format characters and line separators are rejected. Owned versions and shared sources never shadow one another.
+Tool skills, scripts, executable/native bundled skills and Markdown-reference skills remain on their existing separate routes; selecting an unavailable row never falls back ([candidates](../src/Kora.Application/Skills/NamedSkillCandidates.cs)).
+
+After source selection, review all inert instructions, separately **Enable exact reviewed revision once**, refresh existing Active conversations and explicitly choose one native target. Enter the unchanged original user task, choose **Review exact invocation**, inspect the preview and separately **Confirm exact invocation once**.
+Task text is never parsed as another command. A raw source GUID, session GUID or path is not required ([complete controller](../src/Kora/NamedSkillInvocationController.cs)).
+
+The original typed/voice channel survives native choice, task entry and confirmation. Source identity/bytes, read consent, app inclusion, ownership, privacy, call policy and exact Active target remain mandatory. Choices expire after two minutes; canonical source reviews keep their separate one-use expiry.
+Changes require fresh inspection/review, never latest-name retargeting ([owned binding](../src/Kora.Application/Skills/NamedSkillChoice.cs)).
+
+Only a genuine retained canonical local-model answer or truthful typed unavailable/failure/cancellation terminal completes use. Lookup/inspection errors invalidate the whole lookup rather than reporting successful empty results; a valid no-match lookup explicitly clarifies.
+**Stop, join and close named skill use** or `skill close` cancels and joins actual work. No automatic enablement, grants, hosted fallback or live-provider qualification is added ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkills.cs)).
 
 ### Reviewed one-tool shared skill invocation
 

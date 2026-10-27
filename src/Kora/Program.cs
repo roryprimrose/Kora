@@ -299,7 +299,10 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
-        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore, WindowsCustomizationStore>();
+        services.AddSingleton<WindowsCustomizationStore>();
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Application.Tools.CustomizationDiscoveryService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
@@ -342,6 +345,7 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddSingleton<Kora.Application.Definitions.OwnedInstructionRefinementService>();
         services.AddSingleton<IProfileInstructionReader, WindowsProfileInstructionReader>();
         services.AddSingleton<Kora.Application.Definitions.ProfileInstructionForkWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(

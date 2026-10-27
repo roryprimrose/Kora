@@ -181,6 +181,20 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void OwnedRefinementGuideSeparatesVolatileProposalConfirmedSaveAndUnavailableQualification()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("## Refine the current owned instruction body")
+            .And.Contain("instructions refine").And.Contain("complete prepared replacement")
+            .And.Contain("does not change the editor buffer or write a file")
+            .And.Contain("Confirm save").And.Contain("saving never enables it")
+            .And.Contain("Structural validation is not semantic harmlessness")
+            .And.Contain("not fence-stripped or truncated")
+            .And.Contain("Production local registrations remain unqualified");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -344,7 +358,15 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 24);
+        sections.Should().HaveCount(commands.Count + 25);
+        var namedInvocation = sections.Single(section => section.StartsWith(
+            "Invoke an instruction-only skill by readable name", StringComparison.Ordinal));
+        namedInvocation.Should().Contain("use skill <exact declared readable name>")
+            .And.Contain("skill choice <displayed number>").And.Contain("skill close")
+            .And.Contain("read consent").And.Contain("No row is selected automatically")
+            .And.Contain("replacement inspection cannot retarget queued input")
+            .And.Contain("unchanged original user task").And.Contain("Confirm exact invocation once")
+            .And.Contain("original typed/voice channel survives").And.Contain("cancels and joins actual work");
         var volumeSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant Kora volume suggestion", StringComparison.Ordinal));
         foreach (var phrase in PlaybackVolumeSuggestionCommand.FixedPhrases)

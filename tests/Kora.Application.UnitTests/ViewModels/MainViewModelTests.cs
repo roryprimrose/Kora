@@ -44,6 +44,43 @@ public sealed partial class MainViewModelTests : IDisposable
     public void Dispose() => hostListener.Dispose();
 
     [Fact]
+    public async Task DeferredDispatcherRetainsConcurrentWorkerCallbacksUntilFlush()
+    {
+        var dispatcher = new ImmediateDispatcher { DeferPosts = true };
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        var ready = 0;
+        var invoked = new int[2];
+        var nested = 0;
+        var workers = Enumerable.Range(0, invoked.Length).Select(index => Task.Run(async () =>
+        {
+            if (Interlocked.Increment(ref ready) == invoked.Length) { entered.SetResult(); }
+            await release.Task.WaitAsync(token);
+            dispatcher.Post(() =>
+            {
+                invoked[index]++;
+                dispatcher.Post(() => nested++);
+            });
+        }, token)).ToArray();
+        await entered.Task.WaitAsync(token);
+        release.SetResult();
+        await Task.WhenAll(workers).WaitAsync(token);
+        invoked.Should().Equal(0, 0);
+        nested.Should().Be(0);
+
+        dispatcher.FlushPosts();
+        dispatcher.DeferPosts.Should().BeFalse();
+        invoked.Should().Equal(1, 1);
+        nested.Should().Be(2);
+        dispatcher.FlushPosts();
+        invoked.Should().Equal(1, 1);
+        nested.Should().Be(2);
+        dispatcher.Post(() => nested++);
+        nested.Should().Be(3);
+    }
+
+    [Fact]
     public async Task WebPageCommandReportsUnavailableClarifiedAndIneligibleStates()
     {
         var unavailable = new Fixture();
@@ -4537,6 +4574,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
+            .Concat([Kora.Application.Tools.CustomizationDiscoveryCommand.Phrase])
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])
@@ -9296,7 +9334,9 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
-        private readonly System.Collections.Concurrent.ConcurrentQueue<Action> deferredPosts = new();
+        private readonly Lock deferredPostsGate = new();
+        private readonly Queue<Action> deferredPosts = new();
+        private bool deferPosts;
 
         public Task LastInvocation { get; private set; } = Task.CompletedTask;
 
@@ -9306,13 +9346,22 @@ public sealed partial class MainViewModelTests : IDisposable
         public Func<Task>? BeforeInvokeAsync { get; set; }
 
         public Action? BeforePost { get; set; }
-        public bool DeferPosts { get; set; }
+        public bool DeferPosts
+        {
+            get { lock (deferredPostsGate) { return deferPosts; } }
+            set { lock (deferredPostsGate) { deferPosts = value; } }
+        }
 
         public void FlushPosts()
         {
-            DeferPosts = false;
-            while (deferredPosts.TryDequeue(out var action))
+            lock (deferredPostsGate) { deferPosts = false; }
+            while (true)
             {
+                Action? action;
+                lock (deferredPostsGate)
+                {
+                    if (!deferredPosts.TryDequeue(out action)) { return; }
+                }
                 action();
             }
         }
@@ -9341,10 +9390,13 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public void Post(Action action)
         {
-            if (DeferPosts)
+            lock (deferredPostsGate)
             {
-                deferredPosts.Enqueue(action);
-                return;
+                if (deferPosts)
+                {
+                    deferredPosts.Enqueue(action);
+                    return;
+                }
             }
             var callback = BeforePost;
             BeforePost = null;
@@ -9353,7 +9405,7 @@ public sealed partial class MainViewModelTests : IDisposable
         }
     }
 
-    private sealed class FakeVoiceRecognitionService(
+    private sealed partial class FakeVoiceRecognitionService(
         ImmediateDispatcher dispatcher,
         List<string> events) : IActivatedVoiceRecognitionService
     {
@@ -9374,6 +9426,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public bool IsAmbientListeningAvailable => false;
 
         public bool IsLiteralDictationAvailable { get; set; }
+
+        public bool IsSpeechInterruptionAvailable { get; set; }
 
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
@@ -9654,6 +9708,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public bool RemainSpeakingOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
         public bool IgnoreSpeakCancellation { get; set; }
@@ -9788,7 +9843,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 throw StopException;
             }
-            IsSpeaking = false;
+            IsSpeaking = RemainSpeakingOnStop;
             if (!HoldSpeechCompletionOnStop)
             {
                 SpeakGate?.TrySetResult();

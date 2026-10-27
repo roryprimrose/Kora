@@ -4,6 +4,9 @@ namespace Kora.Application.ViewModels;
 
 public sealed partial class MainViewModel
 {
+    [LoggerMessage(123, LogLevel.Error, "Exact-session speech interruption unconfirmed; exception type {ExceptionType}.")]
+    private static partial void SpeechInterruptionFailed(ILogger logger, string exceptionType);
+
     [LoggerMessage(122, LogLevel.Warning, "Exact retained attachment inspection unavailable; exception type {ExceptionType}.")]
     private static partial void RetainedAttachmentInspectionFailed(ILogger logger, string exceptionType);
 

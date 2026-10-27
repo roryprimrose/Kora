@@ -245,6 +245,8 @@ public sealed class McpTransportTests
         {
             await cancelled.Task.WaitAsync(Token);
             actualToken.IsCancellationRequested.Should().BeTrue();
+            await FluentActions.Awaiting(() => queued.WaitAsync(Token)).Should().ThrowAsync<OperationCanceledException>();
+            queued.IsCompleted.Should().BeTrue("disposal must cancel queued work before the active worker is released");
             pending.IsCompleted.Should().BeFalse();
             disposal.IsCompleted.Should().BeFalse();
             f.Disposed.Should().BeFalse();
@@ -253,15 +255,69 @@ public sealed class McpTransportTests
         finally
         {
             release.TrySetResult();
-            await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
-            await FluentActions.Awaiting(() => queued).Should().ThrowAsync<OperationCanceledException>();
-            await disposal;
+            try
+            {
+                await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+                await FluentActions.Awaiting(() => queued).Should().ThrowAsync<OperationCanceledException>();
+            }
+            finally { await disposal; }
         }
         await connection.DisposeAsync();
         f.Disposed.Should().BeTrue();
         f.HandlerDisposed.Should().BeTrue();
         f.Requests.Should().ContainSingle();
         await FluentActions.Awaiting(() => Initialize(connection)).Should().ThrowAsync<ObjectDisposedException>();
+    }
+
+    [Fact]
+    public async Task Caller_cancellation_does_not_cancel_an_independent_queued_exchange()
+    {
+        using var f = new McpTransportFixture();
+        using var caller = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var sends = 0;
+        f.Send = async (_, _) =>
+        {
+            if (Interlocked.Increment(ref sends) == 1)
+            {
+                entered.SetResult();
+                await release.Task;
+            }
+            return McpTransportFixture.Json(McpTransportFixture.Initialization);
+        };
+        var connection = await f.Broker.ConnectAsync(f.Account, Token);
+        var pending = connection.ExchangeAsync(McpTransportFixture.Wire(McpProtocol.InitializeRequest()), 16384, caller.Token);
+        var queued = Initialize(connection);
+        try
+        {
+            await entered.Task.WaitAsync(Token);
+            await caller.CancelAsync();
+            pending.IsCompleted.Should().BeFalse();
+            queued.IsCompleted.Should().BeFalse();
+            f.Requests.Should().ContainSingle();
+            f.Disposed.Should().BeFalse();
+            f.HandlerDisposed.Should().BeFalse();
+            release.SetResult();
+            await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+            McpProtocol.ValidateInitialization((await queued.WaitAsync(Token)).AsSpan());
+            sends.Should().Be(2);
+            f.Requests.Should().HaveCount(2);
+            f.Disposed.Should().BeFalse();
+            f.HandlerDisposed.Should().BeFalse();
+        }
+        finally
+        {
+            release.TrySetResult();
+            try { await connection.DisposeAsync(); }
+            finally
+            {
+                await FluentActions.Awaiting(() => pending).Should().ThrowAsync<OperationCanceledException>();
+                await queued;
+            }
+        }
+        f.Disposed.Should().BeTrue();
+        f.HandlerDisposed.Should().BeTrue();
     }
 
     [Fact]

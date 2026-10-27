@@ -10,6 +10,10 @@ public sealed record AgentRunCommand(string Action, string Argument)
     {
         if (string.IsNullOrWhiteSpace(input)) { return null; }
         var text = ArtifactCommandRouter.RemoveActivationPrefix(input, assistantName);
+        if (string.Equals(text, "agent invoke", StringComparison.OrdinalIgnoreCase))
+        { return new("Named", string.Empty); }
+        if (text.StartsWith("agent invoke ", StringComparison.OrdinalIgnoreCase))
+        { return new("Named", text["agent invoke ".Length..]); }
         if (AgentProfileAuthoringCommand.Parse(text) is { } authoring)
         { return new("Authoring", string.Empty) { Authoring = authoring }; }
         foreach (var (phrase, action) in new[]

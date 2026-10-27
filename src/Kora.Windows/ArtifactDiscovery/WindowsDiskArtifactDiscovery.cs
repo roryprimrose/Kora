@@ -87,6 +87,25 @@ public sealed class WindowsDiskArtifactDiscovery
         return [.. managed, .. files.Select(item => Parse(item.Root, item.Path)).OfType<ArtifactDefinition>()];
     }
 
+    public string ResolveAgentPath(ArtifactDefinition selected, CancellationToken token)
+    {
+        if (selected.Kind != ArtifactKind.Agent || selected.UseControlId is null)
+        { throw new InvalidOperationException("Select one registered file-backed agent."); }
+        var files = new List<(ArtifactRoot Root, string Path)>();
+        foreach (var root in roots.Where(root => root.Kind == ArtifactKind.Agent))
+        {
+            token.ThrowIfCancellationRequested();
+            if (Directory.Exists(root.Path)) { Discover(root, root.Path, 0, files); }
+            if (files.Count > MaximumFiles)
+            { throw new InvalidDataException("Agent source lookup exceeds the existing bounded inventory."); }
+        }
+        var matches = files.Select(item => Path.GetFullPath(item.Path)).Distinct(StringComparer.OrdinalIgnoreCase)
+            .Where(path => string.Equals(ArtifactUseIdentity.File(path), selected.UseControlId, StringComparison.Ordinal)).ToArray();
+        token.ThrowIfCancellationRequested();
+        return matches.Length == 1 ? matches[0]
+            : throw new InvalidOperationException("The registered agent's exact source is missing or ambiguous.");
+    }
+
     private static ArtifactRoot[] CreateRoots(
         IApplicationDataPaths paths,
         ArtifactDirectorySettings additionalDirectories,

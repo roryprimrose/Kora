@@ -33,7 +33,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         var editorCalls = 0;
         f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
-        f.ViewModel.BindCustomizationVoice((_, _, _) => { editorCalls++; return Task.CompletedTask; });
+        f.ViewModel.BindCustomizationVoice(_ => { editorCalls++; return Task.CompletedTask; });
         using var composer = DictationComposer(f);
         await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
         f.ViewModel.ComposerDictation.Should().BeSameAs(service);
@@ -128,9 +128,15 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.InitializeAsync();
         using var composer = DictationComposer(f);
         await using var service = f.ViewModel.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
-        await service.BeginAsync(composer, static () => true, TestContext.Current.CancellationToken);
+        var source = composer.CaptureDictationTarget();
+        var target = new ComposerDictationTarget(source.Source, source.Body, source.Request, source.IsCurrent,
+            source.Insert, ComposerDictationDestination.SessionComposer);
+        await service.BeginAsync(target, static () => true, TestContext.Current.CancellationToken);
         var generation = f.Voice.Generation;
         service.IsActive.Should().BeTrue();
+        var lateHypothesis = f.Voice.DictationObserver!;
+        lateHypothesis(new(generation, 1, "PRIVATE_HYPOTHESIS"));
+        service.ProvisionalTextFor(target).Should().Be("PRIVATE_HYPOTHESIS");
         switch (boundary)
         {
             case "disable": await f.ViewModel.DisableListeningFromTrayAsync(); break;
@@ -146,6 +152,10 @@ public sealed partial class MainViewModelTests
             case "ptt": await f.ViewModel.BeginPushToTalkAsync(); break;
         }
         service.IsActive.Should().BeFalse();
+        service.ProvisionalTextFor(target).Should().BeEmpty();
+        f.Voice.DictationObserver.Should().BeNull();
+        lateHypothesis(new(generation, 2, "PRIVATE_LATE"));
+        service.ProvisionalTextFor(target).Should().BeEmpty();
         f.Voice.RaiseTranscriptForGeneration(generation);
         await service.EndAsync();
         await service.Quiescence;

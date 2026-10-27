@@ -84,6 +84,25 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             return snapshot;
         }, token);
 
+    public Task RequireUnchangedSource(CustomizationSource source, CustomizationSnapshot? expected,
+        Func<bool> eligible, CancellationToken token) =>
+        admission.Run(eligible, async (_, _, current, admitted) =>
+        {
+            if (expected is null)
+            {
+                var destination = await store.Create(source.Kind, source.Scope, source.Name, admitted).ConfigureAwait(false);
+                if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
+            }
+            else
+            {
+                var live = await store.Read(source, admitted).ConfigureAwait(false);
+                if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
+                { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
+            }
+            Require(current, admitted);
+            return true;
+        }, token);
+
     public Task<bool> SetDisabled(CustomizationSource source, bool disabled,
         Func<CustomizationSnapshot?, CancellationToken, Task<bool>> confirm, Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (request, session, current, admitted) =>

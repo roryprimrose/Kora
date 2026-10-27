@@ -2,8 +2,17 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.Voice;
 
-public sealed partial class HandsFreeVoiceRecognitionService
+public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoiceRecognitionService
 {
+    public bool IsLiteralDictationAvailable => activated.IsLiteralDictationAvailable;
+
+    public IDisposable? ObserveProvisionalTranscripts(long generation, Action<ProvisionalTranscriptSnapshot> observer)
+    {
+        EnsureNotDisposed();
+        return Interlocked.Read(ref ambientGeneration) == 0 && activated is IProvisionalVoiceRecognitionService source
+            ? source.ObserveProvisionalTranscripts(generation, observer) : null;
+    }
+
     public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized
     {
         add => activated.TranscriptRecognized += value;

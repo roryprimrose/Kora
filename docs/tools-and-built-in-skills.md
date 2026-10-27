@@ -69,6 +69,42 @@ Source edits/revocation block subsequent callbacks, continuation and late answer
 
 **Availability:** unqualified/unavailable local models remain fail-closed. Fake-backed tests verify implementation only, not live-model enablement or RC qualification ([delivery policy](../Design/Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+### Invoke a registered agent by readable name
+
+Use `agent invoke "Planning helper" Explain the next step.` in the typed
+composer, or activate that exact command with your current assistant name.
+The name must exactly match one current file-backed Agent in the existing
+registered artifact catalogue, including case and Unicode. Registration and
+use controls remain in [Customizations](customizations.md); this command does
+not discover arbitrary files, register sources, enable a definition or qualify
+a model. Duplicate names fail closed even when one source is disabled.
+
+The same bounded native agent window opens with its exact host-resolved source
+and unchanged original task fixed for this operation. No profile body or model
+is read merely to resolve its name. Choose one existing Active conversation
+by its displayed name, then **Read source and review exact invocation**.
+`agent conversation <displayed name>` and `agent review invocation` use those
+same controls. Duplicate conversation names on the displayed page require
+explicit native selection; the host never guesses a target or creates one.
+Review shows the complete source, readable conversation, original channel,
+task, tools and host-clamped budgets. Declared instruction/skill guidance
+retains every existing separate read/enablement consent.
+
+Separately confirm with **Consent to this exact bounded invocation** or
+`agent confirm invocation`. The existing governed workflow performs one bounded
+run and retains the actual answer or truthful terminal in exactly that
+conversation. Native confirmation of an activated-voice task does not relabel
+the task as typed input. This is not the legacy agent-as-instructions route,
+and opening or populating the window is not a completed invocation.
+
+`agent stop`, window close and voluntary shutdown join actual owned execution
+and release its pinned source only after quiescence. A stale catalogue/source,
+disabled use, lost permission, changed/deleted session or expired original
+admission cannot select a replacement, replay a confirmation or publish a late
+answer. Existing unavailable-model and per-tool permission boundaries above
+remain unchanged. Definition text, retained answers and model proposals never
+grant host authority.
+
 ## Asking Kora to do something
 
 For one ambiguous conversational observation request, **Ask locally with observations and one choice** in Sessions or its compact view runs the existing six read-only observation tools, permits one bounded native/activated-voice choice, and retains the actual final answer in the original conversation. See the [complete interaction and unavailable boundaries](responses-and-calls.md#conversation-clarification). A choice is not approval, permission, source consent or a reusable grant.

@@ -205,7 +205,7 @@ internal sealed partial class SessionsWindowController(
             var revision = access.ControlRevision;
             bool Live() => !disposed && access.CanControl && access.ControlRevision == revision
                 && ReferenceEquals(model, active) && target is not null && active?.SelectedSessionRecord == target
-                && (window?.IsActive == true || compact?.IsActive == true || interaction?.IsActive == true
+                && (presentation?.HasUniqueForegroundWindow == true
                     || active?.IsMcpActive == true && ConversationQuestions?.IsOwnerInUse == true);
             if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
             token.ThrowIfCancellationRequested();
@@ -419,7 +419,7 @@ internal sealed partial class SessionsWindowController(
                 return selectedOption < 0 ? null : tools[selectedOption].Name;
             };
         }
-        presentation = new(model);
+        presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {
             try
@@ -492,7 +492,9 @@ internal sealed partial class SessionsWindowController(
         bool NativeAdmission() => !disposed && ReferenceEquals(window, owner)
             && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
             && ReferenceEquals(model, state) && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation;
-        return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
+        return command.StopRunningWork
+            ? await state.ReviewStopAndDeleteCommandAsync(command, origin, admitted, NativeAdmission, token)
+            : await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
     }
 
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)

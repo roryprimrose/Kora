@@ -195,6 +195,91 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExactModelActionReviewAndNamedSkillChoiceKeepIndependentAuthority(bool voice)
+    {
+        var f = await CreateModelActionReviewFixtureAsync(voice);
+        var target = await ProposeModelActionReviewAsync(f);
+        var requests = f.Reasoner.Requests.Count;
+        var calls = 0;
+        f.ViewModel.BindNamedSkillChoiceCapture(() => static () => false);
+        f.ViewModel.NamedSkillInvocationRequested += (command, origin, eligible) =>
+        {
+            command.Action.Should().Be("Choice");
+            command.Choice.Should().Be(1);
+            origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            eligible().Should().BeTrue();
+            calls++;
+            return Task.CompletedTask;
+        };
+        async Task Run(string command)
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+
+        await Run("review pending action");
+        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
+        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.BindNamedSkillChoiceCapture(() => static () => true);
+        await Run("skill choice 1");
+        calls.Should().Be(0, "a current skill choice cannot replace or decide a pending action");
+        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.Session.LockCalls.Should().Be(0);
+        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
+            && audit.Outcome == SecurityAuditOutcome.Succeeded);
+
+        await f.ViewModel.RejectModelActionReviewAsync(target);
+        await Run("skill choice 1");
+        calls.Should().Be(1);
+        f.ViewModel.PendingModelActionReview.Should().BeNull();
+        f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
+        f.Reasoner.Requests.Should().HaveCount(requests);
+        f.Session.LockCalls.Should().Be(0);
+        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("Kora, skill choice 1")]
+    [InlineData("Kora, review pending action")]
+    public async Task ExactModelActionReviewQueuedSkillInputCannotAdoptANewReview(string text)
+    {
+        var f = await CreateModelActionReviewFixtureAsync(voice: true);
+        var generation = 1;
+        f.ViewModel.BindNamedSkillChoiceCapture(() =>
+        {
+            var captured = generation;
+            return () => captured == generation;
+        });
+        var calls = 0;
+        f.ViewModel.NamedSkillInvocationRequested += (_, _, _) => { calls++; return Task.CompletedTask; };
+        await f.ViewModel.BeginPushToTalkAsync();
+        await f.ViewModel.EndPushToTalkAsync();
+        ModelActionReviewTarget? target = null;
+        f.Dispatcher.BeforeInvokeAsync = async () =>
+        {
+            generation++;
+            target = await ProposeModelActionReviewAsync(f);
+        };
+
+        await f.Voice.RaiseTranscriptAsync(text, 1);
+        target.Should().NotBeNull();
+        calls.Should().Be(0);
+        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.ModelActionReviewStatus.Should().NotContain("opened");
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().ContainSingle();
+        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target!.Audit.CorrelationId
+            && audit.Outcome == SecurityAuditOutcome.Succeeded);
+        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+        await f.ViewModel.RejectModelActionReviewAsync(target);
+        f.ViewModel.PendingModelActionReview.Should().BeNull();
+    }
+
+    [Theory]
     [InlineData("Kora, review pending action")]
     [InlineData("Kora, approve once")]
     [InlineData("Kora, reject")]

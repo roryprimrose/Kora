@@ -49,6 +49,10 @@ public sealed partial class MainViewModelTests
         var model = new SpeechSuggestionModel();
         var conversation = new SessionConversationService(store, store, workspace, store, model, TimeProvider.System,
             NullLogger<SessionConversationService>.Instance, execution: model);
+        conversation.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Terminal) { store.SpeechTerminalPublished = true; }
+        };
         fixture.ViewModel.BindSessionCommands(workspace, new(workspace, conversation, store, TimeProvider.System));
         if (bindSpeech) { fixture.ViewModel.BindSpeechSummarySuggestions(conversation, TimeProvider.System); }
         return (store, model);
@@ -296,9 +300,8 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         var (store, model) = BindSpeechSuggestions(f);
         var injected = false;
-        store.BeforeSpeechMetadataRead = read =>
+        store.BeforeSpeechReceiptMetadataRead = () =>
         {
-            if (read != 5) { return; }
             injected = true;
             if (fault is "binding") { BindSpeechSuggestions(f); }
             else { store.ChangeSpeechTarget(fault); }
@@ -319,9 +322,9 @@ public sealed partial class MainViewModelTests
         var f = await Fixture.CreateInitializedAsync();
         var (store, model) = BindSpeechSuggestions(f);
         Task? withdrawal = null;
-        store.BeforeSpeechMetadataRead = read =>
+        store.BeforeSpeechReceiptMetadataRead = () =>
         {
-            if (read == 5) { withdrawal = f.ViewModel.SetVoiceConsentAsync(false); }
+            withdrawal = f.ViewModel.SetVoiceConsentAsync(false);
         };
         await SubmitSpeechSuggestion(f, store, voice: true);
         withdrawal.Should().NotBeNull("withdrawal must occur during receipt pinning, not before submission");
@@ -421,10 +424,10 @@ public sealed partial class MainViewModelTests
 
     private sealed partial class SessionCommandStore
     {
-        internal Action<int>? BeforeSpeechMetadataRead { get; set; }
+        internal Action? BeforeSpeechReceiptMetadataRead { get; set; }
+        internal bool SpeechTerminalPublished { get; set; }
         internal Action? BeforeSpeechExactRead { get; set; }
         internal string? SpeechTerminalReceiptFault { get; set; }
-        private int speechMetadataReads;
         internal void ChangeSpeechTarget(string fault)
         {
             Session = fault switch

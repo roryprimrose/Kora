@@ -24,6 +24,7 @@
       <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
           AutomationProperties.Name="Conversation name and exact session identity for this message" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
+      <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />
@@ -105,7 +106,7 @@
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
       <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
       <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
-        <TextBlock Text="Provisional local answer — not retained" TextWrapping="Wrap" />
+        <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
         <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
             AutomationProperties.Name="Unstable provisional local answer; not spoken automatically" />
       </StackPanel>

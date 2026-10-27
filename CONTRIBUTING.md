@@ -57,6 +57,10 @@ its runner.
 
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
+Portable fixtures that require host-resolved absolute source paths must construct
+host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
+Keep relative-path rejection intact; fixture portability must not relax source authority.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
@@ -86,6 +90,15 @@ before declaring an older schema. Use the shared fixture staging helpers;
 never discard current session policy, admission or conversation authority to
 construct a migration case. Repeated grant-use history fixtures must resolve
 a fresh host invocation for each use, not replay one admitted invocation.
+
+Personal-instruction metadata fixtures use an existing owner-only original,
+not the forbidden create route. Metadata observation must not register that
+original for editing, create a Kora copy or publish a transaction journal.
+Stop-and-delete regressions coordinate terminal publication and disposition
+with completion signals so a post-release readback race cannot hide behind
+test-runner scheduling. Speech receipt-pinning fixtures inject changes after
+terminal publication and outside the submission's host scope, not at a
+particular count of internal metadata reads.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards

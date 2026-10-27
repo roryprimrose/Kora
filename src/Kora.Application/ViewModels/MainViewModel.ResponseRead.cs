@@ -39,6 +39,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
     public string ResponseReadModelUnavailableReason => SpeechReadOnce.ModelLaneUnavailableReason;
     public bool IsCurrentResponseReadActive => responseReadCancellation is not null;
     public bool CanReadCurrentResponse => Volatile.Read(ref ordinaryResponse) is not null && IsSpeechResponseEnabled
+        && !speechInterruptionActive
         && !IsProtectedCall && !IsResponseInteractionPending && !IsGrantEditorVisible
         && responseReadDecisionsEligible() && !IsSpeechProviderOperationActive
         && !IsBusy && !IsSpeaking && responseReadCancellation is null;
@@ -247,6 +248,11 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             audit = null;
             if (retained is not null && played)
             { retained.Result = "Exact retained ASSISTANT answer playback completed once. No replay is queued."; }
+            else if (retained is { Interrupted: true } && !textToSpeech.IsSpeaking)
+            {
+                retained.InterruptionConfirmed = true;
+                retained.Result = "Exact retained ASSISTANT answer playback interrupted. No successful full reading or replay is claimed.";
+            }
             activity.Complete(played ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
             if (IsCurrentResponseSpeechTarget(target))
             {

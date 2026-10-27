@@ -25,6 +25,9 @@ public interface IActivatedVoiceRecognitionService : IVoiceRecognitionService
     /// <summary>Explicit qualification for literal composer input; installed recognition alone grants no readiness.</summary>
     bool IsLiteralDictationAvailable => false;
 
+    /// <summary>Exact-profile qualification for explicit command capture during speech; never enables ambient listening.</summary>
+    bool IsSpeechInterruptionAvailable => false;
+
     /// <summary>True only when recording, native opens/starts and owned cleanup are confirmed quiescent.</summary>
     bool IsCaptureQuiescent { get; }
 

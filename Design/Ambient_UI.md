@@ -113,6 +113,8 @@ Selection and voice-capture generation are not review targets. Voice callbacks
 retain their existing activation/generation fences. The original confirmation
 path still owns its input-preparation and grant-revision checks across awaits;
 a separate confirmation gesture does not create a newer review target.
+Named-skill choice captures remain independent: they cannot open, replace or
+approve a pending action, and review activation cannot authorize a skill choice.
 Replacement, withdrawal, privacy/ownership loss, changed artifact, disposal or
 late callbacks fail closed without following a newer review or changing another
 session. Closing/hiding presentation is not action completion; only the original

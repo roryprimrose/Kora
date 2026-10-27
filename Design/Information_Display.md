@@ -20,13 +20,17 @@ Apply [product admission](MVP_Scope.md#product-admission-and-realignment) to dis
 
 ## Bounded provisional local answers
 
-**Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional local answer - not retained**. Existing Send, tool loops, clarification and hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
+**Answer locally (no tools)** submits the selected conversation's original input through the ordinary session/instruction owner, explicitly selecting local, tool-free execution. The primary conversation, Sessions and compact views label arriving text **Provisional answer - not retained**. Existing Send, tool loops, clarification and ordinary hosted paths remain buffered ([submission](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [native controls](../src/Kora/SessionInteractionView.axaml), [adapter selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs)).
 
 Only decoded assistant-content snapshots from the bounded native Ollama NDJSON decoder enter this presentation. Every envelope, model identity, field, Unicode string and cumulative wire-byte charge is validated; normal terminal framing and EOF are required. The reconstructed complete answer still passes existing whole-response validation. JSON envelopes, tool calls and nonempty thinking fields cannot become provisional answer text ([decoder](../src/Kora.Windows/Dependencies/OllamaToolWire.Streaming.cs), [whole validation](../src/Kora.Windows/Dependencies/OllamaToolWire.cs), [transport regressions](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
 
 Snapshots remain volatile, inert plain text, without Markdown detail routing, automatic speech, persistence or content logging. Publication awaits the receiving view and revalidates exact host turn, source, session/task generation, private control and native view lifetime. Stop targets that conversation's displayed running task independently of the busy composer; cancellation retires provisional text but does not claim rollback or resource termination ([host fences](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [native lifetime](../src/Kora/SessionsViewModel.ConversationCancellation.cs), [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
 
 The original USER remains retained under existing rules. Only a fully validated successful final answer can enter the existing ASSISTANT/HOST/task/audit transaction; malformed, oversized, cancelled or truncated streams cannot retain partial answers. Owned work remains joined before a confirmed terminal outcome. This increment does not enable rejected/unqualified local profiles or qualify hardware, installed accessibility, hosted streaming or provider availability ([retention owner](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs), [host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
+### Separately admitted native Claude text streams
+
+The explicit native-only Claude text stream reuses this canonical typed progress and inert provisional pane, not a renderer variant. Positive exact model/compute/token-ceiling stream evidence, independent native final-byte consent for Count Tokens and Messages, strict SSE terminal/EOF validation and actual disposal join are additional boundaries. Unknown evidence leaves it unavailable ([complete interaction and bounds](../docs/claude-requests.md#separately-qualified-native-text-streaming), [native decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [progressive host/retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
 ## Delivered bounded response-window preference commands
 
@@ -255,6 +259,41 @@ See [the R07 security boundary](Security_Data_Flows.md#delivered-r07-local-clipb
 full clipboard answering and real native acceptance remain unavailable/open.
 
 ### Delivered Bounded Native Evidence Inspection
+
+#### Exact request outcomes and causal diagnostics
+
+In the explicit Evidence window, select a typed **Audit** or **AuthorityAudit**
+record and choose **Read request outcomes**. The existing bounded reader freshly
+resolves its original session, host request and typed audit correlation within
+the same source, independently of the search filters. **Next page** preserves
+that exact query and signed snapshot. A readable summary distinguishes requested,
+recorded terminal failure/denial/cancellation/unknown/success, incomplete pages,
+and missing/unavailable evidence. Requested-only evidence means pending **or**
+missing terminal evidence, never proof of running work or success. Select each
+event for its exact typed outcome, reason and retained/expired-but-present state.
+Committed interaction audit remains explicitly distinct from the typed
+diagnostic audit projection; file copies and lookalike flags cannot enter this
+navigation.
+
+**Inspect related diagnostics** explicitly leaves the audit source for the
+existing SQLite diagnostic projection, using only the selected record's retained
+trace/span and original host session. Select its span, then **Open selected
+segment** to follow recorded parent/explicit links. Each hop is a fresh bounded
+read scoped to that session; there is no recursive graph expansion or inferred
+parent. Cycles require explicit user hops, foreign/missing links remain
+unavailable, and expired-but-present segments are labelled. Recorded trace
+correlation is diagnostic data, never audit/effect authority. Uncorrelated legacy
+diagnostics cannot select a request. Filter changes, privacy/ownership loss,
+closure and cancellation retire selection, summary and held reads.
+
+This is host-owned read-only presentation of the existing typed reader/schema,
+not a new audit sink, write policy, grant, retry/execution action, normal
+technical-query route or retention domain. It does not reconstruct omitted
+content, renew grants/session activity or change any due timestamp. The
+[request navigation regressions](../tests/Kora.Windows.IntegrationTests/EvidenceRequestNavigationTests.cs)
+exercise real retained outcomes and causal navigation with unchanged database
+bytes and deterministic retirement. Native installed/accessibility qualification
+remains separate.
 
 #### Exact native Evidence trace preparation
 

@@ -510,6 +510,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Func<Task>? BeforeRead { get; set; }
+        internal Func<Task>? BeforeTaskRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
@@ -618,8 +619,11 @@ public sealed partial class ModelTurnHostTests : IDisposable
             }
             return new SessionWorkspaceEntry(Session, Metadata);
         }
-        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
-            ValueTask.FromResult(Task);
+        public async ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
+        {
+            if (BeforeTaskRead is { } before) { await before().ConfigureAwait(false); }
+            return Task;
+        }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
@@ -653,7 +657,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
             public void ConfirmWrite() => Pending = false;
         }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) =>
+            DisposeCompoundSession(request, preview, eligible, token);
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
         {
             Request = request;

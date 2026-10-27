@@ -4,6 +4,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Providers;
 using Kora.Core.Tools;
 using Kora.Windows.Dependencies;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
@@ -16,6 +17,8 @@ internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestion
     private readonly TimeProvider time;
     private readonly ILoggerFactory logging;
     private readonly Func<WindowsOllamaToolEndpointBinding, IModelToolTransport> createTransport;
+    private volatile bool joined = true;
+    public bool IsQuiescent => joined;
 
     internal OllamaModelTurnAdapter(WindowsOllamaRuntimeResolver resolver, WindowsOllamaQualification receipt,
         TimeProvider time, ILoggerFactory logging,
@@ -75,9 +78,11 @@ internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestion
         var binding = await resolver.BindAsync(receipt, provenance, profile, Live, turnLifetime.Token).ConfigureAwait(false);
         if (binding is null)
         { return new(ModelTurnOutcome.Unavailable, provenance.Selection, Reason: ModelTurnReason.QualificationPending); }
+        joined = false;
+        BoundedModelTurnAdapter? adapter = null;
         try
         {
-            await using var adapter = new BoundedModelTurnAdapter(createTransport(binding), time,
+            adapter = new BoundedModelTurnAdapter(createTransport(binding), time,
                 logging.CreateLogger<BoundedModelTurnAdapter>());
             return publish is not null
                 ? await adapter.RunWithAnswerAsync(provenance, profile, context, invokeTool, Guard, publish, turnLifetime.Token).ConfigureAwait(false)
@@ -87,8 +92,16 @@ internal sealed class OllamaModelTurnAdapter : IModelTurnAdapter, IModelQuestion
         }
         finally
         {
-            // Revoke even after a final answer, so abandoned continuation data cannot outlive its host turn.
-            await turnLifetime.CancelAsync().ConfigureAwait(false);
+            try
+            {
+                if (adapter is not null) { await adapter.DisposeAsync().ConfigureAwait(false); }
+                joined = true;
+            }
+            finally
+            {
+                // Revoke even after a final answer, so abandoned continuation data cannot outlive its host turn.
+                await turnLifetime.CancelAsync().ConfigureAwait(false);
+            }
         }
     }
 }

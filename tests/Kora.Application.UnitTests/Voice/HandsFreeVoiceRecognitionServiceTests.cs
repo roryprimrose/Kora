@@ -11,6 +11,13 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed partial class HandsFreeVoiceRecognitionServiceTests
 {
     [Fact]
+    public async Task ExistingCaptureAdaptersDoNotImplyQualifiedSpeechInterruption()
+    {
+        await using var voice = Create(new Activated(), new Stage());
+        ((IActivatedVoiceRecognitionService)voice).IsSpeechInterruptionAvailable.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task Wake_only_does_not_transcribe_and_one_final_waits_for_joined_cleanup_and_operation_before_rearm()
     {
         var stage = new Stage();
@@ -260,7 +267,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         }
     }
 
-    private sealed class Activated : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
+    private class Activated : IQuestionVoiceRecognitionService, ISpeechInputProfileRuntime
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized { add { } remove { } }
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
@@ -268,6 +275,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public event EventHandler<VoiceRecognitionCompletedEventArgs>? RecognitionCompleted { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted { add { } remove { } }
         public bool IsAmbientListeningAvailable => false;
+        public bool IsLiteralDictationAvailable { get; set; }
         public bool IsCaptureQuiescent => !IsListening;
         public bool IsListening { get; private set; }
         public long Generation { get; private set; }

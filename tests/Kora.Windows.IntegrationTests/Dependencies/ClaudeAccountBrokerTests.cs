@@ -156,7 +156,7 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
         internal bool Approved { get; set; } = true;
         internal bool Bound { get; set; } = true;
         internal Action? BeforeApprovalRead { get; set; }
-        internal ClaudeDeploymentApproval Approval { get; } = new(DateTimeOffset.UtcNow.AddHours(1));
+        internal ClaudeDeploymentApproval Approval { get; init; } = new(DateTimeOffset.UtcNow.AddHours(1));
         internal ClaudeCredentialLease Lease { get; } = new(new("approved-opaque-account"), "wrkspc_test",
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Credential))), DateTimeOffset.UtcNow.AddHours(1));
         internal List<(string Method, string Uri, byte[] Body)> Requests { get; } = [];

@@ -39,6 +39,7 @@ public sealed partial class MainViewModel
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
         internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
+        internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -73,6 +74,7 @@ public sealed partial class MainViewModel
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
             ModelActionReview = pendingModelActionReview,
+            NamedSkillChoiceEligible = namedSkillChoiceCapture?.Invoke() ?? (static () => false),
         };
     }
 

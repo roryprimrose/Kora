@@ -54,7 +54,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         Bind("Cancel", () => Decide(ModelHandoffDecision.Cancel));
         Bind("Remove", Remove);
         opened.FindControl<ComboBox>("Offers")!.SelectionChanged += (_, _) => UpdateButtons();
-        SetStatus("No pending qualified host offer has been observed. " + ModelHandoffPresentation.GateDisclosure);
+        SetStatus("Inspecting current host-issued offers. No handoff approval or hosted transmission is implied.");
         opened.Show();
         timer.Start();
         new AsyncCommand(() => Run(ReadPending), exception => ReportFailure(opened, exception)).Execute(null);
@@ -89,7 +89,8 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         if (!ReferenceEquals(window, opened) || !eligible()) { return; }
         opened!.FindControl<ComboBox>("Offers")!.ItemsSource = pending.Select(offer => new OfferChoice(offer)).ToArray();
         SetStatus(pending.Count == 0 ? "Unavailable: no pending qualified host-issued offer. " + ModelHandoffPresentation.GateDisclosure
-            : "Select one exact offer and read its complete envelope. No affirmative answer is selected. " + ModelHandoffPresentation.GateDisclosure);
+            : "Select one exact offer and read its complete envelope. No affirmative answer is selected. "
+                + (pending.Any(offer => offer.Operation is not null) ? ModelHandoffPresentation.VerifiedDisclosure : ModelHandoffPresentation.GateDisclosure));
         UpdateButtons();
     }
 
@@ -132,7 +133,11 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         if (window is null || !eligible()) { return; }
         ClearContent();
         var state = review!;
-        SetStatus($"{state.Outcome}; reason: {state.Reason}. " + ModelHandoffPresentation.GateDisclosure
+        SetStatus($"{state.Outcome}; reason: {state.Reason}. "
+            + (state.Completion is { } completed
+                ? $"Original-session HOST result: {completed.Outcome} / {completed.Reason}. "
+                    + (completed.HasAssistantResponse ? "One genuine hosted answer retained in the original conversation." : "No hosted answer retained.")
+                : state.Offer?.Operation is not null ? ModelHandoffPresentation.VerifiedDisclosure : ModelHandoffPresentation.GateDisclosure)
             + (state.Outcome == ModelHandoffOutcome.Removed ? " Old offer/question retired. Read the reduced complete envelope; approval is not inherited." : string.Empty));
         if (state.Offer is not { } offer) { return; }
         displayedOffer = offer;
@@ -142,6 +147,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
             + $"Session {offer.Context.Request.SessionId.Value:D} generation {offer.Generation.Value}; task {offer.Context.Request.TaskId.Value:D} revision {offer.TaskRevision.Value}\n"
             + $"Policy revision {offer.Policy.Revision.Value}; control revision {offer.ControlRevision}; reason {offer.Reason}\n"
             + $"Destination {offer.Destination.Provider}; model {offer.Destination.Model.Value:D}; catalogue revision {offer.Destination.Revision.Value}\n"
+            + (offer.HostedProfile is { } profile ? $"Exact configured account/profile: {profile}\n" : string.Empty)
             + $"Created {offer.Context.CreatedAt:O}; expires {offer.Context.ExpiresAt:O}; complete serialized UTF-8 bytes {offer.Context.Serialize().Length}/{ModelContextEnvelope.MaximumInputUtf8Bytes}; evidence {offer.Context.Evidence.Length}/{ModelContextEnvelope.MaximumEvidenceItems}";
         window.FindControl<TextBlock>("Preview")!.Text = state.Preview;
         foreach (var item in offer.Context.Evidence)
@@ -205,7 +211,7 @@ internal sealed partial class ModelHandoffWindowController : IDisposable
         {
             review?.Revoke();
             ClearContent();
-            SetStatus("Review failed or cancelled; no successful approval claimed. Close and inspect a fresh exact host offer. " + ModelHandoffPresentation.GateDisclosure);
+            SetStatus("Handoff review or execution is unconfirmed. Inspect the exact original conversation and host receipts before any deliberate new request. Closure or cancellation is not proof of no send or physical stop. No retry was performed.");
             UpdateButtons();
         }
     }

@@ -4,6 +4,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Storage;
 using Microsoft.Extensions.Logging;
 
 namespace Kora.Application.Dependencies;
@@ -11,12 +12,22 @@ namespace Kora.Application.Dependencies;
 /// <summary>Bounded original-user workflow. Confirmation never grants runtime, tool, or egress authority.</summary>
 public sealed partial class ModelProviderHandoffWorkflow(
     ModelTurnHost host, HostQuestionService questions, ISecurityAuditLog audit,
-    ILogger<ModelProviderHandoffWorkflow> logger, HostQuestionReviewService reviews)
+    ILogger<ModelProviderHandoffWorkflow> logger, HostQuestionReviewService reviews,
+    ISessionConversationStore? conversations = null)
 {
     /// <summary>Offers, never dispatches, after an audited host-issued local unavailable outcome.</summary>
     public Task<ModelHandoffResult> OfferAfterLocalAsync(ModelTurn turn, ModelContextEnvelope context, CancellationToken token) =>
-        ExecuteAsync(() => host.CanOfferAfterLocal(turn)
-            ? OfferCoreAsync(turn.Policy!, context, ModelHandoffReason.LocalUnavailable, token)
+        OfferAfterLocalCoreAsync(turn, context, null, token);
+
+    internal Task<ModelHandoffResult> OfferAfterLocalAsync(ModelTurn turn, ModelContextEnvelope context,
+        VerifiedLocalHandoffOperation.State operation, CancellationToken token) =>
+        OfferAfterLocalCoreAsync(turn, context, operation, token);
+
+    private Task<ModelHandoffResult> OfferAfterLocalCoreAsync(ModelTurn turn, ModelContextEnvelope context,
+        VerifiedLocalHandoffOperation.State? operation, CancellationToken token) =>
+        ExecuteAsync(() => host.ObserveJoinedLocalUnavailable(turn) is { } observation
+            && ReferenceEquals(observation.Context, context) && conversations is not null
+            ? OfferCoreAsync(turn.Policy!, context, ModelHandoffReason.LocalUnavailable, token, observation, operation)
             : Task.FromResult(new ModelHandoffResult(ModelHandoffOutcome.Denied, ModelTurnReason.HandoffNotPermitted)), token);
 
     public Task<ModelHandoffResult> OfferAsync(ModelProviderPolicy policy, ModelContextEnvelope context,
@@ -24,30 +35,48 @@ public sealed partial class ModelProviderHandoffWorkflow(
         ExecuteAsync(() => OfferCoreAsync(policy, context, reason, token), token);
 
     private async Task<ModelHandoffResult> OfferCoreAsync(ModelProviderPolicy policy, ModelContextEnvelope context,
-        ModelHandoffReason reason, CancellationToken token)
+        ModelHandoffReason reason, CancellationToken token, LocalUnavailableObservation? local = null,
+        VerifiedLocalHandoffOperation.State? operation = null)
     {
         if (!Enum.IsDefined(reason) || reason == ModelHandoffReason.Unknown)
         {
             return new(ModelHandoffOutcome.Denied, ModelTurnReason.InvalidHandoffReason);
         }
-        var observed = await host.ObserveHandoffAsync(policy, context, token).ConfigureAwait(false);
+        var observed = await host.ObserveHandoffAsync(policy, context, token, local).ConfigureAwait(false);
         if (observed.Reason != ModelTurnReason.None) { return Denied(observed.Reason); }
-        var decision = await questions.CreateAsync(context.Request,
+        var target = local is null ? null : await host.ResolveHandoffTargetAsync(policy, token).ConfigureAwait(false);
+        if (local is not null && target is null) { return Denied(ModelTurnReason.QualificationPending); }
+        var decision = local is not null
+            ? new HostInteractionDecision(HostInteractionOutcome.Presented, "verified-local-handoff",
+                await conversations!.CreateVerifiedLocalHandoffAsync(local, context, target!.Profile, target.Selection,
+                    target.Session, () => local.IsCurrent && target.Current(), token).ConfigureAwait(false))
+            : await questions.CreateAsync(context.Request,
             new("Review the exact context envelope and Copilot destination before confirming this new hosted turn. "
                 + "Confirmation does not qualify the runtime or permit network transmission.",
                 QuestionKind.SingleChoice, [new("approve", "Approve exact envelope"), new("decline", "Decline")],
                 purpose: "provider-handoff", sourceId: "host"), context.ExpiresAt, token).ConfigureAwait(false);
         if (decision.Outcome != HostInteractionOutcome.Presented) { return FromQuestion(decision); }
         var offer = new ModelHandoffOffer(host, policy, context, reason, decision.Question!,
-            observed.Generation, observed.TaskRevision, observed.Control);
+            observed.Generation, observed.TaskRevision, observed.Control) { LocalUnavailable = local, Target = target, Operation = operation };
+        if (operation is not null) { operation.Offer = offer; }
         var after = await host.CheckHandoffAsync(offer, token).ConfigureAwait(false);
         return after.Reason == ModelTurnReason.None
             ? new(ModelHandoffOutcome.Offered, ModelTurnReason.None, offer) : Denied(after.Reason);
     }
 
-    public Task<ModelHandoffResult> ReviewAsync(ModelHandoffOffer offer, ModelProviderPolicy policy,
-        ModelContextEnvelope context, ModelHandoffDecision decision, RequestOrigin channel, CancellationToken token) =>
-        ExecuteAsync(() => ReviewCoreAsync(offer, policy, context, decision, channel, token), token);
+    public async Task<ModelHandoffResult> ReviewAsync(ModelHandoffOffer offer, ModelProviderPolicy policy,
+        ModelContextEnvelope context, ModelHandoffDecision decision, RequestOrigin channel, CancellationToken token)
+    {
+        var result = await ExecuteAsync(() => ReviewCoreAsync(offer, policy, context, decision, channel, token), token).ConfigureAwait(false);
+        if (offer.Operation is { } operation)
+        {
+            operation.Decision.TrySetResult(result);
+            var completed = await operation.Completion.Task.WaitAsync(token).ConfigureAwait(false);
+            return result with { Completion = new(completed.Message.Outcome!.Value,
+                completed.Message.Reason!.Value, completed.Message.HasAssistantResponse) };
+        }
+        return result;
+    }
 
     private async Task<ModelHandoffResult> ReviewCoreAsync(ModelHandoffOffer offer, ModelProviderPolicy policy,
         ModelContextEnvelope context, ModelHandoffDecision decision, RequestOrigin channel, CancellationToken token)
@@ -105,8 +134,15 @@ public sealed partial class ModelProviderHandoffWorkflow(
             if (cancelled.Outcome != HostInteractionOutcome.Cancelled) { return FromQuestion(cancelled); }
             var original = offer.Context;
             var reduced = new ModelContextEnvelope(original.Request, original.SystemPolicy, original.UserRequest,
-                original.Evidence.Where(item => !remove.Contains(item.Id)), original.CreatedAt, original.ExpiresAt);
-            var replacement = await OfferCoreAsync(offer.Policy, reduced, offer.Reason, token).ConfigureAwait(false);
+                original.Evidence.Where(item => !remove.Contains(item.Id)), original.CreatedAt, original.ExpiresAt,
+                original.ToolMode, original.Constraints, original.McpTool, original.WebPages);
+            var replacement = await OfferCoreAsync(offer.Policy, reduced, offer.Reason, token,
+                offer.LocalUnavailable, offer.Operation).ConfigureAwait(false);
+            if (replacement.Offer is { } next)
+            {
+                next.Operation = offer.Operation;
+                if (next.Operation is { } operation) { operation.Offer = next; }
+            }
             return replacement.Outcome == ModelHandoffOutcome.Offered
                 ? replacement with { Outcome = ModelHandoffOutcome.Removed } : replacement;
         }, token);

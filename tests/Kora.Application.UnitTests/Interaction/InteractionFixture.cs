@@ -116,6 +116,7 @@ internal sealed class InteractionFixture : IDisposable
         public bool FailStorage { get; set; }
         public bool FailAudit { get; set; }
         public bool UncertainCommit { get; set; }
+        public HostInteractionDecision? RefusedDecision { get; set; }
         public Action? BeforeCommit { get; set; }
         public Action? BeforeTransition { get; set; }
         public HostActivity? LastActivity { get; private set; }
@@ -143,6 +144,11 @@ internal sealed class InteractionFixture : IDisposable
                 if (FailStorage || FailAudit)
                 {
                     throw new IOException("Synthetic storage/audit unavailable.");
+                }
+                if (RefusedDecision is { } refused)
+                {
+                    Commits.Add(new(Snapshot, refused, commit.Audit.WithOutcome(Kora.Core.Auditing.SecurityAuditOutcome.Denied)));
+                    return ValueTask.FromResult(refused);
                 }
                 Snapshot = commit.Snapshot;
                 Commits.Add(commit);

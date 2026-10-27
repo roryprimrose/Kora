@@ -1117,7 +1117,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
 
     private sealed record SessionRow(WorkSessionAuthorization Authority, long State);
     private sealed record Observation(HostRequest Request, Guid RunId, HostRevision Revision,
-        HostRevision Generation, HostAuthorizationPolicy Policy, HostOperationProposal? Proposal);
+        HostRevision Generation, HostAuthorizationPolicy Policy, HostOperationProposal? Proposal)
+    {
+        [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+        public LocalHandoffObservation? LocalHandoff { get; init; }
+    }
     private sealed record AuthorityAudit(HostRequest Request, HostRevision IntentRevision, HostRevision SessionGeneration,
         SecurityAuditEvent Audit, string TraceId, string SpanId, DateTimeOffset CommittedAt, DateTimeOffset DueAt,
         HostInteractionOutcome? Outcome, HostId<QuestionIdentity>? QuestionId, HostRevision? QuestionRevision,

@@ -21,7 +21,8 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null,
-    SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null) : IDisposable, ISessionDispositionReviewPresenter,
+    SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null,
+    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -380,7 +381,8 @@ internal sealed partial class SessionsWindowController(
             confirmSpeechSummarySuggestion: (review, token) => main.ConfirmSpeechSummarySuggestionAsync(review, token),
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
-            confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token));
+            confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
+            localHandoff: localHandoff);
         model.BindDictation(main.ComposerDictation);
         model.PresentEvidenceDetails = (page, admitted, validate) =>
         {

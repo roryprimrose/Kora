@@ -23,10 +23,14 @@ public sealed class ModelHandoffOffer
 
     public ModelProviderPolicy Policy { get; }
     public ModelContextEnvelope Context { get; }
-    public ModelProviderSelection Destination => Policy.Hosted;
+    public ModelProviderSelection Destination => Target is { } target ? target.Selection : Policy.Hosted;
+    public Kora.Core.Providers.ProviderProfileTuple? HostedProfile => Target?.Profile;
     public ModelHandoffReason Reason { get; }
     public HostQuestionRecord Question { get; }
     internal ModelTurnHost Host { get; }
+    internal LocalUnavailableObservation? LocalUnavailable { get; init; }
+    internal VerifiedHandoffTarget? Target { get; init; }
+    internal VerifiedLocalHandoffOperation.State? Operation { get; set; }
     public Guid Id { get; } = Guid.NewGuid();
     public HostRevision Revision { get; } = new(1);
     public HostRevision Generation { get; }

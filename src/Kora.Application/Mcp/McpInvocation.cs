@@ -37,6 +37,7 @@ internal sealed class McpInvocation(
     private McpDiscoveredTool? selected;
     private McpAccountChoice? accountChoice;
     private Dependencies.ModelTurn? turn;
+    private HostTaskRecord? originalUserTask;
     private int used;
     private bool disposed;
     internal bool Completed { get; private set; }
@@ -47,9 +48,40 @@ internal sealed class McpInvocation(
 
     internal void BindTurn(Dependencies.ModelTurn value)
     {
-        if (turn is not null || value.Provenance.Request != original)
+        if (turn is not null || originalUserTask is not null || value.Provenance.Request != original)
         { throw new InvalidOperationException("MCP cannot be rebound to another original request or session."); }
         turn = value;
+    }
+
+    internal void BindOriginalUserTask(HostTaskRecord value)
+    {
+        if (turn is not null || originalUserTask is not null || value.Request != original
+            || value.State != HostTaskState.DispatchRecorded || value.Revision.Value != 2)
+        { throw new InvalidOperationException("Only the exact original-user dispatch can own this MCP invocation."); }
+        originalUserTask = value;
+    }
+
+    internal async Task<CapabilityReply> InvokeOriginalUserAsync(McpArgumentsPresenter input, CancellationToken token)
+    {
+        if (originalUserTask is null || turn is not null)
+        { return new(CapabilityOutcome.Denied, "original-mcp-dispatch-required"); }
+        await ValidateAsync(token).ConfigureAwait(false);
+        var parent = HostActivity.RequireCurrent();
+        using var activity = HostActivity.BeginRoot(interactionRequest, HostActivityLayer.Application, HostOperation.Tool,
+            [new ActivityLink(parent.Activity!.Context)]);
+        try
+        {
+            var arguments = await input(interactionRequest, generation, expiresAt, ModelTool,
+                () => Live(token), token).ConfigureAwait(false);
+            await ValidateAsync(token).ConfigureAwait(false);
+            if (arguments is null) { throw new OperationCanceledException("MCP input was not submitted.", token); }
+            var reply = await InvokeSelectedAsync(ModelTool.Id, arguments, token).ConfigureAwait(false);
+            activity.Complete(reply.Outcome == CapabilityOutcome.Succeeded
+                ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+            return reply;
+        }
+        catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
+        catch { activity.Complete(HostOperationOutcome.Failed); throw; }
     }
 
     internal async Task PrepareAsync(CancellationToken token)
@@ -85,7 +117,14 @@ internal sealed class McpInvocation(
         string arguments, CancellationToken token)
     {
         if (provenance.Request != original || provenance.Selection.Provider != ModelProviderIdentity.Ollama
-            || !string.Equals(id, ModelTool.Id, StringComparison.Ordinal) || Interlocked.Exchange(ref used, 1) != 0)
+            || originalUserTask is not null || !string.Equals(id, ModelTool.Id, StringComparison.Ordinal))
+        { return new(CapabilityOutcome.Denied, "exact-mcp-turn-not-admitted"); }
+        return await InvokeSelectedAsync(id, arguments, token).ConfigureAwait(false);
+    }
+
+    private async ValueTask<CapabilityReply> InvokeSelectedAsync(string id, string arguments, CancellationToken token)
+    {
+        if (Interlocked.Exchange(ref used, 1) != 0)
         { return new(CapabilityOutcome.Denied, "exact-mcp-turn-not-admitted"); }
         selected!.Schema.ValidateArguments(arguments);
         Kora.Core.Conversation.ConversationText.Validate(arguments, submission: true);
@@ -142,7 +181,7 @@ internal sealed class McpInvocation(
         if (!Live(token) || !session.Authority.IsActive || session.Authority.SessionId != original.SessionId
             || session.Authority.Generation != generation || task is null || !task.CurrentSource
             || task.Generation != generation || task.Task.Request != original
-            || task.Task.Revision != (turn?.TaskRevision ?? new HostRevision(1))
+            || task.Task.Revision != (turn?.TaskRevision ?? originalUserTask?.Revision ?? new HostRevision(1))
             || task.Task.State is not (HostTaskState.IntentRecorded or HostTaskState.DispatchRecorded))
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
@@ -250,11 +289,24 @@ internal sealed class McpInvocation(
     public async ValueTask DisposeAsync()
     {
         disposed = true;
+        await JoinTransportAsync().ConfigureAwait(false);
+    }
+
+    internal async ValueTask JoinTransportAsync()
+    {
         if (connection is { } owned)
         {
             connection = null;
             await owned.DisposeAsync().ConfigureAwait(false);
         }
+    }
+
+    internal async Task ValidateResultSourceAsync(CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        if (!Live(token)) { throw new InvalidOperationException("The original MCP result presentation was retired."); }
+        await configuration.ValidateCurrentAsync(descriptor!, token).ConfigureAwait(false);
+        if (!Live(token)) { throw new InvalidOperationException("The original MCP result source was retired."); }
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

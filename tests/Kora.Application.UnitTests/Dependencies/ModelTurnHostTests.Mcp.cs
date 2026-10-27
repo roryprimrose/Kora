@@ -247,7 +247,8 @@ public sealed partial class ModelTurnHostTests
     {
         var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
         return new(f, f, workspace, f, host, f.Time, NullLogger<SessionConversationService>.Instance, host,
-            f.CancelAudit, approvals, mcpConfiguration: source.Configuration, mcpBroker: broker, mcpEffects: policy);
+            f.CancelAudit, approvals, mcpConfiguration: source.Configuration, mcpBroker: broker, mcpEffects: policy,
+            explicitTaskCoordinator: new(f));
     }
 
     private sealed class McpSource : IDisposable
@@ -329,13 +330,15 @@ public sealed partial class ModelTurnHostTests
         internal List<string> Methods { get; } = [];
         internal bool Connected { get; private set; }
         internal bool Disposed { get; private set; }
+        internal Action? AfterDispose { get; set; }
         public McpAccountReference Account => Fault is "account-swap"
             ? new(Guid.NewGuid(), new(1), Guid.NewGuid(), account.Destination) : account;
         public McpEndpoint Endpoint => Fault is "redirect" ? new(new("https://other.example.com/mcp")) : account.Destination;
         public IReadOnlyList<IPAddress> RemoteAddresses => Fault switch
         { "private-dns" => [IPAddress.Loopback], "unknown-dns" => [], _ => [IPAddress.Parse("8.8.8.8")] };
         public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<McpAccountChoice>>(Fault is "denied-account" ? [] : [new(account, "Test delegated user")]);
+            Fault is "unavailable" ? throw new McpUnavailableException()
+                : Task.FromResult<IReadOnlyList<McpAccountChoice>>(Fault is "denied-account" ? [] : [new(account, "Test delegated user")]);
         public Task<IMcpConnection> ConnectAsync(McpAccountReference selected, CancellationToken token)
         {
             selected.Should().Be(account);
@@ -375,7 +378,7 @@ public sealed partial class ModelTurnHostTests
             AfterExchange?.Invoke(method);
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
         }
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
+        public ValueTask DisposeAsync() { Disposed = true; AfterDispose?.Invoke(); return ValueTask.CompletedTask; }
     }
 
     private sealed class McpApprovals(Fixture f) : IHostInteractionStore

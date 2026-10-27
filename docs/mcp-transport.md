@@ -7,6 +7,24 @@ and separately approve its exact schema and arguments. The result is inert
 lower-trust evidence for the local model, not instructions or permission.
 Discovery annotations never establish a read-only mapping.
 
+## Invoke without a model
+
+In Sessions, choose **Review HTTPS MCP options**, then explicitly select the
+included server and delegated account. Choose **Invoke reviewed MCP tool without
+a model**, or type `invoke selected mcp tool` while that exact session is
+foreground. Review the connection, select one admitted read-only tool and review
+its schema. Enter JSON containing its required bounded inputs. This input step
+does not send the tool call: separately approve the final exact destination,
+account, tool, schema and arguments.
+
+The original session shows the actual inert tool result or a truthful failure.
+No model runs, no assistant answer is invented, and your unsent conversation
+text is unchanged. The result remains in memory, not conversation history.
+**Stop MCP operation** targets this exact operation and joins its owned transport.
+If remote processing is uncertain, the task remains **Unknown**; stopping is
+not rollback and does not automatically retry. The availability restriction
+below also applies to this route.
+
 ## Availability
 
 The shipped host composes the Windows HTTPS broker, but has **no qualified

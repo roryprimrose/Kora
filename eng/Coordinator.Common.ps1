@@ -67,6 +67,71 @@ function Get-CoordinatorDigest {
     return [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($bytes))
 }
 
+function Get-CoordinatorEventKey {
+    param($EventId)
+    if ($EventId -isnot [string] -or $EventId -cnotmatch '\A[A-Za-z0-9][A-Za-z0-9_-]{0,255}\z') {
+        throw 'Invalid opaque terminal event ID.'
+    }
+    if ($EventId -cmatch '^[a-z0-9][a-z0-9-]{0,79}$') { return $EventId }
+    return 'opaque-' + (Get-CoordinatorDigest $EventId).ToLowerInvariant()
+}
+
+function Write-CoordinatorEvidence {
+    param([string] $Directory, [string] $Key, $Value, [switch] $Existing)
+    $root = Join-Path $Directory 'transition-evidence'
+    if (!(Test-Path -LiteralPath $root)) { New-ProofDirectory $root }
+    Assert-NoLinks $root -AncestorsOnly
+    $path = Join-Path $root "$Key.json"
+    if (Test-Path -LiteralPath $path) {
+        if ((Get-CoordinatorDigest (Read-CoordinatorJson $path -MaximumBytes 1048576)) -cne (Get-CoordinatorDigest $Value)) {
+            throw 'Immutable transition evidence changed.'
+        }
+    } elseif ($Existing) { throw 'Missing immutable transition evidence.' }
+    else { Write-CoordinatorJson $path $Value }
+    return $path
+}
+
+function Read-CoordinatorPublicationCorrection {
+    param($Correction, $Receipt, $State)
+    Assert-CoordinatorFields $Correction @('receiptDigest', 'readbackPath', 'readbackDigest', 'publisher', 'verificationEvidence')
+    Assert-CoordinatorText $Correction.verificationEvidence
+    Assert-CoordinatorText $Correction.readbackPath
+    if ($State.publicationPolicy -cne 'ready-auto' -or $Receipt.kind -cne 'pr-enrolled-ci-wait' -or
+        $Correction.publisher -cne $State.publisher -or
+        $Correction.receiptDigest -cne (Get-CoordinatorDigest $Receipt) -or
+        ![IO.Path]::IsPathFullyQualified($Correction.readbackPath)) {
+        throw 'Publication correction requires exact receipt and pinned publisher authority.'
+    }
+    $readback = Read-CoordinatorJson $Correction.readbackPath
+    if ($Correction.readbackDigest -cne (Get-CoordinatorDigest $readback)) { throw 'Publication readback digest mismatch.' }
+    if ($readback -isnot [System.Collections.IDictionary]) { throw 'Invalid publication readback identity.' }
+    foreach ($key in @('url', 'number', 'headRefOid', 'baseRefName', 'state', 'isDraft', 'author', 'autoMergeRequest')) {
+        if (!$readback.Contains($key)) { throw 'Invalid publication readback identity: missing field.' }
+    }
+    if ($readback.author -isnot [System.Collections.IDictionary] -or !$readback.author.Contains('login') -or
+        $readback.autoMergeRequest -isnot [System.Collections.IDictionary]) { throw 'Invalid publication readback identity/enrollment.' }
+    foreach ($key in @('enabledBy', 'mergeMethod', 'enabledAt')) {
+        if (!$readback.autoMergeRequest.Contains($key)) { throw 'Invalid publication readback identity/enrollment: missing field.' }
+    }
+    if ($readback.autoMergeRequest.enabledBy -isnot [System.Collections.IDictionary] -or
+        !$readback.autoMergeRequest.enabledBy.Contains('login')) { throw 'Invalid publication readback identity/enrollment.' }
+    if ($readback.url -cne $Receipt.prUrl -or $Receipt.prUrl -cnotmatch '^https://github.com/roryprimrose/Kora/pull/([1-9][0-9]*)$' -or
+        $readback.number -isnot [long] -and $readback.number -isnot [int]) { throw 'Invalid publication readback identity.' }
+    if ([string]$readback.number -cne $Matches[1] -or $readback.headRefOid -cne $Receipt.head -or
+        $readback.baseRefName -cne 'main' -or $readback.state -cne 'OPEN' -or
+        $readback.isDraft -isnot [bool] -or $readback.isDraft -or
+        $readback.author.login -cne $State.publisher -or
+        $readback.autoMergeRequest.enabledBy.login -cne $State.publisher -or
+        $readback.autoMergeRequest.mergeMethod -cne 'SQUASH') { throw 'Publication readback identity/enrollment mismatch.' }
+    Assert-CoordinatorText $readback.autoMergeRequest.enabledAt
+    if ($readback.autoMergeRequest.enabledAt -cnotmatch '^\d{4}-\d\d-\d\dT\d\d:\d\d:\d\d(?:\.\d{1,7})?Z$') {
+        throw 'Publication readback requires an explicit UTC enabledAt.'
+    }
+    $enabledAt = [DateTimeOffset]::Parse($readback.autoMergeRequest.enabledAt, [Globalization.CultureInfo]::InvariantCulture).ToUniversalTime()
+    if ($enabledAt -eq (ConvertTo-CoordinatorTime $Receipt.autoMerge.enabledAt)) { throw 'Publication correction must correct enabledAt only.' }
+    return @{ readback = $readback; autoMerge = @{ method = 'SQUASH'; enabledAt = $enabledAt.ToString('o') } }
+}
+
 function ConvertTo-CoordinatorCanonicalValue {
     param($Value)
     if ($Value -is [System.Collections.IDictionary]) {
@@ -323,6 +388,49 @@ function Invoke-CoordinatorOperation {
             if ($owner.candidate -ceq 'ready') { $owner.candidate = 'none'; $owner.certification = $null }
             return @{ kind = 'recovery-recorded'; ownerId = $owner.id }
         }
+        'NarrowScopes' {
+            Assert-CoordinatorFields $Request @('ownerId', 'oldScope', 'newScopes', 'manifest')
+            $owner = Get-CoordinatorOwner $State $Request.ownerId
+            Assert-CoordinatorScope @($Request.oldScope)
+            Assert-CoordinatorScope $Request.newScopes
+            Assert-CoordinatorFields $Request.manifest @('head', 'paths', 'reference')
+            Assert-CoordinatorScope $Request.manifest.paths
+            Assert-CoordinatorText $Request.manifest.reference
+            $executions = @($State.executions | Where-Object ownerId -CEQ $owner.id)
+            if (!$owner.sourceRetained -or $owner.candidate -cne 'none' -or $owner.receiptRevision -eq 0 -or
+                $null -eq $owner.publication -or $Request.manifest.head -cne $owner.publication.head -or
+                !$executions.Count -or @($executions | Where-Object phase -CNE 'released').Count) {
+                throw 'Scope narrowing requires retained same-head source and canonically released executions.'
+            }
+            $key = 'narrow-' + (Get-CoordinatorDigest $Request).ToLowerInvariant()
+            $prior = @($State.events | Where-Object id -CEQ $key)
+            if ($prior.Count) {
+                $proof = Read-CoordinatorJson (Join-Path (Join-Path $Directory 'transition-evidence') "$key.json") -MaximumBytes 1048576
+                if ($prior[0].digest -cne (Get-CoordinatorDigest $proof) -or
+                    (Get-CoordinatorDigest $proof.request) -cne (Get-CoordinatorDigest $Request)) { throw 'Scope narrowing evidence changed.' }
+                return @{ kind = 'duplicate'; ownerId = $owner.id }
+            }
+            if (@($owner.scopes | Where-Object { $_ -ceq $Request.oldScope }).Count -ne 1) {
+                throw 'Scope narrowing must replace exactly one existing scope.'
+            }
+            if (@($Request.newScopes | Sort-Object -Unique).Count -ne $Request.newScopes.Count) { throw 'Duplicate narrowed scope.' }
+            foreach ($scope in $Request.newScopes) {
+                if (!$scope.StartsWith("$($Request.oldScope)/", [StringComparison]::OrdinalIgnoreCase) -or
+                    $scope -cnotin $Request.manifest.paths) { throw 'Narrowed scopes must be exact manifested descendants.' }
+            }
+            foreach ($path in $Request.manifest.paths) {
+                if ($path.StartsWith("$($Request.oldScope)/", [StringComparison]::OrdinalIgnoreCase) -and
+                    $path -cnotin $Request.newScopes) { throw 'Narrowing omitted a manifested descendant.' }
+            }
+            $scopes = @($owner.scopes | ForEach-Object { if ($_ -ceq $Request.oldScope) { $Request.newScopes } else { $_ } })
+            Assert-CoordinatorScope $scopes
+            $proof = @{ datasetId = $State.datasetId; authorityId = $State.authorityId; epoch = $State.epoch
+                revision = $State.revision; request = $Request; previousScopes = $owner.scopes; nextScopes = $scopes }
+            $null = Write-CoordinatorEvidence $Directory $key $proof
+            $State.events += @{ id = $key; digest = (Get-CoordinatorDigest $proof) }
+            $owner.scopes = $scopes
+            return @{ kind = 'scopes-narrowed'; ownerId = $owner.id; evidenceKey = $key }
+        }
         'ReleaseSource' {
             Assert-CoordinatorFields $Request @('ownerId', 'mergeSha', 'freshMainSha', 'reachabilityEvidence')
             $owner = Get-CoordinatorOwner $State $Request.ownerId
@@ -339,7 +447,7 @@ function Invoke-CoordinatorOperation {
             return @{ kind = 'source-released'; ownerId = $owner.id }
         }
         'Reconcile' {
-            Assert-CoordinatorFields $Request @('executionId', 'outcome', 'evidence', 'dispatcherJoined', 'nativeIdentity', 'branch', 'worktree')
+            Assert-CoordinatorFields $Request @('executionId', 'outcome', 'evidence', 'dispatcherJoined', 'nativeIdentity', 'branch', 'worktree') @('serializedRebind')
             $executions = @($State.executions | Where-Object id -CEQ $Request.executionId)
             if ($executions.Count -ne 1) { throw 'Unknown execution intent.' }
             $execution = $executions[0]
@@ -350,6 +458,68 @@ function Invoke-CoordinatorOperation {
             Assert-CoordinatorText $Request.evidence
             if ($Request.outcome -cnotin @('accepted', 'uncertain', 'not-dispatched') -or
                 $Request.dispatcherJoined -isnot [bool] -or $execution.phase -ceq 'released') { throw 'Invalid dispatch reconciliation.' }
+            $rebind = $Request.Contains('serializedRebind')
+            if ($rebind) {
+                if ($Request.outcome -cne 'accepted' -or !$Request.dispatcherJoined -or
+                    $execution.dispatcher -cne $Session -or $execution.epoch -ne $State.epoch) {
+                    throw 'Serialized rebind requires the current original dispatcher and joined accepted native readback.'
+                }
+                foreach ($key in @('nativeIdentity', 'branch', 'worktree')) { Assert-CoordinatorText $Request[$key] }
+                $binding = $Request.serializedRebind
+                Assert-CoordinatorFields $binding @('authority', 'previousExecutionId', 'previousReceiptDigest', 'previousBinding')
+                Assert-CoordinatorText $binding.authority
+                Assert-CoordinatorText $binding.previousExecutionId -Identifier
+                Assert-CoordinatorFields $binding.previousBinding @('nativeIdentity', 'branch', 'worktree')
+                foreach ($key in @('nativeIdentity', 'branch', 'worktree')) { Assert-CoordinatorText $binding.previousBinding[$key] }
+                $eventKey = 'rebind-' + (Get-CoordinatorDigest $execution.id).ToLowerInvariant()
+                $prior = @($State.events | Where-Object id -CEQ $eventKey)
+                if ($prior.Count) {
+                    $proof = Read-CoordinatorJson (Join-Path (Join-Path $Directory 'transition-evidence') "$eventKey.json") -MaximumBytes 1048576
+                    if ($prior[0].digest -cne (Get-CoordinatorDigest $proof) -or
+                        (Get-CoordinatorDigest $proof.request) -cne (Get-CoordinatorDigest $Request)) { throw 'Serialized rebind evidence changed.' }
+                    return @{ kind = 'duplicate'; executionId = $execution.id }
+                }
+                $older = @($State.executions | Where-Object { $_.ownerId -ceq $owner.id -and $_.id -cne $execution.id })
+                if ($execution.phase -cnotin @('dispatching', 'uncertain') -or !$owner.sourceRetained -or
+                    $owner.receiptRevision -eq 0 -or $null -eq $owner.publication -or
+                    @($older | Where-Object id -CEQ $binding.previousExecutionId).Count -ne 1 -or
+                    @($older | Where-Object phase -CNE 'released').Count) {
+                    throw 'Serialized rebind requires a new intent and all previous executions canonically released.'
+                }
+                foreach ($key in @('nativeIdentity', 'branch', 'worktree')) {
+                    if ($owner[$key] -cne $binding.previousBinding[$key]) { throw 'Serialized rebind previous binding mismatch.' }
+                }
+                if ($Request.nativeIdentity -ceq $owner.nativeIdentity) { throw 'Serialized rebind requires a genuinely new native identity.' }
+                $receiptPath = $owner.publication.receiptPath
+                if ((Split-Path -Parent $receiptPath) -cne (Join-Path (Join-Path $Directory 'owners') $owner.id)) {
+                    throw 'Serialized rebind previous receipt is outside its registered owner directory.'
+                }
+                $receipt = Read-CoordinatorJson $receiptPath
+                $receiptDigest = Get-CoordinatorDigest $receipt
+                if ($binding.previousReceiptDigest -cne $receiptDigest -or $receipt.datasetId -cne $State.datasetId -or
+                    $receipt.ownerId -cne $owner.id -or $receipt.executionId -cne $binding.previousExecutionId -or
+                    $receipt.revision -ne $owner.receiptRevision -or $receipt.head -cne $owner.publication.head -or
+                    $receipt.workState -cne 'stopped' -or $receipt.finiteCommandsJoined -isnot [bool] -or !$receipt.finiteCommandsJoined -or
+                    $receipt.runningCommands -isnot [array] -or $receipt.runningCommands.Count -ne 0 -or $null -ne $receipt.heldDecision) {
+                    throw 'Serialized rebind requires exact previous stopped/joined consumed evidence.'
+                }
+                foreach ($key in @('nativeIdentity', 'branch', 'worktree')) {
+                    if ($receipt[$key] -cne $owner[$key]) { throw 'Serialized rebind previous receipt binding mismatch.' }
+                }
+                $receiptKey = Get-CoordinatorEventKey $receipt.eventId
+                $consumed = @($State.events | Where-Object id -CEQ $receiptKey)
+                if ($consumed.Count -ne 1) { throw 'Serialized rebind previous receipt was not consumed.' }
+                if ($consumed[0].digest -cne $receiptDigest) {
+                    $correctionProof = Read-CoordinatorJson (Join-Path (Join-Path $Directory 'transition-evidence') "$receiptKey.json") -MaximumBytes 1048576
+                    if ((Get-CoordinatorDigest $correctionProof) -cne $consumed[0].digest -or
+                        (Get-CoordinatorDigest $correctionProof.receipt) -cne $receiptDigest -or
+                        $correctionProof.receiptPath -cne $receiptPath) { throw 'Serialized rebind previous consumption evidence changed.' }
+                }
+                $proof = @{ datasetId = $State.datasetId; authorityId = $State.authorityId; epoch = $State.epoch
+                    revision = $State.revision; request = $Request; previousReceipt = $receipt; previousReceiptPath = $receiptPath }
+                $null = Write-CoordinatorEvidence $Directory $eventKey $proof
+                $State.events += @{ id = $eventKey; digest = (Get-CoordinatorDigest $proof) }
+            }
             if ($Request.outcome -ceq 'not-dispatched') {
                 if (!$Request.dispatcherJoined -or $execution.phase -ceq 'accepted') { throw 'No proof of joined non-dispatch.' }
                 $execution.phase = 'released'
@@ -357,7 +527,7 @@ function Invoke-CoordinatorOperation {
             } elseif ($Request.outcome -ceq 'accepted') {
                 foreach ($key in @('nativeIdentity', 'branch', 'worktree')) {
                     Assert-CoordinatorText $Request[$key]
-                    if ($null -ne $owner[$key] -and $owner[$key] -cne $Request[$key]) { throw 'Dispatch identity changed.' }
+                    if (!$rebind -and $null -ne $owner[$key] -and $owner[$key] -cne $Request[$key]) { throw 'Dispatch identity changed.' }
                     $owner[$key] = $Request[$key]
                 }
                 $execution.phase = 'accepted'
@@ -389,7 +559,7 @@ function Invoke-CoordinatorOperation {
             return @{ kind = 'legacy-retired'; executionId = $execution.id; sourceOwnership = 'retained' }
         }
         'Consume' {
-            Assert-CoordinatorFields $Request @('receiptPath')
+            Assert-CoordinatorFields $Request @('receiptPath') @('publicationCorrection')
             if (![IO.Path]::IsPathFullyQualified($Request.receiptPath)) { throw 'Receipt path must be absolute.' }
             $path = [IO.Path]::GetFullPath($Request.receiptPath)
             $ownersRoot = Join-Path $Directory 'owners'
@@ -405,7 +575,7 @@ function Invoke-CoordinatorOperation {
                 'nativeIdentity', 'branch', 'worktree', 'head', 'kind', 'workState', 'finiteCommandsJoined',
                 'runningCommands', 'heldDecision', 'publicationPolicy', 'prUrl', 'autoMerge')
             if ($receipt.ownerId -cne $owner.id) { throw 'Cross-owner receipt.' }
-            Assert-CoordinatorText $receipt.eventId -Identifier
+            $eventKey = Get-CoordinatorEventKey $receipt.eventId
             Assert-CoordinatorNumber $receipt.revision
             Assert-CoordinatorNumber $receipt.version
             if ($receipt.version -cne 1 -or $receipt.datasetId -cne $State.datasetId -or
@@ -415,9 +585,18 @@ function Invoke-CoordinatorOperation {
                 throw 'Receipt identity/authority mismatch.'
             }
             $digest = Get-CoordinatorDigest $receipt
-            $prior = @($State.events | Where-Object id -CEQ $receipt.eventId)
+            $correction = $null
+            $proof = $null
+            if ($Request.Contains('publicationCorrection')) {
+                $correction = Read-CoordinatorPublicationCorrection $Request.publicationCorrection $receipt $State
+                $proof = @{ receiptPath = $path; receipt = $receipt; publicationCorrection = $Request.publicationCorrection
+                    readback = $correction.readback }
+                $digest = Get-CoordinatorDigest $proof
+            }
+            $prior = @($State.events | Where-Object id -CEQ $eventKey)
             if ($prior.Count) {
                 if ($prior[0].digest -cne $digest) { throw 'Event ID was reused with different content.' }
+                if ($null -ne $proof) { $null = Write-CoordinatorEvidence $Directory $eventKey $proof -Existing }
                 return @{ kind = 'duplicate'; eventId = $receipt.eventId }
             }
             if ($receipt.revision -le $owner.receiptRevision) { throw 'Superseded receipt revision.' }
@@ -450,12 +629,14 @@ function Invoke-CoordinatorOperation {
                 $owner.delivery = 'none'
             } else { throw 'Unsupported terminal handoff.' }
             if ($execution.phase -ceq 'released') { throw 'Execution already released; no second release.' }
+            if ($null -ne $proof) { $null = Write-CoordinatorEvidence $Directory $eventKey $proof }
             $execution.phase = 'released'
             $owner.receiptRevision = $receipt.revision
             $owner.candidate = 'none'
-            $owner.publication = @{ head = $receipt.head; prUrl = $receipt.prUrl; autoMerge = $receipt.autoMerge; receiptPath = $path }
+            $owner.publication = @{ head = $receipt.head; prUrl = $receipt.prUrl
+                autoMerge = if ($null -ne $correction) { $correction.autoMerge } else { $receipt.autoMerge }; receiptPath = $path }
             if ($owner.delivery -ceq 'evidence-completed') { $owner.sourceRetained = $false }
-            $State.events += @{ id = $receipt.eventId; digest = $digest }
+            $State.events += @{ id = $eventKey; digest = $digest }
             return @{ kind = 'released'; executionId = $execution.id
                 sourceOwnership = if ($owner.sourceRetained) { 'retained' } else { 'released' } }
         }

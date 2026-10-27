@@ -2,7 +2,7 @@
 [CmdletBinding()]
 param(
     [Parameter(Mandatory)][string] $RepositoryPath,
-    [ValidateSet('Read', 'Initialize', 'Adopt', 'Claim', 'Register', 'Certify', 'Recover', 'Reconcile', 'Consume', 'RetireLegacy', 'ReleaseSource', 'Next')]
+    [ValidateSet('Read', 'Initialize', 'Adopt', 'Claim', 'Register', 'Certify', 'Recover', 'Reconcile', 'Consume', 'NarrowScopes', 'RetireLegacy', 'ReleaseSource', 'Next')]
     [string] $Action = 'Read',
     [string] $Session,
     [long] $ExpectedEpoch = -1,

@@ -37,6 +37,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Sessions, windows and tray recovery | [Windows and tray](windows-and-tray.md) |
 | Explicit memory for later local conversations | [Device-profile memory](profile-memory.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
+| Review one diagnostic page and ask locally | [Evidence answers](evidence-answers.md) |
 | Future execution design | [Skill and task execution design](skill-and-task-execution-design.md) |
 | Problems and recovery | [Troubleshooting](troubleshooting.md) |
 

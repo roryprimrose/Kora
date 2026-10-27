@@ -17,7 +17,8 @@ function Check {
 }
 
 function Invoke-EntryProcess {
-    param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Leader = 'fixture-leader', $Fence = $script:state)
+    param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Leader = 'fixture-leader', $Fence = $script:state,
+        [string] $WireProfile)
     $script:sequence++
     $prefix = Join-Path $OutputDirectory "process-$script:sequence"
     $requestPath = "$prefix.request.json"
@@ -25,6 +26,7 @@ function Invoke-EntryProcess {
     $arguments = @('-NoProfile', '-File', $entry, '-RepositoryPath', $script:repositoryPath, '-Action', $Action,
         '-Session', $Leader, '-RequestPath', $requestPath)
     if ($Recovery) { $arguments += '-RecoverEvidenceTerminalMetadata' }
+    if ($WireProfile) { $arguments += @('-PublishedTerminalWireProfile', $WireProfile) }
     if ($null -ne $Fence) { $arguments += @('-ExpectedEpoch', [string]$Fence.epoch, '-ExpectedRevision', [string]$Fence.revision) }
     $info = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
     $info.UseShellExecute = $false
@@ -66,8 +68,8 @@ function Complete-Entry {
 
 function Entry {
     param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Failure = '',
-        [string] $Leader = 'fixture-leader', $Fence = $script:state)
-    return Complete-Entry (Invoke-EntryProcess $Action $Request -Recovery:$Recovery -Leader $Leader -Fence $Fence) $Failure
+        [string] $Leader = 'fixture-leader', $Fence = $script:state, [string] $WireProfile)
+    return Complete-Entry (Invoke-EntryProcess $Action $Request -Recovery:$Recovery -Leader $Leader -Fence $Fence -WireProfile $WireProfile) $Failure
 }
 
 function Register-Owner {
@@ -136,6 +138,104 @@ function Invoke-FixtureSetup {
     $path = Join-Path $ownerDirectory 'terminal.json'
     Write-ProofJson $receipt $path
     return @{ path = $path; receipt = $receipt; snapshot = $snapshot; assessment = $assessment; pointer = $pointer }
+}
+
+function Copy-FixtureValue {
+    param($Value)
+    return $Value | ConvertTo-Json -Depth 40 | ConvertFrom-Json -AsHashtable -DateKind String
+}
+
+function Get-PublishedRequest {
+    param($Fixture)
+    $request = @{ receiptPath = $Fixture.path; receiptSha256 = (Get-FileHash -LiteralPath $Fixture.path).Hash
+        readbackPath = $Fixture.readbackPath; readbackSha256 = (Get-FileHash -LiteralPath $Fixture.readbackPath).Hash
+        publisher = 'fixture-publisher' }
+    if ($Fixture.profile -ceq 'HostedDeliveryV1') {
+        $request.publicationProofPath = $Fixture.publicationPath
+        $request.publicationProofSha256 = (Get-FileHash -LiteralPath $Fixture.publicationPath).Hash
+    }
+    return $request
+}
+
+function Invoke-PublishedFixtureSetup {
+    param([string] $Name, [string] $WireProfile = 'UtcTimestampV1', [string] $Time = '2026-10-27T12:21:40Z', [int] $Number = 556,
+        [string] $Policy = 'ready-auto')
+    $fixture = Invoke-FixtureSetup $Name -Kind feature -Policy $Policy
+    foreach ($field in @('epoch', 'dispatchRevision', 'sourceHead', 'workspaceHead',
+        'assessmentPath', 'assessmentSha256', 'pointerPath', 'completedUtc')) { $fixture.receipt.Remove($field) }
+    $receipt = $fixture.receipt
+    $receipt.kind = 'pr-enrolled-ci-wait'; $receipt.prUrl = "https://github.com/roryprimrose/Kora/pull/$Number"
+    $receipt.autoMerge = [ordered]@{ method = 'SQUASH'; enabledAt = $Time }
+    if ($WireProfile -ceq 'HostedDeliveryV1') {
+        $receipt.workState = 'ci-wait'
+        $receipt.autoMerge = [ordered]@{ mergeMethod = 'SQUASH'; enabledAt = $Time }
+    }
+    Write-ProofJson $receipt $fixture.path
+    $fixture.profile = $WireProfile
+    $fixture.readbackPath = Join-Path (Split-Path -Parent $fixture.path) 'pr-auto.json'
+    $fixture.readback = @{ url = $receipt.prUrl; number = $Number; headRefOid = $receipt.head; headRefName = $receipt.branch
+        baseRefName = 'main'; state = 'OPEN'; isDraft = $false; author = @{ login = 'fixture-publisher' }
+        headRepository = @{ nameWithOwner = 'roryprimrose/Kora' }; isCrossRepository = $false
+        autoMergeRequest = @{ mergeMethod = 'SQUASH'; enabledAt = $Time; enabledBy = @{ login = 'fixture-publisher' } } }
+    Write-ProofJson $fixture.readback $fixture.readbackPath
+    $fixture.publicationPath = Join-Path (Split-Path -Parent $fixture.path) 'proof-publication.json'
+    $fixture.publication = @{ version = 1; timestamp = '2026-10-27T12:22:00.0000000+00:00'
+        publisher = 'fixture-publisher'; repository = 'github.com/roryprimrose/Kora'
+        ownerId = $receipt.ownerId; executionId = $receipt.executionId; nativeIdentity = $receipt.nativeIdentity
+        branch = $receipt.branch; worktree = $receipt.worktree; testedHead = $receipt.head; currentRemoteHead = $receipt.head
+        prUrl = $receipt.prUrl; state = 'OPEN'; mergeStateStatus = 'BEHIND'; reviewDecision = ''
+        autoMerge = @{ mergeMethod = 'SQUASH'; enabledAt = $Time }
+        enrollmentCommand = "gh pr merge $Number --repo github.com/roryprimrose/Kora --auto --squash --match-head-commit $($receipt.head)"
+        enrollmentResult = 'passed and read back'; currentRequiredAppChecks = @()
+        checkMeaning = 'Offline archived publication, not current admission'; implementationProof = 'implementation.json'
+        prReadback = 'pr-auto.json'; checkReadback = 'checks.json'; finiteCommandsJoined = $true; runningCommands = @(); heldDecision = $null }
+    Write-ProofJson $fixture.publication $fixture.publicationPath
+    return $fixture
+}
+
+function Test-PublishedSuccess {
+    param($Fixture)
+    $request = Get-PublishedRequest $Fixture
+    $bytes = [IO.File]::ReadAllBytes($Fixture.path)
+    $unrelated = Get-CoordinatorDigest (Get-CoordinatorOwner $Fixture.snapshot 'unrelated-old-intent')
+    $charge = Get-CoordinatorDigest @($Fixture.snapshot.executions | Where-Object ownerId -CEQ unrelated-old-intent)[0]
+    if ($Fixture.profile -ceq 'HostedDeliveryV1' -or $Fixture.receipt.autoMerge.enabledAt -cnotmatch '\.[0-9]{7}Z\z') {
+        Entry Consume @{ receiptPath = $Fixture.path } -Failure $(if ($Fixture.profile -ceq 'HostedDeliveryV1') { 'not proved quiescent' } else { 'String' }) | Out-Null
+    }
+    $before = $script:state
+    $result = Entry Consume $request -WireProfile $Fixture.profile
+    Check ($result.kind -ceq 'released') "$($Fixture.profile) releases $($Fixture.receipt.autoMerge.enabledAt)"
+    $projection = Read-CoordinatorJson $result.terminalRecovery.projectionPath
+    foreach ($key in $Fixture.receipt.Keys) {
+        if ($key -cin @('autoMerge', 'workState')) { continue }
+        Check ((Get-CoordinatorDigest @{ value = $projection[$key] }) -ceq
+            (Get-CoordinatorDigest @{ value = $Fixture.receipt[$key] })) "Published projection preserves $key"
+    }
+    $rawTime = $Fixture.receipt.autoMerge.enabledAt
+    $expectedTime = [DateTimeOffset]::Parse($rawTime, [Globalization.CultureInfo]::InvariantCulture).ToUniversalTime().ToString('o')
+    Check ($projection.workState -ceq 'stopped' -and $projection.autoMerge.method -ceq 'SQUASH' -and
+        $projection.autoMerge.Count -eq 2 -and $projection.autoMerge.enabledAt -ceq $expectedTime) 'Canonical values preserve the exact publication instant'
+    $proof = Read-CoordinatorJson $result.terminalRecovery.proofPath -MaximumBytes 1048576
+    Check ($proof.profile -ceq "published-wire-$($Fixture.profile)" -and $proof.producer -ceq 'Coordinator.TerminalRecovery' -and
+        $proof.originalBytesBase64 -ceq [Convert]::ToBase64String($bytes) -and
+        $proof.readbackSha256 -ceq (Get-FileHash -LiteralPath $Fixture.readbackPath).Hash -and
+        $proof.originalValues.autoMerge.enabledAt -ceq $rawTime -and
+        $proof.normalizedValues.autoMerge.enabledAt -ceq $expectedTime) 'Helper provenance pins raw original, archived readback and exact value mapping'
+    Check ((Entry Consume $request -WireProfile $Fixture.profile).kind -ceq 'duplicate') 'Published exact replay remains duplicate'
+    $after = (Entry Read).state
+    Check ($result.revision -eq $before.revision + 1 -and $after.revision -eq $result.revision + 1 -and
+        $after.events.Count -eq 1 -and @($after.executions | Where-Object phase -CEQ released).Count -eq 1 -and
+        (Get-CoordinatorDigest (Get-CoordinatorOwner $after 'unrelated-old-intent')) -ceq $unrelated -and
+        (Get-CoordinatorDigest @($after.executions | Where-Object ownerId -CEQ unrelated-old-intent)[0]) -ceq $charge -and
+        (Get-CoordinatorOwner $after 'delivery-evidence').sourceRetained) 'Published recovery releases once, with a separate duplicate transaction, retaining source and unrelated charge'
+    Check ([Convert]::ToBase64String([IO.File]::ReadAllBytes($Fixture.path)) -ceq [Convert]::ToBase64String($bytes)) 'Published original is never rewritten'
+    $reordered = [ordered]@{}
+    foreach ($field in @($request.Keys | Sort-Object -Descending -CaseSensitive)) { $reordered[$field] = $request[$field] }
+    Check ((Entry Consume $reordered -WireProfile $Fixture.profile).kind -ceq 'duplicate') 'Request property ordering cannot change immutable replay evidence'
+    Register-Owner 'subsequent-evidence'
+    Approve-FixtureOwner 'subsequent-evidence'
+    Check ((Entry Next).action.ownerId -ceq 'subsequent-evidence') 'Published recovery admits next independent work'
+    return $result
 }
 
 try {
@@ -308,6 +408,195 @@ try {
     $featureFixture = Invoke-FixtureSetup 'feature-forbidden' -Kind feature
     Entry Consume @{ receiptPath = $featureFixture.path } -Recovery -Failure 'only schema1 evidence-completed' | Out-Null
     Check $true 'Feature owner cannot use assessment recovery'
+
+    foreach ($shape in @(
+        @{ name = 'pr556'; profile = 'UtcTimestampV1'; time = '2026-10-27T12:21:40Z'; number = 556 },
+        @{ name = 'pr557'; profile = 'UtcTimestampV1'; time = '2026-10-27T12:33:17Z'; number = 557 },
+        @{ name = 'pr555'; profile = 'HostedDeliveryV1'; time = '2026-10-27T12:16:57Z'; number = 555 })) {
+        $publishedFixture = Invoke-PublishedFixtureSetup $shape.name $shape.profile $shape.time $shape.number
+        $null = Test-PublishedSuccess $publishedFixture
+    }
+    foreach ($digits in 1..7) {
+        $time = '2026-10-27T12:21:40.' + '1234567'.Substring(0, $digits) + 'Z'
+        $fractionFixture = Invoke-PublishedFixtureSetup "fraction-$digits" -Time $time
+        $fractionFixture.readback.autoMergeRequest.enabledAt = '2026-10-27T12:21:40.' + '1234567'.Substring(0, $digits).PadRight(7, '0') + 'Z'
+        Write-ProofJson $fractionFixture.readback $fractionFixture.readbackPath
+        $null = Test-PublishedSuccess $fractionFixture
+    }
+    $strictFraction = Invoke-PublishedFixtureSetup 'strict-roundtrip-z' -Time '2026-10-27T12:21:40.1234567Z'
+    Check ((Entry Consume @{ receiptPath = $strictFraction.path }).kind -ceq 'released') 'Existing strict seven-fraction UTC Z roundtrip remains valid'
+    Check ((Entry Consume @{ receiptPath = $strictFraction.path }).kind -ceq 'duplicate') 'Existing strict seven-fraction UTC Z replay remains duplicate'
+    $wire = Invoke-PublishedFixtureSetup 'wire-rejections'
+    $wireRequest = Get-PublishedRequest $wire
+    Entry Read $wireRequest -WireProfile $wire.profile -Failure 'only supported for Consume' | Out-Null
+    Entry Consume $wireRequest -Recovery -WireProfile $wire.profile -Failure 'exactly one' | Out-Null
+    Entry Consume $wireRequest -WireProfile $wire.profile -Leader wrong -Failure 'Current unexpired leader' | Out-Null
+    foreach ($fence in @(@{ epoch = 0; revision = $script:state.revision }, @{ epoch = $script:state.epoch; revision = 0 })) {
+        Entry Consume $wireRequest -WireProfile $wire.profile -Fence $fence -Failure 'Stale epoch/revision' | Out-Null
+    }
+    $wireCases = @(
+        @{ key = 'workState'; value = 'ci-wait'; failure = 'closed profile' },
+        @{ key = 'workState'; value = 'idle'; failure = 'closed profile' },
+        @{ key = 'ownerId'; value = 'unrelated-old-intent'; failure = 'owner/execution' },
+        @{ key = 'executionId'; value = 'unknown'; failure = 'owner/execution' },
+        @{ key = 'nativeIdentity'; value = 'foreign'; failure = 'identity/authority' },
+        @{ key = 'datasetId'; value = 'foreign'; failure = 'identity/authority' },
+        @{ key = 'branch'; value = 'foreign'; failure = 'readback identity' },
+        @{ key = 'head'; value = 'a' * 40; failure = 'readback identity' },
+        @{ key = 'publicationPolicy'; value = 'pr-only'; failure = 'existing ready-auto' },
+        @{ key = 'finiteCommandsJoined'; value = $false; failure = 'joined/quiescent' },
+        @{ key = 'finiteCommandsJoined'; value = 'true'; failure = 'joined/quiescent' },
+        @{ key = 'runningCommands'; value = @('held'); failure = 'joined/quiescent' },
+        @{ key = 'runningCommands'; value = $null; failure = 'joined/quiescent' },
+        @{ key = 'heldDecision'; value = 'decision'; failure = 'joined/quiescent' },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:21:40Z' }; failure = 'Missing field: method' },
+        @{ key = 'autoMerge'; value = @{ method = 'SQUASH'; mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:21:40Z' }; failure = 'Unknown field' },
+        @{ key = 'autoMerge'; value = @{ method = 'MERGE'; enabledAt = '2026-10-27T12:21:40Z' }; failure = 'closed profile' },
+        @{ key = 'epoch'; value = 1; failure = 'Unknown field' }
+    )
+    foreach ($time in @('2026-10-27T12:21:41Z', '2026-10-27T12:21:40', '2026-10-27T12:21:40+01:00',
+        '2026-10-27T12:21:40+00:00', '2026-10-27T12:21:40.12345678Z', '2026-02-30T12:21:40Z',
+        '10/27/2026 12:21:40Z', '2026-10-27T12:21:40z', '2026-10-27T12:21:60Z')) {
+        $wireCases += @{ key = 'autoMerge'; value = @{ method = 'SQUASH'; enabledAt = $time }
+            failure = $(if ($time -ceq '2026-10-27T12:21:41Z') { 'readback identity' } elseif ($time -cin @('2026-02-30T12:21:40Z', '2026-10-27T12:21:60Z')) { 'Gregorian UTC' } else { 'explicit UTC' }) }
+    }
+    $index = 0
+    foreach ($case in $wireCases) {
+        $index++
+        $copy = Copy-FixtureValue $wire.receipt
+        $copy[$case.key] = $case.value
+        $badPath = Join-Path (Split-Path -Parent $wire.path) "wire-bad-$index.json"
+        Write-ProofJson $copy $badPath
+        $request = Copy-FixtureValue $wireRequest
+        $request.receiptPath = $badPath; $request.receiptSha256 = (Get-FileHash -LiteralPath $badPath).Hash
+        Entry Consume $request -WireProfile $wire.profile -Failure $case.failure | Out-Null
+        Check $true "Published original rejects $($case.key) case $index"
+    }
+    foreach ($case in @(
+        @{ key = 'publisher'; value = 'wrong'; failure = 'pinned publisher' },
+        @{ key = 'receiptSha256'; value = 'a' * 64; failure = 'SHA256 mismatch' },
+        @{ key = 'readbackSha256'; value = 'a' * 64; failure = 'SHA256 mismatch' },
+        @{ key = 'publicationCorrection'; value = @{}; failure = 'Unknown field' },
+        @{ key = 'receiptPath'; value = "$($wire.path):stream"; failure = 'canonical registered' },
+        @{ key = 'readbackPath'; value = (Join-Path $OutputDirectory 'outside.json'); failure = 'canonical registered' },
+        @{ key = 'readbackPath'; value = (Join-Path (Split-Path -Parent $wire.path) '..\delivery-evidence\pr-auto.json'); failure = 'canonical registered' })) {
+        $request = Copy-FixtureValue $wireRequest; $request[$case.key] = $case.value
+        Entry Consume $request -WireProfile $wire.profile -Failure $case.failure | Out-Null
+        Check $true "Published request rejects $($case.key)"
+    }
+    $readbackBytes = [IO.File]::ReadAllBytes($wire.readbackPath)
+    foreach ($case in @(
+        @{ key = 'headRefOid'; value = 'a' * 40 }, @{ key = 'headRefName'; value = 'wrong' },
+        @{ key = 'url'; value = 'https://github.com/other/repo/pull/556' }, @{ key = 'number'; value = 557 },
+        @{ key = 'baseRefName'; value = 'wrong' }, @{ key = 'state'; value = 'CLOSED' },
+        @{ key = 'isDraft'; value = $true }, @{ key = 'isDraft'; value = 'false' },
+        @{ key = 'isCrossRepository'; value = $true }, @{ key = 'author'; value = @{ login = 'wrong' } },
+        @{ key = 'headRepository'; value = @{ nameWithOwner = 'other/repo' } },
+        @{ key = 'unknown'; value = 'rejected' },
+        @{ key = 'autoMergeRequest'; value = @{ mergeMethod = 'MERGE'; enabledAt = '2026-10-27T12:21:40Z'; enabledBy = @{ login = 'fixture-publisher' } } },
+        @{ key = 'autoMergeRequest'; value = @{ mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:21:41Z'; enabledBy = @{ login = 'fixture-publisher' } } },
+        @{ key = 'autoMergeRequest'; value = @{ mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:21:40Z'; enabledBy = @{ login = 'wrong' } } })) {
+        $copy = Copy-FixtureValue $wire.readback; $copy[$case.key] = $case.value
+        Write-ProofJson $copy $wire.readbackPath
+        $request = Get-PublishedRequest $wire
+        Entry Consume $request -WireProfile $wire.profile -Failure $(if ($case.key -ceq 'unknown') { 'Unknown field' } else { 'Published wire' }) | Out-Null
+        Check $true "Archived readback rejects $($case.key)"
+    }
+    [IO.File]::WriteAllBytes($wire.readbackPath, $readbackBytes)
+    $duplicate = [Text.Encoding]::UTF8.GetString($readbackBytes).Replace('"mergeMethod": "SQUASH"', '"mergeMethod": "SQUASH", "mergeMethod": "SQUASH"')
+    [IO.File]::WriteAllText($wire.readbackPath, $duplicate)
+    Entry Consume (Get-PublishedRequest $wire) -WireProfile $wire.profile -Failure 'Duplicate published wire field' | Out-Null
+    [IO.File]::WriteAllBytes($wire.readbackPath, $readbackBytes)
+    $wireLink = Join-Path (Split-Path -Parent $wire.path) 'linked-readback'
+    New-Item -ItemType $(if ($IsWindows) { 'Junction' } else { 'SymbolicLink' }) -Path $wireLink -Target $OutputDirectory | Out-Null
+    $linkRequest = Copy-FixtureValue $wireRequest; $linkRequest.readbackPath = Join-Path $wireLink 'outside.json'
+    Entry Consume $linkRequest -WireProfile $wire.profile -Failure 'canonical registered' | Out-Null
+    Check $true 'Nested duplicates and published path escapes fail closed'
+
+    $hosted = Invoke-PublishedFixtureSetup 'hosted-rejections' HostedDeliveryV1 '2026-10-27T12:16:57Z' 555
+    $hostedRequest = Get-PublishedRequest $hosted
+    $publicationBytes = [IO.File]::ReadAllBytes($hosted.publicationPath)
+    foreach ($case in @(
+        @{ key = 'finiteCommandsJoined'; value = $false }, @{ key = 'finiteCommandsJoined'; value = 'true' },
+        @{ key = 'runningCommands'; value = @('held') }, @{ key = 'runningCommands'; value = $null },
+        @{ key = 'heldDecision'; value = 'held' },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'MERGE'; enabledAt = '2026-10-27T12:16:57Z' } },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'SQUASH'; method = 'SQUASH'; enabledAt = '2026-10-27T12:16:57Z' } })) {
+        $copy = Copy-FixtureValue $hosted.receipt; $copy[$case.key] = $case.value
+        $badPath = Join-Path (Split-Path -Parent $hosted.path) "original-hosted-$([guid]::NewGuid().ToString('N')).json"
+        Write-ProofJson $copy $badPath
+        $request = Copy-FixtureValue $hostedRequest
+        $request.receiptPath = $badPath; $request.receiptSha256 = (Get-FileHash -LiteralPath $badPath).Hash
+        Entry Consume $request -WireProfile $hosted.profile -Failure $(if ($copy.autoMerge.Contains('method')) { 'Unknown field' } else { 'Published wire' }) | Out-Null
+        Check $true "Hosted original rejects contradictory $($case.key)"
+    }
+    $copy = Copy-FixtureValue $hosted.receipt; $copy.Remove('finiteCommandsJoined')
+    $badPath = Join-Path (Split-Path -Parent $hosted.path) 'original-hosted-incomplete.json'
+    Write-ProofJson $copy $badPath
+    $request = Copy-FixtureValue $hostedRequest
+    $request.receiptPath = $badPath; $request.receiptSha256 = (Get-FileHash -LiteralPath $badPath).Hash
+    Entry Consume $request -WireProfile $hosted.profile -Failure 'Missing field' | Out-Null
+    foreach ($case in @(
+        @{ key = 'finiteCommandsJoined'; value = $false }, @{ key = 'finiteCommandsJoined'; value = 'true' },
+        @{ key = 'runningCommands'; value = @('still-running') }, @{ key = 'runningCommands'; value = $null },
+        @{ key = 'heldDecision'; value = @{} }, @{ key = 'ownerId'; value = 'wrong' },
+        @{ key = 'executionId'; value = 'wrong' }, @{ key = 'nativeIdentity'; value = 'wrong' },
+        @{ key = 'branch'; value = 'wrong' }, @{ key = 'worktree'; value = 'wrong' },
+        @{ key = 'testedHead'; value = 'a' * 40 }, @{ key = 'currentRemoteHead'; value = 'a' * 40 },
+        @{ key = 'publisher'; value = 'wrong' }, @{ key = 'repository'; value = 'github.com/other/repo' },
+        @{ key = 'enrollmentResult'; value = 'unknown' }, @{ key = 'enrollmentCommand'; value = 'gh pr merge --admin' },
+        @{ key = 'prReadback'; value = 'other.json' },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'MERGE'; enabledAt = '2026-10-27T12:16:57Z' } },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'SQUASH'; method = 'SQUASH'; enabledAt = '2026-10-27T12:16:57Z' } },
+        @{ key = 'autoMerge'; value = @{ mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:16:58Z' } },
+        @{ key = 'unknown'; value = 'rejected' })) {
+        $copy = Copy-FixtureValue $hosted.publication; $copy[$case.key] = $case.value
+        Write-ProofJson $copy $hosted.publicationPath
+        Entry Consume (Get-PublishedRequest $hosted) -WireProfile $hosted.profile -Failure $(if ($case.key -cin @('unknown') -or $copy.autoMerge.Contains('method')) { 'Unknown field' } else { 'Published wire' }) | Out-Null
+        Check $true "Hosted supplemental proof rejects $($case.key)"
+    }
+    $copy = Copy-FixtureValue $hosted.publication; $copy.Remove('finiteCommandsJoined')
+    Write-ProofJson $copy $hosted.publicationPath
+    Entry Consume (Get-PublishedRequest $hosted) -WireProfile $hosted.profile -Failure 'Missing field' | Out-Null
+    [IO.File]::WriteAllBytes($hosted.publicationPath, $publicationBytes)
+    $missingProofRequest = Copy-FixtureValue $hostedRequest; $missingProofRequest.Remove('publicationProofPath')
+    Entry Consume $missingProofRequest -WireProfile $hosted.profile -Failure 'Missing field' | Out-Null
+    $null = Entry Consume $hostedRequest -WireProfile UtcTimestampV1 -Failure 'Unknown field'
+    Check $true 'Hosted label never implies stopped without the exact supplemental profile'
+    $hostedResult = Test-PublishedSuccess $hosted
+    $replayRequest = Get-PublishedRequest $hosted
+    foreach ($path in @($hosted.path, $hosted.readbackPath, $hosted.publicationPath,
+        $hostedResult.terminalRecovery.proofPath, $hostedResult.terminalRecovery.projectionPath,
+        $hostedResult.terminalRecovery.proofPath.Replace('.proof.json', '.request.json'))) {
+        $saved = [IO.File]::ReadAllBytes($path)
+        $hidden = $path + '.fixture-held'
+        [IO.File]::Move($path, $hidden)
+        try { Entry Consume $replayRequest -WireProfile $hosted.profile -Failure $(if ($path -ceq $hosted.path) { 'does not exist' } elseif ($path -cin @($hosted.readbackPath, $hosted.publicationPath)) { 'does not exist' } else { 'Missing immutable' }) | Out-Null }
+        finally { [IO.File]::Move($hidden, $path) }
+        [IO.File]::AppendAllText($path, ' ')
+        Entry Consume $replayRequest -WireProfile $hosted.profile -Failure $(if ($path -cin @($hosted.path, $hosted.readbackPath, $hosted.publicationPath)) { 'SHA256 mismatch' } else { 'Immutable recovery' }) | Out-Null
+        if ($path -cin @($hosted.path, $hosted.readbackPath, $hosted.publicationPath)) {
+            Entry Consume (Get-PublishedRequest $hosted) -WireProfile $hosted.profile -Failure 'Immutable recovery evidence changed' | Out-Null
+        }
+        [IO.File]::WriteAllBytes($path, $saved)
+        $held = [IO.FileStream]::new($path, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::None)
+        try { Entry Consume $replayRequest -WireProfile $hosted.profile -Failure 'being used by another process' | Out-Null }
+        finally { $held.Dispose() }
+        Check ((Entry Consume $replayRequest -WireProfile $hosted.profile).kind -ceq 'duplicate') 'Published missing/changed/racing inputs never become a second release'
+    }
+    $concurrent = Invoke-PublishedFixtureSetup 'published-concurrent'
+    $concurrentRequest = Get-PublishedRequest $concurrent
+    $one = Invoke-EntryProcess Consume $concurrentRequest -WireProfile $concurrent.profile
+    $two = Invoke-EntryProcess Consume $concurrentRequest -WireProfile $concurrent.profile
+    $results = @((Complete-Entry $one -Concurrent), (Complete-Entry $two -Concurrent))
+    Check (@($results | Where-Object kind -CEQ released).Count -eq 1) 'Concurrent published recovery releases exactly once'
+    $null = Entry Read
+    Check ((Entry Consume $concurrentRequest -WireProfile $concurrent.profile).kind -ceq 'duplicate') 'Concurrent published exact replay remains duplicate'
+    foreach ($policy in @('local-only', 'pr-only')) {
+        $forbidden = Invoke-PublishedFixtureSetup "published-$policy" -Policy $policy
+        Entry Consume (Get-PublishedRequest $forbidden) -WireProfile $forbidden.profile -Failure 'existing ready-auto' | Out-Null
+        Check $true "Published normalization never escalates $policy authority"
+    }
     $summary = @{ version = 1; passed = $passed.ToArray(); processInvocations = $script:sequence
         successfulFixtureCommand = $successfulInvocation.arguments
         proofPath = $released.terminalRecovery.proofPath; liveDatasetTouched = $false }

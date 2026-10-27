@@ -311,6 +311,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "skill-and-task-execution-design",
             "troubleshooting",
             "session-instructions",
+            "evidence-answers",
             "agent-profile-authoring",
             "claude-requests",
             "conversation-notices",

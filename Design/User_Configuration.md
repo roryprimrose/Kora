@@ -679,6 +679,39 @@ new tools/grants/providers/gain/global mixer, or broader lifecycle authority.
 Maintained deterministic grammar/workflow/UI/SQLite tests are not replacements
 for unique speech/hardware/runtime/worker/storage experiments or historical receipts.
 
+#### Retained-model response-mode proposal
+
+The [closed registered-setting path](../docs/setting-proposals.md) also accepts
+one exact successful retained answer: `set responses.default-mode to Hybrid`,
+`set responses.default-mode to VoiceOnly`, or `set responses.default-mode to VisualOnly`.
+The model policy advertises those canonical enum values as inert data, never
+approval or write authority. Undefined/numeric enums, aliases, batches and
+commentary are rejected without a write.
+
+Both expanded and compact conversations reuse **Review setting suggestion...**,
+showing current saved/default provenance, desired/configured effective mode,
+the exact proposed mode, shared device-local future-output scope and mandatory
+visual/privacy/call exceptions. Exact typed/current-name activated **review
+response mode suggestion**, **confirm response mode change** and **cancel response
+mode review** use the host-pinned successful answer, not a latest-answer lookup.
+
+Separate fresh original-user confirmation consumes the ephemeral 60-second
+review once through `ResponseModeConfigurationService`, fresh audio admission,
+host-held choice, audited atomic preference write and committed readback.
+Source/session/generation, preference revision, ownership, private topology,
+original channel or call uncertainty invalidates authority. Activated-voice
+source classification survives later UI confirmation and reaches the audio
+admission and locked writer unchanged. Cancel, expiry, stale source and duplicate
+confirmation cannot write. Failed persistence/audit/readback is explicitly
+unconfirmed, possibly persisted, with no automatic retry or rollback claim.
+
+Only the device default changes. Existing narrower overrides and mandatory full
+visual warnings/security/questions/approvals and speech-unavailable recovery
+remain authoritative even for VoiceOnly. Review/apply never re-executes a model,
+synthesizes/replays the selected answer, opens capture, changes consent/grants
+or enables an unqualified provider. Deterministic implementation coverage is
+separate from hardware, acoustic, installed/native and provider E/Q evidence.
+
 ### Delivered bounded assistant display/PTT prefix (R10)
 
 Schema 1 admits only `assistant.name` (spoken: **assistant name**), the already

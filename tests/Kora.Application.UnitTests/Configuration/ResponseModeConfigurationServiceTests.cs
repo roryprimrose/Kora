@@ -13,7 +13,7 @@ using Kora.Core.Voice;
 namespace Kora.Application.UnitTests.Configuration;
 
 [Collection("Host tracing")]
-public sealed class ResponseModeConfigurationServiceTests : IDisposable
+public sealed partial class ResponseModeConfigurationServiceTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {

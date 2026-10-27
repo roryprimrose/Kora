@@ -131,6 +131,18 @@ read activity's disposal, after its final admission check and before native
 publication. Keep these cases in the nonparallel `Host tracing` collection; do
 not trigger revocation by counting revision-property reads from UI notifications.
 
+The native MCP review/exchange fixture uses its existing frozen test timers:
+it verifies exact native approval, real fake-broker results and physical joins,
+not elapsed-time policy. Deadline regressions retain their explicit clock/timer
+boundaries; production model and transport deadlines are unchanged.
+Native stop-and-delete assertions await the exact cancellation-accepted event.
+Paging gestures await the existing Next readiness notification when passive
+work refresh is outstanding; draining dispatcher jobs does not join that I/O.
+The portable speech-quarantine fixture observes the actual output-stop entry
+before submitting a new request and releases its held stop in `finally`.
+Native cancellation and clarification fixtures separately await exact-task
+terminal UI publication after the real operation/resource join.
+
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
 Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.

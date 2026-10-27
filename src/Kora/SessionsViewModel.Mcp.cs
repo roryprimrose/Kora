@@ -13,11 +13,35 @@ internal sealed partial class SessionsViewModel
     private long mcpSelectionRevision;
     private long mcpOptionsEpoch = -1;
     private CancellationTokenSource? mcpCancellation;
-    private McpModelResult? mcpResult;
+    private McpModelResult? observedMcpResult;
+    private McpModelResult? mcpResult
+    {
+        get => observedMcpResult;
+        set
+        {
+            RetireMcpResultFollowUp();
+            if (value is null)
+            {
+                mcpCompletedProposal = null;
+                mcpCompletedMapping = null;
+            }
+            observedMcpResult = value;
+        }
+    }
     private Kora.Core.Hosting.HostRequest? mcpResultRequest;
-    private long mcpResultControl;
+    private long observedMcpControl;
+    private long mcpResultControl
+    {
+        get => observedMcpControl;
+        set { observedMcpControl = value; CaptureMcpResultFollowUp(); }
+    }
 
-    internal McpApprovalPresenter? McpPresenter { get; set; }
+    private McpApprovalPresenter? mcpPresenter;
+    internal McpApprovalPresenter? McpPresenter
+    {
+        get => mcpPresenter is null ? null : PresentMcpAndCaptureMappingAsync;
+        set => mcpPresenter = value;
+    }
     internal McpToolSelector? McpSelector { get; set; }
     internal McpArgumentsPresenter? McpInput { get; set; }
     private Task explicitMcpOperation = Task.CompletedTask;

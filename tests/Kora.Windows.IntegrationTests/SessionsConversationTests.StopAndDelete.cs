@@ -54,6 +54,12 @@ public sealed partial class SessionsConversationTests
                 }
                 else { submission = composed.Conversation.SubmitAsync(target, "running request", static () => true, f.Token); }
                 var provenance = await adapter.Started.Task;
+                var accepted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                composed.Conversation.RunningConversationChanged += observed =>
+                {
+                    if (observed.Target.Request == provenance.Request && observed.Phase == ConversationExecutionPhase.Cancelling)
+                    { accepted.TrySetResult(); }
+                };
                 if (nativeSubmission)
                 {
                     await WhenModelAsync(model, () => model.CanCompose && !model.ComposerDirty);
@@ -88,6 +94,7 @@ public sealed partial class SessionsConversationTests
                 model.StopAndDeleteStatus.Should().Contain("not deleted yet");
                 model.CanConfirmStopAndDelete.Should().BeFalse();
                 await model.ConfirmStopAndDeleteAsync();
+                await accepted.Task.WaitAsync(f.Token);
                 var auditCount = composed.Audit.Events.Count(value => string.Equals(value.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
                 auditCount.Should().Be(2, "double confirmation cannot accept another cancellation");
                 adapter.Release.SetResult(new(ModelTurnOutcome.Succeeded, provenance.Selection, new("late answer", null)));

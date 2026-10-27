@@ -7,7 +7,7 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration;
 
-public sealed class ResponseModeConfigurationService(
+public sealed partial class ResponseModeConfigurationService(
     IResponseOutputPreferences preferences, AudioControlAdmission admission,
     ISecurityAuditLog auditLog, ISpeechPlaybackService playback)
 {

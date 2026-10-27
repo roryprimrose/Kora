@@ -28,7 +28,8 @@ public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore so
     }
 
     public async Task<CustomizationDiscoverySnapshot> Review(IReadOnlyList<CustomizationSource> selected,
-        SessionWorkspaceEntry target, string originalRequest, RequestOrigin origin, Func<bool> admitted, CancellationToken token)
+        SessionWorkspaceEntry target, string originalRequest, RequestOrigin origin, Func<bool> admitted, CancellationToken token,
+        bool proposeAgent = false)
     {
         var control = access.ControlRevision;
         Require(control, admitted, token);
@@ -71,7 +72,8 @@ public sealed class CustomizationDiscoveryService(ICustomizationMetadataStore so
             Customizations: new(records, records.Count, null))))
         { throw new InvalidDataException("The complete reviewed metadata exceeds the result bound. Choose fewer entries."); }
         var snapshot = new CustomizationDiscoverySnapshot(sources, catalogue, use, observations.ToImmutable(), records.ToImmutable(),
-            target, originalRequest, origin, () => access.ControlRevision == control && access.CanControl && admitted(), time);
+            target, originalRequest, origin, () => access.ControlRevision == control && access.CanControl && admitted(), time,
+            proposeAgent);
         try { await snapshot.Validate(token).ConfigureAwait(false); return snapshot; }
         catch { snapshot.Dispose(); throw; }
     }

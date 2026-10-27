@@ -43,6 +43,34 @@ The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-
 
 The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
 
+### Review and run one model-recommended local agent
+
+Before reviewing metadata, select **Ask for one agent recommendation (never invocation consent)**.
+The same bounded local metadata request may recommend exactly one enabled registered
+Agent from the entries actually returned to it. A recommendation runs nothing and
+is labelled as a proposal, not an answer from that agent.
+
+1. Select **Review proposed agent in its original conversation**. This opens the
+   existing private agent review with the exact source, unchanged original question,
+   original channel and original conversation fixed. It cannot redirect to another
+   conversation or substitute model-generated input.
+2. Select **Read source and review exact invocation**. Review the complete inert
+   profile, source, original question, conversation, local destination, tools and
+   cumulative budgets. Only local v1 instruction-only profiles with `tools: none`
+   and `references: none` are eligible for this route.
+3. Separately confirm that exact invocation. The existing bounded agent workflow
+   runs once and retains its genuine answer or truthful terminal in the original
+   conversation. The native agent review displays that actual result. Stop/close
+   joins owned execution; cancellation-ignoring work cannot publish a late answer.
+
+The recommendation expires with its two-minute metadata review. Source, use control,
+input, session, privacy or ownership changes require a fresh request and review;
+neither a retained recommendation nor profile guidance grants authority.
+The parent recommendation has finished before the agent review opens: no fabricated
+tool reply or parent continuation is sent, and no private profile or child answer
+is transmitted to a hosted model. Hosted parents, tools, referenced profiles,
+automatic invocation, nested agent chains and provider fallback remain unavailable.
+
 ## Edit or add
 
 Use `show me example instruction` or `edit example skill`, or select an exact

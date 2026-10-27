@@ -501,6 +501,20 @@ and [complete operation](../docs/tools-and-built-in-skills.md#invoke-a-registere
 **Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
 Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
 
+**Model-recommended bounded use:** an explicitly selected local metadata recommendation
+may return one strict opaque agent ref from the served enabled registered subset.
+This is untrusted selection data, not a tool invocation or approval.
+The [source-bound proposal](../src/Kora.Application/Agents/ProposedBoundedAgentUse.cs)
+retains the original question/channel/conversation and exact observed source.
+A separate original-user native action opens the existing complete invocation
+review, then requires separate confirmation through `BoundedAgentWorkflow`.
+Only v1 local instruction-only, tools-none/references-none profiles are admitted.
+The parent finishes before this new original-user action; no nested runtime chain,
+fabricated parent tool result or hosted transmission of profile/output is added.
+Actual agent answers and physical joins use the existing canonical conversation
+consumer. [Complete interaction and unavailable boundaries](../docs/customizations.md#review-and-run-one-model-recommended-local-agent)
+remain distinct from metadata-only discovery and named static invocation.
+
 The host maintains related but distinct registries:
 
 - A command/intent catalogue maps canonical phrases and aliases to host actions or original bundled skill/task identities.

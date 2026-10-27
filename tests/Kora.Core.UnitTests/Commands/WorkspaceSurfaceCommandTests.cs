@@ -4,7 +4,7 @@ using Kora.Core.Commands;
 
 namespace Kora.Core.UnitTests.Commands;
 
-public sealed class WorkspaceSurfaceCommandTests
+public sealed partial class WorkspaceSurfaceCommandTests
 {
     [Theory]
     [InlineData("open conversation \"Planning\"")]

@@ -70,6 +70,7 @@ public sealed class DependencyBootstrapper(
             try
             {
                 result = await probe.ProbeAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
             }
             catch (OperationCanceledException)
             {

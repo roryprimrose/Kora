@@ -65,6 +65,7 @@ internal sealed partial class SessionsWindow : Window
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
+        SubmitLocalFirst.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalFirstAsync());
         BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());

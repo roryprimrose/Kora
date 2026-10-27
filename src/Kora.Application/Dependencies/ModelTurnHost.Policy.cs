@@ -220,11 +220,12 @@ public sealed partial class ModelTurnHost
 
     internal bool CanOfferAfterLocal(ModelTurn turn) =>
         turn.Owner == owner && turn.Policy is { Mode: ModelProviderMode.LocalFirst } policy
-        && IsCurrentPolicy(policy) && turn.Provenance.Selection == policy.Local
+        && IsCurrentPolicy(policy) && turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama
         && turn.TerminalResult is { Outcome: ModelTurnOutcome.Unavailable };
 
     internal async Task<(ModelTurnReason Reason, HostRevision Generation, HostRevision TaskRevision, long Control)>
-        ObserveHandoffAsync(ModelProviderPolicy policy, ModelContextEnvelope context, CancellationToken token)
+        ObserveHandoffAsync(ModelProviderPolicy policy, ModelContextEnvelope context, CancellationToken token,
+            LocalUnavailableObservation? local = null)
     {
         var current = HostActivity.Current;
         var control = access.ControlRevision;
@@ -234,6 +235,8 @@ public sealed partial class ModelTurnHost
         else if (current.Request.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)) { reason = ModelTurnReason.OriginalUserRequired; }
         else if (!IsCurrentPolicy(policy)) { reason = ModelTurnReason.PolicyChanged; }
         else if (policy.Mode != ModelProviderMode.LocalFirst) { reason = ModelTurnReason.HandoffNotPermitted; }
+        else if (local is not null && (!local.IsCurrent || !local.Admits(context)))
+        { reason = ModelTurnReason.HandoffReviewStale; }
         else if (ContextReason(context, current.Request) is var invalid && invalid != ModelTurnReason.None) { reason = invalid; }
         else if (context.Serialize().Length > ModelContextEnvelope.MaximumInputUtf8Bytes) { reason = ModelTurnReason.EnvelopeLimitExceeded; }
         else if (context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.HostedEligible)) { reason = ModelTurnReason.LocalEvidenceNotDisclosable; }
@@ -247,7 +250,7 @@ public sealed partial class ModelTurnHost
                 || session.Authority.Generation.Value <= 0
                 || !OwnsTask(task, context.Request, session.Authority.Generation) ? ModelTurnReason.SessionNotAdmitted
             : ContextReason(context, context.Request);
-        if (reason == ModelTurnReason.None)
+        if (reason == ModelTurnReason.None && local is null)
         {
             var registration = registrations.SingleOrDefault(item => item.Selection == policy.Hosted);
             reason = registration is null ? ModelTurnReason.UnregisteredModel
@@ -263,7 +266,10 @@ public sealed partial class ModelTurnHost
         {
             return (ModelTurnReason.HandoffReviewStale, default, default, 0);
         }
-        var observed = await ObserveHandoffAsync(offer.Policy, offer.Context, token).ConfigureAwait(false);
+        var observed = await ObserveHandoffAsync(offer.Policy, offer.Context, token, offer.LocalUnavailable).ConfigureAwait(false);
+        if (observed.Reason == ModelTurnReason.None && offer.LocalUnavailable is not null
+            && !await HandoffTargetCurrentAsync(offer, token).ConfigureAwait(false))
+        { return (ModelTurnReason.HandoffReviewStale, observed.Generation, observed.TaskRevision, observed.Control); }
         return observed.Reason == ModelTurnReason.None && (Volatile.Read(ref offer.Retired) != 0
             || observed.Generation != offer.Generation
             || observed.TaskRevision != offer.TaskRevision || observed.Control != offer.ControlRevision)

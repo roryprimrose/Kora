@@ -237,6 +237,9 @@ public sealed partial class SessionsConversationTests
         internal SessionWorkspaceService Workspace { get; }
         internal SessionConversationService Conversation { get; }
         internal ModelTurnHost Turns => turns;
+        internal VerifiedLocalHandoffOperation? LocalHandoff { get; }
+        internal ModelHandoffPresentation? HandoffPresentation { get; }
+        internal ModelProviderHandoffWorkflow? HandoffWorkflow { get; }
         internal Kora.Application.Memory.MemoryManagementService Memories =>
             memories ?? throw new InvalidOperationException("Memory context was not composed for this fixture.");
         internal NewRequestComposer NewComposer() => new(Workspace, Conversation, Access, NullLogger<NewRequestComposer>.Instance);
@@ -258,7 +261,8 @@ public sealed partial class SessionsConversationTests
             McpServerConfigurationService? mcpConfiguration = null,
             Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
-            PlaybackVolumeConfigurationService? volume = null)
+            PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
+            HandoffCatalogue? localFirstCatalogue = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
@@ -266,7 +270,8 @@ public sealed partial class SessionsConversationTests
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);
             mode.Observe();
             var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Paths),
-                copilot is null ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f),
+                localFirst ? localFirstCatalogue ?? new HandoffCatalogue(f) : copilot is null
+                    ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f),
                 admission, Audit, f.Time);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var boundary = new HostBoundary();
@@ -275,12 +280,25 @@ public sealed partial class SessionsConversationTests
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
             if (copilot is not null)
             {
-                new LocalModelProviderModePreferences(f.Paths).Save(ModelProviderMode.HostedPreferred);
+                new LocalModelProviderModePreferences(f.Paths).Save(localFirst ? ModelProviderMode.LocalFirst : ModelProviderMode.HostedPreferred);
                 mode.Observe();
-                new LocalProviderProfilePreferences(f.Paths).Save(new(ProviderService.Copilot, [CopilotCatalogue.Profile]));
+                new LocalProviderProfilePreferences(f.Paths).Save(localFirst
+                    ? new(ProviderService.Local, [HandoffCatalogue.Local, CopilotCatalogue.Profile])
+                    : new(ProviderService.Copilot, [CopilotCatalogue.Profile]));
             }
             Reviews = new(Audit, f.Time);
-            turns = copilot is not null
+            turns = localFirst
+                ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
+                    [new(ModelProviderSelection.OllamaCandidate,
+                        ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), adapter ?? throw new InvalidOperationException("The local handoff test needs its actual local adapter.")),
+                    new(ModelProviderSelection.CopilotCandidate,
+                        ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
+                            | ModelQualificationGate.ExecutionAccount | ModelQualificationGate.IntegratedHost,
+                        f.Time.Now.AddMinutes(5), new CopilotModelTurnAdapter(copilot
+                            ?? throw new InvalidOperationException("The handoff test needs a final-egress runtime."), Reviews))],
+                    mode, profiles, f.Store, hostedReviews: Reviews)
+                : copilot is not null
                 ? new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
                     [new(ModelProviderSelection.CopilotCandidate,
                         ModelQualificationGate.DotNetFinalRequest | ModelQualificationGate.AllPathLifecycle
@@ -300,6 +318,15 @@ public sealed partial class SessionsConversationTests
                 webPageAction: pageTransport is null ? null : new(pageTransport, Audit),
                 mcpConfiguration: mcpConfiguration, mcpBroker: mcpBroker, mcpEffects: mcpEffects);
             Conversation = conversation;
+            if (localFirst)
+            {
+                f.Store.BindAuthorizationPolicyGate(new HandoffPolicyGate(Access));
+                var workflow = new ModelProviderHandoffWorkflow(turns, f.Questions, Audit,
+                    NullLogger<ModelProviderHandoffWorkflow>.Instance, new(f.Store, f.Time), f.Store);
+                HandoffWorkflow = workflow;
+                LocalHandoff = new(workflow, turns, conversation, f.Store, f.Store, f.Time);
+                HandoffPresentation = new(workflow);
+            }
             memories = memoryContext ? new(workspace, f.Store, Access, boundary, f.Store, Audit,
                 NullLogger<Kora.Application.Memory.MemoryAdmissionService>.Instance, f.Time) : null;
             var sink = new WindowsSqliteEvidenceSink(f.Paths);
@@ -322,7 +349,8 @@ public sealed partial class SessionsConversationTests
                     PlaybackVolumeSuggestionReview.ReviewAsync(volume,
                         speechPolicy ?? throw new InvalidOperationException("Test volume call policy is required."),
                         f.Time, message, eligible, validate, token),
-                confirmPlaybackVolumeSuggestion: volume is null ? null : (review, token) => review.ConfirmAsync(token));
+                confirmPlaybackVolumeSuggestion: volume is null ? null : (review, token) => review.ConfirmAsync(token),
+                localHandoff: LocalHandoff);
         }
         internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()

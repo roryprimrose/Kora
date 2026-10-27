@@ -622,6 +622,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         public async ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
         {
             if (BeforeTaskRead is { } before) { await before().ConfigureAwait(false); }
+            if (handoffSources.TryGetValue(task, out var source)) { return source; }
             return Task;
         }
         public void Write(SecurityAuditEvent auditEvent)
@@ -694,6 +695,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
 
     private sealed class Adapter : IModelTurnAdapter
     {
+        internal bool JoinConfirmed { get; set; } = true;
+        public bool IsQuiescent => JoinConfirmed;
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal ModelTurnProvenance? Provenance { get; private set; }

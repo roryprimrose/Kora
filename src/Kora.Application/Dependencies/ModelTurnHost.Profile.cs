@@ -8,7 +8,8 @@ namespace Kora.Application.Dependencies;
 public sealed partial class ModelTurnHost
 {
     private async Task<ModelTurnAdmission> AdmitConfiguredProfileAsync(ModelTurnChoice choice, ModelContextEnvelope context,
-        ModelHandoffReview? review, CancellationToken token, HostedTurnAuthorization? hostedAuthorization = null)
+        ModelHandoffReview? review, CancellationToken token, HostedTurnAuthorization? hostedAuthorization = null,
+        VerifiedHandoffAdmission? handoff = null)
     {
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown)
@@ -43,7 +44,8 @@ public sealed partial class ModelTurnHost
                 activity.Complete(ToActivityOutcome(unavailable.Outcome));
                 return new(unavailable);
             }
-            var resolved = await providerProfileConfiguration!.ResolveTurnAsync(Live, sessionProfile.Desired, token).ConfigureAwait(false);
+            var resolved = await providerProfileConfiguration!.ResolveTurnAsync(Live, sessionProfile.Desired, token,
+                handoff?.Target.Profile.Service).ConfigureAwait(false);
             ModelTurnAdmission admission;
             if (resolved.Selection is null)
             { admission = new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }
@@ -53,7 +55,12 @@ public sealed partial class ModelTurnHost
                     || choice == ModelTurnChoice.Hosted && resolved.Selection.Provider == ModelProviderIdentity.Ollama
                     || policy.Mode == ModelProviderMode.LocalOnly && resolved.Selection.Provider != ModelProviderIdentity.Ollama)
                 { admission = new(Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy)); }
-                else if (resolved.Selection.Provider != ModelProviderIdentity.Ollama && policy.Mode == ModelProviderMode.LocalFirst)
+                else if (resolved.Selection.Provider != ModelProviderIdentity.Ollama && policy.Mode == ModelProviderMode.LocalFirst
+                    && (handoff is null || !ReferenceEquals(handoff.Context, context) || !handoff.Target.Current()
+                        || handoff.Target.Profile != resolved.Tuple || handoff.Target.Selection != resolved.Selection
+                        || handoff.Target.Session.Revision != sessionProfile.Revision
+                        || handoff.Target.Session.Session != sessionProfile.Session
+                        || !string.Equals(handoff.Target.Session.Desired.Serialize(), sessionProfile.Desired.Serialize(), StringComparison.Ordinal)))
                 {
                     // Review-only handoff is not app-profile or egress authority. Its independent exact dispatch remains gated.
                     admission = new(Finish(ModelTurnOutcome.Denied, review is null

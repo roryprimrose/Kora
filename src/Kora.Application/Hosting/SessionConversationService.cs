@@ -105,7 +105,7 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false, bool claudeStreamAnswer = false)
+        bool claude = false, bool claudeStreamAnswer = false, LocalUnavailableContinuation? localHandoff = null)
     {
         RequireOriginalSource(origin);
         RequireConversationDispatchOpen(target.Authority.SessionId);
@@ -199,7 +199,7 @@ public sealed partial class SessionConversationService(
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);
                         bindWebPage?.Invoke(admission.Turn, Live);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
-                            token, resolveResponse, onAdmitted, terminalCommitted).ConfigureAwait(false);
+                            token, resolveResponse, onAdmitted, terminalCommitted, localHandoff).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);

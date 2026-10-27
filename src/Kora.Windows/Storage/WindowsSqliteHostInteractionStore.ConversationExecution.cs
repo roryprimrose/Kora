@@ -34,6 +34,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 || !ConversationResponse.SupportsProvider(provenance.Selection.Provider)
                 || previous.Request != request || previous.Revision != 1 || previous.Version != 1
                 || previous.Outcome is not null || session.State != 0
+                || previous.Handoff is { } handoff && (provenance.Selection != handoff.Destination
+                    || time.GetUtcNow() < handoff.CreatedAt || time.GetUtcNow() >= handoff.ExpiresAt)
                 || metadataRevision < 0 || (ReadMetadata(connection, request.SessionId)?.Revision.Value ?? 0) != metadataRevision
                 || session.Authority.Generation != previous.Generation || intent.State != HostTaskState.IntentRecorded
                 || intent.Revision.Value != 1 || ReadRun(connection, request.TaskId) != runId)

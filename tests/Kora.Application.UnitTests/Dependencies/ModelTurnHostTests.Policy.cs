@@ -27,6 +27,7 @@ public sealed partial class ModelTurnHostTests
         var result = await f.Workflow.OfferAsync(policy, context ?? f.Context(), ModelHandoffReason.LocalUnavailable, Token);
         result.Outcome.Should().Be(ModelHandoffOutcome.Offered);
         result.Offer!.Destination.Should().Be(policy.Hosted);
+        result.Offer.HostedProfile.Should().BeNull();
         result.Offer.Reason.Should().Be(ModelHandoffReason.LocalUnavailable);
         return result.Offer;
     }
@@ -506,10 +507,10 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(ModelTurnOutcome.Unavailable, true)]
-    [InlineData(ModelTurnOutcome.Succeeded, false)]
-    [InlineData(ModelTurnOutcome.TimedOut, false)]
-    public async Task Host_audited_local_outcome_can_offer_but_never_silently_dispatch_hosted(ModelTurnOutcome outcome, bool offered)
+    [InlineData(ModelTurnOutcome.Unavailable)]
+    [InlineData(ModelTurnOutcome.Succeeded)]
+    [InlineData(ModelTurnOutcome.TimedOut)]
+    public async Task Local_outcome_without_exact_issued_physical_lease_cannot_offer_executable_handoff(ModelTurnOutcome outcome)
     {
         using var f = new Fixture();
         using var root = f.Root();
@@ -519,7 +520,9 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Reply = new(outcome, policy.Local, new("answer", null));
         await f.PolicyHost.RunAsync(turn, Token);
         var result = await f.Workflow.OfferAfterLocalAsync(turn, f.Context(), Token);
-        result.Outcome.Should().Be(offered ? ModelHandoffOutcome.Offered : ModelHandoffOutcome.Denied);
+        result.Outcome.Should().Be(ModelHandoffOutcome.Denied);
+        result.Offer.Should().BeNull();
+        f.PolicyHost.ObserveJoinedLocalUnavailable(turn).Should().BeNull();
         f.Adapter.Calls.Should().Be(1);
         var foreign = f.Qualified(policy.Local);
         var unbound = (await foreign.AdmitAsync(policy.Local, f.Context(), Token)).Turn!;

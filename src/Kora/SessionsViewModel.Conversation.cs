@@ -159,12 +159,14 @@ internal sealed partial class SessionsViewModel
     public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitConversationCoreAsync(allowQuestion: false);
     public Task SubmitLocalAnswerAsync() => SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
+    public bool CanSubmitLocalFirst => CanSubmitConversation && localHandoff is not null && !assistantReply;
+    public Task SubmitLocalFirstAsync() => SubmitConversationCoreAsync(allowQuestion: false, localFirst: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
         Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
         ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false, bool claudeStreamAnswer = false,
-        CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        bool localFirst = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -175,7 +177,10 @@ internal sealed partial class SessionsViewModel
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
         var observationIds = ClaudeObservationIds;
         var observationRevision = Interlocked.Read(ref claudeObservationRevision);
-        var receipt = useMcp
+        var receipt = localFirst
+            ? await (localHandoff ?? throw new InvalidOperationException("The verified local-first operation is not composed."))
+                .RunAsync(target, body, live, lifetime.Token)
+            : useMcp
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
                     : throw new InvalidOperationException("Select an actual app-included MCP server from refreshed options."),
@@ -376,7 +381,7 @@ internal sealed partial class SessionsViewModel
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
+            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails),
             nameof(DetailsOfferMessage),

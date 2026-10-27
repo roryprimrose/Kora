@@ -244,7 +244,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<ScopedInstructionUseBroker>(),
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
-                Services.GetRequiredService<SessionInstructionScopeBroker>());
+                Services.GetRequiredService<SessionInstructionScopeBroker>(),
+                Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,

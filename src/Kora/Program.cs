@@ -542,6 +542,7 @@ internal static class Program
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
+        services.AddSingleton<VerifiedLocalHandoffOperation>();
         services.AddSingleton<ModelHandoffPresentation>();
 #if DEBUG
         services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));

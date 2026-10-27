@@ -1,12 +1,23 @@
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
+using Kora.Core.Providers;
 
 namespace Kora.Core.Storage;
 
 /// <summary>One private consolidated authority; no caller-supplied append, replay or provider choice.</summary>
 public interface ISessionConversationStore
 {
+    ValueTask<HostQuestionRecord> CreateVerifiedLocalHandoffAsync(LocalUnavailableObservation observation,
+        ModelContextEnvelope context, ProviderProfileTuple profile, ModelProviderSelection destination,
+        SessionProviderProfile providerState, Func<bool> admitted, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store does not support verified local handoff review.");
+    ValueTask<ConversationHandoffCommit> CommitVerifiedLocalHandoffAsync(LocalUnavailableObservation observation,
+        HostQuestionRecord review, ModelContextEnvelope context, ModelContextEnvelope successor,
+        ProviderProfileTuple profile, ModelProviderSelection destination, SessionProviderProfile providerState,
+        Func<bool> admitted, CancellationToken token) =>
+        throw new InvalidOperationException("The conversation store does not support atomic verified local handoff.");
     ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request,
         HostRevision generation, Func<bool> admitted, CancellationToken token);
     ValueTask<ConversationDraftSnapshot> ReadConversationDraftAsync(HostId<SessionIdentity> session, CancellationToken token);

@@ -295,7 +295,10 @@ public sealed partial class ModelTurnHostTests
         await workflow.ResolveAsync(review, RequestOrigin.LocalUi, Token);
         var running = workflow.InvokeAsync(review, RequestOrigin.LocalUi, Token);
         await entered.Task.WaitAsync(Token);
+        var cancellationObserved = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        using var registration = f.Adapter.RunToken.Register(() => cancellationObserved.TrySetResult());
         var stopping = workflow.RevokeAsync(review);
+        await cancellationObserved.Task.WaitAsync(Token);
         stopping.IsCompleted.Should().BeFalse();
         running.IsCompleted.Should().BeFalse();
         reader.Released.Should().BeFalse();

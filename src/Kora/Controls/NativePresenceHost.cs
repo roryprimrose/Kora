@@ -1,10 +1,12 @@
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using Kora.Application.Visuals;
 using Kora.Core;
+using Kora.Core.Presentation;
 using Kora.Windows.Presentation;
 
 using Microsoft.Extensions.Logging;
@@ -15,18 +17,21 @@ internal sealed class NativePresenceHost(
     Func<PresenceRenderInputs?> capture,
     Action samplePlayback,
     Action<Exception> reportFailure,
-    ILogger<PresenceRenderWorker> logger) : Control, IDisposable
+    ILogger<PresenceRenderWorker> logger,
+    Func<TopLevel, NativePresenceHost.IRenderTarget>? createTarget = null) : Control, IDisposable
 {
     private readonly DispatcherTimer playbackTimer = new();
     private readonly List<Visual> ancestors = [];
     private TopLevel? topLevel;
-    private WindowsPresenceRenderTarget? target;
+    private IRenderTarget? target;
     private PresenceRenderWorker? worker;
     private long attachmentGeneration;
     private long releasedFrames;
     private bool failed;
     private bool disposed;
     private bool positionUpdatePending;
+    private bool suspended = true;
+    private PresenceStateAutomationPeer? automationPeer;
     internal long FramesPresented => releasedFrames + (target?.FramesPresented ?? 0);
     internal nint NativeHandle => target?.Handle ?? 0;
     internal double PresentedOpacity => CanPresent ? worker?.PresentedOpacity ?? 0 : 0;
@@ -37,18 +42,23 @@ internal sealed class NativePresenceHost(
         && ancestors.TrueForAll(static ancestor => ancestor.IsVisible && ancestor.Opacity > 0
             && ancestor is not Window { WindowState: WindowState.Minimized });
 
+    protected override AutomationPeer OnCreateAutomationPeer() =>
+        automationPeer ??= new PresenceStateAutomationPeer(this, CaptureAccessibleState);
+
+    private (AssistantState State, bool IsSpeaking)? CaptureAccessibleState() =>
+        !suspended && CanPresent && IsEffectivelyEnabled
+            ? PresenceStateAutomationPeer.FromRenderInputs(capture()) : null;
+
     protected override void OnAttachedToVisualTree(VisualTreeAttachmentEventArgs e)
     {
         base.OnAttachedToVisualTree(e);
         ObjectDisposedException.ThrowIf(disposed, this);
         topLevel = TopLevel.GetTopLevel(this)
             ?? throw new InvalidOperationException("The native presence requires its host-owned top level.");
-        var parent = topLevel.TryGetPlatformHandle()
-            ?? throw new InvalidOperationException("The native presence host has no Windows handle.");
         Interlocked.Increment(ref attachmentGeneration);
         try
         {
-            target = new WindowsPresenceRenderTarget(parent.Handle);
+            target = (createTarget ?? CreateTarget)(topLevel);
             worker = new PresenceRenderWorker(target, DispatchFrame, Fail, logger);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -114,6 +124,10 @@ internal sealed class NativePresenceHost(
 
     private void OnAncestorPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
     {
+        if (change.Property == IsEnabledProperty)
+        {
+            automationPeer?.Refresh();
+        }
         if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
             || change.Property == BoundsProperty || change.Property == Window.WindowStateProperty)
         {
@@ -124,6 +138,10 @@ internal sealed class NativePresenceHost(
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == IsEnabledProperty)
+        {
+            automationPeer?.Refresh();
+        }
         if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
             || change.Property == BoundsProperty)
         {
@@ -152,6 +170,8 @@ internal sealed class NativePresenceHost(
 
     public void Suspend()
     {
+        suspended = true;
+        automationPeer?.Refresh();
         playbackTimer.Stop();
         worker?.Suspend();
     }
@@ -192,15 +212,10 @@ internal sealed class NativePresenceHost(
             }
             else
             {
-                if (topLevel!.ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
-                {
-                    throw new InvalidOperationException("The native presence requires a transparent non-layered host backend.");
-                }
-                var origin = this.TranslatePoint(default, topLevel!)
-                    ?? throw new InvalidOperationException("The native presence has no host-relative position.");
-                target!.Move(checked((int)Math.Round(origin.X * topLevel!.RenderScaling)),
-                    checked((int)Math.Round(origin.Y * topLevel.RenderScaling)));
+                target!.Move(this, topLevel!);
                 worker.Update(inputs);
+                suspended = false;
+                automationPeer?.Refresh();
             }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -232,6 +247,8 @@ internal sealed class NativePresenceHost(
 
     private void ReleaseNativeResources()
     {
+        suspended = true;
+        automationPeer?.Refresh();
         Interlocked.Increment(ref attachmentGeneration);
         positionUpdatePending = false;
         playbackTimer.Stop();
@@ -247,5 +264,45 @@ internal sealed class NativePresenceHost(
         releasedFrames += target?.FramesPresented ?? 0;
         worker = null;
         target = null;
+    }
+
+    internal interface IRenderTarget : IPresenceRenderTarget
+    {
+        nint Handle { get; }
+        long FramesPresented { get; }
+        void Move(Control control, TopLevel host);
+    }
+
+    private static NativeRenderTarget CreateTarget(TopLevel host)
+    {
+        var parent = host.TryGetPlatformHandle()
+            ?? throw new InvalidOperationException("The native presence host has no Windows handle.");
+        return new NativeRenderTarget(new WindowsPresenceRenderTarget(parent.Handle));
+    }
+
+    private sealed class NativeRenderTarget(WindowsPresenceRenderTarget target) : IRenderTarget
+    {
+        public nint Handle => target.Handle;
+        public long FramesPresented => target.FramesPresented;
+
+        public void Move(Control control, TopLevel host)
+        {
+            if (host.ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
+            {
+                throw new InvalidOperationException("The native presence requires a transparent non-layered host backend.");
+            }
+            var origin = control.TranslatePoint(default, host)
+                ?? throw new InvalidOperationException("The native presence has no host-relative position.");
+            target.Move(checked((int)Math.Round(origin.X * host.RenderScaling)),
+                checked((int)Math.Round(origin.Y * host.RenderScaling)));
+        }
+
+        public void Draw(ReadOnlySpan<PresenceParticle> particles, double width, double height, double scaling,
+            byte red, byte green, byte blue, double opacity) =>
+            target.Draw(particles, width, height, scaling, red, green, blue, opacity);
+        public void Present() => target.Present();
+        public void Hide() => target.Hide();
+        public void ReleaseDrawingResources() => target.ReleaseDrawingResources();
+        public void Dispose() => target.Dispose();
     }
 }

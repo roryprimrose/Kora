@@ -179,7 +179,7 @@ public sealed partial class SessionsConversationTests
             await using var sharedAdmission = new SharedSkillUseAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var pipeline = new ReviewedToolSkillInvocationWorkflow(discovery, sharedAdmission, composed.Access, f.Store,
                 composed.Conversation, native.Audit, f.Time);
-            var use = new OwnedSkillInvocationController(native.Main, owned, static () => true, static () => 1,
+            await using var use = new OwnedSkillInvocationController(native.Main, owned, static () => true, static () => 1,
                 NullLogger<OwnedSkillInvocationController>.Instance, pipeline, questions);
             use.Bind();
             await using var editor = new OwnedSkillEditorController(native.Main, new(store, admission, native.Audit), admission,
@@ -205,6 +205,24 @@ public sealed partial class SessionsConversationTests
             {
                 native.Main.CommandText = text;
                 await native.Main.RunTypedCommand.ExecuteAsync().WaitAsync(TimeSpan.FromSeconds(30), native.Token);
+            }
+            async Task RequireEnabled(Button button)
+            {
+                if (button.IsEnabled) { return; }
+                var enabled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void Changed(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+                {
+                    if (args.Property == Avalonia.Input.InputElement.IsEnabledProperty && button.IsEnabled)
+                    { enabled.TrySetResult(); }
+                }
+                button.PropertyChanged += Changed;
+                try
+                {
+                    if (button.IsEnabled) { enabled.TrySetResult(); }
+                    await Task.WhenAny(enabled.Task, use.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(30), native.Token);
+                    enabled.Task.IsCompleted.Should().BeTrue(invocation?.Status.Text);
+                }
+                finally { button.PropertyChanged -= Changed; }
             }
             await Command("owned skill create page-guide 1.0.0");
             var authoring = editing ?? throw new InvalidOperationException("No owned authoring window.");
@@ -256,18 +274,27 @@ public sealed partial class SessionsConversationTests
                     var approval = await approvalOpened.Task;
                     approval.FindControl<TextBlock>("PromptLabel")!.Text.Should().Contain("https://example.com/");
                     approval.FindControl<TextBlock>("TargetLabel")!.Text.Should().Contain(f.Request.SessionId.Value.ToString("D"));
-                    if (scenario is "deny") { approval.FindControl<Button>("CancelQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+                    if (scenario is "deny")
+                    {
+                        var cancel = approval.FindControl<Button>("CancelQuestion")!;
+                        await RequireEnabled(cancel);
+                        cancel.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    }
                     else
                     {
                         var exact = approval.FindControl<TextBox>("ExactReview")!;
                         var reviewed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
                         exact.PropertyChanged += (_, args) =>
                         { if (args.Property == TextBox.TextProperty && !string.IsNullOrEmpty(exact.Text)) { reviewed.TrySetResult(); } };
-                        approval.FindControl<Button>("ReviewQuestion")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        var review = approval.FindControl<Button>("ReviewQuestion")!;
+                        await RequireEnabled(review);
+                        review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await Task.WhenAny(reviewed.Task, use.ActiveOperation).WaitAsync(TimeSpan.FromSeconds(30), native.Token);
                         reviewed.Task.IsCompleted.Should().BeTrue(opened.Status.Text);
                         approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>().Single().IsChecked = true;
-                        approval.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        var submit = approval.FindControl<Button>("SubmitAnswer")!;
+                        await RequireEnabled(submit);
+                        submit.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     }
                 }
                 await use.ActiveOperation.WaitAsync(TimeSpan.FromSeconds(30), native.Token);

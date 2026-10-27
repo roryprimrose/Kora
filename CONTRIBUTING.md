@@ -168,6 +168,19 @@ host or grant capture readiness. The [deterministic ownership regressions](tests
 cover cancellation/completion, private retirement and reentrant replacement
 with fake completion barriers, not sleeps or installed-device assumptions.
 
+Speech interruption tests wait for the captured playback's actual Stop entry
+before releasing ignored-cancellation output. A pending transcript dispatcher
+task alone does not establish that cancellation has reached playback. Editor
+reply cleanup tests similarly await the release-generation observation, not
+just Stop entry, before introducing a foreign generation. Native skill fixtures
+use their existing frozen model-budget timers for non-deadline scenarios and
+dispose invocation controllers asynchronously so owned work and subscriptions
+join even when an assertion fails; deadline tests retain explicit timer control.
+Opening a question is not an enabled review/approval control: await its actual
+enabled-state notification before activating it. Likewise, await the exact
+terminal-status property notification separately from conversation completion;
+the dispatcher may publish the terminal projection after the operation joins.
+
 ### Documentation ownership
 
 Use the [design topic index](Design/README.md#topic-owners) to find the canonical

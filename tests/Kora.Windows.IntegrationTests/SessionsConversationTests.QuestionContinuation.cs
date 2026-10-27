@@ -65,6 +65,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             await using var transport = new QuestionTransport(false);
@@ -75,6 +76,14 @@ public sealed partial class SessionsConversationTests
             host.BindAdmissionRevision(static () => 1);
             host.BindPrivateRevision(static () => 1);
             var model = composed.Model;
+            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void TerminalChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(SessionsViewModel.RunningConversationStatus), StringComparison.Ordinal)
+                    && model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal))
+                { terminalPresented.TrySetResult(); }
+            }
+            model.PropertyChanged += TerminalChanged;
             var presentation = new SessionsPresentationOwner(model);
             var workspace = compact ? null : new SessionsWindow(model, presentation);
             var compactWindow = compact ? new CompactSessionWindow(model, presentation) : null;
@@ -118,6 +127,7 @@ public sealed partial class SessionsConversationTests
                     text.Contains("Cancelling requested", StringComparison.Ordinal)
                     || text.Contains("Terminal Cancelled", StringComparison.Ordinal));
                 await operation;
+                await terminalPresented.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
                 state.IsEditable.Should().BeFalse();
                 state.Edit(new(["option-0"]));
                 await state.SubmitAsync();
@@ -136,7 +146,12 @@ public sealed partial class SessionsConversationTests
                     .Should().Be(retained);
                 (await f.Store.ReadQuestionsAsync(retained.Request.SessionId, f.Token)).Single().Status.Should().NotBe(QuestionStatus.Answered);
             }
-            finally { questionWindow?.Close(); presentation.Revoke(); }
+            finally
+            {
+                model.PropertyChanged -= TerminalChanged;
+                questionWindow?.Close();
+                presentation.Revoke();
+            }
         });
     }
 

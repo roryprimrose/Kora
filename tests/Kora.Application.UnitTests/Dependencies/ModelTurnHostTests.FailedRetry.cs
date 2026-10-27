@@ -64,6 +64,8 @@ public sealed partial class ModelTurnHostTests
     [InlineData("permission")]
     [InlineData("source")]
     [InlineData("retire")]
+    [InlineData("deleted-message")]
+    [InlineData("deleted-task")]
     public async Task FailedRetryConfirmationRejectsChangedSourceProviderAndAuthorityBeforeAnyNewIntentOrSend(string fault)
     {
         using var f = new Fixture { TrackPendingRecords = true };
@@ -91,6 +93,9 @@ public sealed partial class ModelTurnHostTests
         if (fault is "permission") { f.CanControl = false; }
         if (fault is "source") { admitted = false; }
         if (fault is "retire") { commands.Retire(); }
+        if (fault is "deleted-message") { f.PendingRecords.TryRemove(source.Request.RequestId, out _); }
+        if (fault is "deleted-task")
+        { f.BeforeTaskRead = () => { f.PendingRecords.TryRemove(source.Request.RequestId, out _); return Task.CompletedTask; }; }
         await commands.Invoking(value => value.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token))
             .Should().ThrowAsync<InvalidOperationException>();
         f.RetainCalls.Should().Be(0);
@@ -161,6 +166,54 @@ public sealed partial class ModelTurnHostTests
             f.Adapter.Calls.Should().Be(1);
             first.Completion.IsCompleted.Should().BeFalse("expiry of the retry never cancels its peer");
             f.PendingRecords[source.Request.RequestId].Message.Should().Be(source);
+            await commands.Invoking(value => value.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>();
+        }
+        finally { provider.TrySetResult(LateAnswer()); await first.Completion; }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedRetryAcceptedBehindPeerRejectsChangedProviderOrDeletedSourceWithoutAnotherSend(bool deleted)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedFailedRetry(f);
+        var host = ConfigureCancellation(f);
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile(), Profile(ProviderService.Claude)]);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = provider.Task;
+        var first = await conversation.SubmitQueuedAsync(new(f.Session, null), "unrelated active peer", () => true, Token);
+        var commands = conversation.CreateRequestCommands();
+        var review = (await commands.ExecuteAsync(FailedReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+        var terminal = new TaskCompletionSource<ConversationTurnCompletion>(TaskCreationOptions.RunContinuationsAsynchronously);
+        conversation.SubmittedConversationCompleted += (_, completion) =>
+        {
+            if (completion.Receipt?.Message.Request != first.Receipt.Message.Request) { terminal.TrySetResult(completion); }
+        };
+        try
+        {
+            var accepted = (await commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token)).RequestSubmission!;
+            accepted.Message.Outcome.Should().BeNull();
+            first.Completion.IsCompleted.Should().BeFalse();
+            if (deleted) { f.PendingRecords.TryRemove(source.Request.RequestId, out _); }
+            else
+            {
+                f.SessionOverrides = new(ProviderService.Claude);
+                f.SessionProfileRevision++;
+            }
+            provider.SetResult(LateAnswer());
+            (await first.Completion).RequireReceipt().Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            var rejected = await terminal.Task.WaitAsync(Token);
+            var failure = rejected.Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>().Which;
+            failure.Request.Should().Be(accepted.Message.Request);
+            failure.InnerException.Should().BeOfType<InvalidOperationException>();
+            f.Adapter.Calls.Should().Be(1);
+            f.ExecutionStarts.Should().Be(1);
+            f.PendingRecords[accepted.Message.Request.RequestId].Message.AssistantResponse.Should().BeNull();
+            if (!deleted) { f.PendingRecords[source.Request.RequestId].Message.Should().Be(source); }
+            host.IsQuiescent.Should().BeTrue();
             await commands.Invoking(value => value.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token))
                 .Should().ThrowAsync<InvalidOperationException>();
         }

@@ -19,10 +19,10 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
         SessionWorkspaceEntry target, string body, Func<bool> admitted,
         Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
-        CancellationToken token, bool localAnswer = false, PendingConversation? pending = null)
+        bool localAnswer, PendingConversation pending, CancellationToken token)
     {
         RequireOriginalSource(origin);
-        var retry = pending?.Retry;
+        var retry = pending.Retry;
         if (retry is not null && retry.Source.Provider.Provider != ModelProviderIdentity.Ollama)
         {
             var provider = retry.Source.Provider.Provider;

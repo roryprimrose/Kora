@@ -18,14 +18,16 @@ internal sealed class SessionRoutingController : IDisposable
     private bool busy;
     private bool disposed;
     private Task<SessionRoutingReceipt?>? active;
+    private readonly Lock inferenceGate = new();
+    private CancellationTokenSource? inference;
 
     internal SessionRoutingController(MainViewModel main, SessionWorkspaceService workspace,
         SessionConversationService conversation, ISessionWorkspaceAccess access, TimeProvider time,
-        ISessionRelatednessMatcher? matcher = null)
+        ISessionRelatednessMatcher? matcher = null, SessionRoutingControlAdmission? admission = null)
     {
         this.main = main;
         this.workspace = workspace;
-        routing = new(workspace, conversation, access, time, matcher);
+        routing = new(workspace, conversation, access, time, matcher, admission);
     }
 
     internal void Bind()
@@ -67,9 +69,11 @@ internal sealed class SessionRoutingController : IDisposable
 
     private async Task<SessionRoutingReceipt?> RouteCoreAsync(string body, RequestOrigin origin, Func<bool> admitted)
     {
+        using var cancellation = new CancellationTokenSource();
+        lock (inferenceGate) { inference = cancellation; }
         try
         {
-            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), CancellationToken.None);
+            var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token);
             if (!routing.IsCurrent(review)) { throw new OperationCanceledException("Original routing admission changed."); }
             var result = new TaskCompletionSource<SessionRoutingSelection?>(TaskCreationOptions.RunContinuationsAsynchronously);
             var opened = new SessionRoutingWindow(routing, review, () => !disposed && admitted(),
@@ -88,6 +92,7 @@ internal sealed class SessionRoutingController : IDisposable
         finally
         {
             routing.Retire();
+            lock (inferenceGate) { inference = null; }
             window?.Withdraw();
             window = null;
             busy = false;
@@ -100,6 +105,7 @@ internal sealed class SessionRoutingController : IDisposable
     private void Revoke()
     {
         routing.Retire();
+        lock (inferenceGate) { inference?.Cancel(); }
         if (Dispatcher.UIThread.CheckAccess()) { window?.Withdraw(); }
         else { Dispatcher.UIThread.Invoke(() => window?.Withdraw()); }
     }

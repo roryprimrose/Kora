@@ -10,6 +10,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Conversation;
 using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
 
@@ -144,6 +145,122 @@ public sealed class SessionRoutingTests : IDisposable
         service.Retire();
         await service.Invoking(value => value.SubmitAsync(correction, Token)).Should().ThrowAsync<InvalidOperationException>();
         f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(RequestOrigin.LocalUi, SessionRouteMatch.Clear)]
+    [InlineData(RequestOrigin.ActivatedVoice, SessionRouteMatch.Clear)]
+    [InlineData(RequestOrigin.ActivatedVoice, SessionRouteMatch.Unavailable)]
+    public async Task RoutingControlDomainIsCreatedBeforeFreezingMetadataAndNeverOfferedAsDestination(
+        RequestOrigin origin, SessionRouteMatch match)
+    {
+        var f = new Fixture { Match = match };
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var review = await service.PrepareAsync("original", origin, static () => true, Token);
+        review.Origin.Should().Be(origin);
+        review.Snapshot.Descriptors.Should().HaveCount(2);
+        review.Snapshot.Descriptors.Should().NotContain(item => item.Entry.Authority.SessionId == f.ControlSession!.SessionId);
+        f.Tasks.Values.Should().HaveCount(2);
+        f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal && task.Request.Origin == origin);
+        f.Tasks.Values.Should().Contain(task => task.State == (match == SessionRouteMatch.Unavailable
+            ? HostTaskState.Unavailable : HostTaskState.Succeeded));
+        var second = await service.PrepareAsync("second original", origin, static () => true, Token);
+        second.Snapshot.Descriptors.Should().HaveCount(2);
+        f.Entries.Should().HaveCount(3, "the existing routing domain is reused, not created during each metadata snapshot");
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("generation")]
+    [InlineData("input")]
+    public async Task RoutingControlFailureCannotPublishAReviewAndRecordsJoinedTerminal(string fault)
+    {
+        var f = new Fixture();
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        f.Matcher.Propose = snapshot =>
+        {
+            if (fault is "cancel") { throw new OperationCanceledException(); }
+            if (fault is "generation") { f.ControlSession = f.ControlSession! with { Generation = new(2) }; }
+            if (fault is "input") { f.Source = false; }
+            return new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
+        };
+        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.ActivatedVoice, () => f.Source, Token))
+            .Should().ThrowAsync<Exception>();
+        f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal);
+        f.Tasks.Values.Should().Contain(task => task.State == (fault == "cancel" ? HostTaskState.Unknown : HostTaskState.Failed));
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(Kora.Core.Dependencies.ModelTurnOutcome.Denied, HostTaskState.Denied)]
+    [InlineData(Kora.Core.Dependencies.ModelTurnOutcome.DeniedEgress, HostTaskState.Denied)]
+    [InlineData(Kora.Core.Dependencies.ModelTurnOutcome.Unknown, HostTaskState.Unknown)]
+    [InlineData(Kora.Core.Dependencies.ModelTurnOutcome.TimedOut, HostTaskState.Unknown)]
+    [InlineData(Kora.Core.Dependencies.ModelTurnOutcome.AuthenticationRequired, HostTaskState.Unavailable)]
+    public async Task RoutingControlRecordsTheActualInferenceFailureNotASuccessfulEmptyMatch(
+        ModelTurnOutcome outcome, HostTaskState expected)
+    {
+        var f = new Fixture();
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        f.Matcher.Propose = _ => throw new SessionRoutingInferenceException(outcome, ModelTurnReason.ProviderOutcome);
+        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
+            .Should().ThrowAsync<SessionRoutingInferenceException>();
+        f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal);
+        f.Tasks.Values.Should().Contain(task => task.State == expected);
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RoutingCancellationBeforeDispatchRecordsCancelledWithoutOfferingNew()
+    {
+        var f = new Fixture { CancelDispatch = true };
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal);
+        f.Tasks.Values.Should().Contain(task => task.State == HostTaskState.Cancelled);
+        f.Matcher.Snapshot.Should().BeNull();
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task FailedRoutingCancellationReceiptIsAnExplicitFailureNeverACompletedReview()
+    {
+        var f = new Fixture { FailCancellationReceipt = true };
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        f.Matcher.Propose = _ => throw new OperationCanceledException();
+        await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
+            .Should().ThrowAsync<IOException>();
+        f.Tasks.Values.Should().Contain(task => task.State == HostTaskState.DispatchRecorded,
+            "an unconfirmed terminal commit cannot manufacture completion or release its durable hold");
+        f.Messages.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task RoutingCapturesTheOriginalAmbientVoiceChannelAndCausalLinkBeforeAwaitingStorage()
+    {
+        var f = new Fixture();
+        await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
+        using var original = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
+            HostActivityLayer.Application, HostOperation.Request);
+        f.Matcher.Propose = snapshot =>
+        {
+            var current = HostActivity.RequireCurrent();
+            current.Request.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+            current.Activity!.Parent!.Links.Should().ContainSingle()
+                .Which.Context.Should().Be(original.Activity!.Context);
+            return new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
+        };
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var review = await service.PrepareAsync("original", RequestOrigin.ActivatedVoice, static () => true, Token);
+        review.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+        f.Tasks.Values.Should().OnlyContain(task => task.Request.Origin == RequestOrigin.ActivatedVoice && task.IsTerminal);
     }
 
     [Theory]
@@ -374,7 +491,7 @@ public sealed class SessionRoutingTests : IDisposable
             snapshot => new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
         internal Func<Task>? Wait { get; set; }
         internal bool Failure { get; set; }
-        public async Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, CancellationToken token)
+        public async Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token)
         {
             Body = request; Snapshot = snapshot;
             if (Wait is { } wait) { await wait(); }
@@ -383,7 +500,8 @@ public sealed class SessionRoutingTests : IDisposable
         }
     }
 
-    private sealed class Fixture : ISessionWorkspaceStore, ISessionConversationStore, IHostTaskStore, IModelTurnAdmission, ISessionWorkspaceAccess
+    private sealed class Fixture : ISessionWorkspaceStore, ISessionConversationStore, IHostTaskStore, IModelTurnAdmission,
+        ISessionWorkspaceAccess, ISessionRoutingControlStore
     {
         internal List<SessionWorkspaceEntry> Entries { get; } = [Entry("Alpha"), Entry("Beta")];
         internal Dictionary<HostId<TaskIdentity>, HostTaskRecord> Tasks { get; } = [];
@@ -400,6 +518,9 @@ public sealed class SessionRoutingTests : IDisposable
         internal Guid? Next { get; set; }
         internal int Creates { get; private set; }
         internal int Admissions { get; private set; }
+        internal WorkSessionAuthorization? ControlSession { get; set; }
+        internal bool CancelDispatch { get; set; }
+        internal bool FailCancellationReceipt { get; set; }
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; } = 1;
@@ -422,6 +543,28 @@ public sealed class SessionRoutingTests : IDisposable
             var id = new HostId<SessionIdentity>(Guid.NewGuid());
             return new(new(id, new(1), true), new(id, new(1), new(name)));
         }
+        public ValueTask<WorkSessionAuthorization> CreateRoutingControlSessionAsync(HostRequest request, Func<bool> admitted, CancellationToken token)
+        {
+            admitted().Should().BeTrue();
+            ControlSession = new(request.SessionId, new(1), true);
+            Entries.Add(new(ControlSession, null));
+            return ValueTask.FromResult(ControlSession);
+        }
+        public ValueTask<T> WithRoutingControlSessionAsync<T>(HostRequest request, HostRevision generation, Func<T> operation, CancellationToken token)
+        {
+            if (ControlSession?.SessionId != request.SessionId || ControlSession.Generation != generation)
+            { throw new InvalidOperationException("Stale routing control session."); }
+            return ValueTask.FromResult(operation());
+        }
+        public ValueTask<HostTaskRecord> AdmitLocalContextDispatchAsync(HostRequest request, HostRevision generation,
+            Func<bool> eligible, CancellationToken token)
+        {
+            eligible().Should().BeTrue();
+            if (CancelDispatch) { throw new OperationCanceledException(); }
+            var dispatched = Tasks[request.TaskId].Next(HostTaskState.DispatchRecorded);
+            Tasks[request.TaskId] = dispatched;
+            return ValueTask.FromResult(dispatched);
+        }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
         {
             after.Should().BeNull(); limit.Should().Be(50);
@@ -443,7 +586,12 @@ public sealed class SessionRoutingTests : IDisposable
             return ValueTask.FromResult(task);
         }
         public ValueTask CommitAsync(HostTaskRecord record, long revision, CancellationToken token)
-        { Tasks[record.Request.TaskId] = record; return ValueTask.CompletedTask; }
+        {
+            if (FailCancellationReceipt && record.State is HostTaskState.Unknown or HostTaskState.Cancelled)
+            { throw new IOException("Cancellation receipt is unavailable."); }
+            Tasks[record.Request.TaskId] = record;
+            return ValueTask.CompletedTask;
+        }
         public ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request, SessionName name, Func<bool> admitted, CancellationToken token)
         {
             admitted().Should().BeTrue();

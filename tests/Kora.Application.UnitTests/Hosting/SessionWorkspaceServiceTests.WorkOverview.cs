@@ -199,31 +199,42 @@ public sealed partial class SessionWorkspaceServiceTests
         OverviewReader(f, [entry]);
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         var release = new TaskCompletionSource<SessionWorkSnapshot>(TaskCreationOptions.RunContinuationsAsynchronously);
-        f.OverviewReader = (_, _) => { entered.SetResult(); return release.Task; };
+        CancellationToken readToken = default;
+        f.OverviewReader = (_, token) => { readToken = token; entered.SetResult(); return release.Task; };
         var clock = new OverviewTime();
         var service = new SessionWorkspaceService(f, new(f), f, f.Logger, overviewTime: clock);
         using var cancellation = new CancellationTokenSource();
         var query = new SessionListSearch(SessionListSearchKind.NameSubstring, SessionListFilter.All, "needle");
         var pending = service.ReadWorkOverviewAsync(SessionListFilter.All, false, null, cancellation.Token, query);
-        await entered.Task.WaitAsync(f.Token);
-        if (mode is "source")
+        try
         {
-            var invalidated = false;
-            service.WorkOverviewInvalidated += _ => invalidated = true;
-            await service.ChangeLifecycleAsync(f.Request.SessionId, new(1), false, RequestOrigin.LocalUi, f.Token);
-            invalidated.Should().BeTrue();
-            release.SetResult(OverviewSnapshot(entry));
+            await entered.Task.WaitAsync(f.Token);
+            if (mode is "source")
+            {
+                var invalidated = false;
+                service.WorkOverviewInvalidated += _ => invalidated = true;
+                await service.ChangeLifecycleAsync(f.Request.SessionId, new(1), false, RequestOrigin.LocalUi, f.Token);
+                invalidated.Should().BeTrue("source publication authority retires before the read joins");
+            }
+            else
+            {
+                if (mode is "cancel" or "cancel-timeout") { cancellation.Cancel(); }
+                if (mode is "timeout" or "cancel-timeout") { clock.Fire(); }
+                readToken.IsCancellationRequested.Should().BeTrue("authority retires without awaiting ignoring storage");
+            }
+            pending.IsCompleted.Should().BeFalse("the authoritative reader still owns its held store operation");
         }
-        else
+        finally
         {
-            if (mode is "cancel" or "cancel-timeout") { cancellation.Cancel(); }
-            if (mode is "timeout" or "cancel-timeout") { clock.Fire(); }
+            release.TrySetResult(OverviewSnapshot(entry));
+            _ = await Record.ExceptionAsync(async () => await pending.WaitAsync(f.Token));
         }
         var act = async () => await pending;
         if (mode is "timeout") { await act.Should().ThrowAsync<TimeoutException>(); }
         else if (mode is "source") { await act.Should().ThrowAsync<InvalidOperationException>(); }
         else { await act.Should().ThrowAsync<OperationCanceledException>(); }
-        release.TrySetResult(OverviewSnapshot(entry));
+        release.Task.IsCompletedSuccessfully.Should().BeTrue();
+        pending.IsCompleted.Should().BeTrue();
         clock.Timer!.Disposed.Should().BeTrue();
     }
 

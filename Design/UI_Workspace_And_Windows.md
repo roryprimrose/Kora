@@ -54,6 +54,13 @@ The expanded window does not use the ordinary response inactivity timer.
   existing Discard/Cancel owner; privacy/ownership/session retirement revokes content
   and delayed publication without saving it.
 
+Running-task notifications retain the exact selected source, selection lifetime and
+private-control revision captured before native dispatch. Switching away and back,
+replacing session metadata or closing the presenter retires that callback; it cannot
+restore old task controls on a new selection or reopened presenter. Fresh explicit
+running-work inspection remains available. This does not change stop/delete,
+last-view-close, submitted-work ownership or physical-resource joins.
+
 ### Presented-list voice selection
 
 Typed or current-name-activated **select the top/first/last/third session** and

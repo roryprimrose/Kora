@@ -613,6 +613,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || Kora.Application.Skills.OwnedSkillAuthoringCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SkillReviewCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Application.Skills.SharedSkillInvocationCommand.Parse(CommandText, AssistantName) is not null
+                      || Kora.Application.Skills.NamedSkillCommand.Parse(CommandText, AssistantName) is not null
                       || NewRequestOpenCommand.Parse(CommandText, AssistantName) is not null
                       || Kora.Core.Interaction.LocalEventCommand.Parse(CommandText, AssistantName) is not null
                       || ManualCallCommand.Parse(CommandText, AssistantName) is not null));
@@ -3003,6 +3004,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (customizationShutdown is not null && !await customizationShutdown()) { return; }
         await ClosePromptPreparation();
         await CloseAgentRun();
+        await CloseNamedSkillUse();
         await CloseSharedSkillUse();
         await CloseInstructionUse();
         if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
@@ -4237,6 +4239,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (Kora.Application.Agents.AgentRunCommand.Parse(spokenText, AssistantName) is { } agentCommand)
         {
             await ExecuteAgentCommand(agentCommand, spokenText, manualInput
+                ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
+            return;
+        }
+        if (Kora.Application.Skills.NamedSkillCommand.Parse(spokenText, AssistantName) is { } namedSkill)
+        {
+            await ExecuteNamedSkillInvocation(namedSkill, spokenText, manualInput
                 ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision), reviewEligibility);
             return;
         }
@@ -6062,6 +6070,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             await ClosePromptPreparation();
             await CloseAgentRun();
+            await CloseNamedSkillUse();
             await CloseSharedSkillUse();
             await CloseInstructionUse();
             await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion

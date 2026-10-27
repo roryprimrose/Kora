@@ -157,6 +157,7 @@ public sealed partial class SessionsConversationTests
         model.ComposerBody = "Use the existing admitted read-only tool";
         await model.SubmitConversationAsync();
         adapter.ToolCalls.Should().Be(1);
+        model.ConversationMessages.Single().AssistantResponse.Should().NotBeNull(model.ConversationStatus);
         model.ConversationMessages.Single().AssistantResponse!.Body.Should().Be("Host version: 1.0.0");
         f.Count("host_questions").Should().Be(0);
     }

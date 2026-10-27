@@ -2000,6 +2000,30 @@ The unchanged original request is retained separately from typed untrusted local
 Unqualified local providers truthfully report unavailable, without installation, network fallback or replay
 ([review lifetime](../src/Kora.Application/Skills/SharedSkillUseReview.cs), [workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs), [host regression tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.SharedSkills.cs)).
 
+### Invoke an instruction-only skill by readable name
+
+Enter `use skill <exact declared readable name>`, optionally prefixed with the current assistant name when typing. Activated voice requires the current-name prefix, for example `Kora, use skill concise-review`. This reserved namespace does not fall through to built-in actions, another source or a model when lookup fails ([parser](../src/Kora.Application/Skills/NamedSkillCommand.cs)).
+
+[Customization metadata discovery](tools-and-built-in-skills.md) remains a separate reviewed operation. Command-like text in a skill name or discovery request does not invoke the other operation or enable a skill. Both routes refuse to replace a pending question or approval; the original question remains visible.
+
+The named-use window initially reads no files. Choose **Inspect saved and registered skill files locally (read consent)** to explicitly inspect the bounded owned inventory and every already registered shared source using their existing readers.
+This reads complete package files, not reference bodies or unrelated context. Initial shared-root registration remains a separate native operation ([inspection](../src/Kora.Application/Skills/NamedSkillCatalogue.cs)).
+
+Every exact-name match appears as a numbered source-qualified choice, including unavailable kinds or excluded sources. No row is selected automatically, even for a unique match. Choose the readable row and **Review exactly the selected source choice**, or enter `skill choice <displayed number>`.
+A number is bound internally to the exact choice set captured when that input arrived; replacement inspection cannot retarget queued input ([choice binding](../src/Kora/NamedSkillInvocationController.cs)).
+
+Names are case-sensitive ordinal text, at most 128 UTF-16 units, without trimming, fuzzy matching or Unicode normalization. Invalid Unicode, control/format characters and line separators are rejected. Owned versions and shared sources never shadow one another.
+Tool skills, scripts, executable/native bundled skills and Markdown-reference skills remain on their existing separate routes; selecting an unavailable row never falls back ([candidates](../src/Kora.Application/Skills/NamedSkillCandidates.cs)).
+
+After source selection, review all inert instructions, separately **Enable exact reviewed revision once**, refresh existing Active conversations and explicitly choose one native target. Enter the unchanged original user task, choose **Review exact invocation**, inspect the preview and separately **Confirm exact invocation once**.
+Task text is never parsed as another command. A raw source GUID, session GUID or path is not required ([complete controller](../src/Kora/NamedSkillInvocationController.cs)).
+
+The original typed/voice channel survives native choice, task entry and confirmation. Source identity/bytes, read consent, app inclusion, ownership, privacy, call policy and exact Active target remain mandatory. Choices expire after two minutes; canonical source reviews keep their separate one-use expiry.
+Changes require fresh inspection/review, never latest-name retargeting ([owned binding](../src/Kora.Application/Skills/NamedSkillChoice.cs)).
+
+Only a genuine retained canonical local-model answer or truthful typed unavailable/failure/cancellation terminal completes use. Lookup/inspection errors invalidate the whole lookup rather than reporting successful empty results; a valid no-match lookup explicitly clarifies.
+**Stop, join and close named skill use** or `skill close` cancels and joins actual work. No automatic enablement, grants, hosted fallback or live-provider qualification is added ([native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NamedSkills.cs)).
+
 ### Reviewed one-tool shared skill invocation
 
 This is a separate operation from instruction-only use. It supports a registered, single-file declarative `SKILL.md` that declares only `allowed-tools: network.get_web_page`. Scripts, additional files, unresolved references and other tool declarations remain unavailable. Kora does not supply a new bundled page skill; choose and review your own compatible source explicitly ([host workflow](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs)).

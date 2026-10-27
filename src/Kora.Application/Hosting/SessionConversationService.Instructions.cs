@@ -9,6 +9,11 @@ public sealed partial class SessionConversationService
 {
     public async Task<ConversationSubmissionReceipt> SubmitInstructionAsync(
         ScopedInstructionUseBroker.InstructionContextReview review, Func<bool> admitted, CancellationToken token)
+        => await SubmitInstructionAsync(review, admitted, null, token).ConfigureAwait(false);
+
+    private async Task<ConversationSubmissionReceipt> SubmitInstructionAsync(
+        ScopedInstructionUseBroker.InstructionContextReview review, Func<bool> admitted,
+        PendingConversation? pending, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(review);
         RequireOriginalSource(review.Origin);
@@ -21,7 +26,7 @@ public sealed partial class SessionConversationService
             if (HostActivity.Current is { Activity: { } parent }) { links.Add(new(parent.Context)); }
             return await SubmitReviewedContextAsync(review.Target, review.Body, review.Capture,
                 () => admitted() && review.IsCurrent(), review.ValidateSourceAsync, links,
-                review.Origin, token, review.BeginExecution).ConfigureAwait(false);
+                review.Origin, token, review.BeginExecution, pending: pending).ConfigureAwait(false);
         }
         finally { review.Retire(); }
     }

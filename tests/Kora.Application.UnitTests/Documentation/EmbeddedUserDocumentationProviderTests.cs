@@ -361,7 +361,15 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 24);
+        sections.Should().HaveCount(commands.Count + 25);
+        var namedInvocation = sections.Single(section => section.StartsWith(
+            "Invoke an instruction-only skill by readable name", StringComparison.Ordinal));
+        namedInvocation.Should().Contain("use skill <exact declared readable name>")
+            .And.Contain("skill choice <displayed number>").And.Contain("skill close")
+            .And.Contain("read consent").And.Contain("No row is selected automatically")
+            .And.Contain("replacement inspection cannot retarget queued input")
+            .And.Contain("unchanged original user task").And.Contain("Confirm exact invocation once")
+            .And.Contain("original typed/voice channel survives").And.Contain("cancels and joins actual work");
         var volumeSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant Kora volume suggestion", StringComparison.Ordinal));
         foreach (var phrase in PlaybackVolumeSuggestionCommand.FixedPhrases)

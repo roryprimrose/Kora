@@ -39,6 +39,7 @@ internal sealed class McpInvocation(
     private Dependencies.ModelTurn? turn;
     private int used;
     private bool disposed;
+    private bool connectionFaulted;
     internal bool Completed { get; private set; }
     internal McpModelResult? Result { get; private set; }
     internal McpModelTool ModelTool => selected is { } tool
@@ -54,6 +55,7 @@ internal sealed class McpInvocation(
 
     internal async Task PrepareAsync(CancellationToken token)
     {
+        if (connectionFaulted) { throw new InvalidOperationException("The failed MCP connection requires a new explicitly reviewed request."); }
         await ValidateAsync(token).ConfigureAwait(false);
         descriptor = await configuration.ResolveHttpsAsync(serverId, account, token).ConfigureAwait(false);
         var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
@@ -91,8 +93,14 @@ internal sealed class McpInvocation(
         Kora.Core.Conversation.ConversationText.Validate(arguments, submission: true);
         await ValidateAsync(token).ConfigureAwait(false);
         await ApproveAsync(McpReviewStage.Invocation, arguments, token).ConfigureAwait(false);
-        var observed = await ExchangeAsync(McpProtocol.InvocationRequest(selected.Name, selected.Schema, arguments),
-            McpProtocol.MaximumResultUtf8Bytes, token).ConfigureAwait(false);
+        ImmutableArray<byte> observed;
+        try
+        {
+            observed = await ExchangeAsync(McpProtocol.InvocationRequest(selected.Name, selected.Schema, arguments),
+                McpProtocol.MaximumResultUtf8Bytes, token).ConfigureAwait(false);
+        }
+        catch (McpExchangeException)
+        { return new(CapabilityOutcome.Failed, "mcp-transport-failed-review-before-new-request"); }
         var result = McpProtocol.ReadInvocationResult(observed.AsSpan());
         await ValidateAsync(token).ConfigureAwait(false);
         if (result.IsError) { return new(CapabilityOutcome.Failed, "mcp-server-reported-error"); }
@@ -118,7 +126,17 @@ internal sealed class McpInvocation(
         audit.Write(requested);
         try
         {
-            var result = await connection!.ExchangeAsync(ImmutableArray.CreateRange(wire), limit, token).ConfigureAwait(false);
+            ImmutableArray<byte> result;
+            try
+            {
+                result = await connection!.ExchangeAsync(ImmutableArray.CreateRange(wire), limit, token).ConfigureAwait(false);
+            }
+            catch (Exception exception) when (!token.IsCancellationRequested
+                && exception is HttpRequestException or IOException or ObjectDisposedException or OperationCanceledException)
+            {
+                connectionFaulted = true;
+                throw new McpExchangeException(exception);
+            }
             await ValidateAsync(token).ConfigureAwait(false);
             if (result.IsDefaultOrEmpty || result.Length > limit)
             { throw new InvalidDataException("The complete MCP transport response is empty or exceeds its bound."); }
@@ -146,7 +164,8 @@ internal sealed class McpInvocation(
             || task.Task.State is not (HostTaskState.IntentRecorded or HostTaskState.DispatchRecorded))
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
-        if (connection is not null)
+        // A faulted connection can only finish without content; session, source and grants still require current authority.
+        if (connection is not null && !connectionFaulted)
         {
             if (connection.Account != account || connection.Endpoint != account.Destination
                 || connection.RemoteAddresses.Count == 0 || connection.RemoteAddresses.Any(address => !WebPageNetworkPolicy.IsPublic(address))
@@ -258,4 +277,7 @@ internal sealed class McpInvocation(
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));
+
+    private sealed class McpExchangeException(Exception innerException)
+        : IOException("The MCP exchange failed. Review the original request before explicitly starting a new connection.", innerException);
 }

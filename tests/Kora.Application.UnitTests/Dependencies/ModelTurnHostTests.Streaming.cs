@@ -5,10 +5,14 @@ using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Core.Auditing;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Providers;
 using Kora.Core.Storage;
+using Kora.Core.Tools;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
@@ -175,6 +179,152 @@ public sealed partial class ModelTurnHostTests
         f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
         f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
         return f.ConfiguredProfiles(adapter: adapter);
+    }
+
+    [Theory]
+    [InlineData("provider")]
+    [InlineData("session")]
+    [InlineData("privacy")]
+    [InlineData("owner")]
+    public async Task ObservedProviderRevocationRetiresOriginalProgressUntilPhysicalJoinAndCannotBeUndoneByRecovery(string fault)
+    {
+        using var f = new Fixture();
+        var transport = new RevokedAnswerTransport();
+        await using var adapter = CreateLoop(f, transport);
+        var host = ConfigureAnswer(f, adapter);
+        var service = f.ConversationService(host, execution: host);
+        var updates = new List<ConversationAnswerPresentation>();
+        var retirementNotifications = 0;
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Running && updates.Count != 0 && !updates[0].IsCurrent())
+            { retirementNotifications++; }
+        };
+        service.ProvisionalAnswerChanged += (value, _) =>
+        {
+            updates.Add(value);
+            return ValueTask.CompletedTask;
+        };
+        var submission = service.SubmitLocalAnswerAsync(new(f.Session, null), "original request", static () => true, Token);
+        await transport.Entered.Task.WaitAsync(Token);
+        var originalSession = f.Session;
+        try
+        {
+            updates.Should().ContainSingle().Which.IsCurrent().Should().BeTrue();
+            switch (fault)
+            {
+                case "provider": f.ProfileCatalogue.Status = ProviderCatalogueStatus.Unavailable; break;
+                case "session": f.Session = f.Session with { Generation = new(2) }; break;
+                case "privacy": f.CanControl = false; break;
+                case "owner": f.Current = false; break;
+            }
+            transport.Probe.TrySetResult();
+            await transport.Rejected.Task.WaitAsync(Token);
+            retirementNotifications.Should().Be(1);
+            host.IsQuiescent.Should().BeFalse("rejected output is not physical provider termination");
+            submission.IsCompleted.Should().BeFalse();
+            f.ExecutionCompletions.Should().Be(0);
+            f.Retained!.AssistantResponse.Should().BeNull();
+            updates[0].IsCurrent().Should().BeFalse("observed revocation retires previously published progress");
+            f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+            f.Session = originalSession;
+            f.CanControl = true;
+            f.Current = true;
+            updates[0].IsCurrent().Should().BeFalse("recovery cannot renew this original turn's authority");
+        }
+        finally
+        {
+            f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+            f.Session = originalSession;
+            f.CanControl = true;
+            f.Current = true;
+            transport.Probe.TrySetResult();
+            transport.Release.TrySetResult();
+            await submission;
+        }
+        var receipt = await submission;
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        updates.Should().ContainSingle();
+        transport.LateRejected.Should().BeTrue();
+        transport.BufferedCalls.Should().Be(0);
+        host.IsQuiescent.Should().BeTrue();
+        f.ExecutionCompletions.Should().Be(1);
+        f.Audits.Last(value => string.Equals(value.ActionId, "model.turn", StringComparison.Ordinal))
+            .Outcome.Should().Be(SecurityAuditOutcome.Denied);
+        f.Messages.Should().NotContain(value => value.Contains("safe partial", StringComparison.Ordinal)
+            || value.Contains("original request", StringComparison.Ordinal));
+
+        var other = HostRequest.Create(RequestOrigin.LocalUi);
+        f.Session = new(other.SessionId, new(1), true);
+        f.Task = new(new(other, new(1), HostTaskState.IntentRecorded), new(1), "host", true, null);
+        f.ExpectedAuditRequest = other;
+        using var root = HostActivity.BeginRoot(other, HostActivityLayer.Application, HostOperation.Request);
+        var admission = await host.AdmitAsync(ModelProviderSelection.OllamaCandidate,
+            f.Context(other, toolMode: ModelToolMode.None), Token);
+        var unrelated = await host.RunAsync(admission.Turn!, Token);
+        unrelated.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        unrelated.Provenance!.Request.Should().BeSameAs(other);
+        transport.BufferedCalls.Should().Be(1, "a separately admitted session is unaffected by the retired original turn");
+    }
+
+    [Fact]
+    public async Task RevokedToolCallbackCannotRegainOriginalAuthorityAfterOwnerRecovery()
+    {
+        using var f = new Fixture();
+        using var root = f.Root();
+        var calls = 0;
+        f.OnVersion = () => calls++;
+        f.Adapter.OnTool = async invoke =>
+        {
+            f.Current = false;
+            (await invoke(ReadOnlyCapabilityCatalog.Version, "{}", Token)).Outcome.Should().Be(CapabilityOutcome.Denied);
+            f.Current = true;
+            (await invoke(ReadOnlyCapabilityCatalog.Version, "{}", Token)).Outcome.Should().Be(CapabilityOutcome.Denied);
+        };
+        var result = await f.Run();
+        result.Outcome.Should().Be(ModelTurnOutcome.Denied);
+        result.Response.Should().BeNull();
+        calls.Should().Be(0);
+        f.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Denied);
+        f.Adapter.OnTool = null;
+        (await f.Run()).Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+    }
+
+    private sealed class RevokedAnswerTransport : IModelToolTransport, IModelAnswerTransport
+    {
+        internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Probe { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Rejected { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool LateRejected { get; private set; }
+        internal int BufferedCalls { get; private set; }
+
+        public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
+        {
+            BufferedCalls++;
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new { kind = "answer", answer = "unrelated answer" });
+            return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Succeeded, request.Provenance,
+                ModelToolProtocol.ParseAssistant(bytes), new(ModelToolProtocol.SerializeRequest(request).Length, bytes.Length)));
+        }
+
+        public async Task<ModelToolTransportReply> CompleteWithAnswerAsync(ModelToolRequest request,
+            Func<ModelAnswerUpdate, CancellationToken, ValueTask> publish, CancellationToken cancellationToken)
+        {
+            await publish(new(request.Provenance, "safe partial"), cancellationToken);
+            Entered.TrySetResult();
+            await Probe.Task;
+            try { await publish(new(request.Provenance, "safe partial revoked"), CancellationToken.None); }
+            catch (InvalidDataException) { Rejected.TrySetResult(); }
+            await Release.Task;
+            try { await publish(new(request.Provenance, "safe partial late"), CancellationToken.None); }
+            catch (InvalidDataException) { LateRejected = true; }
+            var bytes = JsonSerializer.SerializeToUtf8Bytes(new { kind = "answer", answer = "safe partial late" });
+            return new(ModelTurnOutcome.Succeeded, request.Provenance, ModelToolProtocol.ParseAssistant(bytes),
+                new(ModelToolProtocol.SerializeRequest(request).Length, bytes.Length));
+        }
+
+        public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }
 
     private sealed class AnswerTransport : IModelToolTransport, IModelAnswerTransport

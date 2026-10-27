@@ -14,6 +14,7 @@ internal sealed class OwnedSkillInvocationWindow : Window
     internal TextBox Confirmation { get; } = ReadOnly("Complete serialized local context preview", 200);
     internal TextBlock Status { get; } = new() { TextWrapping = TextWrapping.Wrap };
     internal Button Confirm { get; } = new() { Content = "Confirm exact invocation once", IsEnabled = false };
+    internal PrivateLiteralInputControls LiteralInputs { get; } = new();
 
     internal OwnedSkillInvocationWindow(Action<string> run, bool toolMode = false)
     {
@@ -31,6 +32,7 @@ internal sealed class OwnedSkillInvocationWindow : Window
             TextWrapping = TextWrapping.Wrap,
         });
         panel.Children.Add(Instructions);
+        panel.Children.Add(LiteralInputs);
         Add("Enable exact reviewed revision once", "enable");
         Add("Refresh existing Active conversations", "targets");
         Add("Next conversation page", "next-targets");
@@ -77,6 +79,7 @@ internal sealed class OwnedSkillInvocationWindow : Window
         Targets.ItemsSource = null;
         Status.Text = string.Empty;
         Confirm.IsEnabled = false;
+        LiteralInputs.Clear();
     }
 
     private static TextBox ReadOnly(string name, double height)

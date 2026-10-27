@@ -632,17 +632,41 @@ fresh search. Active appends/new daily files do not expand it. Source changes,
 replacement, pruning/rotation, corruption, incomplete final lines, expired
 snapshots, timeout and access failure are visible. `ScanLimitReached` is not a
 complete-file claim and does not imply paging beyond the admitted prefix.
-No combined cross-source ranking, file audit/graph, export or Ask Evidence is
-delivered by this slice; native installed/accessibility acceptance remains open.
+No combined cross-source ranking, file audit/graph or export is delivered by
+this slice; native installed/accessibility acceptance remains open.
 
 Controls have native accessible labels and keyboard navigation. Result text
 is inert and non-selectable. Copy/cut clipboard paths and context menus are
-blocked; there are no export, Ask Evidence, execution or source-deletion
+blocked; there are no export, execution or source-deletion
 controls. Ownership/privacy is checked before and after the read; privacy
 closure cancels the viewer and clears its page/filter state. Reading does not
 refresh retention, consume grants, change runtime admission or resume work.
 Automated real-store/view-model/XAML tests are not native visual, screen-reader,
 DPI, contrast, installed or power-loss acceptance; those trials remain open.
+
+### Reviewed local diagnostic-page answers
+
+The native Evidence reader offers a separate [Ask Evidence review](../docs/evidence-answers.md)
+for one explicitly loaded ordinary SQLite **Log** page. Review includes the
+complete immutable serialized page, stable record citations and bounded original
+question, followed by separate one-shot LocalOnly/tool-free confirmation.
+There is no retrieval, ranking, file read, remote fallback, historical replay or
+authority inferred from correlation fields. Empty, partial, omitted, expired,
+unqualified and over-budget pages fail closed; source expiry is never renewed.
+
+Affirmative sensitivity/source-use policy and local-runtime qualification remain
+independent prerequisites. The default source-use service is explicitly
+unavailable. Qualified execution reuses the canonical reviewed-context
+conversation service for fresh host-created destination admission, original
+question retention, response validation before final retention and exact durable
+readback. The receipt-only local-context runner is not used as answer persistence.
+Validated output labels recorded-fact claims separately from inference and
+rejects malformed or out-of-page citations; citation identity is not semantic
+verification. Source navigation displays only the exact frozen record.
+Conversation, diagnostic and audit retention remain independent. Cancellation
+and privacy/control/window/source changes suppress late disclosure and retain
+resource ownership until joined. Deterministic fake qualification does not
+enable production source use or replace installed/provider/accessibility trials.
 
 The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
 has an explicit **Review exact record** route through the audited

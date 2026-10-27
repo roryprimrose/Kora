@@ -192,7 +192,21 @@ public sealed partial class SessionsConversationTests
                 dispatcher.Count.Should().BeGreaterThan(0);
                 await model.ReviewStopAndDeleteAsync();
                 model.CanConfirmStopAndDelete.Should().BeTrue();
-                deletion = model.ConfirmStopAndDeleteAsync();
+                var cancellationAccepted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void ObserveCancellation(ConversationExecutionStatus observed)
+                {
+                    if (observed.Target.Request == provenance.Request
+                        && observed.Target.Generation == target.Authority.Generation
+                        && observed.Phase == ConversationExecutionPhase.Cancelling)
+                    { cancellationAccepted.TrySetResult(); }
+                }
+                composed.Conversation.RunningConversationChanged += ObserveCancellation;
+                try
+                {
+                    deletion = model.ConfirmStopAndDeleteAsync();
+                    await cancellationAccepted.Task.WaitAsync(f.Token);
+                }
+                finally { composed.Conversation.RunningConversationChanged -= ObserveCancellation; }
                 deletion.IsCompleted.Should().BeFalse("deletion must retain the actual provider join");
                 submission.IsCompleted.Should().BeFalse();
                 (await f.Store.ReadMetadataAsync(original, f.Token)).Should().Be(target);

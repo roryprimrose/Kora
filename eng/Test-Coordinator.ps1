@@ -89,10 +89,12 @@ function New-Fixture {
 }
 
 function Register-Owner {
-    param([string] $Id, [string] $Allocation = 'none', [string] $Kind = 'feature', [string] $Scope = '', [string] $Operation = '')
+    param([string] $Id, [string] $Allocation = 'none', [string] $Kind = 'feature', [string] $Scope = '', [string] $Operation = '',
+        [string[]] $Scopes = @())
     if (!$Scope) { $Scope = "src/$Id" }
+    if (!$Scopes.Count) { $Scopes = @($Scope) }
     if (!$Operation) { $Operation = $Id }
-    Entry 'Register' @{ ownerId = $Id; operation = $Operation; scopes = @($Scope)
+    Entry 'Register' @{ ownerId = $Id; operation = $Operation; scopes = $Scopes
         kind = $Kind; allocation = $Allocation; evidence = 'Explicit fixture producer lifecycle registration; no native execution.' } | Out-Null
 }
 
@@ -200,6 +202,113 @@ try {
     Check ((Entry 'Read').state.datasetId -ceq $initial.datasetId) 'Different native worktree discovers same primary-workspace state'
     $script:fixture = $primary
 
+    $null = New-Fixture 'exact-scopes'
+    $exactScopes = @(1..25 | ForEach-Object { "src/shared/File$_.cs" })
+    Register-Owner 'exact-owner' -Kind historical -Scopes $exactScopes
+    $maximumScopes = @(1..128 | ForEach-Object { "tests/exact/File$_.cs" })
+    Register-Owner 'maximum-owner' -Kind historical -Scopes $maximumScopes
+    $scopeState = (Entry 'Read').state
+    Check ($scopeState.owners[0].scopes.Count -eq 25 -and $scopeState.owners[1].scopes.Count -eq 128) 'Realistic exact-file scopes and the 128-path bound survive independent process readback'
+    $invalidScopes = @(
+        @{ name = 'over-limit'; scopes = @($maximumScopes + 'tests/exact/File129.cs'); failure = 'Invalid source scopes' },
+        @{ name = 'empty'; scopes = @(); failure = 'Invalid source scopes' },
+        @{ name = 'scalar'; scopes = 'src/file.cs'; failure = 'Invalid source scopes' },
+        @{ name = 'traversal'; scopes = @($exactScopes + 'src/../file.cs'); failure = 'Invalid source scope path' },
+        @{ name = 'dot'; scopes = @($exactScopes + 'src/./file.cs'); failure = 'Invalid source scope path' },
+        @{ name = 'absolute'; scopes = @($exactScopes + 'Q:\src\file.cs'); failure = 'Invalid source scope path' },
+        @{ name = 'backslash'; scopes = @($exactScopes + 'src\file.cs'); failure = 'Invalid source scope path' },
+        @{ name = 'wildcard'; scopes = @($exactScopes + 'src/*.cs'); failure = 'Invalid source scope path' },
+        @{ name = 'null-path'; scopes = @($exactScopes + $null); failure = 'Invalid source scope path' }
+    )
+    foreach ($case in $invalidScopes) {
+        Entry 'Register' @{ ownerId = $case.name; operation = $case.name; scopes = $case.scopes
+            kind = 'feature'; allocation = 'uncertain'; evidence = 'Invalid scope fixture' } -Failure $case.failure | Out-Null
+        $unchanged = (Entry 'Read').state
+        Check ($unchanged.revision -eq $scopeState.revision -and $unchanged.owners.Count -eq 2 -and
+            $unchanged.executions.Count -eq 0) "Rejected $($case.name) scopes do not mutate ownership or allocations"
+    }
+    Register-Owner 'tail-overlap' -Scope 'SRC/shared/File25.cs'
+    Certify-Owner 'tail-overlap'
+    Register-Owner 'disjoint' -Scope 'src/shared/File26.cs'
+    Certify-Owner 'disjoint'
+    $disjoint = Entry 'Next'
+    Check ($disjoint.kind -ceq 'dispatch' -and $disjoint.action.ownerId -ceq 'disjoint') 'Exact-file ownership admits a sibling without broad directory serialization'
+    Accept-Dispatch $disjoint 'disjoint'
+    $tailConflict = Entry 'Next'
+    Check (@($tailConflict.action.constraints | Where-Object ownerId -CEQ tail-overlap).Count -eq 1) 'Scope overlap remains case-insensitive beyond the former sixteen-path limit'
+
+    foreach ($policy in @('ready-auto', 'pr-only', 'local-only')) {
+        $null = New-Fixture "evidence-$policy" -Policy $policy
+        Register-Owner 'assessment' -Kind evidence -Scope 'src/shared' -Operation shared-outcome
+        Certify-Owner 'assessment'
+        $assessment = Entry 'Next'
+        Accept-Dispatch $assessment 'assessment'
+        $evidence = New-Handoff 'assessment' $assessment.action.executionId
+        $evidence.receipt.kind = 'evidence-completed'
+        $evidence.receipt.prUrl = $null
+        $evidence.receipt.autoMerge = $null
+        $invalidEvidence = @(
+            @{ name = 'unjoined'; key = 'finiteCommandsJoined'; value = $false; failure = 'not proved quiescent' },
+            @{ name = 'running'; key = 'runningCommands'; value = @('command-in-flight'); failure = 'not proved quiescent' },
+            @{ name = 'working'; key = 'workState'; value = 'running'; failure = 'not proved quiescent' },
+            @{ name = 'decision'; key = 'heldDecision'; value = 'pending'; failure = 'not proved quiescent' },
+            @{ name = 'pr'; key = 'prUrl'; value = 'https://github.com/roryprimrose/Kora/pull/1'; failure = 'Unsupported terminal' },
+            @{ name = 'auto'; key = 'autoMerge'; value = @{ method = 'SQUASH'; enabledAt = [DateTimeOffset]::UtcNow.ToString('o') }; failure = 'Unsupported terminal' },
+            @{ name = 'native'; key = 'nativeIdentity'; value = 'native:other'; failure = 'identity/authority mismatch' },
+            @{ name = 'execution'; key = 'executionId'; value = 'unregistered'; failure = 'admitted execution' },
+            @{ name = 'policy'; key = 'publicationPolicy'; value = 'other'; failure = 'identity/authority mismatch' }
+        )
+        foreach ($case in $invalidEvidence) {
+            $copy = $evidence.receipt | ConvertTo-Json -Depth 20 | ConvertFrom-Json -AsHashtable -DateKind String
+            $copy[$case.key] = $case.value
+            $path = Join-Path (Split-Path -Parent $evidence.path) ($case.name + '.json')
+            Write-ProofJson $copy $path
+            Entry 'Consume' @{ receiptPath = $path } -Failure $case.failure | Out-Null
+            $unchanged = (Entry 'Read').state
+            Check ($unchanged.executions[0].phase -ceq 'accepted' -and $unchanged.owners[0].sourceRetained -and
+                $unchanged.events.Count -eq 0) "Rejected $policy evidence $($case.name) preserves execution and source ownership"
+        }
+        Write-ProofJson $evidence.receipt $evidence.path
+        $released = Entry 'Consume' @{ receiptPath = $evidence.path }
+        $duplicate = Entry 'Consume' @{ receiptPath = $evidence.path }
+        $evidenceState = (Entry 'Read').state
+        $evidenceOwner = $evidenceState.owners[0]
+        Check ($released.kind -ceq 'released' -and $released.action.sourceOwnership -ceq 'released' -and
+            $duplicate.kind -ceq 'duplicate' -and $duplicate.charged -eq 0 -and $evidenceState.events.Count -eq 1 -and
+            $evidenceOwner.delivery -ceq 'evidence-completed' -and !$evidenceOwner.sourceRetained -and
+            $null -eq $evidenceOwner.sourceRelease -and $null -eq $evidenceOwner.publication.prUrl -and
+            $null -eq $evidenceOwner.publication.autoMerge) "$policy evidence completion releases once with retained receipt provenance, not fabricated merge evidence"
+        $evidence.receipt.eventId = 'second-release'
+        $evidence.receipt.revision = 2
+        Write-ProofJson $evidence.receipt $evidence.path
+        Entry 'Consume' @{ receiptPath = $evidence.path } -Failure 'already released' | Out-Null
+        Entry 'Certify' @{ ownerId = 'assessment'; repair = $false; certification = $null } -Failure 'Cannot certify' | Out-Null
+        Register-Owner 'product' -Scope 'src/shared/consumer' -Operation shared-outcome
+        Certify-Owner 'product'
+        Check ((Entry 'Next').action.ownerId -ceq 'product') "$policy completed evidence leaves neither a path nor semantic product-source collision"
+    }
+
+    foreach ($kind in @('feature', 'repair', 'historical')) {
+        $null = New-Fixture "non-evidence-$kind"
+        Register-Owner 'product' -Kind $kind -Allocation uncertain
+        $execution = (Entry 'Read').state.executions[0]
+        Accept-Dispatch @{ action = @{ executionId = $execution.id } } 'product'
+        $product = New-Handoff 'product' $execution.id
+        $product.receipt.prUrl = $null
+        $product.receipt.autoMerge = $null
+        foreach ($terminalKind in @('completed', 'evidence-completed')) {
+            $product.receipt.kind = $terminalKind
+            Write-ProofJson $product.receipt $product.path
+            Entry 'Consume' @{ receiptPath = $product.path } -Failure 'Unsupported terminal' | Out-Null
+        }
+        $unchanged = (Entry 'Read').state
+        Check ($unchanged.executions[0].phase -ceq 'accepted' -and $unchanged.owners[0].sourceRetained -and
+            $unchanged.owners[0].delivery -ceq 'none') "$kind cannot use local or evidence completion to bypass ready-auto publication"
+    }
+
+    $script:fixture = $primary
+    $null = Entry 'Read'
+    $null = Entry 'Claim'
     Register-Owner 'assessor' -Kind evidence
     Entry 'Recover' @{ ownerId = 'assessor'; reason = 'Five-minute assessment exhausted with one partial candidate' } | Out-Null
     Register-Owner 'first'

@@ -175,7 +175,10 @@ initialization may use a null publisher when no repository publication is admitt
 Different authority scopes, live legacy import and policy changes remain
 unsupported; [quiescent adoption](#quiescent-legacy-adoption) does not broaden them.
 State is capped at 1 MiB and each index at 1,000 records; requests/receipts at
-32 KiB. Full indexes stop rather than prune live deduplication/ownership.
+32 KiB. Each source scope array contains 1 through 128 repository-relative paths;
+exact-file scopes avoid unnecessarily reserving broad directories. Existing path
+validation and case-insensitive ancestor/exact conflict checks still apply.
+Full indexes stop rather than prune live deduplication/ownership.
 
 ## Finite operations
 
@@ -198,7 +201,7 @@ The supported [operations](../Coordinator.Common.ps1) are:
 | `Next` | Empty request. Reserve one certified nonconflicting candidate, concrete repair first; successive calls fill available slots without waiting for feature/assessment batches. If none is safe, return exact-intent reconciliation (at most three), once-only scoped recovery (at most three), or a blocker with constraints/missing inputs. |
 | `Reconcile` | `executionId`, `outcome` (`accepted`, `uncertain`, `not-dispatched`), `evidence`, `dispatcherJoined` boolean, `nativeIdentity`, `branch`, `worktree`. Accepted binds actual launcher readback. Non-dispatch releases only with explicit original-dispatcher join/proved non-dispatch evidence, never missing-ID inference. It cannot undo accepted work. |
 | `Recover` | `ownerId`, `reason`. Record exhausted assessment/unknown-owner/changed-input evidence, invalidating that owner's ready certification only. `Next` emits one targeted action, not repeated fleet discovery. |
-| `Consume` | Absolute `receiptPath` in the registered owner's direct directory. Validate exact terminal evidence and release only its execution once, preserving source/PR ownership. |
+| `Consume` | Absolute `receiptPath` in the registered owner's direct directory. Validate exact terminal evidence and release only its execution once, preserving product source/PR ownership. Completed evidence owners also release their assessment collision scope, as below. |
 | `ReleaseSource` | `ownerId`, exact `mergeSha`, `freshMainSha`, `reachabilityEvidence` from the authorized verifier. Requires PR delivery and no unreleased execution; never automatic from merge/age/absence. This releases collision scope, not cleanup authority. |
 
 `recover-scoped` and `reconcile-dispatch` are bounded control-plane proposals,
@@ -278,6 +281,18 @@ PR/Auto. A genuine terminal blocker may use `blocked-quiescent` with null PR/Aut
 but still must prove stopped/joined work and preserve ownership. It is not a
 phase-release mechanism for incomplete publication.
 
+A registered `kind: evidence` owner may instead submit
+`kind: evidence-completed` under any persisted publication policy, with null
+`prUrl` and `autoMerge`. The same exact dataset, native identity, branch/worktree,
+execution, revision, policy and stopped/joined-command validation applies.
+Consumption records `delivery: evidence-completed`, retains the receipt's head/path
+and deduplication evidence, and releases both the execution and the assessment's
+collision scope. It does not fabricate merge/reachability provenance:
+`sourceRelease` remains null. The completed evidence owner cannot be recertified;
+register a new admitted assessment when needed. This route is not available to
+feature, repair or historical owners and does not change their publication or
+merge-backed source-release requirements.
+
 The [consumer](../Coordinator.Common.ps1) persists event digest/revision and exact
 publication evidence. Exact replay is a duplicate; reused IDs with changed
 content, older revisions, different owners/executions, unjoined commands and
@@ -296,7 +311,11 @@ Run the [maintained process check](../Test-Coordinator.ps1) in a new output path
 It invokes the actual entry point in independent PowerShell processes with local
 Git fixtures, including another native worktree, concurrent last-slot reservations,
 fenced takeover, redo/snapshot crash boundaries, independent partial candidates
-and hostile/malformed receipts. Per-process argv/exit/stdout/stderr and `tests.json`
+and hostile/malformed receipts. It also checks 25/128 exact-file scopes, scope
+limits/path rejection, and evidence-only completion under each policy, including
+unjoined commands, publication bypass attempts, once-only release and subsequent
+product dispatch without a retained assessment collision.
+Per-process argv/exit/stdout/stderr and `tests.json`
 are retained; no feature/host session, provider or GitHub operation is called.
 The [normal CI route](../../.github/workflows/ci.yml) runs it in portable validation
 and a Windows shard; it does not lower portable coverage or protected merge gates.

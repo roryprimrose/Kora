@@ -111,7 +111,7 @@ function Get-CoordinatorLocation {
 
 function Assert-CoordinatorScope {
     param($Scopes)
-    if ($Scopes -isnot [array] -or $Scopes.Count -lt 1 -or $Scopes.Count -gt 16) { throw 'Invalid source scopes.' }
+    if ($Scopes -isnot [array] -or $Scopes.Count -lt 1 -or $Scopes.Count -gt 128) { throw 'Invalid source scopes.' }
     foreach ($scope in $Scopes) {
         if ($scope -isnot [string] -or $scope -cnotmatch '^[a-zA-Z0-9_.-]+(/[a-zA-Z0-9_.-]+)*$' -or
             ($scope -split '/') -contains '..' -or ($scope -split '/') -contains '.') { throw 'Invalid source scope path.' }
@@ -160,7 +160,7 @@ function Assert-CoordinatorState {
         Assert-CoordinatorNumber $owner.receiptRevision
         if ($owner.id -cin $ownerIds -or $owner.kind -cnotin @('feature', 'repair', 'evidence', 'historical') -or
             $owner.sourceRetained -isnot [bool] -or $owner.candidate -cnotin @('none', 'ready', 'reserved') -or
-            $owner.delivery -cnotin @('none', 'pr-ci-wait', 'local-completed')) { throw 'Invalid owner state.' }
+            $owner.delivery -cnotin @('none', 'pr-ci-wait', 'local-completed', 'evidence-completed')) { throw 'Invalid owner state.' }
         foreach ($key in @('nativeIdentity', 'branch', 'worktree')) {
             if ($null -ne $owner[$key]) { Assert-CoordinatorText $owner[$key] }
         }
@@ -181,7 +181,13 @@ function Assert-CoordinatorState {
             if ($owner.publication.head -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid publication head.' }
             Assert-CoordinatorText $owner.publication.receiptPath
         }
-        if (!$owner.sourceRetained) {
+        if ($owner.delivery -ceq 'evidence-completed') {
+            if ($owner.kind -cne 'evidence' -or $owner.sourceRetained -or $null -ne $owner.sourceRelease -or
+                $owner.receiptRevision -eq 0 -or $null -eq $owner.publication -or
+                $null -ne $owner.publication.prUrl -or $null -ne $owner.publication.autoMerge) {
+                throw 'Invalid evidence completion provenance.'
+            }
+        } elseif (!$owner.sourceRetained) {
             Assert-CoordinatorFields $owner.sourceRelease @('mergeSha', 'freshMainSha', 'reachabilityEvidence')
             if ($owner.sourceRelease.mergeSha -cnotmatch '^[0-9a-f]{40}$' -or
                 $owner.sourceRelease.freshMainSha -cnotmatch '^[0-9a-f]{40}$') { throw 'Invalid source release provenance.' }
@@ -437,6 +443,9 @@ function Invoke-CoordinatorOperation {
             } elseif ($receipt.kind -ceq 'completed' -and $State.publicationPolicy -ceq 'local-only' -and
                 $null -eq $receipt.prUrl -and $null -eq $receipt.autoMerge) {
                 $owner.delivery = 'local-completed'
+            } elseif ($receipt.kind -ceq 'evidence-completed' -and $owner.kind -ceq 'evidence' -and
+                $null -eq $receipt.prUrl -and $null -eq $receipt.autoMerge) {
+                $owner.delivery = 'evidence-completed'
             } elseif ($receipt.kind -ceq 'blocked-quiescent' -and $null -eq $receipt.prUrl -and $null -eq $receipt.autoMerge) {
                 $owner.delivery = 'none'
             } else { throw 'Unsupported terminal handoff.' }
@@ -445,8 +454,10 @@ function Invoke-CoordinatorOperation {
             $owner.receiptRevision = $receipt.revision
             $owner.candidate = 'none'
             $owner.publication = @{ head = $receipt.head; prUrl = $receipt.prUrl; autoMerge = $receipt.autoMerge; receiptPath = $path }
+            if ($owner.delivery -ceq 'evidence-completed') { $owner.sourceRetained = $false }
             $State.events += @{ id = $receipt.eventId; digest = $digest }
-            return @{ kind = 'released'; executionId = $execution.id; sourceOwnership = 'retained' }
+            return @{ kind = 'released'; executionId = $execution.id
+                sourceOwnership = if ($owner.sourceRetained) { 'retained' } else { 'released' } }
         }
         'Next' {
             Assert-CoordinatorFields $Request @()

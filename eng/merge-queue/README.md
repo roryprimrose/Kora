@@ -206,6 +206,31 @@ names qualify. Missing, duplicate, skipped, neutral, failed or cancelled require
 jobs do not qualify. No downloaded artifact, PR text or rendered log grants
 merge authority. Coverage comments remain informational.
 
+Workflow completion is not terminal job evidence. A successful completed
+workflow with missing, nonterminal, null or unknown required-job metadata keeps
+its candidate checks pending and retains the lane. The controller lists the
+exact run attempt's jobs with complete, consistent pagination; every observed
+job must match that run, attempt and workflow source. Duplicate required jobs
+fail validation; repeated job IDs, changed correlation, API/authentication errors
+and incomplete pagination fail explicitly, without accepting partial evidence or
+falling back to step/workflow success.
+
+The first incomplete observation is persisted on the existing ticket. It gets
+the same ten-minute observation budget used for merge confirmation, without
+resetting on restart or reconciliation, changing workflow/job timeouts or
+redispatching CI. Existing hosted events and the five-minute schedule reobserve
+metadata; the controller does not poll, sleep or self-dispatch a pending lane.
+Only exact, current, terminal-success required jobs can admit the candidate
+before that deadline. A confirmed terminal failure quarantines the revision.
+At the deadline, incomplete evidence explicitly fails validation and enters
+retirement, not endless pending admission. Late success cannot revive that
+ticket. Missing/unknown/nonterminal jobs are not proof of physical quiescence:
+cancellation is requested and lane ownership is retained until all required
+jobs exist exactly once and all observed jobs are actually terminal. This also
+applies to stale, cancelled or already-merged candidates. Unknown resource state
+may therefore hold a retired lane for reviewed recovery; it never grants a
+second candidate or automatic success.
+
 The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
 checks the source run's latest-attempt jobs before downloading its report.
 A skipped portable job with successful queue-policy feedback identifies a
@@ -464,4 +489,6 @@ Workflow contract tests accept `KORA_QUEUE_WORKFLOW_TEST_PATH` to test a
 separately prepared combined workflow without changing the working copy.
 Octokit's `paginate` returns normalized arrays for workflow runs, jobs and
 check runs. Pagination callbacks and test doubles must use that array contract,
-not the named object envelopes returned by individual REST requests.
+not the named object envelopes returned by individual REST requests. Job-page
+callbacks also retain Octokit's normalized `total_count` metadata so partial
+or changing page sets cannot qualify as complete observations.

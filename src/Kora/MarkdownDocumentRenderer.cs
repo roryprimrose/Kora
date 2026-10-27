@@ -21,7 +21,15 @@ internal static class MarkdownDocumentRenderer
     public static IReadOnlyList<Control> Render(string markdown) =>
         CreateControls(Renderer.Render(markdown));
 
-    internal static IReadOnlyList<Control> CreateControls(NativeDocumentResult result, bool selectable = true)
+    internal const string FinalInteractionFallbackStatus =
+        "Final document interaction exceeds the native control bound; exact source fallback. No links or code actions are active.";
+
+    internal static bool RequiresFinalSourceFallback(NativeDocumentResult result) =>
+        result.Sections.Sum(section => 1L + section.ExternalLinks.Count * 2L + (section.Code is null ? 0 : 12))
+            > Core.Presentation.NativeDetailProfile.MaximumNodes;
+
+    internal static IReadOnlyList<Control> CreateControls(NativeDocumentResult result, bool selectable = true,
+        NativeFinalDocumentInteraction? finalInteraction = null)
     {
         if (result.IsFallback)
         {
@@ -29,6 +37,16 @@ internal static class MarkdownDocumentRenderer
             [
                 CreateText(result.Status, NativeTextStyle.Status, selectable),
                 CreateText(result.Source, NativeTextStyle.Code, selectable),
+            ];
+        }
+
+        if (finalInteraction is not null && RequiresFinalSourceFallback(result))
+        {
+            return
+            [
+                CreateText(FinalInteractionFallbackStatus,
+                    NativeTextStyle.Status, selectable: false),
+                CreateText(result.Source, NativeTextStyle.Code, selectable: false),
             ];
         }
 
@@ -41,8 +59,13 @@ internal static class MarkdownDocumentRenderer
         {
             var text = CreateText(section.Text, section.Style, selectable);
             NativeStrikethroughText.Attach(text, section);
-            return section.Code is { } code
-                ? (Control)new NativeCodeBlock(code, text, highlight) : text;
+            Control control = section.Code is { } code
+                ? new NativeCodeBlock(code, text, highlight, finalInteraction is null ? null : () => finalInteraction.CanReadCode) : text;
+            if (finalInteraction is null || section.ExternalLinks.Count == 0) { return control; }
+            var linked = new StackPanel();
+            linked.Children.Add(control);
+            foreach (var link in section.ExternalLinks) { linked.Children.Add(finalInteraction.CreateLink(link)); }
+            return linked;
         }).ToArray();
     }
 

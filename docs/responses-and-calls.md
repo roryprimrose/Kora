@@ -67,6 +67,22 @@ The [integrated pane](windows-and-tray.md#details-beside-the-conversation)
 keeps the composer visible while reading either source. Provider/runtime readiness
 remains independent: these presentation controls do not enable a model.
 
+### Review a final-answer external link
+
+An available final-answer Markdown profile can show **Review external link**
+beside a parsed destination. Pointer activation or Enter/Space requests a
+separate native review of the original selected source token and exact HTTPS
+destination. It does not retrieve or open anything. Only **Open this exact
+destination once** in that review requests the registered external browser.
+Cancel leaves the source unchanged.
+
+Generated links remain untrusted, not retrieved-page provenance. Existing
+destination, network-mode, privacy and browser-permission checks still apply;
+offline/local-only mode never changes automatically. Source replacement,
+retirement or withdrawal invalidates the review. No automatic fetch, model
+call, new grant or clipboard permission is introduced. Unavailable renderer
+profiles retain their labelled source fallback without active links.
+
 ## Exact current-response window actions
 
 `dismiss current response` and `open current response details` use the same native

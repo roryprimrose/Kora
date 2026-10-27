@@ -27,7 +27,7 @@ internal sealed partial class NativeDetailRenderer(
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.Build();
+    }.UsePreciseSourceLocation().Build();
     private static readonly MarkdownPipeline TablePipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
@@ -35,11 +35,11 @@ internal sealed partial class NativeDetailRenderer(
     {
         RequireHeaderSeparator = true,
         UseHeaderForColumnCount = false,
-    }).Build();
+    }).UsePreciseSourceLocation().Build();
     private static readonly MarkdownPipeline ChecklistPipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.UseTaskLists().Build();
+    }.UseTaskLists().UsePreciseSourceLocation().Build();
     private static readonly HashSet<Type> SupportedTypes =
     [
         typeof(MarkdownDocument), typeof(HeadingBlock), typeof(ParagraphBlock), typeof(ListBlock),
@@ -368,11 +368,12 @@ internal sealed partial class NativeDetailRenderer(
                 continue;
             }
             var strikeProjection = strikethrough ? new InlineStrikethroughProjection(entry.Prefix.Length) : null;
+            var externalLinks = new List<NativeExternalDocumentLink>();
             var text = block switch
             {
                 CodeBlock code => code.Lines.ToString(),
                 ThematicBreakBlock => "—",
-                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection),
+                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection, externalLinks),
                 _ => throw new InvalidOperationException("The validated native block is unsupported."),
             };
             var style = block switch
@@ -405,12 +406,14 @@ internal sealed partial class NativeDetailRenderer(
             {
                 Code = codeSource,
                 Strikethrough = strikeProjection?.Spans ?? [],
+                ExternalLinks = externalLinks,
             });
         }
         return sections;
     }
 
-    private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null)
+    private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null,
+        List<NativeExternalDocumentLink>? externalLinks = null)
     {
         if (root is null) { return string.Empty; }
         var text = new BoundedNativeText();
@@ -421,6 +424,7 @@ internal sealed partial class NativeDetailRenderer(
             if (entry.Exit && strikethrough?.Exit(entry.Node, text) == true) { continue; }
             if (entry.Exit && entry.Node is LinkInline link)
             {
+                CaptureExternalLink(link, link.Url, externalLinks);
                 text.Append(" (destination: ");
                 text.Append(link.Url);
                 text.Append(")");
@@ -433,6 +437,7 @@ internal sealed partial class NativeDetailRenderer(
                 case TaskList task: text.Append(task.Checked ? "Checked:" : "Unchecked:"); break;
                 case LineBreakInline: text.Append(Environment.NewLine); break;
                 case AutolinkInline autolink:
+                    CaptureExternalLink(autolink, autolink.Url, externalLinks);
                     text.Append(autolink.Url);
                     text.Append(" (inert destination)");
                     break;
@@ -448,5 +453,12 @@ internal sealed partial class NativeDetailRenderer(
             }
         }
         return text.ToString();
+    }
+
+    private static void CaptureExternalLink(Inline node, string? destination, List<NativeExternalDocumentLink>? links)
+    {
+        if (links is null || destination is null || destination.StartsWith('#')
+            || node.Span.Start < 0 || node.Span.End < node.Span.Start) { return; }
+        links.Add(new(destination, node.Span.Start, node.Span.End - node.Span.Start + 1));
     }
 }

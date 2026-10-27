@@ -1303,6 +1303,40 @@ Accessibility announcements must not duplicate TTS or announce rapidly changing 
 
 ## Browser Content
 
+### Source-bound final-document interaction
+
+The host may expose local code reading and a distinct external-navigation review
+for an exact final Markdown source. The [source producer](../src/Kora.Application/Presentation/DetailViewerState.cs)
+binds original session/request/task, immutable reference/revision, source and
+render generations, render token and current private read admission. This is
+local visual-read capability, not retained-content execution authority.
+Unavailable render profiles remain unavailable.
+
+The existing parser retains exact external-link token spans and destinations;
+there is no rendered-text inference, second parser or automatic retrieval.
+A fresh original native pointer/keyboard action creates a one-use
+[navigation request](../src/Kora.Application/Presentation/FinalDocumentNavigationRequest.cs).
+The [canonical browser workflow](../src/Kora.Application/Network/ExternalBrowser/ExternalBrowserWorkflow.cs)
+accepts it through a distinct typed overload, reusing destination/network
+admission, separate confirmation, trusted audit and the registered-browser
+launcher. Generated addresses remain untrusted and are never relabelled as
+`RetrievedWebResult` or `WebResultSnapshot`. Existing web-source validation is
+unchanged. Retired, expired, replayed or privately withdrawn reviews cannot
+launch; uncertain native outcomes never become success.
+Retained final sources are freshly resolved before review and again before the
+launcher boundary. Native lifetime cancellation does not declare a still-running
+source validator joined; its pending task remains owned through actual return,
+and late validation cannot reveal or open retired content.
+
+[CODE-only native controls](../src/Kora/CodeHighlighting/NativeCodeBlock.cs)
+provide read-only keyboard focus/local selection and wrapping or horizontal
+scrolling without rebuilding text on resize. Highlighting, exact-source Find
+and the native bounds remain independent. Final no-copy policy is unchanged:
+selection does not authorize clipboard transfer, and keyboard, context and
+programmatic TextBox clipboard routes are blocked. Retirement clears private
+text, selection and pending color projections; no editing, disk autosave,
+scripts, network or new grant is introduced.
+
 ### Internet Pages
 
 Support a dedicated embedded viewer as the target UX, with an external-browser choice.

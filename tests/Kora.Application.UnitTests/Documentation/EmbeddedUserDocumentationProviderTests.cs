@@ -13,6 +13,18 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void FinalDocumentGuideSeparatesLocalReadingFromClipboardAndExternalNavigationConfirmation()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        pages.Single(page => string.Equals(page.Id, "code-highlighting", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Select literal code").And.Contain("programmatic copy remain blocked")
+            .And.Contain("Unavailable Markdown profiles");
+        pages.Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Review external link").And.Contain("Open this exact")
+            .And.Contain("Generated links remain untrusted").And.Contain("offline/local-only");
+    }
+
+    [Fact]
     public void TwoSourceSkillExampleUsesOnlyAdmittedDeclarativePageToolAndExactCommands()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

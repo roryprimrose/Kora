@@ -1,6 +1,7 @@
 using Avalonia.Threading;
 
 using Kora.Application.Diagnostics;
+using Kora.Application.Diagnostics.EvidenceAnswers;
 using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
 using Kora.Core.Diagnostics;
@@ -12,7 +13,8 @@ namespace Kora;
 
 internal sealed class EvidenceWindowController(
     MainViewModel main, DurableEvidenceQuery query, IEvidenceQueryAccess access,
-    ILogger<EvidenceViewModel> logger, ISessionWorkspaceAccess workspaceAccess) : IDisposable
+    ILogger<EvidenceViewModel> logger, ISessionWorkspaceAccess workspaceAccess,
+    EvidenceAnswerWorkflow? answers = null, TimeProvider? time = null) : IDisposable
 {
     private EvidenceWindow? window;
     private bool disposed;
@@ -39,6 +41,11 @@ internal sealed class EvidenceWindowController(
         {
             EvidenceWindow opened;
             var model = new EvidenceViewModel(query, () => !disposed && access.CanInspect, logger);
+            if (answers is not null)
+            {
+                model.BindEvidenceAnswers(answers, main.CaptureEvidenceAnswerAdmission,
+                    () => workspaceAccess.ControlRevision, time ?? TimeProvider.System);
+            }
             try { opened = new(model, main); }
             catch (InvalidOperationException)
             {

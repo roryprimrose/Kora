@@ -76,7 +76,12 @@ internal sealed partial class SessionsViewModel
                 || observation.Target.Request.SessionId != selected?.Authority.SessionId
                 || observation.Target.Generation != selected.Authority.Generation) { return; }
             if (observation.Phase is ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running
-                && conversation?.IsExecutionProgressCurrent(observation) != true) { return; }
+                && conversation?.IsExecutionProgressCurrent(observation) != true)
+            {
+                // Retirement also uses this notification to invalidate already-bound provisional output.
+                NotifyConversationCancellation();
+                return;
+            }
             if (runningConversation is { } current && current.Target.LeaseId == observation.Target.LeaseId
                 && current.Target.Request == observation.Target.Request
                 && current.Phase > observation.Phase) { return; }

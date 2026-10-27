@@ -3,6 +3,7 @@ using System.ComponentModel;
 
 using Avalonia.Controls;
 using Avalonia.Interactivity;
+using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
@@ -22,6 +23,64 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Fact]
+    public async Task DeferredRetirementNotificationClearsBoundAnswerWithoutRevivingProgress()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new ProvisionalConversationAdapter { ProbeRevocation = true };
+            await using var composed = new Composition(f, adapter: adapter);
+            var dispatcher = new ReorderedAgentDispatcher();
+            var model = CreateDeferredPresentation(f, composed, dispatcher);
+            var window = new SessionsWindow(model);
+            window.Show();
+            Task operation = Task.CompletedTask;
+            try
+            {
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                model.ComposerBody = "original local no-tools question";
+                operation = model.SubmitLocalAnswerAsync();
+                var provenance = await adapter.Started.Task.WaitAsync(f.Token);
+                dispatcher.DrainNewestFirst();
+                model.RunningConversationStatus.Should().Contain("Running");
+                var displayed = window.GetVisualDescendants().OfType<TextBlock>()
+                    .Single(value => string.Equals(value.Text, "provisional answer", StringComparison.Ordinal));
+                composed.Access.CanControl = false;
+                adapter.Probe.SetResult();
+                await adapter.Rejected.Task.WaitAsync(f.Token);
+                dispatcher.Count.Should().BeGreaterThan(0);
+                dispatcher.DrainNewestFirst();
+                displayed.Text.Should().BeEmpty("retired progress must still invalidate already-bound provisional output");
+                model.RunningConversationStatus.Should().NotContain("Running admitted");
+                model.CanCancelRunningConversation.Should().BeFalse();
+                composed.Access.CanControl = true;
+                model.ProvisionalAnswer.Should().BeEmpty("restored control cannot revive retired output");
+                operation.IsCompleted.Should().BeFalse();
+                composed.Turns.IsQuiescent.Should().BeFalse();
+                adapter.Release.SetResult();
+                await operation;
+                await composed.Turns.WaitForQuiescenceAsync(f.Token);
+                (await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId,
+                    provenance.Request.RequestId, f.Token)).AssistantResponse.Should().BeNull();
+                composed.Audit.Events.Should().NotContain(item => item.ActionId == "conversation.cancel-request");
+                f.Count("conversation_messages").Should().Be(1);
+                f.Count("conversation_drafts").Should().Be(0);
+            }
+            finally
+            {
+                adapter.Probe.TrySetResult();
+                adapter.Release.TrySetResult();
+                await operation;
+                window.ClosePrivate();
+                dispatcher.DrainNewestFirst();
+            }
+        });
+    }
+
     [Theory]
     [InlineData("success")]
     [InlineData("cancel")]

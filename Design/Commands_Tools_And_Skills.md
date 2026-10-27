@@ -217,6 +217,20 @@ or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
 
+An exchange disconnect, disposed transport, or transport-owned cancellation
+retires that invocation's connection without reconnecting, retrying or falling
+back. A failed tool exchange completes the original conversation as
+`Unknown` / `ToolResultRejected`, with no assistant answer or tool-result
+publication; the exchange audit remains `Unknown`, not a claim that the remote
+read never occurred. Inspect the original request and explicitly start a newly
+reviewed request to recover. Failure-only completion still requires current
+session, configuration-source and approval authority; storage, audit or host
+authority failures remain explicitly unconfirmed. Caller cancellation retains
+its existing cancellation policy. The existing 30-second per-exchange deadline
+also covers serial waiters. Lifetime/account withdrawal cancels waiting
+exchanges before any new send, and disposal retains the handler and credential
+lease until cancellation-ignoring work actually terminates.
+
 Implementation is exercised with deterministic delegated-account, transport and
 model fakes, not live servers. The shipped broker remains explicitly
 **unavailable**, with no qualified accounts or effect mappings installed. This

@@ -25,6 +25,12 @@ public interface ISessionConversationStore
         ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token);
     ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
         HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token);
+    ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        Func<bool> admitted, CancellationToken token) =>
+        predecessors.Count == 0
+            ? RetainConversationMessageAsync(request, generation, expectedMetadataRevision, body, admitted, token)
+            : throw new InvalidOperationException("The conversation store does not support pending original requests.");
     ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
         ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token);
     ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,

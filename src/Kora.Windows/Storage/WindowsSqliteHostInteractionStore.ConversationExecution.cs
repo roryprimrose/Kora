@@ -38,7 +38,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                     || time.GetUtcNow() < handoff.CreatedAt || time.GetUtcNow() >= handoff.ExpiresAt)
                 || metadataRevision < 0 || (ReadMetadata(connection, request.SessionId)?.Revision.Value ?? 0) != metadataRevision
                 || session.Authority.Generation != previous.Generation || intent.State != HostTaskState.IntentRecorded
-                || intent.Revision.Value != 1 || ReadRun(connection, request.TaskId) != runId)
+                || intent.Revision.Value != 1 || ReadRun(connection, request.TaskId) != runId
+                || !ConversationPeersCurrent(connection, previous, dispatch: true))
             { throw new InvalidOperationException("Only the exact retained original current-run request may begin an admitted conversation turn."); }
             provenance.Turn.Validate();
             var message = previous with { Version = 2, Revision = 2, Execution = provenance, ExecutionMetadataRevision = metadataRevision };

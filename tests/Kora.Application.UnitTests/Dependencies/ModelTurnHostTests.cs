@@ -623,12 +623,16 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             if (BeforeTaskRead is { } before) { await before().ConfigureAwait(false); }
             if (handoffSources.TryGetValue(task, out var source)) { return source; }
-            return Task;
+            return TrackPendingRecords
+                ? PendingRecords.Values.Where(item => item.Task.Request.TaskId == task)
+                    .Select(item => new HostTaskObservation(item.Task, item.Message.Generation, "host", true, null)).SingleOrDefault()
+                : Task;
         }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
-            HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request);
+            if (TrackPendingRecords) { PendingRecords.Values.Select(item => item.Message.Request).Should().Contain(HostActivity.RequireCurrent().Request); }
+            else { HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request); }
             Audits.Add(auditEvent);
             OnAudit?.Invoke(auditEvent);
         }
@@ -701,6 +705,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal byte[]? Wire { get; private set; }
         internal ModelTurnProvenance? Provenance { get; private set; }
         internal Kora.Core.Providers.ProviderProfileTuple? Profile { get; private set; }
+        internal CancellationToken RunToken { get; private set; }
         internal Action? OnRun { get; set; }
         internal Task<ModelProviderReply>? Pending { get; set; }
         internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, Task>? OnTool { get; set; }
@@ -712,6 +717,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             Wire = context.ToArray();
             Provenance = provenance;
             Profile = profile;
+            RunToken = token;
             OnRun?.Invoke();
             if (OnTool is { } tool) { await tool(invokeTool); }
             return Pending is { } pending ? await pending : Reply;

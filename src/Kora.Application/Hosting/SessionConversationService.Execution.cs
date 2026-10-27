@@ -14,7 +14,8 @@ public sealed partial class SessionConversationService
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
         Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null,
-        Action? terminalCommitted = null, LocalUnavailableContinuation? localHandoff = null)
+        Action? terminalCommitted = null, bool joinCancelledResources = false,
+        LocalUnavailableContinuation? localHandoff = null)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -115,7 +116,7 @@ public sealed partial class SessionConversationService
                 result = new(ModelTurnOutcome.Cancelled, ModelTurnReason.CallerCancelled, turn.Provenance);
             }
             // Logical timeout/cancellation is not physical completion. Caller shutdown retains its existing Unknown/recovery path.
-            if (!token.IsCancellationRequested)
+            if (!token.IsCancellationRequested || joinCancelledResources)
             {
                 if (runtime is not null) { await runtime.JoinConversationResourcesAsync(turn, CancellationToken.None).ConfigureAwait(false); }
                 else { await executor.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
@@ -174,7 +175,7 @@ public sealed partial class SessionConversationService
             try
             {
                 if (runtime is not null && turn.ResourceLease is not null
-                    && (!turn.ResourceDispatched || !token.IsCancellationRequested || running.CancellationAccepted))
+                    && (!turn.ResourceDispatched || !token.IsCancellationRequested || running.CancellationAccepted || joinCancelledResources))
                 {
                     await running.WaitForPhysicalResourcesAsync(
                         () => runtime.JoinConversationResourcesAsync(turn, CancellationToken.None)).ConfigureAwait(false);

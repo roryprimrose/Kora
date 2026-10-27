@@ -35,6 +35,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Categorized definition editing and disabling | [Customizations](customizations.md) |
 | Single-file owned instruction editing | [Instruction editor](instruction-editor.md) |
 | Sessions, windows and tray recovery | [Windows and tray](windows-and-tray.md) |
+| Accessible presence states and speech playback | [Presence accessibility](presence-accessibility.md) |
 | Explicit memory for later local conversations | [Device-profile memory](profile-memory.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
 | Review one diagnostic page and ask locally | [Evidence answers](evidence-answers.md) |

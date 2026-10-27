@@ -10,7 +10,7 @@ public sealed class DetailViewerRegistry
     private readonly Dictionary<DetailContentReference, DetailViewerState> viewers = [];
 
     public DetailViewerState Open(AdmittedDetailContent content, bool canAccess, Func<bool>? readAdmission = null,
-        Func<bool>? findAdmission = null)
+        Func<bool>? findAdmission = null, Func<CancellationToken, Task<bool>>? validateSource = null)
     {
         using var presentation = ActivitySource.StartActivity("presentation.open");
         presentation?.SetStatus(ActivityStatusCode.Error);
@@ -35,7 +35,7 @@ public sealed class DetailViewerRegistry
         {
             throw new InvalidOperationException("Eight detail viewers are already open. Close a viewer before opening another item.");
         }
-        var viewer = new DetailViewerState(content, readAdmission, findAdmission);
+        var viewer = new DetailViewerState(content, readAdmission, findAdmission, validateSource);
         viewers.Add(content.Reference, viewer);
         presentation?.SetStatus(ActivityStatusCode.Ok);
         return viewer;

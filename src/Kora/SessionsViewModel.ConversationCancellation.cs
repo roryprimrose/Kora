@@ -23,13 +23,18 @@ internal sealed partial class SessionsViewModel
         ? answer.Update.Answer : string.Empty;
     public bool HasProvisionalAnswer => ProvisionalAnswer.Length != 0;
 
-    public string RunningConversationStatus => !closed && access.CanInspect ? runningConversationStatus : "Private running-work presentation cleared.";
+    public string RunningConversationStatus => closed || !access.CanInspect ? "Private running-work presentation cleared."
+        : runningConversation is { Phase: ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running } observed
+            && conversation?.IsExecutionProgressCurrent(observed) != true
+            ? "The observed execution step is no longer current. Refresh this exact conversation; owned work may still be running."
+            : runningConversationStatus;
     public bool CanRefreshRunningConversation => !closed && access.CanInspect && selected is { Authority.IsActive: true }
         && conversation is not null && !cancellingConversation;
     public bool CanCancelRunningConversation => CanRefreshRunningConversation && access.CanControl
         && runningConversation is { Phase: ConversationExecutionPhase.Running or ConversationExecutionPhase.Waiting } current
         && current.Target.Request.SessionId == selected?.Authority.SessionId
-        && current.Target.Generation == selected.Authority.Generation;
+        && current.Target.Generation == selected.Authority.Generation
+        && conversation!.IsExecutionProgressCurrent(current);
 
     private void ObserveConversationCancellation()
     {
@@ -70,14 +75,27 @@ internal sealed partial class SessionsViewModel
                 || selectionEpoch != epoch || selected != target
                 || observation.Target.Request.SessionId != selected?.Authority.SessionId
                 || observation.Target.Generation != selected.Authority.Generation) { return; }
-            if (runningConversation is { } current && current.Target == observation.Target
+            if (observation.Phase is ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running
+                && conversation?.IsExecutionProgressCurrent(observation) != true)
+            {
+                // Retirement also uses this notification to invalidate already-bound provisional output.
+                NotifyConversationCancellation();
+                return;
+            }
+            if (runningConversation is { } current && current.Target.LeaseId == observation.Target.LeaseId
+                && current.Target.Request == observation.Target.Request
                 && current.Phase > observation.Phase) { return; }
             runningConversation = observation;
             if (observation.Phase != ConversationExecutionPhase.Running) { provisionalAnswer = null; }
             runningConversationStatus = "Task " + observation.Target.Request.TaskId.Value.ToString("D") + ": " + (observation.Phase switch
             {
                 ConversationExecutionPhase.Waiting => "Waiting for admitted runtime resources. Cancel applies only to this displayed request.",
-                ConversationExecutionPhase.Running => "Running admitted conversation request. Cancel applies only to this displayed task.",
+                ConversationExecutionPhase.Running => observation.Progress is { } progress
+                    ? (progress.Step == ConversationExecutionStep.ReadingObservation
+                        ? "Running admitted observation " + progress.ObservationCount.ToString(System.Globalization.CultureInfo.InvariantCulture) + ". "
+                        : "Running admitted model answer generation. ")
+                        + "Host execution status only, not agent reasoning. Cancel applies only to this displayed task."
+                    : "Running admitted conversation request. Cancel applies only to this displayed task.",
                 ConversationExecutionPhase.Cancelling => "Cancelling requested; waiting for owned resources to terminate. No completed cancellation or rollback is claimed.",
                 ConversationExecutionPhase.Completing => "Terminal storage owns the outcome. Cancellation cannot roll back a committed answer.",
                 ConversationExecutionPhase.Terminal => "Terminal " + observation.Outcome + "; durable task " + observation.TaskState

@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -39,6 +41,15 @@ public sealed partial class SessionsConversationTests
             var adapter = new ProvisionalConversationAdapter { ProbeRevocation = terminal is "revocation" };
             await using var composed = new Composition(f, adapter: adapter);
             var model = composed.Model;
+            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void ObserveTerminal(object? sender, PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(model.RunningConversationStatus), StringComparison.Ordinal)
+                    && (model.RunningConversationStatus.Contains("Terminal Succeeded", StringComparison.Ordinal)
+                        || model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal)))
+                { terminalPresented.TrySetResult(); }
+            }
+            model.PropertyChanged += ObserveTerminal;
             var owner = new SessionsPresentationOwner(model);
             var view = surface is "primary" ? new SessionInteractionView { DataContext = model } : null;
             Window window = surface switch
@@ -120,15 +131,25 @@ public sealed partial class SessionsConversationTests
                 }
                 adapter.Release.TrySetResult();
                 await operation;
+                if (terminal is "complete" or "cancel") { await terminalPresented.Task.WaitAsync(f.Token); }
                 stored = await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId, provenance.Request.RequestId, f.Token);
                 model.ProvisionalAnswer.Should().BeEmpty();
                 if (terminal is "complete")
                 {
                     stored.AssistantResponse!.Body.Should().Be("provisional answer completed");
+                    stored.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
                     model.ConversationMessages.Single().Should().Be(stored);
-                    model.RunningConversationStatus.Should().Contain("Terminal Succeeded");
+                    model.RunningConversationStatus.Should().Contain("Terminal Succeeded")
+                        .And.Contain(provenance.Request.TaskId.Value.ToString("D")).And.Contain("resources joined");
                 }
                 else { stored.AssistantResponse.Should().BeNull(); }
+                if (terminal is "cancel")
+                {
+                    stored.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                    model.RunningConversationStatus.Should().Contain("Terminal Cancelled")
+                        .And.Contain(provenance.Request.TaskId.Value.ToString("D")).And.Contain("resources joined");
+                }
+                composed.Turns.IsQuiescent.Should().BeTrue();
                 f.Count("conversation_drafts").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
@@ -141,6 +162,7 @@ public sealed partial class SessionsConversationTests
                 adapter.Probe.TrySetResult();
                 adapter.Release.TrySetResult();
                 await operation;
+                model.PropertyChanged -= ObserveTerminal;
                 owner.Revoke();
                 window.Close();
             }

@@ -97,6 +97,17 @@ public sealed partial class SessionsConversationTests
                     }
                     finally { questionWindow?.Close(); }
                 });
+            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            string? exactTaskId = null;
+            void ObserveTerminal(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(model.RunningConversationStatus), StringComparison.Ordinal)
+                    && exactTaskId is not null
+                    && model.RunningConversationStatus.Contains(exactTaskId, StringComparison.Ordinal)
+                    && model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal))
+                { terminalPresented.TrySetResult(); }
+            }
+            model.PropertyChanged += ObserveTerminal;
             try
             {
                 await model.RefreshAsync();
@@ -107,6 +118,7 @@ public sealed partial class SessionsConversationTests
                     .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
                 var operation = workspace?.ConversationOperation ?? compactWindow!.ConversationOperation;
                 var state = await displayed.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                exactTaskId = state.Question.Key.Request.TaskId.Value.ToString("D");
                 await model.RefreshRunningConversationAsync();
                 model.CanCancelRunningConversation.Should().BeTrue();
                 var cancel = owner.FindControl<Button>("CancelRunningConversation")!;
@@ -118,6 +130,7 @@ public sealed partial class SessionsConversationTests
                     text.Contains("Cancelling requested", StringComparison.Ordinal)
                     || text.Contains("Terminal Cancelled", StringComparison.Ordinal));
                 await operation;
+                await terminalPresented.Task.WaitAsync(f.Token);
                 state.IsEditable.Should().BeFalse();
                 state.Edit(new(["option-0"]));
                 await state.SubmitAsync();
@@ -136,7 +149,7 @@ public sealed partial class SessionsConversationTests
                     .Should().Be(retained);
                 (await f.Store.ReadQuestionsAsync(retained.Request.SessionId, f.Token)).Single().Status.Should().NotBe(QuestionStatus.Answered);
             }
-            finally { questionWindow?.Close(); presentation.Revoke(); }
+            finally { model.PropertyChanged -= ObserveTerminal; questionWindow?.Close(); presentation.Revoke(); }
         });
     }
 

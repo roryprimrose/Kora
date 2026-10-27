@@ -7,6 +7,22 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class AssistantSearchDocumentationTests
 {
     [Fact]
+    public void EmbeddedContentSearchGuideCompletesExactMessageOpeningWithoutExecutionOrRetentionAuthority()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown
+            .Replace("\r\n", "\n", StringComparison.Ordinal);
+        guide.Should().Contain("### Find a message across conversations")
+            .And.Contain("**Search conversation content**")
+            .And.Contain("**Open exact selected message**")
+            .And.Contain("scrolls/focuses")
+            .And.Contain("never substitutes the current last message")
+            .And.Contain("an empty\npage can still have Next")
+            .And.Contain("No retention clock or stored history changes")
+            .And.Contain("not saved,\nlogged, added to model context or sent to a provider/network");
+    }
+
+    [Fact]
     public void EmbeddedAssistantSearchDocumentsExplicitRoleCompleteInspectionAndNoImplicitAuthority()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

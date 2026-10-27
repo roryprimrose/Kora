@@ -29,6 +29,7 @@ public sealed partial class DetailContentView : UserControl
     private readonly ScrollViewer renderedViewport;
     private bool cleared;
     private readonly NamedTextBlock findSpan;
+    private readonly NativeDocumentInteraction? documentInteraction;
 
     // XAML tooling requires a public default constructor. It cannot admit or open content.
     public DetailContentView() => throw new InvalidOperationException("Use the explicit host-owned native detail route.");
@@ -49,9 +50,19 @@ public sealed partial class DetailContentView : UserControl
         renderedDocument = Required<StackPanel>("RenderedDocument");
         renderedViewport = Required<ScrollViewer>("RenderedViewport");
         var content = state.Content ?? throw new InvalidOperationException("The detail revision is closed.");
+        var generation = state.Generation;
+        if (content.Kind == DetailContentKind.Markdown && !result.IsFallback)
+        {
+            documentInteraction = new(
+                () => !cleared && TopLevel.GetTopLevel(this) is not null && IsEffectivelyVisible
+                    && state.Generation == generation && ReferenceEquals(state.Content, content)
+                    && state.RenderState == DetailRenderState.Rendered
+                    && !state.IsSource && readingText.IsChecked != true,
+                state.ReportStatus);
+        }
         var renderedControls = content.Kind == DetailContentKind.StaticHtml
             ? StaticHtmlDocumentRenderer.CreateControls(result)
-            : MarkdownDocumentRenderer.CreateControls(result, selectable: false);
+            : MarkdownDocumentRenderer.CreateControls(result, selectable: false, documentInteraction);
         foreach (var control in renderedControls)
         {
             var text = control is NativeCodeBlock code ? code.Reader : control as TextBlock;
@@ -59,6 +70,11 @@ public sealed partial class DetailContentView : UserControl
                 && (!result.IsFallback || !ReferenceEquals(control, renderedControls[0])))
             {
                 NativeReaderTypography.Bind(text, typographyHost);
+            }
+            if (typographyHost is not null && control is NativeTableControl table)
+            {
+                foreach (var cell in table.Readers)
+                { NativeReaderTypography.Bind(cell, typographyHost); }
             }
             renderedDocument.Children.Add(control);
         }
@@ -119,6 +135,7 @@ public sealed partial class DetailContentView : UserControl
         search.AddHandler(ContextRequestedEvent, BlockContextMenu, RoutingStrategies.Tunnel);
         AttachMermaid(content, mermaidRenderer);
         state.PropertyChanged += OnStateChanged;
+        DetachedFromVisualTree += (_, _) => documentInteraction?.Retire();
         Refresh();
     }
 
@@ -294,6 +311,7 @@ public sealed partial class DetailContentView : UserControl
     {
         if (cleared) { return; }
         cleared = true;
+        documentInteraction?.Retire();
         RetireMermaid();
         state.PropertyChanged -= OnStateChanged;
         state.Close();

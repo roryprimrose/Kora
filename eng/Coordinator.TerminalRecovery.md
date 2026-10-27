@@ -1,11 +1,18 @@
-# Opt-in assessment terminal compatibility
+# Opt-in terminal transport compatibility
 
 [Invoke-Coordinator.ps1](Invoke-Coordinator.ps1) remains strict by default. Its
 `Consume -RecoverEvidenceTerminalMetadata` entry adapter recognizes only the
 schema-1 `evidence-completed` assessment profile: all eighteen terminal fields
 plus **exactly** `epoch`, `dispatchRevision`, `sourceHead`, `workspaceHead`,
 `assessmentPath`, `assessmentSha256`, `pointerPath`, and `completedUtc`.
-No arbitrary legacy/bootstrap normalization or publication correction is supported.
+That profile is unchanged. No arbitrary legacy/bootstrap normalization or
+publication correction is supported by it.
+
+Two separate closed published-terminal profiles are available only with
+`Consume -PublishedTerminalWireProfile UtcTimestampV1` or
+`Consume -PublishedTerminalWireProfile HostedDeliveryV1`. They cannot be combined
+with `-RecoverEvidenceTerminalMetadata`. Neither changes strict default parsing,
+the existing core publication correction, or core consumption.
 
 This repairs evidence scheduling, not product scope or native execution.
 The [core consumer](Coordinator.Common.ps1) is unchanged and remains the only
@@ -28,6 +35,92 @@ Do not invoke this on a live dataset as a test. Do not consume the generated
 projection directly: retries use the original path and the same opt-in, with a
 fresh fence obtained through `Read`. A blocked result is not a release.
 No command text belongs in an owner's strict terminal receipt.
+
+## Published-terminal wire requests
+
+The timestamp-only profile accepts exactly the eighteen strict terminal fields,
+`kind: pr-enrolled-ci-wait`, `workState: stopped`, ready-auto authority and
+`autoMerge: { method: SQUASH, enabledAt: <explicit-UTC-Z> }`.
+The hosted-delivery profile accepts exactly the same fields, but requires
+`workState: ci-wait` and the GraphQL alias `mergeMethod` instead of `method`.
+It does not accept a mixture of keys, other methods, unknown states or missing
+quiescence facts. In **both** profiles, the original must explicitly affirm a
+Boolean `finiteCommandsJoined: true`, array `runningCommands: []`, and
+`heldDecision: null`.
+
+The request for `UtcTimestampV1` has exactly these fields (SHA256 pins are raw
+file-byte hashes, not canonical JSON digests):
+
+```json
+{
+  "receiptPath": "<absolute original registered-owner JSON path>",
+  "receiptSha256": "<64 hex digits>",
+  "readbackPath": "<absolute archived gh-pr-view JSON path in the same owner directory>",
+  "readbackSha256": "<64 hex digits>",
+  "publisher": "<dataset pinned publisher>"
+}
+```
+
+`HostedDeliveryV1` additionally requires `publicationProofPath` and
+`publicationProofSha256`. This supplemental **original** publication proof uses
+the closed `proof-publication` shape: version, timestamp, publisher, repository,
+ownerId, executionId, nativeIdentity, branch, worktree, testedHead,
+currentRemoteHead, prUrl, state, mergeStateStatus, reviewDecision, autoMerge,
+enrollmentCommand, enrollmentResult, currentRequiredAppChecks, checkMeaning,
+implementationProof, prReadback, checkReadback, finiteCommandsJoined,
+runningCommands and heldDecision. Identity/source values must match the original;
+`autoMerge` has exactly `mergeMethod` and `enabledAt`. Its exact protected
+`gh pr merge <number> --repo github.com/roryprimrose/Kora --auto --squash
+--match-head-commit <original-head>` command must have `enrollmentResult:
+passed and read back`, with an explicit same-source joined/no-running/no-held
+affirmation. The readback basename must match `prReadback`. Other proof
+shapes, including narrative summaries, are unavailable rather than guessed.
+
+The raw archived CLI readback must contain URL/number, main base, original
+branch/head, OPEN/non-draft state, publisher author and SQUASH Auto enabled by
+that same publisher, at the exact same instant as the original. Its optional
+same-repository fields are also checked when present. Only the known CLI
+metadata keys are allowed. The PR URL pins the repository; no remote query,
+head refresh, enrollment or hidden fallback occurs. An archived original-head
+readback proves historical publication only, **not** current candidate success.
+A summary proof without that raw readback (including the supplied PR557 summary)
+cannot alone satisfy this profile; provide the matching original archived CLI
+artifact and digest, or leave recovery blocked.
+
+Both timestamps must use ASCII `yyyy-MM-ddTHH:mm:ss[.fffffff]Z`, with zero to
+seven fractional digits and a valid Gregorian date/time. Parsing is exact UTC;
+the helper emits the identical instant with
+`.ToUniversalTime().ToString('o')`. Naive times, numeric offsets (including
+`+00:00` in this wire profile), lower-case suffixes, ambiguous dates, leap seconds
+and overprecision fail closed. Existing strict roundtrip receipts still use
+ordinary strict consumption. Fraction padding never changes the instant.
+
+```powershell
+.\eng\Invoke-Coordinator.ps1 -RepositoryPath $VerifiedOwnWorktree -Action Consume `
+  -Session $CurrentLeader -ExpectedEpoch $CurrentEpoch -ExpectedRevision $CurrentRevision `
+  -RequestPath $PinnedPublicationRequest -PublishedTerminalWireProfile UtcTimestampV1
+```
+
+Only the selected timestamp spelling, proven field alias, and explicitly
+supported hosted label are projected. The latter is a **helper-owned semantic
+projection of local execution quiescence**, not a new stopped receipt attributed
+to the original actor. Original IDs/native/branch/head/revision/policy/PR/method
+and actual time instant are retained. The separate helper proof records the
+profile, request pins, original and readback raw bytes/path/digest, supplemental
+proof bytes/digest when required, explicit original/normalized value mapping,
+projection and semantic provenance. Request field ordering is canonicalized;
+raw original and supporting evidence bytes must still remain identical.
+
+All inputs and generated artifacts use the existing adapter lock, original-byte
+evidence staging, atomic readback and read-only no-write/no-delete handles through
+the unchanged fenced core transaction. Published input JSON rejects duplicate
+properties recursively; request, terminal, Auto and authority-bearing proof
+objects use closed field sets. Unknown/contradictory inputs never imply stopped,
+SQUASH, publication authority or a timestamp. Changed or missing evidence fails
+even on replay; changing a request pin cannot replace immutable provenance.
+Same-user local files remain trusted engineering evidence, not cryptographic
+host authentication. Never edit originals, fabricate the original writer, or
+apply these fixture tests to the live ledger.
 
 ## Validation and provenance
 
@@ -69,7 +162,7 @@ No command text belongs in an owner's strict terminal receipt.
   No counters, execution identities, branches, heads, policies or unrelated
   source ownership are rewritten. No remote authority or native launch occurs.
 
-The same-user local filesystem is the existing trust boundary, not a defense
+For the assessment profile, the same-user local filesystem is the existing trust boundary, not a defense
 against malicious processes that can rewrite the entire dataset. Preserve all
 evidence while referenced. A proof mismatch requires investigation, not deletion
 or overwriting to make a retry pass.

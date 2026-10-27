@@ -111,6 +111,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("bytes")]
     [InlineData("replacement")]
     [InlineData("missing")]
+    [InlineData("parameter-bytes")]
+    [InlineData("parameter-replacement")]
+    [InlineData("parameter-missing")]
     public async Task OwnedSkillRealPrivatePackageMutationRetiresReviewBeforeModelAdmission(string fault)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -122,7 +125,11 @@ public sealed partial class SessionsConversationTests
             await using var composed = new Composition(f, adapter: adapter);
             using var paths = new OwnedStorageFixture();
             var store = new WindowsOwnedDeclarativeSkillStore(paths);
-            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Original guidance");
+            var parameterized = fault.StartsWith("parameter-", StringComparison.Ordinal);
+            if (parameterized) { fault = fault["parameter-".Length..]; }
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description",
+                parameterized ? "Review ${input:topic}" : "Original guidance",
+                guidanceFormat: parameterized ? OwnedSkillGuidanceFormat.RequiredLiteralInputs : OwnedSkillGuidanceFormat.Literal);
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), f.Token);
             await using var admission = new OwnedSkillControlAdmission(f.Store, f.Store, new(f.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store,
@@ -144,8 +151,11 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public async Task OwnedSkillNativeCloseClearsPrivateBuffersButJoinsIgnoringModelBeforeRelease()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillNativeCloseClearsPrivateBuffersButJoinsIgnoringModelBeforeRelease(bool parameterized, bool privacy)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -159,7 +169,9 @@ public sealed partial class SessionsConversationTests
             using var native = new NativeUxFixtureSession(parent);
             await native.InitializeAsync();
             var store = new WindowsOwnedDeclarativeSkillStore(native);
-            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description", "Inert guidance");
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "Example", "Description",
+                parameterized ? "Review ${input:topic}" : "Inert guidance",
+                guidanceFormat: parameterized ? OwnedSkillGuidanceFormat.RequiredLiteralInputs : OwnedSkillGuidanceFormat.Literal);
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var workflow = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
@@ -177,17 +189,21 @@ public sealed partial class SessionsConversationTests
             await Run("targets");
             window.Targets.SelectedIndex = 0;
             window.Request.Text = "original private request";
+            if (parameterized) { window.LiteralInputs.Inputs["topic"].Text = "private literal"; }
             await Run("review-use");
             var running = Run("invoke");
             await adapter.Entered.Task.WaitAsync(f.Token);
+            if (privacy) { native.Main.CloseForObservedPrivacyEvent("Synthetic private-input withdrawal", hidePresentation: true); }
             var closing = use.CloseAndWait();
             closing.IsCompleted.Should().BeFalse();
             window.Instructions.Text.Should().BeEmpty();
             window.Request.Text.Should().BeEmpty();
             window.Confirmation.Text.Should().BeEmpty();
+            window.LiteralInputs.Inputs.Should().BeEmpty();
             adapter.Release.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("late private answer", null)));
             await running;
             await closing;
+            if (privacy) { await native.Main.PrivacyClosureTask; }
             window.Status.Text.Should().BeEmpty();
             var retained = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
             retained.AssistantResponse.Should().BeNull();

@@ -26,6 +26,7 @@ internal sealed partial class NamedSkillInvocationController(
     private Task active = Task.CompletedTask;
     private long owner;
     private long call;
+    private long inputRevision;
     private Guid? next;
     private string name = "";
     private bool disposed;
@@ -162,6 +163,7 @@ internal sealed partial class NamedSkillInvocationController(
             { sharedReview = await shared.ReviewAsync(choice.Source!, choice.Shared!, Current, original!.Origin, token); }
             if (!Current()) { RetireReview(); return; }
             opened.Instructions.Text = choice + "\n\n" + (ownedReview?.Text ?? sharedReview!.Text);
+            opened.LiteralInputs.Configure(ownedReview?.RequiredNames ?? [], (_, _) => RetirePreparation());
             opened.Status.Text = "Complete exact source captured. Review all content, then separately enable once. The original input channel is preserved.";
             return;
         }
@@ -191,21 +193,23 @@ internal sealed partial class NamedSkillInvocationController(
         else if (action is "Prepare")
         {
             RetirePreparation();
+            var revision = inputRevision;
+            bool Exact() => Current() && inputRevision == revision;
             var target = (opened.Targets.SelectedItem as SharedSkillConversationTarget)?.Entry
                 ?? throw new InvalidOperationException("Select exactly one current Active conversation.");
             var body = opened.Request.Text ?? "";
             if (ownedReview is { } own)
             {
-                ownedInvocation = await owned.PrepareAsync(own, target, body, original!, Current, token);
-                if (Current()) { opened.Confirmation.Text = ownedInvocation.Preview; }
+                ownedInvocation = await owned.PrepareAsync(own, target, body, original!, Exact, token, opened.LiteralInputs.Capture());
+                if (Exact()) { opened.Confirmation.Text = ownedInvocation.Preview; }
             }
             else
             {
-                sharedInvocation = await shared.PrepareAsync(sharedReview!, target, body, Current, original!.Origin, token);
-                if (Current())
+                sharedInvocation = await shared.PrepareAsync(sharedReview!, target, body, Exact, original!.Origin, token);
+                if (Exact())
                 { opened.Confirmation.Text = $"{opened.Instructions.Text}\n\nExact Active target: {target.Authority.SessionId.Value:D}\nOriginal USER task:\n{sharedInvocation.Body}"; }
             }
-            if (!Current()) { RetirePreparation(); return; }
+            if (!Exact()) { RetirePreparation(); return; }
             opened.Status.Text = "Review the exact source, original task, target and local-only scope, then separately confirm one invocation.";
         }
         else if (action is "Invoke")
@@ -231,6 +235,7 @@ internal sealed partial class NamedSkillInvocationController(
 
     private void RetirePreparation()
     {
+        Interlocked.Increment(ref inputRevision);
         if (ownedInvocation is not null || sharedInvocation is not null)
         { ownedReview?.Dispose(); sharedReview?.Dispose(); }
         ownedInvocation?.Dispose();

@@ -34,6 +34,7 @@ public sealed partial class MainViewModel
         var name = AssistantName;
         var initiallyAdmitted = captured.NavigationInitiallyAdmitted && captured.Eligible() && !IsProtectedCall;
         bool Admitted() => initiallyAdmitted && captured.Eligible() && !IsProtectedCall
+            && (command.Target != WorkspaceSurfaceTarget.OpenNamedConversation || CanEnterRetainedAnswerRead)
             && captured.Revision == CallPolicyRevision && owner == auditImpactOwnerRevision()
             && revision == Interlocked.Read(ref workspaceSurfaceInputRevision)
             && string.Equals(sourceText, CommandText, StringComparison.Ordinal)
@@ -43,6 +44,7 @@ public sealed partial class MainViewModel
             ReportHostInteractionFailure("Navigation unavailable: the native surface route or current private host admission is unavailable. No window or session was created.");
             return;
         }
-        await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted, command.SessionPosition)));
+        await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted, command.SessionPosition,
+            command.ConversationName, origin)));
     }
 }

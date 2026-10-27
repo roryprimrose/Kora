@@ -30,7 +30,7 @@ internal sealed partial class NativeDetailRenderer(
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
+    }.UsePreciseSourceLocation().UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly MarkdownPipeline TablePipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
@@ -38,11 +38,11 @@ internal sealed partial class NativeDetailRenderer(
     {
         RequireHeaderSeparator = true,
         UseHeaderForColumnCount = false,
-    }).UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
+    }).UsePreciseSourceLocation().UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly MarkdownPipeline ChecklistPipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.UseTaskLists().UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
+    }.UseTaskLists().UsePreciseSourceLocation().UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly HashSet<Type> SupportedTypes =
     [
         typeof(MarkdownDocument), typeof(HeadingBlock), typeof(ParagraphBlock), typeof(ListBlock),
@@ -346,7 +346,16 @@ internal sealed partial class NativeDetailRenderer(
             var block = entry.Block;
             if (block is Table table)
             {
-                foreach (var section in ProjectTable(table, ++tableNumber)) { AddSection(section); }
+                var tableLinks = new List<NativeExternalDocumentLink>();
+                foreach (var node in table.Descendants<Inline>())
+                {
+                    if (node is LinkInline link) { CaptureExternalLink(link, link.Url, tableLinks); }
+                    else if (node is AutolinkInline autolink) { CaptureExternalLink(autolink, autolink.Url, tableLinks); }
+                }
+                foreach (var section in ProjectTable(table, ++tableNumber))
+                {
+                    AddSection(section.Table is { IsHeader: true } ? section with { ExternalLinks = tableLinks } : section);
+                }
                 continue;
             }
             // CommonMark definitions are counted metadata; each used destination is
@@ -371,11 +380,12 @@ internal sealed partial class NativeDetailRenderer(
             }
             var strikeProjection = strikethrough ? new InlineStrikethroughProjection(entry.Prefix.Length) : null;
             var links = ImmutableArray.CreateBuilder<NativeDocumentLink>();
+            var externalLinks = new List<NativeExternalDocumentLink>();
             var text = block switch
             {
                 CodeBlock code => code.Lines.ToString(),
                 ThematicBreakBlock => "—",
-                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection, links),
+                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection, links, externalLinks),
                 _ => throw new InvalidOperationException("The validated native block is unsupported."),
             };
             var style = block switch
@@ -410,13 +420,15 @@ internal sealed partial class NativeDetailRenderer(
                 Strikethrough = strikeProjection?.Spans ?? [],
                 HeadingId = block is HeadingBlock ? block.GetAttributes().Id : null,
                 Links = links.ToImmutable(),
+                ExternalLinks = externalLinks,
             });
         }
         return sections;
     }
 
     private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null,
-        ImmutableArray<NativeDocumentLink>.Builder? links = null)
+        ImmutableArray<NativeDocumentLink>.Builder? links = null,
+        List<NativeExternalDocumentLink>? externalLinks = null)
     {
         if (root is null) { return string.Empty; }
         var text = new BoundedNativeText();
@@ -432,6 +444,7 @@ internal sealed partial class NativeDetailRenderer(
                 {
                     links!.Add(new(text.ToString()[start..], destination));
                 }
+                CaptureExternalLink(link, link.Url, externalLinks);
                 text.Append(" (destination: ");
                 text.Append(link.Url);
                 text.Append(")");
@@ -444,6 +457,7 @@ internal sealed partial class NativeDetailRenderer(
                 case TaskList task: text.Append(task.Checked ? "Checked:" : "Unchecked:"); break;
                 case LineBreakInline: text.Append(Environment.NewLine); break;
                 case AutolinkInline autolink:
+                    CaptureExternalLink(autolink, autolink.Url, externalLinks);
                     text.Append(autolink.Url);
                     text.Append(" (inert destination)");
                     break;
@@ -464,5 +478,12 @@ internal sealed partial class NativeDetailRenderer(
             }
         }
         return text.ToString();
+    }
+
+    private static void CaptureExternalLink(Inline node, string? destination, List<NativeExternalDocumentLink>? links)
+    {
+        if (links is null || destination is null || destination.StartsWith('#')
+            || node.Span.Start < 0 || node.Span.End < node.Span.Start) { return; }
+        links.Add(new(destination, node.Span.Start, node.Span.End - node.Span.Start + 1));
     }
 }

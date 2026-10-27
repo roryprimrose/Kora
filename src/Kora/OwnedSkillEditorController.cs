@@ -128,6 +128,7 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.DescriptionInput.Text = "";
                     opened.Guidance.Text = "";
                     opened.Tool.SelectedIndex = 0;
+                    opened.InputFormat.SelectedIndex = 0;
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
@@ -135,6 +136,14 @@ internal sealed partial class OwnedSkillEditorController(
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
+                case "inputs":
+                    opened.InputFormat.SelectedIndex = command.Literal switch
+                    {
+                        "none" => 0,
+                        "required-literal" => 1,
+                        _ => throw new InvalidOperationException("Select literal guidance or required literal inputs."),
+                    };
+                    break;
                 case "tool":
                     opened.Tool.SelectedIndex = command.Literal switch
                     {
@@ -166,6 +175,7 @@ internal sealed partial class OwnedSkillEditorController(
                 case "next-targets":
                 case "target":
                 case "request":
+                case "input":
                 case "url":
                 case "review-tool":
                 case "review-use":
@@ -222,6 +232,7 @@ internal sealed partial class OwnedSkillEditorController(
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
+        opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
         validated = null;
         dirty = false;
         uncertain = false;

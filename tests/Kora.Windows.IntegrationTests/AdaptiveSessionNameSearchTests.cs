@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
@@ -123,6 +125,7 @@ public sealed class AdaptiveSessionNameSearchTests
             f.View.FindControl<Button>("NextSessions")!.IsEnabled.Should().BeFalse();
             await f.Run("select the first session");
             var captured = f.Sessions.CaptureSessionSelection(1, static () => true);
+            await f.WhenAsync(() => model.CanNextSessionNameSearch);
             await f.Click("NextSessionNameSearch");
             model.Sessions.Should().HaveCount(2);
             model.Sessions.Should().NotContain(row => firstPage.Contains(row.Authority.SessionId));
@@ -402,6 +405,15 @@ public sealed class AdaptiveSessionNameSearchTests
             View.FindControl<Button>(name)!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             await View.Operation;
             Dispatcher.UIThread.RunJobs();
+        }
+
+        internal async Task WhenAsync(Func<bool> condition)
+        {
+            var signal = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Changed(object? sender, PropertyChangedEventArgs args) { if (condition()) { signal.TrySetResult(); } }
+            Model.PropertyChanged += Changed;
+            try { if (!condition()) { await signal.Task.WaitAsync(Native.Token); } }
+            finally { Model.PropertyChanged -= Changed; }
         }
 
         internal async Task Select(HostId<SessionIdentity> session)

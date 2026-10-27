@@ -1,5 +1,8 @@
 using Avalonia.Controls;
+using Avalonia.Threading;
 using AwesomeAssertions;
+using Kora.Application.Hosting;
+using Kora.Core.Conversation;
 using Kora.Core.Storage;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -180,31 +183,59 @@ public sealed partial class SessionsConversationTests
     [Fact]
     public async Task UnconfirmedSubmissionHoldSurvivesTopicSwitchAndPassiveRefreshWithoutRetargeting()
     {
-        using var f = new InteractionStorageFixture();
-        await f.InitializeAsync();
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        var original = f.Request.SessionId;
-        f.Request = InteractionStorageFixture.NewRequest();
-        await f.AdmitAsync(newSession: true);
-        await WindowsSqliteConversationTests.FinishInitial(f);
-        SessionsViewModel? model = null;
-        SessionWorkspaceEntry? other = null;
-        f.Reopen(new SelectionCheckpoint(() => model!.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue()));
-        await f.Store.InitializeAsync(f.Token);
-        await using var composed = new Composition(f);
-        model = composed.Model;
-        await model.RefreshAsync();
-        other = model.Sessions.Single(row => row.Authority.SessionId != original);
-        await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
-        model.ComposerBody = "held exact input";
-        await model.SubmitConversationAsync();
-        model.CanSubmitConversation.Should().BeFalse();
-        await model.SelectAsync(other);
-        model.ComposerBody.Should().BeEmpty();
-        await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
-        model.ComposerBody.Should().Be("held exact input");
-        await model.ReadConversationAsync();
-        model.CanSubmitConversation.Should().BeFalse();
-        f.Count("conversation_messages").Should().Be(0);
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var original = f.Request.SessionId;
+            f.Request = InteractionStorageFixture.NewRequest();
+            await f.AdmitAsync(newSession: true);
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            SessionsViewModel? model = null;
+            SessionWorkspaceEntry? other = null;
+            f.Reopen(new SelectionCheckpoint(() => model!.SelectAsync(other).IsCompletedSuccessfully.Should().BeTrue()));
+            await f.Store.InitializeAsync(f.Token);
+            await using var composed = new Composition(f);
+            model = composed.Model;
+            await model.RefreshAsync();
+            other = model.Sessions.Single(row => row.Authority.SessionId != original);
+            await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+            var terminal = new TaskCompletionSource<(SessionWorkspaceEntry Target, ConversationTurnCompletion Completion)>(
+                TaskCreationOptions.RunContinuationsAsynchronously);
+            void Completed(SessionWorkspaceEntry target, ConversationTurnCompletion completion)
+            {
+                terminal.TrySetResult((target, completion));
+            }
+            composed.Conversation.SubmittedConversationCompleted += Completed;
+            try
+            {
+                model.ComposerBody = "held exact input";
+                await model.SubmitConversationAsync();
+                var completed = await terminal.Task.WaitAsync(f.Token);
+                completed.Target.Authority.SessionId.Should().Be(original);
+                completed.Completion.Receipt.Should().BeNull();
+                completed.Completion.Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>();
+                Dispatcher.UIThread.RunJobs();
+                model.CanReadConversation.Should().BeTrue("the hold must outlive the busy operation");
+                model.CanSubmitConversation.Should().BeFalse();
+                model.SelectedSessionRecord!.Authority.SessionId.Should().Be(original);
+                model.ComposerBody.Should().Be("held exact input");
+                await model.SelectAsync(other);
+                model.ComposerBody.Should().BeEmpty();
+                model.CanCompose.Should().BeTrue("the unconfirmed request cannot hold or retarget another topic");
+                await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
+                model.ComposerBody.Should().Be("held exact input");
+                await model.ReadConversationAsync();
+                model.CanSubmitConversation.Should().BeFalse();
+                await model.SubmitConversationAsync();
+                model.CanSubmitConversation.Should().BeFalse();
+                model.ComposerBody.Should().Be("held exact input");
+                f.Count("conversation_messages").Should().Be(0);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+            }
+            finally { composed.Conversation.SubmittedConversationCompleted -= Completed; }
+        });
     }
 }

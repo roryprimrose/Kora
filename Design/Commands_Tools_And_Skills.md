@@ -217,6 +217,19 @@ or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
 
+For provider-independent execution, **Invoke reviewed MCP tool without a model**
+or `invoke selected mcp tool` uses the same explicit foreground server/account,
+connection review, host read-only mapping and tool/schema selection. The original
+user supplies the bounded required JSON arguments; submitting that input is not
+permission to send it. A separate exact invocation review approves destination,
+account, tool, schema and outgoing arguments. The canonical MCP invocation and
+original-session cancellation owner perform one exchange, physically join the
+transport, and display only its actual inert result. No model is selected or
+called, no assistant answer is fabricated, and unsent conversation input stays
+unchanged. Task/audit outcomes remain durable; the tool result is a volatile
+original-session presentation. Cancellation or an uncertain dispatched outcome
+does not claim remote rollback and never retries automatically.
+
 An exchange disconnect, disposed transport, or transport-owned cancellation
 retires that invocation's connection without reconnecting, retrying or falling
 back. A failed tool exchange completes the original conversation as

@@ -166,6 +166,8 @@
             AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />
           <Button x:Name="ReadMcpOptions" Content="Review HTTPS MCP options" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="SubmitMcp" Content="Use reviewed MCP tool locally" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="InvokeMcp" Content="Invoke reviewed MCP tool without a model" IsEnabled="{Binding CanCompose}"
+              AutomationProperties.HelpText="Select one admitted read-only tool, enter required schema-bound arguments, then separately approve the exact destination and arguments. Conversation input is unchanged." />
           <Button x:Name="CancelMcp" Content="Stop MCP operation" IsEnabled="{Binding IsMcpActive}"
               AutomationProperties.HelpText="Closes new work and publication; resources stay owned until the authenticated transport actually terminates." />
           <Button x:Name="RefreshRunningConversation" Content="Refresh running work" IsEnabled="{Binding CanRefreshRunningConversation}" />

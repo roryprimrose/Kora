@@ -19,23 +19,45 @@ internal sealed class ExternalBrowserReviewWindow : Window
     private readonly Button confirm = new() { Content = "Open this exact destination once" };
     private readonly Button cancel = new() { Content = "Cancel" };
     private readonly TextBox address;
+    private readonly TextBlock originalSource;
+    private readonly Action<string>? reportStatus;
     private readonly TextBlock disclosure = new() { Text = ExternalBrowserReview.Disclosure, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     private bool launching;
 
-    internal ExternalBrowserReviewWindow(MainViewModel model, ExternalBrowserReview review)
+    internal ExternalBrowserReviewWindow(MainViewModel model, ExternalBrowserReview review, Action<string>? reportStatus = null)
     {
         this.model = model;
         this.review = review;
+        this.reportStatus = reportStatus;
         Title = "Review external browser opening";
         Width = 620;
         SizeToContent = SizeToContent.Height;
         CanResize = false;
         address = new TextBox { Text = review.Destination.ExactAddress, IsReadOnly = true, TextWrapping = Avalonia.Media.TextWrapping.Wrap };
         AutomationProperties.SetName(address, "Exact external HTTPS destination");
+        if (review.FinalSource is not null)
+        {
+            address.ContextMenu = null;
+            address.ContextFlyout = null;
+            address.CopyingToClipboard += BlockFinalClipboard;
+            address.CuttingToClipboard += BlockFinalClipboard;
+            address.PastingFromClipboard += BlockFinalClipboard;
+            address.AddHandler(ContextRequestedEvent, (_, args) => args.Handled = true, RoutingStrategies.Tunnel);
+        }
+        originalSource = new TextBlock
+        {
+            Text = review.FinalSource is { } final
+                ? "Untrusted generated final answer: " + final.SourceTitle
+                    + "\nOriginal selected source token (not retrieval provenance):\n" + final.SourceToken
+                : "Original source: exact host-retrieved web snapshot; not a generated final answer.",
+            TextWrapping = Avalonia.Media.TextWrapping.Wrap,
+        };
+        AutomationProperties.SetName(originalSource, "Original exact source for this separate navigation review");
         Content = new StackPanel
         {
             Margin = new Thickness(20), Spacing = 12,
-            Children = { new TextBlock { Text = "External website - separate browser privacy review" }, address, disclosure, confirm, cancel },
+            Children = { new TextBlock { Text = "External website - separate browser privacy review" },
+                new ScrollViewer { MaxHeight = 180, Content = originalSource }, address, disclosure, confirm, cancel },
         };
         confirm.Click += OnConfirm;
         cancel.Click += (_, _) => Close();
@@ -51,13 +73,27 @@ internal sealed class ExternalBrowserReviewWindow : Window
             confirm.Click -= OnConfirm;
             model.PrivacyClosureRequested -= OnPrivacyClosure;
             model.WebResultDetailsChanged -= OnSourceChanged;
-            model.CancelExternalBrowserReview();
+            model.CancelExternalBrowserReview(review.Id);
             address.Text = string.Empty;
+            originalSource.Text = string.Empty;
+            review.FinalSource?.Retire();
             disclosure.Text = string.Empty;
         };
     }
 
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
+
+    private void BlockFinalClipboard(object? sender, RoutedEventArgs args)
+    {
+        args.Handled = true;
+        Report("Final-answer navigation review grants no clipboard authority; automatic copy, cut and paste are blocked.");
+    }
+
+    private void Report(string status)
+    {
+        model.ReportWebResultDetailStatus(status);
+        reportStatus?.Invoke(status);
+    }
 
     private void OnSourceChanged(object? sender, EventArgs args)
     {
@@ -70,12 +106,16 @@ internal sealed class ExternalBrowserReviewWindow : Window
     {
         try
         {
-            if (!launching && !model.IsExternalBrowserReviewCurrent(review)) { Close(); }
+            if (!launching && !model.IsExternalBrowserReviewCurrent(review))
+            {
+                reportStatus?.Invoke("External-browser review retired: the exact source, privacy, expiry or network admission changed. Nothing was opened.");
+                Close();
+            }
             else if (!model.CanRevealPrivatePresentation) { Close(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            model.ReportWebResultDetailStatus("External-browser review retired: host, source or network readiness could not be verified.");
+            Report("External-browser review retired: host, source or network readiness could not be verified.");
             Close();
         }
     }
@@ -93,7 +133,7 @@ internal sealed class ExternalBrowserReviewWindow : Window
             var outcome = ExternalBrowserLaunchOutcome.Unknown;
             await HostRequestRunner.RunAsync(RequestOrigin.LocalUi, async () =>
                 outcome = await model.ConfirmExternalBrowserAsync(review.Id));
-            model.ReportWebResultDetailStatus(outcome switch
+            Report(outcome switch
             {
                 ExternalBrowserLaunchOutcome.Accepted => "Windows accepted the external-browser request. Page loading is not verified; Kora cannot stop or close its lifecycle.",
                 ExternalBrowserLaunchOutcome.Failed => "Windows declined the external-browser request. No page load was verified.",
@@ -104,7 +144,7 @@ internal sealed class ExternalBrowserReviewWindow : Window
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            model.ReportWebResultDetailStatus("External-browser launch outcome unknown: host confirmation or audit failed. It may have opened; no automatic retry.");
+            Report("External-browser launch outcome unknown: host confirmation or audit failed. It may have opened; no automatic retry.");
         }
         finally { Close(); }
     }

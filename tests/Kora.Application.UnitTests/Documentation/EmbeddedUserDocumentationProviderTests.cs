@@ -18,13 +18,25 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown;
         guide.Should().Contain("**Go to heading**").And.Contain("Enter or Space")
-            .And.Contain("external links stay inert")
+            .And.Contain("external links require separate review")
             .And.Contain("Ctrl+Home/End").And.Contain("ordinal text")
             .And.Contain("Equal values keep original order")
             .And.Contain("**Reset table order**").And.Contain("never edits the answer")
             .And.Contain("No table action copies content")
             .And.Contain("unavailable table profile still shows the complete source")
             .And.Contain("do not enable an unqualified profile");
+    }
+
+    [Fact]
+    public void FinalDocumentGuideSeparatesLocalReadingFromClipboardAndExternalNavigationConfirmation()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        pages.Single(page => string.Equals(page.Id, "code-highlighting", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Select literal code").And.Contain("programmatic copy remain blocked")
+            .And.Contain("Unavailable Markdown profiles");
+        pages.Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Review external link").And.Contain("Open this exact")
+            .And.Contain("Generated links remain untrusted").And.Contain("offline/local-only");
     }
 
     [Fact]

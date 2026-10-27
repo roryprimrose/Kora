@@ -328,6 +328,7 @@ public sealed partial class SessionsConversationTests
         public async ValueTask DisposeAsync()
         {
             Model.Close();
+            await Conversation.DisposeAsync();
             if (memories is not null) { await memories.DisposeAsync(); }
             await turns.DisposeAsync();
             await admission.DisposeAsync();

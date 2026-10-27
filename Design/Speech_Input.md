@@ -124,6 +124,17 @@ conversation. PTT enters command capture without requiring a wake name.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
 
+Explicit command interruption of a retained-answer reading captures the
+foreground session and exact playback at PTT activation, not final recognition.
+The host revalidates that immutable binding and original generation, joins
+command capture, cancels only that playback and joins output before reporting
+interruption. Other model work, dictation and question replies remain untouched.
+`IActivatedVoiceRecognitionService.IsSpeechInterruptionAvailable` defaults to
+false; the Windows adapter remains unqualified and cannot open concurrent
+capture for this operation. Deterministic fakes prove this bounded implementation,
+not acoustic enablement. Typed exact-session stop and native Cancel reading
+remain recovery routes; unknown or stale targets never select current output.
+
 Wake detection, VAD, speaker verification and ASR are separate capabilities:
 speech presence is not a wake match; a wake match is not a speaker match; a
 speaker match is not permission. If multiple voices overlap or a different

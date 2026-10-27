@@ -54,6 +54,11 @@ public sealed partial class SessionsConversationTests
                 }
                 else { submission = composed.Conversation.SubmitAsync(target, "running request", static () => true, f.Token); }
                 var provenance = await adapter.Started.Task;
+                if (nativeSubmission)
+                {
+                    await WhenModelAsync(model, () => model.CanCompose && !model.ComposerDirty);
+                    reviewedInput = string.Empty;
+                }
                 var review = window.FindControl<Button>("ReviewStopAndDelete")!;
                 AutomationProperties.GetName(review).Should().Contain("selected conversation");
                 if (nativeSubmission)
@@ -64,7 +69,8 @@ public sealed partial class SessionsConversationTests
                 }
                 else { review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                 await window.StopAndDeleteOperation;
-                model.StopAndDeleteStatus.Should().Contain(reviewedInput).And.Contain("Review only");
+                model.StopAndDeleteStatus.Should().Contain("Review only");
+                if (reviewedInput.Length != 0) { model.StopAndDeleteStatus.Should().Contain(reviewedInput); }
                 model.ComposerBody.Should().Be(reviewedInput);
                 composed.Audit.Events.Should().NotContain(value => string.Equals(value.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
                 model.CanConfirmStopAndDelete.Should().BeTrue();

@@ -7,6 +7,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Core.Agents;
 using Kora.Core.Context;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
@@ -52,6 +53,8 @@ public sealed partial class ModelTurnHostTests
             new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance), f, host, f.Time,
             NullLogger<SessionConversationService>.Instance, host);
         var reader = new AgentReader();
+        var statuses = new List<ConversationExecutionStatus>();
+        service.RunningConversationChanged += statuses.Add;
         await using var workflow = new BoundedAgentWorkflow(reader, f, f, service, host, f, f.Time);
         using var root = f.Root();
         using var review = await workflow.ReviewAsync("selected.agent.md", new(f.Session, null), "original task",
@@ -69,6 +72,15 @@ public sealed partial class ModelTurnHostTests
             && item.Context.Constraints!.MaximumCalls == 1);
         reader.Released.Should().BeTrue();
         host.IsQuiescent.Should().BeTrue();
+        statuses.Where(status => status.Phase == ConversationExecutionPhase.Running).Select(status => status.Progress)
+            .Should().Equal(new ConversationExecutionProgress(ConversationExecutionStep.GeneratingAnswer, 0, 0),
+                new ConversationExecutionProgress(ConversationExecutionStep.ReadingObservation, 1, 1),
+                new ConversationExecutionProgress(ConversationExecutionStep.GeneratingAnswer, 1, 2));
+        statuses.Should().OnlyContain(status => status.Target.Request == receipt.Message.Request
+            && status.Target.Generation == f.Session.Generation);
+        statuses.Last().Phase.Should().Be(ConversationExecutionPhase.Terminal);
+        statuses.Last().Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        statuses.Last().Progress.Should().BeNull();
         await workflow.Invoking(value => value.InvokeAsync(review, Token)).Should().ThrowAsync<InvalidOperationException>();
     }
 

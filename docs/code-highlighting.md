@@ -11,6 +11,25 @@ fences. Find, source copy, disclosure confirmation, digests and approval identit
 continue to use the original admitted snapshot, not colored text. Private Details
 code does not gain automatic clipboard access.
 
+## Local final-code reading
+
+When an exact final-answer Markdown profile is available, **Select literal code
+locally (no copy)** focuses a read-only native code reader. Use Shift+arrows or
+Ctrl+A there to select the literal code, including its original tabs, Unicode
+and line breaks. **Wrap code** switches between wrapping and horizontal scrolling.
+The same reader keeps its selection, caret and scroll position across resizing;
+switching back restores the independently available syntax-colored view.
+
+Selection is visual reading only. Ctrl+C, cut, paste, native context commands
+and programmatic copy remain blocked; this does not grant clipboard permission
+or change final-answer copy eligibility. Closing, replacing or withdrawing the
+exact source clears its private text and selection. There is no editing, saved
+buffer, script execution or network access.
+
+Unavailable Markdown profiles still show the complete labelled source fallback,
+not interactive code controls. Installed accessibility qualification remains
+separate.
+
 ## Languages and limits
 
 The offline alias table includes PowerShell (`ps1`), C# (`cs`), JSON, YAML (`yml`),

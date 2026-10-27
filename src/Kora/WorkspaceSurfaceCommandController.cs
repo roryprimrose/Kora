@@ -46,6 +46,11 @@ internal sealed class WorkspaceSurfaceCommandController(
                 case WorkspaceSurfaceTarget.CompactConversation: sessions.OpenCompact(Admitted); break;
                 case WorkspaceSurfaceTarget.Sessions: await sessions.ShowInteractionAsync(true, Admitted); break;
                 case WorkspaceSurfaceTarget.SelectSession: await selection!(); break;
+                case WorkspaceSurfaceTarget.OpenNamedConversation:
+                    await sessions.OpenNamedConversationAsync(navigation.ConversationName
+                        ?? throw new InvalidOperationException("An exact readable conversation name is required."),
+                        navigation.Origin, Admitted);
+                    break;
                 case WorkspaceSurfaceTarget.Details:
                 case WorkspaceSurfaceTarget.HideDetails:
                 case WorkspaceSurfaceTarget.SessionLogs:

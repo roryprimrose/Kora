@@ -44,6 +44,14 @@ fallback. See [the complete user operation](../docs/owned-skill-authoring.md#rev
 The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) selects only the existing host WebPageGet binding, saves disabled and separately reviews/enables one exact owned source, Active target, original request/channel and explicit URL. It uses the same [reviewed tool consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) as shared one-tool use, with owned-store admission/freshness rather than shared-root consent.
 Neither version delivers generated authoring, general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
+The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
+explicitly declares instruction-only inputs, reusing the owned prompt template
+parser/bounds and private controls, not Prompt artifact authority. Both direct
+and named owned-skill use review original source, exact bindings and single-pass
+expansion through the same canonical local workflow. Old v1/v2 guidance bytes
+remain literal; tool parameters and shared/agent guidance-reference policy are
+not extended.
+
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
 3. Generate a staged manifest, instructions, and example fixtures in memory.

@@ -119,14 +119,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("select the third session")
             .And.Contain("Positions count from the top")
             .And.Contain("read-only, never live answer or approval buttons")
-            .And.Contain("Automatic current/other/new conversation matching is not available yet")
+            .And.Contain("reviewed local relatedness")
+            .And.Contain("automatic destination submission")
             .And.Contain("selection")
             .And.Contain("supplies context, not a lock");
         var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
         commands.Should().Contain("show me the current sessions")
             .And.Contain("collapse conversation")
             .And.Contain("out-of-range positions refuse")
-            .And.Contain("model-visible session-list context remain unavailable");
+            .And.Contain("Navigation commands do not")
+            .And.Contain("disclose the session list to a model");
     }
 
     [Fact]
@@ -347,7 +349,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
             .Single(page => string.Equals(page.Id, "session-routing", StringComparison.Ordinal)).Markdown;
         guide.Should().Contain("**Review this destination**").And.Contain("**Correct destination**")
-            .And.Contain("Production relatedness inference is currently **unqualified**")
+            .And.Contain("Unqualified production providers remain unavailable")
+            .And.Contain("physical inference resources are joined")
             .And.Contain("one page of 50").And.Contain("does not add hands-free routing replies")
             .And.Contain("grants, provider state, history, sources and permissions are not moved")
             .And.Contain("separate audited").And.Contain("no automatic fallback after denial");

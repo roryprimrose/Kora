@@ -19,7 +19,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class SessionRoutingTests
+public sealed partial class SessionRoutingTests
 {
     [Theory]
     [InlineData(false, RequestOrigin.LocalUi)]
@@ -237,7 +237,7 @@ public sealed class SessionRoutingTests
 
     private sealed class Matcher(Fixture fixture) : ISessionRelatednessMatcher
     {
-        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, CancellationToken token) =>
+        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token) =>
             Task.FromResult(new SessionRouteProposal(snapshot.Revision, fixture.Match, fixture.Match switch
             {
                 SessionRouteMatch.Clear => [snapshot.Descriptors.Single(item => item.Entry.Authority.SessionId == fixture.First.Authority.SessionId).Candidate],

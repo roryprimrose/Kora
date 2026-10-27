@@ -29,6 +29,7 @@ public sealed partial class ModelTurnHostTests
         await using var skill = new OwnedSkillHarness(f, origin);
         using var review = await skill.Review();
         review.Text.Should().Contain(skill.Store.Snapshot!.Document.ManifestText).And.Contain(skill.Store.Snapshot.Document.Guidance);
+        review.RequiredNames.Should().BeEmpty();
         review.IsEnabled.Should().BeFalse();
         skill.Store.Snapshot.Document.IsAvailableForInvocation.Should().BeFalse();
         f.RetainCalls.Should().Be(0);
@@ -225,13 +226,25 @@ public sealed partial class ModelTurnHostTests
     [InlineData("cancel")]
     [InlineData("readback")]
     [InlineData("expiry")]
+    [InlineData("parameter-source")]
+    [InlineData("parameter-privacy")]
+    [InlineData("parameter-cancel")]
+    [InlineData("parameter-control")]
+    [InlineData("parameter-owner")]
+    [InlineData("parameter-generation")]
+    [InlineData("parameter-expiry")]
     public async Task OwnedSkillLateChangesSuppressOutputWithoutReplay(string fault)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
+        var parameterized = fault.StartsWith("parameter-", StringComparison.Ordinal);
+        if (parameterized) { Parameterize(skill); fault = fault["parameter-".Length..]; }
         using var review = await skill.Review();
         await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
-        using var invocation = await skill.Prepare(review);
+        using var invocation = parameterized
+            ? await skill.Workflow.PrepareAsync(review, new(f.Session, null), "original", skill.Authority, skill.Eligible, Token,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["topic"] = "private value" })
+            : await skill.Prepare(review);
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
         f.Adapter.OnTool = _ =>
         {
@@ -339,15 +352,21 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OwnedSkillCancellationDuringFinalAdmissionOrRunningTurnIsTruthfulAndJoined(bool runningTurn)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillCancellationDuringFinalAdmissionOrRunningTurnIsTruthfulAndJoined(bool runningTurn, bool parameterized)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
+        if (parameterized) { Parameterize(skill); }
         using var review = await skill.Review();
         await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
-        using var invocation = await skill.Prepare(review);
+        using var invocation = parameterized
+            ? await skill.Workflow.PrepareAsync(review, new(f.Session, null), "original", skill.Authority, skill.Eligible, Token,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["topic"] = "private value" })
+            : await skill.Prepare(review);
         if (!runningTurn)
         {
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);

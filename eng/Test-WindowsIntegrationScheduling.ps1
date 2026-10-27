@@ -1,5 +1,10 @@
 [CmdletBinding()]
-param()
+param(
+    # Optional complete five-shard TRX evidence checks every recorded case against the current partition.
+    [Parameter()]
+    [ValidateNotNullOrEmpty()]
+    [string] $RetainedResultsDirectory
+)
 
 Set-StrictMode -Version Latest
 $ErrorActionPreference = 'Stop'
@@ -12,6 +17,26 @@ function Assert {
     param([bool] $Condition, [string] $Message)
     $script:assertions++
     if (-not $Condition) { throw $Message }
+}
+
+function Get-MatchingShard {
+    param([string] $QualifiedName)
+
+    $all | Where-Object {
+        $matchesFilter = $false
+        foreach ($alternative in ($_.Filter -split '\|')) {
+            $matchesAll = $true
+            foreach ($predicate in ($alternative -split '&')) {
+                if ($predicate -cmatch '^FullyQualifiedName(!?)~(.+)$') {
+                    $contains = $QualifiedName.Contains($Matches[2], [StringComparison]::Ordinal)
+                    $matchesAll = $matchesAll -and $(if ($Matches[1] -ceq '!') { -not $contains } else { $contains })
+                }
+                else { throw "Unsupported scheduling predicate: $predicate." }
+            }
+            $matchesFilter = $matchesFilter -or $matchesAll
+        }
+        $matchesFilter
+    }
 }
 
 $expected = @('storage-heavy', 'storage-other', 'ui-definitions', 'native-ux', 'ui-platform')
@@ -52,27 +77,14 @@ $classes = [ordered]@{
     'Presentation.DispatcherEvidenceResponsivenessTestsExtra' = 'ui-platform'
     'NativeReaderTextScaleTestsExtra' = 'ui-platform'
     'SpeechCaptionDisplayTestsExtra' = 'ui-platform'
-    'SessionsConversationTests' = 'ui-platform'
+    'SessionsConversationTests' = 'ui-definitions'
+    'SessionsConversationTestsExtra' = 'ui-platform'
     'NativeQuestionTests' = 'ui-platform'
     'FuturePlatformTests' = 'ui-platform'
 }
 foreach ($class in $classes.Keys) {
     $qualified = "Kora.Windows.IntegrationTests.$class.Test"
-    $matching = @($all | Where-Object {
-        $matchesFilter = $false
-        foreach ($alternative in ($_.Filter -split '\|')) {
-            $matchesAll = $true
-            foreach ($predicate in ($alternative -split '&')) {
-                if ($predicate -cmatch '^FullyQualifiedName(!?)~(.+)$') {
-                    $contains = $qualified.Contains($Matches[2], [StringComparison]::Ordinal)
-                    $matchesAll = $matchesAll -and $(if ($Matches[1] -ceq '!') { -not $contains } else { $contains })
-                }
-                else { throw "Unsupported scheduling predicate: $predicate." }
-            }
-            $matchesFilter = $matchesFilter -or $matchesAll
-        }
-        $matchesFilter
-    })
+    $matching = @(Get-MatchingShard $qualified)
     Assert ($matching.Count -eq 1) "Partition must cover $class exactly once."
     Assert ($matching[0].Name -ceq $classes[$class]) "Partition placed $class in the wrong shard."
 }
@@ -88,9 +100,81 @@ Assert ($workflow.Contains('needs: [admission, version, windows-integration-shar
 Assert ($workflow.Contains("if: always() && needs.version.outputs.already-published != 'true' && (needs.admission.result != 'success' || needs.admission.outputs.full != 'false')",
     [StringComparison]::Ordinal)) 'Failed or cancelled dependencies must not skip the required gate.'
 Assert ($workflow.Contains('name: Windows integration tests', [StringComparison]::Ordinal)) 'Preserve the required check identity.'
-Assert ($workflow.Contains('timeout-minutes: 30', [StringComparison]::Ordinal)) 'Preserve the Windows job deadline.'
+$shardJob = [regex]::Match($workflow, '(?ms)^  windows-integration-shards:\r?\n(?<job>.*?)(?=^  [a-z][a-z-]*:|\z)')
+Assert $shardJob.Success 'The consumed Windows matrix job was not found.'
+$job = $shardJob.Groups['job'].Value
+$deadline = [regex]::Match($job, '(?m)^    timeout-minutes: (?<minutes>\d+)\s*$')
+Assert ($deadline.Success -and $deadline.Groups['minutes'].Value -ceq '30') 'Preserve the exact whole-job 30-minute deadline.'
+Assert ($job.Contains('ref: ${{ needs.version.outputs.source-revision }}', [StringComparison]::Ordinal)) 'Candidate jobs must consume the admitted source, including its scheduling script.'
+Assert ($job.Contains('run: .\eng\Run-WindowsIntegrationTests.ps1 -Shard ''${{ matrix.shard }}''',
+    [StringComparison]::Ordinal)) 'The trusted main workflow must consume candidate-owned shard assignments.'
 Assert ($workflow.Contains('KORA_TEST_NATIVE_EVIDENCE_MODE: ${{ matrix.shard == ''native-ux'' && ''buffered'' || ''synchronous'' }}',
     [StringComparison]::Ordinal)) 'Only the native-UX CI shard may select the measured buffered fixture profile.'
+$nativeFilter = @(
+    'Kora.Windows.IntegrationTests.NativeUx.'
+    'Kora.Windows.IntegrationTests.Presentation.DispatcherEvidenceResponsivenessTests.'
+    'Kora.Windows.IntegrationTests.NativeReaderTextScaleTests.'
+    'Kora.Windows.IntegrationTests.SpeechCaptionDisplayTests.'
+) | ForEach-Object { "FullyQualifiedName~$_" }
+Assert (($all | Where-Object Name -EQ 'native-ux').Filter -ceq ($nativeFilter -join '|')) 'Rebalancing must not move synchronous classes into the buffered profile.'
+$collection = Get-Content -Raw -LiteralPath (Join-Path $root 'tests\Kora.Windows.IntegrationTests\HeadlessUiTestGroup.cs')
+Assert ($collection.Contains('[CollectionDefinition(nameof(HeadlessUiTestGroup), DisableParallelization = true)]',
+    [StringComparison]::Ordinal)) 'Headless UI tests must remain serial within each process.'
+
+# Run 40468340968: whole test-step wall times, not sums of concurrently executed test durations.
+# Conservatively charge every shard the largest observed setup (including storage-only checks)
+# and post-test cost. This is a fixed scheduling regression, not a hosted speed guarantee.
+$testSeconds = [ordered]@{
+    'storage-heavy' = 311.0
+    'storage-other' = 252.0
+    'ui-definitions' = 477.0
+    'native-ux' = 463.0
+    'ui-platform' = 1536.0
+}
+$setupSeconds = 460.0
+$postTestSeconds = 6.0
+$conversationSeconds = 544.348
+$deadlineSeconds = [int] $deadline.Groups['minutes'].Value * 60
+Assert (($testSeconds['ui-platform'] + 264 + 6) -gt $deadlineSeconds) 'The fixture must reproduce the observed whole-job exhaustion despite passing tests.'
+$destination = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.SessionsConversationTests.Test')
+Assert ($destination.Count -eq 1 -and $destination[0].Name -ceq 'ui-definitions') 'The measured conversation class must move intact to the synchronous definitions shard.'
+$testSeconds['ui-platform'] -= $conversationSeconds
+$testSeconds[$destination[0].Name] += $conversationSeconds
+foreach ($name in $expected) {
+    $wholeJobSeconds = $setupSeconds + $testSeconds[$name] + $postTestSeconds
+    Assert ($wholeJobSeconds -lt $deadlineSeconds) "Measured $name workload plus complete conservative overhead exceeds the unchanged deadline: $wholeJobSeconds seconds."
+}
+Assert (($testSeconds.Values | Measure-Object -Maximum).Maximum -lt 1536) 'Rebalancing must reduce the measured critical path, not just move the deadline failure.'
+
+if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
+    $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)
+    Assert ($reports.Count -eq $expected.Count) 'Retained evidence must contain exactly one report for every shard.'
+    $executions = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $recordedClasses = [Collections.Generic.HashSet[string]]::new([StringComparer]::Ordinal)
+    $recordedCases = 0
+    foreach ($name in $expected) {
+        $report = @($reports | Where-Object { $_.Directory.Name -ceq $name })
+        Assert ($report.Count -eq 1) "Retained evidence must contain exactly one $name report."
+        [xml] $trx = Get-Content -Raw -LiteralPath $report[0].FullName
+        $definitions = @{}
+        foreach ($test in $trx.TestRun.TestDefinitions.UnitTest) {
+            $definitions.Add($test.id, $test.TestMethod)
+        }
+        $results = @($trx.TestRun.Results.UnitTestResult)
+        Assert ($results.Count -gt 0 -and $results.Count -eq [int] $trx.TestRun.ResultSummary.Counters.total) "Incomplete or empty $name report."
+        foreach ($result in $results) {
+            Assert ($executions.Add($result.executionId)) 'Retained reports contain a duplicate test execution.'
+            Assert ($definitions.ContainsKey($result.testId)) 'A retained result has no test definition.'
+            $method = $definitions[$result.testId]
+            Assert (-not [string]::IsNullOrWhiteSpace($method.className)) 'A retained test has no class identity.'
+            $recordedClasses.Add($method.className) | Out-Null
+            $matching = @(Get-MatchingShard "$($method.className).$($method.name)")
+            Assert ($matching.Count -eq 1) "Partition must cover retained case $($result.testName) exactly once."
+            $recordedCases++
+        }
+    }
+    Write-Host "Retained partition: $recordedCases cases in $($recordedClasses.Count) whole classes covered exactly once."
+}
 Assert ($workflow.Contains("if: github.event_name == 'workflow_dispatch' && inputs.compare_native_evidence",
     [StringComparison]::Ordinal)) 'Native evidence comparisons must remain opt-in and manual-only.'
 $comparisonCases = @(& (Join-Path $PSScriptRoot 'Compare-NativeFixtureEvidence.ps1') -ListCases)

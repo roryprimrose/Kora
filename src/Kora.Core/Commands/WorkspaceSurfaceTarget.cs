@@ -18,4 +18,6 @@ public enum WorkspaceSurfaceTarget
     SessionLogs,
     SessionAudit,
     OpenNamedConversation,
+    /// <summary>Open All work and complete a fresh bounded Needs answer observation.</summary>
+    WaitingQuestions,
 }

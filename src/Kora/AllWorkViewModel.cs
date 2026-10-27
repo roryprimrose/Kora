@@ -33,8 +33,14 @@ internal sealed partial class AllWorkViewModel(
     private long epoch;
     private string status = "Refresh manually to inspect a bounded page. Opening grants nothing. " + SessionWorkOverviewPage.Scope;
 
-    public IReadOnlyList<SessionWorkOverviewRow> Records => orderedRecords;
-    public SessionWorkOverviewRow? SelectedRecord => selected;
+    public IReadOnlyList<SessionWorkOverviewRow> Records
+    {
+        get { RetireWaitingQuestionsIfStale(); return orderedRecords; }
+    }
+    public SessionWorkOverviewRow? SelectedRecord
+    {
+        get { RetireWaitingQuestionsIfStale(); return selected; }
+    }
     public IReadOnlyList<SessionListFilter> Filters { get; } = Enum.GetValues<SessionListFilter>();
     public IReadOnlyList<SessionListSearchKind> QueryKinds { get; } =
         [SessionListSearchKind.NameSubstring, SessionListSearchKind.ExactId];
@@ -51,7 +57,10 @@ internal sealed partial class AllWorkViewModel(
     public bool CanNext => CanSearch && (busy ? hadNext : page?.Next is not null);
     public bool CanCancel => !closed && operation is not null;
     public bool CanNavigate => CanEdit && selected is { Availability: SessionWorkOverviewAvailability.Observed };
-    public string SelectedDetails => selectedDetails;
+    public string SelectedDetails
+    {
+        get { RetireWaitingQuestionsIfStale(); return selectedDetails; }
+    }
     public string QueryHint => queryText.Length == 0
         ? "No query: bounded overview scan. Typing never reads; Search/Refresh starts a fresh scan."
         : SessionListSearch.IsValid(queryKind, filter, queryText)
@@ -151,6 +160,7 @@ internal sealed partial class AllWorkViewModel(
     {
         RetireFind();
         operation?.Cancel();
+        if (waitingQuestionAdmission is not null) { ClearPage(); }
         NotifyFind();
     }
 
@@ -164,11 +174,17 @@ internal sealed partial class AllWorkViewModel(
             var revision = access.ControlRevision;
             var result = await service.ReadWorkOverviewAsync(filter, needsAnswer, cursor, token, query, taskState: taskState);
             token.ThrowIfCancellationRequested();
-            var projection = ProjectRows(result, order);
-            page = result;
-            pageControlRevision = revision;
-            orderedRecords = projection;
-            status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
+            PublishPage(result, revision);
+        });
+    }
+
+    private void PublishPage(SessionWorkOverviewPage result, long revision)
+    {
+        var projection = ProjectRows(result, order);
+        page = result;
+        pageControlRevision = revision;
+        orderedRecords = projection;
+        status = "This page: " + result.Records.Length.ToString(CultureInfo.InvariantCulture) + " groups; "
                 + result.Scanned.ToString(CultureInfo.InvariantCulture) + " consumed/scanned; "
                 + result.Nonmatches.ToString(CultureInfo.InvariantCulture) + " filter nonmatches; "
                 + result.Records.Count(row => row.Availability != SessionWorkOverviewAvailability.Observed)
@@ -177,7 +193,6 @@ internal sealed partial class AllWorkViewModel(
                     : result.Next is not null ? "Session scan bound reached; Next continues even with zero matches. "
                         : "End of current metadata observation; not a global all-clear. ")
                 + SessionWorkOverviewPage.Scope;
-        });
     }
 
     public Task NavigateAsync() => RunAsync(async token =>
@@ -197,6 +212,7 @@ internal sealed partial class AllWorkViewModel(
     {
         if (closed || busy) { return; }
         if (!access.CanInspect) { Close(); return; }
+        waitingQuestionAdmission = null;
         var revision = access.ControlRevision;
         var admittedEpoch = epoch;
         hadNext = page?.Next is not null;
@@ -257,7 +273,7 @@ internal sealed partial class AllWorkViewModel(
         selected = null;
         selectedDetails = string.Empty;
     }
-    private void Invalidate() { epoch++; hadNext = false; operation?.Cancel(); ClearPage(); }
+    private void Invalidate() { epoch++; hadNext = false; waitingQuestionAdmission = null; operation?.Cancel(); ClearPage(); }
     public void Close()
     {
         if (closed) { return; }

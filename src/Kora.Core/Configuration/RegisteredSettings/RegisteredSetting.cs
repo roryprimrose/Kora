@@ -7,4 +7,5 @@ public enum RegisteredSetting
     SummaryWords,
     SummarySentences,
     PlaybackVolume,
+    ResponseMode,
 }

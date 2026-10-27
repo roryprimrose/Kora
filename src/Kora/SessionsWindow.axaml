@@ -183,6 +183,7 @@
             AutomationProperties.Name="Explicit delegated MCP account; never inherits a model account or ambient credentials" />
         <TextBox Text="{Binding McpResultText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
             IsUndoEnabled="False" MaxHeight="180" AutomationProperties.Name="Actual bounded inert MCP result with tool and observation provenance; no executable content" />
+        <local:McpResultFollowUpControls x:Name="McpResultFollowUp" />
         <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
         <local:PendingConversationPanel />

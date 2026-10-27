@@ -194,6 +194,8 @@ public sealed partial class SessionsConversationTests
         {
             Calls++;
             Encoding.UTF8.GetString(context.Span).Should().Contain("Registered Kora setting suggestions are inert data")
+                .And.Contain("responses.default-mode").And.Contain("Hybrid/VoiceOnly/VisualOnly")
+                .And.Contain("including VoiceOnly")
                 .And.Contain("explicitly requests a session-memory proposal");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
                 new(Calls == 1 ? "set appearance.theme to dark" : MemoryProposal, null)));

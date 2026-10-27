@@ -140,6 +140,8 @@ public sealed partial class SessionsConversationTests
                 retained.ExpectedTaskState.Should().Be(HostTaskState.Unknown);
                 retained.AssistantResponse.Should().BeNull();
                 transport.Requests.Should().ContainSingle();
+                await WhenModelAsync(model, () => model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal)
+                    && model.RunningConversationStatus.Contains(retained.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
                 model.RunningConversationStatus.Should().Contain("Terminal Cancelled");
                 model.CanCancelRunningConversation.Should().BeFalse();
                 composed.Audit.Events.Where(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal))

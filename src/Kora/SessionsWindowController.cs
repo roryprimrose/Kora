@@ -218,6 +218,12 @@ internal sealed partial class SessionsWindowController(
             if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
             token.ThrowIfCancellationRequested();
             if (command.Stop) { await active!.CancelMcpConversationAsync(); return "Cancellation requested; owned work remains held until actual termination. No rollback or automatic retry."; }
+            if (command.Explicit)
+            {
+                await active!.InvokeSelectedMcpAsync(origin, Live);
+                if (!Live()) { throw new OperationCanceledException("The original MCP presentation changed."); }
+                return active.ConversationStatus;
+            }
             var message = await active!.SubmitMcpConversationAsync(command.Body, origin, Live);
             if (!Live()) { throw new OperationCanceledException("The original MCP presentation changed; no result is disclosed to another target."); }
             return message?.AssistantResponse?.Body ?? active.ConversationStatus;
@@ -425,6 +431,21 @@ internal sealed partial class SessionsWindowController(
                 { return null; }
                 var selectedOption = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
                 return selectedOption < 0 ? null : tools[selectedOption].Name;
+            };
+            model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
+            {
+                using var schema = System.Text.Json.JsonDocument.Parse(tool.InputSchema);
+                var spec = new Kora.Core.Interaction.QuestionSpec("Enter JSON arguments for " + tool.Id
+                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
+                    + System.Text.Json.JsonSerializer.Serialize(schema.RootElement),
+                    Kora.Core.Interaction.QuestionKind.Text, [],
+                    maximumTextLength: Kora.Core.Mcp.McpToolSchema.MaximumArgumentsUtf8Bytes,
+                    sourceId: "mcp-tool-arguments");
+                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
+                    ?? throw new InvalidOperationException("The exact MCP input window is unavailable."),
+                    request, generation, spec, expiresAt, admitted, token, mcpInput: true);
+                return receipt.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Answered
+                    ? receipt.Completed.Question?.Draft?.Text : null;
             };
         }
         presentation = new(model, main);

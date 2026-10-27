@@ -46,7 +46,9 @@ public sealed partial class MainViewModel
     }
 
     private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission() =>
-        promptInputVoice?.IsActive != true ? ObserveActivatedInputVoiceAdmission() : null;
+        promptInputVoice?.IsActive != true && ObserveActivatedInputVoiceAdmission() is { } admission
+            ? admission with { ActivationName = AssistantName }
+            : null;
 
     private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission() =>
         !IsBusy ? ObserveAdmittedVoiceCaptureReadiness() : null;

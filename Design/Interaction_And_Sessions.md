@@ -935,9 +935,18 @@ question edits/expiry/answer, privacy/ownership/call/device loss, failures and
 closure synchronously retire admission and fence delayed callbacks. Capture
 returns to closed/ordinary explicit PTT readiness, not Wake Listening.
 
-Answers match only the exact schema, with no optional assistant-name stripping
-and no command, tool, composer or session-routing fallback. Proposal/approval
-questions are refused; approval readback specificity and grants are unchanged.
+Choice answers match the existing bare schema first, then may use one optional
+validated current configured activation-name prefix, separated by whitespace or
+a comma, before that same exact label/number/`option N` answer (for example,
+`Nova Yes` or `Nova, option 2` when the configured name is Nova). Bare labels,
+including ambiguous labels starting with the name, retain their existing meaning;
+free-text answers are never stripped or normalized. The question-specific
+admission captures the name, and name changes retire playback/capture/delayed
+delivery through the same admission fence without retry or rearm.
+There is no command, tool, composer or session-routing fallback; the existing
+privacy-reducing Stop-listening route remains before schema parsing, even for
+an assistant named Stop or a matching option label. Proposal/approval questions
+are refused; approval readback specificity and grants are unchanged.
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained

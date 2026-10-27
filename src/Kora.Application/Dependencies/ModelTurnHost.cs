@@ -249,6 +249,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         finally
         {
             turn.IsRunning = false;
+            turn.AuthorityRetired = null;
         }
         CompleteAudit(requested, result);
         activity.Complete(ToActivityOutcome(result.Outcome));
@@ -337,7 +338,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)
-            || await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+            || await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
@@ -348,6 +349,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
+        turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.ReadingObservation);
         var reply = customizationDiscoveries.TryGetValue(turn, out var customizations)
             ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
             : sessionDiscoveries.TryGetValue(turn, out var discovery)
@@ -361,11 +363,12 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
             : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
-        if (await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+        if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
         }
+        turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.GeneratingAnswer);
         return reply;
     }
 
@@ -398,6 +401,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.RetirementReason is var retired && retired != ModelTurnReason.None) { return retired; }
         if (turn.ResourceLease is { } resource && !resources.IsCurrent(resource))
         { return ModelTurnReason.QualificationPending; }
         if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }

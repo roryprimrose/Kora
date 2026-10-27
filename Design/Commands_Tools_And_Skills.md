@@ -217,6 +217,20 @@ or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
 
+An exchange disconnect, disposed transport, or transport-owned cancellation
+retires that invocation's connection without reconnecting, retrying or falling
+back. A failed tool exchange completes the original conversation as
+`Unknown` / `ToolResultRejected`, with no assistant answer or tool-result
+publication; the exchange audit remains `Unknown`, not a claim that the remote
+read never occurred. Inspect the original request and explicitly start a newly
+reviewed request to recover. Failure-only completion still requires current
+session, configuration-source and approval authority; storage, audit or host
+authority failures remain explicitly unconfirmed. Caller cancellation retains
+its existing cancellation policy. The existing 30-second per-exchange deadline
+also covers serial waiters. Lifetime/account withdrawal cancels waiting
+exchanges before any new send, and disposal retains the handler and credential
+lease until cancellation-ignoring work actually terminates.
+
 Implementation is exercised with deterministic delegated-account, transport and
 model fakes, not live servers. The shipped broker remains explicitly
 **unavailable**, with no qualified accounts or effect mappings installed. This
@@ -468,6 +482,17 @@ The [native reader](../src/Kora.Windows/ArtifactDiscovery/WindowsAgentProfileRea
 Profile prose is inert untrusted guidance: paths, URLs and instructions in it are never resolved as dependencies or authority. The [review](../src/Kora.Application/Agents/BoundedAgentReview.cs) fixes exact native source revision, original input/origin, Active session metadata, locality, tool subset and clamped budgets. It expires after two minutes and requires a separate single-use invocation confirmation. Input, session, privacy, ownership or source changes retire applicability.
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
+
+The same exact running-conversation lease projects content-free host model and
+numbered observation steps, not provider reasoning or tool-result text. Deferred
+native presentation revalidates the live lease, original source/private lifetime
+and current progress revision; waiting snapshots cannot overwrite a later phase
+when dispatch advances the durable task revision. Review/consent remains in the
+existing agent review window. Exact-task Cancel reports pending physical join
+before the existing confirmed terminal; no progress snapshot grants authority,
+persists partial output, cancels another run or manufactures a successful answer.
+Original caller cancellation closes the bounded run's source/dispatch predicate
+immediately, without waiting for asynchronous linked-token callbacks.
 
 **Named static invocation:** original typed/current-name activated
 `agent invoke "Exact readable name" <original task>` resolves exactly one

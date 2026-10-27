@@ -6,10 +6,10 @@
       <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
-      <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+      <TextBlock Name="OriginalMessageText" Text="{Binding Body}" TextWrapping="Wrap" Focusable="True" />
       <StackPanel IsVisible="{Binding HasAssistantResponse}">
         <TextBlock Text="ASSISTANT - finalized admitted local-model answer (not original USER or effect evidence)" />
-        <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap"
+        <TextBlock Name="RetainedAssistantText" Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" Focusable="True"
             AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
         <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
             IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"

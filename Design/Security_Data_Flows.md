@@ -45,6 +45,16 @@ An explicit `ask this conversation <original body>` request uses the [existing n
 
 The [ordinary resource boundary](Work_Management.md#ordinary-session-resource-allocation-implementation) retains original request/channel/context and existing per-task tool/question/egress authority. Only the [host allocator's live issued-lease table](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) confers allocation authority; constructing a qualification record or lease-shaped value cannot consume budget or release another owner's resources. Expiry/revocation/profile/runtime changes close dispatch and answer publication. Unknown physical identity remains globally exclusive; failed physical joins quarantine affected resources. Resource audit contains host turn identity and fixed outcomes, never source text or provider/account details.
 
+Once an existing live adapter continuation observes withdrawn authority or a
+validation failure, the [original turn](../src/Kora.Application/Dependencies/ModelTurn.cs)
+is permanently retired. Previously published provisional output becomes stale;
+later recovery of the external authority cannot renew that turn's progress,
+tools or final answer. Retirement does not claim cancellation or physical
+termination: the existing resource owner still joins or quarantines the
+original provider. Other turns and subsequent explicit admissions retain their
+existing policy. [Controlled-barrier regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)
+exercise authority withdrawal, late callbacks and recovery without a real provider.
+
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
 stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
 The 100-message session bound is not an aggregate storage quota. Nothing silently evicts unexpired content or required audit ([unsent input](../src/Kora/SessionsViewModel.Unsent.cs), [read-only recovery](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).

@@ -13,6 +13,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void DocumentInteractionGuideDescribesExactLocalNavigationReadOnlySortingAndUnavailableProfile()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Go to heading**").And.Contain("Enter or Space")
+            .And.Contain("external links stay inert")
+            .And.Contain("Ctrl+Home/End").And.Contain("ordinal text")
+            .And.Contain("Equal values keep original order")
+            .And.Contain("**Reset table order**").And.Contain("never edits the answer")
+            .And.Contain("No table action copies content")
+            .And.Contain("unavailable table profile still shows the complete source")
+            .And.Contain("do not enable an unqualified profile");
+    }
+
+    [Fact]
     public void TwoSourceSkillExampleUsesOnlyAdmittedDeclarativePageToolAndExactCommands()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

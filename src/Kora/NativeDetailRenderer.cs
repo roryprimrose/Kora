@@ -1,4 +1,5 @@
 using System.Diagnostics;
+using System.Collections.Immutable;
 using System.Globalization;
 using System.Text;
 
@@ -8,10 +9,12 @@ using Kora.Core.Presentation.CodeHighlighting;
 using Kora.CodeHighlighting;
 
 using Markdig;
+using Markdig.Extensions.AutoIdentifiers;
 using Markdig.Extensions.Tables;
 using Markdig.Extensions.TaskLists;
 using Markdig.Syntax;
 using Markdig.Syntax.Inlines;
+using Markdig.Renderers.Html;
 
 using Microsoft.Extensions.Logging;
 
@@ -27,7 +30,7 @@ internal sealed partial class NativeDetailRenderer(
     private static readonly MarkdownPipeline Pipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.Build();
+    }.UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly MarkdownPipeline TablePipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
@@ -35,11 +38,11 @@ internal sealed partial class NativeDetailRenderer(
     {
         RequireHeaderSeparator = true,
         UseHeaderForColumnCount = false,
-    }).Build();
+    }).UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly MarkdownPipeline ChecklistPipeline = new MarkdownPipelineBuilder
     {
         MaximumNestingDepth = NativeDetailProfile.MaximumNesting,
-    }.UseTaskLists().Build();
+    }.UseTaskLists().UseAutoIdentifiers(AutoIdentifierOptions.None).Build();
     private static readonly HashSet<Type> SupportedTypes =
     [
         typeof(MarkdownDocument), typeof(HeadingBlock), typeof(ParagraphBlock), typeof(ListBlock),
@@ -50,9 +53,7 @@ internal sealed partial class NativeDetailRenderer(
     ];
 
     // Supported: CommonMark headings, paragraphs, lists, quotes, breaks, literal/code text,
-    // emphasis (plain semantic text), fenced/indented code, and inert labelled links.
-    // The optional table profile adds only inert header-labelled text, not rich controls.
-    // No HTML conversion, resource resolver, browser, or actionable links.
+    // External destinations stay inert. Only scoped Details can activate local heading fragments.
     internal NativeDocumentResult Render(
         string source,
         DetailContentKind kind = DetailContentKind.Markdown,
@@ -164,8 +165,9 @@ internal sealed partial class NativeDetailRenderer(
         }
         render?.SetStatus(ActivityStatusCode.Ok);
         return new(source, semantic,
-            $"Rendered {profile} CommonMark text subset. Links are inert; emphasis is plain text."
-                + (tables ? " Tables use complete header-labelled rows, not a visual grid." : string.Empty)
+            $"Rendered {profile} CommonMark text subset. External links are inert; emphasis is plain text."
+                + " Document-local heading navigation is available in scoped Details."
+                + (tables ? " Tables retain complete header-labelled rows; scoped Details adds read-only cell navigation and ordinal text sorting." : string.Empty)
                 + (checklists ? " Checklist states are display-only text, not host tasks or checkbox controls." : string.Empty)
                 + (strikethrough ? " Strikethrough wording is labelled display-only text, not a diff, task status, action or permission." : string.Empty),
             false, sections, validation.Blocks, validation.Nodes, validation.Depth);
@@ -368,11 +370,12 @@ internal sealed partial class NativeDetailRenderer(
                 continue;
             }
             var strikeProjection = strikethrough ? new InlineStrikethroughProjection(entry.Prefix.Length) : null;
+            var links = ImmutableArray.CreateBuilder<NativeDocumentLink>();
             var text = block switch
             {
                 CodeBlock code => code.Lines.ToString(),
                 ThematicBreakBlock => "—",
-                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection),
+                LeafBlock leaf => InlineText(leaf.Inline, strikeProjection, links),
                 _ => throw new InvalidOperationException("The validated native block is unsupported."),
             };
             var style = block switch
@@ -405,15 +408,19 @@ internal sealed partial class NativeDetailRenderer(
             {
                 Code = codeSource,
                 Strikethrough = strikeProjection?.Spans ?? [],
+                HeadingId = block is HeadingBlock ? block.GetAttributes().Id : null,
+                Links = links.ToImmutable(),
             });
         }
         return sections;
     }
 
-    private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null)
+    private static string InlineText(ContainerInline? root, InlineStrikethroughProjection? strikethrough = null,
+        ImmutableArray<NativeDocumentLink>.Builder? links = null)
     {
         if (root is null) { return string.Empty; }
         var text = new BoundedNativeText();
+        var linkStarts = new Dictionary<LinkInline, int>();
         var pending = new Stack<(Inline Node, bool Exit)>();
         pending.Push((root, false));
         while (pending.TryPop(out var entry))
@@ -421,6 +428,10 @@ internal sealed partial class NativeDetailRenderer(
             if (entry.Exit && strikethrough?.Exit(entry.Node, text) == true) { continue; }
             if (entry.Exit && entry.Node is LinkInline link)
             {
+                if (linkStarts.Remove(link, out var start) && link.Url is { } destination)
+                {
+                    links!.Add(new(text.ToString()[start..], destination));
+                }
                 text.Append(" (destination: ");
                 text.Append(link.Url);
                 text.Append(")");
@@ -437,6 +448,11 @@ internal sealed partial class NativeDetailRenderer(
                     text.Append(" (inert destination)");
                     break;
                 case ContainerInline container:
+                    if (links is not null && container is LinkInline { Url: { } url } local
+                        && url.StartsWith('#'))
+                    {
+                        linkStarts.Add(local, text.Length);
+                    }
                     if (strikethrough?.Enter(container, text) == true || container is LinkInline)
                     { pending.Push((container, true)); }
                     for (var child = container.LastChild; child is not null; child = child.PreviousSibling)

@@ -483,6 +483,17 @@ Profile prose is inert untrusted guidance: paths, URLs and instructions in it ar
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
+The same exact running-conversation lease projects content-free host model and
+numbered observation steps, not provider reasoning or tool-result text. Deferred
+native presentation revalidates the live lease, original source/private lifetime
+and current progress revision; waiting snapshots cannot overwrite a later phase
+when dispatch advances the durable task revision. Review/consent remains in the
+existing agent review window. Exact-task Cancel reports pending physical join
+before the existing confirmed terminal; no progress snapshot grants authority,
+persists partial output, cancels another run or manufactures a successful answer.
+Original caller cancellation closes the bounded run's source/dispatch predicate
+immediately, without waiting for asynchronous linked-token callbacks.
+
 **Named static invocation:** original typed/current-name activated
 `agent invoke "Exact readable name" <original task>` resolves exactly one
 file-backed Agent from the existing registered catalogue. Missing/duplicate

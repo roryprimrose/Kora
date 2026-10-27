@@ -13,6 +13,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void DocumentInteractionGuideDescribesExactLocalNavigationReadOnlySortingAndUnavailableProfile()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Go to heading**").And.Contain("Enter or Space")
+            .And.Contain("external links stay inert")
+            .And.Contain("Ctrl+Home/End").And.Contain("ordinal text")
+            .And.Contain("Equal values keep original order")
+            .And.Contain("**Reset table order**").And.Contain("never edits the answer")
+            .And.Contain("No table action copies content")
+            .And.Contain("unavailable table profile still shows the complete source")
+            .And.Contain("do not enable an unqualified profile");
+    }
+
+    [Fact]
     public void TwoSourceSkillExampleUsesOnlyAdmittedDeclarativePageToolAndExactCommands()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -358,7 +373,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 25);
+        sections.Should().HaveCount(commands.Count + 26);
+        var namedOpening = sections.Single(section => section.StartsWith(
+            "Open a conversation by its readable name", StringComparison.Ordinal));
+        namedOpening.Should().Contain("open conversation \"Exact readable name\"")
+            .And.Contain("read conversation \"Exact readable name\"")
+            .And.Contain("Nothing is selected by default")
+            .And.Contain("Open this exact").And.Contain("real retained history")
+            .And.Contain("never autosaved").And.Contain("60 seconds")
+            .And.Contain("late confirmation cannot substitute")
+            .And.Contain("never creates New");
         var namedInvocation = sections.Single(section => section.StartsWith(
             "Invoke an instruction-only skill by readable name", StringComparison.Ordinal));
         namedInvocation.Should().Contain("use skill <exact declared readable name>")
@@ -546,6 +570,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, namedOpening)
             && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)

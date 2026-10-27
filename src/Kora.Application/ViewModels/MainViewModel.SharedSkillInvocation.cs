@@ -12,6 +12,38 @@ public sealed partial class MainViewModel
     public void BindSharedSkillUseShutdown(Func<Task>? shutdown) => sharedSkillUseShutdown = shutdown;
     private Task CloseSharedSkillUse() => sharedSkillUseShutdown?.Invoke() ?? Task.CompletedTask;
 
+    public event Func<NamedSkillCommand, RequestOrigin, Func<bool>, Task>? NamedSkillInvocationRequested;
+    private Func<Task>? namedSkillUseShutdown;
+    private Func<Func<bool>>? namedSkillChoiceCapture;
+    public void BindNamedSkillUseShutdown(Func<Task>? shutdown) => namedSkillUseShutdown = shutdown;
+    public void BindNamedSkillChoiceCapture(Func<Func<bool>>? capture) => namedSkillChoiceCapture = capture;
+    private Task CloseNamedSkillUse() => namedSkillUseShutdown?.Invoke() ?? Task.CompletedTask;
+
+    private async Task ExecuteNamedSkillInvocation(NamedSkillCommand command, string text,
+        ManualCallInput input, Func<bool>? queuedEligibility)
+    {
+        var sourceEligible = queuedEligibility ?? CaptureSkillReviewEligibility(input);
+        bool Eligible() => sourceEligible() && (command.Action is not "Choice" || input.NamedSkillChoiceEligible());
+        Func<bool> eligible = Eligible;
+        if (IsResponseInteractionPending || !eligible()
+            || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
+            || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
+            || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+        {
+            Transcript = "Named skill use requires original private typed input or current-name activated voice, without a pending question or approval.";
+            return;
+        }
+        if (command.Action is "Invalid")
+        {
+            Transcript = "Use 'use skill <exact readable name>', 'skill choice <displayed number>' or 'skill close'. Nothing was run.";
+            return;
+        }
+        if (NamedSkillInvocationRequested is not { } route)
+        { Transcript = "Reviewed named skill use is unavailable in this host. No fallback was run."; return; }
+        await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
+            () => route(command, input.Origin, eligible), operation: HostOperation.Request));
+    }
+
     private async Task ExecuteSharedSkillInvocation(SharedSkillInvocationCommand command, string text,
         ManualCallInput input, Func<bool>? queuedEligibility)
     {

@@ -44,6 +44,8 @@ internal sealed class McpTransportFixture : IDisposable
     }
 
     internal static ImmutableArray<byte> Wire(byte[] bytes) => ImmutableArray.CreateRange(bytes);
+    internal IMcpConnection CreateConnection(TimeProvider time) =>
+        new McpHttpConnection(Account, Lease, [IPAddress.Parse("8.8.8.8")], new Handler(this), time);
     internal static HttpResponseMessage Json(string text, HttpStatusCode status = HttpStatusCode.OK) =>
         new(status) { Content = new StringContent(text, Encoding.UTF8, "application/json") };
 

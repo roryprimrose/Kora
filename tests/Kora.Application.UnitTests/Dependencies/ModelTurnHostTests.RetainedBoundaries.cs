@@ -21,6 +21,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("revision")]
     [InlineData("target")]
     [InlineData("expired")]
+    [InlineData("clock-back")]
     [InlineData("busy")]
     [InlineData("metadata")]
     public async Task RetainedExecutionRejectsUnboundAdmissionAndChangedPreDispatchState(string fault)
@@ -43,6 +44,7 @@ public sealed partial class ModelTurnHostTests
                 fault is "revision" ? new(9) : original.TaskRevision, original.ControlRevision, original.Registration);
             if (fault is "target") { turn.ConversationTarget = new(fixture.Session, null); }
             if (fault is "expired") { fixture.Time.Now = context.ExpiresAt; }
+            if (fault is "clock-back") { fixture.Time.Now = context.CreatedAt.AddTicks(-1); }
             if (fault is "busy") { quiet = false; }
             if (fault is "metadata") { fixture.Metadata = new(fixture.Session.SessionId, new(1), new("changed")); }
             return new(admitted.Result with
@@ -53,8 +55,18 @@ public sealed partial class ModelTurnHostTests
             }, turn);
         }, () => quiet);
         var service = fixture.ConversationService(admission, execution: fault is "missing-execution" ? null : host);
-        await service.Invoking(value => value.SubmitAsync(new(fixture.Session, null), "immutable original", static () => true, Token))
-            .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+        if (fault is "expired" or "clock-back")
+        {
+            var receipt = await service.SubmitAsync(new(fixture.Session, null), "immutable original", static () => true, Token);
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+            receipt.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+            receipt.Message.Execution.Should().BeNull();
+        }
+        else
+        {
+            await service.Invoking(value => value.SubmitAsync(new(fixture.Session, null), "immutable original", static () => true, Token))
+                .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+        }
         fixture.ExecutionStarts.Should().Be(0);
         fixture.Adapter.Calls.Should().Be(0);
     }

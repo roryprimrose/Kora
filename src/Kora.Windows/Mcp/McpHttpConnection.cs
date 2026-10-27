@@ -10,17 +10,20 @@ internal sealed class McpHttpConnection : IMcpConnection
     private readonly McpAccountLease lease;
     private readonly IPAddress[] addresses;
     private readonly HttpClient client;
+    private readonly TimeProvider time;
     private readonly CancellationTokenSource lifetime = new();
     private readonly SemaphoreSlim serial = new(1, 1);
     private readonly Lock sync = new();
     private readonly HashSet<Task> active = [];
     private Task? disposal;
 
-    internal McpHttpConnection(McpAccountReference account, McpAccountLease lease, IPAddress[] addresses, HttpMessageHandler handler)
+    internal McpHttpConnection(McpAccountReference account, McpAccountLease lease, IPAddress[] addresses,
+        HttpMessageHandler handler, TimeProvider? time = null)
     {
         this.lease = lease;
         this.addresses = addresses;
         Account = account;
+        this.time = time ?? TimeProvider.System;
         client = new(handler, disposeHandler: true) { Timeout = Timeout.InfiniteTimeSpan };
     }
 
@@ -100,11 +103,12 @@ internal sealed class McpHttpConnection : IMcpConnection
     {
         var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         CancellationTokenSource linked;
+        CancellationTokenSource deadline;
         lock (sync)
         {
             ObjectDisposedException.ThrowIf(disposal is not null, this);
-            linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token, lease.AdmissionWithdrawn);
-            linked.CancelAfter(TimeSpan.FromSeconds(30));
+            deadline = new(TimeSpan.FromSeconds(30), time);
+            linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token, lease.AdmissionWithdrawn, deadline.Token);
             active.Add(completion.Task);
         }
         return ExecuteAsync();
@@ -120,6 +124,7 @@ internal sealed class McpHttpConnection : IMcpConnection
             finally
             {
                 linked.Dispose();
+                deadline.Dispose();
                 lock (sync)
                 {
                     completion.SetResult();

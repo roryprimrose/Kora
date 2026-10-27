@@ -48,6 +48,33 @@ and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/Sessions
 
 ## Conversation Input Realignment
 
+Ordinary Send and the exact typed/activated-voice request-confirm route share
+the [submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns).
+A busy existing Active conversation can accept an immutable pending request
+without waiting for its previous provider turn. Sessions/compact show the
+actual submitted request and position and let the user cancel exactly that
+pending request. Only confirmed success and physical resource closure permit
+automatic next dispatch; held work needs deliberate resume and unchanged
+original authority. Questions, approvals, specialized source workflows and
+unqualified providers retain their existing unavailable/review fences.
+Acceptance is not execution success, action approval, renewed source consent or
+foreground voice targeting. Unsent input remains memory-only and separate.
+
+Explicit Claude streaming remains outside the ordinary submitted-turn queue:
+neither route replaces an active turn owned by the other. Refusal retains no
+new input and does not change pending order or renew provider/egress authority.
+Streaming cancellation still joins the physical worker before terminal
+retention, and provisional or late cancelled text is never an ASSISTANT answer
+([combined regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ClaudeStreaming.cs),
+[ordinary FIFO regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)).
+
+Each queued execution confirms its original terminal readback before publishing
+terminal state and releasing its physical-completion lease. Returning the
+confirmed receipt does not reread that source after release, preserving the
+reviewed stop-and-delete boundary without changing FIFO or original authority
+([combined FIFO/readback regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs),
+[tool-join/deletion regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.StopAndDelete.cs)).
+
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.

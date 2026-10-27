@@ -13,10 +13,15 @@ public sealed partial class MainViewModel
     private async Task ExecuteCustomizationDiscovery(CustomizationDiscoveryCommand command, string text,
         ManualCallInput input, Func<bool>? queuedEligibility)
     {
+        if (IsResponseInteractionPending)
+        {
+            Transcript = "Customization discovery cannot replace a pending question or approval. Nothing was shared.";
+            return;
+        }
         var captured = queuedEligibility ?? CaptureSkillReviewEligibility(input);
         var privacy = CaptureCustomizationVoiceEligibility();
         bool Eligible() => captured() && privacy();
-        if (IsResponseInteractionPending || !Eligible()
+        if (!Eligible()
             || !isAssistantNameAvailable && commandRouter.IsActivationPrefixed(text, AssistantName)
             || input.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || input.Origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))

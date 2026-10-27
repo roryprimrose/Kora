@@ -100,6 +100,11 @@ test-runner scheduling. Speech receipt-pinning fixtures inject changes after
 terminal publication and outside the submission's host scope, not at a
 particular count of internal metadata reads.
 
+Native streaming fixtures await the exact terminal presentation notification
+separately from the submission operation. Terminal storage/readback and resource
+joins can finish before the UI dispatcher applies its queued status; retain
+the exact outcome, task identity and joined-resource assertions after that barrier.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

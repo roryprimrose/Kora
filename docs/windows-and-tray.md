@@ -358,6 +358,29 @@ message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
 
+With an already qualified provider, ordinary **Submit exact message** and
+**Answer locally (no tools)** can accept another original request while the
+previous request in that exact Active conversation runs. Real acceptance clears
+only the submitted input; you can immediately compose another message.
+**Refresh submitted work** shows the actual waiting requests in arrival order
+and their positions (at most ten pending). Select one and deliberately choose
+**Cancel selected pending request** to cancel only that request before any
+provider dispatch. Its submitted history remains; running work and your next
+unsent input are unchanged. Both conversation windows use the same controls.
+
+Next dispatch requires the previous request's successful confirmed completion
+and physical resource closure, then current original session/source/provider/
+privacy/expiry admission. Failure, cancellation or uncertainty holds automatic
+dispatch. **Resume held dispatch** is deliberate, not consent renewal, replay,
+provider switching or permission to send later unseen history. The original
+context lifetime is unchanged (ordinary local requests currently expire after
+fifteen seconds), even though the pending domain's default upper bound is
+thirty minutes. Expired/changed authority is denied or held for fresh review;
+it is never silently extended. Unqualified providers still report unavailable,
+not queued success. Questions, approvals and separate hosted disclosure reviews
+keep their existing fences. Switching sessions after acceptance does not move
+the submitted request or its eventual result. Restart never replays it.
+
 **Current draft size and shape** updates beside the editable buffer in New
 request, Sessions and the expanded conversation window. It shows actual UTF-8
 bytes, Unicode scalars and UTF-16 code units, with the same submission bounds

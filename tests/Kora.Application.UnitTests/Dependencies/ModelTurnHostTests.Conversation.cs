@@ -289,13 +289,16 @@ public sealed partial class ModelTurnHostTests
             Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
             Retained = new(request, generation, 1, 1, Time.Now, body, null, null);
             AfterRetain?.Invoke();
+            RememberPendingRecord();
             return ValueTask.FromResult(new ConversationSubmissionReceipt(Retained, Task.Task));
         }
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
+            SelectPendingRecord(request);
             Retained = Retained! with { Revision = 2, Outcome = outcome, Reason = reason };
             Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
+            RememberPendingRecord();
             var receipt = new ConversationSubmissionReceipt(Retained, Task.Task);
             if (CompletionFault is "body-receipt") { receipt = receipt with { Message = Retained with { Body = "wrong body" } }; }
             if (CompletionFault is "request-receipt") { receipt = receipt with { Message = Retained with { Request = HostRequest.Create(RequestOrigin.LocalUi) } }; }
@@ -328,6 +331,7 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
             HostId<RequestIdentity> request, CancellationToken token)
         {
+            if (TrackPendingRecords) { return ValueTask.FromResult(PendingRecords[request].Message); }
             if (HistoryMessages.TryGetValue(request, out var history))
             {
                 HistoryReads++;

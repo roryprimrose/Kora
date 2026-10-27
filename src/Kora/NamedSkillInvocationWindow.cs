@@ -14,6 +14,7 @@ internal sealed class NamedSkillInvocationWindow : Window
     internal TextBox Confirmation { get; } = ReadOnly("Exact named skill invocation preview", 180);
     internal TextBlock Status { get; } = new() { TextWrapping = TextWrapping.Wrap };
     internal Button Confirm { get; } = new() { Content = "Confirm exact invocation once", IsEnabled = false };
+    internal PrivateLiteralInputControls LiteralInputs { get; } = new();
     private readonly List<Button> operations = [];
 
     internal NamedSkillInvocationWindow(string name, Func<string, Task> run)
@@ -39,6 +40,7 @@ internal sealed class NamedSkillInvocationWindow : Window
         panel.Children.Add(Choices);
         Add("Review exactly the selected source choice", "ReviewChoice");
         panel.Children.Add(Instructions);
+        panel.Children.Add(LiteralInputs);
         panel.Children.Add(new TextBlock
         {
             Text = "Review all inert instructions. LocalOnly; no tools, scripts, MCP, references, nested agents, memory or hosted transfer. "
@@ -76,6 +78,7 @@ internal sealed class NamedSkillInvocationWindow : Window
         Choices.IsEnabled = !busy;
         Targets.IsEnabled = !busy;
         Request.IsEnabled = !busy;
+        LiteralInputs.IsEnabled = !busy;
         Confirm.IsEnabled = !busy && !string.IsNullOrEmpty(Confirmation.Text);
     }
 
@@ -85,6 +88,7 @@ internal sealed class NamedSkillInvocationWindow : Window
         Confirmation.Text = string.Empty;
         Targets.ItemsSource = null;
         Confirm.IsEnabled = false;
+        LiteralInputs.Clear();
     }
 
     internal void Clear()

@@ -1,5 +1,6 @@
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration.RegisteredSettings;
 
@@ -13,4 +14,5 @@ public abstract record RegisteredSettingProposal(RegisteredSetting Setting)
     public sealed record Summary(RegisteredSetting Key, SpeechOption Option, string Value)
         : RegisteredSettingProposal(Key);
     public sealed record Volume(PlaybackVolume Value) : RegisteredSettingProposal(RegisteredSetting.PlaybackVolume);
+    public sealed record ResponseMode(ResponseOutputMode Value) : RegisteredSettingProposal(RegisteredSetting.ResponseMode);
 }

@@ -10,6 +10,8 @@ namespace Kora.Application.Mcp;
 public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountReference Account,
     string AccountDisplayName, string? ToolName, string? InputSchema, string? Arguments)
 {
+    public McpReviewSource? Source { get; init; }
+
     public bool IsBoundTo(HostOperationProposal proposal) =>
         Enum.IsDefined(Stage) && string.Equals(proposal.Binding.ActionId, "mcp.read-only", StringComparison.Ordinal)
         && string.Equals(proposal.Binding.SourcePartition, "mcp", StringComparison.Ordinal)
@@ -18,10 +20,15 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
         && string.Equals(proposal.Binding.IdentityDigest, Hash(JsonSerializer.Serialize(Account)), StringComparison.Ordinal)
         && string.Equals(proposal.Binding.DefinitionDigest, Hash(InputSchema ?? "connection"), StringComparison.Ordinal)
         && string.Equals(proposal.Binding.ResourceDigest, Hash(ToolName ?? "connection"), StringComparison.Ordinal)
+        && (Source is { } source
+            ? string.Equals(proposal.Binding.DeclaredResourceDigest, Hash(JsonSerializer.Serialize(source)), StringComparison.Ordinal)
+                && string.Equals(proposal.Binding.TrackedContentDigest, source.Revision, StringComparison.Ordinal)
+            : string.Equals(proposal.Binding.DeclaredResourceDigest, proposal.Binding.TrackedContentDigest, StringComparison.Ordinal))
         && string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
             { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal);
 
     public string NativeText => "HTTPS MCP " + Stage + "\nDestination: " + Endpoint.AbsoluteUri
+        + (Source is { } source ? "\nConfigured server: " + source.ServerName + "\nConfiguration source: " + source.Path : string.Empty)
         + "\nDelegated account: " + AccountDisplayName
         + "\n" + (ToolName is null ? "Connection and bounded discovery only; no tool is selected yet."
             : "Read-only mapped tool: " + ToolName + "\nExact input schema:\n" + InputSchema)

@@ -207,6 +207,28 @@ public sealed partial class DetailWindowController : IDisposable
         }
     }
 
+    private async Task<bool> ValidateFinalSourceAsync(AdmittedDetailContent content, CancellationToken token)
+    {
+        if (disposed || !CanAccess(content) || !conversationSources.TryGetValue(content.Reference, out var source))
+        { return false; }
+        try
+        {
+            using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
+            var current = await source.Resolve(cancellation.Token);
+            if (!cancellation.IsCancellationRequested && !disposed && CanAccess(content)
+                && conversationSources.TryGetValue(content.Reference, out var latest) && latest.Lease == source.Lease
+                && content.IsSameSnapshot(current)) { return true; }
+        }
+        catch (Exception exception) when (exception is InvalidOperationException or InvalidDataException or IOException or UnauthorizedAccessException
+            or OperationCanceledException or ArgumentException)
+        {
+            ConversationSourceFailure(logger, exception.GetType().Name);
+        }
+        if (conversationSources.TryGetValue(content.Reference, out var failed) && failed.Lease == source.Lease)
+        { RevokeReference(content.Reference); }
+        return false;
+    }
+
     private void RevokeReference(DetailContentReference reference)
     {
         currentResponses.Remove(reference);
@@ -269,7 +291,8 @@ public sealed partial class DetailWindowController : IDisposable
             state = registry.Open(content, CanAccess(content),
                 content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.FinalizedResponse
                     ? () => CanAccess(content) : null,
-                () => !disposed && CanAccess(content));
+                () => !disposed && CanAccess(content),
+                content.Origin == DetailContentOrigin.RetainedAssistant ? token => ValidateFinalSourceAsync(content, token) : null);
         }
         catch (InvalidDataException) { return "Details unavailable: the immutable receipt changed. Close it and refresh history."; }
         catch (InvalidOperationException) { return "Details unavailable: close a viewer or check the privacy/input gate."; }

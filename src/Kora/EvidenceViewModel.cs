@@ -193,6 +193,7 @@ internal sealed partial class EvidenceViewModel(
 
     private void Clear(string message)
     {
+        RetireEvidenceAnswer();
         page = null;
         selected = null;
         inspectedRequest = null;
@@ -215,5 +216,6 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanReadActivity));
         OnPropertyChanged(nameof(RequestSummary));
         NotifyFind();
+        NotifyEvidenceAnswer();
     }
 }

@@ -1,0 +1,23 @@
+<UserControl x:Class="Kora.McpResultFollowUpControls"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+  <Expander Header="Ask a new question about this exact MCP observation">
+    <StackPanel Spacing="6">
+      <TextBlock Text="Uses the complete currently presented successful host-mapped read-only observation, never an ASSISTANT message. Review first; separately consent to one local-only answer without tools. Independent source-use qualification may be unavailable." TextWrapping="Wrap" />
+      <TextBox x:Name="McpFollowUpQuestion" Text="{Binding McpFollowUpQuestion, Mode=TwoWay}"
+          AcceptsReturn="True" IsUndoEnabled="False" TextWrapping="Wrap" IsEnabled="{Binding CanEditMcpResultFollowUp}"
+          AutomationProperties.Name="New MCP observation question; independent memory-only input, not the ordinary composer" />
+      <Button x:Name="ReviewMcpFollowUp" Content="Review complete observation and question"
+          IsEnabled="{Binding CanReviewMcpResultFollowUp}" />
+      <TextBox Text="{Binding McpFollowUpReviewText}" IsReadOnly="True" AcceptsReturn="True"
+          IsUndoEnabled="False" TextWrapping="Wrap" MaxHeight="320"
+          AutomationProperties.Name="Complete unchanged source Text and StructuredJson, provenance, exact Active conversation, question, local-only processing and retention review" />
+      <Button x:Name="ConfirmMcpFollowUp" Content="Consent to ONE local-only tool-free answer"
+          IsEnabled="{Binding CanConfirmMcpResultFollowUp}" />
+      <Button x:Name="CancelMcpFollowUp" Content="Cancel observation review or answer and join resources" />
+      <TextBox Text="{Binding McpFollowUpOutcome}" IsReadOnly="True" AcceptsReturn="True"
+          IsUndoEnabled="False" TextWrapping="Wrap" MaxHeight="240"
+          AutomationProperties.Name="Genuine retained observation answer or truthful unavailable, denied, failed or unconfirmed status" />
+    </StackPanel>
+  </Expander>
+</UserControl>

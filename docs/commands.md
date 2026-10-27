@@ -98,6 +98,30 @@ Missing/revoked/disposed presenters and stale original host, privacy, ownership 
 
 ## Open existing workspace surfaces
 
+### Open a conversation by its readable name
+
+Use `open conversation "Exact readable name"` or `read conversation "Exact readable name"`.
+Activated voice requires the current assistant-name prefix, for example
+`Kora, open conversation "Planning"`. Names are literal, case-sensitive NFC
+names, not technical IDs; quotation marks inside a name are not supported by
+this command.
+
+Kora searches one bounded permitted metadata page and shows exact numbered
+choices with their Active/Done labels. Nothing is selected by default, even
+for one match. Select one choice and separately activate **Open this exact
+conversation**. The existing interaction window then shows that conversation's
+real retained history. This does not send a request, call a model, resume Done
+work or grant permission.
+
+Other conversations' unsent input remains in memory, never autosaved. An
+already-open unchanged history page keeps its reading snapshot. Cancel, expiry
+(60 seconds), input replacement, private/control changes, or changed/deleted
+session metadata retire the choice; late confirmation cannot substitute a
+different conversation. Questions, approvals, reviews and dictation cannot lend
+their input authority to this command. A missing match never creates New or
+opens the foreground conversation as a fallback. Further metadata-search pages
+remain available in Sessions when the bounded lookup has more results.
+
 | Exact typed phrase | Existing native surface |
 |---|---|
 | `open all work` | Bounded All work / attention overview |

@@ -701,6 +701,29 @@ hardware, provider, acoustic or installed experiments are required or changed.
 Hosted protected candidate validation retains the full Windows/coverage/installer
 gates independently of focused deterministic implementation checks.
 
+### R10 retained response-mode proposal increment
+
+The existing registered-setting producer, retained-answer review and shared
+expanded/compact confirmation surface accept one canonical
+`responses.default-mode` Set proposal (`Hybrid`, `VoiceOnly`, `VisualOnly`).
+Exact typed/current-name activated review/confirm/cancel use the same host-pinned
+successful source and existing authoritative response-mode writer, not direct
+execution of model text. Review discloses saved/default, desired/configured
+effective mode, shared future-output scope and mandatory visual/privacy/call exceptions.
+
+Fresh original-user confirmation within 60 seconds revalidates the exact source,
+settings and original channel before admitted audited atomic persistence and
+readback. Cancel/expiry/stale authority/duplicate confirmation cannot write;
+unconfirmed persistence remains unavailable with explicit recovery.
+Voice source classification cannot become UI authority at the audio admission.
+See the [owning response-mode contract](User_Configuration.md#retained-model-response-mode-proposal).
+
+This is the bounded approved registered-setting operation, not broader R10
+completion, model write authority, a new setting variant, output replay,
+provider enablement or hardware/acoustic/installed qualification. VoiceOnly
+preserves full mandatory visual output. Existing protected candidate portable
+100% line/branch, Windows and installer gates remain unchanged.
+
 ### R13 selected pending cancellation increment - 2026-10-12
 
 One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.

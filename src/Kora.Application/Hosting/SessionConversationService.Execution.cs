@@ -32,6 +32,7 @@ public sealed partial class SessionConversationService
         { throw new InvalidOperationException("The original source or exact session changed before model execution."); }
         var runtime = executor as ModelTurnHost;
         await using var running = RegisterRunningConversation(target, turn, live, token);
+        turn.PublishExecutionStep = running.PresentExecutionStep;
         turn.PublishAnswer = async (update, publicationToken) =>
         {
             bool PresentCurrent() => Current() && running.CanContinue && turn.IsRunning
@@ -166,6 +167,7 @@ public sealed partial class SessionConversationService
         }
         finally
         {
+            turn.PublishExecutionStep = null;
             turn.PublishAnswer = null;
             // An accepted cancellation owns its join even when audit, privacy, storage or readback subsequently fails.
             try

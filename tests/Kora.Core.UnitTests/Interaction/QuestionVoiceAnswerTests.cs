@@ -4,7 +4,7 @@ using Kora.Core.Interaction;
 
 namespace Kora.Core.UnitTests.Interaction;
 
-public sealed class QuestionVoiceAnswerTests
+public sealed partial class QuestionVoiceAnswerTests
 {
     [Theory]
     [InlineData("Yes", "yes")]

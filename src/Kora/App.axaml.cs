@@ -218,8 +218,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>(),
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>());
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
             evidenceWindow.Bind();
+            BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);

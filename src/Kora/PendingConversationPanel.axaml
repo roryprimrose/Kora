@@ -1,0 +1,28 @@
+<UserControl x:Class="Kora.PendingConversationPanel"
+    xmlns="https://github.com/avaloniaui"
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:controls="using:Kora.Controls">
+  <StackPanel Spacing="6">
+    <controls:NamedTextBlock Text="{Binding PendingConversationStatus}" TextWrapping="Wrap"
+        AutomationProperties.Name="Submitted conversation queue and held dispatch status; unsent input is not queued" />
+    <controls:ScrollableListBox x:Name="PendingRequests" ItemsSource="{Binding PendingConversationTurns}"
+        SelectedItem="{Binding SelectedPendingConversation, Mode=TwoWay}" MaxHeight="180"
+        AutomationProperties.Name="Exact submitted pending requests in arrival order; select one to cancel only that request">
+      <ListBox.ItemTemplate>
+        <DataTemplate>
+          <StackPanel Spacing="3">
+            <TextBlock Text="{Binding Position, StringFormat='Queued position {0}'}" />
+            <TextBlock Text="{Binding Submission.Message.Body}" TextWrapping="Wrap" />
+          </StackPanel>
+        </DataTemplate>
+      </ListBox.ItemTemplate>
+    </controls:ScrollableListBox>
+    <WrapPanel>
+      <Button x:Name="RefreshPending" Content="Refresh submitted work" IsEnabled="{Binding CanRefreshPendingConversation}" />
+      <Button x:Name="CancelPending" Content="Cancel selected pending request" IsEnabled="{Binding CanCancelPendingConversation}"
+          AutomationProperties.HelpText="Deliberately cancels only this exact pending request before provider dispatch, preserving its submitted history. Running work is not cancelled." />
+      <Button x:Name="ResumePending" Content="Resume held dispatch" IsEnabled="{Binding CanResumePendingConversation}"
+          AutomationProperties.HelpText="Revalidates original authority without renewing expiry, changing provider or replaying work." />
+    </WrapPanel>
+  </StackPanel>
+</UserControl>

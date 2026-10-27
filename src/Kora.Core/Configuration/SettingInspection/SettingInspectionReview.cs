@@ -15,6 +15,15 @@ public sealed class SettingInspectionReview
         + "Recommendations are inert; any change requires the separate existing setting-suggestion Review/Confirm/Apply. "
         + "If the supplied metadata cannot answer, respond exactly: Unsupported by the inspected settings.";
     public const string Unsupported = "Unsupported by the inspected settings.";
+    private static readonly ImmutableArray<RegisteredSetting> InspectedSettings =
+    [
+        RegisteredSetting.Theme,
+        RegisteredSetting.ReaderTextScale,
+        RegisteredSetting.SummaryWords,
+        RegisteredSetting.SummarySentences,
+        RegisteredSetting.PlaybackVolume,
+        RegisteredSetting.ResponseMode,
+    ];
     private int consumed;
 
     public SettingInspectionReview(IEnumerable<SettingObservation> observations, string question,
@@ -23,7 +32,7 @@ public sealed class SettingInspectionReview
         ValidateQuestion(question, original);
         Observations = observations.ToImmutableArray();
         if (!Observations.Select(item => item.Setting).Order().SequenceEqual(
-            RegisteredSettingRegistry.Settings.Select(item => item.Setting).Order()))
+            InspectedSettings.Order()))
         { throw new InvalidDataException("Inspect exactly the complete approved scalar subset, without duplicates."); }
         Source = string.Join("\n", Observations.Select(item => item.Text));
         Question = question;

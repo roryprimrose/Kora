@@ -213,6 +213,25 @@ public sealed partial class ModelTurnHostTests
         broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
         broker.Disposed.Should().BeTrue();
         approvals.Stages.Should().Equal(McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation);
+        var review = approvals.LastReview!;
+        review.Source!.ServerName.Should().Be("reference");
+        review.Source.Path.Should().Be(source.File);
+        review.Source.ToString().Should().Be(nameof(McpReviewSource));
+        review.NativeText.Should().Contain(source.File).And.Contain("Configured server: reference");
+        (review with { Source = null }).IsBoundTo(approvals.LastProposal!).Should().BeFalse();
+        (review with { Source = review.Source with { ServerName = "other" } }).IsBoundTo(approvals.LastProposal!).Should().BeFalse();
+        (review with { Source = review.Source with { Path = Path.Combine(Path.GetDirectoryName(source.File)!, "other.json") } })
+            .IsBoundTo(approvals.LastProposal!).Should().BeFalse();
+        var sourceRevisionSwap = review.Source with { Revision = new string('a', 64) };
+        var proposal = approvals.LastProposal!;
+        var b = proposal.Binding;
+        var alteredBinding = new Kora.Core.Authorization.ExactOperationBinding(b.ActionId, b.SourcePartition, b.SkillId,
+            b.DefinitionDigest, Convert.ToHexStringLower(System.Security.Cryptography.SHA256.HashData(
+                Encoding.UTF8.GetBytes(System.Text.Json.JsonSerializer.Serialize(sourceRevisionSwap)))),
+            b.TrackedContentDigest, b.ImplementationDigest, b.InvocationDigest, b.ResourceDigest,
+            b.IdentityDigest, b.DestinationDigest, b.TransformationDigest, b.PolicyRevision);
+        (review with { Source = sourceRevisionSwap }).IsBoundTo(new(proposal.Request, proposal.ProposalId, proposal.Revision,
+            alteredBinding, proposal.Effect, proposal.ExpiresAt)).Should().BeFalse();
         (await service.ReadRunningConversationAsync(new(f.Session, null), static () => true, Token)).Should().BeNull();
         f.Messages.Should().NotContain(message => message.Contains("value 42", StringComparison.Ordinal));
         statuses.Select(status => status.Phase).Should().Equal(Kora.Core.Conversation.ConversationExecutionPhase.Running,

@@ -12,7 +12,8 @@ Discovery annotations never establish a read-only mapping.
 In Sessions, choose **Review HTTPS MCP options**, then explicitly select the
 included server and delegated account. Choose **Invoke reviewed MCP tool without
 a model**, or type `invoke selected mcp tool` while that exact session is
-foreground. Review the connection, select one admitted read-only tool and review
+foreground. Review the configured server name, configuration source and connection,
+select one admitted read-only tool and review
 its schema. Enter JSON containing its required bounded inputs. This input step
 does not send the tool call: separately approve the final exact destination,
 account, tool, schema and arguments.

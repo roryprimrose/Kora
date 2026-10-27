@@ -227,8 +227,10 @@ internal sealed class McpInvocation(
         try
         {
             var source = descriptor!;
+            var reviewSource = originalUserTask is null ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
             var binding = new ExactOperationBinding("mcp.read-only", "mcp", "https-read-only",
-                Hash(selected?.Schema.Json ?? "connection"), source.SourceRevision, source.SourceRevision,
+                Hash(selected?.Schema.Json ?? "connection"), reviewSource is null ? source.SourceRevision : Hash(JsonSerializer.Serialize(reviewSource)),
+                source.SourceRevision,
                 Hash(typeof(McpInvocation).Module.ModuleVersionId.ToString("D")),
                 Hash(JsonSerializer.Serialize(new { invocation, stage, arguments })),
                 Hash(selected?.Name ?? "connection"), Hash(JsonSerializer.Serialize(account)),
@@ -236,7 +238,7 @@ internal sealed class McpInvocation(
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
                 HostOperationEffect.BoundedRead, expiresAt);
             var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
-                selected?.Name, selected?.Schema.Json, arguments);
+                selected?.Name, selected?.Schema.Json, arguments) { Source = reviewSource };
             var presented = await presenter(proposal, generation, review, () => Live(token), token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (!Live(token) || presented.Presented.Proposal != proposal || presented.Presented.Key.Request != invocation

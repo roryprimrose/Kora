@@ -118,6 +118,11 @@ public sealed partial class SessionsConversationTests
                                 window.Activate();
                                 await state.ReviewAsync();
                                 state.ReviewText.Should().Contain("https://example.com/mcp").And.Contain("Native delegated test account");
+                                if (explicitUser)
+                                {
+                                    state.ReviewText.Should().Contain("Configured server: reference").And.Contain(file);
+                                    review.Source!.Path.Should().Be(file);
+                                }
                                 if (review.Stage == McpReviewStage.Invocation)
                                 { state.ReviewText.Should().Contain(NativeMcpSchema).And.Contain("""{"query":"reference"}"""); }
                                 if (deny) { await state.CancelAsync(); }

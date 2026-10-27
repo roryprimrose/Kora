@@ -26,6 +26,12 @@ If remote processing is uncertain, the task remains **Unknown**; stopping is
 not rollback and does not automatically retry. The availability restriction
 below also applies to this route.
 
+A disconnected or failed exchange also joins the original transport without
+reconnecting or retrying. Neither route publishes a tool result or assistant
+answer from that failure. The direct operation reports failure with an
+**Unknown** durable task outcome, not proof that the remote read never occurred.
+Inspect the original operation before explicitly starting a newly reviewed one.
+
 ## Availability
 
 The shipped host composes the Windows HTTPS broker, but has **no qualified

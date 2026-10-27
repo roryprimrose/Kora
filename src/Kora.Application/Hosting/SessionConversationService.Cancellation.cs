@@ -99,7 +99,9 @@ public sealed partial class SessionConversationService
     {
         var identity = new ConversationCancellationTarget(Guid.NewGuid(), turn.Provenance.Request,
             target.Authority.Generation, turn.TaskRevision, turn.Context.CreatedAt, turn.Context.ExpiresAt);
-        return RegisterRunningConversation(identity, live, token);
+        var lease = RegisterRunningConversation(identity, live, token);
+        turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
+        return lease;
     }
 
     private ConversationCancellationLease RegisterRunningConversation(ConversationCancellationTarget identity,

@@ -54,6 +54,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var file = Path.Combine(f.Paths.RoamingRoot, "Mcp", "mcp.json");
@@ -238,6 +239,15 @@ public sealed partial class SessionsConversationTests
                         .Should().Be(retained);
                 }
                 broker.Calls.Should().Be(deny ? 0 : 1);
+                transport.Calls.Should().Be(explicitUser || deny ? 0 : 2);
+                if (!deny)
+                {
+                    using var call = System.Text.Json.JsonDocument.Parse(broker.Requests[^1].Bytes);
+                    call.RootElement.GetProperty("method").GetString().Should().Be("tools/call");
+                    var parameters = call.RootElement.GetProperty("params");
+                    parameters.GetProperty("name").GetString().Should().Be("search");
+                    parameters.GetProperty("arguments").GetRawText().Should().Be("""{"query":"reference"}""");
+                }
                 if (deny || cancelIgnored) { model.McpResultText.Should().BeEmpty(); }
                 else { model.McpResultText.Should().Contain("reference 42").And.Contain("mcp.search").And.Contain("Observed UTC:"); }
                 broker.Disposed.Should().Be(!deny);

@@ -341,6 +341,60 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData("disconnect")]
+    [InlineData("body")]
+    [InlineData("disposal")]
+    [InlineData("timeout")]
+    [InlineData("withdrawal")]
+    public async Task Explicit_mcp_transport_failure_joins_one_original_dispatch_without_retry_or_disclosure(string fault)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        var pending = new TaskCompletionSource<ImmutableArray<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { PendingCall = pending, EnteredCall = entered };
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var operation = service.InvokeMcpAsync(target, source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, Token);
+        await entered.Task.WaitAsync(Token);
+        try
+        {
+            operation.IsCompleted.Should().BeFalse();
+            broker.Disposed.Should().BeFalse();
+            f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+            (await service.ReadRunningConversationAsync(target, static () => true, Token)).Should().NotBeNull();
+        }
+        finally
+        {
+            if (fault is "withdrawal") { broker.Fault = "withdrawn-connection"; }
+            pending.TrySetException(fault switch
+            {
+                "disconnect" => new HttpRequestException("synthetic private disconnect"),
+                "body" => new IOException("synthetic private body failure"),
+                "disposal" => new ObjectDisposedException("synthetic private disposed transport"),
+                _ => new OperationCanceledException("synthetic transport-owned cancellation"),
+            });
+        }
+        var result = await operation;
+        result.Request.Should().Be(f.Task!.Task.Request);
+        result.Outcome.Should().Be(McpExplicitOutcome.Failed);
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        result.Result.Should().BeNull();
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        broker.Disposed.Should().BeTrue();
+        f.Adapter.Calls.Should().Be(0);
+        f.Retained.Should().BeNull();
+        (await service.ReadRunningConversationAsync(target, static () => true, Token)).Should().BeNull();
+        f.CancelAudit.Events.Where(item => string.Equals(item.ActionId, "mcp.exchange", StringComparison.Ordinal))
+            .Select(item => item.Outcome).Should().Equal(
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Unknown);
+    }
+
+    [Theory]
     [InlineData(false)]
     [InlineData(true)]
     public async Task Explicit_mcp_cancellation_joins_ignoring_transport_and_rejects_late_result(bool hostCancel)

@@ -87,7 +87,8 @@ internal sealed partial class SessionInteractionView : UserControl
         DiscardMessage.Click += async (_, _) => await Run(model => model.DiscardComposerBufferAsync());
         SessionList.SelectionChanged += async (_, args) =>
         {
-            if (args.AddedItems.Count == 1 && args.AddedItems[0] is SessionWorkspaceEntry entry)
+            if (args.AddedItems.Count == 1 && args.AddedItems[0] is SessionWorkspaceEntry entry
+                && DataContext is SessionsViewModel selectedModel && selectedModel.SelectedSessionRecord != entry)
             { await Run(model => model.SelectAsync(entry)); }
         };
         ActivityList.SelectionChanged += (_, args) =>

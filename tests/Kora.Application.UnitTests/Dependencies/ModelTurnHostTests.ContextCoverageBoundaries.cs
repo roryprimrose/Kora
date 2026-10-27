@@ -110,8 +110,9 @@ public sealed partial class ModelTurnHostTests
         };
         (await service.SubmitAsync(new(f.Session, null), "original", static () => true, Token))
             .Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
-        var rejected = await this.Invoking(_ => competing!).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
-        rejected.Which.InnerException.Should().BeOfType<InvalidOperationException>();
+        await this.Invoking(_ => competing!).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("*already accepting*");
+        f.RetainCalls.Should().Be(1, "reentrant admission is refused before a second immutable intent can be retained");
         f.Adapter.Calls.Should().Be(1);
     }
 

@@ -46,16 +46,20 @@ public sealed partial class SessionsConversationTests
                 model.RunningConversationStatus.Should().Contain("Cancelling").And.Contain("waiting for owned resources");
                 window.ConversationOperation.IsCompleted.Should().BeFalse();
                 model.CanCancelRunningConversation.Should().BeFalse();
-                model.ConversationMessages.Should().BeEmpty("no success or terminal cancellation can be published before the join");
+                model.ConversationMessages.Should().ContainSingle().Which.Outcome.Should().BeNull(
+                    "accepted original intent is visible, but neither success nor terminal cancellation precedes the physical join");
                 composed.Audit.Events.Count(value => string.Equals(value.ActionId, "conversation.cancel-request", StringComparison.Ordinal)).Should().Be(2);
+                Task? physicalJoin = null;
                 if (closePrivate)
                 {
                     window.ClosePrivate();
                     model.RunningConversationStatus.Should().Contain("cleared");
-                    window.ConversationOperation.IsCompleted.Should().BeFalse("private closure cannot turn cancellation into a fake join");
+                    physicalJoin = composed.Conversation.DisposeAsync().AsTask();
+                    physicalJoin.IsCompleted.Should().BeFalse("retiring UI observation cannot release the host-owned physical worker");
                 }
                 adapter.Release.SetResult(new(ModelTurnOutcome.Succeeded, provenance.Selection, new("late forbidden answer", null)));
                 await window.ConversationOperation;
+                if (physicalJoin is not null) { await physicalJoin; }
                 var stored = await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId, provenance.Request.RequestId, f.Token);
                 stored.AssistantResponse.Should().BeNull();
                 if (closePrivate)

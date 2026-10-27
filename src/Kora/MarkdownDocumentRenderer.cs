@@ -21,8 +21,19 @@ internal static class MarkdownDocumentRenderer
     public static IReadOnlyList<Control> Render(string markdown) =>
         CreateControls(Renderer.Render(markdown));
 
+    internal const string FinalInteractionFallbackStatus =
+        "Final document interaction exceeds the native control bound; exact source fallback. No links or code actions are active.";
+
+    internal static bool RequiresFinalSourceFallback(NativeDocumentResult result) =>
+        result.Sections.Sum(section => section.Table is { IsHeader: false } ? 0L
+            : (section.Table is { IsHeader: true } table
+                ? 4L + table.Data.Headers.Length * 2L + table.Data.Rows.Length * (long)table.Data.Headers.Length : 1L)
+                + section.Links.Length + section.ExternalLinks.Count * 2L + (section.Code is null ? 0 : 12))
+            > Core.Presentation.NativeDetailProfile.MaximumNodes;
+
     internal static IReadOnlyList<Control> CreateControls(NativeDocumentResult result, bool selectable = true,
-        NativeDocumentInteraction? interaction = null)
+        NativeDocumentInteraction? interaction = null,
+        NativeFinalDocumentInteraction? finalInteraction = null)
     {
         if (result.IsFallback)
         {
@@ -30,6 +41,16 @@ internal static class MarkdownDocumentRenderer
             [
                 CreateText(result.Status, NativeTextStyle.Status, selectable),
                 CreateText(result.Source, NativeTextStyle.Code, selectable),
+            ];
+        }
+
+        if (finalInteraction is not null && RequiresFinalSourceFallback(result))
+        {
+            return
+            [
+                CreateText(FinalInteractionFallbackStatus,
+                    NativeTextStyle.Status, selectable: false),
+                CreateText(result.Source, NativeTextStyle.Code, selectable: false),
             ];
         }
 
@@ -48,9 +69,14 @@ internal static class MarkdownDocumentRenderer
             { interaction.RegisterHeading(id, text); }
             Control control = interaction is not null && section.Table is { IsHeader: true } table
                 ? interaction.CreateTable(table.Data)
-                : section.Code is { } code ? new NativeCodeBlock(code, text, highlight) : text;
+                : section.Code is { } code
+                    ? new NativeCodeBlock(code, text, highlight, finalInteraction is null ? null : () => finalInteraction.CanReadCode) : text;
             controls.Add(control);
             if (interaction is not null) { controls.AddRange(interaction.CreateLinks(section.Links)); }
+            if (finalInteraction is not null)
+            {
+                foreach (var link in section.ExternalLinks) { controls.Add(finalInteraction.CreateLink(link)); }
+            }
         }
         return controls;
     }

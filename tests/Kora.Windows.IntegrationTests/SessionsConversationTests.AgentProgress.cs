@@ -272,6 +272,12 @@ public sealed partial class SessionsConversationTests
                 Kora.Core.Diagnostics.HostActivityLayer.Desktop, Kora.Core.Diagnostics.HostOperation.Request);
             using var review = await workflow.ReviewAsync("selected.agent.md", model.SelectedSessionRecord!,
                 "Original bounded native task.", Kora.Core.Hosting.RequestOrigin.LocalUi, () => true, f.Token);
+            var completing = new TaskCompletionSource<ConversationExecutionStatus>(TaskCreationOptions.RunContinuationsAsynchronously);
+            void Completing(ConversationExecutionStatus status)
+            {
+                if (status.Phase == ConversationExecutionPhase.Completing) { completing.TrySetResult(status); }
+            }
+            composed.Conversation.RunningConversationChanged += Completing;
             var running = Task.Run(() => workflow.InvokeAsync(review, f.Token));
             try
             {
@@ -288,7 +294,15 @@ public sealed partial class SessionsConversationTests
                 }
                 else if (retirement is "revision") { composed.Access.ControlRevision++; }
                 else if (retirement is "privacy") { composed.Access.CanInspect = composed.Access.CanControl = false; }
-                else if (retirement is "input") { review.Dispose(); }
+                else if (retirement is "input")
+                {
+                    review.Dispose();
+                    await adapter.Cancelled.Task.WaitAsync(f.Token);
+                    (await completing.Task.WaitAsync(f.Token)).Target.Request.Should().Be(provenance.Request);
+                    running.IsCompleted.Should().BeFalse("revocation cannot join the physically held provider");
+                    composed.Turns.IsQuiescent.Should().BeFalse();
+                    reader.Released.Should().BeFalse();
+                }
                 else if (retirement is "close") { model.Close(); }
                 dispatcher.DrainNewestFirst();
                 if (retirement is "current")
@@ -296,6 +310,12 @@ public sealed partial class SessionsConversationTests
                     model.RunningConversationStatus.Should().Contain("model answer generation")
                         .And.NotContain("Running admitted observation");
                     model.CanCancelRunningConversation.Should().BeTrue();
+                }
+                else if (retirement is "input")
+                {
+                    // Completing may truthfully remain visible until the cancelled provider physically joins.
+                    model.RunningConversationStatus.Should().NotContain("Running admitted").And.NotContain("Terminal Succeeded");
+                    model.CanCancelRunningConversation.Should().BeFalse();
                 }
                 else
                 {
@@ -317,6 +337,18 @@ public sealed partial class SessionsConversationTests
                 await workflow.RevokeAsync(review);
                 reader.Released.Should().BeTrue();
                 composed.Turns.IsQuiescent.Should().BeTrue();
+                if (retirement is "input")
+                {
+                    dispatcher.DrainNewestFirst();
+                    await model.RefreshRunningConversationAsync();
+                    model.RunningConversationStatus.Should().NotContain(provenance.Request.TaskId.Value.ToString("D"));
+                    model.CanCancelRunningConversation.Should().BeFalse();
+                    adapter.LateReply!.Outcome.Should().Be(CapabilityOutcome.Denied);
+                    model.ConversationMessages.Should().BeEmpty();
+                    model.ProvisionalAnswer.Should().BeEmpty();
+                    composed.Audit.Events.Should().NotContain(item => item.ActionId == "agents.revision.invoke"
+                        && item.Outcome == Kora.Core.Auditing.SecurityAuditOutcome.Succeeded);
+                }
                 composed.Audit.Events.Should().NotContain(item => item.ActionId == "conversation.cancel-request");
                 f.Count("conversation_messages").Should().Be(1);
                 f.Count("conversation_drafts").Should().Be(0);
@@ -327,6 +359,7 @@ public sealed partial class SessionsConversationTests
                 adapter.Release.TrySetResult(false);
                 try { await running; }
                 catch (ConversationSubmissionUnconfirmedException) when (retirement is "input" or "privacy" or "revision") { }
+                composed.Conversation.RunningConversationChanged -= Completing;
                 model.Close();
                 dispatcher.DrainNewestFirst();
             }

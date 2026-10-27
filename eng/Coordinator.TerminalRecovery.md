@@ -8,11 +8,14 @@ plus **exactly** `epoch`, `dispatchRevision`, `sourceHead`, `workspaceHead`,
 That profile is unchanged. No arbitrary legacy/bootstrap normalization or
 publication correction is supported by it.
 
-Two separate closed published-terminal profiles are available only with
+The original two closed published-terminal profiles are available only with
 `Consume -PublishedTerminalWireProfile UtcTimestampV1` or
 `Consume -PublishedTerminalWireProfile HostedDeliveryV1`. They cannot be combined
 with `-RecoverEvidenceTerminalMetadata`. Neither changes strict default parsing,
 the existing core publication correction, or core consumption.
+
+Additional profiles below are separate opt-ins. Select exactly one profile
+per call; the original profiles and their immutable replay proofs are unchanged.
 
 This repairs evidence scheduling, not product scope or native execution.
 The [core consumer](Coordinator.Common.ps1) is unchanged and remains the only
@@ -85,7 +88,7 @@ head refresh, enrollment or hidden fallback occurs. An archived original-head
 readback proves historical publication only, **not** current candidate success.
 A summary proof without that raw readback (including the supplied PR557 summary)
 cannot alone satisfy this profile; provide the matching original archived CLI
-artifact and digest, or leave recovery blocked.
+artifact and digest, or use the strictly lossless profile below when applicable.
 
 Both timestamps must use ASCII `yyyy-MM-ddTHH:mm:ss[.fffffff]Z`, with zero to
 seven fractional digits and a valid Gregorian date/time. Parsing is exact UTC;
@@ -121,6 +124,141 @@ even on replay; changing a request pin cannot replace immutable provenance.
 Same-user local files remain trusted engineering evidence, not cryptographic
 host authentication. Never edit originals, fabricate the original writer, or
 apply these fixture tests to the live ledger.
+
+## Lossless UTC representation only
+
+`Consume -PublishedTerminalWireProfile UtcRepresentationV1` takes exactly:
+
+```json
+{
+  "receiptPath": "<absolute original registered-owner terminal JSON path>",
+  "receiptSha256": "<raw original file SHA256>"
+}
+```
+
+This accepts only the eighteen strict fields, stopped/joined/no-running/null-held
+publication, and exactly `autoMerge: { method: SQUASH, enabledAt: <UTC-Z> }`.
+The UTC spelling has the same exact zero-to-seven-fraction grammar as above.
+Only that spelling changes to UTC roundtrip format; no identity, source,
+revision, method, policy, work-state or decision is corrected. The unchanged
+strict core validates every other original fact and remains the only consumer.
+As with baseline strict consumption, publication facts are the original actor's
+claims, not a new CLI verification. No archived readback is required or invented.
+In particular, an App-updated PR557 head must not replace the original head.
+
+```powershell
+.\eng\Invoke-Coordinator.ps1 -RepositoryPath $VerifiedOwnWorktree -Action Consume `
+  -Session $CurrentLeader -ExpectedEpoch $CurrentEpoch -ExpectedRevision $CurrentRevision `
+  -RequestPath $PinnedOriginalRequest -PublishedTerminalWireProfile UtcRepresentationV1
+```
+
+## Closed literal-false equivalent absence
+
+`Consume -PublishedTerminalWireProfile NoHeldDecisionV1` additionally requires
+separate original delivery proof, prerequisite-ready stop proof and archived
+raw CLI publication readback, all in the same registered owner directory:
+
+```json
+{
+  "receiptPath": "<absolute original terminal JSON path>",
+  "receiptSha256": "<raw terminal SHA256>",
+  "readbackPath": "<absolute archived gh-pr-view JSON path>",
+  "readbackSha256": "<raw CLI SHA256>",
+  "publisher": "<dataset pinned publisher>",
+  "deliveryProofPath": "<absolute original delivery-proof JSON path>",
+  "deliveryProofSha256": "<raw delivery SHA256>",
+  "stopProofPath": "<absolute original prerequisite-ready JSON path>",
+  "stopProofSha256": "<raw stop SHA256>"
+}
+```
+
+The closed original PR558 delivery/prerequisite shapes are supported, not generic
+narrative proofs. All three original artifacts must explicitly contain Boolean
+`finiteCommandsJoined: true`, array `runningCommands: []`, and Boolean
+`heldDecision: false`. Literal false is the explicit absence flag; null, numeric
+zero, empty values, strings, objects, arrays and true are not this profile.
+Dataset/owner/execution/native, policy, publisher, branch/worktree/head/tree,
+repository, PR and original filenames must agree. Distinct file paths are
+mandatory. The existing `UtcTimestampV1` archived-readback validation is reused
+without weakening it. Delivery command text is inert, not executed or parsed as
+authority. Only this corroborated false-to-null mapping and same-instant UTC
+spelling change. There is no idle/age/PR-based absence inference.
+
+## Current original-dispatch completed sources
+
+Use exactly one of `-CurrentOriginalDispatchProfile MissingNativeEvidenceV1`
+or `-CurrentOriginalDispatchProfile MissingLaunchBlockerV1` with `Consume`.
+Both take exactly:
+
+```json
+{
+  "receiptPath": "<absolute original registered-owner terminal or blocker JSON path>",
+  "receiptSha256": "<raw original SHA256>",
+  "hostLaunchProofPath": "<absolute captured original host-launch proof JSON at dataset root>",
+  "hostLaunchProofSha256": "<raw captured proof SHA256>",
+  "sourceHead": "<exact original unchanged source commit>"
+}
+```
+
+```powershell
+.\eng\Invoke-Coordinator.ps1 -RepositoryPath $VerifiedOwnWorktree -Action Consume `
+  -Session $CurrentOriginalDispatcher -ExpectedEpoch $CurrentEpoch -ExpectedRevision $CurrentRevision `
+  -RequestPath $PinnedOriginalLaunchRequest -CurrentOriginalDispatchProfile MissingNativeEvidenceV1
+```
+
+These are not legacy retirement, launch, rebind or ownership-transfer APIs.
+The leader must still be the execution's **original dispatcher in the current
+epoch**, with the existing accepted grant and canonical native/branch/worktree
+binding. Imported executions are unavailable. A missing identity derives only
+from the successful joined original host creation link already accepted there.
+A non-null claimed identity is never replaced, even if it matches.
+
+The closed captured-host proof has `version`, `datasetId`, `coordinator`,
+`source`, `sourceBytesObserved`, `observedUtc`, and `launches`. It is the
+stream-captured SDK proof shape used by
+`native-launch-proof-f6-5397-df16fb09.json`, with the exact source classification
+`Original host-managed current-dispatcher SDK events; exact paired native create_session start/completion; no title or shared-parent inference`.
+Every launch has exactly `ownerId`, `executionId`, `dispatcher`, `toolName`,
+`toolCallId`, `startEventId`, `completionEventId`, `startedUtc`, `completedUtc`,
+`nativeIdentity`, `originalCallSucceeded`, `originalDispatcherCallJoined`,
+`initialHeaderSha256`. All entries must match current original grants/canonical
+links; success/join are Boolean true. Tool-call IDs, event IDs, owners,
+executions, header digests and child links cannot alias; start/completion/observation chronology
+must agree. Exactly one entry names the source execution. Unknown, contradictory,
+ambiguous, different-dispatcher or different-epoch proof rejects. In particular,
+old unrelated execution5027 is not eligible.
+
+This capture is trusted same-user engineering evidence provided and raw-pinned
+by the current original dispatcher, not a signed host attestation. The helper
+does not scan host storage, authenticate a fabricated capture, or reconstruct
+missing event payloads from titles. An untrusted or unavailable capture is not
+sufficient evidence and must not be submitted. Its original path/bytes/hash,
+paired IDs, header digest and canonical grant are retained in helper provenance.
+
+`MissingNativeEvidenceV1` accepts only an eighteen-field, fully stopped/joined,
+no-running/null-held, nonpublished `evidence-completed` original for an evidence
+owner, with **null** native identity. Every other original field is retained.
+`MissingLaunchBlockerV1` accepts only the closed original
+`receiptKind: missing-launch-mapping` blocker with matching clean preflight
+branch/worktree/head, pinned publisher/repository/policy, and all seven effects
+explicitly Boolean false. Its stopped/joined/no-running/null-held facts are
+mandatory, not inferred from a missing launch file or lack of a PR. It derives
+`blocked-quiescent`, revision 1 and a deterministic **helper** event ID bound to
+the dataset/authority/grant and original raw hash. It does not claim the actor
+wrote a strict terminal.
+
+For both profiles the source must still be a canonical, non-reparse, clean Git
+worktree at the exact original branch/head and canonical HTTPS origin. Read-only
+checks run before staging and again immediately before strict consumption.
+Changed or unavailable source fails closed; these checks do not lock Git against
+a hostile same-user writer. Original immutable joined facts, current original
+grant, trusted captured proof and the fenced core transaction are all required.
+Other source states require a separately justified profile, not a fallback.
+
+All new profiles use the existing immutable atomic staging, pinned read-only
+handles, adapter lock and sole fenced core. Their helper proofs explicitly name
+each derivation and preserve raw original/supporting bytes and request pins.
+They do not change the existing assessment/publication proofs or replay keys.
 
 ## Validation and provenance
 

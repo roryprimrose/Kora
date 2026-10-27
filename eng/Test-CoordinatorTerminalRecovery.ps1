@@ -9,6 +9,7 @@ $passed = [Collections.Generic.List[string]]::new()
 $script:sequence = 0
 $script:repositoryPath = ''
 $script:state = $null
+$script:fixtureLeader = 'fixture-leader'
 
 function Check {
     param([bool] $Condition, [string] $Name)
@@ -17,8 +18,8 @@ function Check {
 }
 
 function Invoke-EntryProcess {
-    param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Leader = 'fixture-leader', $Fence = $script:state,
-        [string] $WireProfile)
+    param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Leader = $script:fixtureLeader, $Fence = $script:state,
+        [string] $WireProfile, [string] $DispatchProfile)
     $script:sequence++
     $prefix = Join-Path $OutputDirectory "process-$script:sequence"
     $requestPath = "$prefix.request.json"
@@ -27,6 +28,7 @@ function Invoke-EntryProcess {
         '-Session', $Leader, '-RequestPath', $requestPath)
     if ($Recovery) { $arguments += '-RecoverEvidenceTerminalMetadata' }
     if ($WireProfile) { $arguments += @('-PublishedTerminalWireProfile', $WireProfile) }
+    if ($DispatchProfile) { $arguments += @('-CurrentOriginalDispatchProfile', $DispatchProfile) }
     if ($null -ne $Fence) { $arguments += @('-ExpectedEpoch', [string]$Fence.epoch, '-ExpectedRevision', [string]$Fence.revision) }
     $info = [Diagnostics.ProcessStartInfo]::new((Join-Path $PSHOME $(if ($IsWindows) { 'pwsh.exe' } else { 'pwsh' })))
     $info.UseShellExecute = $false
@@ -39,6 +41,164 @@ function Invoke-EntryProcess {
     return @{ process = $process; output = $process.StandardOutput.ReadToEndAsync()
         error = $process.StandardError.ReadToEndAsync(); prefix = $prefix; arguments = $arguments }
 }
+
+    function Get-DerivedRequest {
+        param($Fixture)
+        $request = Copy-FixtureValue $Fixture.request
+        foreach ($field in @($request.Keys | Where-Object { $_ -clike '*Path' })) {
+            $request[$field.Substring(0, $field.Length - 4) + 'Sha256'] = (Get-FileHash -LiteralPath $request[$field]).Hash
+        }
+        return $request
+    }
+
+    function Invoke-RepresentationFixture {
+        param([string] $Name, [string] $WireProfile = 'UtcRepresentationV1', [string] $Time = '2026-10-27T12:33:17Z')
+        $fixture = Invoke-PublishedFixtureSetup $Name -WireProfile $WireProfile -Time $Time -Number 557
+        $fixture.options = @{ WireProfile = $WireProfile }
+        $fixture.request = @{ receiptPath = $fixture.path; receiptSha256 = '' }
+        if ($WireProfile -ceq 'NoHeldDecisionV1') {
+            $fixture.receipt.heldDecision = $false
+            $fixture.stopPath = Join-Path (Split-Path -Parent $fixture.path) 'prerequisite-ready.json'
+            $fixture.deliveryPath = Join-Path (Split-Path -Parent $fixture.path) 'delivery-proof.json'
+            $fixture.stop = @{ version = 1; datasetId = $fixture.receipt.datasetId; ownerId = $fixture.receipt.ownerId
+                executionId = $fixture.receipt.executionId; kind = 'prerequisite-ready'; nativeIdentity = $fixture.receipt.nativeIdentity
+                publisher = 'fixture-publisher'; publicationPolicy = 'ready-auto'; implementation = @{
+                    worktree = $fixture.receipt.worktree; branch = $fixture.receipt.branch; head = $fixture.receipt.head
+                    base = 'a' * 40; tree = 'b' * 40; files = @(); signature = 'offline'; call = 'offline'; placement = 'offline'
+                    semantics = 'offline'; documentation = 'offline'; sourceBlobManifest = 'offline'; declarationSha256 = 'c' * 64
+                    pr544Inspection = 'offline' }; prSourceValidation = @(); comparisonOnly = @{}; preservedFailures = @()
+                unrun = @(); toolchain = 'offline'; finiteCommandsJoined = $true; runningCommands = @(); heldDecision = $false; next = 'offline' }
+            $fixture.delivery = @{ version = 1; datasetId = $fixture.receipt.datasetId; ownerId = $fixture.receipt.ownerId
+                executionId = $fixture.receipt.executionId; nativeIdentity = $fixture.receipt.nativeIdentity; publisher = 'fixture-publisher'
+                repository = 'github.com/roryprimrose/Kora'; branch = $fixture.receipt.branch; worktree = $fixture.receipt.worktree
+                head = $fixture.receipt.head; tree = 'b' * 40; prUrl = $fixture.receipt.prUrl; sourceAndBehaviorProof = 'prerequisite-ready.json'
+                binaryHashes = 'offline'; terminalReceipt = 'terminal.json'; deliveryCommands = @(); comparisonCleanup = 'offline'
+                finiteCommandsJoined = $true; runningCommands = @(); heldDecision = $false; terminalPublication = 'offline'; remaining = 'offline' }
+            Write-ProofJson $fixture.stop $fixture.stopPath
+            Write-ProofJson $fixture.delivery $fixture.deliveryPath
+            $fixture.request.readbackPath = $fixture.readbackPath; $fixture.request.readbackSha256 = ''
+            $fixture.request.publisher = 'fixture-publisher'
+            $fixture.request.deliveryProofPath = $fixture.deliveryPath; $fixture.request.deliveryProofSha256 = ''
+            $fixture.request.stopProofPath = $fixture.stopPath; $fixture.request.stopProofSha256 = ''
+            Write-ProofJson $fixture.receipt $fixture.path
+        }
+        return $fixture
+    }
+
+    function Invoke-OriginalDispatchFixture {
+        param([string] $Name, [string] $DispatchProfile = 'MissingNativeEvidenceV1', [switch] $CombinedHostProof)
+        $dispatcher = 'ahp-session:/df16fb09-8fde-4d97-b9ec-a733600c4f1f'
+        $native = 'agent-host-session://ahp-session/df16fb09-8fde-4d97-b9ec-a733600c4f1f?chat=a6e48f7f-f83b-4575-991b-6e16fee6ca6d'
+        $fixture = Invoke-FixtureSetup $Name -Kind $(if ($DispatchProfile -ceq 'MissingLaunchBlockerV1') { 'feature' } else { 'evidence' }) `
+            -Dispatcher $dispatcher -Native $native
+        Invoke-Checked git @('-C', $script:repositoryPath, 'add', '.gitignore')
+        Invoke-Checked git @('-C', $script:repositoryPath, '-c', 'user.name=Offline Fixture', '-c', 'user.email=fixture@example.invalid',
+            'commit', '--quiet', '-m', 'Offline source fixture')
+        Invoke-Checked git @('-C', $script:repositoryPath, 'branch', '-m', 'main')
+        $head = & git -C $script:repositoryPath rev-parse HEAD
+        if ($LASTEXITCODE -ne 0) { throw 'Fixture source head unavailable.' }
+        foreach ($field in @('epoch', 'dispatchRevision', 'sourceHead', 'workspaceHead',
+            'assessmentPath', 'assessmentSha256', 'pointerPath', 'completedUtc')) { $fixture.receipt.Remove($field) }
+        $fixture.receipt.head = $head; $fixture.receipt.nativeIdentity = $null
+        if ($DispatchProfile -ceq 'MissingLaunchBlockerV1') {
+            $original = $fixture.receipt
+            $fixture.receipt = @{ version = 1; datasetId = $original.datasetId; ownerId = $original.ownerId
+                executionId = $original.executionId; observedAt = '2026-10-27T13:47:10.7242529+00:00'
+                receiptKind = 'missing-launch-mapping'
+                requiredLaunchPath = Join-Path (Split-Path -Parent $fixture.path) "launch-$($original.executionId).json"
+                observed = 'Original mapping absent'; boundary = 'No identity substituted'; publisher = 'fixture-publisher'
+                repository = 'github.com/roryprimrose/Kora'; publicationPolicy = 'ready-auto'
+                preflight = @{ initialWorktree = $script:repositoryPath; initialBranch = 'main'; initialHead = $head
+                    freshFetchedMain = 'a' * 40; initialWorkingTreeClean = $true; repositoryPushPermission = $true
+                    liveQueueMode = 'enabled'; mainEnforceAdmins = $true; requiredCheckPublisherAppId = 5395839; scratchIgnoreVerified = $true }
+                effects = @{ sourceFilesChanged = $false; uniqueWorktreeCreated = $false; bindingPublished = $false
+                    strictTerminalPublished = $false; commitCreated = $false; prCreated = $false; autoMergeEnrolled = $false }
+                validation = 'Not run'; workState = 'stopped'; finiteCommandsJoined = $true
+                runningCommands = @(); heldDecision = $null; note = 'Original stopped blocker, not a strict terminal' }
+        }
+        Write-ProofJson $fixture.receipt $fixture.path
+        $fixture.hostPath = Join-Path $fixture.snapshot.identity.directory 'native-launch-proof.json'
+        $fixture.host = @{ version = 1; datasetId = $fixture.receipt.datasetId; coordinator = $dispatcher
+            source = 'Original host-managed current-dispatcher SDK events; exact paired native create_session start/completion; no title or shared-parent inference'
+            sourceBytesObserved = 21038834; observedUtc = '2026-10-27T14:17:26.075Z'; launches = @(@{
+                ownerId = $fixture.receipt.ownerId; executionId = $fixture.receipt.executionId; dispatcher = $dispatcher
+                toolName = 'create_session'; toolCallId = 'call_tZzaYk58cN9AzNtcmZOo6vMH'
+                startEventId = '7aea124e-0a39-40af-aa8a-cdca63a46045'; completionEventId = '2c503a33-6bf8-42c6-bd17-6a2510890824'
+                startedUtc = '2026-10-27T12:39:18.166Z'; completedUtc = '2026-10-27T12:39:19.560Z'
+                nativeIdentity = $native; originalCallSucceeded = $true; originalDispatcherCallJoined = $true
+                initialHeaderSha256 = '2fb7e0c4ed8b34482aee075f31921aed7defacf5d353617f0c82c0cbbb5f2e5b' }) }
+        if ($CombinedHostProof) {
+            Register-Owner 'second-current-evidence' -Kind feature
+            Approve-FixtureOwner 'second-current-evidence'
+            $other = Entry Next
+            $otherNative = 'agent-host-session://ahp-session/df16fb09-8fde-4d97-b9ec-a733600c4f1f?chat=ac9d5d4d-5c9e-456d-8e0d-4969960d3e66'
+            Entry Reconcile @{ executionId = $other.action.executionId; outcome = 'accepted'; dispatcherJoined = $true
+                nativeIdentity = $otherNative; branch = 'main'; worktree = $script:repositoryPath
+                evidence = 'Second exact original host fixture; no real native session' } | Out-Null
+            $otherLaunch = Copy-FixtureValue $fixture.host.launches[0]
+            $otherLaunch.ownerId = 'second-current-evidence'; $otherLaunch.executionId = $other.action.executionId
+            $otherLaunch.nativeIdentity = $otherNative; $otherLaunch.toolCallId = 'call_XJZUwYBQvQW5nwaZckzuls36'
+            $otherLaunch.startEventId = '916c40de-8498-4dcc-9da4-bfbc3f8a6f92'
+            $otherLaunch.completionEventId = '001b881b-3ecb-4224-a77d-70b5399cb160'
+            $otherLaunch.initialHeaderSha256 = 'f7808422acd0b7d886c790b6328c45ccffaf62e32db380aee296a15b852a103f'
+            $fixture.host.launches += ,$otherLaunch
+        }
+        Write-ProofJson $fixture.host $fixture.hostPath
+        $fixture.options = @{ DispatchProfile = $DispatchProfile }
+        $fixture.request = @{ receiptPath = $fixture.path; receiptSha256 = ''; hostLaunchProofPath = $fixture.hostPath
+            hostLaunchProofSha256 = ''; sourceHead = $head }
+        return $fixture
+    }
+
+    function Test-DerivedSuccess {
+        param($Fixture)
+        $options = $Fixture.options
+        $request = Get-DerivedRequest $Fixture
+        $before = (Entry Read).state
+        $unrelated = Get-CoordinatorDigest @($before.executions | Where-Object ownerId -CEQ unrelated-old-intent)[0]
+        $result = Entry Consume $request @options
+        Check ($result.kind -ceq 'released') "Derived profile releases: $($options.Values -join ',')"
+        $projection = Read-CoordinatorJson $result.terminalRecovery.projectionPath
+        Check ($projection.Count -eq 18 -and $projection.workState -ceq 'stopped' -and
+            $null -eq $projection.heldDecision) 'Derived projection has only the strict eighteen fields and exact stopped/null values'
+        if ($Fixture.receipt.Contains('eventId')) {
+            foreach ($field in $Fixture.receipt.Keys) {
+                if ($field -cin @('autoMerge', 'heldDecision', 'nativeIdentity')) { continue }
+                Check ((Get-CoordinatorDigest @{ v = $Fixture.receipt[$field] }) -ceq
+                    (Get-CoordinatorDigest @{ v = $projection[$field] })) "Derived projection preserves original $field"
+            }
+        } else {
+            Check ($projection.eventId -clike 'helper-original-dispatch-*' -and $projection.revision -eq 1 -and
+                $projection.kind -ceq 'blocked-quiescent' -and $projection.head -ceq $Fixture.receipt.preflight.initialHead) 'Blocker uses a helper-owned source-bound event/revision, not an invented actor terminal'
+        }
+        $proof = Read-CoordinatorJson $result.terminalRecovery.proofPath -MaximumBytes 1048576
+        Check ($proof.producer -ceq 'Coordinator.TerminalRecovery' -and $proof.profile -cin @($options.Values) -and
+            $proof.originalBytesBase64 -ceq [Convert]::ToBase64String([IO.File]::ReadAllBytes($Fixture.path)) -and
+            $proof.originalSha256 -ceq (Get-FileHash -LiteralPath $Fixture.path).Hash) 'Derived provenance preserves original raw bytes/path/hash under the helper producer'
+        foreach ($inputFile in $proof.supportingInputs) {
+            Check ($inputFile.sha256 -ceq (Get-FileHash -LiteralPath $inputFile.path).Hash -and
+                $inputFile.bytesBase64 -ceq [Convert]::ToBase64String([IO.File]::ReadAllBytes($inputFile.path))) 'Supporting proof bytes are unchanged and pinned'
+        }
+        if ($Fixture.options.Contains('WireProfile')) {
+            Check ($projection.autoMerge.method -ceq 'SQUASH' -and $projection.autoMerge.enabledAt -ceq
+                ([DateTimeOffset]::Parse($Fixture.receipt.autoMerge.enabledAt, [Globalization.CultureInfo]::InvariantCulture).ToUniversalTime().ToString('o'))) 'Derived UTC representation proves the identical instant'
+            Check ($projection.nativeIdentity -ceq $Fixture.receipt.nativeIdentity -and
+                $proof.derivation.originalHeldDecision -ceq $Fixture.receipt.heldDecision -and
+                $null -eq $proof.derivation.normalizedHeldDecision) 'Representation derivation preserves actor identity and explicitly records only the selected absence mapping'
+        } else {
+            Check ($projection.nativeIdentity -ceq $Fixture.host.launches[0].nativeIdentity -and
+                $proof.derivation.epoch -eq $before.epoch -and $proof.derivation.dispatcher -ceq $before.leader) 'Missing identity derives only from the original joined host link and current grant'
+        }
+        Check ((Entry Consume $request @options).kind -ceq 'duplicate') 'Derived exact replay is duplicate'
+        $after = (Entry Read).state
+        Check ($after.events.Count -eq 1 -and @($after.executions | Where-Object phase -CEQ released).Count -eq 1 -and
+            (Get-CoordinatorDigest @($after.executions | Where-Object ownerId -CEQ unrelated-old-intent)[0]) -ceq $unrelated) 'Derived recovery releases once and preserves the unrelated old charged intent'
+        Check ((Get-CoordinatorDigest (Get-CoordinatorOwner $before 'unrelated-old-intent')) -ceq
+            (Get-CoordinatorDigest (Get-CoordinatorOwner $after 'unrelated-old-intent')) -and
+            (Get-CoordinatorOwner $after 'delivery-evidence').sourceRetained -eq
+                ($projection.kind -cne 'evidence-completed')) 'Derived recovery preserves unrelated ownership and only applies strict core terminal source disposition'
+        return $result
+    }
 
 function Complete-Entry {
     param($Invocation, [string] $Failure = '', [switch] $Concurrent)
@@ -68,8 +228,9 @@ function Complete-Entry {
 
 function Entry {
     param([string] $Action, $Request = @{}, [switch] $Recovery, [string] $Failure = '',
-        [string] $Leader = 'fixture-leader', $Fence = $script:state, [string] $WireProfile)
-    return Complete-Entry (Invoke-EntryProcess $Action $Request -Recovery:$Recovery -Leader $Leader -Fence $Fence -WireProfile $WireProfile) $Failure
+        [string] $Leader = $script:fixtureLeader, $Fence = $script:state, [string] $WireProfile, [string] $DispatchProfile)
+    return Complete-Entry (Invoke-EntryProcess $Action $Request -Recovery:$Recovery -Leader $Leader -Fence $Fence `
+        -WireProfile $WireProfile -DispatchProfile $DispatchProfile) $Failure
 }
 
 function Register-Owner {
@@ -88,7 +249,9 @@ function Approve-FixtureOwner {
 }
 
 function Invoke-FixtureSetup {
-    param([string] $Name, [string] $Policy = 'ready-auto', [string] $Kind = 'evidence')
+    param([string] $Name, [string] $Policy = 'ready-auto', [string] $Kind = 'evidence',
+        [string] $Dispatcher = 'fixture-leader', [string] $Native = 'agent-host-session://fixture?chat=fc7073eb')
+    $script:fixtureLeader = $Dispatcher
     $script:repositoryPath = Join-Path $OutputDirectory $Name
     $script:state = $null
     New-ProofDirectory $script:repositoryPath
@@ -102,7 +265,7 @@ function Invoke-FixtureSetup {
     Approve-FixtureOwner 'delivery-evidence'
     $dispatch = Entry Next
     Entry Reconcile @{ executionId = $dispatch.action.executionId; outcome = 'accepted'
-        dispatcherJoined = $true; nativeIdentity = 'agent-host-session://fixture?chat=fc7073eb'
+        dispatcherJoined = $true; nativeIdentity = $Native
         branch = 'main'; worktree = $script:repositoryPath; evidence = 'Offline exact native creation fixture' } | Out-Null
     $snapshot = (Entry Read).state
     $ownerDirectory = Join-Path (Join-Path $snapshot.identity.directory 'owners') 'delivery-evidence'
@@ -128,7 +291,7 @@ function Invoke-FixtureSetup {
         version = 1; datasetId = $snapshot.datasetId; eventId = '3483ad2504cf4a30af7b24abe29db43d'
         ownerId = 'delivery-evidence'; executionId = $dispatch.action.executionId
         epoch = $snapshot.epoch; dispatchRevision = $dispatch.revision; revision = 1
-        nativeIdentity = 'agent-host-session://fixture?chat=fc7073eb'; branch = 'main'; worktree = $script:repositoryPath
+        nativeIdentity = $Native; branch = 'main'; worktree = $script:repositoryPath
         head = $assessment.sourceHead; sourceHead = $assessment.sourceHead; workspaceHead = $assessment.workspaceHead
         kind = 'evidence-completed'; workState = 'stopped'; finiteCommandsJoined = $true
         runningCommands = @(); heldDecision = $null; publicationPolicy = $Policy; prUrl = $null; autoMerge = $null
@@ -238,7 +401,7 @@ function Test-PublishedSuccess {
     return $result
 }
 
-try {
+function Test-ExistingProfileSuite {
     $fixture = Invoke-FixtureSetup 'metadata-recovery'
     $request = @{ receiptPath = $fixture.path }
     $originalBytes = [IO.File]::ReadAllBytes($fixture.path)
@@ -597,9 +760,258 @@ try {
         Entry Consume (Get-PublishedRequest $forbidden) -WireProfile $forbidden.profile -Failure 'existing ready-auto' | Out-Null
         Check $true "Published normalization never escalates $policy authority"
     }
+    return @{ successfulInvocation = $successfulInvocation; released = $released }
+}
+
+function Test-DerivedProfileSuite {
+    foreach ($digits in 0..7) {
+        $time = '2026-10-27T12:33:17' + $(if ($digits) { '.' + '1234567'.Substring(0, $digits) } else { '' }) + 'Z'
+        $representation = Invoke-RepresentationFixture "lossless-utc-$digits" -Time $time
+        [IO.File]::Delete($representation.readbackPath)
+        [IO.File]::Delete($representation.publicationPath)
+        $null = Test-DerivedSuccess $representation
+        Check $true "Lossless UTC $digits fractions needs no invented historical CLI artifact"
+    }
+    $representation = Invoke-RepresentationFixture 'lossless-rejections'
+    $request = Get-DerivedRequest $representation
+    $options = $representation.options
+    Entry Consume @{ receiptPath = $representation.path } -Failure 'String' | Out-Null
+    foreach ($case in @(
+        @{ field = 'workState'; value = 'ci-wait'; failure = 'changes only' },
+        @{ field = 'heldDecision'; value = $false; failure = 'joined/quiescent' },
+        @{ field = 'heldDecision'; value = ''; failure = 'joined/quiescent' },
+        @{ field = 'nativeIdentity'; value = 'foreign'; failure = 'identity/authority' },
+        @{ field = 'branch'; value = 'foreign'; failure = 'identity/authority' },
+        @{ field = 'datasetId'; value = 'foreign'; failure = 'identity/authority' },
+        @{ field = 'executionId'; value = 'foreign'; failure = 'admitted execution' },
+        @{ field = 'ownerId'; value = 'foreign'; failure = 'Cross-owner' },
+        @{ field = 'publicationPolicy'; value = 'local-only'; failure = 'identity/authority' },
+        @{ field = 'autoMerge'; value = @{ mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:33:17Z' }; failure = 'Missing field: method' },
+        @{ field = 'autoMerge'; value = @{ method = 'SQUASH'; mergeMethod = 'SQUASH'; enabledAt = '2026-10-27T12:33:17Z' }; failure = 'Unknown field' },
+        @{ field = 'autoMerge'; value = @{ method = 'MERGE'; enabledAt = '2026-10-27T12:33:17Z' }; failure = 'changes only' },
+        @{ field = 'extra'; value = 1; failure = 'Unknown field' })) {
+        $copy = Copy-FixtureValue $representation.receipt; $copy[$case.field] = $case.value
+        $badPath = Join-Path (Split-Path -Parent $representation.path) "representation-$([guid]::NewGuid().ToString('N')).json"
+        Write-ProofJson $copy $badPath
+        $badRequest = Copy-FixtureValue $request
+        $badRequest.receiptPath = $badPath; $badRequest.receiptSha256 = (Get-FileHash -LiteralPath $badPath).Hash
+        Entry Consume $badRequest @options -Failure $case.failure | Out-Null
+        Check $true "Lossless representation rejects other normalization: $($case.field)"
+    }
+    foreach ($time in @('2026-10-27T12:33:17', '2026-10-27T12:33:17+00:00', '2026-10-27T12:33:17+01:00',
+        '2026-10-27T12:33:17.12345678Z', '2026-10-27T12:33:17z', '2026-02-30T12:33:17Z', '2026-10-27T12:33:60Z')) {
+        $copy = Copy-FixtureValue $representation.receipt; $copy.autoMerge.enabledAt = $time
+        Write-ProofJson $copy $representation.path
+        Entry Consume (Get-DerivedRequest $representation) @options -Failure $(if ($time -cin
+            @('2026-02-30T12:33:17Z', '2026-10-27T12:33:60Z')) { 'Gregorian UTC' } else { 'explicit UTC' }) | Out-Null
+        Check $true "Lossless representation rejects invalid time: $time"
+    }
+    Write-ProofJson $representation.receipt $representation.path
+
+    $absence = Invoke-RepresentationFixture 'absence-558' NoHeldDecisionV1 '2026-10-27T12:44:59Z'
+    $absenceOptions = $absence.options
+    Entry Consume @{ receiptPath = $absence.path } -Failure 'not proved quiescent' | Out-Null
+    Entry Consume (Get-DerivedRequest $absence) -WireProfile UtcRepresentationV1 -Failure 'Unknown field' | Out-Null
+    foreach ($inputName in @('receipt', 'stop', 'delivery')) {
+        $path = if ($inputName -ceq 'receipt') { $absence.path } else { $absence[$inputName + 'Path'] }
+        $saved = [IO.File]::ReadAllBytes($path)
+        foreach ($decision in @($true, 'false', '', 0, @{}, @(), $null)) {
+            $copy = Copy-FixtureValue $absence[$inputName]; $copy.heldDecision = $decision
+            Write-ProofJson $copy $path
+            Entry Consume (Get-DerivedRequest $absence) @absenceOptions -Failure 'Equivalent absence' | Out-Null
+            Check $true "Equivalent absence rejects non-literal-false $inputName decision $($decision | ConvertTo-Json -Compress)"
+        }
+        foreach ($case in @(
+            @{ field = 'finiteCommandsJoined'; value = $false }, @{ field = 'finiteCommandsJoined'; value = 'true' },
+            @{ field = 'runningCommands'; value = @('held') }, @{ field = 'runningCommands'; value = $null },
+            @{ field = 'ownerId'; value = 'foreign' }, @{ field = 'nativeIdentity'; value = 'foreign' },
+            @{ field = 'executionId'; value = 'foreign' }, @{ field = 'unknown'; value = 'rejected' })) {
+            $copy = Copy-FixtureValue $absence[$inputName]; $copy[$case.field] = $case.value
+            Write-ProofJson $copy $path
+            Entry Consume (Get-DerivedRequest $absence) @absenceOptions -Failure $(if ($case.field -ceq 'unknown') { 'Unknown field' } else { 'Equivalent absence' }) | Out-Null
+            Check $true "Equivalent absence rejects contradictory $inputName $($case.field)"
+        }
+        [IO.File]::WriteAllBytes($path, $saved)
+    }
+    foreach ($case in @(
+        @{ input = 'stop'; field = 'implementation'; value = @{ head = 'a' * 40 }; failure = 'Missing field' },
+        @{ input = 'stop'; field = 'kind'; value = 'idle'; failure = 'distinct original' },
+        @{ input = 'delivery'; field = 'head'; value = 'a' * 40; failure = 'source mismatch' },
+        @{ input = 'delivery'; field = 'sourceAndBehaviorProof'; value = 'wrong.json'; failure = 'distinct original' },
+        @{ input = 'delivery'; field = 'terminalReceipt'; value = 'wrong.json'; failure = 'distinct original' },
+        @{ input = 'delivery'; field = 'publisher'; value = 'wrong'; failure = 'authority mismatch' },
+        @{ input = 'delivery'; field = 'repository'; value = 'github.com/other/repo'; failure = 'distinct original' })) {
+        $path = $absence[$case.input + 'Path']; $saved = [IO.File]::ReadAllBytes($path)
+        $copy = Copy-FixtureValue $absence[$case.input]; $copy[$case.field] = $case.value
+        Write-ProofJson $copy $path
+        Entry Consume (Get-DerivedRequest $absence) @absenceOptions -Failure $case.failure | Out-Null
+        [IO.File]::WriteAllBytes($path, $saved)
+        Check $true "Equivalent absence requires separate source-bound $($case.input) $($case.field)"
+    }
+    $absence.result = Test-DerivedSuccess $absence
+
+    foreach ($dispatchProfile in @('MissingNativeEvidenceV1', 'MissingLaunchBlockerV1')) {
+        $current = Invoke-OriginalDispatchFixture "original-$dispatchProfile" $dispatchProfile -CombinedHostProof
+        $options = $current.options; $request = Get-DerivedRequest $current
+        Entry Consume @{ receiptPath = $current.path } -Failure $(if ($dispatchProfile -ceq 'MissingNativeEvidenceV1') { 'identity/authority' } else { 'Missing field: eventId' }) | Out-Null
+        foreach ($case in @(
+            @{ field = 'datasetId'; value = 'foreign'; failure = 'current original dispatcher' },
+            @{ field = 'ownerId'; value = 'unrelated-old-intent'; failure = 'current original dispatcher' },
+            @{ field = 'executionId'; value = 'foreign'; failure = 'current original dispatcher' },
+            @{ field = 'workState'; value = 'idle'; failure = 'not stopped' },
+            @{ field = 'finiteCommandsJoined'; value = $false; failure = 'joined/quiescent' },
+            @{ field = 'finiteCommandsJoined'; value = 'true'; failure = 'joined/quiescent' },
+            @{ field = 'runningCommands'; value = @('unjoined'); failure = 'joined/quiescent' },
+            @{ field = 'runningCommands'; value = $null; failure = 'joined/quiescent' },
+            @{ field = 'heldDecision'; value = $false; failure = 'joined/quiescent' },
+            @{ field = 'heldDecision'; value = 'held'; failure = 'joined/quiescent' },
+            @{ field = 'nativeIdentity'; value = 'claimed-different-actor'; failure = $(if ($dispatchProfile -ceq 'MissingNativeEvidenceV1') { 'exact missing-native' } else { 'Unknown field' }) },
+            @{ field = 'nativeIdentity'; value = $current.host.launches[0].nativeIdentity; failure = $(if ($dispatchProfile -ceq 'MissingNativeEvidenceV1') { 'exact missing-native' } else { 'Unknown field' }) },
+            @{ field = 'publicationPolicy'; value = 'local-only'; failure = 'not stopped' },
+            @{ field = 'unknown'; value = 1; failure = 'Unknown field' })) {
+            $copy = Copy-FixtureValue $current.receipt; $copy[$case.field] = $case.value
+            $badPath = Join-Path (Split-Path -Parent $current.path) "original-bad-$([guid]::NewGuid().ToString('N')).json"
+            Write-ProofJson $copy $badPath
+            $badRequest = Copy-FixtureValue $request
+            $badRequest.receiptPath = $badPath; $badRequest.receiptSha256 = (Get-FileHash -LiteralPath $badPath).Hash
+            Entry Consume $badRequest @options -Failure $case.failure | Out-Null
+            Check $true "$dispatchProfile rejects original $($case.field)"
+        }
+        $hostBytes = [IO.File]::ReadAllBytes($current.hostPath)
+        foreach ($case in @(
+            @{ field = 'dispatcher'; value = 'ahp-session:/f2e00000-0000-0000-0000-000000000000' },
+            @{ field = 'executionId'; value = 'execution-5027' }, @{ field = 'ownerId'; value = 'unrelated-old-intent' },
+            @{ field = 'toolName'; value = 'read_sessions' }, @{ field = 'toolCallId'; value = '' },
+            @{ field = 'startEventId'; value = 'invalid' }, @{ field = 'completionEventId'; value = 'invalid' },
+            @{ field = 'nativeIdentity'; value = 'agent-host-session://ahp-session/df16fb09-8fde-4d97-b9ec-a733600c4f1f?chat=00000000-0000-0000-0000-000000000000' },
+            @{ field = 'originalCallSucceeded'; value = $false }, @{ field = 'originalCallSucceeded'; value = 'true' },
+            @{ field = 'originalDispatcherCallJoined'; value = $false }, @{ field = 'originalDispatcherCallJoined'; value = 'true' },
+            @{ field = 'initialHeaderSha256'; value = 'invalid' },
+            @{ field = 'completedUtc'; value = '2026-10-27T12:00:00Z' },
+            @{ field = 'completedUtc'; value = '2026-10-28T12:00:00Z' })) {
+            $copy = Copy-FixtureValue $current.host; $copy.launches[0][$case.field] = $case.value
+            Write-ProofJson $copy $current.hostPath
+            Entry Consume (Get-DerivedRequest $current) @options -Failure 'host launch proof' | Out-Null
+            Check $true "$dispatchProfile rejects forged/unjoined original host $($case.field)"
+        }
+        foreach ($mode in @('duplicate', 'event-alias', 'wrong-dataset', 'wrong-dispatcher', 'title-inference', 'unknown')) {
+            $copy = Copy-FixtureValue $current.host
+            switch ($mode) {
+                duplicate { $copy.launches += ,(Copy-FixtureValue $copy.launches[0]) }
+                event-alias { $copy.launches[0].completionEventId = $copy.launches[0].startEventId }
+                wrong-dataset { $copy.datasetId = 'foreign' }
+                wrong-dispatcher { $copy.coordinator = 'foreign' }
+                title-inference { $copy.source = 'inferred from title/shared parent' }
+                unknown { $copy.unknown = 'rejected' }
+            }
+            Write-ProofJson $copy $current.hostPath
+            Entry Consume (Get-DerivedRequest $current) @options -Failure $(if ($mode -ceq 'unknown') { 'Unknown field' } elseif ($mode -cin @('duplicate', 'event-alias')) { 'Ambiguous' } else { 'host launch proof' }) | Out-Null
+            Check $true "$dispatchProfile rejects ambiguous or inferred launch: $mode"
+        }
+        [IO.File]::WriteAllBytes($current.hostPath, $hostBytes)
+        foreach ($case in @(
+            @{ field = 'sourceHead'; value = 'a' * 40; failure = $(if ($dispatchProfile -ceq 'MissingNativeEvidenceV1') { 'exact missing-native' } else { 'source/authority' }) },
+            @{ field = 'hostLaunchProofSha256'; value = 'a' * 64; failure = 'SHA256 mismatch' },
+            @{ field = 'hostLaunchProofPath'; value = $current.path; failure = 'canonical registered' },
+            @{ field = 'receiptPath'; value = $current.path + ':stream'; failure = 'canonical registered' },
+            @{ field = 'command'; value = 'never run'; failure = 'Unknown field' })) {
+            $badRequest = Copy-FixtureValue $request; $badRequest[$case.field] = $case.value
+            Entry Consume $badRequest @options -Failure $case.failure | Out-Null
+            Check $true "$dispatchProfile rejects request $($case.field)"
+        }
+        if ($dispatchProfile -ceq 'MissingLaunchBlockerV1') {
+            foreach ($field in @($current.receipt.effects.Keys)) {
+                $copy = Copy-FixtureValue $current.receipt; $copy.effects[$field] = $true
+                Write-ProofJson $copy $current.path
+                Entry Consume (Get-DerivedRequest $current) @options -Failure 'changed or unknown work' | Out-Null
+                Check $true "Blocker rejects claimed effect: $field"
+            }
+            foreach ($field in @('initialHead', 'initialBranch', 'initialWorktree', 'initialWorkingTreeClean')) {
+                $copy = Copy-FixtureValue $current.receipt
+                $copy.preflight[$field] = if ($field -ceq 'initialWorkingTreeClean') { $false } else { 'foreign' }
+                Write-ProofJson $copy $current.path
+                Entry Consume (Get-DerivedRequest $current) @options -Failure 'source/authority' | Out-Null
+                Check $true "Blocker rejects mismatched preflight $field"
+            }
+            Write-ProofJson $current.receipt $current.path
+        }
+        $dirtyPath = Join-Path $script:repositoryPath 'changed-work.txt'
+        [IO.File]::WriteAllText($dirtyPath, 'Uncommitted work must block recovery')
+        Entry Consume (Get-DerivedRequest $current) @options -Failure 'source changed or unavailable' | Out-Null
+        [IO.File]::Delete($dirtyPath)
+        Invoke-Checked git @('-C', $script:repositoryPath, 'switch', '--quiet', '-c', 'different-source')
+        Entry Consume (Get-DerivedRequest $current) @options -Failure 'source changed or unavailable' | Out-Null
+        Invoke-Checked git @('-C', $script:repositoryPath, 'switch', '--quiet', 'main')
+        $current.result = Test-DerivedSuccess $current
+        $current.request = Get-DerivedRequest $current
+        $current.replayOptions = $options
+        if ($dispatchProfile -ceq 'MissingNativeEvidenceV1') { $nativeFixture = $current } else { $blockerFixture = $current }
+    }
+
+    foreach ($derived in @($representation, $absence, $nativeFixture, $blockerFixture)) {
+        $script:repositoryPath = $derived.snapshot.identity.workspace
+        $script:fixtureLeader = if ($derived.options.Contains('DispatchProfile')) { $derived.host.coordinator } else { 'fixture-leader' }
+        $null = Entry Read
+        $null = Entry Claim
+        $options = $derived.options
+        $request = Get-DerivedRequest $derived
+        Entry Read $request @options -Failure 'only supported for Consume' | Out-Null
+        Entry Consume $request @options -Recovery -Failure 'exactly one' | Out-Null
+        Entry Consume $request @options -Leader 'foreign' -Failure 'Current unexpired leader' | Out-Null
+        Entry Consume $request @options -Fence @{ epoch = 0; revision = $script:state.revision } -Failure 'Stale epoch/revision' | Out-Null
+        Entry Consume $request @options -Fence @{ epoch = $script:state.epoch; revision = 0 } -Failure 'Stale epoch/revision' | Out-Null
+        $result = if ($derived.Contains('result')) { $derived.result } else { Test-DerivedSuccess $derived }
+        $paths = @($request.Keys | Where-Object { $_ -clike '*Path' } | ForEach-Object { $request[$_] })
+        $paths += @($result.terminalRecovery.proofPath, $result.terminalRecovery.projectionPath,
+            $result.terminalRecovery.proofPath.Replace('.proof.json', '.request.json'))
+        foreach ($path in $paths) {
+            $saved = [IO.File]::ReadAllBytes($path)
+            $hidden = $path + '.fixture-held'
+            [IO.File]::Move($path, $hidden)
+            try { Entry Consume $request @options -Failure $(if ($path -clike '*terminal-recovery*' -and
+                    $path -cne $derived.path) { 'Missing immutable' } else { 'does not exist' }) | Out-Null }
+            finally { [IO.File]::Move($hidden, $path) }
+            [IO.File]::AppendAllText($path, ' ')
+            Entry Consume $request @options -Failure $(if ($path -cin @($request.Keys | Where-Object { $_ -clike '*Path' } |
+                ForEach-Object { $request[$_] })) { 'SHA256 mismatch' } else { 'Immutable recovery' }) | Out-Null
+            if ($path -cin @($request.Keys | Where-Object { $_ -clike '*Path' } | ForEach-Object { $request[$_] })) {
+                Entry Consume (Get-DerivedRequest $derived) @options -Failure 'Immutable recovery evidence changed' | Out-Null
+            }
+            [IO.File]::WriteAllBytes($path, $saved)
+            $held = [IO.FileStream]::new($path, [IO.FileMode]::Open, [IO.FileAccess]::Write, [IO.FileShare]::None)
+            try { Entry Consume $request @options -Failure 'being used by another process' | Out-Null }
+            finally { $held.Dispose() }
+            Check ((Entry Consume $request @options).kind -ceq 'duplicate') "Derived missing/changed/racing proof is never a second release: $(Split-Path -Leaf $path)"
+        }
+    }
+    $concurrentDerived = Invoke-OriginalDispatchFixture 'original-dispatch-concurrent'
+    $options = $concurrentDerived.options; $request = Get-DerivedRequest $concurrentDerived
+    $one = Invoke-EntryProcess Consume $request @options
+    $two = Invoke-EntryProcess Consume $request @options
+    $results = @((Complete-Entry $one -Concurrent), (Complete-Entry $two -Concurrent))
+    Check (@($results | Where-Object kind -CEQ released).Count -eq 1) 'Concurrent current-original-dispatch processes release once'
+    $null = Entry Read
+    Check ((Entry Consume $request @options).kind -ceq 'duplicate') 'Concurrent current-original-dispatch exact replay remains duplicate'
+    $oldDispatch = Invoke-OriginalDispatchFixture 'different-original-epoch-dispatcher'
+    $registryPath = Join-Path $oldDispatch.snapshot.identity.directory 'registry.json'
+    $oldState = Read-CoordinatorJson $registryPath -MaximumBytes 1048576
+    $oldState.leaseUntil = '2000-01-01T00:00:00.0000000+00:00'
+    Write-ProofJson $oldState $registryPath
+    [IO.File]::Delete((Join-Path $oldDispatch.snapshot.identity.directory 'pending-transition.json'))
+    $newLeader = 'ahp-session:/f2e00000-0000-0000-0000-000000000000'
+    $null = Entry Read
+    $null = Entry Claim -Leader $newLeader
+    $options = $oldDispatch.options
+    Entry Consume (Get-DerivedRequest $oldDispatch) @options -Leader $newLeader -Failure 'current original dispatcher/epoch' | Out-Null
+    Check (@((Entry Read).state.executions | Where-Object phase -CNE released).Count -eq 2) 'Different original epoch/dispatcher cannot release either old charge'
+}
+
+try {
+    Test-DerivedProfileSuite
+    $existing = Test-ExistingProfileSuite
     $summary = @{ version = 1; passed = $passed.ToArray(); processInvocations = $script:sequence
-        successfulFixtureCommand = $successfulInvocation.arguments
-        proofPath = $released.terminalRecovery.proofPath; liveDatasetTouched = $false }
+        successfulFixtureCommand = $existing.successfulInvocation.arguments
+        proofPath = $existing.released.terminalRecovery.proofPath; liveDatasetTouched = $false }
     Write-ProofJson $summary (Join-Path $OutputDirectory 'summary.json')
     $summary | ConvertTo-Json -Depth 10
 } catch {

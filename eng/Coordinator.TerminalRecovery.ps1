@@ -215,11 +215,247 @@ function Get-PublishedWireProjection {
     return @{ projection = $projection; readback = $readback; publication = $publication }
 }
 
+function Get-RecoveryInputProvenance {
+    param([string] $Path, $InputFile)
+    return [ordered]@{ path = $Path; sha256 = $InputFile.sha256
+        bytesBase64 = [Convert]::ToBase64String($InputFile.bytes) }
+}
+
+function Assert-LiteralNoHeldDecision {
+    param($Value)
+    if ($Value.heldDecision -isnot [bool] -or $Value.heldDecision -or
+        $Value.finiteCommandsJoined -isnot [bool] -or !$Value.finiteCommandsJoined -or
+        $Value.runningCommands -isnot [array] -or $Value.runningCommands.Count -ne 0) {
+        throw 'Equivalent absence requires literal false, joined commands and an empty running array.'
+    }
+}
+
+function Get-RepresentationProjection {
+    param($Request, $Receipt, $State, $Owner, [string] $Directory, [string] $CompatibilityProfile, $Handles)
+    $projection = [ordered]@{}
+    foreach ($field in $Receipt.Keys) { $projection[$field] = $Receipt[$field] }
+    $inputs = @()
+    if ($CompatibilityProfile -ceq 'NoHeldDecisionV1') {
+        Assert-LiteralNoHeldDecision $Receipt
+        $delivery = Open-PublishedWireInput $Request.deliveryProofPath $Directory $Request.deliveryProofSha256 $Handles
+        $stop = Open-PublishedWireInput $Request.stopProofPath $Directory $Request.stopProofSha256 $Handles
+        $facts = $delivery.value
+        $stopped = $stop.value
+        Assert-CoordinatorFields $facts @('version', 'datasetId', 'ownerId', 'executionId', 'nativeIdentity', 'publisher',
+            'repository', 'branch', 'worktree', 'head', 'tree', 'prUrl', 'sourceAndBehaviorProof', 'binaryHashes',
+            'terminalReceipt', 'deliveryCommands', 'comparisonCleanup', 'finiteCommandsJoined', 'runningCommands',
+            'heldDecision', 'terminalPublication', 'remaining')
+        Assert-CoordinatorFields $stopped @('version', 'datasetId', 'ownerId', 'executionId', 'kind', 'nativeIdentity',
+            'publisher', 'publicationPolicy', 'implementation', 'prSourceValidation', 'comparisonOnly',
+            'preservedFailures', 'unrun', 'toolchain', 'finiteCommandsJoined', 'runningCommands', 'heldDecision', 'next')
+        Assert-CoordinatorFields $stopped.implementation @('worktree', 'branch', 'base', 'head', 'tree', 'files',
+            'signature', 'call', 'placement', 'semantics', 'documentation', 'sourceBlobManifest', 'declarationSha256', 'pr544Inspection')
+        foreach ($value in @($facts, $stopped)) {
+            Assert-LiteralNoHeldDecision $value
+            Assert-CoordinatorNumber $value.version
+            foreach ($field in @('datasetId', 'ownerId', 'executionId', 'nativeIdentity')) {
+                if ($value[$field] -isnot [string] -or $value[$field] -cne $Receipt[$field]) {
+                    throw "Equivalent absence proof binding mismatch: $field"
+                }
+            }
+            if ($value.version -cne 1 -or $value.publisher -cne $State.publisher) {
+                throw 'Equivalent absence proof authority mismatch.'
+            }
+        }
+        foreach ($field in @('branch', 'worktree', 'head', 'prUrl')) {
+            if ($facts[$field] -isnot [string] -or $facts[$field] -cne $Receipt[$field]) {
+                throw "Equivalent absence delivery source mismatch: $field"
+            }
+        }
+        foreach ($field in @('branch', 'worktree', 'head')) {
+            if ($stopped.implementation[$field] -isnot [string] -or $stopped.implementation[$field] -cne $Receipt[$field]) {
+                throw "Equivalent absence stopped source mismatch: $field"
+            }
+        }
+        if ($facts.repository -cne 'github.com/roryprimrose/Kora' -or
+            $stopped.publicationPolicy -cne $Receipt.publicationPolicy -or $stopped.kind -cne 'prerequisite-ready' -or
+            $facts.tree -isnot [string] -or $facts.tree -cnotmatch '\A[0-9a-f]{40}\z' -or
+            $stopped.implementation.tree -cne $facts.tree -or
+            $facts.sourceAndBehaviorProof -cne (Split-Path -Leaf $Request.stopProofPath) -or
+            $facts.terminalReceipt -cne (Split-Path -Leaf $Request.receiptPath) -or
+            @($Request.receiptPath, $Request.readbackPath, $Request.deliveryProofPath, $Request.stopProofPath |
+                Select-Object -Unique).Count -ne 4) {
+            throw 'Equivalent absence requires distinct original source-bound delivery, stop and CLI proof.'
+        }
+        $projection.heldDecision = $null
+        $published = Get-PublishedWireProjection $Request $projection $State $Owner $Directory UtcTimestampV1 $Handles
+        $projection = $published.projection
+        $inputs = @((Get-RecoveryInputProvenance $Request.deliveryProofPath $delivery),
+            (Get-RecoveryInputProvenance $Request.stopProofPath $stop),
+            (Get-RecoveryInputProvenance $Request.readbackPath $published.readback))
+    } elseif ($CompatibilityProfile -ceq 'UtcRepresentationV1') {
+        Assert-PublishedWireJoined $Receipt
+        Assert-CoordinatorFields $Receipt.autoMerge @('method', 'enabledAt')
+        if ($Receipt.kind -cne 'pr-enrolled-ci-wait' -or $Receipt.workState -cne 'stopped' -or
+            $Receipt.autoMerge.method -isnot [string] -or $Receipt.autoMerge.method -cne 'SQUASH') {
+            throw 'UTC representation profile changes only a strict stopped SQUASH publication timestamp.'
+        }
+        $projection.autoMerge = [ordered]@{ method = $Receipt.autoMerge.method
+            enabledAt = ConvertFrom-PublishedWireUtc $Receipt.autoMerge.enabledAt }
+    } else { throw 'Unknown representation profile.' }
+    return @{ projection = $projection; inputs = $inputs
+        derivation = [ordered]@{ originalAutoMerge = $Receipt.autoMerge; normalizedAutoMerge = $projection.autoMerge
+            originalHeldDecision = $Receipt.heldDecision; normalizedHeldDecision = $projection.heldDecision } }
+}
+
+function Assert-OriginalDispatchSource {
+    param($Owner, [string] $Head)
+    if (![IO.Path]::IsPathFullyQualified($Owner.worktree) -or
+        [IO.Path]::GetFullPath($Owner.worktree) -cne $Owner.worktree -or $Head -cnotmatch '\A[0-9a-f]{40}\z') {
+        throw 'Original dispatch requires a canonical unchanged source.'
+    }
+    Assert-NoLinks $Owner.worktree -AncestorsOnly
+    foreach ($check in @(
+        @{ arguments = @('rev-parse', '--show-toplevel'); expected = $Owner.worktree.Replace('\', '/') },
+        @{ arguments = @('remote', 'get-url', 'origin'); expected = 'https://github.com/roryprimrose/Kora.git' },
+        @{ arguments = @('branch', '--show-current'); expected = $Owner.branch },
+        @{ arguments = @('rev-parse', 'HEAD'); expected = $Head },
+        @{ arguments = @('status', '--porcelain=v1', '--untracked-files=all'); expected = '' })) {
+        $arguments = $check.arguments
+        $actual = @(& git -C $Owner.worktree @arguments)
+        if ($LASTEXITCODE -ne 0 -or ($actual -join "`n") -cne $check.expected) {
+            throw "Original dispatch source changed or unavailable: $($arguments -join ' ')"
+        }
+    }
+}
+
+function Get-OriginalDispatchProjection {
+    param($Request, $Receipt, $State, $Owner, [string] $Directory, [string] $CompatibilityProfile, [string] $Session,
+        [string] $OriginalSha256, $Handles)
+    $execution = @($State.executions | Where-Object { $_.id -ceq $Receipt.executionId -and $_.ownerId -ceq $Owner.id })
+    if ($execution.Count -ne 1 -or $execution[0].phase -cnotin @('accepted', 'released') -or
+        $execution[0].epoch -ne $State.epoch -or $execution[0].dispatcher -cne $Session -or
+        ($State.Contains('legacy') -and $Receipt.executionId -cin @($State.legacy.executionIds | ForEach-Object id)) -or
+        $Receipt.ownerId -cne $Owner.id -or $Receipt.datasetId -cne $State.datasetId -or
+        $Session -cnotmatch '\Aahp-session:/([0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12})\z') {
+        throw 'Recovery requires the current original dispatcher/epoch and existing accepted non-imported grant.'
+    }
+    $dispatcherId = $Matches[1]
+    Assert-PublishedWireJoined $Receipt
+    if ($Receipt.workState -cne 'stopped' -or $Receipt.version -cne 1 -or
+        $Receipt.publicationPolicy -cne $State.publicationPolicy) { throw 'Original dispatch source is not stopped under existing authority.' }
+    Assert-CoordinatorNumber $Receipt.version
+    Assert-TerminalRecoveryPath $Request.hostLaunchProofPath $State.identity.directory
+    $hostProof = Open-PublishedWireInput $Request.hostLaunchProofPath $State.identity.directory $Request.hostLaunchProofSha256 $Handles
+    $hostFacts = $hostProof.value
+    Assert-CoordinatorFields $hostFacts @('version', 'datasetId', 'coordinator', 'source', 'sourceBytesObserved', 'observedUtc', 'launches')
+    Assert-CoordinatorNumber $hostFacts.version
+    Assert-CoordinatorNumber $hostFacts.sourceBytesObserved
+    $observed = ConvertFrom-PublishedWireUtc $hostFacts.observedUtc
+    if ($hostFacts.version -cne 1 -or $hostFacts.datasetId -cne $State.datasetId -or $hostFacts.coordinator -cne $Session -or
+        $hostFacts.source -cne 'Original host-managed current-dispatcher SDK events; exact paired native create_session start/completion; no title or shared-parent inference' -or
+        $hostFacts.sourceBytesObserved -eq 0 -or $hostFacts.launches -isnot [array] -or
+        $hostFacts.launches.Count -lt 1 -or $hostFacts.launches.Count -gt 16) { throw 'Invalid original host launch proof envelope.' }
+    $unique = [Collections.Generic.HashSet[string]]::new([StringComparer]::OrdinalIgnoreCase)
+    $matching = @()
+    foreach ($launch in $hostFacts.launches) {
+        Assert-CoordinatorFields $launch @('ownerId', 'executionId', 'dispatcher', 'toolName', 'toolCallId',
+            'startEventId', 'completionEventId', 'startedUtc', 'completedUtc', 'nativeIdentity',
+            'originalCallSucceeded', 'originalDispatcherCallJoined', 'initialHeaderSha256')
+        Assert-PublishedWireStringField $launch @('ownerId', 'executionId', 'dispatcher', 'toolName', 'toolCallId',
+            'startEventId', 'completionEventId', 'startedUtc', 'completedUtc', 'nativeIdentity', 'initialHeaderSha256')
+        foreach ($field in @('ownerId', 'executionId', 'toolCallId', 'startEventId', 'completionEventId', 'nativeIdentity', 'initialHeaderSha256')) {
+            # Start/completion IDs share a namespace; aliases across either are ambiguous too.
+            $space = if ($field -cin @('startEventId', 'completionEventId')) { 'event' } else { $field }
+            if (!$unique.Add("$space/$($launch[$field])")) { throw 'Ambiguous original host launch proof.' }
+        }
+        $registered = Get-CoordinatorOwner $State $launch.ownerId
+        $grant = @($State.executions | Where-Object { $_.id -ceq $launch.executionId -and $_.ownerId -ceq $launch.ownerId })
+        if ($grant.Count -ne 1 -or $grant[0].epoch -ne $State.epoch -or $grant[0].dispatcher -cne $Session -or
+            $grant[0].phase -cnotin @('accepted', 'released') -or $launch.dispatcher -cne $Session -or
+            ($State.Contains('legacy') -and $launch.executionId -cin @($State.legacy.executionIds | ForEach-Object id)) -or
+            $launch.toolName -cne 'create_session' -or $launch.toolCallId -cnotmatch '\Acall_[A-Za-z0-9]+\z' -or
+            $launch.startEventId -cnotmatch '\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z' -or
+            $launch.completionEventId -cnotmatch '\A[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z' -or
+            $launch.nativeIdentity -cnotmatch "\Aagent-host-session://ahp-session/$dispatcherId\?chat=[0-9a-f]{8}-(?:[0-9a-f]{4}-){3}[0-9a-f]{12}\z" -or
+            $launch.nativeIdentity -cne $registered.nativeIdentity -or
+            $launch.initialHeaderSha256 -cnotmatch '\A[0-9a-f]{64}\z' -or
+            $launch.originalCallSucceeded -isnot [bool] -or !$launch.originalCallSucceeded -or
+            $launch.originalDispatcherCallJoined -isnot [bool] -or !$launch.originalDispatcherCallJoined) {
+            throw 'Original host launch proof does not match the successful joined canonical grant.'
+        }
+        $start = ConvertFrom-PublishedWireUtc $launch.startedUtc
+        $end = ConvertFrom-PublishedWireUtc $launch.completedUtc
+        if ((ConvertTo-CoordinatorTime $start) -gt (ConvertTo-CoordinatorTime $end) -or
+            (ConvertTo-CoordinatorTime $end) -gt (ConvertTo-CoordinatorTime $observed)) {
+            throw 'Original host launch proof chronology mismatch.'
+        }
+        if ($launch.executionId -ceq $Receipt.executionId -and $launch.ownerId -ceq $Owner.id) { $matching += $launch }
+    }
+    if ($matching.Count -ne 1) { throw 'Exactly one original host launch is required.' }
+    if ($CompatibilityProfile -ceq 'MissingNativeEvidenceV1') {
+        Assert-CoordinatorFields $Receipt @('version', 'datasetId', 'eventId', 'ownerId', 'executionId', 'revision',
+            'nativeIdentity', 'branch', 'worktree', 'head', 'kind', 'workState', 'finiteCommandsJoined',
+            'runningCommands', 'heldDecision', 'publicationPolicy', 'prUrl', 'autoMerge')
+        if ($null -ne $Receipt.nativeIdentity -or $Owner.kind -cne 'evidence' -or $Receipt.kind -cne 'evidence-completed' -or
+            $null -ne $Receipt.prUrl -or $null -ne $Receipt.autoMerge -or $Receipt.branch -cne $Owner.branch -or
+            $Receipt.worktree -cne $Owner.worktree -or $Receipt.head -cne $Request.sourceHead) {
+            throw 'Only an exact missing-native completed evidence source is supported.'
+        }
+        $projection = [ordered]@{}
+        foreach ($field in $Receipt.Keys) { $projection[$field] = $Receipt[$field] }
+        $projection.nativeIdentity = $matching[0].nativeIdentity
+    } elseif ($CompatibilityProfile -ceq 'MissingLaunchBlockerV1') {
+        Assert-CoordinatorFields $Receipt @('version', 'datasetId', 'ownerId', 'executionId', 'observedAt', 'receiptKind',
+            'requiredLaunchPath', 'observed', 'boundary', 'publisher', 'repository', 'publicationPolicy', 'preflight',
+            'effects', 'validation', 'workState', 'finiteCommandsJoined', 'runningCommands', 'heldDecision', 'note')
+        Assert-CoordinatorFields $Receipt.preflight @('initialWorktree', 'initialBranch', 'initialHead', 'freshFetchedMain',
+            'initialWorkingTreeClean', 'repositoryPushPermission', 'liveQueueMode', 'mainEnforceAdmins', 'requiredCheckPublisherAppId', 'scratchIgnoreVerified')
+        Assert-CoordinatorFields $Receipt.effects @('sourceFilesChanged', 'uniqueWorktreeCreated', 'bindingPublished',
+            'strictTerminalPublished', 'commitCreated', 'prCreated', 'autoMergeEnrolled')
+        foreach ($effect in $Receipt.effects.Values) {
+            if ($effect -isnot [bool] -or $effect) { throw 'Missing-launch blocker claims changed or unknown work.' }
+        }
+        $null = ConvertTo-CoordinatorTime $Receipt.observedAt
+        if ($Owner.kind -cne 'feature' -or $Receipt.receiptKind -cne 'missing-launch-mapping' -or
+            $Receipt.publisher -cne $State.publisher -or $Receipt.repository -cne 'github.com/roryprimrose/Kora' -or
+            $Receipt.preflight.initialWorkingTreeClean -isnot [bool] -or !$Receipt.preflight.initialWorkingTreeClean -or
+            $Receipt.preflight.initialBranch -cne $Owner.branch -or $Receipt.preflight.initialWorktree -cne $Owner.worktree -or
+            $Receipt.preflight.initialHead -cne $Request.sourceHead -or
+            $Receipt.requiredLaunchPath -cne (Join-Path $Directory "launch-$($Receipt.executionId).json")) {
+            throw 'Missing-launch blocker original source/authority mismatch.'
+        }
+        $eventId = 'helper-original-dispatch-' + (Get-CoordinatorDigest @{
+            datasetId = $State.datasetId; authorityId = $State.authorityId; executionId = $Receipt.executionId
+            ownerId = $Owner.id; epoch = $execution[0].epoch; dispatcher = $execution[0].dispatcher
+            nativeIdentity = $matching[0].nativeIdentity; branch = $Owner.branch; worktree = $Owner.worktree
+            sourceHead = $Request.sourceHead; originalSha256 = $OriginalSha256 }).ToLowerInvariant()
+        $projection = [ordered]@{ version = 1; datasetId = $Receipt.datasetId; eventId = $eventId
+            ownerId = $Receipt.ownerId; executionId = $Receipt.executionId; revision = 1
+            nativeIdentity = $matching[0].nativeIdentity; branch = $Owner.branch; worktree = $Owner.worktree
+            head = $Request.sourceHead; kind = 'blocked-quiescent'; workState = $Receipt.workState
+            finiteCommandsJoined = $Receipt.finiteCommandsJoined; runningCommands = $Receipt.runningCommands
+            heldDecision = $Receipt.heldDecision; publicationPolicy = $Receipt.publicationPolicy; prUrl = $null; autoMerge = $null }
+    } else { throw 'Unknown current original-dispatch profile.' }
+    Assert-OriginalDispatchSource $Owner $Request.sourceHead
+    return @{ projection = $projection; inputs = @((Get-RecoveryInputProvenance $Request.hostLaunchProofPath $hostProof))
+        derivation = [ordered]@{ epoch = $execution[0].epoch; dispatcher = $execution[0].dispatcher
+            ownerId = $Owner.id; executionId = $execution[0].id; branch = $Owner.branch; worktree = $Owner.worktree
+            sourceHead = $Request.sourceHead; launch = $matching[0]
+            nativeIdentitySource = 'Exact successful joined original host creation link, already accepted in canonical binding'
+            eventIdentitySource = if ($CompatibilityProfile -ceq 'MissingLaunchBlockerV1') { 'Helper event/revision1 bound to original raw SHA256 and grant, not an actor-authored terminal' } else { 'Original event/revision unchanged' } } }
+}
+
 function Invoke-CoordinatorTerminalRecovery {
     param([string] $RepositoryPath, [string] $Session, [long] $ExpectedEpoch,
-        [long] $ExpectedRevision, [string] $RequestPath, [string] $PublishedWireProfile)
+        [long] $ExpectedRevision, [string] $RequestPath, [string] $PublishedWireProfile, [string] $OriginalDispatchProfile)
     $request = Read-CoordinatorJson $RequestPath
-    if ($PublishedWireProfile) {
+    $derivedProfile = $OriginalDispatchProfile
+    if ($PublishedWireProfile -cin @('UtcRepresentationV1', 'NoHeldDecisionV1')) { $derivedProfile = $PublishedWireProfile }
+    if ($derivedProfile) {
+        $fields = @('receiptPath', 'receiptSha256')
+        if ($derivedProfile -ceq 'NoHeldDecisionV1') {
+            $fields += @('readbackPath', 'readbackSha256', 'publisher',
+                'deliveryProofPath', 'deliveryProofSha256', 'stopProofPath', 'stopProofSha256')
+        } elseif ($OriginalDispatchProfile) { $fields += @('hostLaunchProofPath', 'hostLaunchProofSha256', 'sourceHead') }
+        Assert-CoordinatorFields $request $fields
+        Assert-PublishedWireStringField $request $fields
+    } elseif ($PublishedWireProfile) {
         $fields = @('receiptPath', 'receiptSha256', 'readbackPath', 'readbackSha256', 'publisher')
         if ($PublishedWireProfile -ceq 'HostedDeliveryV1') { $fields += @('publicationProofPath', 'publicationProofSha256') }
         Assert-CoordinatorFields $request $fields
@@ -255,7 +491,7 @@ function Invoke-CoordinatorTerminalRecovery {
             'runningCommands', 'heldDecision', 'publicationPolicy', 'prUrl', 'autoMerge')
         $metadataFields = @('epoch', 'dispatchRevision', 'sourceHead', 'workspaceHead',
             'assessmentPath', 'assessmentSha256', 'pointerPath', 'completedUtc')
-        if ($PublishedWireProfile) {
+        if ($PublishedWireProfile -or $OriginalDispatchProfile) {
             Assert-TerminalRecoveryPath $RequestPath (Split-Path -Parent $RequestPath)
             $pinnedRequest = Open-TerminalRecoveryInput $RequestPath 32768 $handles
             $document = [System.Text.Json.JsonDocument]::Parse([Text.UTF8Encoding]::new($false, $true).GetString($pinnedRequest.bytes))
@@ -263,9 +499,20 @@ function Invoke-CoordinatorTerminalRecovery {
             if ((Get-CoordinatorDigest $pinnedRequest.value) -cne (Get-CoordinatorDigest $request)) { throw 'Published wire request changed.' }
             $original = Open-PublishedWireInput $request.receiptPath $ownerDirectory $request.receiptSha256 $handles
             $receipt = $original.value
-            Assert-CoordinatorFields $receipt $terminalFields
-            $published = Get-PublishedWireProjection $request $receipt $state $owner $ownerDirectory $PublishedWireProfile $handles
-            $projection = $published.projection
+            if ($derivedProfile) {
+                if ($OriginalDispatchProfile) {
+                    $derived = Get-OriginalDispatchProjection $request $receipt $state $owner $ownerDirectory `
+                        $OriginalDispatchProfile $Session $original.sha256 $handles
+                } else {
+                    Assert-CoordinatorFields $receipt $terminalFields
+                    $derived = Get-RepresentationProjection $request $receipt $state $owner $ownerDirectory $derivedProfile $handles
+                }
+                $projection = $derived.projection
+            } else {
+                Assert-CoordinatorFields $receipt $terminalFields
+                $published = Get-PublishedWireProjection $request $receipt $state $owner $ownerDirectory $PublishedWireProfile $handles
+                $projection = $published.projection
+            }
         } else {
             Assert-CoordinatorFields $receipt ($terminalFields + $metadataFields)
             if ($receipt.version -cne 1 -or $receipt.kind -cne 'evidence-completed' -or $owner.kind -cne 'evidence' -or
@@ -333,11 +580,23 @@ function Invoke-CoordinatorTerminalRecovery {
         Assert-NoLinks $proofDirectory -AncestorsOnly
         $proofPath = Join-Path $proofDirectory "$key.proof.json"
         $consumePath = Join-Path $proofDirectory "$key.request.json"
-        $eventKey = Get-CoordinatorEventKey $receipt.eventId
+        $eventKey = Get-CoordinatorEventKey $projection.eventId
         $consumed = @($state.events | Where-Object id -CEQ $eventKey).Count -gt 0
         $proofRequired = $consumed -or (Test-Path -LiteralPath $projectionPath) -or (Test-Path -LiteralPath $consumePath)
         $projectionBytes = [Text.UTF8Encoding]::new($false).GetBytes(($projection | ConvertTo-Json -Depth 40 -Compress))
-        $proof = if ($PublishedWireProfile) { [ordered]@{
+        $proof = if ($derivedProfile) { [ordered]@{
+                version = 1; producer = 'Coordinator.TerminalRecovery'; profile = $derivedProfile
+                datasetId = $state.datasetId; authorityId = $state.authorityId
+                originalPath = $request.receiptPath; originalSha256 = $original.sha256
+                originalBytesBase64 = [Convert]::ToBase64String($original.bytes)
+                request = ConvertTo-CoordinatorCanonicalValue $request
+                supportingInputs = $derived.inputs
+                derivation = $derived.derivation
+                semantics = 'Helper-owned projection, not a new original-actor claim. Only the recorded closed mapping is derived; strict fenced core consumption remains authoritative.'
+                projectionPath = $projectionPath
+                projectionSha256 = [Convert]::ToHexString([Security.Cryptography.SHA256]::HashData($projectionBytes))
+                projectionDigest = Get-CoordinatorDigest $projection
+            }} elseif ($PublishedWireProfile) { [ordered]@{
                 version = 1; producer = 'Coordinator.TerminalRecovery'; profile = "published-wire-$PublishedWireProfile"
                 datasetId = $state.datasetId; authorityId = $state.authorityId
                 originalPath = $request.receiptPath; originalSha256 = $original.sha256
@@ -367,6 +626,7 @@ function Invoke-CoordinatorTerminalRecovery {
         $provenance = Open-TerminalRecoveryEvidence $proofPath $proof $handles -Existing:$proofRequired
         $null = Open-TerminalRecoveryEvidence $projectionPath $projection $handles -Existing:$consumed
         $null = Open-TerminalRecoveryEvidence $consumePath ([ordered]@{ receiptPath = $projectionPath }) $handles -Existing:$consumed
+        if ($OriginalDispatchProfile) { Assert-OriginalDispatchSource $owner $request.sourceHead }
         # Only the existing locked/fenced transaction is allowed to release execution.
         $result = Invoke-Coordinator -RepositoryPath $RepositoryPath -Action Consume -Session $Session `
             -ExpectedEpoch $ExpectedEpoch -ExpectedRevision $ExpectedRevision -RequestPath $consumePath

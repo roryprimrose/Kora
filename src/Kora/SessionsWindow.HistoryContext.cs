@@ -5,9 +5,11 @@ internal sealed partial class SessionsWindow
     private ConversationHistoryWindow? historyContextWindow;
     private void BindHistoryContext(SessionsViewModel model)
     {
+        BindModelHistoryContext(model);
         ReviewHistoryContext.Click += (_, _) =>
         {
             if (!model.CanOpenHistoryContext) { return; }
+            modelHistoryContextWindow?.Close();
             if (historyContextWindow is { } existing) { existing.Activate(); return; }
             model.OpenHistoryContext();
             var window = new ConversationHistoryWindow(model);

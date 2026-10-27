@@ -1,3 +1,5 @@
+using Avalonia.Automation;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 
 using AwesomeAssertions;
@@ -42,6 +44,9 @@ public sealed class PresenceProjectionParityTests
                 window.UpdateLayout();
                 try
                 {
+                    var peer = ControlAutomationPeer.CreatePeerForElement(control)!;
+                    peer.GetName().Should().Be($"Kora presence: {state.ToString().ToLowerInvariant()}; speech playback inactive");
+                    peer.GetLiveSetting().Should().Be(AutomationLiveSetting.Polite);
                     scheduler.Advance(PresenceParticleField.QuietFrameInterval);
                     field.Advance(state, PresenceParticleField.QuietFrameInterval, density, 200, false);
                     var projected = new PresenceParticle[300];

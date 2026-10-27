@@ -45,6 +45,10 @@ operation before making any fresh request.
 
 Changing a run's source, task or target revokes only that review. **Stop** joins
 that run's workflow and pinned source resources without stopping the other run.
+The prior result and terminal status are retired from that run's panel, including
+on repeated **Status** requests. Any retained answer stays in its original
+conversation; open that conversation explicitly to inspect it. Review and
+confirm the edited source, task and target afresh to obtain their own result.
 A provider that ignores cancellation keeps its resource slot until it actually
 finishes; its late answer cannot restore publication authority.
 

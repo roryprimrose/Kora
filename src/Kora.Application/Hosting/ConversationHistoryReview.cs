@@ -6,6 +6,7 @@ using System.Text;
 using Kora.Core.Conversation;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Application.Hosting.ModelHistoryContext;
 
 namespace Kora.Application.Hosting;
 
@@ -24,7 +25,8 @@ public sealed class ConversationHistoryReview : IDisposable
 
     internal ConversationHistoryReview(SessionConversationService owner, SessionWorkspaceEntry target, string body,
         ImmutableArray<ConversationHistorySelection> selections, RequestOrigin origin, Func<bool> current,
-        TimeProvider time, DateTimeOffset createdAt, DateTimeOffset expiresAt, ActivityLink cause)
+        TimeProvider time, DateTimeOffset createdAt, DateTimeOffset expiresAt, ActivityLink cause,
+        ModelHistoryContextSource? advisorySource = null)
     {
         this.owner = owner;
         Target = target;
@@ -36,6 +38,7 @@ public sealed class ConversationHistoryReview : IDisposable
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
         Cause = cause;
+        AdvisorySource = advisorySource;
         var envelope = ConversationHistoryContext.CreateEnvelope(
             new(new(Guid.NewGuid()), target.Authority.SessionId, new(Guid.NewGuid()), origin), body, selections, createdAt, expiresAt);
         var preview = new StringBuilder(ConversationHistoryContext.Policy).Append("\n\nComplete serialized input: ")
@@ -49,12 +52,14 @@ public sealed class ConversationHistoryReview : IDisposable
                 .Append(item.Role == ConversationHistoryRole.User ? item.Message.Body : item.Message.AssistantResponse!.Body)
                 .Append("\n\n");
         }
-        text = preview.Append("NEW USER REQUEST\n").Append(body).ToString();
+        text = preview.Append(advisorySource is null ? "NEW USER REQUEST\n" : "UNCHANGED ORIGINAL USER REQUEST - LOCAL ONLY, NO TOOLS\n")
+            .Append(body).ToString();
     }
 
     internal SessionWorkspaceEntry Target { get; }
     internal RequestOrigin Origin { get; }
     internal ActivityLink Cause { get; }
+    internal ModelHistoryContextSource? AdvisorySource { get; }
     internal DateTimeOffset CreatedAt { get; }
     public DateTimeOffset ExpiresAt { get; }
     public bool IsCurrent
@@ -64,7 +69,8 @@ public sealed class ConversationHistoryReview : IDisposable
             lock (gate)
             {
                 if (disposed) { return false; }
-                if (!current() || time.GetUtcNow() < CreatedAt || time.GetUtcNow() >= ExpiresAt)
+                if (!current() || AdvisorySource is { IsCurrent: false }
+                    || time.GetUtcNow() < CreatedAt || time.GetUtcNow() >= ExpiresAt)
                 { Clear(); return false; }
                 return true;
             }
@@ -81,6 +87,7 @@ public sealed class ConversationHistoryReview : IDisposable
         {
             if (!ReferenceEquals(owner, service) || consumed || !IsCurrent)
             { throw new InvalidOperationException("The exact original history review is missing, expired, revoked or already consumed."); }
+            AdvisorySource?.Consume(service);
             consumed = true;
             return (body, selections);
         }

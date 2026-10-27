@@ -51,8 +51,10 @@ internal sealed partial class EvidenceWindow : Window
     internal EvidenceWindow(EvidenceViewModel model, MainViewModel? typographyHost = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
+        typographyHostForEvidenceAnswers = typographyHost;
         InitializeComponent();
         DataContext = model;
+        BindEvidenceAnswers(model);
         var scaleBody = NativeReaderTypography.Capture(EvidenceBody);
         var scaleMatch = NativeReaderTypography.Capture(LiteralMatch);
         var retired = false;

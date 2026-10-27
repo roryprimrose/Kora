@@ -1,8 +1,10 @@
 using AwesomeAssertions;
 
+using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Core.Configuration;
 using Kora.Core.Configuration.RegisteredSettings;
+using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.Configuration;
 
@@ -12,12 +14,14 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(5);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(6);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
             descriptor.Scope.Should().Be("shared device-local");
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
+            descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
+            RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
             descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.Theme or RegisteredSetting.ReaderTextScale);
         }
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Minimum.Should().Be(ReaderTextScaleSettings.MinimumPercent);
@@ -39,6 +43,9 @@ public sealed class RegisteredSettingsTests
     [InlineData("set speech.summary-sentences to 3", RegisteredSetting.SummarySentences)]
     [InlineData("set speech.playback-volume to 0", RegisteredSetting.PlaybackVolume)]
     [InlineData("set speech.playback-volume to 100", RegisteredSetting.PlaybackVolume)]
+    [InlineData("set responses.default-mode to Hybrid", RegisteredSetting.ResponseMode)]
+    [InlineData("set responses.default-mode to VoiceOnly", RegisteredSetting.ResponseMode)]
+    [InlineData("set responses.default-mode to VisualOnly", RegisteredSetting.ResponseMode)]
     public void SharedParserReturnsTypedInertProposalAndExactDescriptor(string text, RegisteredSetting setting)
     {
         var proposal = RegisteredSettingSuggestions.Parse(text);
@@ -54,6 +61,11 @@ public sealed class RegisteredSettingsTests
                 break;
             case RegisteredSettingProposal.Volume volume:
                 volume.Value.Percent.Should().BeInRange(0, 100);
+                break;
+            case RegisteredSettingProposal.ResponseMode mode:
+                Enum.IsDefined(mode.Value).Should().BeTrue();
+                mode.Descriptor.SuggestedValues.Should().Be("Hybrid/VoiceOnly/VisualOnly");
+                mode.Descriptor.Id.Should().Be(ResponseModeCommand.OptionId);
                 break;
         }
     }
@@ -80,6 +92,17 @@ public sealed class RegisteredSettingsTests
     [InlineData(" SET speech.playback-volume to 30 ")]
     [InlineData("set speech.playback-volume to 30 and confirm")]
     [InlineData("I changed your settings.")]
+    [InlineData("set responses.default-mode to 1")]
+    [InlineData("set responses.default-mode to 999")]
+    [InlineData("set responses.default-mode to voiceonly")]
+    [InlineData("set responses.default-mode to VoiceOnly ")]
+    [InlineData("SET responses.default-mode to VoiceOnly")]
+    [InlineData("set responses.default-mode to Hybrid, VoiceOnly")]
+    [InlineData("Kora, set responses.default-mode to VoiceOnly")]
+    [InlineData("set responses.default-mode to VoiceOnly\nconfirm")]
+    [InlineData("set responses.session-mode to VoiceOnly")]
+    [InlineData("set responses.default-mode to VoiceOnly\nset speech.playback-volume to 30")]
+    [InlineData("reset responses.default-mode")]
     public void SharedParserRejectsUnregisteredMixedOrNoncanonicalSuggestionData(string text)
     {
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<Exception>();
@@ -91,5 +114,22 @@ public sealed class RegisteredSettingsTests
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(null!)).Should().Throw<ArgumentNullException>();
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(new string('x', 257))).Should().Throw<InvalidDataException>();
         FluentActions.Invoking(() => RegisteredSettingRegistry.Get((RegisteredSetting)999)).Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData("review response mode suggestion", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Nova, confirm response mode change", RegisteredSettingSuggestionOperation.Confirm)]
+    [InlineData("Nova cancel response mode review", RegisteredSettingSuggestionOperation.Cancel)]
+    [InlineData("Nova\t REVIEW RESPONSE MODE SUGGESTION", RegisteredSettingSuggestionOperation.Review)]
+    [InlineData("Novax review response mode suggestion", null)]
+    [InlineData("review response mode suggestion now", null)]
+    [InlineData("yes", null)]
+    [InlineData("Nova", null)]
+    public void ResponseModeSuggestionCommandsAreExactAndCurrentNameAware(string input, RegisteredSettingSuggestionOperation? expected)
+    {
+        RegisteredSettingSuggestionCommand.Parse(input, "Nova").Should().Be(expected);
+        RegisteredSettingSuggestions.ModelPolicy.Should().Contain("including VoiceOnly").And.Contain("future eligible output only");
+        RegisteredSettingRegistry.Get(RegisteredSetting.ResponseMode).SuggestedValues.Should()
+            .Be(string.Join("/", Enum.GetValues<ResponseOutputMode>()));
     }
 }

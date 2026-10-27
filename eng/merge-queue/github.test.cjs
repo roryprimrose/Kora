@@ -37,7 +37,7 @@ function fixture(overrides = {}) {
     repos: ['getContent', 'getBranchProtection', 'compareCommits'],
     pulls: ['list', 'get', 'updateBranch', 'merge'],
     checks: ['create', 'update'],
-    actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRun', 'cancelWorkflowRun', 'getWorkflowRun'],
+    actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRunAttempt', 'cancelWorkflowRun', 'getWorkflowRun'],
   };
   const rest = {};
   for (const [group, names] of Object.entries(groups)) {
@@ -51,7 +51,9 @@ function fixture(overrides = {}) {
       const response = await method(args);
       const data = Array.isArray(response.data) ? response.data : response.data.workflow_runs ?? response.data.jobs;
       assert.ok(Array.isArray(data), 'Octokit pagination returns a normalized array.');
-      return transform ? transform({ ...response, data }) : data;
+      if (!transform) return data;
+      const normalized = Object.assign([...data], { total_count: response.data.total_count });
+      return [...transform({ ...response, data: normalized })];
     },
     graphql: async (query, args) => {
       calls.push(['graphql', args]);
@@ -206,13 +208,14 @@ test('candidate admission requires trusted main, the exact ticket and still-curr
 test('paginated run and job lookups cannot accidentally select an unrelated workflow', async () => {
   const value = fixture({
     list: () => [pr()], listWorkflowRuns: () => ({ workflow_runs: [{ id: 1 }] }),
-    listJobsForWorkflowRun: () => ({ jobs: [{ id: 2 }] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: 1, jobs: [{ id: 2 }] }),
   });
   assert.equal((await value.api.pulls()).length, 1);
   assert.deepEqual(await value.api.runs(candidate()), [{ id: 1 }]);
   assert.deepEqual(await value.api.jobs(1), [{ id: 2 }]);
   assert.equal(value.calls.find(call => call[0] === 'listWorkflowRuns')[1].workflow_id, 'ci.yml');
-  assert.equal(value.calls.find(call => call[0] === 'listJobsForWorkflowRun')[1].filter, 'latest');
+  assert.deepEqual(value.calls.find(call => call[0] === 'listJobsForWorkflowRunAttempt')[1],
+    { owner: 'owner', repo: 'repo', run_id: 1, attempt_number: 1, per_page: 100 });
   assert.equal(await value.api.reviewReady(1), true);
   for (const decision of ['APPROVED', 'REVIEW_REQUIRED', 'CHANGES_REQUESTED']) {
     value.github.graphql = async () => ({ repository: { pullRequest: { reviewDecision: decision } } });
@@ -226,10 +229,49 @@ test('normalized pagination preserves empty and multiple workflow run and job re
   for (const records of [[], [{ id: 1 }, { id: 2 }], [{ id: 1 }, { id: 1 }]]) {
     const value = fixture({
       listWorkflowRuns: () => ({ total_count: records.length, workflow_runs: records }),
-      listJobsForWorkflowRun: () => ({ total_count: records.length, jobs: records }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: records.length, jobs: records }),
     });
     assert.deepEqual(await value.api.runs(candidate()), records);
     assert.deepEqual(await value.api.jobs(1), records);
+  }
+});
+
+test('job observations pin the workflow attempt and reject unknown attempts or incomplete page counts', async () => {
+  const value = fixture({ listJobsForWorkflowRunAttempt: () => ({ total_count: 1, jobs: [{ id: 2 }] }) });
+  assert.deepEqual(await value.api.jobs(9, 2), [{ id: 2 }]);
+  assert.equal(value.calls.find(call => call[0] === 'listJobsForWorkflowRunAttempt')[1].attempt_number, 2);
+  for (const attempt of [0, -1, null, '1', 1.5]) {
+    await assert.rejects(value.api.jobs(9, attempt), /Unknown candidate job attempt/);
+  }
+  for (const total_count of [undefined, null, -1, '1', 0, 2]) {
+    const incomplete = fixture({ listJobsForWorkflowRunAttempt: () => ({ total_count, jobs: [{ id: 2 }] }) });
+    await assert.rejects(incomplete.api.jobs(9), /candidate job pagination/);
+  }
+});
+
+test('job pagination joins every normalized page and propagates later-page API or authentication errors', async () => {
+  for (const scenario of ['complete', 'partial', 'changed-count', '401', '403', '404', '429', '500']) {
+    const value = fixture();
+    value.github.paginate = async (method, args, transform) => {
+      assert.equal(method, value.github.rest.actions.listJobsForWorkflowRunAttempt);
+      assert.equal(args.run_id, 9);
+      assert.equal(args.attempt_number, 1);
+      const first = [{ id: 1 }];
+      first.total_count = 2;
+      const records = [...transform({ data: first })];
+      if (scenario === 'partial') return records;
+      if (/^\d+$/.test(scenario)) throw error(Number(scenario));
+      const second = [{ id: 2 }];
+      second.total_count = scenario === 'changed-count' ? 3 : 2;
+      return [...records, ...transform({ data: second })];
+    };
+    if (scenario === 'complete') assert.deepEqual(await value.api.jobs(9), [{ id: 1 }, { id: 2 }]);
+    else await assert.rejects(value.api.jobs(9), /pagination|HTTP/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
+  }
+  for (const status of [401, 403, 404, 429, 500]) {
+    const value = fixture({ listJobsForWorkflowRunAttempt: () => { throw error(status); } });
+    await assert.rejects(value.api.jobs(9), new RegExp(`HTTP ${status}`));
   }
 });
 

@@ -14,7 +14,17 @@ internal sealed class WorkspaceSurfaceCommandController(
 {
     private bool disposed;
 
-    internal void Bind() => main.WorkspaceSurfaceRequested += Open;
+    internal void Bind()
+    {
+        main.WorkspaceSurfaceRequested += Open;
+        main.PropertyChanged += OnHostChanged;
+    }
+
+    private void OnHostChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+    {
+        if (Dispatcher.UIThread.CheckAccess()) { allWork.RetireWaitingQuestionsIfStale(); }
+        else { Dispatcher.UIThread.Post(allWork.RetireWaitingQuestionsIfStale); }
+    }
 
     private async Task Open(WorkspaceSurfaceNavigation navigation)
     {
@@ -27,6 +37,7 @@ internal sealed class WorkspaceSurfaceCommandController(
             ? sessions.CaptureSessionSelection(navigation.SessionPosition, Admitted) : null;
         if (!Admitted() || !SourceAdmitted())
         {
+            navigation.Outcome = disposed ? WorkspaceSurfaceNavigationOutcome.Unavailable : WorkspaceSurfaceNavigationOutcome.Cancelled;
             main.ReportHostInteractionFailure("Navigation unavailable: original private ownership or selected presentation is no longer admitted.");
             return;
         }
@@ -34,8 +45,9 @@ internal sealed class WorkspaceSurfaceCommandController(
         await Dispatcher.UIThread.InvokeAsync(async () =>
         {
             using var activity = continuation();
-            if (!Admitted() || !SourceAdmitted())
+            if (!Admitted() || !SourceAdmitted() || navigation.CancellationToken.IsCancellationRequested)
             {
+                navigation.Outcome = WorkspaceSurfaceNavigationOutcome.Cancelled;
                 main.ReportHostInteractionFailure("Navigation cancelled: private ownership, input or selected presentation changed before native opening.");
                 activity.Complete(HostOperationOutcome.Cancelled);
                 return;
@@ -43,6 +55,15 @@ internal sealed class WorkspaceSurfaceCommandController(
             switch (navigation.Target)
             {
                 case WorkspaceSurfaceTarget.AllWork: allWork.Open(Admitted); break;
+                case WorkspaceSurfaceTarget.WaitingQuestions:
+                    navigation.Outcome = await allWork.ShowWaitingQuestionsAsync(navigation with { IsAdmitted = Admitted });
+                    activity.Complete(navigation.Outcome switch
+                    {
+                        WorkspaceSurfaceNavigationOutcome.Completed => HostOperationOutcome.Completed,
+                        WorkspaceSurfaceNavigationOutcome.Cancelled => HostOperationOutcome.Cancelled,
+                        _ => HostOperationOutcome.Failed,
+                    });
+                    return;
                 case WorkspaceSurfaceTarget.CompactConversation: sessions.OpenCompact(Admitted); break;
                 case WorkspaceSurfaceTarget.Sessions: await sessions.ShowInteractionAsync(true, Admitted); break;
                 case WorkspaceSurfaceTarget.SelectSession: await selection!(); break;
@@ -67,5 +88,7 @@ internal sealed class WorkspaceSurfaceCommandController(
     {
         disposed = true;
         main.WorkspaceSurfaceRequested -= Open;
+        main.PropertyChanged -= OnHostChanged;
+        allWork.RetireWaitingQuestionsIfStale();
     }
 }

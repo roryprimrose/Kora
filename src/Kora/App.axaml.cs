@@ -221,6 +221,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
                 CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
             evidenceWindow.Bind();
+            BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);

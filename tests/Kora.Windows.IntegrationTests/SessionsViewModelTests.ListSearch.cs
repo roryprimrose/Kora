@@ -1,3 +1,4 @@
+using System.Diagnostics;
 using System.Xml.Linq;
 
 using AwesomeAssertions;
@@ -16,33 +17,77 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsViewModelTests
 {
     [Theory]
-    [InlineData(SessionListSearchKind.NameSubstring)]
-    [InlineData(SessionListSearchKind.ExactName)]
-    public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence(SessionListSearchKind kind)
+    [InlineData(SessionListSearchKind.NameSubstring, true)]
+    [InlineData(SessionListSearchKind.ExactName, true)]
+    [InlineData(SessionListSearchKind.NameSubstring, false)]
+    [InlineData(SessionListSearchKind.ExactName, false)]
+    public async Task MetadataPublicationRechecksAdmissionAfterTheServiceReadFence(
+        SessionListSearchKind kind, bool revokeAdmission)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         var held = new HeldStore();
-        var access = new LateListAdmission();
+        var access = new WindowsSqliteSessionWorkspaceTests.Access { CanControl = false };
         var service = new SessionWorkspaceService(held, new(f.Tasks), access, NullLogger<SessionWorkspaceService>.Instance);
         var sink = new WindowsSqliteEvidenceSink(f.Paths);
         sink.Initialize();
         var model = new SessionsViewModel(service,
             new(new WindowsSqliteEvidenceReader(sink), access, f.Time, NullLogger<DurableEvidenceQuery>.Instance),
             access, NullLogger<SessionsViewModel>.Instance);
+        var admission = access.ControlRevision;
+        var completedReads = new List<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => string.Equals(source.Name, "Kora.Application", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = activity =>
+            {
+                if (!string.Equals(activity.OperationName, "storage.commit", StringComparison.Ordinal)) { return; }
+                // Disposal follows the service's final admission check, before its task returns to the view model.
+                completedReads.Add(activity);
+                if (revokeAdmission) { access.ControlRevision++; }
+            },
+        };
+        ActivitySource.AddActivityListener(listener);
         try
         {
             model.ListSearchKind = kind;
             model.ListQuery = "needle";
+            var audits = f.Count("security_audit_events");
             var search = model.SearchListAsync();
-            held.Completion.SetResult(new([new(new(f.Request.SessionId, new(1), true),
-                new(f.Request.SessionId, new(1), new("needle")))], null));
-            await search;
-            access.RevisionReads.Should().Be(5, "admission changed after the service's end-of-read check but before native publication");
+            held.Reads.Should().Be(1);
+            search.IsCompleted.Should().BeFalse();
+            completedReads.Should().BeEmpty();
             model.Sessions.Should().BeEmpty();
+            var entry = new SessionWorkspaceEntry(new(f.Request.SessionId, new(1), true),
+                new(f.Request.SessionId, new(1), new("needle")));
+            held.Completion.SetResult(new([entry], null));
+            await search;
+            var completed = completedReads.Should().ContainSingle().Which;
+            completed.Status.Should().Be(ActivityStatusCode.Ok);
+            completed.GetTagItem("kora.outcome").Should().Be(nameof(HostOperationOutcome.Completed));
+            access.ControlRevision.Should().Be(admission + (revokeAdmission ? 1 : 0));
+            if (revokeAdmission)
+            {
+                model.Sessions.Should().BeEmpty();
+                model.Status.Should().Contain("Cancelled");
+            }
+            else
+            {
+                model.Sessions.Should().ContainSingle().Which.Should().Be(entry);
+                model.Status.Should().Contain("Passive session metadata: 1 matches");
+            }
             model.SelectedSessionRecord.Should().BeNull();
-            model.Status.Should().Contain("Cancelled");
+            model.Detail.Should().BeEmpty();
+            model.WorkRecords.Should().BeEmpty();
+            model.PendingQuestions.Should().BeEmpty();
+            model.MemoryRecords.Should().BeEmpty();
+            model.ContentMatches.Should().BeEmpty();
+            model.CanCancelListSearch.Should().BeFalse();
+            model.CanNextListSearch.Should().BeFalse();
+            held.Reads.Should().Be(1);
             held.ControlCalls.Should().Be(0);
+            f.Count("security_audit_events").Should().Be(audits);
         }
         finally { model.Close(); }
     }
@@ -154,13 +199,5 @@ public sealed partial class SessionsViewModelTests
         model.Close();
         model.ListQuery.Should().BeEmpty();
         model.ListNameAvailability.Should().Be(SessionNameAvailability.Any);
-    }
-
-    private sealed class LateListAdmission : ISessionWorkspaceAccess, IEvidenceQueryAccess
-    {
-        internal int RevisionReads { get; private set; }
-        public bool CanInspect => true;
-        public bool CanControl => false;
-        public long ControlRevision => ++RevisionReads <= 4 ? 1 : 2;
     }
 }

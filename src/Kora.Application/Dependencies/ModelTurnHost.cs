@@ -249,6 +249,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         finally
         {
             turn.IsRunning = false;
+            turn.AuthorityRetired = null;
         }
         CompleteAudit(requested, result);
         activity.Complete(ToActivityOutcome(result.Outcome));
@@ -259,6 +260,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
     private async Task<ModelTurnResult> ExecuteAsync(ModelTurn turn, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
+        if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
+        { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.ToolResultRejected, turn.Provenance); }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
         { return Finish(ModelTurnOutcome.Denied, ModelTurnReason.SessionNotAdmitted, turn.Provenance); }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
@@ -335,7 +338,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var current = HostActivity.Current;
         if (turn.Owner != owner || !turn.IsRunning || current is null || current.Activity!.IsStopped
             || !ReferenceEquals(current.Request, turn.Provenance.Request)
-            || await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+            || await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-not-admitted");
@@ -346,7 +349,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "tool-call-budget-exhausted");
         }
-        var reply = sessionDiscoveries.TryGetValue(turn, out var discovery)
+        var reply = customizationDiscoveries.TryGetValue(turn, out var customizations)
+            ? await customizations.Invoke(id, input, linked.Token).ConfigureAwait(false)
+            : sessionDiscoveries.TryGetValue(turn, out var discovery)
             ? await discovery.InvokeAsync(id, input, linked.Token).ConfigureAwait(false)
             : turn.Context.ToolMode == ModelToolMode.McpReadOnly
             ? mcpInvocations.TryGetValue(turn, out var mcp)
@@ -357,7 +362,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
                 ? await webPage.InvokeAsync(turn.Provenance, id, input, linked.Token).ConfigureAwait(false)
                 : new(CapabilityOutcome.Denied, "web-page-approval-workflow-unavailable")
             : tools.Invoke(tools.Admit(CapabilityLane.Execution), id, input, linked.Token);
-        if (await RevalidateContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
+        if (await RevalidateAdapterContinuationAsync(turn, linked.Token).ConfigureAwait(false) != ModelTurnReason.None)
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
@@ -382,6 +387,8 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateContinuationAsync(ModelTurn turn, CancellationToken token)
     {
+        if (!await CustomizationDiscoveryCurrent(turn, token).ConfigureAwait(false))
+        { return ModelTurnReason.ToolResultRejected; }
         if (!await SessionDiscoveryCurrentAsync(turn, token).ConfigureAwait(false))
         { return ModelTurnReason.SessionNotAdmitted; }
         var reason = await RevalidateAsync(turn, token).ConfigureAwait(false);
@@ -392,6 +399,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
 
     private async ValueTask<ModelTurnReason> RevalidateAsync(ModelTurn turn, CancellationToken token)
     {
+        if (turn.RetirementReason is var retired && retired != ModelTurnReason.None) { return retired; }
         if (turn.ResourceLease is { } resource && !resources.IsCurrent(resource))
         { return ModelTurnReason.QualificationPending; }
         if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }

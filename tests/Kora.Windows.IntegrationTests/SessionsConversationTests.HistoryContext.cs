@@ -124,6 +124,8 @@ public sealed partial class SessionsConversationTests
     {
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
+        internal Task<ModelProviderReply>? Pending { get; init; }
+        internal TaskCompletionSource? Entered { get; init; }
         public Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
             ReadOnlyMemory<byte> context, Func<string, string, CancellationToken, ValueTask<CapabilityReply>> invokeTool,
             CancellationToken token)
@@ -131,7 +133,8 @@ public sealed partial class SessionsConversationTests
             token.ThrowIfCancellationRequested();
             Calls++;
             Wire = context.ToArray();
-            return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
+            Entered?.TrySetResult();
+            return Pending ?? Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
                 new(Calls == 1 ? "earlier ASSISTANT" : "genuine retained follow-up", null)));
         }
     }

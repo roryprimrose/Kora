@@ -5,6 +5,7 @@ using Kora.Application.Hosting;
 using Kora.Core.Authorization;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Storage;
@@ -290,13 +291,35 @@ public sealed partial class ModelTurnHostTests
         var submission = service.SubmitWebPageAsync(target, "get web page https://example.com/",
             new("https://example.com/"), approval.Present, static () => true, Token);
         await entered.Task;
+        var originalRequest = f.Retained!.Request;
+        var terminalPublished = false;
+        var deleted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        service.RunningConversationChanged += status =>
+        {
+            if (status.Phase == ConversationExecutionPhase.Terminal) { terminalPublished = true; }
+        };
+        f.BeforeTaskRead = async () =>
+        {
+            if (terminalPublished && HostActivity.Current?.Request == originalRequest)
+            {
+                await deleted.Task;
+            }
+        };
         var review = await service.ReviewStopAndDeleteAsync(target, RequestOrigin.LocalUi, static () => true, Token);
-        var confirming = service.ConfirmStopAndDeleteAsync(review, static () => true, Token);
+        var confirming = ConfirmDeletion();
+        async Task<SessionStopAndDeleteResult> ConfirmDeletion()
+        {
+            try { return await service.ConfirmStopAndDeleteAsync(review, static () => true, Token); }
+            finally { deleted.TrySetResult(); }
+        }
         confirming.IsCompleted.Should().BeFalse("the admitted tool ignores cancellation until its actual transport returns");
         f.DispositionCommits.Should().Be(0);
         using var body = new MemoryStream(System.Text.Encoding.UTF8.GetBytes("late tool content"));
         release.SetResult(new(200, new("https://example.com/"), "text/plain", "utf-8", null, null, [], body));
-        await submission;
+        var receipt = await submission;
+        receipt.Message.Request.Should().Be(originalRequest);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+        receipt.Message.AssistantResponse.Should().BeNull();
         (await confirming).Outcome.Should().Be(SessionStopAndDeleteOutcome.Deleted);
         body.CanRead.Should().BeFalse("the actual tool response is disposed before deletion");
         f.Retained!.AssistantResponse.Should().BeNull();

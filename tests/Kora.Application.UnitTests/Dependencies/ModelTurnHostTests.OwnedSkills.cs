@@ -410,6 +410,7 @@ public sealed partial class ModelTurnHostTests
         internal SharedSkillAudit Audit { get; } = new();
         internal OwnedSkillAuthoringAuthority Authority { get; }
         internal OwnedSkillInvocationWorkflow Workflow { get; }
+        internal OwnedSkillSaveWorkflow Saved { get; }
         internal SessionConversationService Conversation { get; }
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
@@ -419,6 +420,7 @@ public sealed partial class ModelTurnHostTests
             this.model = model;
             Authority = new(origin, Eligible);
             admission = new(Control, Control, new(Control));
+            Saved = new(Store, admission, Audit);
             var host = qualified ? QualifiedHistoryHost(model) : model.ConfiguredProfiles(production: true);
             var workspace = new SessionWorkspaceService(model, new(model), model, NullLogger<SessionWorkspaceService>.Instance);
             Conversation = conversation ?? model.ConversationService(host, execution: host);
@@ -447,9 +449,16 @@ public sealed partial class ModelTurnHostTests
         internal Func<Task>? DuringRead { get; set; }
         internal Exception? Failure { get; set; }
         internal int Writes { get; private set; }
-        public string Destination(OwnedDeclarativeSkillDocument document) => "owned";
-        public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<OwnedDeclarativeSkillSnapshot>>(Snapshot is null ? [] : [Snapshot]);
+        internal Func<Task>? DuringList { get; set; }
+        internal int Lists { get; private set; }
+        public string Destination(OwnedDeclarativeSkillDocument document) => Path.Combine(Environment.CurrentDirectory, "owned");
+        public async Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token)
+        {
+            Lists++;
+            if (DuringList is { } during) { await during(); }
+            if (Failure is not null) { throw Failure; }
+            return Snapshot is null ? [] : [Snapshot];
+        }
         public async Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token)
         {
             if (DuringRead is { } during) { await during(); }

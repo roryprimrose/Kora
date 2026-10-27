@@ -286,6 +286,35 @@ Search returns chronological retained messages, not generated summaries. Enter s
 
 The bounded reader validates original identity, revision and snapshot continuity. Queries use whole lexical words, not executable instructions; results never add model context, resume work or establish execution authority ([reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
+### Find a message across conversations
+
+In **Sessions / Session management**, expand **Search conversation content**.
+Enter ordinary words and choose **Search content** (or Enter). Typing alone
+reads nothing. The existing lexical matching rules search original USER text
+and separately retained ASSISTANT answers, not names, drafts or HOST metadata.
+Results show the observed conversation name, source role and retained text.
+Duplicate names do not choose identity.
+
+Choose a result and press Enter or **Open exact selected message**. Kora
+rechecks the original conversation, retained message and sequence snapshot,
+opens its owning conversation at that exact message, and scrolls/focuses the
+matching USER or ASSISTANT text. It never substitutes the current last message.
+The complete original text and existing deliberate Details, reply, read and
+reuse actions remain available under their original permissions; opening a
+match does not execute, speak, copy, submit or resume anything.
+
+Each page returns at most 25 matches from at most eight bounded source reads.
+**Next content matches** continues across messages and conversations; an empty
+page can still have Next. This is a bounded observation of retained sources,
+not an atomic global snapshot or semantic ranking. New messages appear only
+after a fresh search. Stale, deleted, expired, renamed or privacy-revoked
+matches cannot open a replacement. No retention clock or stored history changes.
+
+**Cancel / clear content search** or Escape clears the transient query,
+matches and continuation and cancels pending search/navigation. Closing or
+private-ownership loss clears them too. Query text and matches are not saved,
+logged, added to model context or sent to a provider/network.
+
 ### Search retained assistant answers
 
 Select the exact retained Active or Done session. In the existing conversation role selector choose **ASSISTANT**, enter lexical words unchanged and choose **Search this conversation**. **All** still searches only USER/HOST fields; **ASSISTANT** searches only complete saved answer bodies, never provider/provenance metadata or an absent answer's USER/HOST text ([role policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
@@ -328,6 +357,29 @@ messages; there is no aggregate retained-session, draft-bearing-session or
 message storage quota and no automatic eviction. Read pages have at most
 50 records/64 KiB complete output. These are predictable work/UI bounds,
 not a total database-size or unlimited physical-disk promise.
+
+With an already qualified provider, ordinary **Submit exact message** and
+**Answer locally (no tools)** can accept another original request while the
+previous request in that exact Active conversation runs. Real acceptance clears
+only the submitted input; you can immediately compose another message.
+**Refresh submitted work** shows the actual waiting requests in arrival order
+and their positions (at most ten pending). Select one and deliberately choose
+**Cancel selected pending request** to cancel only that request before any
+provider dispatch. Its submitted history remains; running work and your next
+unsent input are unchanged. Both conversation windows use the same controls.
+
+Next dispatch requires the previous request's successful confirmed completion
+and physical resource closure, then current original session/source/provider/
+privacy/expiry admission. Failure, cancellation or uncertainty holds automatic
+dispatch. **Resume held dispatch** is deliberate, not consent renewal, replay,
+provider switching or permission to send later unseen history. The original
+context lifetime is unchanged (ordinary local requests currently expire after
+fifteen seconds), even though the pending domain's default upper bound is
+thirty minutes. Expired/changed authority is denied or held for fresh review;
+it is never silently extended. Unqualified providers still report unavailable,
+not queued success. Questions, approvals and separate hosted disclosure reviews
+keep their existing fences. Switching sessions after acceptance does not move
+the submitted request or its eventual result. Restart never replays it.
 
 **Current draft size and shape** updates beside the editable buffer in New
 request, Sessions and the expanded conversation window. It shows actual UTF-8

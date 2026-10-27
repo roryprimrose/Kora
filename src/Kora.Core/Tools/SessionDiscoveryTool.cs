@@ -37,5 +37,5 @@ public static class SessionDiscoveryTool
         && page.Records.Select(record => record.SessionId).Distinct(StringComparer.Ordinal).Count() == page.Records.Count
         && reply.Capabilities is null && reply.Descriptor is null && reply.Version is null
         && reply.Readiness is null && reply.Runtimes is null && reply.Runtime is null
-        && reply.WebPage is null && reply.Mcp is null;
+        && reply.WebPage is null && reply.Mcp is null && reply.Customizations is null;
 }

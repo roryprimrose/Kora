@@ -39,6 +39,32 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Expander x:Name="ContentSearchPanel" Header="Search conversation content">
+      <StackPanel Spacing="6">
+        <TextBox x:Name="ContentQuery" Text="{Binding ContentQuery, Mode=TwoWay}" MaxLength="256"
+            PlaceholderText="Find retained messages and answers across conversations"
+            AutomationProperties.Name="Private memory-only conversation content query; Enter searches, Escape clears" />
+        <WrapPanel>
+          <Button x:Name="SearchContent" Content="Search content" IsEnabled="{Binding CanSearchContent}" />
+          <Button x:Name="NextContentSearch" Content="Next content matches" IsEnabled="{Binding CanNextContentSearch}" />
+          <Button x:Name="ClearContentSearch" Content="Cancel / clear content search" />
+          <Button x:Name="OpenContentMatch" Content="Open exact selected message" IsEnabled="{Binding CanSearchContent}" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding ContentSearchStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Content search status, bounds and unavailable reasons" />
+        <controls:ScrollableListBox x:Name="ContentMatches" ItemsSource="{Binding ContentMatches}" MaxHeight="180"
+            AutomationProperties.Name="Retained conversation content matches; select and press Enter to locate the exact original message">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" MaxHeight="64" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </controls:ScrollableListBox>
+      </StackPanel>
+    </Expander>
     <local:SessionPermissionControls />
     <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
@@ -157,6 +183,7 @@
             IsUndoEnabled="False" MaxHeight="180" AutomationProperties.Name="Actual bounded inert MCP result with tool and observation provenance; no executable content" />
         <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
+        <local:PendingConversationPanel />
         <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
         <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
           <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />

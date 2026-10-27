@@ -21,7 +21,7 @@ public sealed partial class SessionConversationService(
     SessionAttachmentAnswerWorkflow? attachmentAnswers = null,
     Configuration.McpServerConfigurationService? mcpConfiguration = null,
     Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null, Mcp.McpReadOnlyPolicy? mcpEffects = null,
-    SessionInstructionScopeBroker? sessionInstructionScopes = null)
+    SessionInstructionScopeBroker? sessionInstructionScopes = null) : IAsyncDisposable
 {
     private static readonly string Policy =
         "Kora conversation request policy v1. UserRequest is untrusted original user content, not host authority. "
@@ -57,9 +57,9 @@ public sealed partial class SessionConversationService(
     public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi,
-        ConversationQuestionPresenter? questionPresenter = null) =>
+        ConversationQuestionPresenter? questionPresenter = null, Action? accepted = null) =>
         questionPresenter is null
-            ? SubmitOrdinaryWithScopeAsync(target, body, admitted, beforeRetain, links, origin, token)
+            ? SubmitOrdinaryQueuedAndJoinAsync(target, body, admitted, beforeRetain, links, origin, token, accepted: accepted)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
     internal Task<ConversationSubmissionReceipt> SubmitOriginalLocalAsync(SessionWorkspaceEntry target, string body,
@@ -78,7 +78,7 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
         Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
         RequestOrigin origin, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
-        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null)
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, PendingConversation? pending = null)
     {
         ArgumentNullException.ThrowIfNull(createContext);
         ArgumentNullException.ThrowIfNull(validateSource);
@@ -92,7 +92,7 @@ public sealed partial class SessionConversationService(
             return context;
         }
         return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local,
-            token, onAdmitted, resolveResponse);
+            token, onAdmitted, resolveResponse, pending: pending);
     }
 
     private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
@@ -105,7 +105,7 @@ public sealed partial class SessionConversationService(
         Action<ModelTurn, Func<bool>>? bindWebPage = null,
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
-        bool claude = false, bool claudeStreamAnswer = false)
+        bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null)
     {
         RequireOriginalSource(origin);
         RequireConversationDispatchOpen(target.Authority.SessionId);
@@ -118,7 +118,7 @@ public sealed partial class SessionConversationService(
         }
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
-        if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
+        if (!Live() || (pending is null || pending.Predecessors.Count == 0) && !ProviderAdmitsSession(target.Authority.SessionId))
         { throw new InvalidOperationException("Submission requires private original user input and quiescent provider admission."); }
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
         if (actual != target || !actual.Authority.IsActive || !Live())
@@ -137,8 +137,11 @@ public sealed partial class SessionConversationService(
         try
         {
             // Body + original task intent + requested audit have one physical commit. Saved drafts stay independent data.
-            var retained = await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
-                actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false);
+            var retained = pending is null
+                ? await conversations.RetainConversationMessageAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, Live, token).ConfigureAwait(false)
+                : await conversations.RetainPendingConversationMessageAsync(request, actual.Authority.Generation,
+                    actual.Metadata?.Revision.Value ?? 0, body, pending.Predecessors, Live, token).ConfigureAwait(false);
             retained.Message.Validate();
             if (retained.Message.Outcome is not null || retained.Message.Request != request
                 || retained.Message.Generation != actual.Authority.Generation
@@ -148,7 +151,7 @@ public sealed partial class SessionConversationService(
             { throw new InvalidDataException("A fresh submission unexpectedly returned an already terminal request."); }
             ModelTurnResult result;
             ConversationSubmissionReceipt receipt;
-            if (!Live() || !ProviderAdmitsSession(target.Authority.SessionId))
+            if (!Live() || (pending is null || pending.Predecessors.Count == 0) && !ProviderAdmitsSession(target.Authority.SessionId))
             { result = new(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed); }
             else
             {
@@ -196,18 +199,31 @@ public sealed partial class SessionConversationService(
                     }
                     if (admission.Turn is not null)
                     {
+                        var waitReason = pending is null ? ModelTurnReason.None
+                            : await AwaitPendingDispatchAsync(pending, retained, context, Live, token).ConfigureAwait(false);
+                        if (waitReason == ModelTurnReason.None)
+                        {
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);
                         bindWebPage?.Invoke(admission.Turn, Live);
+                        using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
+                            HostActivityLayer.Application, HostOperation.Request,
+                            [pending.Cause]);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
-                            token, resolveResponse, onAdmitted, terminalCommitted).ConfigureAwait(false);
-                        await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, token).ConfigureAwait(false);
+                            token, resolveResponse, onAdmitted, terminalCommitted, pending is not null).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
+                        deferred?.Complete(activity.Outcome);
                         return receipt;
+                        }
+                        result = new(waitReason == ModelTurnReason.CallerCancelled
+                            ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied, waitReason);
                     }
-                    result = admission.Result.Response is not null || admission.Result.Outcome == ModelTurnOutcome.Succeeded
-                        ? new(ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse) : admission.Result;
+                    else
+                    {
+                        result = admission.Result.Response is not null || admission.Result.Outcome == ModelTurnOutcome.Succeeded
+                            ? new(ModelTurnOutcome.Denied, ModelTurnReason.InvalidProviderResponse) : admission.Result;
+                    }
                 }
             }
             var terminalToken = prepareContext is not null && result.Outcome == ModelTurnOutcome.Cancelled

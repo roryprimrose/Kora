@@ -1,3 +1,5 @@
+using System.ComponentModel;
+
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.VisualTree;
@@ -26,6 +28,9 @@ public sealed partial class SessionsConversationTests
     [InlineData("sessions", "privacy")]
     [InlineData("compact", "privacy")]
     [InlineData("primary", "control")]
+    [InlineData("primary", "revocation")]
+    [InlineData("sessions", "revocation")]
+    [InlineData("compact", "revocation")]
     public async Task NativeLocalAnswerUsesNormalConversationAndNeverStoresOrKeepsRevokedProvisionalText(string surface, string terminal)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -33,9 +38,18 @@ public sealed partial class SessionsConversationTests
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
-            var adapter = new ProvisionalConversationAdapter();
+            var adapter = new ProvisionalConversationAdapter { ProbeRevocation = terminal is "revocation" };
             await using var composed = new Composition(f, adapter: adapter);
             var model = composed.Model;
+            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void ObserveTerminal(object? sender, PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(model.RunningConversationStatus), StringComparison.Ordinal)
+                    && (model.RunningConversationStatus.Contains("Terminal Succeeded", StringComparison.Ordinal)
+                        || model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal)))
+                { terminalPresented.TrySetResult(); }
+            }
+            model.PropertyChanged += ObserveTerminal;
             var owner = new SessionsPresentationOwner(model);
             var view = surface is "primary" ? new SessionInteractionView { DataContext = model } : null;
             Window window = surface switch
@@ -99,26 +113,56 @@ public sealed partial class SessionsConversationTests
                     composed.Access.ControlRevision++;
                     model.ProvisionalAnswer.Should().BeEmpty();
                 }
+                if (terminal is "revocation")
+                {
+                    var displayed = controls.GetVisualDescendants().OfType<TextBlock>()
+                        .Single(value => string.Equals(value.Text, "provisional answer", StringComparison.Ordinal));
+                    composed.Access.CanControl = false;
+                    adapter.Probe.TrySetResult();
+                    await adapter.Rejected.Task.WaitAsync(f.Token);
+                    await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    {
+                        displayed.Text.Should().BeEmpty("retirement must invalidate the actual bound text before provider termination");
+                    });
+                    composed.Access.CanControl = true;
+                    model.ProvisionalAnswer.Should().BeEmpty("restored authority cannot revive the original answer");
+                    operation.IsCompleted.Should().BeFalse();
+                    composed.Turns.IsQuiescent.Should().BeFalse();
+                }
                 adapter.Release.TrySetResult();
                 await operation;
+                if (terminal is "complete" or "cancel") { await terminalPresented.Task.WaitAsync(f.Token); }
                 stored = await f.Store.ReadConversationMessageAsync(provenance.Request.SessionId, provenance.Request.RequestId, f.Token);
                 model.ProvisionalAnswer.Should().BeEmpty();
                 if (terminal is "complete")
                 {
                     stored.AssistantResponse!.Body.Should().Be("provisional answer completed");
+                    stored.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
                     model.ConversationMessages.Single().Should().Be(stored);
-                    model.RunningConversationStatus.Should().Contain("Terminal Succeeded");
+                    model.RunningConversationStatus.Should().Contain("Terminal Succeeded")
+                        .And.Contain(provenance.Request.TaskId.Value.ToString("D")).And.Contain("resources joined");
                 }
                 else { stored.AssistantResponse.Should().BeNull(); }
+                if (terminal is "cancel")
+                {
+                    stored.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                    model.RunningConversationStatus.Should().Contain("Terminal Cancelled")
+                        .And.Contain(provenance.Request.TaskId.Value.ToString("D")).And.Contain("resources joined");
+                }
+                composed.Turns.IsQuiescent.Should().BeTrue();
                 f.Count("conversation_drafts").Should().Be(0);
                 f.Count("host_questions").Should().Be(0);
                 f.Count("scoped_grants").Should().Be(0);
                 adapter.BufferedCalls.Should().Be(0);
+                if (terminal is "revocation") { stored.Outcome.Should().Be(ModelTurnOutcome.Denied); }
             }
             finally
             {
+                if (terminal is "revocation") { composed.Access.CanControl = true; }
+                adapter.Probe.TrySetResult();
                 adapter.Release.TrySetResult();
                 await operation;
+                model.PropertyChanged -= ObserveTerminal;
                 owner.Revoke();
                 window.Close();
             }
@@ -129,6 +173,9 @@ public sealed partial class SessionsConversationTests
     {
         internal TaskCompletionSource<ModelTurnProvenance> Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Release { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Probe { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource Rejected { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal bool ProbeRevocation { get; init; }
         internal int BufferedCalls { get; private set; }
         internal string? BufferedAnswer { get; init; }
         internal byte[]? Wire { get; private set; }
@@ -152,8 +199,15 @@ public sealed partial class SessionsConversationTests
             Wire = context.ToArray();
             await publish(new(provenance, "provisional answer"), cancellationToken);
             Started.TrySetResult(provenance);
+            if (ProbeRevocation)
+            {
+                await Probe.Task;
+                (await validateContinuation(CancellationToken.None)).Should().NotBe(ModelTurnReason.None);
+                Rejected.TrySetResult();
+            }
             await Release.Task;
-            await publish(new(provenance, "provisional answer completed"), CancellationToken.None);
+            try { await publish(new(provenance, "provisional answer completed"), CancellationToken.None); }
+            catch (InvalidDataException) when (ProbeRevocation) { }
             return new(ModelTurnOutcome.Succeeded, provenance.Selection, new("provisional answer completed", null));
         }
     }

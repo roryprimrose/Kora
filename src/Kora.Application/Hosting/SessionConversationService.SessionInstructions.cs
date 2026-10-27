@@ -13,12 +13,12 @@ public sealed partial class SessionConversationService
     /// <summary>Explicit local tool-free answer through the ordinary conversation and instruction owner.</summary>
     public Task<ConversationSubmissionReceipt> SubmitLocalAnswerAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token) =>
-        SubmitOrdinaryWithScopeAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, token, localAnswer: true);
+        SubmitOrdinaryQueuedAndJoinAsync(target, body, admitted, null, null, RequestOrigin.LocalUi, token, localAnswer: true);
 
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
         SessionWorkspaceEntry target, string body, Func<bool> admitted,
         Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
-        CancellationToken token, bool localAnswer = false)
+        CancellationToken token, bool localAnswer = false, PendingConversation? pending = null)
     {
         RequireOriginalSource(origin);
         var review = sessionInstructionScopes is null ? null
@@ -28,7 +28,8 @@ public sealed partial class SessionConversationService
             ModelContextEnvelope Create(HostRequest request, DateTimeOffset now) =>
                 new(request, Policy, body, [], now, now.AddSeconds(15), ModelToolMode.None);
             return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
-                localAnswer ? Create : null, localAnswer ? ModelTurnChoice.Local : ModelTurnChoice.Default, token).ConfigureAwait(false);
+                localAnswer ? Create : null, localAnswer ? ModelTurnChoice.Local : ModelTurnChoice.Default, token,
+                pending: pending).ConfigureAwait(false);
         }
         List<ActivityLink> causes = links?.ToList() ?? [];
         if (HostActivity.Current?.Activity is { } parent) { causes.Add(new(parent.Context)); }
@@ -38,7 +39,7 @@ public sealed partial class SessionConversationService
         {
             if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
             var receipt = await SubmitInstructionAsync(review,
-                () => admitted() && sessionInstructionScopes!.IsRequestAdmitted(review), token).ConfigureAwait(false);
+                () => admitted() && sessionInstructionScopes!.IsRequestAdmitted(review), pending, token).ConfigureAwait(false);
             activity.Complete(receipt.Message.Outcome switch
             {
                 ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,

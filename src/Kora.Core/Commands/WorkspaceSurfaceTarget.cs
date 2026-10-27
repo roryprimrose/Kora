@@ -17,4 +17,5 @@ public enum WorkspaceSurfaceTarget
     HideDetails,
     SessionLogs,
     SessionAudit,
+    OpenNamedConversation,
 }

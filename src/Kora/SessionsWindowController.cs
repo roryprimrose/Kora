@@ -162,6 +162,14 @@ internal sealed partial class SessionsWindowController(
     internal QuestionWindowController? ConversationQuestions { get; set; }
     internal async Task<bool> PrepareShutdown()
     {
+        RetireNamedConversation();
+#pragma warning disable VSTHRD003 // Join the exact owned passive navigation, not merely the choice window.
+        if (!NamedConversationOperation.IsCompleted)
+        {
+            try { await NamedConversationOperation; }
+            catch (OperationCanceledException) { }
+        }
+#pragma warning restore VSTHRD003
         if (instructionScopes is { } scopes) { await scopes.QuiesceAsync(); }
         return presentation is { } current ? await current.PrepareShutdown() : true;
     }
@@ -525,12 +533,13 @@ internal sealed partial class SessionsWindowController(
         { main.ReportHostInteractionFailure("Sessions could not be opened. " + exception.Message); }
     }
     private void OnPrivacyClosure(object? sender, EventArgs args)
-    { instructionScopes?.RevokeAll(); presentation?.Revoke(); }
+    { RetireNamedConversation(); instructionScopes?.RevokeAll(); presentation?.Revoke(); }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        RetireNamedConversation();
         instructionScopes?.Retire();
         main.BindSessionInstructionScopes(null, null);
         Volatile.Write(ref dispositionOwnerOpen, 0);

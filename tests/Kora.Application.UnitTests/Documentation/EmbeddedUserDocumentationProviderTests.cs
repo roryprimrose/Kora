@@ -358,7 +358,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 25);
+        sections.Should().HaveCount(commands.Count + 26);
+        var namedOpening = sections.Single(section => section.StartsWith(
+            "Open a conversation by its readable name", StringComparison.Ordinal));
+        namedOpening.Should().Contain("open conversation \"Exact readable name\"")
+            .And.Contain("read conversation \"Exact readable name\"")
+            .And.Contain("Nothing is selected by default")
+            .And.Contain("Open this exact").And.Contain("real retained history")
+            .And.Contain("never autosaved").And.Contain("60 seconds")
+            .And.Contain("late confirmation cannot substitute")
+            .And.Contain("never creates New");
         var namedInvocation = sections.Single(section => section.StartsWith(
             "Invoke an instruction-only skill by readable name", StringComparison.Ordinal));
         namedInvocation.Should().Contain("use skill <exact declared readable name>")
@@ -546,6 +555,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, namedOpening)
             && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)

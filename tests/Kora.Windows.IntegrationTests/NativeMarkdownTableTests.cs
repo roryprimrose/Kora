@@ -28,7 +28,7 @@ public sealed class NativeMarkdownTableTests
         var result = Render(Source);
         result.IsFallback.Should().BeFalse();
         result.Source.Should().Be(Source);
-        result.Status.Should().Contain(NativeMarkdownTableProfile.Name).And.Contain("not a visual grid");
+        result.Status.Should().Contain(NativeMarkdownTableProfile.Name).And.Contain("header-labelled rows");
         result.Sections.Should().HaveCount(3);
         result.SemanticText.Should().Contain("Column 1: Name").And.Contain("Column 2: State")
             .And.Contain("Column 1 (Name): Alpha").And.Contain("Column 2 (State): Ready")

@@ -712,6 +712,39 @@ Semantic expansion is UTF-8-budgeted while building, including repeated
 reference-link destinations, before any control or joined projection is
 published.
 
+### Document-local heading and final-table interaction
+
+Scoped Markdown **Details** preserves the same complete source and semantic
+text, while adding native buttons for parsed document-local fragment links.
+Pointer, Enter and Space activation brings the exact parsed heading into view
+and focuses it. IDs come directly from Markdig AutoIdentifiers with no implicit
+reference auto-linking, including duplicate and Unicode headings; percent-encoded
+fragments are strictly decoded and matched ordinally. Missing, malformed,
+non-local, hidden or retired targets report an explicit unavailable outcome.
+External destinations remain inert. The guide/grants facade retains its existing
+inert text controls; this does not enable browser, network, script or file access.
+
+The independently admitted `native-pipe-tables-v2` profile carries immutable
+parsed headers/cells into a read-only native table in Details. Arrow keys move
+between headers and cells, Home/End across a row, and Ctrl+Home/End to the first
+header/last cell. Each cell exposes its current row, original row, column,
+complete value and actual header relationship to accessibility. Header buttons
+sort ascending then descending **ordinal text**, with original row order as the
+stable tie-break in both directions. No number/date/type inference is performed.
+**Reset table order** restores original order and the last focused cell; reopening
+starts with original order. Sorting changes only the volatile view, not source,
+continuous-text selection, literal Find, retention or clipboard authority.
+
+The existing table bounds remain 32 total rows, 8 columns, 128 document cells
+and 2,048 UTF-8 bytes per semantic cell. Profile availability remains separately
+gated and false by default; this implementation does not qualify or enable it.
+Document controls bind the exact immutable content and generation, revalidate
+read admission around focus, and retire on replacement, closure, privacy loss
+or detachment. Old controls cannot navigate another document or restore content.
+The [headless interaction regressions](../tests/Kora.Windows.IntegrationTests/NativeDocumentInteractionTests.cs)
+exercise actual keyboard/pointer activation, ordering, header relationships and
+retirement; they are not installed screen-reader/Enablement/RC qualification.
+
 ### Separately gated display-only Markdown checklists
 
 The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.

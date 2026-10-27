@@ -24,6 +24,28 @@ Ordinary tool-capable Send, clarification and hosted requests retain their exist
 
 The separate native-only **Stream explicitly with Claude (text only, separately qualified)** action now uses the same provisional lifecycle for original-user, tool-free requests. It adds exact-profile stream evidence and separate native physical-send consent, without changing the buffered routes above or enabling the shipped unavailable Claude source ([operation](../docs/claude-requests.md#separately-qualified-native-text-streaming), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
 
+## Cross-conversation content search and exact message opening
+
+The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)
+completes ordinary query -> bounded retained USER/ASSISTANT matches -> deliberate
+selection -> exact owning-conversation message placement and matched-field
+scroll/focus. This supports the approved independent-conversation/readable-result
+outcomes; storage permission, source validation and native presentation belong to
+the host, not a model, tool or semantic-search extension.
+
+It composes existing metadata browse, exact-session lexical search, exact retained
+detail revalidation and passive session navigation. Continuations retain original
+source generation, sequence ceiling and head revision internally. Names remain
+labels; copied/equal rows are not native selections. Every opening revalidates
+the message and snapshot without substituting a newer record. Existing message
+actions retain original source authority and unsent session buffers are unchanged.
+
+Queries/results are volatile. Explicit clear/edit/close/privacy/source retirement
+fences late reads; bounds, empty-page continuation and unavailable states are
+truthful. No new schema, index, model/provider/network action, clipboard authority,
+retention renewal or history write is introduced. See the [user operation](../docs/windows-and-tray.md#find-a-message-across-conversations)
+and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContentSearch.cs).
+
 ## Conversation Input Realignment
 
 Ordinary Send and the exact typed/activated-voice request-confirm route share

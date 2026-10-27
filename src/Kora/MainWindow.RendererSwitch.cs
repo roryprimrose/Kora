@@ -101,13 +101,17 @@ public sealed partial class MainWindow : IPresenceWindow
         }
         Position = state.Position;
         positionInitialized = true;
-        presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
+        motionPreference?.Refresh();
+        if (windowActionFailed)
+        {
+            throw new InvalidOperationException("The selected presence cannot read the Windows animation preference.");
+        }
         presence.IsPresenceVisible = state.PresenceVisible;
         EnsurePositionOnConnectedScreen();
         WindowState = state.WindowState;
         // Realize and validate the backend without revealing private presentation.
         Show();
-        if (presenceInputFailed || nativePresenceFailed
+        if (presenceInputFailed || nativePresenceFailed || windowActionFailed
             || useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
         {
             throw new InvalidOperationException("The selected presence renderer or input backend is unavailable.");
@@ -154,7 +158,8 @@ public sealed partial class MainWindow : IPresenceWindow
         if (resourcesDisposed) { return; }
         try
         {
-            CloseNativePresence();
+            try { motionPreference?.Dispose(); }
+            finally { CloseNativePresence(); }
         }
         finally
         {

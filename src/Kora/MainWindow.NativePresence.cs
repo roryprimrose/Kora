@@ -48,10 +48,8 @@ public sealed partial class MainWindow
         {
             return null;
         }
-        return new PresenceRenderInputs(presence.State, presence.IsSpeaking, presence.SpeechOutputLevel,
-            presence.IsSpeechScalingEnabled, presence.SpeechScaleAmountPercent, presence.DotDensityPercent,
-            presence.DotSizePercent, presence.MovementSpeedPercent, ActualThemeVariant == ThemeVariant.Light,
-            !presence.IsMotionEnabled, presence.IsPresenceVisible, nativePresence.Bounds.Width, nativePresence.Bounds.Height, RenderScaling);
+        return presence.CaptureRenderInputs(ActualThemeVariant == ThemeVariant.Light,
+            nativePresence.Bounds.Width, nativePresence.Bounds.Height, RenderScaling);
     }
 
     private void RefreshNativePresence() => nativePresence?.Refresh(viewModel.IsSpeaking);

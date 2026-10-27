@@ -74,7 +74,8 @@ public sealed partial class SessionConversationService
                 receipt = await SubmitReviewedContextAsync(review.Target, input.Body,
                     (request, now) => ConversationHistoryContext.CreateEnvelope(request, input.Body,
                         input.Selections, now, review.ExpiresAt < now.AddSeconds(15) ? review.ExpiresAt : now.AddSeconds(15)),
-                    Live, Revalidate, [review.Cause], review.Origin, token).ConfigureAwait(false);
+                    Live, Revalidate, [review.Cause], review.Origin, token,
+                    joinCancelledResources: review.AdvisorySource is not null).ConfigureAwait(false);
                 activity.Complete(receipt.Message.Outcome switch
                 {
                     ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,
@@ -92,11 +93,6 @@ public sealed partial class SessionConversationService
             {
                 activity.Complete(HostOperationOutcome.Failed);
                 throw;
-            }
-            finally
-            {
-                if (review.AdvisorySource is not null && execution is not null)
-                { await execution.WaitForQuiescenceAsync(CancellationToken.None).ConfigureAwait(false); }
             }
             return receipt;
         }

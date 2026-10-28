@@ -1,10 +1,12 @@
 using System.Text.Json;
 using System.Diagnostics;
+using System.Collections.Concurrent;
 
 using AwesomeAssertions;
 
 using Kora.Application.Hosting;
 using Kora.Application.Dependencies;
+using Kora.Application.UnitTests.Agents;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
@@ -24,6 +26,149 @@ public sealed partial class ModelTurnHostTests
             AssistantResponse = source.AssistantResponse! with { Body = HistoryAdvisory } };
         f.HistoryMessages[source.Request.RequestId] = source;
         return source;
+    }
+
+    private static (ConversationMessage Earlier, ConversationMessage Advisory) TwoSessionHistory(AgentRunSetTests.Fixture f)
+    {
+        ConversationMessage Retained(long sequence, string body, string answer)
+        {
+            var request = new HostRequest(new(Guid.NewGuid()), f.Sessions[0].Authority.SessionId,
+                new(Guid.NewGuid()), RequestOrigin.LocalUi);
+            var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
+            var message = new ConversationMessage(request, f.Sessions[0].Authority.Generation, sequence, 3,
+                f.Time.GetUtcNow(), body, ModelTurnOutcome.Succeeded, ModelTurnReason.ProviderOutcome)
+            {
+                Version = 2,
+                Execution = provenance,
+                ExecutionMetadataRevision = 0,
+                AssistantResponse = new(provenance, answer),
+            };
+            message.Validate();
+            f.Messages[request.RequestId] = message;
+            return message;
+        }
+        return (Retained(1, "private earlier user message", "private earlier answer"),
+            Retained(2, " \r\n unchanged original question e\u0301? \t", HistoryAdvisory));
+    }
+
+    private sealed class HistoryRegistrations : IModelProviderRegistrationSource
+    {
+        internal ConcurrentDictionary<HostId<SessionIdentity>, AgentRunSetTests.BarrierAdapter> Transports { get; } = new();
+        public Task<ModelProviderRegistration?> ResolveAsync(ModelProviderSelection selection,
+            Kora.Core.Providers.ProviderProfileTuple profile, CancellationToken cancellationToken) =>
+            Task.FromResult<ModelProviderRegistration?>(new(selection,
+                ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
+                DateTimeOffset.UnixEpoch.AddMinutes(5),
+                Transports.GetOrAdd(HostActivity.RequireCurrent().Request.SessionId, _ => new())));
+        internal AgentRunSetTests.BarrierAdapter Transport(int index, AgentRunSetTests.Fixture f) =>
+            Transports[f.Sessions[index].Authority.SessionId];
+        internal Task Started(int index, AgentRunSetTests.Fixture f) =>
+            Transport(index, f).Started(f.Sessions[index]).Task.WaitAsync(TimeSpan.FromSeconds(5), Token);
+        internal void FinishAll(AgentRunSetTests.Fixture f)
+        {
+            foreach (var session in f.Sessions)
+            {
+                if (Transports.TryGetValue(session.Authority.SessionId, out var transport) && transport.Active > 0)
+                { transport.Finish(session, "test cleanup"); }
+            }
+        }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AdvisoryTwoSessionCompletionReturnsExactAnswerOrUnavailableWithoutJoiningIndependentSession(bool singleCapacity)
+    {
+        var source = new RuntimeResourceAllocatorTests.RuntimeSource { Current = !singleCapacity };
+        var registrations = new HistoryRegistrations();
+        source.Evidence = source.Evidence with { OwnsIndependentTransport = adapter => registrations.Transports.Values.Contains(adapter) };
+        await using var f = new AgentRunSetTests.Fixture(runtimeCapacity: source, registrationSource: registrations);
+        using var cleanup = source;
+        var (earlier, advisory) = TwoSessionHistory(f);
+        using var binding = await f.Conversation.BindModelHistoryContextAsync(f.Sessions[0], advisory, static () => true, Token);
+        using var review = await f.Conversation.ReviewModelHistoryContextAsync(binding,
+            [new(earlier, ConversationHistoryRole.Assistant)], static () => true, Token);
+        review.Text.Should().Contain(earlier.AssistantResponse!.Body).And.Contain(advisory.Body)
+            .And.NotContain(earlier.Body).And.NotContain(HistoryAdvisory);
+        var independent = f.Conversation.SubmitAsync(f.Sessions[1], "independent original question", static () => true, Token);
+        await registrations.Started(1, f);
+        var addressed = f.Conversation.SubmitHistoryAsync(review, static () => true, Token);
+        try
+        {
+            if (!singleCapacity)
+            {
+                await registrations.Started(0, f);
+                registrations.Transport(0, f).Finish(f.Sessions[0], "exact reviewed-history answer");
+            }
+            var receipt = await addressed.WaitAsync(TimeSpan.FromSeconds(5), Token);
+            receipt.Message.Body.Should().Be(advisory.Body);
+            receipt.Message.Request.SessionId.Should().Be(advisory.Request.SessionId);
+            receipt.Message.Outcome.Should().Be(singleCapacity ? ModelTurnOutcome.Unavailable : ModelTurnOutcome.Succeeded);
+            if (singleCapacity)
+            {
+                receipt.Message.Reason.Should().Be(ModelTurnReason.ProviderBusy);
+                receipt.Message.Execution.Should().BeNull();
+                receipt.Message.AssistantResponse.Should().BeNull();
+                registrations.Transport(0, f).Started(f.Sessions[0]).Task.IsCompleted.Should().BeFalse();
+            }
+            else { receipt.Message.AssistantResponse!.Body.Should().Be("exact reviewed-history answer"); }
+            (await f.ReadConversationMessageAsync(receipt.Message.Request.SessionId, receipt.Message.Request.RequestId, Token))
+                .Should().Be(receipt.Message);
+            (await f.ReadTaskAsync(receipt.Task.Request.SessionId, receipt.Task.Request.TaskId, Token))!.Task.Should().Be(receipt.Task);
+            receipt.Task.IsTerminal.Should().BeTrue();
+            independent.IsCompleted.Should().BeFalse("the completed operation must not join an unrelated session");
+            registrations.Transport(1, f).Cancelled(f.Sessions[1]).Task.IsCompleted.Should().BeFalse();
+            f.Host.IsQuiescent.Should().BeFalse();
+        }
+        finally
+        {
+            registrations.FinishAll(f);
+            await Task.WhenAll(addressed, independent).WaitAsync(Token);
+        }
+    }
+
+    [Fact]
+    public async Task AdvisoryTwoSessionCancellationJoinsIgnoringOwnTransportButNotIndependentSessionOrLateAnswer()
+    {
+        var source = new RuntimeResourceAllocatorTests.RuntimeSource();
+        var registrations = new HistoryRegistrations();
+        source.Evidence = source.Evidence with { OwnsIndependentTransport = adapter => registrations.Transports.Values.Contains(adapter) };
+        await using var f = new AgentRunSetTests.Fixture(runtimeCapacity: source, registrationSource: registrations);
+        using var cleanup = source;
+        var (earlier, advisory) = TwoSessionHistory(f);
+        using var binding = await f.Conversation.BindModelHistoryContextAsync(f.Sessions[0], advisory, static () => true, Token);
+        using var review = await f.Conversation.ReviewModelHistoryContextAsync(binding,
+            [new(earlier, ConversationHistoryRole.Assistant)], static () => true, Token);
+        var independent = f.Conversation.SubmitAsync(f.Sessions[1], "independent original question", static () => true, Token);
+        await registrations.Started(1, f);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var addressed = f.Conversation.SubmitHistoryAsync(review, static () => true, cancellation.Token);
+        try
+        {
+            await registrations.Started(0, f);
+            await cancellation.CancelAsync();
+            await registrations.Transport(0, f).Cancelled(f.Sessions[0]).Task.WaitAsync(Token);
+            addressed.IsCompleted.Should().BeFalse("cancellation cannot abandon its own ignoring physical work");
+            registrations.Transport(0, f).IsQuiescent.Should().BeFalse();
+            registrations.Transport(0, f).Finish(f.Sessions[0], "forbidden late private answer");
+            await ((Func<Task>)(() => addressed.WaitAsync(TimeSpan.FromSeconds(5), Token)))
+                .Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+            registrations.Transport(0, f).IsQuiescent.Should().BeTrue();
+            independent.IsCompleted.Should().BeFalse();
+            registrations.Transport(1, f).Cancelled(f.Sessions[1]).Task.IsCompleted.Should().BeFalse();
+            var retained = f.Messages.Values.Single(message => message.Request.SessionId == advisory.Request.SessionId
+                && message.Request != earlier.Request && message.Request != advisory.Request);
+            retained.AssistantResponse.Should().BeNull();
+            retained.Outcome.Should().NotBe(ModelTurnOutcome.Succeeded);
+            retained.Revision.Should().Be(2, "no late answer may be committed");
+            f.Host.IsQuiescent.Should().BeFalse();
+        }
+        finally
+        {
+            registrations.FinishAll(f);
+            await ((Func<Task>)(() => addressed)).Should().ThrowAsync<ConversationSubmissionUnconfirmedException>();
+            await independent.WaitAsync(Token);
+        }
     }
 
     [Fact]

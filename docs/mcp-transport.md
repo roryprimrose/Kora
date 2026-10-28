@@ -1,5 +1,13 @@
 # Read-only MCP HTTPS transport
 
+**MCP (Model Context Protocol)** connects tools offered by another service.
+Kora's first supported connection is read-only and uses HTTPS. It is not a
+general remote-command runner.
+
+**Connections are unavailable in this build:** no delegated MCP account is
+enabled. Adding a server, enabling hosted models or signing in to another app
+does not enable it. The review steps below cannot bypass that restriction.
+
 Kora's reviewed MCP workflow can use a narrow, destination-bound HTTPS
 transport. Select an included configured server and an explicitly delegated
 account, review the exact connection in native UI, select a host-mapped tool,
@@ -41,21 +49,19 @@ not enable it. No accounts, credentials, effect mappings or qualification
 records are invented from configuration, discovery or another application's
 sign-in state.
 
-A trusted host account adapter must qualify the exact account revision,
-protected secret reference, destination, transport profile and egress policy.
-It must withdraw its live lease when any of these changes. Unknown readiness
-remains unavailable. Deterministic HTTP/account/DNS tests are implementation
-evidence, not live service, authentication or installed qualification.
+Kora needs a separately supported account connection bound to the exact
+destination and its permission to send information. Changed account or
+destination details require new admission. Unknown readiness stays unavailable;
+configuration and successful tests are not a real signed-in account.
 
 ## Supported profile
 
-The first profile uses bounded JSON-RPC `2025-06-18`, single HTTPS POSTs with
-JSON responses, and an empty HTTP 202 response for the initialized notification.
-It is stateless: server-issued sessions, streaming/SSE, pagination, redirects,
-compressed bodies, authentication retries and alternate transports are refused.
-Initialization and discovery accept at most 16,384 complete UTF-8 bytes;
-invocation results accept at most 1,536. Existing strict schema and inert
-text/structured-result validation remains authoritative.
+The supported protocol version is `2025-06-18`, with one HTTPS request at a
+time and complete JSON responses. Server-managed sessions, streaming,
+additional result pages, redirects, compressed responses, sign-in retries and
+other transports are unsupported. Connection setup and tool discovery accept
+at most 16,384 UTF-8 bytes; a tool result accepts at most 1,536. Oversized or
+unsupported replies fail rather than being presented as complete results.
 
 All DNS answers must be public. The connection pins the admitted addresses
 and connects only to the first one, retaining normal HTTPS hostname/certificate
@@ -64,11 +70,11 @@ explicit account's bearer credential at its exact endpoint. Proxies, cookies,
 ambient credentials, redirects, trace-header forwarding and anonymous fallback
 are disabled. No stdio process is started.
 
-Account/profile/egress currency is checked across DNS, before sending, after
-headers and before returning complete bytes. Withdrawal and caller cancellation
-cancel the actual HTTP operation. Disposal closes admission, cancels owned work,
-joins even late completion and only then disposes the HTTP client and credential
-lease. Cancellation is not a claim that the remote service rolled back.
+Kora rechecks account and transmission permission throughout the connection.
+Withdrawal or cancellation stops further use and requests cancellation of the
+network operation. Kora waits for the actual operation to finish before
+releasing its resources. It cannot promise the remote service stopped or
+undid processing already performed.
 
 The host's existing session/privacy, source revision, original request, exact
 consent, trusted audit and read-only effect checks still surround the transport.

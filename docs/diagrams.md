@@ -6,18 +6,17 @@ a diagram worker. For up to eight complete top-level `mermaid` fences, Details
 offers **Render selected Mermaid diagram** and **Cancel diagram** separately
 from conversation and approval controls.
 
-**This build has no qualified native Mermaid runtime profile.** An explicit
-render therefore reports **Unavailable** and retains the complete source.
-The implementation and deterministic native tests do not claim installed,
-accessibility, theme/DPI or release qualification. A document cannot enable it.
+**Diagram rendering is unavailable in this build.** Choosing Render reports
+**Unavailable** and keeps the complete original text visible. You do not need
+to install a browser plugin or follow instructions in the document to fix this;
+a document cannot enable rendering.
 
 ## Bounded native profile
 
-The bundled `native-mermaid-v1` implementation is a deliberately small native
-Mermaid grammar, not the full Mermaid JavaScript engine. Its parser, layout,
-strict SVG serializer and output validator ship as application source in the
-same pinned build. It needs no additional package, runtime download, browser,
-JavaScript interpreter, font, plugin, CDN, remote renderer or host bridge.
+The implemented local renderer supports only a small Mermaid subset, not the
+full Mermaid web engine. It does not download components, run JavaScript or
+send your diagram to an online service. This does not change its current
+unavailable status.
 
 The profile implements:
 
@@ -38,9 +37,8 @@ spaces, tabs and line endings.
 Other Mermaid shapes, nested blocks, chained edges, directives, comments,
 HTML/entity labels, click actions, document styles and resource/plugin
 references are unsupported. A rejected block has **no partial diagram**.
-Supported diagrams have a bounded deterministic native layout rather than
-Mermaid.js layout fidelity. They are passive illustrations, not interactive
-task controls.
+Supported diagrams may be arranged differently from Mermaid's web renderer.
+They are illustrations, not interactive task controls.
 
 ## Limits and cancellation
 
@@ -53,17 +51,13 @@ Limit, syntax, cancellation and availability outcomes are labelled; nothing is
 truncated to manufacture success. More than eight blocks, incomplete fences,
 nested fences and fences carrying extra metadata are not offered.
 
-The native worker has no ambient I/O or executable document input. Its SVG
-output is validated against a finite element/attribute/numeric allowlist;
-scripts, events, HTML, foreign objects, namespaces, DTDs, links, styles, images
-and external resources are refused as a whole. Native controls are constructed
-from the same inert drawing, never by loading an arbitrary SVG/HTML document.
+Diagram text cannot run scripts, load another file, open links or fetch images.
+Unsupported markup is refused as a whole, not partly displayed as a successful
+diagram.
 
-Cancel suppresses publication immediately but does not pretend the worker has
-already stopped. Ownership remains held until it actually joins; another render
-cannot overlap it. Closing Details, source/access loss or privacy closure
-retires the generation, cancels the worker and clears native content before any
-late completion can publish.
+Cancel prevents a late diagram from appearing, but Kora still waits for the
+actual work to stop before allowing another render. Closing Details, losing
+source access or privacy closure cancels the work and clears its display.
 
 ## Exact source and existing permissions
 

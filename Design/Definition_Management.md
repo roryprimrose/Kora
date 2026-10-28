@@ -1,26 +1,21 @@
 # Skills, Prompts, Instructions, and Agent Profile Management
 
-Status: categorized native Customizations editing for skills, instructions,
-agents, MCP entries and prompts across Built-in (read-only), Kora roaming and
-supported User profile sources, with device-local persisted runtime exclusion,
-recoverable reviewed source writes and tool-free local-model authoring proposals.
-Customization transactions reuse the same native definition-file access owner
-as the bounded owned instruction/agent stores. Independent local agent runs
-consume the same exclusion policy; disable/re-enable cannot revive their old reviews.
-The existing bounded owned instruction/versioned prompt editor and revision-held
-catalogue reload remain available. General agent execution, automatic source
-registration/applicability and the full qualification matrix remain unavailable.
-The bounded local agent operation below is a separate implementation, not general executor qualification.
-Foreground-editor activated voice now has bounded local intent routing and
-native clarification, separate from speech/model-profile qualification.
+Status: categorized Customizations editing, reviewed source writes/reload,
+persisted runtime exclusions and bounded authoring/invocation workflows are
+implemented. Built-in sources remain read-only. General executors, automatic
+registration/applicability and complete source/runtime qualification remain gated.
+The [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
+[Customizations](../docs/customizations.md) owns current user operations.
 
 This is the authoritative management contract for all four definition kinds.
-[Skill Storage](Skill_Storage.md) retains the delivered R21 read-only source
-boundary and skill-specific package/execution rules;
+[Skill Storage](Skill_Storage.md) owns source-read and skill package/execution rules;
 [Skill Authoring](Skill_Authoring.md) supplies declarative skill validation.
-The [Customizations guide](../docs/customizations.md) identifies the delivered
-source/edit/recovery/model-review routes. These and native skill inspection are
-bounded deliveries, not evidence that the full runtime contract is qualified.
+Transactions reuse the native definition-file access owner, not a second file
+writer. Independent local agent runs consume the same exclusion policy;
+disable/re-enable cannot revive old reviews. Foreground-editor activated voice
+uses bounded intent/native clarification, not speech/model-profile qualification.
+
+## Catalogue freshness
 
 The existing supported-source watcher observes the nearest existing ancestor
 when a recognized root has not yet been created, including when several parent
@@ -34,6 +29,8 @@ truthful reload failures remain unchanged. Reload retires stale selected
 requests, questions and approvals through the existing consumers; owned
 revisions still require separate exact-use review and enablement. Disk events
 never invoke a definition or adopt an approval.
+
+## Selected metadata Find
 
 The owned editor's **Find in selected metadata** is a separate, ephemeral native
 literal Find over exactly one current, selected inventory row's displayed

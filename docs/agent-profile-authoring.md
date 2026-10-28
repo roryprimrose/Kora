@@ -1,13 +1,18 @@
 # Author a new owned agent profile
 
+An agent profile describes a role, allowed tools and limits for one task.
+This editor saves that description; it does not start an agent.
+Manual authoring works without AI. Running the saved profile separately needs
+a local model approved by the release, which is **unavailable in this build**.
+
 Use **agent author** in private typed input, or say it with the current assistant
 name while voice commands are eligible. This opens a native editor, not a model
 request. Create an exact new lowercase owned ID using **agent author create example**.
 The ID contains at most 64 ASCII letters, digits and hyphens; no paths or URLs.
 
 Enter the complete source in the editor, or use **agent author source** followed by
-the complete source. Source entry preserves the original typed/activated-voice
-authority; later native input cannot renew stale voice authority.
+the complete source. Kora keeps the original typed/activated-voice channel. If you started by voice,
+later on-screen input does not bypass voice consent, call protection or expiry.
 
 For example:
 
@@ -65,12 +70,11 @@ filesystem mutation. **agent author cancel review** cancels it without writing.
 Editing the source/name or changing privacy, call, ownership or original authority
 invalidates the review.
 
-The host creates only a new `.agent.md` original in its private `OwnedAgents-v1`
-directory. It privately stages and flushes exact bytes, atomically publishes
-without replacement and verifies pinned durable identity and bytes. A collision
-requires a different new ID or cancellation; no overwrite, delete or rename
-is provided. An uncertain publication is **not success or rollback**: inspect
-the exact destination before another operation. There is no automatic retry.
+Kora creates a new `.agent.md` file in its private agent directory. It never
+replaces an existing file: choose a different ID or cancel if the name is taken.
+This editor offers no overwrite, delete or rename. If saving is uncertain,
+inspect the saved originals before another operation; uncertainty is
+**not success or rollback**, and Kora does not retry automatically.
 
 **agent author list** refreshes owned originals. Select one and use **Reopen
 selected original read-only**, or **agent author inspect example**. Saving does not
@@ -79,8 +83,9 @@ providers, accounts or permissions. Later execution requires the existing separa
 explicit source/invocation review and its own readiness and consent.
 
 Drafts stay in memory only, not in conversation composer storage or disk autosave.
-Dirty close offers **Save / Discard / Cancel**; Cancel keeps the editor/app open
-and aborts shutdown. Save still requires exact native confirmation. Privacy closure
-clears private presentation, withdraws consent and joins outstanding storage work,
-including work that ignores cancellation. Audit and diagnostics record content-free
-typed outcomes, never the source or destination text.
+Closing with changes offers **Save / Discard / Cancel**. Cancel keeps the editor
+and app open; Save still needs native confirmation. Privacy closure clears the
+private display and withdraws consent. Kora waits for outstanding storage work
+to finish even if it ignores cancellation, before reporting release.
+Diagnostics and security records do not
+include your profile text or destination.

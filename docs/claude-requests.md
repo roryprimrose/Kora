@@ -1,5 +1,10 @@
 # Claude requests
 
+Claude is an online AI service from Anthropic. **Requests are unavailable in
+this build**, because the required account-use approval is not enabled.
+The controls below do not bypass that restriction or sign you in through
+another app.
+
 ## Availability and independent setup
 
 Claude is a distinct hosted service, not a Copilot account or a local-model

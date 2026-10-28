@@ -1,5 +1,10 @@
 # Use an owned instruction for one conversation request
 
+An instruction supplies guidance, not access or permission. This operation
+applies it to **one** request; [session instructions](session-instructions.md)
+are a separate choice. **AI answers are unavailable in this build** even after
+you review the instruction.
+
 In **Sessions**, select an Active conversation and write the original request. Expand **Use one enabled owned instruction for one local request**, refresh the available choices, select one, then choose **Review complete instruction and request**.
 
 Review shows the complete pinned native source, original request and one-request scope; it does not submit or enable anything ([native controls](../src/Kora/SessionsWindow.axaml)).

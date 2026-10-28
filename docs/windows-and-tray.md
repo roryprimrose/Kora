@@ -1,5 +1,20 @@
 # Windows, tray, and appearance
 
+Use the tray to show Kora, open Sessions or Settings, recover voice access, or
+exit. Closing a window usually leaves the app running.
+
+**Start here:** [tray controls](#tray-icon), [show and choose conversations](#expand-and-collapse-the-interaction-window),
+[unsent messages](#exact-session-conversation-and-composer),
+[find a saved message](#find-a-message-across-conversations),
+[work needing attention](#all-work--attention-overview), or
+[file previews](#native-local-file-inspection).
+
+The expanded conversation and compact conversation share the selected
+session's unsent text. Selecting a conversation does not read it, submit text
+or approve work. **AI answers are unavailable in this build**; submitting an
+accepted session message records your words and Kora's reported outcome,
+not a fabricated model reply.
+
 **Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
 Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 

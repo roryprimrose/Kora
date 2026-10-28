@@ -1,5 +1,10 @@
 # Apply an instruction to this Active session
 
+Use this when you want the same reviewed guidance on later ordinary local
+requests in one conversation. For just one request, use
+[one-request instructions](conversation-instructions.md).
+Applying guidance does not enable AI: **this build has no approved local model**.
+
 In **Sessions**, select the exact **Active** session by its readable name.
 Choose **Apply or stop an instruction for this Active session**, refresh enabled
 owned instructions and select one. Selection does not read, enable or apply it.
@@ -10,6 +15,7 @@ guidance under host policy, never approval or authority. Separately choose
 **Confirm apply to this session** within two minutes. Neither review nor
 confirmation calls a model or retains a conversation message.
 
+When a local model is available, you can check the one-session scope like this:
 Send two ordinary requests using **Submit exact message**. Each request
 revalidates the exact source and session, uses local-only guidance with no tools,
 and retains its genuine local answer or explicit HOST/task failure. Local runtime

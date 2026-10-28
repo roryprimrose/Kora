@@ -31,6 +31,33 @@ catalogue registration, immutable resources and package validation.
 These are contributor navigation guides; the linked design documents remain
 the authoritative policy sources.
 
+## Run a Debug build
+
+On Windows, install Git, PowerShell 7 and the SDK selected by
+[global.json](global.json), then run:
+
+```powershell
+.\run.ps1
+```
+
+The [launcher](run.ps1) fast-forwards the current branch from its configured
+upstream, restores dependencies and tools, builds the desktop app in Debug and
+runs it. It stops on failure and never stashes changes, rebases or creates a
+merge commit. Use a branch with an upstream and resolve any conflicting local
+changes before retrying.
+
+To keep your current source without pulling:
+
+```powershell
+dotnet restore .\src\Kora\Kora.csproj --locked-mode
+dotnet tool restore
+dotnet build .\src\Kora\Kora.csproj --configuration Debug --no-restore
+dotnet run --project .\src\Kora\Kora.csproj --configuration Debug --no-build --no-restore
+```
+
+Run `.\eng\Test-Run.ps1` to check launcher ordering, failure handling and working
+directory restoration with fake commands; it never updates source or opens Kora.
+
 ## Development checks
 
 PR merge orchestration can run entirely on GitHub, without a local agent.
@@ -69,42 +96,6 @@ The separate `compare_native_evidence=true` input runs [17 representative headle
 
 Normal CI selects buffered evidence only for those 17 cases in the native-UX shard; other shards and unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). To reproduce the enabled profile locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running the native-UX shard.
 
-Restricted-storage fixtures create their unique, owner-only scratch directories
-under the discovered repository root, not the deeper testhost binary directory.
-This keeps nested segmented-store fixtures within native directory path limits
-in long worktrees without changing production path validation or ACL checks.
-Owned child-process creation and release probes share that exact parent and keep
-their GUID-name, existing-directory and non-reparse ownership checks.
-
-Synthetic definition-edit fixtures must explicitly user-own every enumerated
-inventory root, not only the original file's immediate parent:
-[customization inventory](src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)
-also pins the editor `User` directory as an MCP root when no `mcp.json` exists.
-Create each new fixture root with
-[CreateRestrictedDirectory](src/Kora.Windows/Storage/RestrictedStorageDirectory.cs),
-and assert both owner and protected ACL for `User` and `prompts`, as in the
-[original-edit fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.InstructionOriginal.cs).
-
-Legacy interaction-store fixtures must remove only empty later-version tables
-before declaring an older schema. Use the shared fixture staging helpers;
-never discard current session policy, admission or conversation authority to
-construct a migration case. Repeated grant-use history fixtures must resolve
-a fresh host invocation for each use, not replay one admitted invocation.
-
-Personal-instruction metadata fixtures use an existing owner-only original,
-not the forbidden create route. Metadata observation must not register that
-original for editing, create a Kora copy or publish a transaction journal.
-Stop-and-delete regressions coordinate terminal publication and disposition
-with completion signals so a post-release readback race cannot hide behind
-test-runner scheduling. Speech receipt-pinning fixtures inject changes after
-terminal publication and outside the submission's host scope, not at a
-particular count of internal metadata reads.
-
-Native streaming fixtures await the exact terminal presentation notification
-separately from the submission operation. Terminal storage/readback and resource
-joins can finish before the UI dispatcher applies its queued status; retain
-the exact outcome, task identity and joined-resource assertions after that barrier.
-
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.
@@ -120,36 +111,6 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
-Cancellation-ignoring playback fixtures wait for the fake speech stop to complete
-before releasing playback. An incomplete command task alone does not establish
-that cancellation was accepted or that the owned resource has joined.
-The speech-interruption regression covers both immediate and gated stop completion,
-then separately releases and joins the original playback; neither phase may
-publish a late successful read.
-
-The Customizations editor publishes its foreground voice target after the
-window's `IsActive` property becomes true; it cannot rely on `Activated` alone,
-which Avalonia raises before updating that property. The editor push-to-talk
-integration cases await the actual active-state notification and cover
-consent/read-only denial and capture release without retargeting.
-
-Metadata-search publication regressions revoke admission at the completed service
-read activity's disposal, after its final admission check and before native
-publication. Keep these cases in the nonparallel `Host tracing` collection; do
-not trigger revocation by counting revision-property reads from UI notifications.
-
-The native MCP review/exchange fixture uses its existing frozen test timers:
-it verifies exact native approval, real fake-broker results and physical joins,
-not elapsed-time policy. Deadline regressions retain their explicit clock/timer
-boundaries; production model and transport deadlines are unchanged.
-Native stop-and-delete assertions await the exact cancellation-accepted event.
-Paging gestures await the existing Next readiness notification when passive
-work refresh is outstanding; draining dispatcher jobs does not join that I/O.
-The portable speech-quarantine fixture observes the actual output-stop entry
-before submitting a new request and releases its held stop in `finally`.
-Native cancellation and clarification fixtures separately await exact-task
-terminal UI publication after the real operation/resource join.
-
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
 Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
@@ -159,56 +120,26 @@ checks. Changes to the embedded user guide also run its focused tests. They do
 not require device/provider trials. Preserve existing anchors or update their
 consumers, including links embedded in the guide and historical experiments.
 
-### Durable engineering coordinator checks
+### Reliable fixture patterns
 
-The roadmap coordinator's required finite decision path is
-[Invoke-Coordinator.ps1](eng/Invoke-Coordinator.ps1), with its canonical locator,
-request/receipt schema and legacy compatibility rules in the
-[engineering coordinator guide](eng/coordinator/README.md). It does not launch
-sessions, run mailbox commands, poll GitHub or install a scheduler.
+- Coordinate races with explicit completion signals, not sleeps, property-read
+  counts or an incomplete command task. Await cancellation acceptance, owned
+  resource completion and the exact UI publication separately. Drain dispatcher
+  work only after the operation it presents has joined.
+- Preserve production deadlines; use existing fake clocks for non-deadline
+  scenarios. Dispose asynchronous fixture owners and release held operations in
+  `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Put restricted-storage fixtures under the discovered repository root to avoid
+  native path-length limits. Keep unique names, non-reparse checks and owner-only
+  ACLs. Explicitly protect every enumerated root, including editor `User` and
+  `prompts`; see the [original-edit fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.InstructionOriginal.cs).
+- Reuse migration staging helpers; remove only empty later-version tables,
+  never current authority records. Resolve a fresh admitted invocation for each
+  grant use. Metadata-only reads must not create/edit files or publish journals.
 
-Run the maintained entry-point regressions in a new ignored output directory:
-
-```powershell
-.\eng\Test-Coordinator.ps1 -OutputDirectory (Join-Path $PWD '.scratch\coordinator-contracts-local')
-```
-
-The [CI workflow](.github/workflows/ci.yml) runs this check in portable validation
-and the `storage-other` Windows shard, retaining process/result evidence. The
-[tests](eng/Test-Coordinator.ps1) invoke separate PowerShell processes against
-local Git fixtures for restart, intent recovery, exact release, capacity races,
-fencing, receipt rejection, [quiescent legacy adoption](eng/coordinator/README.md#quiescent-legacy-adoption),
-retained overcommit and once-only evidence-bound retirement. They never launch a feature or contact GitHub.
-Offline process proof is not fresh native-session/model/wakeup acceptance; that
-requires separately recorded actual host evidence. No test initializes or
-migrates the user's live coordinator dataset.
-
-### Microphone metadata refresh ownership
-
-The host publishes the owned refresh task before callbacks can complete it or
-start a replacement. Refresh admission and CTS detachment share one lifetime
-gate: normal completion detaches and disposes its source, or host disposal
-detaches and owns both cancellation and disposal until callbacks finish.
-Completion must not dispose a source transferred to host teardown, clear a
-replacement source, or leave a disposed source referenced by the host.
-Native enumeration may still finish after its bounded wait is retired; the
-catalog retains worker ownership, and late metadata cannot restore a disposed
-host or grant capture readiness. The [deterministic ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs)
-cover cancellation/completion, private retirement and reentrant replacement
-with fake completion barriers, not sleeps or installed-device assumptions.
-
-Speech interruption tests wait for the captured playback's actual Stop entry
-before releasing ignored-cancellation output. A pending transcript dispatcher
-task alone does not establish that cancellation has reached playback. Editor
-reply cleanup tests similarly await the release-generation observation, not
-just Stop entry, before introducing a foreign generation. Native skill fixtures
-use their existing frozen model-budget timers for non-deadline scenarios and
-dispose invocation controllers asynchronously so owned work and subscriptions
-join even when an assertion fails; deadline tests retain explicit timer control.
-Opening a question is not an enabled review/approval control: await its actual
-enabled-state notification before activating it. Likewise, await the exact
-terminal-status property notification separately from conversation completion;
-the dispatcher may publish the terminal projection after the operation joins.
+The [scoped testing guidance](.github/instructions/testing.instructions.md)
+owns behavioral regression requirements. Keep case-specific synchronization
+details beside the relevant fixture rather than appending delivery notes here.
 
 ### Documentation ownership
 

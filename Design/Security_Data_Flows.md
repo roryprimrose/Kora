@@ -222,13 +222,13 @@ Installed/native acceptance is not established. The
 [evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
 documents metadata actually committed and unavailable graph/history fields.
 
-Status: proposed full security contract. The current bootstrap implements host-validated
-model proposals and once/session/always model-action approvals, not the
-complete grant taxonomy or script/executable execution gate below. Controls
-must be demonstrated before the associated capability is enabled.
-R05 additionally has tested, uncomposed core/application question and exact
-authorization services; their durable adapter and production integration are
-not delivered. See [the foundation boundary](#r05-authorization-foundation).
+Status: canonical security contract, not a claim that every described capability
+is enabled. Durable question/exact-authorization services and native grant/
+session-policy controls are composed; general script/executable workers and
+the complete grant taxonomy remain gated. Controls must be demonstrated before
+their associated capability is enabled. See the
+[authorization boundary](#r05-authorization-foundation) and
+[current delivery inventory](Implementation_Roadmap.md#current-delivery).
 
 Related: [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -659,13 +659,12 @@ The volatile source request is lineage only. The [Core runner](../src/Kora.Core/
 
 The envelope disables tools, the shared host denies tool callbacks, and no adapter registration or bootstrap fallback is enabled. Review expiry, replacement, private/owner/call closure and cancellation suppress stale presentation ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
 
-The delivered `native-text-v1` viewer is passive native text/Markdown, entered
-only through the explicit Documentation **Open details** action for a host
-admitted immutable embedded page. Host reference/revision/digest, origin,
-sensitivity and title are separate chrome, not parsed content. Existing host
-session/request/task IDs are required by the finalized-response contract, but
-general response/durable-history admission is not composed; process-local page
-identity confers no session, question or grant authority.
+The delivered `native-text-v1` viewer is passive native text/Markdown. Embedded
+documentation and [integrated session Details](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+use distinct host-admitted immutable sources. Host reference/revision/digest,
+origin, sensitivity and title are separate chrome, not parsed content.
+Durable conversation/request identity comes from its source owner; a
+process-local page identity confers no session, question or grant authority.
 The shared parser/presenter enforces 256 KiB UTF-8, 512 blocks, 4,096 nodes and
 32-level nesting bounds; unsupported or structural-limit content has labelled
 exact-source fallback. Raw HTML, scripts, forms, images, diagrams and links

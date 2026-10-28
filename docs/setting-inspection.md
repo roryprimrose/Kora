@@ -1,5 +1,9 @@
 # Inspect confirmed current settings
 
+**Answer generation is unavailable in this build.** You can inspect settings
+directly without AI; this separate question-and-answer review cannot enable a
+local model or change a preference.
+
 Open **Settings > Appearance**, choose **Inspect confirmed current settings with
 a local model**, and enter one original question. Opening Settings or the
 inspection window does not read settings for a model.

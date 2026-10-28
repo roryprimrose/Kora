@@ -1,5 +1,12 @@
 # Getting started
 
+You can use Kora without an AI account or a microphone. Start with **help** in
+the typed command box, then configure voice only if you want it.
+
+**AI answers are unavailable in this build.** Built-in commands, speech,
+local previews and manual editors remain available. Model setup can check or
+install components, but does not enable an AI model for this release.
+
 ## Requirements
 
 - Windows 10 build 19041 or later. Windows 11 is recommended.
@@ -11,35 +18,6 @@
 
 Typed commands and visual responses remain available when microphone or speech
 components are unavailable.
-
-## Obtain source tools without installing
-
-Source-tool acquisition is an external operator workflow, not an in-app
-updater. From an independently reviewed maintained checkout, use
-[Resolve-SourceTools.ps1](../eng/Resolve-SourceTools.ps1) with PowerShell 7 and
-GitHub CLI:
-
-```powershell
-.\eng\Resolve-SourceTools.ps1                          # Metadata-only stable selection
-.\eng\Resolve-SourceTools.ps1 -Channel preview         # Explicit published-prerelease opt-in
-.\eng\Resolve-SourceTools.ps1 -Channel preview `
-    -Revision '<reviewed-full-lowercase-40-character-commit>' `
-    -Action Acquire -OutputDirectory 'C:\KoraToolReview\candidate-01'
-```
-
-The placeholder must be replaced by the exact resolved/reviewed commit.
-Drafts are never selected. Acquisition verifies the final asset and complete
-tool inventory against canonical exact-source Git bytes, rejects unsafe paths,
-and never executes downloaded code. Earlier releases without source tools or
-missing stable candidates produce an error, not a fallback to mutable main.
-Review every acquired helper, selected source and dependency/build code before
-explicitly opting into a build with `-Action Build -TrustBuildCode`. A build
-also needs Git and the exact source-pinned .NET SDK; binary users do not.
-
-Follow the [complete acquisition/build interface and trust limits](../Design/Distribution_And_Updates.md#immutable-tool-acquisition-and-channel-resolution).
-Checksums are not independent signatures; stable selection is not production
-acceptance. Builds produce local-source staging only. Source installation,
-activation, elevation, registration and launch are not provided by this path.
 
 ## First launch
 
@@ -71,13 +49,12 @@ to run setup. Ollama is never installed
 automatically: select **Review local model setup** on the Readiness tab,
 review the download and machine changes, and explicitly approve the pinned
 Ollama 0.35.1 per-user install and qwen3:1.7b model (about 1.36 GB).
-Kora reuses a healthy existing runtime and model, verifies the model's digest,
-and tests local inference before marking it ready. Exact built-in commands
-always take precedence. Once the model is ready, other typed requests and
-voice requests prefixed with the active assistant name receive a local model
-answer or a suggestion to use an existing built-in action. Kora validates suggested actions; disruptive model suggestions require an
-on-screen approval unless already granted. Direct exact commands, including
-locking Windows, currently use their C# handlers without that confirmation.
+Kora reuses healthy components and checks the expected model files. Passing
+setup is not permission or release approval to generate answers: this build
+still reports model use as **Unavailable**. See [Models](settings.md#models).
+Exact built-in commands take precedence and need no model. **Lock Windows
+commands act directly**, without model-action confirmation; do not use them
+just to test voice recognition.
 
 PowerShell 7 is a separate required setup task for future script-backed
 actions. Kora checks it on startup and refresh, including after a previously
@@ -86,10 +63,10 @@ working installation disappears or fails. If missing or unhealthy, open
 per-user `Microsoft.PowerShell` installation through winget. Kora reuses a
 healthy PowerShell 7.4-or-newer runtime without installing anything, and
 verifies the executable after setup. This never approves or runs a skill
-script. PowerShell readiness does not block local-model reasoning or exact
-built-in commands. Built-in commands still use C# handlers; the
+script. PowerShell readiness does not block exact built-in commands.
+The [tools guide](tools-and-built-in-skills.md) explains what works now; the
 [skill and task execution design](skill-and-task-execution-design.md)
-describes the planned script runner and content-bound grants.
+describes future script execution, not a setup requirement for ordinary use.
 
 The initial microphone and speaker setting is **System**. System is not a saved
 endpoint snapshot. It follows later Windows default-device changes, including
@@ -133,7 +110,7 @@ capture by itself.
 
 ## Use typed commands
 
-The typed command box uses the same deterministic command router as speech:
+The typed command box accepts the same exact phrases as voice:
 
 1. Enter a supported command without the assistant name, such as **help**.
 2. Select **Run command**.
@@ -142,27 +119,17 @@ The typed command box uses the same deterministic command router as speech:
 Typed commands are useful when the microphone, speech recognizer, or listening
 permission is unavailable.
 
-When the local model is verified, you can also type a question that is not a
-built-in command, such as **"why is the sky blue?"**. For voice, say
-**"Kora, why is the sky blue?"** (or use your configured assistant name).
-The request text, built-in action descriptions, and a limited snapshot of
-readiness and task progress are sent to Ollama on `127.0.0.1`; Kora does not
-add clipboard contents, files, logs, web access, or earlier conversations.
-The model can suggest a built-in action, but it cannot invoke arbitrary APIs.
-When an action needs approval, Kora displays the request even in VoiceOnly
-mode, speaks it when speech is available, and closes command capture while
-speaking to avoid hearing itself. Choose **Once**, **This session**,
-**Always**, or **Reject** on screen. You can also say **"Kora, approve once"**,
-**"Kora, approve for this session"**, **"Kora, always allow this"**, or
-**"Kora, reject"** using a new push-to-talk activation. The name is required by
-default; the **Approvals** settings tab can allow unprefixed replies.
-Session approval lasts until Kora exits, restarts, or locks Windows through
-Kora. Always approval is stored on this device for that named action until
-you revoke it in Settings; grants are not tied to script or executable
-hashes. Dismissing the request rejects it.
-Say **"cancel task"** to interrupt a running answer. If local inference fails,
-Kora reports it and requires a readiness refresh before accepting more
-model requests. There is no cloud fallback.
+Use [Commands](commands.md) for accepted phrases. An unmatched question such as
+**"why is the sky blue?"** does not currently receive an AI answer, and Kora
+never silently switches to a cloud service. [Model settings](settings.md#models)
+explain the difference between installation, permission and availability.
+
+To keep work in a named conversation, open [Sessions](windows-and-tray.md#expand-and-collapse-the-interaction-window).
+Its composer is separate from the command box: **Submit exact message** saves
+an accepted message and its outcome, rather than treating its words as commands.
+With the current unavailable provider, that outcome is a Kora status, not an
+AI reply. Unsent text stays in memory per conversation and is lost on exit,
+forced termination or privacy clearing; it is not automatically saved.
 
 ## Preview speech
 
@@ -196,3 +163,31 @@ The presence lets mouse events pass through to the window underneath by default.
 To move it, **hold Ctrl, then left-click and drag the visible presence**.
 Release the mouse button and Ctrl when finished. Its position is retained
 across restarts while the selected display remains connected.
+
+## Obtain source tools without installing
+
+**Optional, for people building Kora from source.** Skip this section when using
+an existing installation. This is not an in-app installer or updater.
+
+From a separately reviewed checkout, use
+[Resolve-SourceTools.ps1](../eng/Resolve-SourceTools.ps1) with PowerShell 7 and
+GitHub CLI:
+
+```powershell
+.\eng\Resolve-SourceTools.ps1                          # Metadata-only stable selection
+.\eng\Resolve-SourceTools.ps1 -Channel preview         # Explicit published-prerelease opt-in
+.\eng\Resolve-SourceTools.ps1 -Channel preview `
+    -Revision '<reviewed-full-lowercase-40-character-commit>' `
+    -Action Acquire -OutputDirectory 'C:\KoraToolReview\candidate-01'
+```
+
+Replace the placeholder with the exact reviewed commit. Acquisition verifies
+the downloaded files against that source and does not execute them. Missing
+published candidates fail rather than using a newer development branch.
+Review the acquired code and its dependencies before choosing
+`-Action Build -TrustBuildCode`; building needs Git and the source-pinned .NET SDK.
+Checksums do not independently prove who published a file.
+
+See the [complete build interface and trust limits](../Design/Distribution_And_Updates.md#immutable-tool-acquisition-and-channel-resolution).
+This route builds and stages files only; it does not install, activate, elevate
+or launch Kora.

@@ -4,10 +4,19 @@ In an already-open **Sessions** window, refresh the selected session's work to s
 
 Select an exact notice and use **Review**, **Dismiss**, or **Defer**. Review inspects that exact task's content-free status without changing the conversation or work selection. Answer a clarification separately in **Questions**; a notice cannot answer, approve, retry, dispatch, speak, open a window or take focus ([native inspection](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
 
-Only the authoritative, audited current-run conversation source can create these notices. User/model text, old-run records, unadmitted submissions, absent records and omitted pages are not successful task receipts. Original request, generation, revision, terminal outcome/reason and exact clarification lineage are checked under the existing storage lease ([reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationNotices.cs)).
+Notices come from Kora's actual work records for this run, not from claims in
+user or model text. A missing notice, an older record or an omitted page is
+not proof that work succeeded.
 
-Task notices expire thirty minutes after the original submission, not thirty minutes after observation. Clarifications keep their own earlier expiry. Privacy, protected-call or host-control epoch changes retire earlier conversation sources; Done, deletion, restart and changed generation also withdraw them. Refresh never renews activity or authority ([source admission](../src/Kora.Application/Interaction/ConversationNotices/AuthorityLocalEventSource.ConversationNotices.cs)).
+Task notices expire thirty minutes after the original submission, not after
+you read them. Questions may expire sooner. Privacy or protected-call changes,
+loss of control, marking a session Done, deletion or restart can withdraw a
+notice. Refresh never renews activity or authority; it does not extend a notice's lifetime.
 
-The existing shared broker applies quiet mode, category spacing and hourly fatigue budgets, coalescing, exact-revision dismissal, fifteen-minute deferral capped at source expiry, suppression storage and no-replay rules. Omitted work remains visible in the work snapshot's gap counts. Unknown is never inferred success. Quiet hides routine completion notices, not Failure or Attention ([broker contract](../Design/Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)).
+Kora spaces and limits routine notices to reduce interruptions. **Defer** hides
+the current notice for up to fifteen minutes, never beyond its original expiry.
+Quiet hides routine completion notices, not Failure or Attention. Omitted work
+is reported in the work panel's gap counts. Unknown is never inferred success.
 
-This is selected-session visual inspection, not an ambient multi-session observer, general reminder scheduler, retired diagnostic scheduling control, proactive speech or installed/native qualification claim ([availability boundaries](../Design/Proactive_Interaction.md#delivery-policy)).
+This is an on-screen status panel for the selected session, not a general reminder scheduler,
+a watcher over every conversation or automatic speech.

@@ -2,9 +2,9 @@
 
 Status: evidence-backed technical direction; production runtime/provider
 selection and D-001/D-004 closure remain open.
-Reviewed 2026-10-06 UTC against the retained Node proof, separate
-[actual .NET RT1 fixture](../experiments/r02-dotnet-control-proof/README.md)
-and bounded [RT2 lifecycle observation](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md).
+Historical Node, [actual .NET RT1](../experiments/r02-dotnet-control-proof/README.md)
+and [RT2 lifecycle](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md)
+profiles remain distinct from the maintained adapters below.
 
 Related: [Architecture](Architecture.md#hosted-service-integration-proof),
 [Decision Register](Decision_Register.md#r02-runtimeprovider-feasibility-outcomes),
@@ -49,55 +49,25 @@ validated by this runtime branch.
 
 ### Qualification scope and maintained-test migration
 
-Apply the three-tier policy to these proofs:
+Apply [I/E/Q](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy):
+directly applicable checks gate implementation; exact runtime/account/profile
+evidence gates exposure; integrated evidence gates the RC's enabled manifest.
+Blocked RT2/PV1 is not a repository-wide implementation veto.
 
-1. Deterministic local work and unrelated features may continue through their
-   own prerequisites; blocked RT2/PV1 evidence is not a repository-wide veto.
-2. The affected runtime profile and model-assisted management remain disabled
-   until their applicable technical, account and integrated-host gates pass.
-3. An RC manifest that includes those capabilities must carry their completed
-   qualification; merging scoped code or evidence does not qualify that RC.
+Maintained consumers now include the
+[provider-neutral host](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09),
+[shared bounded continuation engine](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20),
+native Ollama transport, Copilot SDK boundary and native Claude profile.
+Their source inclusion, shared limits and deterministic fake-backed tests do
+not qualify production or establish equivalence to historical runtime proofs.
 
-The [2026-10-08 file-only continuation](Archive/Deferred_Validation_2026-10-11.md#2026-10-08-file-only-runtime-preparation)
-does not change these tiers or admit either SDK profile. Production has no
-Copilot SDK composition or equivalent MG1 management-envelope consumer in
-`src`/`tests`. The local Ollama reasoner is a different contract, not a
-replacement for actual Copilot final-request, session-I/O or lifecycle tests.
-Do not relocate experiment assertions into maintained integration tests merely
-to test copied experimental helpers. Migrate them when the maintained consumer
-exists and exact subject/assertion equivalence can be verified; retain the
-historical artifacts, rejected hook-only witness and all design/harness
-consumers until that check is complete. No runtime experiment is archived by
-this continuation.
-
-The [D-014/R04-R08 host increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09)
-adds a maintained provider-neutral admission/envelope consumer, but no Copilot
-SDK/runtime or MG1 operating envelope. That increment's registrations contained
-no adapter or qualification evidence. The later native Ollama transport still
-adds no qualification evidence. Shared numerical UTF-8 limits, fake typed
-results and host cancellation/link tests are not subject/assertion equivalence
-for actual SDK final-request, transport, retry, session-I/O, resource, account
-or all-path lifecycle tests. RT1/RT2/MG1/Node and local-inference experiments
-remain retained with no assertions marked migrated or unique evidence removed.
-
-The [2026-10-20 bounded provider-neutral continuation engine](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
-adds a maintained Application model/tool/result consumer over the portable
-`IModelToolTransport` seam. It uses the live admitted host and the closed six-ID
-registry, not a copied experiment, a new provider selection or a qualifier.
-Deterministic fake transport tests are authored; their execution and exact
-coverage remain pending serial admission. This consumer does not establish
-native Ollama, Copilot SDK, all-path lifecycle, account, containment or
-installed-profile evidence. No experiment assertion is marked migrated and
-no RT1/RT2/MG1/PV1 proof is removed or requested as an implementation prerequisite.
-Production exposure still requires the applicable exact runtime/profile E/Q
-gates, with explicit unavailable behavior until they pass.
-
-The [provider policy/exact-review workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
-now consumes that host boundary and existing question transactions. It adds no
-SDK, transport or management-runtime subject: approved review still fails
-without qualified exact-profile evidence and independent egress. RT1/RT2/MG1
-executables, derived-fixture consumers and native procedures remain retained;
-these deterministic workflow tests are not exact maintained runtime equivalence.
+Migrate experiment assertions only against their actual maintained consumer,
+with exact subject/assertion and mandatory failure-witness equivalence. Copied
+helpers or equal numerical budgets do not replace final-request, transport,
+retry, session-I/O, lifecycle, resource or account evidence. Retain the
+rejected hook-only witness, unique native procedures and live shared consumers
+until the [retirement conditions](Implementation_Roadmap.md#experiment-disposition-inventory)
+are met. This cleanup retires no runtime experiment or qualification gate.
 
 ### Maintained Copilot SDK boundary - 2026-10-23
 

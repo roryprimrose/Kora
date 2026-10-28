@@ -1,5 +1,13 @@
 # Troubleshooting
 
+Start with the symptom: [AI unavailable](#local-storage-or-model-setup-needs-attention),
+[cannot hear me](#kora-cannot-hear-commands), [no speech](#kora-does-not-speak),
+[missing device](#a-saved-device-disappeared), [hidden window](#open-kora-after-hiding-it),
+or [diagnostic logs](#find-diagnostic-logs).
+
+For **Unknown** or **Unconfirmed** work, inspect its original conversation and
+status before trying again. Repeating an action is not a recovery check.
+
 ## Local storage or model setup needs attention
 
 Open Settings > Readiness or use **what do you have left to do** to see the
@@ -13,10 +21,11 @@ inference check pass. Select **Review local model setup** and approve the pinned
 Ollama 0.35.1 / qwen3:1.7b plan to install and verify them. Setup can be
 cancelled with **cancel task**. A model with the selected name but a
 different digest is not replaced automatically; inspect it before taking
-further action. Built-in commands remain deterministic after inference passes;
-other requests are answered by the verified local model. If a running request
-fails, Kora marks inference unavailable until you refresh readiness. There is
-no cloud fallback. Missing inference opens the Readiness tab on startup.
+further action. **Passing setup does not enable AI answers in this build**:
+no local model profile is approved for release use. Review **Settings > Providers**
+for the reported availability; installing again or turning on hosted models
+cannot bypass it. Built-in commands still work, and there is no cloud fallback.
+Missing inference opens the Readiness tab on startup.
 PowerShell has its own setup task, but an unhealthy PowerShell installation
 does not block local reasoning or the C# built-in commands.
 

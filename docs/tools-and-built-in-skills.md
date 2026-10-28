@@ -6,10 +6,16 @@ workflows. This page explains capability boundaries rather than duplicating
 those references.
 
 **No script-backed built-in skill executor ships in the current release.**
-Exact commands run host-owned C# actions. A verified local model can answer,
-ask a clarification question or propose an existing action/grant change; this
-does not grant a general execution or browsing capability. Selecting artifact instructions does
-not execute their scripts or grant permission.
+Exact commands run Kora's built-in actions. The reviewed AI workflows described
+below require an approved model; **this build has none available**. Opening
+their windows, installing Ollama or selecting instructions cannot enable
+answers, execute scripts or grant permission.
+
+An **instruction** guides an answer; a **skill** is reusable task guidance; an
+**agent profile** adds a role and limits. A **tool** is an operation Kora can
+perform under its own permissions. These are not interchangeable approvals.
+For available editors, see [instructions](instruction-editor.md),
+[skills](owned-skill-authoring.md) and [agents](agent-profile-authoring.md).
 
 ### Retrieve and summarize one public page locally
 
@@ -322,8 +328,9 @@ and fixed read-only work. See [Sessions](windows-and-tray.md).
 Only retained approved records are history; bootstrap response bodies and
 hidden model reasoning are not automatically captured.
 
-**Planned:** full conversation execution, generic shared questions/routing and
-model history reasoning. Selection never approves, resumes or retargets work.
+Separate [reviewed context](reviewed-context.md) and [request destination](session-routing.md)
+workflows exist, but do not enable an unavailable model. General shared-question
+or automatic-history behavior is not implied. Selection never approves, resumes or retargets work.
 Perpetual operation grants remain independent of session retention.
 
 ## 15. Deferred context, knowledge, and general execution
@@ -333,7 +340,11 @@ one retained text/Markdown attachment per Session, exact replacement/removal,
 metadata catalogue and citation-to-source navigation.
 See [file inspection](windows-and-tray.md#native-local-file-inspection).
 
-**Unavailable:** managed knowledge sources, grounded model file answering,
-screen/OCR/image capture, vector indexes, arbitrary shell/application launch,
+**Also available without AI:** [named knowledge folders](knowledge-sources.md),
+with explicit reviewed local copies, search, refresh, disable and removal.
+They do not become automatic model context.
+
+**Unavailable:** grounded model file answering, screen/OCR/image capture,
+meaning-based indexes, arbitrary shell/application launch,
 source self-modification, elevation and general desktop automation.
 Local inspection and PowerShell installation do not enable these capabilities.

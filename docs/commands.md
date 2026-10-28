@@ -1,6 +1,22 @@
 # Voice and typed commands
 
-**Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+Type a command without the assistant name. For voice, hold **Push to talk** and
+use your configured name, for example **Kora, open settings**. Phrases below are
+exact: a similar sentence may not match.
+
+The global command box runs commands; a session's message composer submits
+conversation text. Words inside a message do not become commands.
+**AI answers are unavailable in this build**, even after model setup.
+Review and editor commands may open useful controls without enabling the
+model-dependent operation.
+
+**Find a task:** [open a window](#open-existing-workspace-surfaces),
+[conversation input](#unsent-conversation-input-and-legacy-recovery),
+[settings](#settings-and-guidance-tasks), [voice and devices](voice-and-audio.md),
+[files](#explicit-local-file-preview), [clipboard](#explicit-local-clipboard-preview),
+[web pages](#retrieve-an-explicit-web-page), or [reusable guidance](#run-skills-and-artifacts).
+Full identifiers are needed only where the exact command syntax asks for them;
+use native lists or readable-name routes elsewhere.
 
 ## Manage customizations
 
@@ -1773,11 +1789,17 @@ continue to work.
 - **block hosted models**
 - **disable cloud models**
 
-Hosted execution is disabled by default. The current build has no hosted
-provider or credentials; enabling hosted models records permission but does
-not send a request or provide a cloud fallback.
+Hosted execution is disabled by default. Copilot and Claude workflows exist,
+but their required account-use approvals are unavailable in this build.
+Enabling hosted models records permission; it neither signs in nor sends a
+request, and it does not provide a cloud fallback.
 
 ## When a command does not match
+
+**Current availability:** this build has no approved local model profile and
+uses an unavailable reasoner for unmatched commands. The following explains
+the answer/approval workflow, not an enabled AI feature. Use **help** for commands
+that work without a model; see [Models](settings.md#models) for availability.
 
 When local model execution is enabled and the selected local model is ready,
 Kora sends only the current unmatched

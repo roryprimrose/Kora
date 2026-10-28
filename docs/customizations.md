@@ -4,6 +4,17 @@ Open **Tray > Kora Customizations** immediately below **Sessions**, type `show c
 assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
+**Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
+[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
+[agent](agent-profile-authoring.md) editor.
+
+Instructions guide an answer; prompts are reusable requests; skills provide
+reusable task guidance; agents add a role and limits. MCP servers describe
+external tool connections. Reading or saving any of these never runs it.
+Manual editing works without AI; **model-generated proposals and recommendations
+are unavailable in this build**.
+
 ## Browse by type and source
 
 Categories appear in this order: **Instructions**, **Skills**, **Agents**,

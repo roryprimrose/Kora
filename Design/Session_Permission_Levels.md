@@ -8,7 +8,7 @@ date: 2026-10-10
 
 Let the user choose how Kora authorizes otherwise ungranted actions in one identified Kora work session: **Review all**, **Model review**, or **Approve all**. Apply the same decision path to direct commands, native UI actions, model tools, MCP calls, generated scripts, stored scripts, and script-backed skills. A permission level is session policy, not a permission grant.
 
-This document owns the proposed level semantics, reviewer protocol, and call-time approval-channel behavior. [Grant types and inheritance](Security_Data_Flows.md#grant-types-and-inheritance) continues to own exact grant applicability/lifetimes; [interaction and sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies) owns question routing and shared voice/UI drafts.
+This document owns level semantics, the reviewer protocol, and call-time approval-channel behavior. [Grant types and inheritance](Security_Data_Flows.md#grant-types-and-inheritance) continues to own exact grant applicability/lifetimes; [interaction and sessions](Interaction_And_Sessions.md#structured-questions-and-mixed-channel-replies) owns question routing and shared voice/UI drafts.
 
 The [exact authorization service](../src/Kora.Application/Interaction/HostAuthorizationService.cs) and [session policy module](../src/Kora.Application/Interaction/SessionPermission/HostAuthorizationService.SessionPermission.cs) implement the grant-first policy and one-invocation admission. This design does not enable scripts, MCP transports, or model execution that have not passed their independent admission gates.
 
@@ -172,7 +172,7 @@ Commit policy/grant/consent changes and required admission audit atomically befo
 
 ## Architecture and Delivery
 
-| Layer | Proposed responsibility |
+| Layer | Responsibility |
 |---|---|
 | Core | Typed level/session policy, decision basis, immutable review request/result and approval eligibility; reuse exact binding and grant validation |
 | Application | Shared authorization orchestration, protected level changes, reviewer adapter invocation, combined approval/consent, lifecycle and audit coordination |
@@ -182,13 +182,16 @@ Commit policy/grant/consent changes and required admission audit atomically befo
 
 Implement at the existing authorization/inference/storage seams; do not build a second grant engine or duplicate domain validation. Production automatic admission needs a typed one-invocation authorization basis, not fake OperationGrant records or ordinary diagnostic success messages.
 
-Delivery remains under D-008/R05 (policy/grants/audit), R10 (controls), R12 (session lifecycle), R08/R13 (admitted reviewer transport/budget), R15 (call channel policy), and R11/R16 (execution). Sequence:
+The [roadmap](Implementation_Roadmap.md#ordered-outstanding-work) owns remaining
+delivery under D-008/R05, R10/R12, R08/R13, R15 and R11/R16. The policy,
+session migration, native controls and bounded reviewer protocol above are not
+a pending implementation checklist. Production reviewer qualification and
+coverage of each executing route remain open.
 
-1. Add deterministic policy/domain and session-storage migration with atomic lifecycle/control audit; keep new controls gated.
-2. Wire Review all and exact grant lookup into every admitted route, including direct command/UI paths; add combined consent and channel-aware voice/UI approval.
-3. Add level-based one-invocation admission and separate reviewer with bounded, egress-controlled protocol; exercise tools-disabled and failure behavior.
-4. Migrate call approval policy deliberately, update native controls/explanations, and test old protection versus the newly enabled contract. Do not enable partial behavior with stale UI or old grant-ignore enforcement.
-5. Enable each supported route only after its affected maintained acceptance tests and independent runtime/execution/consent gates pass. Document unsupported routes; no experiment becomes production authority.
+Enable a route only after its maintained acceptance checks and independent
+runtime/execution/consent gates pass. Preserve atomic lifecycle/control audit,
+combined consent, original-channel admission and explicit unsupported states;
+neither an experiment nor stale UI grants authority.
 
 ## Required Acceptance
 

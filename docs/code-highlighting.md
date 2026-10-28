@@ -1,8 +1,8 @@
 # Offline code highlighting
 
-Code blocks in admitted Markdown use Kora's bundled `offline-code-v1` lexical
-highlighter. The visible language and result label distinguish highlighting from
-unsupported or bounded plain text. No code is executed, compiled, validated,
+Code blocks can have local syntax colors to make them easier to read. The
+language and result label distinguish colored code from plain-text fallback.
+No code is executed, compiled, validated,
 formatted, sent to a server, or loaded as a plugin.
 
 Use **Plain code** above a block to remove syntax colors for that view. In Details,
@@ -42,8 +42,7 @@ Inline code stays ordinary monospace text.
 Only an allowlisted fence identifier chooses a language for Markdown. Unknown,
 conflicting or absent identifiers remain plain code. Trusted host language and
 immutable snapshot filename metadata have precedence in the shared policy;
-document prose and document-supplied paths cannot provide that metadata. This
-increment does not introduce a standalone file-opening route.
+document prose and document-supplied paths cannot provide that metadata. This does not add a standalone file-opening route.
 
 Each tokenization is limited to 32 KiB UTF-8, 1,024 lines, 2,048 tokens,
 64 nested punctuation pairs and 100 ms. Invalid Unicode and exceeded limits
@@ -58,5 +57,4 @@ Plain text, punctuation, whitespace and diff markers remain available without
 color. Screen readers receive source text, not a token-category narration.
 
 Mermaid remains a separate, unavailable rendering profile; a Mermaid fence does
-not load a diagram engine or select a syntax plugin. Deterministic tests establish
-implementation behavior, not installed screen-reader or accessibility qualification.
+not load a diagram engine or select a syntax plugin. Syntax colors do not promise that every screen-reader setup has been verified.

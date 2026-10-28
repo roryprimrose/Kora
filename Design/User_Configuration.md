@@ -11,7 +11,10 @@ and mandatory secure workflows.
 Related: [OOTB Phrases](OOTB_Phrases.md), [Environment Setup](Environment_Setup.md), [Call-Aware Speech](Call_Aware_Speech.md), [Security](Security_Data_Flows.md), [Interaction and Sessions](Interaction_And_Sessions.md).
 
 The [product-admission decision](MVP_Scope.md#product-admission-and-realignment) prioritizes model reasoning over registered settings through the same typed validation/proposal/approval path as native and exact commands.
-Do not substitute ever more static aliases for completing that shared operation, or expand fixed diagnostic-queue settings approved for retirement. The implementation descriptions below remain current until their corresponding code changes merge.
+Do not substitute ever more static aliases for completing that shared operation,
+or restore retired public diagnostic-queue settings. The
+[roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status;
+the contracts below distinguish implemented controls from proposed scopes.
 
 ## Fixed Reviewed Session Memory Management Boundary
 
@@ -34,7 +37,7 @@ retires the review and its private bodies. Cancel before confirmation makes no c
 Forget results are content-free even on failed/malformed readback, and private-source loss suppresses stale bodies/results.
 Single-record controls remain available under their existing policy. No batch acceptance/admission, scope promotion, recall,
 provider/network action, session-retention exemption, automatic deletion or broader model behavior is enabled.
-Implementation tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge, not unrelated E/Q evidence.
+Deterministic implementation checks do not qualify providers or broaden this fixed operation.
 
 ## Fixed Session Attachment Boundary
 
@@ -1224,7 +1227,7 @@ Exact basic settings commands remain usable without a model/network.
 Changing a supported preference is not permission to alter policy implementation, install software, grant tools, or execute an action.
 Model-facing discovery/get/change/reset/undo operations are inventoried in [Internal Model Tools](Internal_Model_Tools.md#grants-settings-and-evidence).
 The [in-call settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated changes to voice settings and every in-call-related option while protected call evidence applies.
-This includes reset/undo, detector/manual-state changes, spoken-approval enablement and temporary/speak-once call overrides; a new UI-originated request is required, not UI confirmation of the rejected voice request. Current grant-ignore enforcement remains unchanged until the proposed call-policy migration.
+This includes reset/undo, detector/manual-state changes, spoken-approval enablement and temporary/speak-once call overrides; a new UI-originated request is required, not UI confirmation of the rejected voice request. Call entry does not withdraw applicable grants or session levels.
 Deterministic safety controls and read-only inspection remain available; this is an explicit exception to ordinary verbal-setting availability.
 
 ## Voice Interaction
@@ -1378,7 +1381,7 @@ The exact caption, rich rendering, viewer, and text-scale options are defined in
 |---|---|---|
 | Call speech mode | Suppress automatic requested/proactive speech; one-shot override allowed | "Only suppress unsolicited suggestions during calls" |
 | In-call feedback override (`calls.feedback-mode`) | **Bounded delivered** UI default; Voice / UI / Both / Inherit; Active/Suspected only, ahead of ordinary response mode with all hard speech/privacy gates | Exact `set calls.feedback-mode to UI`; natural-language example remains proposed |
-| Allow spoken approvals during calls (`calls.allowSpokenApprovals`) | **Proposed**, Off by default; Boolean device-local setting; UI approval remains available, grants and session levels unchanged; enabling during a protected call requires fresh UI initiation and confirmation | "Allow spoken approvals during calls" outside protected calls; otherwise use UI |
+| Allow spoken approvals during calls (`calls.allowSpokenApprovals`) | **Delivered native review/confirmation**, Off by default; Boolean device-local setting; UI approval remains available, grants and session levels unchanged; enabling requires fresh native initiation and confirmation | Use Calls native controls; natural-language setter remains proposed |
 | Voice activation during calls | On; independently configurable and does not reopen capture without explicit listening consent | "Disable voice activation during calls" |
 | Unknown enabled-detector behaviour | Suppress automatic speech | "Use normal speech when detection is unavailable" |
 | Detector enablement/account | Explicitly configured supported sources only | "Use Teams presence to decide when to stay quiet" |
@@ -1396,8 +1399,10 @@ delivered here. Other table entries, including general proactive/quiet-hours/
 notification/temporary-exception configuration, remain proposed.
 The in-call feedback override and voice-activation setting are device-local and independent: UI-only output does not close the microphone, while disabling call-time voice activation closes active capture and blocks re-enabling it until the call clears.
 Inherit restores normal task/queue/session/device feedback precedence; changing the feedback mode does not silently relax separate call speech suppression/privacy rules.
-The proposed spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.
-Its evidence, answer-acceptance races, migration and approval rules are defined in [Spoken Approvals During Calls](Call_Aware_Speech.md#spoken-approvals-during-calls). It supersedes the future grant-ignore setting; current reusable-grant suppression is still implemented, not removed by this design.
+The spoken-approval setting is independent of feedback/listening/speech suppression and does not alter stored grants or their retention, or the selected session permission level.
+[Spoken Approvals During Calls](Call_Aware_Speech.md#spoken-approvals-during-calls)
+owns answer-acceptance races, migration and approval rules. It supersedes
+grant-ignore behavior; call entry preserves applicable grants and levels.
 When no detector is configured, Kora reports automatic call detection as unavailable and preserves the ordinary response and listening configuration.
 Hard lock/mute rules always outrank call/proactive preferences.
 Notification settings cannot hide necessary action approval from the visual interface or turn silence into approval.
@@ -1518,7 +1523,7 @@ Copy transfers only `SessionProviderOverrides`: null remains **Inherit app**, ex
 
 Confirmation separately rereads both policies/lifecycles and current app/account/catalogue/installation/private-control snapshots. Source and destination revisions/generations must still match; changing and restoring values does not restore an old revision. Editing selections/fields, cancelling, closing, privacy/control changes or expiry invalidate review. At each destination transaction boundary the private SQLite writer rereads the exact source on its owned connection; a changed source stops the operation. No source row, source control intent or source authority is mutated. An identical-value copy still uses the normal audited destination save/revision/terminal receipt, not a second no-op writer.
 
-Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests are authored; current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge. Runtime/provider/egress E/Q enablement remains unavailable.
+Unknown audit/save/readback outcomes retain the existing destination-only durable hold and explicit inspect-receipts recovery. No automatic retry, rollback claim or source-to-destination execution authority is introduced. Deterministic copy tests cover configuration, not runtime/provider/egress E/Q enablement.
 
 ## 6. Definitions and Local Data
 
@@ -1583,13 +1588,15 @@ recovery still require explicit Enable listening.
 
 ## 8. Permissions and Approvals
 
-### Proposed session permission levels
+<a id="proposed-session-permission-levels"></a>
+
+### Session permission levels
 
 [Session Permission Levels](Session_Permission_Levels.md) owns the three levels, separate from Once/Session/Always grant duration and provider mode. The compact/workspace selector names the session and warns that Approve all runs eligible ungranted actions without ordinary review, saves no grants, and cannot bypass independent consent or mandatory boundaries.
 
 New sessions default Review all. Persist levels in Active-session policy across restart; Done resets Review all and resume restores no old level. Changes require revision-safe audited user confirmation, never model self-approval. Show spoken-approval eligibility separately, default disabled during calls, while grants and the level remain effective.
 
-Where action approval and disclosure consent cover the same exact operation, offer one host-owned card with distinct typed authority/audit records and explicit scope. Microphone consent and OS/provider authentication remain separate. These controls, reviewer and call migration are proposed, not delivered by the existing grant inventory.
+Where action approval and disclosure consent cover the same exact operation, offer one host-owned card with distinct typed authority/audit records and explicit scope. Microphone consent and OS/provider authentication remain separate. Exact-session policy/native controls and call-channel migration are implemented; production Model review has no qualified reviewer and requires user approval. Broader execution routes retain their own gates.
 
 ### Grant inventory and existing implementation
 
@@ -1630,7 +1637,7 @@ Every scanned row is validated before filtering, including duplicates, oversized
 
 Changing any filter immediately clears results, selection, history, single/batch previews and confirmations, and cancels/suppresses late old queries. Refresh, fresh exact inspection and separate review/confirmation are still required. Filters cannot select a batch, mutate grants/use counts/history membership, create approvals, renew activity or alter scope, consent or retention.
 
-This is native read-only navigation, not an execution descriptor. Model/voice/typed filter mutation, resource/identity/destination/source/skill-name filters, applicability queries, copy/export/network/speech and forensic observations remain unavailable. Broader proposed permissions controls above and the separately owned action-level permission design are not delivered by these filters.
+This is native read-only navigation, not an execution descriptor. Model/voice/typed filter mutation, resource/identity/destination/source/skill-name filters, applicability queries, copy/export/network/speech and forensic observations remain unavailable. These filters confer no action-level permission or execution authority.
 
 Active is a stored status, not a current allow decision. Current applicability and already-running work status remain explicitly **unknown**. Missing or removed scoped records are unavailable; independent Perpetual records remain inspectable and revocable after their originating session is retired, without inventing authority for that old session. Perpetual records have no expiry, retention or eviction.
 

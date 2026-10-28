@@ -1,24 +1,13 @@
 # MVP Scope and Non-Goals
 
-Status: proposed release scope, not the set of features in the current bootstrap.
-That bootstrap implements consented local-model readiness and verified
-inference for unmatched requests, deterministic commands, and initial
-model-proposed actions/grants; it does not complete Slice A or close D-003/D-008.
+Status: approved product direction and proposed release scope, not a current
+capability manifest. The [roadmap](Implementation_Roadmap.md#current-delivery)
+owns implementation status; D-003/D-008 and full Slice A acceptance remain open.
 
 Related: [Vision](Vision_Statement.md), [Architecture](Architecture.md), [Decision Register](Decision_Register.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
-The [Implementation Status and Delivery Roadmap](Implementation_Roadmap.md)
-records what the current source actually delivers and the dependency/value-ordered
-work remaining. A documented capability, local readiness proof or native window
-does not establish acceptance of an entire checkpoint.
-The [current merged snapshot](Archive/Implementation_Roadmap_2026-10-11.md#current-merged-snapshot---2026-10-07)
-also includes minimal durable session authority/workspace/names/native empty
-creation and exact-ID typed/activated-voice session commands, explicit local
-clipboard preview, read-only discovery, bounded
-appearance/installed speech settings, artifact instruction invocation,
-ordinary diagnostic pruning, independent daily evidence and native tray/passive
-microphone-card recovery. These foundations do not complete conversations/queues, a model
-tool loop, clipboard answering, ambient wake or full A0-A4 acceptance.
+A documented capability, merged implementation, local readiness proof or native
+window does not establish enablement or acceptance of an entire checkpoint.
 
 ## Product Admission and Realignment
 
@@ -51,21 +40,17 @@ Domain-specific calculations, conversions, format analysis and repeatable workfl
 
 ### Approved retirement and simplification
 
-The table records approved destinations and distinguishes completed removals from remaining targets. Historical source links describe retired behavior, not current availability. The [delivery inventory](Implementation_Roadmap.md#current-delivery) tracks implementation; each removal PR must update its affected user documentation and tests.
+The removals are complete; this table preserves their product boundaries,
+not a removal-PR backlog. The [roadmap](Implementation_Roadmap.md#completed-product-realignment)
+owns delivery status.
 
-| Area | Approved destination | Status and implementation references |
+| Area | Approved destination | Current contract |
 | --- | --- | --- |
-| Native utilities | Remove standalone calculator and date/time-answer commands; do not add conversion, UUID, calendar arithmetic, stopwatch or timer utilities. Keep internal time, numerical and identity mechanisms. | Removed in [#420][utility-removal]. Historical [calculator][retired-calculator] and [clock][retired-clock]. |
-| Clipboard analysis | Remove standalone JSON/XML analysis controls and reject CSV, Base64, URL-syntax and text-statistics expansions. Keep capture, immutable preview, Find, wrapping and governed source use. | Removed in [#420][utility-removal]. Historical [JSON][retired-json] and [XML][retired-xml]. |
-| Conversation input | Replace saved-draft document management with per-conversation in-memory unsent text. No new disk autosave, catalogue, comparison or rebase workflow. | Merged: [retirement PR #421](https://github.com/roryprimrose/Kora/pull/421). [Session buffers and read-only recovery](../src/Kora/SessionsViewModel.Unsent.cs), [conversation reads](../src/Kora/SessionsViewModel.Conversation.cs). |
-| Normal workspace | Remove engineering-only range/digest/provenance query controls; retain ordinary names/content/state search and readable provenance. | Removed in [#422](https://github.com/roryprimrose/Kora/pull/422); [ordinary-search correction #428](https://github.com/roryprimrose/Kora/pull/428). [Native workspace](UI_Workspace_And_Windows.md#product-facing-workspace-boundary). |
-| Diagnostic queue scaffold | Retire normal fixed-job admission and plan/configuration/reordering; retain internal scheduling, direct status and safe existing-work inspection/cancellation. | Removed in [#422](https://github.com/roryprimrose/Kora/pull/422). [Current compatibility boundary](Work_Management.md#delivered-deterministic-local-version-queue). |
-
-[utility-removal]: https://github.com/roryprimrose/Kora/pull/420
-[retired-calculator]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.Calculator.cs
-[retired-clock]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora.Application/ViewModels/MainViewModel.LocalClock.cs
-[retired-json]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Json.cs
-[retired-xml]: https://github.com/roryprimrose/Kora/blob/fb08302d91768a1535d5a536c6f58eeb651f484e/src/Kora/ClipboardPreviewWindow.Xml.cs
+| Native utilities | Remove standalone calculator and date/time-answer commands; do not add conversion, UUID, calendar arithmetic, stopwatch or timer utilities. Keep internal time, numerical and identity mechanisms. | [Placement rule](Extensibility.md#placement-rule) |
+| Clipboard analysis | Remove standalone JSON/XML analysis controls and reject CSV, Base64, URL-syntax and text-statistics expansions. Keep capture, immutable preview, Find, wrapping and governed source use. | [Clipboard policy](Security_Data_Flows.md) |
+| Conversation input | Replace saved-draft document management with per-conversation in-memory unsent text. No new disk autosave, catalogue, comparison or rebase workflow. | [Session buffers and recovery](Interaction_And_Sessions.md#conversation-input-realignment) |
+| Normal workspace | Remove engineering-only range/digest/provenance query controls; retain ordinary names/content/state search and readable provenance. | [Workspace boundary](UI_Workspace_And_Windows.md#product-facing-workspace-boundary) |
+| Diagnostic queue scaffold | Retire normal fixed-job admission and plan/configuration/reordering; retain internal scheduling, direct status and safe existing-work inspection/cancellation. | [Compatibility boundary](Work_Management.md#delivered-deterministic-local-version-queue) |
 
 Existing saved text must remain recoverable read-only into its exact conversation's unsent buffer under the current retention/privacy rules. Do not silently purge it or break historical schema/audit validation.
 Preserve question-answer drafts, definition-editing buffers, submitted history, grants and audit. Legacy compatibility is not permission to continue ordinary saved-draft writes or create a new permanent draft-management product.

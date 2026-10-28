@@ -1,5 +1,25 @@
 # Privacy, safety, and logs
 
+## Privacy at a glance
+
+- Voice needs both Kora's consent setting and Windows microphone access.
+  Push-to-talk is not continuous ambient recording.
+- Viewing a file, clipboard snapshot or conversation does not select it as
+  **context** (extra information supplied with a question).
+- Saving a model preference, reusable instruction or approval does not grant
+  access to your accounts or permission to send information elsewhere.
+- Local AI is not enabled in this build; hosted Copilot and Claude account-use
+  approvals are also unavailable. There is no automatic cloud fallback.
+- Diagnostics and security records exclude raw audio, transcripts, request and
+  answer text, and secrets. Saved conversation messages are a separate kind of
+  record with different retention.
+- Stopping cannot undo completed effects or retract information already sent.
+  If a result is **Unknown** or **Unconfirmed**, inspect it before starting again.
+
+Jump to [microphone consent](#microphone-consent), [files](#local-file-inspection),
+[clipboard](#clipboard-snapshots), [approvals](#local-model-actions),
+[diagnostics](#logs), or [security records](#committed-authority-audit-inspection).
+
 ## Reviewed session memory controls
 
 Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.
@@ -315,7 +335,12 @@ Real clipboard/native accessibility/latency acceptance remains outstanding.
 
 ## Local-model actions
 
-After model setup is approved and inference verified, Kora sends the current
+**Unavailable in this build:** setup alone does not enable AI. The release
+approves no local model profile, and unmatched commands use an unavailable
+reasoner. The workflow below describes what its model-action review allows;
+it is not a claim that installing Ollama enables it. See [Models](settings.md#models).
+
+For an independently enabled model-action workflow, Kora sends the current
 unmatched request, the built-in action names/descriptions, and a limited
 snapshot of dependency readiness, task state/progress, listening state, and
 pending power-proposal status to the pinned Ollama model on `127.0.0.1`. It

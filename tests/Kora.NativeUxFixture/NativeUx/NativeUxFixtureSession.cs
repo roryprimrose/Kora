@@ -211,7 +211,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
-            clipboard, new(clipboard), new(clipboard), new(clipboard), new(new DeniedClipboardExplanation()),
+            clipboard, new(new DeniedClipboardRead()), new(clipboard), new(clipboard), new(new DeniedClipboardExplanation()),
             new AuditedPreferenceWriter(Audit),
             new Kora.Application.Voice.BoundedAudioOutputCatalog(speech,
                 NullLogger<Kora.Application.Voice.BoundedAudioOutputCatalog>.Instance),
@@ -243,6 +243,12 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         if (ExactGrants) { await InitializeExactGrantsAsync(); }
         if (AllWork) { await InitializeAllWorkAsync(); }
         startup.Complete(HostOperationOutcome.Completed);
+    }
+
+    private sealed class DeniedClipboardRead : Kora.Core.Context.IClipboardReadWorkflow
+    {
+        public Task<Kora.Core.Context.ClipboardOutcome> ReadAsync(Func<bool> eligible, CancellationToken token) =>
+            Task.FromResult(Kora.Core.Context.ClipboardOutcome.Denied);
     }
 
     private sealed class DeniedClipboardExplanation : Kora.Core.Context.IClipboardExplanationWorkflow

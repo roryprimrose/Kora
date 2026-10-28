@@ -298,16 +298,30 @@ Preview displays the exact immutable text, including whitespace, under separate
 host-owned provenance/ID chrome. Quoted commands, HTML, links and credentials
 are inert data; they cannot approve, invoke tools, edit settings or select a
 destination. No content, digest, title, excerpt or raw exception message enters
-diagnostic/audit/status/model payloads. Diagnostics record only the typed
+diagnostic/audit/status payloads. Diagnostics record only the typed
 outcome/failure type under host activity correlation. This slice has no content
 store, history index or persisted context.
 
-All model explanation and egress are unavailable, even for apparently harmless
-text and even after reuse. This follows the accepted policy that secret
-detection is best-effort, not a safety guarantee; no redaction or secret-free
-claim is made. A future answering/egress slice must independently qualify
-the local tool loop, inspect the complete outgoing envelope and enforce secret
-and destination rules. Credential-store material remains excluded.
+Even the initial read requires an applicable Once/Session/Always clipboard read
+grant before native access, separately from explanation. Cancel question denies
+without reading. Host permission validation occurs again after awaited readback,
+before preview publication ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs),
+[broker](../src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs)).
+
+Local explanation requires both a clipboard explanation tool permission grant and your
+separate confirmation of one model use of the exact reviewed snapshot.
+You can deny, approve Once, approve for the clipboard explanation session or
+approve Always. You are responsible for sensitive material you place in the
+clipboard and ask Kora to examine. Kora performs no clipboard sensitivity
+classification or credential-pattern analysis and makes no redaction or
+secret-free guarantee.
+
+Only a qualified local runtime can receive the exact bounded envelope. Its
+answer stays volatile in the same native preview, never conversation bodies,
+history, automatic speech or diagnostic/audit sinks. There is no hosted/bootstrap
+fallback or model tool access. Preview/reuse alone never run inference.
+Missing runtime readiness or permission remains explicitly unavailable; native,
+provider and installed qualification are not implied by deterministic tests.
 
 Clear/revoke, close, cancel, privacy/ownership loss, changed call policy,
 handoff and disposal retire the selection/render generation and suppress late

@@ -22,7 +22,7 @@ public sealed class VoiceInputCompositionTests
         provider.GetRequiredService<IVoiceRecognitionService>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<IActivatedVoiceRecognitionService>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<ISpeechInputProfileRuntime>().Should().BeSameAs(lifecycle);
-        provider.GetRequiredService<IHandsFreeAudioStage>().Should().BeOfType<UnavailableHandsFreeAudioStage>();
+        provider.GetRequiredService<IHandsFreeAudioStage>().Should().BeOfType<WindowsHandsFreeAudioStage>();
         lifecycle.IsAmbientListeningAvailable.Should().BeFalse();
         await lifecycle.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
         lifecycle.IsListening.Should().BeFalse();

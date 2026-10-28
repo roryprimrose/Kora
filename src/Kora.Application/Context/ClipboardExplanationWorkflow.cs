@@ -3,7 +3,6 @@ using System.Diagnostics;
 using Kora.Application.Dependencies;
 using Kora.Core.Auditing;
 using Kora.Core.Context;
-using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -98,8 +97,6 @@ public sealed partial class ClipboardExplanationWorkflow(
         {
             Changed?.Invoke(this, EventArgs.Empty);
             if (!Current()) { return Report(new(ClipboardExplanationOutcome.Cancelled)); }
-            var sourceUse = await EvaluateSourceUseAsync(source, Current, cancellation.Token).ConfigureAwait(false);
-            if (sourceUse is not null) { return Report(sourceUse); }
             string? completedAnswer = null;
             DateTimeOffset completedExpiry = default;
             var completed = await admission.RunAsync(origin, Current, async (request, current, admitted) =>
@@ -111,6 +108,13 @@ public sealed partial class ClipboardExplanationWorkflow(
                 activity.Activity.SetTag("kora.clipboard.capture.request.id", source.Request.RequestId.Value);
                 activity.Activity.SetTag("kora.clipboard.capture.session.id", source.Request.SessionId.Value);
                 activity.Activity.SetTag("kora.clipboard.capture.task.id", source.Request.TaskId.Value);
+                var sourceUse = await EvaluateSourceUseAsync(source, current, admitted).ConfigureAwait(false);
+                if (sourceUse is not null)
+                {
+                    activity.Complete(sourceUse.Outcome == ClipboardExplanationOutcome.Cancelled
+                        ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
+                    return Report(sourceUse);
+                }
                 var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
                     "clipboard.explain", SecurityAuditOutcome.Requested,
                     origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : SecurityAuditInitiator.LocalUser,
@@ -128,7 +132,8 @@ public sealed partial class ClipboardExplanationWorkflow(
                     { result = new(ClipboardExplanationOutcome.Unavailable, ModelReason: admittedTurn.Result.Reason); }
                     else
                     {
-                        var response = await ((IModelTurnExecution)models).RunAsync(turn, current, admitted).ConfigureAwait(false);
+                        var response = await ((IModelTurnExecution)models).RunAsync(turn, current, admitted,
+                            check => sourceUsePolicy.ValidateAsync(source, check)).ConfigureAwait(false);
                         if (!current()) { result = new(ClipboardExplanationOutcome.Cancelled); }
                         else if (response.Outcome == ModelTurnOutcome.Succeeded)
                         {
@@ -140,8 +145,6 @@ public sealed partial class ClipboardExplanationWorkflow(
                         else { result = new(ClipboardExplanationOutcome.Unavailable, ModelReason: response.Reason); }
                     }
                 }
-                catch (ConversationCredentialException) when (!contextValidated)
-                { result = new(ClipboardExplanationOutcome.CredentialRejected); }
                 catch (InvalidDataException) when (!contextValidated)
                 { result = new(ClipboardExplanationOutcome.EnvelopeRejected); }
                 catch (OperationCanceledException) when (admitted.IsCancellationRequested)
@@ -205,7 +208,7 @@ public sealed partial class ClipboardExplanationWorkflow(
         audit.Write(requested);
         try
         {
-            var decision = await sourceUsePolicy.EvaluateAsync(source, token).ConfigureAwait(false);
+            var decision = await sourceUsePolicy.EvaluateAsync(source, current, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             ClipboardExplanationResult? result = !current() ? new(ClipboardExplanationOutcome.Cancelled) : decision switch
             {
@@ -224,13 +227,15 @@ public sealed partial class ClipboardExplanationWorkflow(
         {
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Cancelled));
             activity.Complete(HostOperationOutcome.Cancelled);
-            throw;
+            return new(ClipboardExplanationOutcome.Cancelled);
         }
         catch (Exception exception)
         {
             Failure(logger, exception.GetType().Name);
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Unknown));
             activity.Complete(HostOperationOutcome.Unknown);
+            if (exception is OperationCanceledException)
+            { throw new InvalidOperationException("Clipboard permission failed without caller cancellation.", exception); }
             throw;
         }
     }

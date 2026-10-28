@@ -1,16 +1,14 @@
 # Skill and task execution design
 
-**Planned, not available:** script-backed skills, user-program/script execution
-and content-bound execution grants. Installing PowerShell, inspecting a package
-or selecting its instructions does not enable them.
+**Execution unavailable:** the [fixed bundled implementation](../src/Kora/BundledFixedActionController.cs) is wired, but its [contained runtime](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) is unqualified.
+Installing PowerShell, inspecting a package or selecting its instructions does not enable execution. General user-program/script execution remains deferred.
 
-Current named model-action preferences apply to existing built-in proposals,
-not files/programs/scripts. Exact native lock has different current approval
-behavior; shutdown/restart remain non-executing proposals. See
+Named model-action preferences do not grant files/programs/scripts or bypass the [fixed package gate](../src/Kora.Application/Skills/BundledFixedActionInvocation.cs).
+Voluntary lock/shutdown/restart use that gate without a legacy native fallback. See
 [current skills](tools-and-built-in-skills.md#13-built-in-skills) and
 [approval settings](settings.md#approvals).
 
-This page summarizes the future user experience. The linked design documents
+This page distinguishes implemented-but-unqualified behavior from future general execution. The linked design documents
 own schemas, algorithms, limits and qualification rather than duplicating them
 in the user guide.
 
@@ -28,6 +26,21 @@ gate when that capability is delivered.
 
 See [interaction and implementation rules](../Design/Commands_Tools_And_Skills.md)
 and [canonical tools](../Design/Internal_Model_Tools.md).
+
+### Script-preserving fixed-action bridge
+
+The approved [D-013 design](../Design/Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge) retains actual reviewed PowerShell execution in a separate contained worker.
+The [worker implementation](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) supplies separate original entry/helper blocks in memory, not writable extraction or silent native substitution. No installed contained profile is qualified, so execution remains unavailable.
+
+The worker can request only an independently authorized existing fixed lock/shutdown/restart effect. Kora checks the exact package and invocation, current grant, mandatory confirmation/authentication, privacy and ownership, audit and required resource joins.
+A script message or successful exit is not proof that Windows completed the effect; the host reports the actual observed or unconfirmed outcome.
+
+The [native permission review](../src/Kora/NativeQuestionHost.BundledControl.cs) offers Once, This session and Always, or cancellation without a grant. Exact grants use native controls, including for voice-origin requests; they do not supply separate power consent.
+An unaddressed request creates a fresh neutral control session. **Run in last reviewed control session** explicitly addresses the previous binding; the [controller](../src/Kora/BundledFixedActionController.cs) revalidates it instead of automatically recreating retired authority.
+The [power owner](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs) requires separate original-channel confirmation, a 30-second visible cancellable countdown, physically joined resources and current one-use authority. Model suggestions only open source inspection; they do not start this workflow.
+
+Bundled, Kora-owned and user/profile content obey the same host governance, but source discovery/enablement does not admit executable code. Skills and agents can propose only admitted operations; approving one does not blanket-approve its calls or other packages sharing a helper.
+Model-generated scripts remain proposals, not executable authority. General executable imports remain separately deferred under [R27](../Design/Implementation_Roadmap.md#optional-and-deferred-work).
 
 ## App -> model -> app interaction
 

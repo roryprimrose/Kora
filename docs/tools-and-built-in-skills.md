@@ -281,6 +281,32 @@ The three bundled packages are inspectable and their instructions selectable, bu
 The [fixed execution implementation](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) binds complete original multi-file packages, separate grants, current source authority and joined resources; a package name or model choice is not approval.
 Review includes the manifest, entry script, every shared helper and combined script-set hash; changing any declared source invalidates the exact binding.
 
+### Prepare an existing bundled runtime
+
+Open **Settings > Skill packages**, select a bundled package, then choose
+**Runtime setup and readiness**. **Inspect installed runtime** reads only the
+host-selected protected Program Files PowerShell installation; it never
+searches PATH or runs PowerShell. Review its complete local file inventory,
+licences/notices, source limitations, byte counts and local-record effects
+before approving **Prepare**.
+
+**Prepared** means the reviewed local inventory was re-read successfully,
+not that scripts can run. This release has no admitted contained execution
+profile: execution and grants stay unavailable, with no native fallback.
+No runtime download or installation occurs; a missing/unsupported/protection
+failure is reported rather than silently choosing another executable.
+
+Reopen and inspect to read back the saved registration and current native
+files. **Verify** reconciles an interrupted matching registration; changed
+files/device require a new explicit **Prepare** review, not automatic
+replacement. **Forget registration only** removes Kora's local records and
+never uninstalls or changes shared PowerShell files. Invalid saved records
+must be restored or explicitly removed from Kora's local Preferences folder;
+no default runtime is inferred. Cancel/close clears private review and waits
+for owned I/O to finish; interrupted writes can remain unconfirmed. Runtime
+preparation never approves a package, grants an action or confirms a computer
+power effect.
+
 ### Lock the machine
 
 **Current:** voluntary direct lock uses the same package gate as other fixed actions and reports unavailable while its runtime is unqualified. There is no legacy native-lock fallback. Model suggestions open inspection only. See [exact lock behavior](commands.md#lock-windows).

@@ -45,6 +45,7 @@ internal sealed class PocketSphinxKeywordDetector : IHandsFreeKeywordDetector
             var setInt = Export<SetInt>("ps_config_set_int");
             Require(setString(config, "hmm", profile.ModelDirectory));
             Require(setString(config, "dict", profile.DictionaryPath));
+            foreach (var pair in profile.ConfigurationFiles) { Require(setString(config, pair.Key, pair.Value)); }
             Require(setString(config, "keyphrase", name));
             foreach (var option in new[] { "lm", "lmctl", "fsg", "jsgf", "allphone", "kws",
                 "rawlogdir", "mfclogdir", "senlogdir", "logfn" })

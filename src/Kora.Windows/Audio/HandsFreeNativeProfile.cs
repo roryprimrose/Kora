@@ -10,9 +10,11 @@ namespace Kora.Windows.Audio;
 internal sealed class HandsFreeNativeProfile
 {
     public HandsFreeNativeProfile(string nativeLibraryPath, string modelDirectory, string dictionaryPath,
-        string vadPath, IEnumerable<HandsFreeNativeAsset> assets, IEnumerable<string> names, string qualification)
+        string vadPath, IEnumerable<HandsFreeNativeAsset> assets, IEnumerable<string> names, string? qualification,
+        IReadOnlyDictionary<string, string>? configurationFiles = null)
     {
-        ArgumentException.ThrowIfNullOrWhiteSpace(qualification);
+        if (qualification is not null) { ArgumentException.ThrowIfNullOrWhiteSpace(qualification); }
+        CaptureQualified = qualification is not null;
         NativeLibraryPath = RequireAbsolute(nativeLibraryPath);
         ModelDirectory = RequireAbsolute(modelDirectory);
         DictionaryPath = RequireAbsolute(dictionaryPath);
@@ -29,11 +31,18 @@ internal sealed class HandsFreeNativeProfile
         }
         Assets = Array.AsReadOnly(files);
         Names = names.ToFrozenSet(StringComparer.OrdinalIgnoreCase);
-        if (Names.Count == 0 || Names.Any(name =>
+        if ((CaptureQualified && Names.Count == 0) || Names.Any(name =>
             !string.Equals(AssistantNameRules.Normalize(name), name, StringComparison.Ordinal)
             || name.Any(character => !char.IsAscii(character))))
         {
             throw new ArgumentException("An exact qualified English configured-name set is required.", nameof(names));
+        }
+        ConfigurationFiles = (configurationFiles ?? new Dictionary<string, string>(StringComparer.Ordinal))
+            .ToFrozenDictionary(StringComparer.Ordinal);
+        if (ConfigurationFiles.Any(pair => pair.Key is not ("mdef" or "mean" or "var" or "tmat" or "sendump" or "fdict" or "featparams")
+            || !Assets.Any(asset => string.Equals(asset.Path, pair.Value, StringComparison.OrdinalIgnoreCase))))
+        {
+            throw new ArgumentException("Model configuration must refer only to exact bound data assets.", nameof(configurationFiles));
         }
     }
 
@@ -43,8 +52,10 @@ internal sealed class HandsFreeNativeProfile
     public string VadPath { get; }
     public IReadOnlyList<HandsFreeNativeAsset> Assets { get; }
     public FrozenSet<string> Names { get; }
+    public bool CaptureQualified { get; }
+    public IReadOnlyDictionary<string, string> ConfigurationFiles { get; }
 
-    public async Task<HandsFreeAssetLease> BindAsync(CancellationToken cancellationToken)
+    public async Task<HandsFreeAssetLease> BindAsync(CancellationToken cancellationToken, IAsyncDisposable? ownership = null)
     {
         var streams = new List<FileStream>();
         try
@@ -84,7 +95,7 @@ internal sealed class HandsFreeNativeProfile
                     throw new InvalidDataException("The exact admitted hands-free assets failed verification.");
                 }
             }
-            return new(streams);
+            return new(streams, ownership);
         }
         catch
         {

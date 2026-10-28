@@ -15,6 +15,8 @@
       <TextBlock Text="Skill packages - read-only embedded source review"
                  FontSize="20" FontWeight="SemiBold" TextWrapping="Wrap" />
       <Button x:Name="SharedSources" Content="Shared profile sources (read only)" />
+      <Button x:Name="ReviewBundledRuntime" Content="Runtime setup and readiness"
+              AutomationProperties.Name="Inspect, review, prepare, verify or forget the protected bundled runtime registration; never enable unqualified execution" />
       <Button x:Name="ReviewBundledExecution" Content="Review/grant and run exact package"
               AutomationProperties.Name="Review and grant the exact bundled scripts and fixed Windows effect; unavailable without a qualified contained runtime" />
       <Button x:Name="ReviewBoundBundledExecution" Content="Run in last reviewed control session"

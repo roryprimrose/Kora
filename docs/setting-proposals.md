@@ -10,19 +10,32 @@ The supported subset is closed:
 | --- | --- | --- |
 | `appearance.theme` | `system`, `light`, `dark` | Original local UI, native review and confirmation |
 | `appearance.reader-text-scale` | Integer 75-200 percent | Original local UI, native review and confirmation |
+| `appearance.presence-display` | `true`, `false` | Original local UI, native review and confirmation |
+| `appearance.presence-timeout` | Integer 1-60 seconds | Original local UI, native review and confirmation |
+| `appearance.presence-size` | Integer 240-600 pixels | Original local UI, native review and confirmation |
+| `appearance.dot-size` | Integer 50-200 percent | Original local UI, native review and confirmation |
+| `appearance.dot-density` | Integer 25-200 percent | Original local UI, native review and confirmation |
+| `appearance.movement-speed` | Integer 25-200 percent | Original local UI, native review and confirmation |
+| `appearance.speech-scaling` | `true`, `false` | Original local UI, native review and confirmation |
+| `appearance.speech-scale-amount` | Integer 0-200 percent | Original local UI, native review and confirmation |
 | `speech.summary-words` | Integer 1-80 | Native or existing exact typed/activated-voice review |
 | `speech.summary-sentences` | Integer 1-3 | Native or existing exact typed/activated-voice review |
 | `speech.playback-volume` | Integer 0-100 | Native or existing exact typed/activated-voice review |
 | `responses.default-mode` | Exact `Hybrid`, `VoiceOnly`, `VisualOnly` | Native or exact typed/activated-voice review |
 
 For example, the complete answer may be `set appearance.theme to dark`,
-`set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
+`set appearance.movement-speed to 50`, `set speech.summary-words to 40`, `set speech.playback-volume to 30`, or
 `set responses.default-mode to VoiceOnly`.
 Numeric speech suggestions use canonical decimal digits, without signs,
 leading zeroes, fractions or commentary. Mixed settings, batches, resets,
 relative changes and other setting families are not admitted as suggestions.
 Response-mode answers require the exact spelling and case shown above; numeric
 enum values, aliases, surrounding commentary and batches are rejected.
+Presence suggestions likewise require the exact lowercase syntax and IDs above,
+canonical decimal integers or lowercase `true`/`false`, with no surrounding text.
+Response timeout and native renderer selection are not admitted model suggestions.
+This suggestion registry does not expand setting inspection: inspection remains
+limited to theme, reader text scale, both summary caps, playback volume and response mode.
 
 ## Review, confirm or cancel
 
@@ -36,6 +49,9 @@ enum values, aliases, surrounding commentary and batches are rejected.
    Response mode shows saved/default provenance, desired and configured effective
    modes, the exact proposal, future-output timing and mandatory visual/privacy/call
    exceptions. It changes the shared device default, not session/task/queue/call overrides.
+   Presence changes affect the existing display and animation immediately after a
+   confirmed save. Disabling presence hides it; speech scaling only changes its
+   animation, never speech permission, synthesis or playback.
 3. Separately choose **Confirm exact setting change** to consume this review
    once through the same validated, audited writer as the existing controls.
    Or choose **Cancel setting review**; no new write is requested.

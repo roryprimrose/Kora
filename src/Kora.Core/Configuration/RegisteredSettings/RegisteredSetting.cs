@@ -8,4 +8,12 @@ public enum RegisteredSetting
     SummarySentences,
     PlaybackVolume,
     ResponseMode,
+    PresenceDisplay,
+    PresenceTimeout,
+    PresenceSize,
+    DotSize,
+    DotDensity,
+    MovementSpeed,
+    SpeechScaling,
+    SpeechScaleAmount,
 }

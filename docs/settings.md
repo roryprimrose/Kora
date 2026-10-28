@@ -89,10 +89,17 @@ option IDs and structured output.
 
 ### Review an assistant appearance suggestion
 
-In a local UI conversation, ask for a theme or native reader text scale
+In a local UI conversation, ask for a theme, native reader text scale or presence
 suggestion. An admitted model can answer with one exact `set appearance.theme
 to dark` (also `system` or `light`) or `set appearance.reader-text-scale to 125`
-suggestion, using the registered reader percentage range. This answer is inert
+suggestion, using the registered reader percentage range. For a less distracting
+presence, the complete answer can be `set appearance.movement-speed to 50` or
+`set appearance.presence-display to false`. The existing presence timeout,
+size, dot size/density, speech scaling and speech scale amount are also supported;
+see the exact [registered IDs, types and bounds](setting-proposals.md).
+Presence answers require exact lowercase IDs and syntax, canonical decimal
+integers or `true`/`false`; no aliases, batches or commentary.
+Response timeout and experimental renderer selection are excluded. This answer is inert
 text, never a command or permission to write. Other answers remain readable
 but cannot be used as appearance suggestions.
 
@@ -102,7 +109,9 @@ value, whether it is saved or default, proposed value, units and shared
 device-local scope. Separately choose **Confirm exact setting change** to
 save just that option, or **Cancel setting review** to change nothing.
 Successful saves use the same shared validation, audit, persistence and live
-appearance refresh as Settings. Failed or stale saves are reported; review
+appearance refresh as Settings, including hiding a disabled presence and updating
+its existing animation settings. Speech scaling changes animation only, not
+speech output or permission. Failed or stale saves are reported; review
 again rather than automatically retrying.
 
 The exact active original session, answer source, private host ownership and

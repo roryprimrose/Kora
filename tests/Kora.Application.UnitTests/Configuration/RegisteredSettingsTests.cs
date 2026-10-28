@@ -14,7 +14,7 @@ public sealed class RegisteredSettingsTests
     public void ClosedRegistryInspectionAndPolicyDeclareOnlyTheExistingAdmittedSubset()
     {
         RegisteredSettingRegistry.Settings.Select(item => item.Setting).Should().Equal(Enum.GetValues<RegisteredSetting>());
-        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(6);
+        RegisteredSettingRegistry.Settings.Select(item => item.Id).Should().OnlyHaveUniqueItems().And.HaveCount(14);
         foreach (var descriptor in RegisteredSettingRegistry.Settings)
         {
             RegisteredSettingRegistry.Get(descriptor.Setting).Should().BeSameAs(descriptor);
@@ -22,7 +22,17 @@ public sealed class RegisteredSettingsTests
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.Id).And.Contain(descriptor.Description);
             descriptor.SuggestedValues.Should().NotBeNullOrWhiteSpace();
             RegisteredSettingSuggestions.ModelPolicy.Should().Contain(descriptor.SuggestedValues);
-            descriptor.RequiresNativeReview.Should().Be(descriptor.Setting is RegisteredSetting.Theme or RegisteredSetting.ReaderTextScale);
+            descriptor.RequiresNativeReview.Should().Be(descriptor.Id.StartsWith("appearance.", StringComparison.Ordinal));
+            if (descriptor.RequiresNativeReview)
+            {
+                var appearance = AppearanceOptionRegistry.Options.Single(item => string.Equals(item.Id, descriptor.Id, StringComparison.Ordinal));
+                descriptor.Description.Should().Be(appearance.Description);
+                descriptor.Units.Should().Be(appearance.Units);
+                descriptor.Minimum.Should().Be(appearance.Minimum);
+                descriptor.Maximum.Should().Be(appearance.Maximum);
+                if (appearance.Type == AppearanceValueType.Toggle)
+                { descriptor.SuggestedValues.Should().Be("true/false"); }
+            }
         }
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Minimum.Should().Be(ReaderTextScaleSettings.MinimumPercent);
         RegisteredSettingRegistry.Get(RegisteredSetting.ReaderTextScale).Maximum.Should().Be(ReaderTextScaleSettings.MaximumPercent);
@@ -37,6 +47,22 @@ public sealed class RegisteredSettingsTests
     [InlineData("set appearance.theme to dark", RegisteredSetting.Theme)]
     [InlineData("set appearance.reader-text-scale to 75", RegisteredSetting.ReaderTextScale)]
     [InlineData("set appearance.reader-text-scale to 200", RegisteredSetting.ReaderTextScale)]
+    [InlineData("set appearance.presence-display to false", RegisteredSetting.PresenceDisplay)]
+    [InlineData("set appearance.presence-display to true", RegisteredSetting.PresenceDisplay)]
+    [InlineData("set appearance.presence-timeout to 1", RegisteredSetting.PresenceTimeout)]
+    [InlineData("set appearance.presence-timeout to 60", RegisteredSetting.PresenceTimeout)]
+    [InlineData("set appearance.presence-size to 240", RegisteredSetting.PresenceSize)]
+    [InlineData("set appearance.presence-size to 600", RegisteredSetting.PresenceSize)]
+    [InlineData("set appearance.dot-size to 50", RegisteredSetting.DotSize)]
+    [InlineData("set appearance.dot-size to 200", RegisteredSetting.DotSize)]
+    [InlineData("set appearance.dot-density to 25", RegisteredSetting.DotDensity)]
+    [InlineData("set appearance.dot-density to 200", RegisteredSetting.DotDensity)]
+    [InlineData("set appearance.movement-speed to 25", RegisteredSetting.MovementSpeed)]
+    [InlineData("set appearance.movement-speed to 200", RegisteredSetting.MovementSpeed)]
+    [InlineData("set appearance.speech-scaling to false", RegisteredSetting.SpeechScaling)]
+    [InlineData("set appearance.speech-scaling to true", RegisteredSetting.SpeechScaling)]
+    [InlineData("set appearance.speech-scale-amount to 0", RegisteredSetting.SpeechScaleAmount)]
+    [InlineData("set appearance.speech-scale-amount to 200", RegisteredSetting.SpeechScaleAmount)]
     [InlineData("set speech.summary-words to 1", RegisteredSetting.SummaryWords)]
     [InlineData(" SET speech.summary-words to 80 ", RegisteredSetting.SummaryWords)]
     [InlineData("set speech.summary-sentences to 1", RegisteredSetting.SummarySentences)]
@@ -72,7 +98,8 @@ public sealed class RegisteredSettingsTests
 
     [Theory]
     [InlineData("")]
-    [InlineData("set appearance.presence-timeout to 10")]
+    [InlineData("set appearance.response-timeout to 10")]
+    [InlineData("set appearance.native-presence-renderer to true")]
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
     [InlineData("reset appearance.theme")]
@@ -114,6 +141,44 @@ public sealed class RegisteredSettingsTests
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(null!)).Should().Throw<ArgumentNullException>();
         FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(new string('x', 257))).Should().Throw<InvalidDataException>();
         FluentActions.Invoking(() => RegisteredSettingRegistry.Get((RegisteredSetting)999)).Should().Throw<InvalidOperationException>();
+    }
+
+    [Theory]
+    [InlineData("set appearance.presence-display to 0")]
+    [InlineData("set appearance.presence-display to on")]
+    [InlineData("set appearance.presence-display to False")]
+    [InlineData("set appearance.speech-scaling to 1")]
+    [InlineData("set appearance.speech-scaling to system")]
+    [InlineData("set appearance.presence-timeout to 0")]
+    [InlineData("set appearance.presence-timeout to 61")]
+    [InlineData("set appearance.presence-size to 239")]
+    [InlineData("set appearance.presence-size to 601")]
+    [InlineData("set appearance.dot-size to 49")]
+    [InlineData("set appearance.dot-size to 201")]
+    [InlineData("set appearance.dot-density to 24")]
+    [InlineData("set appearance.dot-density to 201")]
+    [InlineData("set appearance.movement-speed to 24")]
+    [InlineData("set appearance.movement-speed to 201")]
+    [InlineData("set appearance.speech-scale-amount to -1")]
+    [InlineData("set appearance.speech-scale-amount to 201")]
+    [InlineData("set appearance.movement-speed to 050")]
+    [InlineData("set appearance.movement-speed to +50")]
+    [InlineData("set appearance.movement-speed to 50.0")]
+    [InlineData("set appearance.movement-speed to false")]
+    [InlineData("set appearance.movement-speed to 50 percent")]
+    [InlineData("set appearance.movement-speed to 50 ")]
+    [InlineData(" set appearance.movement-speed to 50")]
+    [InlineData("SET appearance.movement-speed to 50")]
+    [InlineData("set appearance.MOVEMENT-SPEED to 50")]
+    [InlineData("Kora, set appearance.movement-speed to 50")]
+    [InlineData("set appearance movement speed to 50")]
+    [InlineData("set appearance.unknown to 50")]
+    [InlineData("set appearance.movement-speed to 50\nset appearance.dot-size to 50")]
+    [InlineData("set appearance.movement-speed to 50 and confirm")]
+    [InlineData("I suggest: set appearance.movement-speed to 50")]
+    public void PresenceParserRejectsInvalidOrNoncanonicalDataWithTypedFailure(string text)
+    {
+        FluentActions.Invoking(() => RegisteredSettingSuggestions.Parse(text)).Should().Throw<InvalidDataException>();
     }
 
     [Theory]

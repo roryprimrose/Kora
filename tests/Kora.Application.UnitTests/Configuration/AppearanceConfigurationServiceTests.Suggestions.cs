@@ -193,7 +193,7 @@ public sealed partial class AppearanceConfigurationServiceTests
     [InlineData("set appearance.theme to ultraviolet")]
     [InlineData("set appearance.reader-text-scale to 999")]
     [InlineData("set appearance.reader-text-scale to 1.25")]
-    [InlineData("set appearance.presence-timeout to 10")]
+    [InlineData("set appearance.response-timeout to 10")]
     [InlineData("set speech.summary-words to 40")]
     [InlineData("reset appearance.theme")]
     [InlineData("set appearance.theme to dark\nand do something else")]

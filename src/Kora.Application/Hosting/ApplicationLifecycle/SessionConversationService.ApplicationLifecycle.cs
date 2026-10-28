@@ -9,10 +9,12 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
-    private sealed class LifecycleSubmission(SessionConversationService owner, SessionWorkspaceEntry target, string description) : IDisposable
+    private sealed class LifecycleSubmission(SessionConversationService owner, SessionWorkspaceEntry target,
+        string description, Func<bool> sourceCurrent) : IDisposable
     {
         internal SessionWorkspaceEntry Target { get; } = target;
         internal string Description { get; } = description;
+        internal Func<bool> SourceCurrent { get; set; } = sourceCurrent;
         internal readonly TaskCompletionSource Completed = NewSignal();
         public void Dispose()
         {
@@ -37,12 +39,12 @@ public sealed partial class SessionConversationService
         { review.Dispose(); }
     }
 
-    private LifecycleSubmission EnterLifecycleSubmission(SessionWorkspaceEntry target, string description)
+    private LifecycleSubmission EnterLifecycleSubmission(SessionWorkspaceEntry target, string description, Func<bool> sourceCurrent)
     {
         lock (cancellationGate)
         {
             RequireConversationDispatchOpen(target.Authority.SessionId);
-            var submission = new LifecycleSubmission(this, target, description);
+            var submission = new LifecycleSubmission(this, target, description, sourceCurrent);
             lifecycleSubmissions.Add(submission);
             lifecycleRevision++;
             return submission;
@@ -105,7 +107,7 @@ public sealed partial class SessionConversationService
         lock (cancellationGate)
         {
             return ReferenceEquals(lifecycleReview, review) && lifecycleHeld && !review.ReleasePending && review.SourceCurrent()
-                && !pendingClosed && !lifecycleUnconfirmed;
+                && !pendingClosed && !lifecycleUnconfirmed && lifecycleSubmissions.All(item => item.SourceCurrent());
         }
     }
 

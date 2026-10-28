@@ -11,6 +11,56 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OriginalSubmittedSourceRevocationInvalidatesLifecycleControlBeforePendingOrRunningStops(bool duringReview)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var host = ConfigureCancellation(f);
+        await using var service = f.ConversationService(host, execution: host);
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = provider.Task;
+        var source = true;
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var first = await service.SubmitQueuedAsync(target, "running source", () => source, Token);
+        var second = await service.SubmitQueuedAsync(target, "pending source", () => source, Token);
+        ApplicationLifecycleReview? review = null;
+        try
+        {
+            if (duringReview)
+            {
+                review = await service.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token);
+            }
+            source = false;
+            if (review is not null)
+            {
+                service.IsApplicationLifecycleCurrent(review).Should().BeFalse();
+                await service.Invoking(value => value.ConfirmApplicationLifecycleAsync(review, Token))
+                    .Should().ThrowAsync<InvalidOperationException>();
+            }
+            else
+            {
+                await service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                    RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+            }
+            f.CancelAudit.Events.Should().BeEmpty();
+            first.Completion.IsCompleted.Should().BeFalse();
+            second.Completion.IsCompleted.Should().BeFalse();
+            f.Adapter.Calls.Should().Be(1);
+        }
+        finally
+        {
+            source = true;
+            review?.Dispose();
+            f.Adapter.Pending = null;
+            provider.SetResult(LateAnswer());
+            await first.Completion;
+            await second.Completion;
+        }
+    }
+
     [Fact]
     public async Task LifecycleReviewIncludesAnAcceptedDirectHostSubmissionWithoutAnOrdinaryPendingLane()
     {

@@ -112,7 +112,7 @@ public sealed partial class SessionConversationService(
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false)
     {
         RequireOriginalSource(origin);
-        using var lifecycle = EnterLifecycleSubmission(target, body);
+        using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -122,6 +122,7 @@ public sealed partial class SessionConversationService(
         }
         var revision = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == revision && admitted();
+        lifecycle.SourceCurrent = Live;
         if (!Live() || (pending is null || pending.Predecessors.Count == 0) && !ProviderAdmitsSession(target.Authority.SessionId))
         { throw new InvalidOperationException("Submission requires private original user input and quiescent provider admission."); }
         var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);

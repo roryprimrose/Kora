@@ -247,32 +247,26 @@ internal sealed class McpInvocation(
         {
             var source = descriptor!;
             var reviewSource = originalUserTask is null ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
-            var binding = new ExactOperationBinding("mcp.read-only", "mcp", "https-read-only",
+            var binding = new ExactOperationBinding("mcp.read-only", "mcp",
+                "https-read-only." + stage.ToString().ToLowerInvariant() + "." + Hash(selected?.Name ?? "connection"),
                 Hash(selected?.Schema.Json ?? "connection"), reviewSource is null ? source.SourceRevision : Hash(JsonSerializer.Serialize(reviewSource)),
                 source.SourceRevision,
                 Hash(typeof(McpInvocation).Module.ModuleVersionId.ToString("D")),
-                Hash(JsonSerializer.Serialize(new { invocation, stage, arguments })),
+                Hash(JsonSerializer.Serialize(new { stage, arguments })),
                 Hash(selected?.Name ?? "connection"), Hash(JsonSerializer.Serialize(account)),
-                account.Destination.Digest, Hash("inert-local-only-result-v1"), new(1));
+                account.Destination.Digest, Hash("inert-local-only-result-v1"), new(1),
+                new(PermissionGrantArtifactKind.McpServer, source.Scope));
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
                 HostOperationEffect.BoundedRead, expiresAt);
             var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
                 selected?.Name, selected?.Schema.Json, arguments) { Source = reviewSource };
             var presented = await presenter(proposal, generation, review, () => Live(token), token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
-            if (!Live(token) || presented.Presented.Proposal != proposal || presented.Presented.Key.Request != invocation
-                || presented.Presented.SessionGeneration != generation
-                || presented.Completed is not { Outcome: HostInteractionOutcome.Approved, Grant: { } grant }
-                || grant.ApprovedProposal != proposal || grant.Scope != OperationGrantScope.Once || grant.SessionGeneration != generation
-                || presented.Completed.Question is not { Status: QuestionStatus.Answered } answer
-                || answer.Key.QuestionId != presented.Presented.Key.QuestionId || answer.Key.Request != invocation
-                || answer.Proposal != proposal
-                || answer.Draft is not { Text: null } draft || !draft.Choices.SequenceEqual(["once"])
-                || answer.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
-                || stage == McpReviewStage.Connection && answer.AnswerChannel != RequestOrigin.LocalUi)
+            if (!Live(token))
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }
             var authorization = new HostAuthorizationService(interactions, time);
-            var consumed = await authorization.ConsumeAsync(invocation, grant.Id, grant.Revision, token).ConfigureAwait(false);
+            var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
+                presented.Presented, presented.Completed, stage == McpReviewStage.Connection, token).ConfigureAwait(false);
             if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
                 || consumed.Admission is not { } admission)
             { throw new InvalidOperationException("The exact MCP approval is no longer current."); }
@@ -291,7 +285,8 @@ internal sealed class McpInvocation(
                             && snapshot.Policy.OtherMandatoryGatesSatisfied
                             && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
                             && snapshot.Grants.SingleOrDefault(item => item.Id == receipt.Id) == receipt
-                            && receipt.Status == OperationGrantStatus.Consumed
+                            && receipt.Status == (receipt.Scope == OperationGrantScope.Once
+                                ? OperationGrantStatus.Consumed : OperationGrantStatus.Active)
                             ? (snapshot, new(HostInteractionOutcome.Approved, "exact-mcp-use-current"))
                             : InteractionTransaction.Reject(snapshot, "exact-mcp-use-retired"), checkToken).ConfigureAwait(false);
                     if (decision.Outcome != HostInteractionOutcome.Approved || !Live(checkToken))

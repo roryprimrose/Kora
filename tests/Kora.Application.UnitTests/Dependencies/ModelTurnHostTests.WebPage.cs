@@ -93,6 +93,8 @@ public sealed partial class ModelTurnHostTests
         network.Sends.Should().Be(1);
         approval.Presentations.Should().Be(1);
         approval.Snapshot!.Grants.Single().Status.Should().Be(OperationGrantStatus.Consumed);
+        approval.Snapshot.Grants.Single().ApprovedProposal.Binding.Target.Should().Be(
+            new PermissionGrantTarget(PermissionGrantArtifactKind.Tool, Kora.Core.Customizations.CustomizationScope.BuiltIn));
         invocation.Completed.Should().BeTrue();
         transport.Requests.Should().HaveCount(2);
         transport.Requests[1].Provenance.Should().BeSameAs(transport.Requests[0].Provenance);
@@ -434,6 +436,8 @@ public sealed partial class ModelTurnHostTests
         internal string? Fault { get; set; }
         internal bool KeepPrevious { get; init; }
         internal int Presentations { get; private set; }
+        internal int Questions { get; private set; }
+        internal string Choice { get; init; } = "once";
 
         internal async Task<WebPageApprovalPresentation> Present(HostOperationProposal proposal, HostRevision generation,
             Uri address, Func<bool> admitted, CancellationToken token)
@@ -445,10 +449,13 @@ public sealed partial class ModelTurnHostTests
                 new(true, true, false, true), proposal, previous?.Questions ?? [], previous?.Grants ?? [])
             { Admissions = previous?.Admissions ?? [] };
             var authorization = new HostAuthorizationService(this, f.Time);
-            var initial = (await authorization.PresentWebPageOnceAsync(proposal.Request, address, token)).Question!;
+            var decision = await authorization.PresentWebPageOnceAsync(proposal.Request, address, token);
+            if (decision.Outcome == HostInteractionOutcome.Consumed) { return new(null, decision); }
+            var initial = decision.Question!;
+            Questions++;
             if (string.Equals(Fault, "deny", StringComparison.Ordinal))
             { return new(initial, new(HostInteractionOutcome.Denied, "user-denied")); }
-            var approved = await authorization.ApproveAsync(initial.Key, new(["once"]), RequestOrigin.LocalUi, token);
+            var approved = await authorization.ApproveAsync(initial.Key, new([Choice]), RequestOrigin.LocalUi, token);
             if (string.Equals(Fault, "forged", StringComparison.Ordinal))
             { Snapshot = Snapshot with { Grants = [] }; }
             if (string.Equals(Fault, "revoked", StringComparison.Ordinal)) { Revoke(); }

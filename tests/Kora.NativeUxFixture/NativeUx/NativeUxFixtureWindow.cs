@@ -361,7 +361,7 @@ internal sealed class NativeUxFixtureWindow : Window, IDisposable
             {
                 controllers.Add(new ExactGrantsWindowController(session.Main, session.Interactions,
                     session.ExactGrantControl!, session.Access, () => session.Access.Open,
-                    session.Loggers.CreateLogger<ExactGrantsViewModel>()));
+                    session.Loggers.CreateLogger<ExactGrantsViewModel>(), new(session.Interactions)));
             }
             if (session.SilentSpeech is not null)
             {

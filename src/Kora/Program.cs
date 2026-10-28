@@ -403,6 +403,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>
             new LocalPreapprovedUriPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PreapprovedUriConfigurationService>();
+        services.AddSingleton<Kora.Application.Interaction.PermissionGrantManagementService>();
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriConfiguration>(provider =>
             provider.GetRequiredService<PreapprovedUriConfigurationService>());
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriList>();

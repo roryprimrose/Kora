@@ -304,7 +304,9 @@ public sealed partial class App : Avalonia.Application
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
             Services.GetRequiredService<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>()
                 .BindPresenter((proposal, generation, current, token) =>
-                    clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
+                    string.Equals(proposal.Binding.ActionId, Kora.Application.Context.ClipboardPermissionSourceUsePolicy.ReadActionId, StringComparison.Ordinal)
+                        ? questionWindow.RequestClipboardPermissionAsync(null, proposal, generation, current, token)
+                        : clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
             if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
             {
                 copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,

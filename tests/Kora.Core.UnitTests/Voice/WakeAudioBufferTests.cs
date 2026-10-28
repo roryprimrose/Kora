@@ -6,6 +6,31 @@ namespace Kora.Core.UnitTests.Voice;
 public sealed class WakeAudioBufferTests
 {
     [Fact]
+    public void Retirement_prevents_already_queued_callbacks_from_repopulating_cleared_memory()
+    {
+        var buffer = new WakeAudioBuffer(4);
+        buffer.Append([1, 2]);
+        buffer.Retire();
+        buffer.Append([3, 4]);
+        buffer.Append([5], knownPlayback: true);
+        buffer.Retire();
+        buffer.Count.Should().Be(0);
+        buffer.EndSample.Should().Be(2);
+        var consume = () => buffer.TakeCommand(2);
+        consume.Should().Throw<InvalidOperationException>();
+    }
+    [Fact]
+    public void Native_binding_denies_capture_until_the_host_supplies_a_live_gate()
+    {
+        var binding = new HandsFreeAudioBinding(-2, new("synthetic", "Synthetic"), "Nova",
+            new(1, SpeechInputSelection.Default));
+        binding.CanCapture().Should().BeFalse();
+        binding.CommandPhrases.Should().BeEmpty();
+        var admitted = binding with { CanCapture = static () => true, CommandPhrases = ["session help"] };
+        admitted.CanCapture().Should().BeTrue();
+        admitted.CommandPhrases.Should().Equal("session help");
+    }
+    [Fact]
     public void Two_second_ring_preserves_no_pause_words_but_not_preceding_or_wake_audio()
     {
         var buffer = new WakeAudioBuffer(4);

@@ -681,6 +681,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.IPlainTextClipboardReader, Kora.Windows.Context.WindowsPlainTextClipboardReader>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardSnapshotBroker>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
+        services.AddSingleton<Kora.Core.Context.IClipboardReadWorkflow, Kora.Application.Context.ClipboardReadWorkflow>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
         services.AddSingleton<Kora.Application.Context.ClipboardExplanationAdmission>();

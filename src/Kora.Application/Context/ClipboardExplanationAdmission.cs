@@ -34,4 +34,10 @@ public sealed class ClipboardExplanationAdmission : HostControlAdmission
             static result => result.Outcome == ClipboardExplanationOutcome.Succeeded
                 ? HostTaskState.Succeeded : result.Outcome == ClipboardExplanationOutcome.Cancelled
                     ? HostTaskState.Unknown : HostTaskState.Failed, token);
+
+    public Task<ClipboardOutcome> RunReadAsync(RequestOrigin origin, Func<bool> eligible,
+        Func<HostRequest, Func<bool>, CancellationToken, Task<ClipboardOutcome>> operation, CancellationToken token) =>
+        RunCommittedAsync(origin, eligible, (request, _, current, admitted) => operation(request, current, admitted),
+            static result => result == ClipboardOutcome.Captured ? HostTaskState.Succeeded
+                : result == ClipboardOutcome.Cancelled ? HostTaskState.Unknown : HostTaskState.Failed, token);
 }

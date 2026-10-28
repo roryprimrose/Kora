@@ -607,7 +607,7 @@ public sealed partial class ClipboardExplanationWorkflowTests
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
         internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null,
-            bool productionSourcePolicy = false, bool bindPermissionPresenter = true)
+            bool productionSourcePolicy = false, bool bindPermissionPresenter = true, bool productionReadPolicy = false)
         {
             ActivitySource.AddActivityListener(listener);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
@@ -628,10 +628,12 @@ public sealed partial class ClipboardExplanationWorkflowTests
             admission = new(store, store, new(store));
             GrantedPolicy = new(store, store, Time);
             if (bindPermissionPresenter) { GrantedPolicy.BindPresenter(PresentPermission); }
-            Workflow = new(Broker, new(Broker), admission, models, this, Time, this,
+            ReadAction = new(productionReadPolicy ? new ClipboardReadWorkflow(Broker, admission, GrantedPolicy) : new ReadWorkflow(Broker));
+            Workflow = new(Broker, ReadAction, admission, models, this, Time, this,
                 productionSourcePolicy ? GrantedPolicy : SourcePolicy);
             Action = new(Workflow);
         }
+        internal ClipboardRead ReadAction { get; }
         private async Task<HostInteractionDecision> PresentPermission(HostOperationProposal proposal,
             HostRevision generation, Func<bool> current, CancellationToken token)
         {
@@ -664,6 +666,12 @@ public sealed partial class ClipboardExplanationWorkflowTests
             Broker.Dispose();
             listener.Dispose();
         }
+    }
+
+    private sealed class ReadWorkflow(ClipboardSnapshotBroker broker) : IClipboardReadWorkflow
+    {
+        public Task<ClipboardOutcome> ReadAsync(Func<bool> eligible, CancellationToken token) =>
+            broker.CaptureAsync(eligible, token);
     }
 
     internal sealed class Store : AudioControlTestStore, ISessionWorkspaceStore, IHostInteractionStore, ILocalContextTaskStore
@@ -737,9 +745,11 @@ public sealed partial class ClipboardExplanationWorkflowTests
         internal int Calls { get; private set; }
         internal string Text { get; set; } = "private-marker untrusted clipboard";
         internal ClipboardOutcome Outcome { get; set; } = ClipboardOutcome.Captured;
+        internal Action? BeforeReturn { get; set; }
         public Task<ClipboardReadResult> ReadAsync(CancellationToken cancellationToken)
         {
             Calls++;
+            BeforeReturn?.Invoke();
             return Task.FromResult(new ClipboardReadResult(Outcome, Text, 17));
         }
     }

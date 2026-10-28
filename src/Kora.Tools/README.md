@@ -58,7 +58,9 @@ Single-record results share the registry wire/shape validation. No probe, infere
 
 ### R07 clipboard actions
 
-The three actions delegate to [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs).
+Read delegates to the [host permission workflow](../Kora.Application/Context/ClipboardReadWorkflow.cs)
+before [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) can access
+the native reader. Reuse/revoke share that same immutable broker without a new read.
 Core owns [snapshot validation](../Kora.Core/Context/ClipboardSnapshot.cs) and
 [origin rules](../Kora.Core/Context/ClipboardCommand.cs); the
 [Windows reader](../Kora.Windows/Context/WindowsPlainTextClipboardReader.cs)
@@ -68,6 +70,9 @@ and desktop controls use the same actions.
 [Clipboard policy](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)
 owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
 No clipboard write is delivered; preview is not model consent.
+An actual `clipboard.read` grant is required before native capture, including
+capture initiated by an explanation request. Denial means zero reads; permission
+is revalidated after readback and before snapshot publication.
 `ClipboardExplain` delegates to the composed Application workflow, which requires
 an actual tool permission grant and separate exact-snapshot confirmation before
 local-only, no-tools model dispatch. Content is the user's responsibility, not a

@@ -353,6 +353,17 @@ unrelated pre-activation audio, audio before/after the reply generation, and
 known Kora/device playback.
 Empty activations expire locally without acquiring clipboard or other context.
 
+The [span-end implementation](Speech_Input.md#span-end-implementation-decision---2026-10-28)
+uses a single local keyword-only native search and an original-PCM inclusive
+segment end, not a token-start timestamp or a silence estimate. Only the exact
+post-name interval opens the existing command recognizer, with no second
+microphone. Native logs/dumps are disabled; model/VAD state, pre-roll and
+command PCM are volatile. A default-deny live host gate rechecks admission and
+known playback before/after native work. Retirement rejects queued audio and
+finals permanently, and ownership remains held through actual native joins.
+No exact payload/name/playback profile is admitted yet: this implementation
+does not enable ambient capture or qualify device playback exclusion.
+
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).
 Device reconnection cannot reopen capture, and stale pre-failure input cannot approve actions.
@@ -565,6 +576,19 @@ resolved before a request-owned STA read and revalidated before publication,
 presentation and same-ID reuse. Current unlocked privacy, instance capability
 ownership, original input origin and call generation are mandatory. No
 preactivation read, watcher, queued retry or model-selected capture exists.
+
+The [clipboard read action](../src/Kora.Tools/Clipboard/ClipboardRead.cs) requires the
+[host-owned read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs).
+Original input or built-in status is not a grant. Before native access, the host
+consumes an applicable `clipboard.read` Once/Session/Always grant and records its
+dispatch receipt. An unavailable presenter, denial, stale authority or audit failure
+cannot read the clipboard. The [native permission question](../src/Kora/NativeQuestionHost.Clipboard.cs)
+is shown before a preview exists; Cancel question denies without a read.
+Permission is revalidated immediately before native access and after awaited
+readback, before snapshot publication. The [broker](../src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs)
+still joins the actual reader and preserves unverified-release failures.
+Read grants do not authorize `clipboard.explain-local`, model use, writing,
+automatic speech or history. Exact snapshot confirmation remains separate.
 
 The host assigns immutable source/snapshot IDs, original request identity,
 `CF_UNICODETEXT` provenance, native read sequence and capture time. Unicode

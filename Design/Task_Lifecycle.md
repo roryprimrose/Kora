@@ -224,7 +224,7 @@ disclosure, and false-activation tests also matter.
 | "Clear the queue" | Pause the addressed dispatch and present affected entries; require exact voice or UI confirmation before removing dispatch eligibility, not history |
 | "Resume the queue" | Resume paused dispatch after revalidation and any required uncertainty decision |
 | "Pause the queue" | Stop new dispatch while the current task continues |
-| "Stop all work" | Immediately pause dispatch across sessions, then require exact voice or UI confirmation before cancellation and clearing dispatch entries |
+| "Stop all work" | Delivered: reversible host full-set review across sessions, separate matching-original-channel confirmation, exact pending withdrawal/running cancellation and physical terminal joins; keep Kora open, preserve existing lane holds and retained history |
 | "Stop" | Stop TTS immediately and pause new dispatch; destructive task cancellation requires the separate confirmed cancel flow |
 | "Repeat the summary" | Replay the current safe summary without rerunning tools |
 | "Use the clipboard" | Capture a new snapshot; do not reuse an old snapshot silently |

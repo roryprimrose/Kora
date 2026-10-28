@@ -28,4 +28,5 @@ public enum BuiltInAction
     EnableHostedModels,
     DisableHostedModels,
     DisableListening,
+    StopAllWork,
 }

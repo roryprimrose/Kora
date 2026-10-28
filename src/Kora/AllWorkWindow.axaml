@@ -115,10 +115,16 @@
         </ScrollViewer>
       </Grid>
     </Grid>
-    <WrapPanel Grid.Row="4">
+    <StackPanel Grid.Row="4" Spacing="8">
+      <controls:NamedTextBlock Text="{Binding StopAllStatus}" TextWrapping="Wrap"
+                              AutomationProperties.Name="Stop All review and physical joining status; separate from passive overview" />
+      <WrapPanel>
+      <Button x:Name="StopAllSubmittedWork" Content="_Stop all work…" IsEnabled="{Binding CanStopAll}"
+              AutomationProperties.Name="Stop all submitted work: full host review and separate original-channel confirmation; not just this page or selection; keep Kora open, preserve unsent input, history and grants" />
       <Button x:Name="Navigate" Content="Open exact _session with fresh passive read" IsEnabled="{Binding CanNavigate}"
               AutomationProperties.Name="Navigate this immutable session ID through Sessions private workspace admission; no resume, dispatch, cancel, enqueue or question retarget" />
       <Button x:Name="CloseView" Content="_Close" />
-    </WrapPanel>
+      </WrapPanel>
+    </StackPanel>
   </Grid>
 </Window>

@@ -171,6 +171,21 @@ public sealed partial class SessionQueueService
             if (retirementFailure is not null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(retirementFailure).Throw(); }
             if (commands.Any(item => item.Failure is not null))
             { throw new InvalidOperationException("An admitted compatibility read failed before its terminal release was confirmed."); }
+            var terminal = ImmutableArray.CreateBuilder<SessionQueueSnapshot>();
+            foreach (var queue in review.Queues)
+            {
+                var entries = new List<SessionQueueEntry>();
+                foreach (var original in queue.Entries.Where(item => item.State is SessionQueueState.Pending or SessionQueueState.Running))
+                {
+                    var actual = await store.ReadQueueEntryAsync(queue.SessionId, original.Request.TaskId, token).ConfigureAwait(false);
+                    if (actual is null || actual.Request != original.Request || actual.Generation != original.Generation
+                        || actual.IsPending || actual.IsCurrent)
+                    { throw new InvalidOperationException("The exact compatibility terminal readback is unconfirmed."); }
+                    entries.Add(actual);
+                }
+                terminal.Add(queue with { Entries = entries });
+            }
+            review.TerminalQueues = terminal.ToImmutable();
             var remaining = await ReadLifecycleQueuesAsync(token).ConfigureAwait(false);
             if (!IsApplicationLifecycleCurrent(review) || remaining.Length != 0)
             { throw new InvalidOperationException("Compatibility work release is unconfirmed. No application effect is permitted."); }

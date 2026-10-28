@@ -567,7 +567,7 @@ public sealed partial class MainViewModelTests : IDisposable
         {
             var requiresApproval = action is BuiltInAction.HideApplication
                 or BuiltInAction.ExitApplication or BuiltInAction.RestartApplication
-                or BuiltInAction.CancelTask or BuiltInAction.LockMachine
+                or BuiltInAction.CancelTask or BuiltInAction.StopAllWork or BuiltInAction.LockMachine
                 or BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart
                 or BuiltInAction.EnableLocalModels or BuiltInAction.DisableLocalModels
                 or BuiltInAction.EnableHostedModels or BuiltInAction.DisableHostedModels;

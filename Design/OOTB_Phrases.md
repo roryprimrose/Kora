@@ -137,7 +137,7 @@ Hide is not exit, microphone mute, queue pause, or permission to conceal listeni
 | "Resume the queue" | "Continue queued work" | Resume after policy/dependency/uncertainty checks |
 | "Clear the queue" | "Remove all pending requests" | Pause addressed dispatch, show/read back affected entries, require explicit voice/UI confirmation; preserve history |
 | "Cancel the current task" | "Cancel task", "Stop this task" | Pause identified dispatch, then exact voice/UI confirmation; preserve other pending work |
-| "Stop all work" | "Cancel everything" | Pause all-session dispatch immediately; exact affected-work voice/UI confirmation before cancel/clear |
+| "Stop all work" | None | Delivered static original-user action: full host affected-work review, separate exact original-channel confirmation, stop/join submitted originals while Kora stays open; no history, grant or unsent-input deletion |
 | "Stop this and {new request} instead" | "Replace the current task with {request}" | Pause identified work, then explicitly confirm cancellation/replacement through either channel |
 | "Stop" | None | Stop speech and pause new dispatch immediately; destructive cancellation uses the separate confirmed flow |
 

@@ -17,6 +17,27 @@ Accepting a proposal does not save or enable it. Native source/component editing
 recoverable User-original writes, disabled-use persistence and availability
 limits are described in [Customizations](customizations.md).
 
+## Stop all submitted work
+
+Type `stop all work`, or explicitly activate voice and say
+`Kora, stop all work` using your current assistant name. **All Work > Stop all
+work…** starts the same operation. The host shows all affected submitted work
+across conversations, not merely the overview's loaded page or selection.
+Review alone does not stop anything. Confirm separately using the original
+input channel, or cancel to release only this review's hold.
+
+After confirmation, pending originals are withdrawn and running originals are
+cancelled. Kora waits for actual provider, question, voice and worker completion
+and retained terminal readback. Already admitted finite compatibility reads
+finish under their existing rules. A stop request is not completion; an uncertain
+result says so and must not be treated as all-cancelled.
+
+Kora stays open. Unsent text, editor changes, history and grants remain unchanged;
+existing conversation holds still need fresh Resume. This grants no authority
+over future requests. A changed review needs fresh confirmation, and an unavailable
+native owner reports unavailable. Model suggestions and reusable model grants
+cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
+
 ## Invoke one registered agent by readable name
 
 Type `agent invoke "Exact readable name" <original task>`, or use the current
@@ -1608,6 +1629,21 @@ The current assistant-name prefix is optional for typed/already activated input.
 Native release is awaited; uncertain release is explicit. No task is cancelled or decision approved. Saved consent is retained. A new deliberate PTT gesture can capture one command after confirmed release and current gates; native Enable listening restores readiness separately ([stop semantics and evidence](voice-and-audio.md#exact-stop-listening)).
 
 ## Windows session task
+
+### Stop all submitted work
+
+- **stop all work**
+
+Review the complete host-produced set across sessions and separately confirm
+through the original input channel. Pending originals are withdrawn; running
+originals are cancelled and physically joined with retained terminal readback.
+Already admitted finite compatibility reads finish and join, rather than being
+reported as cancelled. Cancel or stale authority before acceptance requests no
+stop. Partial or unconfirmed outcomes remain explicit.
+
+Kora stays open, preserving unsent text, editors, history and grants. Existing
+per-conversation cancellation holds still require fresh Resume; stopped work is
+never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 
 ### Lock Windows
 - **lock the machine**

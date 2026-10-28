@@ -5,6 +5,8 @@ using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
 using Kora.Core.Hosting;
 
+using AllWorkStopOutcome = Kora.Application.Hosting.AllWorkStopResult.OutcomeKind;
+
 namespace Kora;
 
 internal sealed class ApplicationLifecycleController : IDisposable
@@ -35,13 +37,64 @@ internal sealed class ApplicationLifecycleController : IDisposable
         this.owner = owner;
         main.PrivacyClosureRequested += OnPrivacyClosed;
         main.BindSubmittedWorkShutdown(PrepareAsync);
+        main.BindAllWorkStop(StopAllAsync);
     }
 
     private async Task<ApplicationLifecycleShutdown?> PrepareAsync(ApplicationLifecycleOperation operation,
         RequestOrigin origin, Func<bool> admitted)
     {
+        var prepared = await PrepareCoreAsync(operation, origin, admitted, CancellationToken.None);
+        return prepared is null ? null : new(() => prepared.Current(),
+            async () =>
+            {
+                await conversations.ConfirmApplicationLifecycleAsync(prepared.Review, CancellationToken.None);
+                await queue.ConfirmApplicationLifecycleAsync(prepared.Finite, CancellationToken.None);
+            }, prepared.Dispose);
+    }
+
+    private sealed record Prepared(ApplicationLifecycleReview Review, SessionQueueLifecycleReview Finite,
+        Func<bool> Current) : IDisposable
+    {
+        public void Dispose() { Review.Dispose(); Finite.Dispose(); }
+    }
+
+    private async Task<AllWorkStopResult> StopAllAsync(RequestOrigin origin, Func<bool> admitted, CancellationToken token)
+    {
+        Prepared? prepared = null;
+        try
+        {
+            prepared = await PrepareCoreAsync(ApplicationLifecycleOperation.StopAllWork, origin, admitted, token);
+            if (prepared is null) { return new(admitted() ? AllWorkStopOutcome.Cancelled : AllWorkStopOutcome.Stale); }
+            main.PresentAllWorkJoining();
+            // Both owners retain their own accepted resources even when the other owner fails.
+            await Task.WhenAll(conversations.ConfirmApplicationLifecycleAsync(prepared.Review, CancellationToken.None),
+                queue.ConfirmApplicationLifecycleAsync(prepared.Finite, CancellationToken.None));
+            var empty = prepared.Review.Work.Length == 0 && prepared.Finite.Queues.Length == 0;
+            return Result(empty ? AllWorkStopOutcome.NothingToStop : AllWorkStopOutcome.Completed);
+        }
+        catch (OperationCanceledException)
+        { return Result(prepared is { Review.StopAccepted: true } or { Finite.StopAccepted: true }
+            ? AllWorkStopOutcome.PartialUnconfirmed : AllWorkStopOutcome.Cancelled); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            main.ReportAllWorkStopFailure(exception);
+            return Result(prepared is { Review.StopAccepted: true } or { Finite.StopAccepted: true }
+                ? AllWorkStopOutcome.PartialUnconfirmed : AllWorkStopOutcome.Stale);
+        }
+        finally { prepared?.Dispose(); }
+
+        AllWorkStopResult Result(AllWorkStopOutcome outcome) => new(outcome,
+            prepared?.Review.Work ?? [], prepared?.Review.Results ?? [],
+            prepared?.Finite.TerminalQueues ?? [], prepared?.Finite.Joined ?? false, prepared?.Finite.Queues ?? []);
+    }
+
+    private async Task<Prepared?> PrepareCoreAsync(ApplicationLifecycleOperation operation,
+        RequestOrigin origin, Func<bool> admitted, CancellationToken token)
+    {
         ObjectDisposedException.ThrowIf(disposed, this);
-        using var deadline = new CancellationTokenSource(TimeSpan.FromMinutes(1));
+        if (activeReview is not null) { throw new InvalidOperationException("Another submitted-work review is active."); }
+        using var deadline = CancellationTokenSource.CreateLinkedTokenSource(token);
+        deadline.CancelAfter(TimeSpan.FromMinutes(1));
         activeReview = deadline;
         ApplicationLifecycleReview? review = null;
         SessionQueueLifecycleReview? finite = null;
@@ -97,11 +150,15 @@ internal sealed class ApplicationLifecycleController : IDisposable
                     Width = 740, Height = 560,
                     Content = new ScrollViewer { Content = content },
                 };
-                opened.Closed += (_, _) => opened.Content = null;
+                opened.Closed += (_, _) =>
+                {
+                    opened.Content = null;
+                    if (!transferred) { deadline.Cancel(); }
+                };
                 opened.Show(owner());
                 var subject = review.Work.Length != 0 ? review.Work[0].Request.SessionId : finiteWork[0].Request.SessionId;
                 var request = new HostRequest(new(Guid.NewGuid()), subject, new(Guid.NewGuid()), origin);
-                var confirmed = await questions.AskApplicationLifecycleAsync(request,
+                var confirmed = await questions.AskApplicationLifecycleAsync(request, operation,
                     $"{operation}: separately confirm stopping all {review.Work.Length} submitted conversation requests "
                     + $"and retiring {finiteWork.Length} compatibility reads shown in the affected-work review. "
                     + $"The confirmation must use the original {origin} channel. Cancel makes no stop request.",
@@ -117,14 +174,8 @@ internal sealed class ApplicationLifecycleController : IDisposable
             transferred = true;
             var acceptedReview = review;
             var acceptedFinite = finite;
-            return new(() => Current() && conversations.IsApplicationLifecycleCurrent(acceptedReview)
-                    && queue.IsApplicationLifecycleCurrent(acceptedFinite),
-                async () =>
-                {
-                    await conversations.ConfirmApplicationLifecycleAsync(acceptedReview, CancellationToken.None);
-                    await queue.ConfirmApplicationLifecycleAsync(acceptedFinite, CancellationToken.None);
-                },
-                () => { acceptedReview.Dispose(); acceptedFinite.Dispose(); });
+            return new(acceptedReview, acceptedFinite, () => Current() && conversations.IsApplicationLifecycleCurrent(acceptedReview)
+                    && queue.IsApplicationLifecycleCurrent(acceptedFinite));
         }
         finally
         {
@@ -153,6 +204,7 @@ internal sealed class ApplicationLifecycleController : IDisposable
         disposed = true;
         main.PrivacyClosureRequested -= OnPrivacyClosed;
         main.BindSubmittedWorkShutdown(null);
+        main.BindAllWorkStop(null);
         OnPrivacyClosed(this, EventArgs.Empty);
     }
 }

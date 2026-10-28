@@ -163,7 +163,9 @@ public sealed partial class SessionConversationService
                 {
                     using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), work.Request.SessionId,
                         work.Request.TaskId, review.Origin), HostActivityLayer.Application, HostOperation.Request);
-                    AuditPendingControl("application.lifecycle-stop", () => IsApplicationLifecycleCurrent(review), review.Origin);
+                    AuditPendingControl(review.Operation == ApplicationLifecycleOperation.StopAllWork
+                        ? "work.stop-all-submitted" : "application.lifecycle-stop",
+                        () => IsApplicationLifecycleCurrent(review), review.Origin);
                     RequireLifecycleCurrent(review, exactWork: true);
                     activity.Complete(HostOperationOutcome.Completed);
                 }
@@ -182,11 +184,20 @@ public sealed partial class SessionConversationService
                 foreach (var lease in running)
                 {
                     if (lease.Status.Phase is not (ConversationExecutionPhase.Waiting or ConversationExecutionPhase.Running)) { continue; }
-                    signals.Add(lease.RequestCancellationAsync(() =>
+                    try
                     {
-                        if (!IsApplicationLifecycleCurrent(review))
-                        { throw new InvalidOperationException("Original lifecycle authority was revoked before exact stop acceptance."); }
-                    }));
+                        signals.Add(lease.RequestCancellationAsync(() =>
+                        {
+                            if (!IsApplicationLifecycleCurrent(review))
+                            { throw new InvalidOperationException("Original lifecycle authority was revoked before exact stop acceptance."); }
+                        }));
+                    }
+                    catch (Exception exception) when (exception is not OutOfMemoryException)
+                    {
+                        stopFailure = exception;
+                        if (review.Operation != ApplicationLifecycleOperation.StopAllWork)
+                        { throw; }
+                    }
                 }
             }
         }
@@ -204,8 +215,9 @@ public sealed partial class SessionConversationService
                     .Concat(submissions.Select(item => item.Completed.Task))
                     .Concat(pending.Select(item => item.Worker))).ConfigureAwait(false);
                 var completed = await Task.WhenAll(pending.Select(item => item.Completed.Task)).ConfigureAwait(false);
+                var physical = await Task.WhenAll(running.Select(item => item.JoinPhysicalCompletionAsync())).ConfigureAwait(false);
 #pragma warning restore VSTHRD003
-                if (running.Any(item => item.Status.Phase != ConversationExecutionPhase.Terminal)
+                if (physical.Any(item => item.Phase != ConversationExecutionPhase.Terminal)
                     || completed.Any(item => item.Failure is not null || item.Receipt is null))
                 { throw new InvalidOperationException("Submitted work release or terminal retention is unconfirmed. No application effect is permitted."); }
             }
@@ -217,6 +229,23 @@ public sealed partial class SessionConversationService
             }
             finally
             {
+                var facts = ImmutableArray.CreateBuilder<AllWorkStopResult.Original>();
+                foreach (var lease in running)
+                {
+                    var physical = lease.JoinPhysicalCompletionAsync();
+                    var terminal = physical.IsCompletedSuccessfully ? await physical.ConfigureAwait(false) : null;
+                    facts.Add(new(lease.Target.Request, lease.CancellationAccepted,
+                        terminal?.Phase == ConversationExecutionPhase.Terminal, terminal?.TaskState));
+                }
+                foreach (var entry in pending.Where(item => !running.Any(lease => lease.Target.Request == item.Retained!.Message.Request)))
+                {
+#pragma warning disable VSTHRD003 // The captured worker has joined; this reads its exact host-owned terminal result.
+                    var terminal = await entry.Completed.Task.ConfigureAwait(false);
+#pragma warning restore VSTHRD003
+                    facts.Add(new(entry.Retained!.Message.Request, entry.CancelRequested,
+                        terminal is { Failure: null, Receipt: not null }, terminal.Receipt?.Task.State));
+                }
+                review.Results = facts.ToImmutable();
                 lock (cancellationGate)
                 {
                     review.Joining = false;

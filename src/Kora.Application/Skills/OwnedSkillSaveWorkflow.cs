@@ -18,7 +18,8 @@ public sealed class OwnedSkillSaveWorkflow(
             (_, _, _, admitted) => store.Read(id, version, admitted), token);
 
     public async Task<OwnedDeclarativeSkillSnapshot?> Save(OwnedDeclarativeSkillDocument document,
-        OwnedSkillAuthoringAuthority authority, Func<bool> exactDraft, IOwnedSkillSaveReview review, CancellationToken token)
+        OwnedSkillAuthoringAuthority authority, Func<bool> exactDraft, IOwnedSkillSaveReview review, CancellationToken token,
+        Func<CancellationToken, Task>? validateSource = null)
     {
         var observed = false;
         try
@@ -27,12 +28,15 @@ public sealed class OwnedSkillSaveWorkflow(
             async (request, session, current, admitted) =>
             {
                 bool Eligible() => current() && authority.IsCurrent() && exactDraft();
+                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
                 var destination = store.Destination(document);
                 if (!Eligible() || !await review.Review(document, destination, admitted).ConfigureAwait(false))
                 { return null; }
                 admitted.ThrowIfCancellationRequested();
+                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
                 if (!Eligible() || !await review.ConfirmPublication(document, destination, admitted).ConfigureAwait(false))
                 { return null; }
+                if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
                 await admission.Commit(request, session, Eligible, static () => true, admitted).ConfigureAwait(false);
                 var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
                     "definition.owned-skill.create", SecurityAuditOutcome.Requested,
@@ -42,8 +46,11 @@ public sealed class OwnedSkillSaveWorkflow(
                 var published = false;
                 try
                 {
-                    var result = await store.Publish(document, Eligible, operation =>
-                        admission.Commit(request, session, Eligible, operation, admitted).AsTask(), admitted).ConfigureAwait(false);
+                    var result = await store.Publish(document, Eligible, async operation =>
+                    {
+                        if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                        return await admission.Commit(request, session, Eligible, operation, admitted).ConfigureAwait(false);
+                    }, admitted).ConfigureAwait(false);
                     published = true;
                     observed = true;
                     await admission.Commit(request, session, Eligible, static () => true, admitted).ConfigureAwait(false);

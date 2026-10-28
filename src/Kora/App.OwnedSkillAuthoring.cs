@@ -44,7 +44,8 @@ public sealed partial class App
         namedSkillInvocation.Bind();
         ownedSkillEditor = new(main, workflow, admission,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use);
+            Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use,
+            new(store, admission, workflow, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()));
         ownedSkillEditor.Bind();
         if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         { desktop.Exit += ownedSkillEditor.OnHostExit; }

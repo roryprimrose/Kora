@@ -212,7 +212,7 @@ explicit use of the saved revision. Profile originals and other kinds remain rea
 
 **Current bounded:** [reviewed instruction-only shared skill invocation](commands.md#reviewed-instruction-only-shared-skill-invocation) separately enables one exact compatible single-file revision for a volatile local-only, zero-tool request in one existing Active conversation. Registration/inspection alone grants no invocation authority ([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
 
-**Current bounded:** the separate [reviewed one-tool shared skill invocation](commands.md#reviewed-one-tool-shared-skill-invocation) supports one declarative revision and one or two distinct explicit page destinations, each requiring its own host-authorized WebPageGet call. Source-read consent, local model-context enablement and once-only action approval stay separate. Results remain in the original local session; unqualified local profiles remain unavailable. No bundled page skill or script execution is added.
+**Current bounded:** the separate [reviewed one-tool shared skill invocation](commands.md#reviewed-one-tool-shared-skill-invocation) supports one declarative revision and one or two distinct explicit page destinations, each requiring its own host-authorized WebPageGet call. Source-read consent, local model-context enablement and exact action permission stay separate; matching This session/Always action grants can be reused. Results remain in the original local session; unqualified local profiles remain unavailable. No bundled page skill or script execution is added.
 
 ### Two-source comparison skill example
 

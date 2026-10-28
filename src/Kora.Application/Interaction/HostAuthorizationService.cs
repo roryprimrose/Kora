@@ -108,10 +108,10 @@ public sealed partial class HostAuthorizationService(
         { return InteractionTransaction.Reject(snapshot, "exact-mcp-proposal-not-current"); }
         var spec = new QuestionSpec("Review the complete exact HTTPS MCP " + review.Stage
             + " record, including destination, delegated account, schema and any outgoing arguments. "
-            + "Approve once only if this read-only external processing and local-only result use are intended.",
-            QuestionKind.SingleChoice, [new("once", "Approve once")], purpose: "authorization", sourceId: "mcp-https-read-only");
-        var (next, decision) = Decide(snapshot, request, independentConsentRequired: true, spec, out _);
-        return (next, decision with { Reason = "exact-mcp-approval-presented" });
+            + "Choose a duration for this exact mapping, account, schema and arguments only.",
+            QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
+            purpose: "authorization", sourceId: "mcp-https-read-only");
+        return RequestExternalGrant(snapshot, request, spec);
     }, cancellationToken);
 
     public ValueTask<HostInteractionDecision> PresentWebPageOnceAsync(
@@ -122,13 +122,21 @@ public sealed partial class HostAuthorizationService(
                 || snapshot.Questions.Any(question => question.Proposal == snapshot.Proposal))
             { return InteractionTransaction.Reject(snapshot, "exact-page-proposal-not-current"); }
             var spec = new QuestionSpec(
-                "Approve ONE retrieval of this exact public page for the original local model request? "
+                "Approve retrieval of this exact public page for the original local model request? "
                 + "Other destinations and redirects are not approved. Page text stays local.\n" + address.AbsoluteUri,
-                QuestionKind.SingleChoice, [new("once", "Approve once")],
+                QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
                 purpose: "authorization", sourceId: "local-web-page");
-            var (next, decision) = Decide(snapshot, request, independentConsentRequired: true, spec, out _);
-            return (next, decision with { Reason = "exact-page-approval-presented" });
+            return RequestExternalGrant(snapshot, request, spec);
         }, cancellationToken);
+
+    private (HostInteractionSnapshot, HostInteractionDecision) RequestExternalGrant(
+        HostInteractionSnapshot snapshot, HostRequest request, QuestionSpec spec)
+    {
+        var observed = ObserveContent(snapshot, request).Item1;
+        var grant = observed.Grants.FirstOrDefault(item => Matches(observed, request, item));
+        return grant is null ? Present(observed, request, consentSpec: spec)
+            : Consume(observed, request, grant.Id, grant.Revision);
+    }
 
     public ValueTask<HostInteractionDecision> RequestWebPageAccessAsync(
         HostRequest request,

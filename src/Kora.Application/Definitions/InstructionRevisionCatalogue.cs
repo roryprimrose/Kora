@@ -58,7 +58,6 @@ public sealed class InstructionRevisionCatalogue
         {
             if (unavailable) { SuspendReviewedUse(); }
             var before = Load();
-            var initial = before is null;
             var state = before ?? new Dictionary<string, string?>(StringComparer.Ordinal);
             var names = discovered.Where(item => item.Kind == kind && item.OwnedInstructionName is not null)
                 .Select(item => item.OwnedInstructionName!).ToHashSet(StringComparer.Ordinal);
@@ -73,9 +72,7 @@ public sealed class InstructionRevisionCatalogue
                 { observedRevisions[name] = (revision, Guid.NewGuid()); }
                 if (!state.TryGetValue(name, out var approved))
                 {
-                    // One-time unchanged legacy compatibility; native saves are always new disabled candidates.
-                    approved = initial && !unavailable && !artifact.RequiresInstructionReview
-                        ? revision : null;
+                    approved = null;
                     state[name] = approved;
                 }
                 if (unavailable || !string.Equals(approved, revision, StringComparison.Ordinal)) { state[name] = null; }

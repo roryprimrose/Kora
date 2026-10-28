@@ -252,6 +252,7 @@ public sealed class CustomizationContractTests
         public long Revision { get; private set; }
         internal string? Identity { get; init; }
         public bool IsDisabled(string identity) => disabled && (Identity is null || string.Equals(Identity, identity, StringComparison.Ordinal));
+        public bool IsRevisionAllowed(string identity, string digest) => !IsDisabled(identity);
         internal void Set(bool value, bool notify = true)
         {
             disabled = value; Revision++;

@@ -184,5 +184,6 @@ public sealed partial class SessionsConversationTests
         public event EventHandler? Changed { add { } remove { } }
         public long Revision => 0;
         public bool IsDisabled(string identity) => false;
+        public bool IsRevisionAllowed(string identity, string digest) => true;
     }
 }

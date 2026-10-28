@@ -20,6 +20,7 @@ public sealed class EmbeddedUserDocumentationProvider : IUserDocumentationProvid
         "instruction-editor",
         "conversation-instructions",
         "windows-and-tray",
+        "data-storage",
         "privacy-safety-and-logs",
         "skill-and-task-execution-design",
         "troubleshooting",

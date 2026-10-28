@@ -107,6 +107,11 @@ public sealed partial class InstructionEditorTests
             return Task.FromResult(true);
         }, f.Eligible, CancellationToken.None)).Should().BeTrue();
         service.IsDisabled(files.Source).Should().BeFalse();
+        if (kind != CustomizationKind.McpServer)
+        {
+            use.IsRevisionAllowed(files.Source.Id, files.Current.Files.Single().Digest).Should().BeTrue();
+            new ArtifactUsePreferences(state).IsRevisionAllowed(files.Source.Id, files.Current.Files.Single().Digest).Should().BeTrue();
+        }
         (await service.SetDisabled(files.Source, true, (review, _) =>
         {
             review.Should().BeNull("disabling does not need a content disclosure");

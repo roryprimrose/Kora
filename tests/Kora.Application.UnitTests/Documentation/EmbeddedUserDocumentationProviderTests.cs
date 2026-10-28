@@ -14,6 +14,22 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        pages.Single(page => string.Equals(page.Id, "readme", StringComparison.Ordinal)).Markdown.Should().Contain("(data-storage.md)");
+        pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown.Should().Contain("(data-storage.md)");
+        var guide = pages.Single(page => string.Equals(page.Id, "data-storage", StringComparison.Ordinal));
+        guide.Title.Should().Be("Data storage and roaming profiles");
+        guide.Markdown.Should().Contain("%LOCALAPPDATA%\\Kora")
+            .And.Contain("%APPDATA%\\Kora")
+            .And.Contain("not autosaved")
+            .And.Contain("does not run its own synchronisation service")
+            .And.Contain("independent conversations and work")
+            .And.Contain("Not all files or");
+    }
+
+    [Fact]
     public void DocumentInteractionGuideDescribesExactLocalNavigationReadOnlySortingAndUnavailableProfile()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
@@ -310,6 +326,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",
+            "data-storage",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
@@ -819,6 +836,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",
+            "data-storage",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",

@@ -24,18 +24,24 @@ public sealed class ArtifactCatalogue : IDisposable
     public event EventHandler? Changed;
     public event EventHandler<ArtifactCatalogueReloadFailedEventArgs>? ReloadFailed;
 
+    /// <summary>Source observations before local use masks; these are not invocation admission.</summary>
+    public ReadOnlyCollection<ArtifactDefinition> SourceCandidates => Volatile.Read(ref artifacts);
+
     public ReadOnlyCollection<ArtifactDefinition> Candidates
     {
         get
         {
-            if (usePolicy is null) { return Volatile.Read(ref artifacts); }
             lock (gate)
             {
-                var revision = usePolicy.Revision;
+                var revision = usePolicy?.Revision ?? 0;
                 if (maskedCandidates is not null && maskedUseRevision == revision) { return maskedCandidates; }
                 maskedCandidates = new(artifacts.Select(artifact =>
-                    usePolicy.IsDisabled(artifact.UseControlId ?? artifact.Id) || usePolicy.IsDisabled(artifact.Id)
+                    usePolicy is not null && (usePolicy.IsDisabled(artifact.UseControlId ?? artifact.Id) || usePolicy.IsDisabled(artifact.Id))
                         ? artifact with { IsUseEnabled = false, IsUseDisabled = true, PreservesCapturedUse = false }
+                        : artifact.UseControlId is { } source && (IsReloadUnavailable
+                            || artifact.OwnedInstructionName is null && usePolicy is not null
+                                && !usePolicy.IsRevisionAllowed(source, artifact.Digest))
+                            ? artifact with { IsUseEnabled = false, PreservesCapturedUse = false }
                         : artifact).ToArray());
                 maskedUseRevision = revision;
                 return maskedCandidates;
@@ -85,15 +91,17 @@ public sealed class ArtifactCatalogue : IDisposable
     {
         ReadOnlyCollection<ArtifactDefinition> previous;
         ReadOnlyCollection<ArtifactDefinition> validated;
+        bool recoveredFromFailure;
         lock (gate)
         {
+            recoveredFromFailure = recovered && IsReloadUnavailable;
             previous = artifacts;
             validated = Validate(update(previous));
             Volatile.Write(ref artifacts, validated);
             maskedCandidates = null;
             if (recovered) { Volatile.Write(ref reloadUnavailable, 0); }
         }
-        if (!Equivalent(previous, validated))
+        if (recoveredFromFailure || !Equivalent(previous, validated))
         {
             Changed?.Invoke(this, EventArgs.Empty);
         }
@@ -105,9 +113,11 @@ public sealed class ArtifactCatalogue : IDisposable
         lock (gate)
         {
             Volatile.Write(ref reloadUnavailable, 1);
+            maskedCandidates = null;
             Interlocked.Increment(ref reloadFailureRevision);
         }
         ReloadFailed?.Invoke(this, new(exception));
+        Changed?.Invoke(this, EventArgs.Empty);
     }
 
     private static ReadOnlyCollection<ArtifactDefinition> Validate(

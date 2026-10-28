@@ -239,7 +239,9 @@ public sealed class SkillPackageTests
         }
         SkillPackageSnapshot.UnavailableReason.Should().Contain("No interpreter");
         SkillPackageSnapshot.TransitiveDisclosure.Should().Contain("best effort").And.Contain("responsibility").And.Contain("grants nothing");
-        SkillPackageSnapshot.TransitiveGaps.Should().Contain("unresolved");
+        SkillPackageSnapshot.TransitiveGaps.Should().Contain("closed host bridge implementation")
+            .And.Contain("no installed contained runtime or bridge profile is qualified")
+            .And.Contain("manifest dependencies are not authority");
     }
 
     [Fact]
@@ -339,7 +341,9 @@ public sealed class SkillPackageTests
         var root = JsonNode.Parse(ManifestText)!.AsObject();
         root["files"]!.AsArray().Add(new JsonObject
         {
-            ["name"] = "scripts\\second.ps1", ["resourceId"] = "Kora.Second.Helper", ["kind"] = "helper",
+            ["name"] = "scripts\\second.ps1",
+            ["resourceId"] = "Kora.Second.Helper",
+            ["kind"] = "helper",
         });
         root["helperLoadOrder"]!.AsArray().Add("scripts\\second.ps1");
         resources.Add(Resource("scripts\\second.ps1", "Kora.Second.Helper", "second"));

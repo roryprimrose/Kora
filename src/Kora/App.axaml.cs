@@ -306,8 +306,10 @@ public sealed partial class App : Avalonia.Application
                 .BindPresenter((proposal, generation, current, token) =>
                     clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
             if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
-            { copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
-                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>()); }
+            {
+                copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
+                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>());
+            }
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
@@ -432,6 +434,8 @@ public sealed partial class App : Avalonia.Application
         questionWindow = null;
         evidenceWindow?.Dispose();
         evidenceWindow = null;
+        bundledFixedActions?.Dispose();
+        bundledFixedActions = null;
         skillPackagesWindow?.Dispose();
         sharedSkillInvocation?.Dispose();
         skillPackagesWindow = null;

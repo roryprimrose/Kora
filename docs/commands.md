@@ -1667,10 +1667,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock my screen**
 - **lock this workstation**
 
-Locking is a real local action. Kora closes microphone capture before asking
-Windows to lock. This exact built-in command currently calls a C# handler
-without a confirmation prompt. A model-suggested lock requires approval
-unless that named action already has a session or always grant.
+Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
+Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
 
 ## Protected power-proposal tasks
 
@@ -1707,8 +1706,8 @@ unless that named action already has a session or always grant.
 - **is a restart pending**
 - **show pending power action**
 
-Shutdown and Windows restart are proposals in the current release. Kora shows
-the recognized request but does not send a power operation to Windows.
+Shutdown and Windows restart open the [exact bundled source review](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) and report unavailable until the contained runtime is independently qualified. No power operation is sent to Windows.
+The implemented boundary requires a package grant, separate original-channel confirmation, a visible cancellable 30-second countdown, physical resource joins and current one-use authority. Named model-action preferences cannot replace these decisions.
 
 ## Grant-management tasks
 

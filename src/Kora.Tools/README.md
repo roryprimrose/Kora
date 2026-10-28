@@ -26,6 +26,7 @@ helpers and brokers are not separately advertised actions.
 | [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs), [ClipboardExplain](Clipboard/ClipboardExplain.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy; Application owns permission-granted local explanation. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
 | [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
+| [SessionControl](SessionControl) | [LockSession](SessionControl/LockSession.cs), [ShutdownComputer](SessionControl/ShutdownComputer.cs), [RestartComputer](SessionControl/RestartComputer.cs) | [FixedSessionActionBroker](SessionControl/FixedSessionActionBroker.cs) owns authority, audit and truthful results over Core's platform seam. |
 
 Do not add a broad capability class with one method per tool, duplicate broker
 policy across actions, or add classes for speculative unavailable operations.

@@ -80,7 +80,8 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Func<bool> admitted,
         Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
         RequestOrigin origin, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
-        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, PendingConversation? pending = null)
+        Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, PendingConversation? pending = null,
+        bool joinCancelledResources = false)
     {
         ArgumentNullException.ThrowIfNull(createContext);
         ArgumentNullException.ThrowIfNull(validateSource);
@@ -94,7 +95,7 @@ public sealed partial class SessionConversationService(
             return context;
         }
         return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local,
-            token, onAdmitted, resolveResponse, pending: pending);
+            token, onAdmitted, resolveResponse, pending: pending, joinCancelledResources: joinCancelledResources);
     }
 
     private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
@@ -108,7 +109,7 @@ public sealed partial class SessionConversationService(
         Action? terminalCommitted = null, bool copilot = false,
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
-        LocalUnavailableContinuation? localHandoff = null)
+        LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false)
     {
         RequireOriginalSource(origin);
         RequireConversationDispatchOpen(target.Authority.SessionId);
@@ -212,7 +213,8 @@ public sealed partial class SessionConversationService(
                             HostActivityLayer.Application, HostOperation.Request,
                             [pending.Cause]);
                         receipt = await ExecuteRetainedAsync(actual, retained, admission, context, Live, beforeRetain,
-                            token, resolveResponse, onAdmitted, terminalCommitted, pending is not null, localHandoff).ConfigureAwait(false);
+                            token, resolveResponse, onAdmitted, terminalCommitted,
+                            pending is not null || joinCancelledResources, localHandoff).ConfigureAwait(false);
                         activity.Complete(receipt.Message.Outcome == ModelTurnOutcome.Succeeded ? HostOperationOutcome.Completed
                             : receipt.Message.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled
                             : receipt.Message.Outcome == ModelTurnOutcome.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);

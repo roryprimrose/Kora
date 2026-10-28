@@ -13,12 +13,38 @@ internal sealed partial class SessionsViewModel
     private long mcpSelectionRevision;
     private long mcpOptionsEpoch = -1;
     private CancellationTokenSource? mcpCancellation;
-    private McpModelResult? mcpResult;
+    private McpModelResult? observedMcpResult;
+    private McpModelResult? mcpResult
+    {
+        get => observedMcpResult;
+        set
+        {
+            RetireMcpResultFollowUp();
+            if (value is null)
+            {
+                mcpCompletedProposal = null;
+                mcpCompletedMapping = null;
+            }
+            observedMcpResult = value;
+        }
+    }
     private Kora.Core.Hosting.HostRequest? mcpResultRequest;
-    private long mcpResultControl;
+    private long observedMcpControl;
+    private long mcpResultControl
+    {
+        get => observedMcpControl;
+        set { observedMcpControl = value; CaptureMcpResultFollowUp(); }
+    }
 
-    internal McpApprovalPresenter? McpPresenter { get; set; }
+    private McpApprovalPresenter? mcpPresenter;
+    internal McpApprovalPresenter? McpPresenter
+    {
+        get => mcpPresenter is null ? null : PresentMcpAndCaptureMappingAsync;
+        set => mcpPresenter = value;
+    }
     internal McpToolSelector? McpSelector { get; set; }
+    internal McpArgumentsPresenter? McpInput { get; set; }
+    private Task explicitMcpOperation = Task.CompletedTask;
     private bool HasCurrentMcpOptions => !closed && access.CanInspect && mcpOptionsEpoch == selectionEpoch;
     public IReadOnlyList<McpServerConfigurationSummary> McpServers => HasCurrentMcpOptions ? mcpServers : [];
     public IReadOnlyList<McpAccountChoice> McpAccounts => HasCurrentMcpOptions ? mcpAccounts : [];
@@ -106,12 +132,62 @@ internal sealed partial class SessionsViewModel
         {
             if (CanCancelRunningConversation) { await CancelRunningConversationAsync(); }
             else if (mcpCancellation is { } cancellation) { await cancellation.CancelAsync(); }
+#pragma warning disable VSTHRD003 // Joins this presenter's exact already-owned MCP operation, including cancellation-ignoring transport work.
+            await explicitMcpOperation;
+#pragma warning restore VSTHRD003
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Failure(logger, exception.GetType().Name);
             conversationStatus = "MCP cancellation is unconfirmed. Owned resources remain held; inspect the exact task without retry or rollback claims.";
             NotifyConversation();
+        }
+    }
+
+    public Task InvokeSelectedMcpAsync(Kora.Core.Hosting.RequestOrigin origin = Kora.Core.Hosting.RequestOrigin.LocalUi,
+        Func<bool>? admitted = null)
+    {
+        if (IsMcpActive || !CanCompose) { return Task.CompletedTask; }
+        explicitMcpOperation = InvokeSelectedMcpCoreAsync(origin, admitted);
+        return explicitMcpOperation;
+    }
+
+    private async Task InvokeSelectedMcpCoreAsync(Kora.Core.Hosting.RequestOrigin origin, Func<bool>? admitted)
+    {
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(lifetime.Token);
+        mcpCancellation = cancellation;
+        mcpResult = null;
+        OnPropertyChanged(nameof(IsMcpActive));
+        OnPropertyChanged(nameof(McpResultText));
+        try
+        {
+            await RunConversationAsync(async (target, live) =>
+            {
+                var server = SelectedMcpServer ?? throw new InvalidOperationException("Select an exact app-included MCP server.");
+                var account = SelectedMcpAccount ?? throw new InvalidOperationException("Select an exact delegated MCP account.");
+                var selection = mcpSelectionRevision;
+                bool Current() => live() && (admitted?.Invoke() ?? true) && mcpSelectionRevision == selection;
+                var result = await conversation!.InvokeMcpAsync(target, server.Id, account.Reference,
+                    McpPresenter ?? throw new InvalidOperationException("Native MCP review is unavailable."),
+                    McpSelector ?? throw new InvalidOperationException("Native MCP selection is unavailable."),
+                    McpInput ?? throw new InvalidOperationException("Native schema-bound MCP input is unavailable."),
+                    Current, cancellation.Token, origin);
+                if (!Current())
+                { throw new OperationCanceledException("The original MCP presentation was retired."); }
+                mcpResult = result.Result;
+                mcpResultRequest = result.Request;
+                mcpResultControl = access.ControlRevision;
+                conversationStatus = "Explicit MCP " + result.Outcome + "; durable task " + result.DurableState
+                    + ". Owned transport joined. No model was invoked; unsent conversation input is unchanged."
+                    + (result.DurableState == Kora.Core.Hosting.HostTaskState.Unknown
+                        ? " Remote processing may have occurred; cancellation is not rollback. No automatic retry." : string.Empty);
+                OnPropertyChanged(nameof(McpResultText));
+            }, submission: true, origin: origin);
+        }
+        finally
+        {
+            mcpCancellation = null;
+            OnPropertyChanged(nameof(IsMcpActive));
         }
     }
 }

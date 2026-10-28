@@ -1,4 +1,5 @@
 using System.Globalization;
+using System.Collections.Immutable;
 using System.Text;
 
 using Kora.Core.Presentation;
@@ -69,17 +70,21 @@ internal sealed partial class NativeDetailRenderer
 
     private static IEnumerable<NativeTextSection> ProjectTable(Table table, int number)
     {
-        static string CellText(Block block)
+        var links = ImmutableArray.CreateBuilder<NativeDocumentLink>();
+        string CellText(Block block)
         {
             var cell = (TableCell)block;
-            var text = InlineText(((ParagraphBlock)cell[0]).Inline);
+            var text = InlineText(((ParagraphBlock)cell[0]).Inline, links: links);
             if (Utf8.GetByteCount(text) > NativeMarkdownTableProfile.MaximumCellUtf8Bytes)
             {
                 throw new InvalidDataException("Table cell semantic text exceeds its UTF-8 limit.");
             }
             return text;
         }
-        var headers = ((TableRow)table[0]).Select(CellText).ToArray();
+        var headers = ((TableRow)table[0]).Select(CellText).ToImmutableArray();
+        var rows = table.Skip(1).Cast<TableRow>()
+            .Select(row => row.Select(CellText).ToImmutableArray()).ToImmutableArray();
+        var data = new NativeTableData(number, headers, rows);
         var heading = new StringBuilder().Append(CultureInfo.InvariantCulture,
             $"Table {number}: {headers.Length} columns, {table.Count - 1} data rows. Headers:");
         for (var column = 0; column < headers.Length; column++)
@@ -87,18 +92,22 @@ internal sealed partial class NativeDetailRenderer
             heading.AppendLine().Append(CultureInfo.InvariantCulture,
                 $"Column {column + 1}: {(headers[column].Length == 0 ? "(empty header)" : headers[column])}");
         }
-        yield return new(heading.ToString(), NativeTextStyle.Table);
+        yield return new(heading.ToString(), NativeTextStyle.Table)
+        {
+            Table = new(data, IsHeader: true),
+            Links = links.ToImmutable(),
+        };
         for (var row = 1; row < table.Count; row++)
         {
             var text = new StringBuilder().Append(CultureInfo.InvariantCulture, $"Table {number}, data row {row}:");
             for (var column = 0; column < headers.Length; column++)
             {
-                var value = CellText(((TableRow)table[row])[column]);
+                var value = rows[row - 1][column];
                 text.AppendLine().Append(CultureInfo.InvariantCulture,
                     $"Column {column + 1} ({(headers[column].Length == 0 ? "empty header" : headers[column])}): ")
                     .Append(value.Length == 0 ? "(empty cell)" : value);
             }
-            yield return new(text.ToString(), NativeTextStyle.Table);
+            yield return new(text.ToString(), NativeTextStyle.Table) { Table = new(data, IsHeader: false) };
         }
     }
 }

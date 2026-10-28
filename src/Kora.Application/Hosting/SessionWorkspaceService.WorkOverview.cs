@@ -20,36 +20,63 @@ public sealed partial class SessionWorkspaceService
         WorkOverviewInvalidated?.Invoke(session);
     }
 
+    /// <summary>Reads one bounded page and joins all authoritative reads before completing, including on failure.</summary>
+    /// <remarks>
+    /// Cancellation, the ten-second deadline and <see cref="WorkOverviewInvalidated"/> retire publication authority,
+    /// not physical ownership. Cancel on host/privacy/window retirement and await this task before releasing the reader.
+    /// A dependency that ignores cancellation delays completion, never renews the deadline or permits a late page.
+    /// </remarks>
     public async Task<SessionWorkOverviewPage> ReadWorkOverviewAsync(SessionListFilter filter, bool needsAnswer,
         SessionWorkOverviewCursor? cursor, CancellationToken token, SessionListSearch? query = null,
         HostTaskState? taskState = null)
     {
         using var timeout = new CancellationTokenSource(WorkOverviewTimeout, overviewTime ?? TimeProvider.System);
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, timeout.Token);
+        var revision = access.ControlRevision;
+        var epoch = Interlocked.Read(ref workOverviewEpoch);
         try
         {
-            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, taskState, cancellation.Token),
-                cancellation.Token).WaitAsync(cancellation.Token).ConfigureAwait(false);
-            cancellation.Token.ThrowIfCancellationRequested();
+            RequireWorkOverviewAdmission(revision, epoch, cancellation.Token);
+            var result = await ReadAsync(() => ReadWorkOverviewCoreAsync(filter, needsAnswer, cursor, query, taskState,
+                revision, epoch, cancellation.Token), cancellation.Token).ConfigureAwait(false);
+            RequireWorkOverviewAdmission(revision, epoch, cancellation.Token);
             return result;
         }
-        catch (OperationCanceledException exception) when (timeout.IsCancellationRequested && !token.IsCancellationRequested)
+        catch (Exception exception) when (cancellation.IsCancellationRequested)
         {
-            throw new TimeoutException("Work overview storage read timed out; no partial page is current. Refresh.", exception);
+            if (timeout.IsCancellationRequested && !token.IsCancellationRequested)
+            {
+                throw new TimeoutException("Work overview storage read timed out; no partial page is current. Refresh.", exception);
+            }
+            throw new OperationCanceledException("Work overview read cancelled; all authoritative reads have completed.", exception, token);
+        }
+    }
+
+    private void RequireWorkOverviewAdmission(long revision, long epoch, CancellationToken token)
+    {
+        token.ThrowIfCancellationRequested();
+        RequireInspection();
+        if (access.ControlRevision != revision)
+        {
+            throw new InvalidOperationException("Session inspection requires unchanged private admission during retrieval.");
+        }
+        if (Interlocked.Read(ref workOverviewEpoch) != epoch)
+        {
+            throw new InvalidOperationException("Work overview source changed during observation. Refresh.");
         }
     }
 
     private async ValueTask<SessionWorkOverviewPage> ReadWorkOverviewCoreAsync(SessionListFilter filter, bool needsAnswer,
-        SessionWorkOverviewCursor? cursor, SessionListSearch? query, HostTaskState? taskState, CancellationToken readToken)
+        SessionWorkOverviewCursor? cursor, SessionListSearch? query, HostTaskState? taskState,
+        long revision, long epoch, CancellationToken readToken)
     {
+        RequireWorkOverviewAdmission(revision, epoch, readToken);
         SessionWorkOverviewFilter.ValidateTaskState(taskState);
         if (!Enum.IsDefined(filter)) { throw new ArgumentOutOfRangeException(nameof(filter)); }
         if (query is not null && query.Filter != filter)
         {
             throw new ArgumentException("The overview query must use the selected lifecycle filter.", nameof(query));
         }
-        var revision = access.ControlRevision;
-        var epoch = Interlocked.Read(ref workOverviewEpoch);
         if (cursor is not null && (cursor.Host != workOverviewHost || cursor.AdmissionRevision != revision
             || cursor.SourceEpoch != epoch || cursor.After == Guid.Empty || cursor.Filter != filter
             || cursor.NeedsAnswer != needsAnswer || cursor.TaskState != taskState
@@ -58,7 +85,8 @@ public sealed partial class SessionWorkspaceService
             throw new ArgumentException("The overview continuation expired or belongs to another host/query/filter/source. Refresh.", nameof(cursor));
         }
         var page = await store.ReadMetadataPageAsync(cursor?.After, SessionWorkOverviewPage.MaximumSessions, readToken)
-            .AsTask().WaitAsync(readToken).ConfigureAwait(false);
+            .ConfigureAwait(false);
+        RequireWorkOverviewAdmission(revision, epoch, readToken);
         if (page.Records.IsDefault || page.Records.Length > SessionWorkOverviewPage.MaximumSessions
             || page.Next is { } after && (page.Records.IsEmpty || after != page.Records[^1].Authority.SessionId.Value))
         {
@@ -68,7 +96,7 @@ public sealed partial class SessionWorkspaceService
         // Validate every returned metadata record, including records deferred by the byte ceiling.
         foreach (var entry in page.Records)
         {
-            readToken.ThrowIfCancellationRequested();
+            RequireWorkOverviewAdmission(revision, epoch, readToken);
             ValidateListEntry(entry);
             var id = entry.Authority.SessionId.Value.ToString("D");
             if (string.CompareOrdinal(previous, id) >= 0)
@@ -84,7 +112,7 @@ public sealed partial class SessionWorkspaceService
         var limited = false;
         foreach (var entry in page.Records)
         {
-            readToken.ThrowIfCancellationRequested();
+            RequireWorkOverviewAdmission(revision, epoch, readToken);
             var id = entry.Authority.SessionId.Value;
             var continuation = new SessionWorkOverviewCursor(workOverviewHost, revision, epoch, id, filter, needsAnswer, query?.Digest, taskState);
             SessionWorkOverviewRow? row = null;
@@ -92,6 +120,7 @@ public sealed partial class SessionWorkspaceService
                 && (query is null || query.Matches(entry)))
             {
                 row = await ObserveOverviewAsync(entry, readToken).ConfigureAwait(false);
+                RequireWorkOverviewAdmission(revision, epoch, readToken);
             }
             if (row is not null)
             {
@@ -125,11 +154,7 @@ public sealed partial class SessionWorkspaceService
             scanned++;
             next = scanned < page.Records.Length || page.Next is not null ? continuation : null;
         }
-        readToken.ThrowIfCancellationRequested();
-        if (Interlocked.Read(ref workOverviewEpoch) != epoch)
-        {
-            throw new InvalidOperationException("Work overview source changed during observation. Refresh.");
-        }
+        RequireWorkOverviewAdmission(revision, epoch, readToken);
         var result = new SessionWorkOverviewPage(records.ToImmutable(), scanned, nonmatches, limited, next);
         _ = SessionWorkOverviewPage.Serialize(result);
         OverviewRead(logger, scanned, records.Count, nonmatches,
@@ -148,7 +173,8 @@ public sealed partial class SessionWorkspaceService
         SessionWorkOverviewObservation work;
         try
         {
-            snapshot = await ReadWorkAsync(entry.Authority.SessionId, token).WaitAsync(token).ConfigureAwait(false);
+            snapshot = await ReadWorkAsync(entry.Authority.SessionId, token).ConfigureAwait(false);
+            token.ThrowIfCancellationRequested();
             if (snapshot.Tasks.IsDefault || snapshot.QueueRecords.IsDefault)
             {
                 throw new InvalidDataException("Work overview records require bounded exact-session sources and explicit omissions.");

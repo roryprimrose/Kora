@@ -365,11 +365,11 @@ public sealed partial class WindowsSqliteMemoryTests
         Payload(fixture).Should().Contain(Candidate.Value!.Replace("é", "\\u00E9", StringComparison.Ordinal));
     }
 
-    private static MemoryAdmissionService Service(InteractionStorageFixture fixture)
+    private static MemoryAdmissionService Service(InteractionStorageFixture fixture, MemoryScopeKind scopeKind = MemoryScopeKind.Session)
     {
         var access = new Access();
         return new(fixture.Store, access, access, new SessionMemoryScopeAccess(fixture.Store, access, access),
-            new Audit(), NullLogger<MemoryAdmissionService>.Instance, fixture.Time, fixture.Store);
+            new Audit(), NullLogger<MemoryAdmissionService>.Instance, fixture.Time, fixture.Store, scopeKind);
     }
 
     private static async Task<MemoryResult> Run(InteractionStorageFixture fixture, Func<Task<MemoryResult>> operation)

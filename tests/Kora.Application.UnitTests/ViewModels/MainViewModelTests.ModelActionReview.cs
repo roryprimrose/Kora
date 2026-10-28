@@ -88,6 +88,43 @@ public sealed partial class MainViewModelTests
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExactModelActionReviewKeepsItsDecisionWhenNamedConversationOpeningIsRefused(bool voice)
+    {
+        var f = await CreateModelActionReviewFixtureAsync(voice);
+        var target = await ProposeModelActionReviewAsync(f);
+        var requests = f.Reasoner.Requests.Count;
+        var navigations = 0;
+        f.ViewModel.WorkspaceSurfaceRequested += _ => { navigations++; return Task.CompletedTask; };
+        async Task Run(string command)
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Kora, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+
+        await Run("open conversation \"Another conversation\"");
+        f.ViewModel.ResponseBody.Should().Contain("Conversation opening unavailable");
+        navigations.Should().Be(0);
+        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.Session.LockCalls.Should().Be(0);
+        f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
+            && audit.Outcome == SecurityAuditOutcome.Succeeded);
+
+        await Run("review pending action");
+        f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
+        f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.Session.LockCalls.Should().Be(0);
+        await Run("approve once");
+        f.Session.LockCalls.Should().Be(1);
+        f.ViewModel.PendingModelActionReview.Should().BeNull();
+        f.ViewModel.ModelActionReviews.Should().BeEmpty();
+        f.Reasoner.Requests.Should().HaveCount(requests);
+        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+    }
+
     [Fact]
     public async Task ExactModelActionReviewReplacementAndForeignOwnerNeverRetarget()
     {

@@ -5,6 +5,7 @@ using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.LogicalTree;
 
 using AwesomeAssertions;
 
@@ -268,6 +269,9 @@ public sealed partial class EvidenceLiteralFindTests
         viewer.SpanFilter = reader.Record.Trace!.SpanId;
         await viewer.SearchAsync();
         Match(viewer);
+        viewer.Select(viewer.Records[0]);
+        viewer.CanReadTrace.Should().BeTrue();
+        viewer.CanNext.Should().BeTrue();
         var held = new TaskCompletionSource<EvidenceReadBatch>(TaskCreationOptions.RunContinuationsAsynchronously);
         reader.Read = () => new(held.Task);
         var pending = viewer.SearchAsync();
@@ -280,6 +284,12 @@ public sealed partial class EvidenceLiteralFindTests
         await pending;
         Retired(viewer);
         viewer.ResultText.Should().BeEmpty();
+        viewer.Records.Should().BeEmpty();
+        viewer.Segments.Should().BeEmpty();
+        viewer.CanNext.Should().BeFalse();
+        viewer.CanReadTrace.Should().BeFalse();
+        viewer.CanReadRequest.Should().BeFalse();
+        viewer.CanReadActivity.Should().BeFalse();
         viewer.CanFind.Should().BeFalse();
         viewer.Close();
     }
@@ -398,6 +408,44 @@ public sealed partial class EvidenceLiteralFindTests
         viewer.HasFindSelection.Should().Be(admitted);
         reader.Queries.Should().ContainSingle();
         viewer.Close();
+    }
+
+    [Fact]
+    public async Task NativeSearchReportsAccessibleUnavailableStatusAndOnlyExplicitSearchRecovers()
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            using var listener = WindowsDailyEvidenceReaderTests.Listen();
+            var reader = new Reader { Read = () => throw new FileNotFoundException() };
+            var viewer = Viewer(reader);
+            viewer.Source = EvidenceSource.Log;
+            var window = new EvidenceWindow(viewer);
+            window.Show();
+            try
+            {
+                var status = window.GetLogicalDescendants().OfType<NamedTextBlock>()
+                    .Single(control => string.Equals(Avalonia.Automation.AutomationProperties.GetName(control),
+                        "Evidence status and storage limitations", StringComparison.Ordinal));
+                Click(window, "Search");
+                viewer.Status.Should().StartWith("Unavailable: 0 records.").And.Contain("Verify access")
+                    .And.Contain("fresh search").And.NotContain("End of this filtered snapshot");
+                status.Text.Should().Be(viewer.Status);
+                ControlAutomationPeer.CreatePeerForElement(status)!.GetName().Should().Contain(viewer.Status);
+                viewer.CanFind.Should().BeFalse();
+                reader.Queries.Should().ContainSingle();
+                reader.Read = () => new(reader.Batch());
+                viewer.Status.Should().StartWith("Unavailable");
+                reader.Queries.Should().ContainSingle();
+                Click(window, "Search");
+                viewer.Records.Should().ContainSingle().Which.Should().BeSameAs(reader.Record);
+                viewer.Status.Should().StartWith("Available: 1 records.");
+                status.Text.Should().Be(viewer.Status);
+                viewer.CanFind.Should().BeTrue();
+                reader.Queries.Should().HaveCount(2);
+            }
+            finally { window.Close(); }
+            return Task.CompletedTask;
+        });
     }
 
     [Fact]

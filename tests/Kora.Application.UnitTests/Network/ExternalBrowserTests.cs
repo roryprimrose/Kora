@@ -16,7 +16,7 @@ using Kora.Core.Presentation;
 namespace Kora.Application.UnitTests.Network;
 
 [Collection("Host tracing")]
-public sealed class ExternalBrowserTests : IDisposable
+public sealed partial class ExternalBrowserTests : IDisposable
 {
     private readonly ActivityListener listener = new()
     {
@@ -207,7 +207,7 @@ public sealed class ExternalBrowserTests : IDisposable
         var workflow = Create(new());
         FluentActions.Invoking(() => workflow.Prepare(Snapshot(), static () => false)).Should().Throw<InvalidOperationException>();
         FluentActions.Invoking(() => workflow.Prepare(Snapshot("http://example.com/"), static () => true)).Should().Throw<InvalidOperationException>();
-        FluentActions.Invoking(() => workflow.Prepare(null!, static () => true)).Should().Throw<ArgumentNullException>();
+        FluentActions.Invoking(() => workflow.Prepare((WebResultSnapshot)null!, static () => true)).Should().Throw<ArgumentNullException>();
         FluentActions.Invoking(() => workflow.Prepare(Snapshot(), null!)).Should().Throw<ArgumentNullException>();
     }
 

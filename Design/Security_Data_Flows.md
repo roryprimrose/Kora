@@ -1552,17 +1552,29 @@ Do not persist content-bearing temporary stores or plaintext FTS, emit decrypted
 Maintain an explicit inventory of managed recoverable copies and key-wrapper/backup generations: deleting a wrapper, rekeying the live database or unlinking an artifact does not revoke historical copies.
 The deletion contract must remove or rewrite owned recoverable content without destroying unrelated sessions or independently retained grants.
 The delivered [native exact-ID logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
-is narrower than that deletion contract. It requires a host-held single-use
+completes owned SQLite content removal, not general backup or forensic erasure. It requires a host-held single-use
 preview and fresh LocalUi confirmation, unchanged admission, exact generation/
 metadata/live-record revision and no live/Unknown work or pending questions.
-Only addressed live name/question/observation/wait/scoped-grant rows are
-removed. A durable generation-advanced tombstone, control terminal success and
+Addressed live name/question (including drafts/answers)/observation/wait/scoped-grant rows are
+removed; history and session-owned reviewed-memory bodies are redacted atomically.
+Secure deletion is enabled before every disposition's addressed-content mutation,
+including memory-only, name-only and completed-question/history sessions with no
+attachments, provider overrides, conversation messages or saved conversation drafts.
+Post-commit compaction under the same restricted database owner removes cells
+freed by earlier revisions as well as current deletions; SQLite transient storage
+stays in memory, not a new disk backup or export. Unrelated live records are preserved.
+Owned SQLite cells/free pages are cleared and the committed rollback journal is
+cleared, durably flushed and verified empty before returning a successful receipt.
+Unknown managed copies hold removal; a hot/uncertain journal or failed post-commit
+cleanup/readback holds acceptance explicitly. A logical commit is not rolled back
+by cleanup failure: inspect durable authority and storage recovery, never retry
+automatically or claim complete removal. A durable generation-advanced tombstone, control terminal success and
 trusted typed audit commit together. Late task/interaction appends are denied.
-Independent Perpetual grants and task/audit provenance survive; audit carries
+Independent device-profile memories, Perpetual grants and task/audit provenance survive; audit carries
 opaque identities/revisions/digests, not names, answers or request text.
-Journals/free pages, copied or inert legacy databases, independent diagnostics,
-user exports and provider copies are disclosed as retained. Managed
-artifact/backup/history removal and forensic erasure remain unavailable.
+Other databases and their journals/free pages, copied or inert legacy databases,
+independent diagnostics, user exports and provider copies are disclosed as retained.
+General managed artifact/backup removal and forensic erasure remain unavailable.
 Do not describe shared-key deletion as per-session cryptographic erasure or content authentication as detection of whole-record removal/valid-backup rollback.
 Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.

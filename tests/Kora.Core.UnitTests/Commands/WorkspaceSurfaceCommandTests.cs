@@ -4,8 +4,43 @@ using Kora.Core.Commands;
 
 namespace Kora.Core.UnitTests.Commands;
 
-public sealed class WorkspaceSurfaceCommandTests
+public sealed partial class WorkspaceSurfaceCommandTests
 {
+    [Theory]
+    [InlineData("open conversation \"Planning\"")]
+    [InlineData("read conversation \"Planning\"")]
+    [InlineData("Nova, OPEN CONVERSATION \"Planning\"")]
+    public void LiteralNamedOpeningPreservesCaseAndDoesNotInferAnIdentity(string input)
+    {
+        var parsed = WorkspaceSurfaceCommand.Parse(input, "Nova")!;
+        parsed.Target.Should().Be(WorkspaceSurfaceTarget.OpenNamedConversation);
+        parsed.ConversationName!.Value.Should().Be("Planning");
+        parsed.SessionPosition.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("open conversation")]
+    [InlineData("read conversation ")]
+    [InlineData("open conversation Planning")]
+    [InlineData("open conversation \"\"")]
+    [InlineData("open conversation \" Planning\"")]
+    [InlineData("open conversation \"Planning\" extra")]
+    [InlineData("open conversationX\"Planning\"")]
+    [InlineData("open conversation \"a\"b\"")]
+    [InlineData("open conversation \"e\u0301\"")]
+    [InlineData("open conversation \"Planning\"\n")]
+    public void ReservedNamedOpeningCannotFallThroughOrRepairInvalidNames(string input) =>
+        WorkspaceSurfaceCommand.Parse(input, "Nova")!.Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
+
+    [Fact]
+    public void NamedOpeningRejectsOversizeBeforeDomainValidation()
+    {
+        WorkspaceSurfaceCommand.Parse("open conversation \"" + new string('x', 500) + "\"", "Nova")!
+            .Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
+        WorkspaceSurfaceCommand.Parse("open conversation \"" + new string('x', 121) + "\"", "Nova")!
+            .Target.Should().Be(WorkspaceSurfaceTarget.Invalid);
+    }
+
     [Theory]
     [InlineData("open all work", WorkspaceSurfaceTarget.AllWork)]
     [InlineData("open compact conversation", WorkspaceSurfaceTarget.CompactConversation)]

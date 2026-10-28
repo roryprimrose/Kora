@@ -34,6 +34,17 @@ example`, `prompts edit example`, `prompts save` and `prompts activate`.
 Noncanonical legacy filenames remain visible/inspectable and retain unchanged
 legacy selection behavior, but are read-only rather than silently renamed by Save.
 
+Supported source files refresh automatically when changed outside Kora.
+This also works if a supported editor source tree is created after Kora starts,
+even when its parent folders were missing, or a supported profile folder is
+renamed or deleted (including folder names containing dots). Existing source
+and discovery-depth limits still apply; Kora does not scan unrelated profile
+content or create missing folders. No restart or configuration toggle is needed.
+A changed source retires stale requests, questions and approvals. Discovery
+never invokes a definition; changed owned instructions and prompts still need
+separate review and enablement before fresh explicit use. Malformed sources
+report a reload failure rather than claiming the catalogue is current.
+
 ## Refine the current owned instruction body
 
 Inspect one supported Kora-owned **Instruction**, keep the desired current draft open, and enter an unchanged critique in **Local body refinement critique**. Select **Refine current Instruction body**, type `instructions refine`, or use current-name activated `Kora, instructions refine`. These routes target only the already open same-kind editor; they do not open a filename or accept inline body text ([routing](../src/Kora.Application/ViewModels/MainViewModel.InstructionEditor.cs)).

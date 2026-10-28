@@ -85,8 +85,12 @@ Source changes refuse stale positions; historical events never answer or grant.
 Advanced session management and authoritative question windows remain separate.
 
 The approved relatedness policy is mode-independent, with selection as context rather
-than a routing lock. Automatic matching and model-visible session-list context remain
-unavailable, as explicitly scoped by the product owner. This does not qualify providers,
+than a routing lock. The bounded reviewed operation now composes one tools-free
+LocalOnly inference over the existing permitted metadata page, followed by exact
+acknowledgment/correction and unchanged canonical original-user answering. Routing
+has its own canonical control domain and physically joins before destination review.
+Unqualified local inference remains unavailable; there is no hosted matching or
+automatic submission. This implementation does not qualify providers,
 installed accessibility or physical display behavior. See
 [design and evidence](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25).
 
@@ -453,7 +457,7 @@ descriptors; native delivery does not make a model tool available.
 | Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery, run-only manual call protection and [bounded communications-observation implementation](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) | Exact Windows observation-profile enablement, broader automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown, exact citations and native current-file literal Find | Managed sources, model grounding/egress, indexes, screen/OCR context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage with [native frozen-list GUID/Scope/Review/Retention metadata filters and portable full-row validation](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14); host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, memory content search/global catalogue/model recall or automatic handoff; full memory and installed-accessibility qualification | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
-| Definitions | Categorized Built-in/Kora/User Customizations editor for skills, instructions, agents, MCP and prompts; persisted runtime exclusions; recoverable reviewed profile-original/component writes; activation-bound foreground editor voice intent with native clarification and separate tool-free local-model authoring reviews; existing owned instruction/prompt and literal-input routes remain | Automatic registration/applicability, arbitrary execution, spoken editor choice-answer capture, general model-selected session routing, production provider enablement and full qualification matrix remain unavailable or unqualified | [Management](Definition_Management.md), [Customizations](../docs/customizations.md), [owned editor](../docs/instruction-editor.md) |
+| Definitions | Categorized Built-in/Kora/User Customizations editor for skills, instructions, agents, MCP and prompts; persisted runtime exclusions; recoverable reviewed profile-original/component writes; activation-bound foreground editor voice intent with native clarification and separate tool-free local-model authoring reviews; existing owned instruction/prompt and literal-input routes remain | Automatic registration/applicability, arbitrary execution, spoken editor choice-answer capture, automatic session submission, production provider enablement and full qualification matrix remain unavailable or unqualified | [Management](Definition_Management.md), [Customizations](../docs/customizations.md), [owned editor](../docs/instruction-editor.md) |
 | Captions and local events | Off-default playback-bound captions, run-only pin/display choice; trusted visual notices, cached maintenance and routine quiet mode | Sentence alignment, general rich rendering, proactive speech and broad reminder scheduling | [Display](Information_Display.md), [proactive interaction](Proactive_Interaction.md) |
 | Distribution | MSI/custom Burn packaging, release/source-tool automation and reviewed build-only source workflow | Full installed/protected-byte/runtime qualification and install-capable updater | [Distribution](Distribution_And_Updates.md), [installer](../installer/README.md) |
 
@@ -696,6 +700,29 @@ qualification. Unavailable runtime/adapter paths remain unavailable; no retired,
 hardware, provider, acoustic or installed experiments are required or changed.
 Hosted protected candidate validation retains the full Windows/coverage/installer
 gates independently of focused deterministic implementation checks.
+
+### R10 retained response-mode proposal increment
+
+The existing registered-setting producer, retained-answer review and shared
+expanded/compact confirmation surface accept one canonical
+`responses.default-mode` Set proposal (`Hybrid`, `VoiceOnly`, `VisualOnly`).
+Exact typed/current-name activated review/confirm/cancel use the same host-pinned
+successful source and existing authoritative response-mode writer, not direct
+execution of model text. Review discloses saved/default, desired/configured
+effective mode, shared future-output scope and mandatory visual/privacy/call exceptions.
+
+Fresh original-user confirmation within 60 seconds revalidates the exact source,
+settings and original channel before admitted audited atomic persistence and
+readback. Cancel/expiry/stale authority/duplicate confirmation cannot write;
+unconfirmed persistence remains unavailable with explicit recovery.
+Voice source classification cannot become UI authority at the audio admission.
+See the [owning response-mode contract](User_Configuration.md#retained-model-response-mode-proposal).
+
+This is the bounded approved registered-setting operation, not broader R10
+completion, model write authority, a new setting variant, output replay,
+provider enablement or hardware/acoustic/installed qualification. VoiceOnly
+preserves full mandatory visual output. Existing protected candidate portable
+100% line/branch, Windows and installer gates remain unchanged.
 
 ### R13 selected pending cancellation increment - 2026-10-12
 

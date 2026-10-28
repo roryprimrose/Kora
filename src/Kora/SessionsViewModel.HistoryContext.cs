@@ -1,5 +1,6 @@
 using Kora.Application.Hosting;
 using Kora.Core.Conversation;
+using Kora.Core.Hosting;
 
 namespace Kora;
 
@@ -14,13 +15,15 @@ internal sealed partial class SessionsViewModel
     private bool historyContextOpen;
 
     private bool HistoryContextCurrent => !closed && access.CanInspect && access.CanControl
-        && access.ControlRevision == historyContextControl && selectionEpoch == historyContextSelectionEpoch;
+        && access.ControlRevision == historyContextControl && selectionEpoch == historyContextSelectionEpoch
+        && modelHistorySource?.IsCurrent != false;
     public IReadOnlyList<HistoryContextCandidate> HistoryContextCandidates =>
         HistoryContextCurrent && historyContextOpen ? historyContextCandidates : [];
     public string HistoryContextReviewText => historyContextReview?.Text ?? string.Empty;
     public bool CanOpenHistoryContext => CanCompose && ConversationMessages.Any(message => message.Outcome is not null);
     public bool CanSelectHistoryContext => CanCompose && historyContextOpen && HistoryContextCurrent;
-    public bool CanReviewHistoryContext => CanSelectHistoryContext && ComposerDirty && historyContextSelection.Length != 0;
+    public bool CanReviewHistoryContext => CanSelectHistoryContext && (modelHistorySource is not null || ComposerDirty)
+        && historyContextSelection.Length != 0;
     public bool CanConfirmHistoryContext => CanSelectHistoryContext && historyContextReview?.IsCurrent == true;
 
     internal void OpenHistoryContext()
@@ -57,22 +60,26 @@ internal sealed partial class SessionsViewModel
         var epoch = historyContextEpoch;
         var buffer = composerBufferRevision;
         var body = composerBody;
+        var source = modelHistorySource;
         bool Original() => live() && historyContextOpen && historyContextEpoch == epoch && composerBufferRevision == buffer;
-        var review = await conversation!.ReviewHistoryAsync(target, body, historyContextSelection, Original, lifetime.Token);
+        var review = source is null
+            ? await conversation!.ReviewHistoryAsync(target, body, historyContextSelection, Original, lifetime.Token)
+            : await conversation!.ReviewModelHistoryContextAsync(source, historyContextSelection, Original, lifetime.Token);
         if (!Original()) { review.Dispose(); throw new OperationCanceledException("Original history selection or new request changed."); }
         historyContextReview = review;
         conversationStatus = "Review every selected whole message and the new request below. Confirm separately for one local-only tool-free answer. Nothing submitted yet.";
-    });
+    }, origin: modelHistorySource?.Origin ?? RequestOrigin.LocalUi);
 
     public Task ConfirmHistoryContextAsync() => RunConversationAsync(async (_, live) =>
     {
         var review = historyContextReview ?? throw new InvalidOperationException("Review the exact selected history and request first.");
         var body = composerBody;
+        var modelAdvisory = modelHistorySource is not null;
         try
         {
             var receipt = await conversation!.SubmitHistoryAsync(review, live, lifetime.Token);
             if (!live()) { throw new OperationCanceledException("Private conversation presentation changed."); }
-            if (string.Equals(composerBody, body, StringComparison.Ordinal))
+            if (!modelAdvisory && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
             RememberUnsent();
             conversationPage = null;
@@ -82,11 +89,14 @@ internal sealed partial class SessionsViewModel
                 + " No tools, hosted transfer, memory creation, fallback or automatic retry.";
         }
         finally { ClearHistoryContext(); }
-    }, submission: true);
+    }, submission: true, origin: modelHistorySource?.Origin ?? RequestOrigin.LocalUi);
 
     internal void ClearHistoryContext()
     {
         RetireHistoryContextReview();
+        modelHistoryContextEpoch++;
+        modelHistorySource?.Dispose();
+        modelHistorySource = null;
         historyContextOpen = false;
         historyContextSelection = [];
         historyContextCandidates = [];
@@ -110,7 +120,8 @@ internal sealed partial class SessionsViewModel
     private void NotifyHistoryContext()
     {
         foreach (var name in new[] { nameof(HistoryContextCandidates), nameof(HistoryContextReviewText), nameof(CanOpenHistoryContext),
-            nameof(CanSelectHistoryContext), nameof(CanReviewHistoryContext), nameof(CanConfirmHistoryContext) })
+            nameof(CanSelectHistoryContext), nameof(CanReviewHistoryContext), nameof(CanConfirmHistoryContext),
+            nameof(CanOpenModelHistoryContext), nameof(ModelHistoryContextQuestion) })
         { OnPropertyChanged(name); }
     }
 

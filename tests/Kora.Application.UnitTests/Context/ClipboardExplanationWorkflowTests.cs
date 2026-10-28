@@ -7,6 +7,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Context;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
 using Kora.Application.Tools;
 using Kora.Application.UnitTests.Configuration;
 using Kora.Application.Voice;
@@ -16,6 +17,7 @@ using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 using Kora.Core.Providers;
 using Kora.Core.Storage;
 using Kora.Core.Tools;
@@ -27,7 +29,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Application.UnitTests.Context;
 
 [Collection("Host tracing")]
-public sealed class ClipboardExplanationWorkflowTests
+public sealed partial class ClipboardExplanationWorkflowTests
 {
     [Fact]
     public async Task AcceptedSourceCannotDispatchToolsOrPublishAnAdapterAnswerAfterIgnoringTheDenial()
@@ -50,16 +52,16 @@ public sealed class ClipboardExplanationWorkflowTests
     }
 
     [Fact]
-    public async Task ProductionSourceUsePolicyRemainsUnavailableEvenWithAQualifiedFakeProviderAndExplicitReview()
+    public async Task UnboundProductionPermissionFailsClosedEvenWithAQualifiedProviderAndExplicitReview()
     {
-        await using var fixture = new Fixture(productionSourcePolicy: true);
+        await using var fixture = new Fixture(productionSourcePolicy: true, bindPermissionPresenter: false);
         using var root = fixture.Root();
         fixture.Reader.Text = "apparently ordinary private-marker source";
         (await fixture.Action.ExecuteAsync(null, () => true, fixture.Token)).Outcome.Should().Be(ClipboardExplanationOutcome.ReviewRequired);
         var source = fixture.Broker.Current!;
         (await fixture.Action.ExecuteAsync(source.SnapshotId, () => true, fixture.Token))
             .Outcome.Should().Be(ClipboardExplanationOutcome.SourceUsePolicyUnavailable);
-        fixture.Tasks.Should().BeEmpty();
+        fixture.Tasks.Last().State.Should().Be(HostTaskState.Failed);
         fixture.Adapter.Calls.Should().Be(0);
         fixture.Adapter.Wire.Should().BeNull();
         fixture.Workflow.CurrentExplanation.Should().BeNull();
@@ -72,7 +74,7 @@ public sealed class ClipboardExplanationWorkflowTests
     [Theory]
     [InlineData(ClipboardSourceUseOutcome.Denied, ClipboardExplanationOutcome.SourceUseDenied)]
     [InlineData(ClipboardSourceUseOutcome.Unavailable, ClipboardExplanationOutcome.SourceUsePolicyUnavailable)]
-    public async Task FakeSourcePolicyRefusesBeforeEnvelopeConstructionOrDurableAdmission(
+    public async Task RefusedPermissionCannotConstructContextOrDispatchModel(
         ClipboardSourceUseOutcome policyOutcome, ClipboardExplanationOutcome expected)
     {
         await using var fixture = new Fixture();
@@ -83,7 +85,7 @@ public sealed class ClipboardExplanationWorkflowTests
         var source = fixture.Broker.Current!;
         (await fixture.Action.ExecuteAsync(source.SnapshotId, () => true, fixture.Token)).Outcome.Should().Be(expected);
         fixture.SourcePolicy.Source.Should().BeSameAs(source);
-        fixture.Tasks.Should().BeEmpty();
+        fixture.Tasks.Last().State.Should().Be(HostTaskState.Failed);
         fixture.Adapter.Calls.Should().Be(0);
         fixture.Workflow.CurrentExplanation.Should().BeNull();
         fixture.Audits.Should().OnlyContain(audit => audit.Initiator == SecurityAuditInitiator.VoiceCommand);
@@ -105,7 +107,7 @@ public sealed class ClipboardExplanationWorkflowTests
         };
         (await fixture.Action.ExecuteAsync(fixture.Broker.Current!.SnapshotId, () => eligible, fixture.Token))
             .Outcome.Should().Be(ClipboardExplanationOutcome.Cancelled);
-        fixture.Tasks.Should().BeEmpty();
+        fixture.Tasks.Last().IsTerminal.Should().BeTrue();
         fixture.Adapter.Calls.Should().Be(0);
     }
 
@@ -128,7 +130,7 @@ public sealed class ClipboardExplanationWorkflowTests
         await run.Should().ThrowAsync<Exception>();
         fixture.Audits.Last().Outcome.Should().Be(SecurityAuditOutcome.Unknown);
         fixture.Messages.Should().NotContain(message => message.Contains("private-marker", StringComparison.Ordinal));
-        fixture.Tasks.Should().BeEmpty();
+        fixture.Tasks.Last().State.Should().Be(HostTaskState.Failed);
         fixture.Adapter.Calls.Should().Be(0);
     }
 
@@ -149,7 +151,7 @@ public sealed class ClipboardExplanationWorkflowTests
         (await run).Outcome.Should().Be(ClipboardExplanationOutcome.Cancelled);
         await wait;
         fixture.Adapter.Calls.Should().Be(0);
-        fixture.Tasks.Should().BeEmpty();
+        fixture.Tasks.Last().IsTerminal.Should().BeTrue();
     }
 
     [Fact]
@@ -451,7 +453,6 @@ public sealed class ClipboardExplanationWorkflowTests
     }
 
     [Theory]
-    [InlineData("credential", ClipboardExplanationOutcome.CredentialRejected)]
     [InlineData("oversize", ClipboardExplanationOutcome.EnvelopeRejected)]
     [InlineData("stale", ClipboardExplanationOutcome.Stale)]
     [InlineData("expired", ClipboardExplanationOutcome.Expired)]
@@ -571,6 +572,12 @@ public sealed class ClipboardExplanationWorkflowTests
         internal Clock Time { get; } = new();
         internal Adapter Adapter { get; } = new();
         internal SourceUsePolicy SourcePolicy { get; } = new();
+        internal ClipboardPermissionSourceUsePolicy GrantedPolicy { get; }
+        internal string? GrantChoice { get; set; } = "once";
+        internal int PermissionQuestions { get; private set; }
+        internal Action? BeforePermissionResult { get; set; }
+        internal Func<HostInteractionDecision, HostInteractionDecision>? ChangePermissionResult { get; set; }
+        internal Store Interactions => store;
         internal ClipboardSnapshotBroker Broker { get; }
         internal ClipboardExplanationWorkflow Workflow { get; }
         internal ClipboardExplain Action { get; }
@@ -599,7 +606,8 @@ public sealed class ClipboardExplanationWorkflowTests
         public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception,
             Func<TState, Exception?, string> formatter) => Messages.Add(formatter(state, exception));
-        internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null, bool productionSourcePolicy = false)
+        internal Fixture(bool qualified = true, ClipboardSnapshotBroker? broker = null,
+            bool productionSourcePolicy = false, bool bindPermissionPresenter = true)
         {
             ActivitySource.AddActivityListener(listener);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
@@ -617,10 +625,31 @@ public sealed class ClipboardExplanationWorkflowTests
             if (broker is not null) { Time.Now = DateTimeOffset.UtcNow; }
             Broker = broker ?? new(Reader, Time, NullLogger<ClipboardSnapshotBroker>.Instance);
             if (broker is not null) { Time.ReadTime = () => broker.Current?.CapturedAt ?? Time.Now; }
-            admission = new(store, new(store));
+            admission = new(store, store, new(store));
+            GrantedPolicy = new(store, store, Time);
+            if (bindPermissionPresenter) { GrantedPolicy.BindPresenter(PresentPermission); }
             Workflow = new(Broker, new(Broker), admission, models, this, Time, this,
-                productionSourcePolicy ? new UnavailableClipboardSourceUsePolicy() : SourcePolicy);
+                productionSourcePolicy ? GrantedPolicy : SourcePolicy);
             Action = new(Workflow);
+        }
+        private async Task<HostInteractionDecision> PresentPermission(HostOperationProposal proposal,
+            HostRevision generation, Func<bool> current, CancellationToken token)
+        {
+            store.Interaction = new(store.Tasks.Last(item => item.Request.TaskId == proposal.Request.TaskId),
+                store.Authority!, new(true, true, false, false), proposal, [], store.Interaction?.Grants ?? []);
+            var authorization = new HostAuthorizationService(store, Time);
+            var spec = new QuestionSpec("Allow local clipboard explanation?", QuestionKind.SingleChoice,
+                [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")]);
+            var decision = await authorization.RequestGrantAsync(proposal.Request, spec, token);
+            if (decision is { Outcome: HostInteractionOutcome.Presented, Question: { } question })
+            {
+                PermissionQuestions++;
+                if (GrantChoice is null) { return new(HostInteractionOutcome.Denied, "user-denied"); }
+                var approved = await authorization.ApproveAsync(question.Key, new([GrantChoice]), RequestOrigin.LocalUi, token);
+                decision = await authorization.ConsumeAsync(proposal.Request, approved.Grant!.Id, approved.Grant.Revision, token);
+            }
+            BeforePermissionResult?.Invoke();
+            return ChangePermissionResult is { } change ? change(decision) : decision;
         }
         internal HostActivity Root(RequestOrigin origin = RequestOrigin.LocalUi) =>
             HostActivity.BeginRoot(HostRequest.Create(origin), HostActivityLayer.Application, HostOperation.Request);
@@ -637,8 +666,27 @@ public sealed class ClipboardExplanationWorkflowTests
         }
     }
 
-    private sealed class Store : AudioControlTestStore, ISessionWorkspaceStore
+    internal sealed class Store : AudioControlTestStore, ISessionWorkspaceStore, IHostInteractionStore, ILocalContextTaskStore
     {
+        internal HostInteractionSnapshot? Interaction { get; set; }
+        internal Action? BeforeInteraction { get; set; }
+        public async ValueTask<HostTaskRecord> AdmitLocalContextDispatchAsync(HostRequest request, HostRevision generation,
+            Func<bool> eligible, CancellationToken token)
+        {
+            if (!eligible()) { throw new InvalidOperationException("Local source admission changed."); }
+            var dispatch = Tasks.Last(item => item.Request == request).Next(HostTaskState.DispatchRecorded);
+            await CommitAsync(dispatch, 1, token);
+            return dispatch;
+        }
+        public ValueTask<HostInteractionDecision> TransactAsync(HostRequest request,
+            Func<HostInteractionSnapshot, HostInteractionCommit> transition, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            BeforeInteraction?.Invoke();
+            var commit = transition(Interaction!);
+            Interaction = commit.Snapshot;
+            return ValueTask.FromResult(commit.Decision);
+        }
         internal Action? BeforeMetadata { get; set; }
         internal TaskCompletionSource CreationStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public new async ValueTask<SessionWorkspaceEntry> CreateNamedSessionAsync(HostRequest request,
@@ -675,12 +723,13 @@ public sealed class ClipboardExplanationWorkflowTests
         internal Action? BeforeReturn { get; set; }
         internal TaskCompletionSource<ClipboardSourceUseOutcome>? Pending { get; set; }
         internal ClipboardSnapshot? Source { get; private set; }
-        public Task<ClipboardSourceUseOutcome> EvaluateAsync(ClipboardSnapshot snapshot, CancellationToken token)
+        public Task<ClipboardSourceUseOutcome> EvaluateAsync(ClipboardSnapshot snapshot, Func<bool> current, CancellationToken token)
         {
             Source = snapshot;
             BeforeReturn?.Invoke();
             return Pending?.Task ?? Task.FromResult(Outcome);
         }
+        public Task ValidateAsync(ClipboardSnapshot snapshot, CancellationToken token) => Task.CompletedTask;
     }
 
     private sealed class Reader : IPlainTextClipboardReader

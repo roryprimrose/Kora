@@ -1,10 +1,9 @@
-using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 
 namespace Kora.Core.Context;
 
-/// <summary>Clipboard-only envelope construction after source-use admission; structural screening is not sensitive-content classification.</summary>
+/// <summary>Exact local-only envelope construction after clipboard permission and review.</summary>
 public static class ClipboardExplanationContext
 {
     public static readonly TimeSpan Lifetime = TimeSpan.FromMinutes(15);
@@ -21,7 +20,6 @@ public static class ClipboardExplanationContext
         ArgumentNullException.ThrowIfNull(request);
         if (now < snapshot.CapturedAt || now >= snapshot.CapturedAt + Lifetime)
         { throw new InvalidDataException("The clipboard review expired; request a fresh snapshot explicitly."); }
-        ConversationCredentialScreening.RequireAccepted(snapshot.Text);
         var context = new ModelContextEnvelope(request, Policy, Request,
             [new(new(snapshot.SnapshotId), request, new(snapshot.Version), snapshot.Text, ModelEvidenceDisclosure.LocalOnly)],
             now, now.AddSeconds(15) < snapshot.CapturedAt + Lifetime ? now.AddSeconds(15) : snapshot.CapturedAt + Lifetime,

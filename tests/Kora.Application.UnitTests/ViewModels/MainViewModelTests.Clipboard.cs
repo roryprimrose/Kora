@@ -25,7 +25,6 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(ClipboardExplanationOutcome.ReviewRequired)]
     [InlineData(ClipboardExplanationOutcome.Succeeded)]
-    [InlineData(ClipboardExplanationOutcome.CredentialRejected)]
     [InlineData(ClipboardExplanationOutcome.EnvelopeRejected)]
     [InlineData(ClipboardExplanationOutcome.Expired)]
     [InlineData(ClipboardExplanationOutcome.Stale)]

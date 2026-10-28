@@ -2,7 +2,6 @@ using AwesomeAssertions;
 using System.Text.Json;
 
 using Kora.Core.Context;
-using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 
@@ -79,17 +78,16 @@ public sealed class ClipboardExplanationContextTests
     [InlineData("password=actual-private-value-123")]
     [InlineData("Authorization: Bearer abcdefghijklmnopqrstuvwxyz0123456789")]
     [InlineData("-----BEGIN PRIVATE KEY-----\nreal-material\n-----END PRIVATE KEY-----")]
-    public void ExistingStructuralCredentialScreeningRejectsBeforeModelAdmission(string text)
+    public void ClipboardPermissionDoesNotAddContentClassificationOrCredentialAnalysis(string text)
     {
         var source = Snapshot(text);
-        var create = () => ClipboardExplanationContext.Create(source, source.Request, Now);
-        create.Should().Throw<ConversationCredentialException>();
+        ClipboardExplanationContext.Create(source, source.Request, Now).Evidence[0].Content.Should().Be(text);
     }
 
     [Theory]
     [InlineData("password=example-value")]
     [InlineData("An unrecognised confidential phrase is not guaranteed safe.")]
-    public void StructuralScreeningDoesNotClaimToClassifyAllSecrets(string text)
+    public void UserReviewedContentIsNotReinterpretedOrRedacted(string text)
     {
         var source = Snapshot(text);
         ClipboardExplanationContext.Create(source, source.Request, Now).Evidence[0].Content.Should().Be(text);

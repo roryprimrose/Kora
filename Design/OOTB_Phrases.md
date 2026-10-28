@@ -150,7 +150,7 @@ Re-running a completed task is a new request with new context/permissions, not r
 | Canonical phrase | Behaviour |
 |---|---|
 | "Preview clipboard" / "Snapshot clipboard" | Delivered: fresh explicit bounded plain-text snapshot and immutable local native preview; no model submission |
-| "Explain the clipboard" | Delivered preview only; explanation unavailable pending qualified local tool-loop/answering gates |
+| "Explain the clipboard" | Native exact-snapshot review, separate model confirmation and clipboard tool permission; genuine volatile local answer only with a qualified runtime, otherwise explicit unavailability |
 | "Reuse clipboard snapshot {exact ID}" / "Revoke clipboard snapshot" | Delivered: explicit same-ID selection without rereading, or discard Kora preview without changing the clipboard |
 | "Use the clipboard" | Planned broader task-context selection under normal secret/destination/egress policy |
 | "Repeat the summary" | Repeat existing summary if speech policy permits; do not rerun tools |

@@ -167,8 +167,10 @@ never grant capture consent.
 ## 5. Context and clipboard
 
 **Current:** explicit local immutable clipboard preview, same-ID reuse and
-revoke; no polling, write, history or model submission. **Explain the clipboard**
-reports explanation unavailable.
+revoke; no polling, write or history. Permission-granted local explanation requires
+separate exact-snapshot confirmation and a qualified local runtime. **Explain the clipboard**
+opens that exact native snapshot for review; missing permission or runtime readiness
+is explicitly unavailable.
 See [clipboard commands](commands.md#explicit-local-clipboard-preview).
 
 ## 6. Typed configuration

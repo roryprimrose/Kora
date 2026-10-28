@@ -681,7 +681,9 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
         services.AddSingleton<Kora.Application.Context.ClipboardExplanationAdmission>();
         services.AddSingleton<Kora.Application.Context.ClipboardExplanationWorkflow>();
-        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy, Kora.Tools.Clipboard.UnavailableClipboardSourceUsePolicy>();
+        services.AddSingleton<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>());
         services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
             provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();

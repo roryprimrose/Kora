@@ -69,6 +69,24 @@ gated; authoritative questions/approvals and management surfaces are not redesig
 by this decision. The workspace contract records the exact delivered subset and
 deterministic evidence separately from renderer/provider/native qualification.
 
+## Clipboard explanation permission - 2026-10-28
+
+The product owner explicitly approved the built-in clipboard tool's permission
+grant as sufficient source-use authority, with denial, Once, Session and permanent
+approval scopes. The user is responsible for sensitive material placed in the
+clipboard and explicitly submitted to Kora; no clipboard-specific content
+classification or analysis is required. This supersedes the earlier requirement
+for an affirmative sensitivity classifier and does not add a separate user
+classification attestation.
+
+The [clipboard data-flow contract](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)
+owns the exact boundary: each reviewed snapshot still requires its own one-use
+local-model confirmation, independent of the reusable tool grant. Local-only,
+no-tools execution, private volatile presentation, expiry, revocation, actual
+resource joins and independent runtime qualification remain mandatory.
+This advances approved model interaction and readable results; the host owns
+clipboard permission and native disclosure, not an extension-provided classifier.
+
 ## Decision inventory
 
 | ID | Decision | Owner | Due before | Status | Required evidence |

@@ -32,6 +32,25 @@ See [native editor commands, bounds and recovery](instruction-editor.md).
 
 ## Authoritative Sessions work
 
+### Stop all submitted work without exiting
+
+Open **All Work**, then deliberately choose **Stop all work…**. Opening,
+Refresh/Search, Find, filtering and selection never stop work. This separate
+control reviews the complete host-owned affected set across conversations,
+including work outside the loaded overview. Confirm the exact review separately,
+or cancel without requesting a stop. A voice-origin review still needs its
+original voice channel; native input cannot silently substitute for it.
+
+The status remains reviewing/stopping/joining until the actual operation returns.
+Closing a view before confirmation cancels its review; closing after acceptance
+does not abandon resource joins. Completed, partial-unconfirmed, stale, cancelled
+and nothing-to-stop outcomes are distinct. An empty overview is never evidence
+that there is nothing to stop.
+
+Kora remains open. Unsent composers and editors, history and grants are untouched.
+Existing per-conversation cancellation/failure holds remain; use fresh Resume
+where required. See [the exact command and exceptions](commands.md#stop-all-submitted-work).
+
 ### Expand and collapse the interaction window
 
 Use **Tray > Show sessions**, **Show sessions** in the response header,

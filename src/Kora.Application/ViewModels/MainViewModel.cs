@@ -4686,6 +4686,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         long speechRevision, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ManualCallInput? originalInput = null)
     {
+        if (await TryRouteStopAllWorkAsync(spokenText, confidence, initiator, originalInput)) { return; }
         if (InputDeviceCommand.Parse(spokenText, AssistantName) is { } inputCommand)
         {
             await ExecuteInputDeviceCommandAsync(inputCommand, initiator);
@@ -4887,7 +4888,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
 
-        await ExecuteAsync(match.Command, initiator);
+        await ExecuteAsync(match.Command, initiator, sourceCurrent: originalInput?.Eligible);
         if (ShouldSpeakResponse(match.Command.Action))
         {
             await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
@@ -5347,7 +5348,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     internal static bool ModelActionRequiresApproval(BuiltInAction action) => action switch
     {
         BuiltInAction.HideApplication or BuiltInAction.ExitApplication
-            or BuiltInAction.RestartApplication or BuiltInAction.CancelTask
+            or BuiltInAction.RestartApplication or BuiltInAction.CancelTask or BuiltInAction.StopAllWork
             or BuiltInAction.LockMachine or BuiltInAction.ProposeShutdown
             or BuiltInAction.ProposeRestart or BuiltInAction.EnableLocalModels
             or BuiltInAction.DisableLocalModels or BuiltInAction.EnableHostedModels
@@ -5828,6 +5829,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             BuiltInAction.HideApplication
             or BuiltInAction.ExitApplication
             or BuiltInAction.RestartApplication
+            or BuiltInAction.StopAllWork
             or BuiltInAction.StopSpeaking
             or BuiltInAction.LockMachine);
 
@@ -5909,11 +5911,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     internal async Task ExecuteAsync(
         CommandDefinition command,
         SecurityAuditInitiator initiator = SecurityAuditInitiator.System,
-        long? observedCallRevision = null)
+        long? observedCallRevision = null,
+        Func<bool>? sourceCurrent = null)
     {
         if (!IsHostInputEligible)
         {
             ApplicationLog.Information(logger, "Denied command dispatch outside the eligible host generation");
+            return;
+        }
+        if (command.Action == BuiltInAction.StopAllWork && initiator == SecurityAuditInitiator.ModelSuggestion)
+        {
+            ShowInformation("Model Stop All is unavailable.",
+                "No model or reusable action grant can authorize global stopping. Use original typed input, activated voice or native All Work for a fresh exact review.");
             return;
         }
         if (initiator == SecurityAuditInitiator.ModelSuggestion && ModelActionRequiresApproval(command.Action)
@@ -6037,6 +6046,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 break;
             case BuiltInAction.CancelTask:
                 await CancelCurrentTaskAsync();
+                break;
+            case BuiltInAction.StopAllWork:
+                await StopAllWorkAsync(sourceCurrent);
                 break;
             case BuiltInAction.StopSpeaking:
                 await StopSpeakingAsync();

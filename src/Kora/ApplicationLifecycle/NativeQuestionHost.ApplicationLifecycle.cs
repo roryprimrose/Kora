@@ -7,7 +7,8 @@ namespace Kora;
 
 internal sealed partial class NativeQuestionHost
 {
-    internal async Task<bool> AskApplicationLifecycleAsync(HostRequest request, string prompt, DateTimeOffset expiresAt,
+    internal async Task<bool> AskApplicationLifecycleAsync(HostRequest request, ApplicationLifecycleOperation operation,
+        string prompt, DateTimeOffset expiresAt,
         Func<bool> admitted, HostTaskCoordinator tasks, Func<NativeQuestionViewModel, Task> present, CancellationToken token)
     {
         if (disposed || !canInteract() || !admitted()
@@ -29,9 +30,12 @@ internal sealed partial class NativeQuestionHost
                 ?? new(Eligible(), false, false, true);
             await store.PublishTrustedSnapshotAsync(request, policy, null, expectedObservationRevision: 0, token);
             var spec = new QuestionSpec(prompt, QuestionKind.SingleChoice,
-                [new("confirm", "Confirm: stop reviewed requests, join resources, then continue"),
+                [new("confirm", operation == ApplicationLifecycleOperation.StopAllWork
+                    ? "Confirm: stop reviewed requests, join resources, keep Kora open"
+                    : "Confirm: stop reviewed requests, join resources, then continue"),
                     new("cancel", "Cancel: keep submitted requests unchanged")],
-                purpose: "application-lifecycle", sourceId: "host-application-lifecycle");
+                purpose: operation == ApplicationLifecycleOperation.StopAllWork ? "stop-all-work" : "application-lifecycle",
+                sourceId: operation == ApplicationLifecycleOperation.StopAllWork ? "host-stop-all-work" : "host-application-lifecycle");
             var created = await questions.CreateAsync(request, spec, expiresAt, token);
             if (!Eligible() || created is not { Outcome: HostInteractionOutcome.Presented, Question: { } initial })
             { throw new InvalidOperationException("Application lifecycle confirmation could not be durably presented."); }

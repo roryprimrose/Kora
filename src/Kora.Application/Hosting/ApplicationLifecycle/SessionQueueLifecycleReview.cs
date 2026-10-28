@@ -21,5 +21,7 @@ public sealed class SessionQueueLifecycleReview : IDisposable
     public RequestOrigin Origin { get; }
     public DateTimeOffset ExpiresAt { get; }
     public bool Joined { get; internal set; }
+    public bool StopAccepted => Consumed;
+    public ImmutableArray<SessionQueueSnapshot> TerminalQueues { get; internal set; } = [];
     public void Dispose() => release(this);
 }

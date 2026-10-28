@@ -19,6 +19,10 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("how far along is the current task", BuiltInAction.ShowCurrentTaskProgress)]
     [InlineData("stop listening", BuiltInAction.DisableListening)]
     [InlineData("Kora, disable listening.", BuiltInAction.DisableListening)]
+    [InlineData("stop all work", BuiltInAction.StopAllWork)]
+    [InlineData("Kora, STOP ALL WORK!", BuiltInAction.StopAllWork)]
+    [InlineData("stop", BuiltInAction.CancelTask)]
+    [InlineData("stop speaking", BuiltInAction.StopSpeaking)]
     public void Match_recognizes_exact_built_in_phrases(string transcript, BuiltInAction expectedAction)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -77,6 +81,11 @@ public sealed class BuiltInCommandRouterTests
     [InlineData("stop listening and exit")]
     [InlineData("enable listening")]
     [InlineData("voice unmute")]
+    [InlineData("please stop all work")]
+    [InlineData("stop all")]
+    [InlineData("stop all work and exit")]
+    [InlineData("explain stop all work")]
+    [InlineData("stop all works")]
     public void Match_rejects_ambiguous_or_non_command_text(string transcript)
     {
         var router = new BuiltInCommandRouter(catalog);
@@ -93,6 +102,22 @@ public sealed class BuiltInCommandRouterTests
         var phrases = catalog.GetCommands().SelectMany(command => command.AllPhrases).ToArray();
 
         phrases.Should().HaveCount(phrases.Distinct(StringComparer.OrdinalIgnoreCase).Count());
+    }
+
+    [Theory]
+    [InlineData("Stop")]
+    [InlineData("Stop All")]
+    [InlineData("Stop All Work")]
+    [InlineData("Nova")]
+    public void Stop_all_work_is_an_exact_original_command_with_no_new_aliases(string name)
+    {
+        var commands = catalog.GetCommands(name);
+        var command = commands.Single(item => item.Action == BuiltInAction.StopAllWork);
+        command.Aliases.Should().BeEmpty();
+        command.SupportsModelSuggestion.Should().BeFalse();
+        ((int)BuiltInAction.DisableListening).Should().Be(25);
+        ((int)command.Action).Should().Be(26);
+        new BuiltInCommandRouter(catalog).Match($"{name}, stop all work", name).Command.Should().Be(command);
     }
 
     [Fact]

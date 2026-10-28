@@ -254,7 +254,7 @@ internal sealed partial class AllWorkViewModel(
             operation = null;
             busy = false;
             Notify();
-            if (closed && !closing) { lifetime.Dispose(); }
+            if (closed && !closing && !stopAllBusy) { lifetime.Dispose(); }
         }
     }
 
@@ -288,9 +288,10 @@ internal sealed partial class AllWorkViewModel(
         queryKind = SessionListSearchKind.NameSubstring;
         needsAnswer = false;
         status = string.Empty;
+        RetireStopAllPresentation();
         lifetime.Cancel();
         closing = false;
-        if (!busy) { lifetime.Dispose(); }
+        if (!busy && !stopAllBusy) { lifetime.Dispose(); }
         Notify();
     }
 
@@ -302,6 +303,7 @@ internal sealed partial class AllWorkViewModel(
 
     private void Notify()
     {
+        NotifyStopAll();
         if (find is not null && !FindCurrent()) { RetireFind(); }
         OnPropertyChanged(nameof(Records));
         OnPropertyChanged(nameof(Order));

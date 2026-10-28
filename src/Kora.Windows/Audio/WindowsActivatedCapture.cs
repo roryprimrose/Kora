@@ -13,7 +13,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
     private readonly Lock sync = new();
     private readonly Lock releaseSync = new();
     private readonly SpeechRecognitionEngine recognizer;
-    private readonly WasapiRecorder recorder;
+    private readonly WasapiRecorder? recorder;
     private readonly MMDevice? endpoint;
     private readonly MicrophoneDevice microphone;
     private readonly Func<bool> canStart;
@@ -26,7 +26,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
 
     public WindowsActivatedCapture(
         SpeechRecognitionEngine recognizer,
-        WasapiRecorder recorder,
+        WasapiRecorder? recorder,
         MMDevice? endpoint,
         MicrophoneDevice microphone,
         Func<bool> canStart)
@@ -41,8 +41,11 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
         recognizer.SpeechHypothesized += OnSpeechHypothesized;
         recognizer.SpeechRecognitionRejected += OnSpeechRejected;
         recognizer.RecognizeCompleted += OnCompleted;
-        recorder.DataAvailable += OnDataAvailable;
-        recorder.RecordingStopped += OnRecordingStopped;
+        if (recorder is not null)
+        {
+            recorder.DataAvailable += OnDataAvailable;
+            recorder.RecordingStopped += OnRecordingStopped;
+        }
     }
 
     public event ActivatedAudioAvailable? DataAvailable;
@@ -78,7 +81,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
 
             recognizer.RecognizeAsync(RecognizeMode.Single);
             started = true;
-            recorder.StartRecording();
+            recorder?.StartRecording();
         }
     }
 
@@ -92,7 +95,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
             }
 
             Interlocked.Exchange(ref releaseRequested, 1);
-            recorder.DataAvailable -= OnDataAvailable;
+            if (recorder is not null) { recorder.DataAvailable -= OnDataAvailable; }
             var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
             recorderRelease = released.Task;
             _ = Task.Run(() => ReleaseRecorderCoreAsync(released), CancellationToken.None);
@@ -107,7 +110,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
         {
             try
             {
-                if (sync.TryEnter())
+                if (recorder is not null && sync.TryEnter())
                 {
                     try
                     {
@@ -118,7 +121,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
                         sync.Exit();
                     }
                 }
-                else
+                else if (recorder is not null)
                 {
                     await Task.Run(() =>
                     {
@@ -131,7 +134,7 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
             }
             finally
             {
-                await recorder.DisposeAsync();
+                if (recorder is not null) { await recorder.DisposeAsync(); }
                 Volatile.Write(ref recorderReleasedTimestamp, Stopwatch.GetTimestamp());
             }
 
@@ -166,16 +169,17 @@ internal sealed class WindowsActivatedCapture : IActivatedCapture, IActivatedHyp
             await ReleaseRecorder();
             FinishRecognition(cancel: true);
 #pragma warning disable VSTHRD003 // Native recognition completion is event-driven, not UI-bound.
-            await Completion.WaitAsync(TimeSpan.FromSeconds(2));
+            if (recorder is null) { await Completion; }
+            else { await Completion.WaitAsync(TimeSpan.FromSeconds(2)); }
 #pragma warning restore VSTHRD003
         }
-        catch (TimeoutException)
+        catch (TimeoutException) when (recorder is not null)
         {
             // The recorder is already released; a broken recognizer cannot retain the microphone.
         }
         finally
         {
-            recorder.RecordingStopped -= OnRecordingStopped;
+            if (recorder is not null) { recorder.RecordingStopped -= OnRecordingStopped; }
             recognizer.SpeechDetected -= OnSpeechDetected;
             recognizer.SpeechRecognized -= OnSpeechRecognized;
             recognizer.SpeechHypothesized -= OnSpeechHypothesized;

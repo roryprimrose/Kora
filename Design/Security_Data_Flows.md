@@ -353,6 +353,17 @@ unrelated pre-activation audio, audio before/after the reply generation, and
 known Kora/device playback.
 Empty activations expire locally without acquiring clipboard or other context.
 
+The [span-end implementation](Speech_Input.md#span-end-implementation-decision---2026-10-28)
+uses a single local keyword-only native search and an original-PCM inclusive
+segment end, not a token-start timestamp or a silence estimate. Only the exact
+post-name interval opens the existing command recognizer, with no second
+microphone. Native logs/dumps are disabled; model/VAD state, pre-roll and
+command PCM are volatile. A default-deny live host gate rechecks admission and
+known playback before/after native work. Retirement rejects queued audio and
+finals permanently, and ownership remains held through actual native joins.
+No exact payload/name/playback profile is admitted yet: this implementation
+does not enable ambient capture or qualify device playback exclusion.
+
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).
 Device reconnection cannot reopen capture, and stale pre-failure input cannot approve actions.

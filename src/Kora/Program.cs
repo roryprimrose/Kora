@@ -405,6 +405,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>
             new LocalPreapprovedUriPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PreapprovedUriConfigurationService>();
+        services.AddSingleton<Kora.Application.Interaction.PermissionGrantManagementService>();
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriConfiguration>(provider =>
             provider.GetRequiredService<PreapprovedUriConfigurationService>());
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriList>();
@@ -673,7 +674,7 @@ internal static class Program
         services.AddSingleton<ISpeechPreparationService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
         services.AddSingleton<Kora.Application.Voice.SpeechPreparationCoordinator>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
-        services.AddSingleton<Kora.Core.Skills.IBundledScriptWorker, Kora.Windows.Skills.WindowsBundledScriptWorker>();
+        BundledRuntimeSetupComposition.Configure(services);
         services.AddSingleton<Kora.Core.Skills.IFixedSessionEffect, Kora.Windows.Skills.WindowsFixedSessionEffect>();
         services.AddSingleton<Kora.Tools.SessionControl.FixedSessionActionBroker>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();

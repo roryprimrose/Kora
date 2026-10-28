@@ -160,6 +160,8 @@ internal sealed partial class SessionsWindowController(
     internal Action? OpenAllWork { get; set; }
     internal Action? OpenNewRequest { get; set; }
     internal Action? OpenRetainedAttachments { get; set; }
+    internal Action<HostId<SessionIdentity>, Func<bool>>? OpenPermissionGrants { get; set; }
+    internal Action? SynchronizePermissionGrants { get; set; }
     internal QuestionWindowController? ConversationQuestions { get; set; }
     internal async Task<bool> PrepareShutdown()
     {
@@ -384,6 +386,14 @@ internal sealed partial class SessionsWindowController(
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
             localHandoff: localHandoff);
         model.BindDictation(main.ComposerDictation);
+        model.PropertyChanged += OnPermissionSourceChanged;
+        model.InspectPermissionGrants = (target, admitted) =>
+        {
+            if (disposed || !main.CanRevealPrivatePresentation || OpenPermissionGrants is null || !admitted())
+            { throw new InvalidOperationException("The selected session permission surface is unavailable."); }
+            var source = model;
+            OpenPermissionGrants(target, () => !disposed && ReferenceEquals(model, source) && admitted());
+        };
         model.PresentEvidenceDetails = (page, admitted, validate) =>
         {
             if (DetailOwner() is not ResponseWindow primary)
@@ -466,9 +476,14 @@ internal sealed partial class SessionsWindowController(
     private void ReleaseUnusedPresentation()
     {
         if (window is not null || compact is not null || interaction is not null) { return; }
+        if (model is not null) { model.PropertyChanged -= OnPermissionSourceChanged; }
         model = null;
         presentation = null;
+        SynchronizePermissionGrants?.Invoke();
     }
+
+    private void OnPermissionSourceChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args) =>
+        SynchronizePermissionGrants?.Invoke();
 
     private void OnAnswerSourceChanging(HostId<SessionIdentity> session)
     {
@@ -583,6 +598,10 @@ internal sealed partial class SessionsWindowController(
         service.SessionMetadataChanging -= OnAnswerSourceChanging;
         service.SessionMetadataChanging -= OnDictationSourceChanging;
         presentation?.Revoke();
+        if (model is not null) { model.PropertyChanged -= OnPermissionSourceChanged; }
+        SynchronizePermissionGrants?.Invoke();
+        SynchronizePermissionGrants = null;
+        OpenPermissionGrants = null;
         window = null;
         compact = null;
         interaction = null;

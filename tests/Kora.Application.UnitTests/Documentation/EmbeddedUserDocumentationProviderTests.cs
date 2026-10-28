@@ -121,7 +121,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.NotContain("**Speech & audio settings...**")
             .And.NotContain("**Evidence & diagnostics...**");
         var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
-        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**")
+        settings.Should().Contain("**Settings > Approvals > Permission grants...**")
             .And.NotContain("double-clicking the tray icon")
             .And.NotContain("bold **Settings...**");
     }
@@ -436,7 +436,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
         volumeSuggestion.Should().Contain("Review is inert").And.Contain("60 seconds").And.Contain("Original voice");
         sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
             .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
-            .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
+            .And.Contain("exact-destination permission grant").And.Contain("This session/Always grant is reused")
+            .And.Contain("unqualified local model remains explicitly unavailable");
         var speechSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant speech limit suggestion", StringComparison.Ordinal));
         foreach (var phrase in SpeechSummarySuggestionCommand.FixedPhrases)

@@ -81,6 +81,8 @@ internal sealed partial class NativeQuestionHost
                 : mcpReview is not null
                     ? await authorization.PresentMcpOnceAsync(request, mcpReview, token)
                     : await authorization.PresentWebPageOnceAsync(request, webAddress!, token);
+            if (webProposal is not null && created.Outcome == HostInteractionOutcome.Consumed && Eligible())
+            { return new(null, created); }
             if (created.Outcome != HostInteractionOutcome.Presented || created.Question is not { } initial
                 || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The exact clarification could not be durably presented."); }

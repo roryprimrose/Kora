@@ -42,7 +42,8 @@ Inline code stays ordinary monospace text.
 Only an allowlisted fence identifier chooses a language for Markdown. Unknown,
 conflicting or absent identifiers remain plain code. Trusted host language and
 immutable snapshot filename metadata have precedence in the shared policy;
-document prose and document-supplied paths cannot provide that metadata. This does not add a standalone file-opening route.
+document prose and document-supplied paths cannot provide that metadata. This
+does not introduce a standalone file-opening route.
 
 Each tokenization is limited to 32 KiB UTF-8, 1,024 lines, 2,048 tokens,
 64 nested punctuation pairs and 100 ms. Invalid Unicode and exceeded limits
@@ -57,4 +58,5 @@ Plain text, punctuation, whitespace and diff markers remain available without
 color. Screen readers receive source text, not a token-category narration.
 
 Mermaid remains a separate, unavailable rendering profile; a Mermaid fence does
-not load a diagram engine or select a syntax plugin. Syntax colors do not promise that every screen-reader setup has been verified.
+not load a diagram engine or select a syntax plugin. Syntax colors are
+not installed screen-reader or accessibility qualification.

@@ -93,6 +93,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             if (command.Action is "Request") { window!.Input.Text = command.Argument; Retire(); inputOrigin = requestOrigin; return; }
             if (command.Action is "Target")
             {
+                if (modelProposal is not null)
+                { throw new InvalidOperationException("A model proposal cannot change its original conversation."); }
                 var rows = window!.Targets.ItemsSource as AgentTarget[];
                 window.Targets.SelectedItem = rows?.SingleOrDefault(row =>
                     string.Equals(row.Entry.Authority.SessionId.Value.ToString("D"), command.Argument, StringComparison.OrdinalIgnoreCase))
@@ -139,6 +141,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
 
     private async Task ReadTargetsAsync(string action, AgentRunWindow opened, Func<bool> eligible, CancellationToken token)
     {
+        if (modelProposal is not null)
+        { throw new InvalidOperationException("A model proposal is fixed to its exact original conversation; start a fresh original request to change it."); }
         Guid? after = action is "Targets" ? null : next ?? throw new InvalidOperationException("No next page. Refresh conversations.");
         Retire();
         var page = await workspace.ReadMetadataAsync(after, 25, token);
@@ -204,6 +208,8 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                 revision = inputRevision;
                 var target = (opened.Targets.SelectedItem as AgentTarget)?.Entry
                     ?? throw new InvalidOperationException("Select one current Active conversation.");
+                if (modelProposal is { } proposed && target != proposed.Target)
+                { throw new InvalidOperationException("The proposed agent must use its exact original conversation, not another native selection."); }
                 using (var original = HostActivity.BeginRoot(HostRequest.Create(inputOrigin), HostActivityLayer.Desktop,
                     HostOperation.Request, [new(activity.Activity!.Context)]))
                 {
@@ -220,6 +226,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
                     }
                 }
                 namedSelection?.ValidateSource(review.Profile.Document);
+                ValidateProposedProfile(review.Profile);
                 if (!Current()) { await workflow.RevokeAsync(review); review = null; return; }
                 if (review.Skill is not null) { ShowSkillProfile(opened, review); }
                 else if (review.References is { } referenced)
@@ -248,6 +255,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
             {
                 var captured = review ?? throw new InvalidOperationException("Review the exact invocation first.");
                 opened.Confirm.IsEnabled = false;
+                if (modelProposal is { } proposal) { await proposal.ValidateAsync(token); }
                 opened.Status.Text = "Executing one serial bounded run. Stop/revoke remains available; resource release requires actual quiescence.";
                 var result = await workflow.InvokeAsync(captured, origin, token);
                 if (!Current()) { return; }
@@ -308,6 +316,7 @@ internal sealed partial class AgentRunController(MainViewModel main, BoundedAgen
         namedSelection = null;
         namedEligibility = null;
         namedCommand = null;
+        modelProposal = null;
         captured?.Dispose();
         cancellation?.Cancel();
         opened?.Clear();

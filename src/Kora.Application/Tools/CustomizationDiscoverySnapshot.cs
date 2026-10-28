@@ -1,5 +1,7 @@
 using System.Collections.Immutable;
 
+using Kora.Application.Agents;
+using Kora.Core.Agents;
 using Kora.Core.Artifacts;
 using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
@@ -30,7 +32,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     internal CustomizationDiscoverySnapshot(ICustomizationMetadataStore sources, ArtifactCatalogue catalogue,
         IArtifactUsePolicy use, ImmutableArray<CustomizationMetadataObservation> observations,
         ImmutableArray<CustomizationMetadata> records, SessionWorkspaceEntry target, string originalRequest,
-        Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted, TimeProvider time)
+        Kora.Core.Hosting.RequestOrigin origin, Func<bool> admitted, TimeProvider time, bool proposeAgent = false)
     {
         this.sources = sources;
         this.catalogue = catalogue;
@@ -38,6 +40,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
         this.observations = observations;
         this.admitted = admitted;
         this.time = time;
+        ProposeAgent = proposeAgent;
         Records = records;
         Target = target;
         OriginalRequest = originalRequest;
@@ -55,6 +58,8 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
     public ImmutableArray<CustomizationMetadata> Records { get; }
     public SessionWorkspaceEntry Target { get; }
     public string OriginalRequest { get; }
+    public bool ProposeAgent { get; }
+    public ProposedBoundedAgentUse? AgentProposal { get; private set; }
     public Kora.Core.Hosting.RequestOrigin Origin { get; }
     public DateTimeOffset ExpiresAt { get; }
     private DateTimeOffset CreatedAt { get; }
@@ -148,9 +153,44 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
         finally { callback.Release(); }
     }
 
-    internal ModelTurnResult Resolve(ModelTurnResult result) => served.Count == 0
-        ? new(ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected, result.Provenance)
-        : result with
+    internal ModelTurnResult Resolve(ModelTurnResult result)
+    {
+        if (served.Count == 0)
+        { return new(ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected, result.Provenance); }
+        if (ProposeAgent)
+        {
+            ModelAgentUseProposal proposal;
+            try { proposal = ModelAgentUseProposal.Parse(result.Response!.Answer!); }
+            catch (InvalidDataException)
+            { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
+            var record = Records.SingleOrDefault(item => string.Equals(item.Ref, proposal.Reference, StringComparison.Ordinal));
+            if (!Current || record is null || !served.Contains(proposal.Reference)
+                || record.Kind != CustomizationKind.Agent || !record.Enabled)
+            { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
+            var observed = observations[Records.IndexOf(record)];
+            var candidates = catalogue.Candidates;
+            var definition = candidates.SingleOrDefault(item =>
+                string.Equals(item.UseControlId, observed.Source.Id, StringComparison.Ordinal)
+                && string.Equals(item.Id, observed.ArtifactId, StringComparison.Ordinal)
+                && string.Equals(item.Digest, observed.Digest, StringComparison.Ordinal));
+            if (definition is not { Kind: ArtifactKind.Agent, IsUseEnabled: true, IsUseDisabled: false })
+            { return new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, result.Provenance); }
+            bool ProposalCurrent() => admitted() && time.GetUtcNow() >= CreatedAt && time.GetUtcNow() < ExpiresAt
+                && use.Revision == useRevision && catalogue.ReloadFailureRevision == reloadFailureRevision
+                && !catalogue.IsReloadUnavailable && ReferenceEquals(catalogue.Candidates, candidates)
+                && !use.IsDisabled(observed.Source.Id);
+            AgentProposal = new(definition, observed, sources, Target, OriginalRequest, Origin, ProposalCurrent);
+            return result with
+            {
+                Response = result.Response! with
+                {
+                    Answer = $"Proposed agent: {definition.Name}. No agent has run. "
+                        + "Review the complete exact source, original request and original conversation in the private native agent review, "
+                        + "then separately confirm once. This recommendation is not an answer from the agent or invocation authority.",
+                },
+            };
+        }
+        return result with
         {
             Response = result.Response! with
             {
@@ -158,6 +198,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
                     + "only the selected subset was considered. Metadata is not executable readiness or invocation.",
             },
         };
+    }
 
     public void Dispose()
     {

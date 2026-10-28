@@ -989,6 +989,11 @@ uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
 
+A separate [read permission question](commands.md#explicit-local-clipboard-preview)
+appears before the first native read unless an applicable read grant already
+exists. Choose Once, This session or Always, or Cancel question to deny without
+reading. That read grant does not authorize explanation.
+
 To explain it, separately confirm **I reviewed this exact text and confirm one
 local-only explanation**, then choose **Review and explain locally**. The built-in
 tool's permission question supports denial, Once, This session and Always.

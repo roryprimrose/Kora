@@ -17,13 +17,24 @@ internal sealed partial class NativeQuestionHost
         QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
         purpose: "authorization", sourceId: "clipboard-local-explanation");
 
+    private static readonly QuestionSpec ClipboardReadPermissionSpec = new(
+        "Allow the built-in clipboard tool to read one current plain-text snapshot into a volatile native preview? "
+        + "You are responsible for sensitive material you place in the clipboard. Kora does not classify or scan it. "
+        + "Once permits this read; This session and Always permit subsequent explicitly requested reads within that scope. "
+        + "Cancel question denies this request without reading the clipboard or creating a grant. "
+        + "This does not authorize model use, writing, speech or history.",
+        QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
+        purpose: "authorization", sourceId: "clipboard-read");
+
     internal async Task<HostInteractionDecision> RequestClipboardPermissionAsync(
         HostOperationProposal proposal, HostRevision generation, Func<bool> admitted,
         Func<NativeQuestionViewModel, Task> present, CancellationToken token)
     {
         var request = proposal.Request;
+        var read = proposal.Binding == ClipboardPermissionSourceUsePolicy.CreateReadBinding();
         if (disposed || !canInteract() || !admitted() || HostActivity.RequireCurrent().Request != request
-            || request.Origin != RequestOrigin.LocalUi || proposal.Binding != ClipboardPermissionSourceUsePolicy.CreateBinding()
+            || !Kora.Core.Context.ClipboardCommand.IsDeliberateOrigin(request.Origin)
+            || (!read && proposal.Binding != ClipboardPermissionSourceUsePolicy.CreateBinding())
             || proposal.Effect != HostOperationEffect.BoundedRead || callObservation is null
             || Interlocked.CompareExchange(ref waiting, 1, 0) != 0)
         { throw new InvalidOperationException("The exact native clipboard permission presenter is unavailable."); }
@@ -43,7 +54,7 @@ internal sealed partial class NativeQuestionHost
             await store.PublishTrustedSnapshotAsync(request,
                 callObservation().Authorization(Eligible(), mandatoryGatesSatisfied: true),
                 proposal, expectedObservationRevision: 0, token);
-            var decision = await authorization.RequestGrantAsync(request, ClipboardPermissionSpec, token);
+            var decision = await authorization.RequestGrantAsync(request, read ? ClipboardReadPermissionSpec : ClipboardPermissionSpec, token);
             if (decision.Outcome != HostInteractionOutcome.Presented) { return decision; }
             if (decision.Question is not { } initial || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The clipboard permission question was not durably presented."); }

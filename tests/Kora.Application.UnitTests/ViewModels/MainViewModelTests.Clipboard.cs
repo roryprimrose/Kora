@@ -9,6 +9,12 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    private sealed class ClipboardReadFixtureWorkflow(Kora.Tools.Clipboard.ClipboardSnapshotBroker broker)
+        : IClipboardReadWorkflow
+    {
+        public Task<ClipboardOutcome> ReadAsync(Func<bool> eligible, CancellationToken token) =>
+            broker.CaptureAsync(eligible, token);
+    }
     private sealed class PreviewExplanation(Kora.Tools.Clipboard.ClipboardSnapshotBroker broker) : IClipboardExplanationWorkflow
     {
         public ClipboardExplanationResult? Result { get; set; }

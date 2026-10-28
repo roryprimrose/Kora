@@ -8777,7 +8777,7 @@ public sealed partial class MainViewModelTests : IDisposable
                     NullLogger<AppearanceConfigurationService>.Instance),
                 SpeechConfiguration,
                 clipboard,
-                new Kora.Tools.Clipboard.ClipboardRead(clipboard),
+                new Kora.Tools.Clipboard.ClipboardRead(new ClipboardReadFixtureWorkflow(clipboard)),
                 new Kora.Tools.Clipboard.ClipboardReuse(clipboard),
                 new Kora.Tools.Clipboard.ClipboardRevoke(clipboard),
                 clipboardAction,

@@ -901,10 +901,17 @@ These exact commands use the local clipboard preview workflow without a model:
 
 | Exact command | Result |
 |---|---|
-| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
+| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Require a clipboard read grant, then read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
 | **explain clipboard** / **explain the clipboard** | Review the immutable snapshot in its native preview; inference requires a separate confirmation and clipboard tool permission |
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
+
+Before any fresh read, the [host read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)
+validates a clipboard read grant. The native permission question offers Once,
+This session and Always; Cancel question denies without reading. Original input,
+built-in tool status and model-generated requests do not replace permission.
+A read grant does not authorize explanation; model use retains its separate
+grant and exact-snapshot confirmation.
 
 **clipboard snapshot status {snapshot-id}** reports only whether that exact
 currently admitted immutable snapshot is present, its host snapshot ID and its

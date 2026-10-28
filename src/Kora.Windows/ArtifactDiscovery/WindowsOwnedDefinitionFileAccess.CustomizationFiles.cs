@@ -16,6 +16,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         internal DefinitionDirectory(Pinned pinned) => this.pinned = pinned;
         internal SafeFileHandle Handle => pinned.Last;
         internal string Identity => WindowsFileIdentity.Read(Handle);
+        internal string BindingIdentity => pinned.BindingIdentity;
         public void Dispose() => pinned.Dispose();
     }
 
@@ -52,7 +53,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         catch { pinned.Dispose(); throw; }
     }
 
-    internal sealed record DefinitionFile(byte[] Bytes, string Identity);
+    internal sealed record DefinitionFile(byte[] Bytes, string Identity, DateTime LastWriteTimeUtc);
 
     internal static DefinitionFile? ReadDefinitionFile(string path, int maximumBytes, CancellationToken token)
     {
@@ -74,11 +75,12 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             if (count == 0) { throw new IOException("The definition component changed during capture."); }
             offset += count;
         }
-        return new(bytes, WindowsFileIdentity.Read(handle));
+        return new(bytes, WindowsFileIdentity.Read(handle), File.GetLastWriteTimeUtc(handle));
     }
 
     internal static string WriteDefinitionFile(string directory, DefinitionDirectory pinned, string name,
-        byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token)
+        byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token,
+        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null)
     {
         CustomizationFile.ValidateName(name);
         if (name.Contains('\\', StringComparison.Ordinal))
@@ -87,13 +89,17 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
         var published = false;
         try
         {
+            using var original = preserveSecurityFrom is null ? null : OpenInstructionOriginalForReplacement(preserveSecurityFrom);
             using var staged = CreatePrivateStaging(temporary);
             VerifyFile(staged, temporary);
             RandomAccess.Write(staged, bytes, 0);
             RandomAccess.FlushToDisk(staged);
+            if (original is not null) { PreserveInstructionSecurity(original, staged); }
+            finalComparison?.Invoke();
             RequireEligible(eligible, token);
             Rename(staged, pinned.Handle, name, replace, token);
             published = true;
+            publicationCommitted?.Invoke();
             return WindowsFileIdentity.Read(staged);
         }
         finally { if (!published && File.Exists(temporary)) { File.Delete(temporary); } }

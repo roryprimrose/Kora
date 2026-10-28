@@ -28,6 +28,10 @@ public sealed record SharedSkillInvocationCommand(string Action, string Argument
         { return new("ReviewToolRevision", string.Empty, true); }
         if (toolCapable && text.StartsWith("shared skill address ", StringComparison.OrdinalIgnoreCase))
         { return new("Address", text["shared skill address ".Length..], true); }
+        if (toolCapable && text.StartsWith("shared skill second address ", StringComparison.OrdinalIgnoreCase))
+        { return new("SecondAddress", text["shared skill second address ".Length..], true); }
+        if (toolCapable && string.Equals(text, "shared skill clear second address", StringComparison.OrdinalIgnoreCase))
+        { return new("SecondAddress", string.Empty, true); }
         foreach (var (phrase, action) in new[]
         {
             ("shared skill request ", "Request"), ("shared skill target ", "Target"),

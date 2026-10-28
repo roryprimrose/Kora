@@ -1,6 +1,7 @@
 <Window x:Class="Kora.SessionsWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls"
     Title="Sessions - authoritative work and durable history" Icon="/Assets/Kora.ico"
     Width="1180" Height="900" MinWidth="900" MinHeight="700"
@@ -38,6 +39,34 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Expander x:Name="ContentSearchPanel" Header="Search conversation content">
+      <StackPanel Spacing="6">
+        <TextBox x:Name="ContentQuery" Text="{Binding ContentQuery, Mode=TwoWay}" MaxLength="256"
+            PlaceholderText="Find retained messages and answers across conversations"
+            AutomationProperties.Name="Private memory-only conversation content query; Enter searches, Escape clears" />
+        <WrapPanel>
+          <Button x:Name="SearchContent" Content="Search content" IsEnabled="{Binding CanSearchContent}" />
+          <Button x:Name="NextContentSearch" Content="Next content matches" IsEnabled="{Binding CanNextContentSearch}" />
+          <Button x:Name="ClearContentSearch" Content="Cancel / clear content search" />
+          <Button x:Name="OpenContentMatch" Content="Open exact selected message" IsEnabled="{Binding CanSearchContent}" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding ContentSearchStatus}" TextWrapping="Wrap"
+            AutomationProperties.Name="Content search status, bounds and unavailable reasons" />
+        <controls:ScrollableListBox x:Name="ContentMatches" ItemsSource="{Binding ContentMatches}" MaxHeight="180"
+            AutomationProperties.Name="Retained conversation content matches; select and press Enter to locate the exact original message">
+          <ListBox.ItemTemplate>
+            <DataTemplate>
+              <StackPanel>
+                <TextBlock Text="{Binding Label}" FontWeight="SemiBold" />
+                <TextBlock Text="{Binding Text}" TextWrapping="Wrap" MaxHeight="64" />
+              </StackPanel>
+            </DataTemplate>
+          </ListBox.ItemTemplate>
+        </controls:ScrollableListBox>
+      </StackPanel>
+    </Expander>
+    <local:SessionPermissionControls />
+    <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
     <Expander Header="Exact-session conversation and composer — generation unavailable" IsExpanded="True">
       <StackPanel Spacing="6">
         <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
@@ -49,6 +78,7 @@
           <Button x:Name="NextConversation" Content="Next bounded conversation page" IsEnabled="{Binding CanNextConversation}" />
           <Button x:Name="AnswerAttachment" Content="Answer from this session's retained attachment" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="ReviewHistoryContext" Content="Review earlier messages for a follow-up" IsEnabled="{Binding CanOpenHistoryContext}" />
+          <Button x:Name="OpenMixedContext" Content="Review history, instruction and session memory together" IsEnabled="{Binding CanOpenMixedContext}" />
         </WrapPanel>
         <controls:ScrollableListBox x:Name="AnswerSourceRecords" ItemsSource="{Binding ConversationMessages}" MaxHeight="160"
             SelectedItem="{Binding SelectedAnswerRecord, Mode=TwoWay}"
@@ -57,6 +87,7 @@
         <WrapPanel>
           <Button x:Name="ReadSelectedAnswer" Content="Read selected ASSISTANT answer once" IsEnabled="{Binding CanReadSelectedAnswer}" />
           <Button x:Name="CancelAnswerRead" Content="Cancel answer reading" IsEnabled="{Binding CanCancelAnswerRead}" />
+          <Button x:Name="ReviewModelHistoryContext" Content="Review context for selected model advisory" IsEnabled="{Binding CanOpenModelHistoryContext}" />
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding AnswerReadStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact retained assistant answer speech outcome; selection never starts playback" />
@@ -103,6 +134,12 @@
             AutomationProperties.Name="Memory-only exact-session conversation draft; not a question answer or approval" />
         <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
             AutomationProperties.Name="Current editable shared conversation draft size and shape" />
+        <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
+        <TextBlock Text="Optional Claude observation scope: comma-separated exact IDs from capabilities.list, capabilities.get, application.get_version, readiness.get, runtime.list, runtime.get_status. No files, web, MCP, settings or provider tools. Ordinary Claude stays tool-free."
+            TextWrapping="Wrap" />
+        <TextBox x:Name="ClaudeObservationIds" Text="{Binding ClaudeObservationIds, Mode=TwoWay}"
+            IsEnabled="{Binding CanCompose}" AutomationProperties.Name="Exact optional Claude read-only observation subset"
+            ToolTip.Tip="Review this subset before explicit submission. Every token-count and Messages continuation still requires separate native final-byte consent. Six calls, seven rounds, 15-second complete-turn deadline; no retry or fallback." />
         <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
             AutomationProperties.Name="Wrap draft text"
             ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
@@ -113,16 +150,27 @@
           <Button x:Name="SubmitConversation" Content="Submit exact message — unavailable provider" IsEnabled="{Binding CanSubmitConversation}" />
           <Button x:Name="SubmitCopilotConversation" Content="Submit explicitly with Copilot (separate disclosure review)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires a current approved Copilot account/model and hosted policy. Unavailable until enabled. Never falls back." />
+          <Button x:Name="SubmitLocalFirst" Content="Ask locally; review Copilot only if unavailable"
+            IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
           <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
+          <Button x:Name="SubmitClaudeObservations" Content="Submit with reviewed Claude observation subset"
+            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Explicit host-owned read-only observations only. Each physical POST needs new native consent. Unqualified Claude stays unavailable." />
+          <Button x:Name="SubmitClaudeAnswerStream" Content="Stream explicitly with Claude (text only, separately qualified)"
+            IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Requires positive exact-profile native text-stream approval. Separate native consent for token count and stream Messages. Provisional text is not retained; only a fully validated final answer is saved. No tools, retry or buffered fallback." />
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
             AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
+          <Button x:Name="SubmitReadOnlyWithClarification" Content="Ask locally with observations and one choice"
+            IsEnabled="{Binding CanSubmitConversationWithClarification}"
+            AutomationProperties.HelpText="Uses only six read-only observation tools and at most one bounded choice. A reply is not approval or permission. Unqualified local providers remain unavailable." />
           <Button x:Name="SubmitWebPage" Content="Retrieve and summarize one page locally"
             IsEnabled="{Binding CanSubmitConversation}"
             AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />
           <Button x:Name="ReadMcpOptions" Content="Review HTTPS MCP options" IsEnabled="{Binding CanCompose}" />
           <Button x:Name="SubmitMcp" Content="Use reviewed MCP tool locally" IsEnabled="{Binding CanSubmitConversation}" />
+          <Button x:Name="InvokeMcp" Content="Invoke reviewed MCP tool without a model" IsEnabled="{Binding CanCompose}"
+              AutomationProperties.HelpText="Select one admitted read-only tool, enter required schema-bound arguments, then separately approve the exact destination and arguments. Conversation input is unchanged." />
           <Button x:Name="CancelMcp" Content="Stop MCP operation" IsEnabled="{Binding IsMcpActive}"
               AutomationProperties.HelpText="Closes new work and publication; resources stay owned until the authenticated transport actually terminates." />
           <Button x:Name="RefreshRunningConversation" Content="Refresh running work" IsEnabled="{Binding CanRefreshRunningConversation}" />
@@ -138,10 +186,19 @@
             AutomationProperties.Name="Explicit delegated MCP account; never inherits a model account or ambient credentials" />
         <TextBox Text="{Binding McpResultText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap"
             IsUndoEnabled="False" MaxHeight="180" AutomationProperties.Name="Actual bounded inert MCP result with tool and observation provenance; no executable content" />
+        <local:McpResultFollowUpControls x:Name="McpResultFollowUp" />
         <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Exact running conversation task and cancellation resource-join status" />
+        <local:PendingConversationPanel />
+        <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
+        <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
+          <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
+          <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
+              AutomationProperties.Name="Unstable provisional local answer; not spoken automatically" />
+        </StackPanel>
         <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
             AutomationProperties.Name="Conversation submission, unavailable or legacy recovery status" />
+        <local:AssistantReplyPanel />
         <Button x:Name="SessionInstructionScopes" Content="Apply or stop an instruction for this Active session"
             IsEnabled="{Binding CanCompose}"
             AutomationProperties.Name="Review and separately confirm volatile ordinary local session guidance, or stop applying; no hosted or tools" />
@@ -165,23 +222,13 @@
             </WrapPanel>
           </StackPanel>
         </Expander>
-        <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
+        <local:ModelMemoryProposalPanel />
+        <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+            AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
         <WrapPanel>
-          <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-          <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-        </WrapPanel>
-        <TextBlock Text="{Binding PlaybackVolumeSuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Current desired and effective Kora-only volume, saved or default provenance, proposed percent, shared device-local scope and zero-synthesis implications" />
-        <WrapPanel>
-          <Button Name="ConfirmPlaybackVolumeSuggestion" Content="Confirm exact Kora volume change" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-          <Button Name="CancelPlaybackVolumeSuggestion" Content="Cancel Kora volume review" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-        </WrapPanel>
-        <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
-            AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
-        <WrapPanel>
-          <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
-          <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+          <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+          <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
         </WrapPanel>
       </StackPanel>
     </Expander>
@@ -528,12 +575,15 @@
         </ScrollViewer>
         </Grid>
         </TabItem>
-        <TabItem Header="Session memories">
+        <TabItem Header="Memories">
           <ScrollViewer>
             <StackPanel Spacing="8">
-              <TextBlock Text="Active selected session only. New user proposals stay volatile until separate admission. Classification is not secrecy detection. List contains metadata, not values. Inspect exact content and classification before review. No conversational Remember trigger, model tool, recall or hosted disclosure."
+              <CheckBox Content="Device profile: explicitly manage memories for later conversations on this Windows profile"
+                        IsChecked="{Binding DeviceProfileMemory, Mode=TwoWay}" IsEnabled="{Binding CanReadMemories}"
+                        AutomationProperties.Name="Choose Device-profile memory instead of Session memory; changing scope clears all selections and reviews" />
+              <TextBlock Text="Unchecked: selected Session scope and lifetime. Checked: Device-profile scope, independent of session Done or deletion. An Active selected conversation and private control are required in either mode. New user proposals stay volatile until separate admission. Never enter credentials, secrets, health information, inferred traits, transient tasks or model claims. Classification is not secrecy detection. Inspect the FULL value, classification and scope, accept review, then separately admit. No automatic recall, model learning or hosted disclosure."
                          TextWrapping="Wrap" />
-              <Button x:Name="ListMemories" Content="_List selected session memories" IsEnabled="{Binding CanReadMemories}"
+              <Button x:Name="ListMemories" Content="_List memories in chosen scope" IsEnabled="{Binding CanReadMemories}"
                       AutomationProperties.Name="List exact active selected session memory identity, revision, scope, review, retention and creation time only" />
               <TextBlock Text="Filter only the frozen listed metadata. No content search or classification filter. Edits clear selection, inspection and replacement draft; select and inspect an exact visible result again. List explicitly to refresh." TextWrapping="Wrap" />
               <WrapPanel>
@@ -614,11 +664,11 @@
                         IsEnabled="{Binding CanProposeMemory}" AutomationProperties.Name="User proposal or replacement classification; not sensitivity proof" />
               <TextBox Text="{Binding MemoryDraft, Mode=TwoWay}" IsEnabled="{Binding CanProposeMemory}"
                        AutomationProperties.Name="Exact user proposal or replacement value; no truncation or normalization; 512 UTF-16 code units, 1024 UTF-8 value bytes, 2048 serialized candidate bytes" />
-              <Button x:Name="ProposeMemory" Content="_New session memory from draft" IsEnabled="{Binding CanProposeMemory}"
+              <Button x:Name="ProposeMemory" Content="_Propose new memory in chosen scope" IsEnabled="{Binding CanProposeMemory}"
                       AutomationProperties.Name="Create only a volatile Proposed Pending user candidate in the exact active selected session; no review, admission, recall or transmission" />
               <Button x:Name="EditMemory" Content="Replace exact revision; return to Proposed/Pending" IsEnabled="{Binding CanEditMemory}"
                       AutomationProperties.Name="Edit clears earlier review and use; replacement stays volatile until new inspect, review and admission" />
-              <TextBlock Text="Optional memory-assisted conversation: explicitly select one to sixteen ENABLED reviewed memories from this session. Review complete content and your request, then separately consent to one local-only tool-free turn. Ordinary conversation Send never reads memory."
+              <TextBlock Text="Optional memory-assisted conversation: explicitly select one to sixteen ENABLED reviewed memories from the chosen scope. Device-profile memories can be selected in a later Active conversation on this same profile. Review complete values, classifications, scope and your exact request, then separately confirm ONE local-only tool-free answer. Ordinary Send never reads memory. Unqualified local providers remain unavailable, not substitute answers. Session batches apply only in Session mode."
                          TextWrapping="Wrap" />
               <ListBox x:Name="MemoryContextRecords" MaxHeight="160" ItemsSource="{Binding MemoryRecords}"
                        SelectionMode="Multiple" IsEnabled="{Binding CanFilterMemories}"
@@ -702,6 +752,17 @@
               AutomationProperties.Name="Preview exact selected session ID, revisions, live rows to remove and retained copies; does not delete" />
       <Button x:Name="ConfirmDisposition" Content="Confirm logical disposition" IsEnabled="{Binding CanConfirmDisposition}"
               AutomationProperties.Name="Explicitly confirm the previewed exact session logical disposition; not forensic deletion" />
+      <Button x:Name="ReviewStopAndDelete" Content="Review _stop and delete" IsEnabled="{Binding CanReviewStopAndDelete}"
+              AutomationProperties.Name="Review stopping this selected conversation's running work, then deleting this conversation. Review has no effects." />
+      <Button x:Name="ConfirmStopAndDelete" Content="Confirm stop and _delete" IsEnabled="{Binding CanConfirmStopAndDelete}"
+              AutomationProperties.Name="Affirmatively confirm only the reviewed conversation's stop and logical deletion, including its reviewed input discard." />
+      <Button x:Name="CancelStopAndDelete" Content="Cancel deletion" IsEnabled="{Binding CanCancelStopAndDelete}"
+              AutomationProperties.Name="Cancel this deletion review. Any already accepted stop retains ownership until physical completion." />
+      <ScrollViewer MaxHeight="280" MaxWidth="1000" Focusable="True"
+                    AutomationProperties.Name="Scrollable exact conversation stop and delete review">
+        <TextBlock Text="{Binding StopAndDeleteStatus}" TextWrapping="Wrap"
+                   AutomationProperties.Name="Exact conversation stop and delete review, progress and recovery" />
+      </ScrollViewer>
       <Button x:Name="CloseView" Content="_Close" />
     </WrapPanel>
   </Grid>

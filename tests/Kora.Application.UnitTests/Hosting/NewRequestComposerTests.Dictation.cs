@@ -478,13 +478,16 @@ public sealed partial class NewRequestComposerTests
         ActivitySource.AddActivityListener(captured);
         using var incoming = new Activity("untrusted").Start();
         incoming.SetTag("kora.session.id", Guid.NewGuid());
-        await f.Begin();
+        await f.Service.BeginAsync(SessionTarget(f), () => f.Native, TestContext.Current.CancellationToken);
+        f.Capture.Hypothesis("PRIVATE_HYPOTHESIS_SENTINEL");
         f.Capture.Transcript("PRIVATE_LITERAL_SENTINEL");
         await f.Service.EndAsync();
         await f.Service.Quiescence;
         stopped.Should().NotBeEmpty().And.OnlyContain(activity => activity.Status != ActivityStatusCode.Unset);
         stopped.Should().Contain(activity => activity.Links.Any());
         stopped.SelectMany(activity => activity.TagObjects).Should().NotContain(tag => Equals(tag.Value, "PRIVATE_LITERAL_SENTINEL"));
+        stopped.SelectMany(activity => activity.TagObjects).Should().NotContain(tag => Equals(tag.Value, "PRIVATE_HYPOTHESIS_SENTINEL"));
+        stopped.Select(activity => activity.OperationName).Should().NotContain(name => name.Contains("PRIVATE", StringComparison.Ordinal));
         stopped.SelectMany(activity => activity.Baggage).Should().BeEmpty();
         stopped.Should().OnlyContain(activity => activity.ParentId != incoming.Id);
         HostActivity.Current.Should().BeNull();
@@ -493,7 +496,7 @@ public sealed partial class NewRequestComposerTests
     private sealed class DictationFixture : IAsyncDisposable
     {
         public Fixture Host { get; } = new();
-        public DictationCapture Capture { get; } = new();
+        public ProvisionalDictationCapture Capture { get; } = new();
         public DictationDispatcher Dispatcher { get; } = new();
         public QuestionReplyFixture.ReplyTime Time { get; } = new();
         public ComposerDictationAdmission? Admission { get; set; } = new(new("mic", "Synthetic"), 1, 1, 1, 1, 1);
@@ -544,7 +547,10 @@ public sealed partial class NewRequestComposerTests
     private sealed class DictationDispatcher : IUiDispatcher
     {
         public TaskCompletionSource? Hold { get; set; }
-        public void Post(Action action) => action();
+        public bool QueuePosts { get; set; }
+        public Queue<Action> Posts { get; } = new();
+        public void Post(Action action) { if (QueuePosts) { Posts.Enqueue(action); } else { action(); } }
+        public void Flush() { while (Posts.TryDequeue(out var action)) { action(); } }
         public async Task InvokeAsync(Func<Task> action)
         {
             if (Hold is not null) { await Hold.Task; }
@@ -552,7 +558,29 @@ public sealed partial class NewRequestComposerTests
         }
     }
 
-    private sealed class DictationCapture : IActivatedVoiceRecognitionService
+    private sealed class ProvisionalDictationCapture : DictationCapture, IProvisionalVoiceRecognitionService
+    {
+        public bool SupportsProvisional { get; set; } = true;
+        public Action<ProvisionalTranscriptSnapshot>? Observer { get; private set; }
+        public Action? DuringObservation { get; set; }
+        public int Observations { get; private set; }
+        public int ReleasedObservations { get; private set; }
+        public IDisposable? ObserveProvisionalTranscripts(long generation, Action<ProvisionalTranscriptSnapshot> observer)
+        {
+            Observations++;
+            if (!SupportsProvisional) { DuringObservation?.Invoke(); return null; }
+            Observer = observer;
+            DuringObservation?.Invoke();
+            return new Observation(this);
+        }
+        public void Hypothesis(string text, long sequence = 1, long? generation = null) => Observer?.Invoke(new(generation ?? Generation, sequence, text));
+        private sealed class Observation(ProvisionalDictationCapture owner) : IDisposable
+        {
+            public void Dispose() { owner.Observer = null; owner.ReleasedObservations++; }
+        }
+    }
+
+    private class DictationCapture : IActivatedVoiceRecognitionService
     {
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed;

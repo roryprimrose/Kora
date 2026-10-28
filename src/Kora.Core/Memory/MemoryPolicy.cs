@@ -87,12 +87,19 @@ public static class MemoryPolicy
         return destination == MemoryDestination.Local ? MemoryReason.None : MemoryReason.DisclosureNotAdmitted;
     }
 
-    public static MemoryReason CheckLineage(MemoryRecord memory, MemoryBoundary boundary)
+    public static MemoryReason CheckLineage(MemoryRecord memory, MemoryBoundary boundary) =>
+        CheckLineageCore(memory, boundary, requireOriginalSession: true);
+
+    public static MemoryReason CheckManagementLineage(MemoryRecord memory, MemoryBoundary boundary) =>
+        CheckLineageCore(memory, boundary, requireOriginalSession: memory.Scope.Kind != MemoryScopeKind.DeviceProfile);
+
+    private static MemoryReason CheckLineageCore(MemoryRecord memory, MemoryBoundary boundary, bool requireOriginalSession)
     {
         ArgumentNullException.ThrowIfNull(memory);
         ArgumentNullException.ThrowIfNull(boundary);
         if (memory.Lineage.SessionGeneration.Value <= 0
             || memory.Lineage.Origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model)
+            || memory.Scope.Kind == MemoryScopeKind.DeviceProfile && memory.Lineage.Origin != MemoryProposalOrigin.User
             || memory.Lineage.Source.HasValue != memory.Lineage.SourceRevision.HasValue
             || memory.Lineage.SourceRevision is { Value: <= 0 })
         {
@@ -109,7 +116,7 @@ public static class MemoryPolicy
         {
             return MemoryReason.LineageUnknown;
         }
-        if (memory.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
+        if (requireOriginalSession && memory.Review is MemoryReviewState.Proposed or MemoryReviewState.Reviewed
             && (memory.Lineage.Request.SessionId != boundary.Session || memory.Lineage.SessionGeneration != boundary.Generation))
         {
             return MemoryReason.ScopeMismatch;

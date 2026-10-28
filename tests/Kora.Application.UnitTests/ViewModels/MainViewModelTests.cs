@@ -44,6 +44,43 @@ public sealed partial class MainViewModelTests : IDisposable
     public void Dispose() => hostListener.Dispose();
 
     [Fact]
+    public async Task DeferredDispatcherRetainsConcurrentWorkerCallbacksUntilFlush()
+    {
+        var dispatcher = new ImmediateDispatcher { DeferPosts = true };
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var token = TestContext.Current.CancellationToken;
+        var ready = 0;
+        var invoked = new int[2];
+        var nested = 0;
+        var workers = Enumerable.Range(0, invoked.Length).Select(index => Task.Run(async () =>
+        {
+            if (Interlocked.Increment(ref ready) == invoked.Length) { entered.SetResult(); }
+            await release.Task.WaitAsync(token);
+            dispatcher.Post(() =>
+            {
+                invoked[index]++;
+                dispatcher.Post(() => nested++);
+            });
+        }, token)).ToArray();
+        await entered.Task.WaitAsync(token);
+        release.SetResult();
+        await Task.WhenAll(workers).WaitAsync(token);
+        invoked.Should().Equal(0, 0);
+        nested.Should().Be(0);
+
+        dispatcher.FlushPosts();
+        dispatcher.DeferPosts.Should().BeFalse();
+        invoked.Should().Equal(1, 1);
+        nested.Should().Be(2);
+        dispatcher.FlushPosts();
+        invoked.Should().Equal(1, 1);
+        nested.Should().Be(2);
+        dispatcher.Post(() => nested++);
+        nested.Should().Be(3);
+    }
+
+    [Fact]
     public async Task WebPageCommandReportsUnavailableClarifiedAndIneligibleStates()
     {
         var unavailable = new Fixture();
@@ -4529,6 +4566,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.Voice.StartedMicrophone.Should().Be(fixture.ViewModel.SelectedMicrophone);
         var commandPhrases = fixture.Catalog.GetCommands().SelectMany(command => command.AllPhrases)
+            .Concat(["review pending action"])
             .Concat(Kora.Core.Context.ClipboardCommand.FixedPhrases)
             .Concat(Kora.Core.Context.ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(Kora.Core.Context.LocalFileCommand.FixedPhrases)
@@ -4536,6 +4574,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(AttachmentCataloguePreparationCommand.DiscoveryPhrases)
             .Concat(SessionCommand.DiscoveryPhrases)
             .Concat(Kora.Application.Mcp.McpCommand.FixedPhrases)
+            .Concat([Kora.Application.Tools.CustomizationDiscoveryCommand.Phrase])
             .Concat(WorkspaceSurfaceCommand.FixedPhrases)
             .Concat(EvidenceTraceCommand.DiscoveryPhrases)
             .Concat(["pending question help"])
@@ -4559,12 +4598,14 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Network.WebPageCommand.FixedPhrases)
             .Concat(Kora.Application.Network.WebSummaryCommand.FixedPhrases)
             .Concat(InCallFeedbackCommand.FixedPhrases)
+            .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
             .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
@@ -8569,7 +8610,10 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableSpeechPreparation = false, bool enableDiagnosticImpact = false, bool enableClipboardExplanation = false,
             Kora.Application.Network.WebSummaryWorkflow? webSummary = null, bool enableSpeechInput = false,
             SpeechComponentSetupService? speechComponentSetup = null,
-            Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null)
+            Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
+            bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
+            Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8607,6 +8651,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 Voice.DefaultMicrophoneId, TextToSpeech.DefaultOutputDeviceId));
             Process = new FakeApplicationProcessController(Events);
             Audit ??= new FakeSecurityAuditLog();
+            ConversationalPreferences.LoadFailure = conversationalReadFailure;
+            ConversationalConfiguration = enableConversationalReplies
+                ? new(ConversationalPreferences, OutputAdmission, Audit) : null;
             ArtifactPreferences.LoadFailure = artifactReadFailure;
             ArtifactDirectoryConfiguration = enableArtifactConfiguration
                 ? new ArtifactDirectoryConfigurationService(ArtifactPreferences, Audit)
@@ -8705,7 +8752,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 AudioPreferences,
                 OutputPreferences,
                 CallPreferences,
-                CallState,
+                (ICallStateService?)communicationActivity ?? CallState,
                 Session,
                 Process,
                 Dispatcher,
@@ -8759,7 +8806,9 @@ public sealed partial class MainViewModelTests : IDisposable
                 diagnosticImpactPreview: enableDiagnosticImpact ? new DiagnosticImpactPreviewService(DiagnosticImpactReader, DiagnosticPreferences, DiagnosticConfiguration!) : null,
                 clipboardExplanation: clipboardWorkflow,
                 speechInputConfiguration: InputConfiguration,
-                speechComponentSetup: speechComponentSetup);
+                speechComponentSetup: speechComponentSetup,
+                conversationalReplies: ConversationalConfiguration,
+                communicationActivityConfiguration: communicationActivityConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -8779,6 +8828,8 @@ public sealed partial class MainViewModelTests : IDisposable
         }
 
         public BuiltInCommandCatalog Catalog { get; }
+        internal Kora.Application.UnitTests.Configuration.ConversationalReplyConfigurationServiceTests.Preferences ConversationalPreferences { get; } = new();
+        public ConversationalReplyConfigurationService? ConversationalConfiguration { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();
@@ -9039,9 +9090,12 @@ public sealed partial class MainViewModelTests : IDisposable
             }
         }
 
-        public static async Task<Fixture> CreateInitializedAsync(bool subscribeToWindowActions = true)
+        public static async Task<Fixture> CreateInitializedAsync(bool subscribeToWindowActions = true,
+            Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
         {
-            var fixture = new Fixture(subscribeToWindowActions);
+            var fixture = new Fixture(subscribeToWindowActions, communicationActivity: communicationActivity,
+                communicationActivityConfiguration: communicationActivityConfiguration);
             fixture.Voice.Microphones = [new MicrophoneDevice("0", "Headset")];
             fixture.Voice.DefaultMicrophoneId = "0";
             await fixture.ViewModel.InitializeAsync();
@@ -9281,22 +9335,34 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class ImmediateDispatcher : IUiDispatcher
     {
+        private readonly Lock deferredPostsGate = new();
         private readonly Queue<Action> deferredPosts = new();
+        private bool deferPosts;
 
         public Task LastInvocation { get; private set; } = Task.CompletedTask;
 
         public InvalidOperationException? InvokeException { get; set; }
 
         public Action? BeforeInvoke { get; set; }
+        public Func<Task>? BeforeInvokeAsync { get; set; }
 
         public Action? BeforePost { get; set; }
-        public bool DeferPosts { get; set; }
+        public bool DeferPosts
+        {
+            get { lock (deferredPostsGate) { return deferPosts; } }
+            set { lock (deferredPostsGate) { deferPosts = value; } }
+        }
 
         public void FlushPosts()
         {
-            DeferPosts = false;
-            while (deferredPosts.TryDequeue(out var action))
+            lock (deferredPostsGate) { deferPosts = false; }
+            while (true)
             {
+                Action? action;
+                lock (deferredPostsGate)
+                {
+                    if (!deferredPosts.TryDequeue(out action)) { return; }
+                }
                 action();
             }
         }
@@ -9311,16 +9377,27 @@ public sealed partial class MainViewModelTests : IDisposable
             var callback = BeforeInvoke;
             BeforeInvoke = null;
             callback?.Invoke();
-            LastInvocation = action();
+            var asynchronous = BeforeInvokeAsync;
+            BeforeInvokeAsync = null;
+            LastInvocation = asynchronous is null ? action() : InvokeAfterAsync(asynchronous, action);
             return LastInvocation;
+        }
+
+        private static async Task InvokeAfterAsync(Func<Task> before, Func<Task> action)
+        {
+            await before();
+            await action();
         }
 
         public void Post(Action action)
         {
-            if (DeferPosts)
+            lock (deferredPostsGate)
             {
-                deferredPosts.Enqueue(action);
-                return;
+                if (deferPosts)
+                {
+                    deferredPosts.Enqueue(action);
+                    return;
+                }
             }
             var callback = BeforePost;
             BeforePost = null;
@@ -9329,7 +9406,7 @@ public sealed partial class MainViewModelTests : IDisposable
         }
     }
 
-    private sealed class FakeVoiceRecognitionService(
+    private sealed partial class FakeVoiceRecognitionService(
         ImmediateDispatcher dispatcher,
         List<string> events) : IActivatedVoiceRecognitionService
     {
@@ -9350,6 +9427,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public bool IsAmbientListeningAvailable => false;
 
         public bool IsLiteralDictationAvailable { get; set; }
+
+        public bool IsSpeechInterruptionAvailable { get; set; }
 
         public bool IsCaptureQuiescent => !IsListening && !PreventQuiescence;
 
@@ -9630,6 +9709,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public bool RemainSpeakingOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
         public bool IgnoreSpeakCancellation { get; set; }
@@ -9764,7 +9844,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 throw StopException;
             }
-            IsSpeaking = false;
+            IsSpeaking = RemainSpeakingOnStop;
             if (!HoldSpeechCompletionOnStop)
             {
                 SpeakGate?.TrySetResult();

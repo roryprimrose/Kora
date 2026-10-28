@@ -30,6 +30,9 @@ public sealed partial class ModelTurnHostTests
     [InlineData("answer-channel")]
     [InlineData("connection-voice")]
     [InlineData("consume-grant")]
+    [InlineData("consume-admission")]
+    [InlineData("dispatch-denied")]
+    [InlineData("dispatch-admission")]
     public async Task Mcp_native_approval_identity_scope_and_answer_cannot_be_forged(string fault)
     {
         using var f = new Fixture();
@@ -379,6 +382,51 @@ public sealed partial class ModelTurnHostTests
             source.Account, approval.Present, McpSelect, static () => true, Token);
         receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
         receipt.Message.AssistantResponse.Should().NotBeNull();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Mcp_faulted_connection_is_failure_only_and_cannot_be_reprepared_replayed_or_hide_audit_failure(bool auditFailure)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var root = f.Root();
+        var pending = new TaskCompletionSource<System.Collections.Immutable.ImmutableArray<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { PendingCall = pending, EnteredCall = entered };
+        await using var use = McpUse(f, source, broker, new(f), await source.Policy());
+        await use.PrepareAsync(Token);
+        if (auditFailure) { f.CancelAudit.FailAt = 5; }
+        var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), f.Request, ModelProviderSelection.OllamaCandidate);
+        var invocation = use.InvokeAsync(provenance, "mcp.search", """{"query":"reference"}""", Token).AsTask();
+        await entered.Task.WaitAsync(Token);
+        pending.SetException(new ObjectDisposedException("synthetic transport"));
+        if (auditFailure)
+        {
+            await FluentActions.Awaiting(() => invocation).Should().ThrowAsync<IOException>()
+                .WithMessage("required cancellation audit unavailable");
+        }
+        else
+        {
+            var reply = await invocation;
+            reply.Outcome.Should().Be(CapabilityOutcome.Failed);
+            reply.Reason.Should().Be("mcp-transport-failed-review-before-new-request");
+            reply.Mcp.Should().BeNull();
+        }
+        use.Completed.Should().BeFalse();
+        use.Result.Should().BeNull();
+        broker.Fault = "withdrawn-connection";
+        await use.ValidateAsync(Token);
+        await use.Invoking(value => value.PrepareAsync(Token)).Should().ThrowAsync<InvalidOperationException>()
+            .WithMessage("The failed MCP connection requires a new explicitly reviewed request.");
+        (await use.InvokeAsync(provenance, "mcp.search", """{"query":"reference"}""", Token))
+            .Outcome.Should().Be(CapabilityOutcome.Denied);
+        f.CanControl = false;
+        await use.Invoking(value => value.ValidateAsync(Token)).Should().ThrowAsync<InvalidOperationException>();
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+        await use.DisposeAsync();
+        broker.Disposed.Should().BeTrue();
     }
 
     private static McpInvocation McpUse(Fixture f, McpSource source, McpBroker broker, McpApprovals approvals,

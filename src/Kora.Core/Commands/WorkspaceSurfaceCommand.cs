@@ -1,8 +1,10 @@
 ﻿using Kora.Core.Artifacts;
+using Kora.Core.Hosting;
 
 namespace Kora.Core.Commands;
 
-public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int? SessionPosition = null)
+public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int? SessionPosition = null,
+    SessionName? ConversationName = null)
 {
     /// <summary>Position zero denotes the last row of the presented page; positive positions count from its top.</summary>
     public const int LastSessionPosition = 0;
@@ -17,6 +19,7 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
     private static readonly (string Phrase, WorkspaceSurfaceTarget Target)[] Routes =
     [
         ("open all work", WorkspaceSurfaceTarget.AllWork),
+        ("show sessions needing an answer", WorkspaceSurfaceTarget.WaitingQuestions),
         ("open compact conversation", WorkspaceSurfaceTarget.CompactConversation),
         ("open sessions", WorkspaceSurfaceTarget.Sessions),
         ("show sessions", WorkspaceSurfaceTarget.Sessions),
@@ -43,6 +46,18 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
         if (!FixedPhrases.Contains(text, StringComparer.OrdinalIgnoreCase))
         {
             text = ArtifactCommandRouter.RemoveActivationPrefix(text, assistantName);
+        }
+        if (text.StartsWith("open conversation", StringComparison.OrdinalIgnoreCase)
+            || text.StartsWith("read conversation", StringComparison.OrdinalIgnoreCase))
+        {
+            if (input.Any(char.IsControl) || text.Length > 512
+                || text.Length < 20 || text[17] != ' ' || text[18] != '"' || text[^1] != '"')
+            { return new(WorkspaceSurfaceTarget.Invalid); }
+            var literal = text[19..^1];
+            if (literal.Contains('"', StringComparison.Ordinal))
+            { return new(WorkspaceSurfaceTarget.Invalid); }
+            try { return new(WorkspaceSurfaceTarget.OpenNamedConversation, ConversationName: new(literal)); }
+            catch (InvalidDataException) { return new(WorkspaceSurfaceTarget.Invalid); }
         }
         var normalized = BuiltInCommandRouter.Normalize(text);
         if (!normalized.StartsWith("open all work", StringComparison.Ordinal)

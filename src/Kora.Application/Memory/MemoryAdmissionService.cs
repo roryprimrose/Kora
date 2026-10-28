@@ -12,7 +12,7 @@ namespace Kora.Application.Memory;
 internal sealed partial class MemoryAdmissionService(
     ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access, ICapabilityHostAccess host,
     IMemoryScopeAccess scopes, ISecurityAuditLog audit, ILogger<MemoryAdmissionService> logger,
-    TimeProvider time, IMemoryStore? storage = null) : IDisposable
+    TimeProvider time, IMemoryStore? storage = null, MemoryScopeKind scopeKind = MemoryScopeKind.Session) : IDisposable
 {
     private readonly Dictionary<HostId<MemoryIdentity>, MemoryRecord> records = [];
     private readonly HashSet<HostId<MemoryIdentity>> volatileIdentities = [];
@@ -22,8 +22,9 @@ internal sealed partial class MemoryAdmissionService(
     private bool disposed;
 
     internal Task<MemoryResult> ProposeAsync(MemoryCandidate? candidate, MemoryScope? scope,
-        MemoryProposalOrigin origin, CancellationToken token) =>
-        ExecuteAsync(MemoryOperation.Propose, null, default, scope, candidate, origin, false, MemoryDestination.Unknown, token);
+        MemoryProposalOrigin origin, CancellationToken token, HostRequest? modelSource = null) =>
+        ExecuteAsync(MemoryOperation.Propose, null, default, scope, candidate, origin, false, MemoryDestination.Unknown, token,
+            modelSource: modelSource);
 
     internal Task<MemoryResult> ReviewAsync(HostId<MemoryIdentity> id, HostRevision revision, bool accept,
         CancellationToken token) =>
@@ -50,7 +51,8 @@ internal sealed partial class MemoryAdmissionService(
 
     private async Task<MemoryResult> ExecuteAsync(MemoryOperation operation, HostId<MemoryIdentity>? id,
         HostRevision expected, MemoryScope? scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
-        bool accept, MemoryDestination destination, CancellationToken token, MemoryRecord? exactRecord = null)
+        bool accept, MemoryDestination destination, CancellationToken token, MemoryRecord? exactRecord = null,
+        HostRequest? modelSource = null)
     {
         var issuer = HostActivity.Current;
         if (issuer is null || issuer.Activity!.IsStopped || issuer.Outcome != HostOperationOutcome.Unknown)
@@ -76,12 +78,18 @@ internal sealed partial class MemoryAdmissionService(
             }
             if (operation != MemoryOperation.Propose)
             {
-                scope ??= current?.Scope ?? MemoryScope.Session(request.SessionId);
+                scope ??= current?.Scope;
             }
             var control = access.ControlRevision;
             var before = await scopes.ResolveAsync(request, token).ConfigureAwait(false);
+            if (operation != MemoryOperation.Propose)
+            {
+                scope ??= scopeKind == MemoryScopeKind.DeviceProfile && before is not null
+                    ? MemoryScope.DeviceProfile(before.Profile) : MemoryScope.Session(request.SessionId);
+            }
             MemoryResult result;
-            var reason = storage is not null && scope?.Kind != MemoryScopeKind.Session
+            var reason = storage is not null && (scope?.Kind != scopeKind
+                || scopeKind is not (MemoryScopeKind.Session or MemoryScopeKind.DeviceProfile))
                 ? MemoryReason.ScopeMismatch : MemoryPolicy.CheckBoundary(scope, before);
             if (reason != MemoryReason.None)
             {
@@ -102,7 +110,7 @@ internal sealed partial class MemoryAdmissionService(
                 if (storage is not null)
                 {
                     return await ExecuteStoredAsync(operation, id, expected, scope!, candidate, origin, accept,
-                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, exactRecord, token)
+                        destination, before!, issuer, control, lifecycle, session, requested, continuation, activity, exactRecord, modelSource, token)
                         .ConfigureAwait(false);
                 }
                 lock (stateGate)
@@ -125,7 +133,7 @@ internal sealed partial class MemoryAdmissionService(
                         result = exactRecord is not null && current != exactRecord
                             ? new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch)
                             : Transition(operation, current, expected, scope!, candidate, origin,
-                                accept, destination, before, request);
+                                accept, destination, before, request, modelSource);
                         // Audit must succeed before publishing the new state or use receipt.
                         CompleteAudit(requested, result, continuation);
                         var unchanged = id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), current);
@@ -173,7 +181,7 @@ internal sealed partial class MemoryAdmissionService(
         HostRevision expected, MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin,
         bool accept, MemoryDestination destination, MemoryBoundary boundary, HostActivity issuer, long control,
         long lifecycle, SessionWorkspaceEntry session, SecurityAuditEvent requested, Func<HostActivity> continuation,
-        HostActivity activity, MemoryRecord? exactRecord, CancellationToken token)
+        HostActivity activity, MemoryRecord? exactRecord, HostRequest? modelSource, CancellationToken token)
     {
         MemoryRecord? original = null;
         lock (stateGate) { original = id is { } identity ? records.GetValueOrDefault(identity) : null; }
@@ -188,7 +196,7 @@ internal sealed partial class MemoryAdmissionService(
                     && (id is not { } known || ReferenceEquals(records.GetValueOrDefault(known), original));
             }
         }
-        var result = await storage!.TransactMemoryAsync(issuer.Request, boundary, rows =>
+        var result = await TransactAsync(issuer.Request, boundary, rows =>
         {
             lock (stateGate)
             {
@@ -207,7 +215,7 @@ internal sealed partial class MemoryAdmissionService(
                     || !session.Authority.IsActive || session.Authority.Generation != boundary.Generation
                     ? new MemoryResult(MemoryOutcome.Denied, MemoryReason.AuthorityClosed)
                     : Transition(operation, original, expected, scope, candidate, origin, accept, destination,
-                        boundary, issuer.Request);
+                        boundary, issuer.Request, modelSource);
                 CompleteAudit(requested, value, continuation);
                 if (!Admitted())
                 {
@@ -259,25 +267,33 @@ internal sealed partial class MemoryAdmissionService(
 
     private MemoryResult Transition(MemoryOperation operation, MemoryRecord? current, HostRevision expected,
         MemoryScope scope, MemoryCandidate? candidate, MemoryProposalOrigin origin, bool accept,
-        MemoryDestination destination, MemoryBoundary boundary, HostRequest request)
+        MemoryDestination destination, MemoryBoundary boundary, HostRequest request, HostRequest? modelSource)
     {
         if (operation == MemoryOperation.Propose)
         {
-            if (origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model))
+            if (scope.Kind == MemoryScopeKind.DeviceProfile && origin != MemoryProposalOrigin.User)
+            {
+                return new(MemoryOutcome.Denied, MemoryReason.UserIntentRequired);
+            }
+            if (origin is not (MemoryProposalOrigin.User or MemoryProposalOrigin.Model)
+                || modelSource is not null && (origin != MemoryProposalOrigin.Model
+                    || modelSource.SessionId != request.SessionId || modelSource.InvocationId is not null
+                    || modelSource.Origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)))
             {
                 return new(MemoryOutcome.Denied, MemoryReason.LineageUnknown);
             }
             var validation = MemoryPolicy.ValidateCandidate(candidate);
             if (validation != MemoryReason.None) { return new(MemoryOutcome.Denied, validation); }
             if (records.Count >= MemoryPolicy.MaximumEntries) { return new(MemoryOutcome.CapacityExceeded, MemoryReason.Capacity); }
-            var lineage = new MemoryLineage(request, boundary.Generation, boundary.Profile, origin, boundary.Source, boundary.SourceRevision);
+            var lineage = new MemoryLineage(modelSource ?? request, boundary.Generation, boundary.Profile, origin, boundary.Source, boundary.SourceRevision);
             return new(MemoryOutcome.Succeeded, MemoryReason.None,
                 new(new(Guid.NewGuid()), new(1), scope, lineage, candidate, time.GetUtcNow(),
                     MemoryReviewState.Proposed, MemoryRetentionState.Pending, null));
         }
         if (current is null) { return new(MemoryOutcome.NotFound, MemoryReason.Missing); }
         if (current.Revision != expected) { return new(MemoryOutcome.RevisionConflict, MemoryReason.RevisionMismatch); }
-        var lineageReason = MemoryPolicy.CheckLineage(current, boundary);
+        var lineageReason = operation is MemoryOperation.Edit or MemoryOperation.Forget
+            ? MemoryPolicy.CheckManagementLineage(current, boundary) : MemoryPolicy.CheckLineage(current, boundary);
         if (lineageReason != MemoryReason.None)
         {
             return new(MemoryOutcome.Denied, lineageReason);

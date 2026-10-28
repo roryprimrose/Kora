@@ -50,6 +50,20 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Conversational voice replies
+
+In **Settings > Speech & audio**, choose **Enable conversational replies** to opt in, or **Turn off** to return to the default. This saves a shared device-local On/Off preference; it does not grant listening permission or make an unavailable microphone or recognizer ready ([settings workflow](../src/Kora.Application/ViewModels/MainViewModel.ConversationalReplies.cs)).
+
+For a new unique foreground host clarification, Kora speaks the exact question with the microphone closed. Only after that playback finishes can you answer without another click or activation name ([question voice owner](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+You have **15 seconds to start**, then at most **60 seconds of speech**. The visible reply status distinguishes playback, awaiting reply and capture; **Cancel reply** closes capture while keeping the native question answerable.
+
+Only one answer matching that question's schema is submitted. Approval and transmission-consent dialogs never open automatic capture ([reply admission](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+Silence, cancellation, failure, changed settings, lost foreground or changed privacy/device/ownership retire the attempt without retry or rearm.
+**Answer by voice**, **Hear question, then answer by voice** and native answer controls remain available under their existing gates. Merely displaying a card does not start transcription ([native question controls](../src/Kora/NativeQuestionViewModel.cs)).
+
+Automatic replies remain unavailable if the saved preference or required audit is unconfirmed; inspect saved state and audit before recovery. Audio and raw transcripts are not saved or logged ([storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
+This feature does not enable ambient name listening, capture during speech playback, barge-in, a new speech provider or unqualified hardware/acoustic profiles ([scope and qualification](../Design/Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
+
 ## Local records and privacy
 
 Kora keeps task records, diagnostic records and security records on this device.
@@ -75,20 +89,29 @@ option IDs and structured output.
 
 ### Review an assistant appearance suggestion
 
-In a local UI conversation, ask for a theme or native reader text scale
+In a local UI conversation, ask for a theme, native reader text scale or presence
 suggestion. An admitted model can answer with one exact `set appearance.theme
 to dark` (also `system` or `light`) or `set appearance.reader-text-scale to 125`
-suggestion, using the registered reader percentage range. This answer is inert
+suggestion, using the registered reader percentage range. For a less distracting
+presence, the complete answer can be `set appearance.movement-speed to 50` or
+`set appearance.presence-display to false`. The existing presence timeout,
+size, dot size/density, speech scaling and speech scale amount are also supported;
+see the exact [registered IDs, types and bounds](setting-proposals.md).
+Presence answers require exact lowercase IDs and syntax, canonical decimal
+integers or `true`/`false`; no aliases, batches or commentary.
+Response timeout and experimental renderer selection are excluded. This answer is inert
 text, never a command or permission to write. Other answers remain readable
 but cannot be used as appearance suggestions.
 
-Choose **Review appearance suggestion...** on that exact assistant answer in
+Choose **Review setting suggestion...** on that exact assistant answer in
 Sessions or the compact conversation. The native review shows the exact current
 value, whether it is saved or default, proposed value, units and shared
-device-local scope. Separately choose **Confirm exact appearance change** to
-save just that option, or **Cancel appearance review** to change nothing.
+device-local scope. Separately choose **Confirm exact setting change** to
+save just that option, or **Cancel setting review** to change nothing.
 Successful saves use the same shared validation, audit, persistence and live
-appearance refresh as Settings. Failed or stale saves are reported; review
+appearance refresh as Settings, including hiding a disabled presence and updating
+its existing animation settings. Speech scaling changes animation only, not
+speech output or permission. Failed or stale saves are reported; review
 again rather than automatically retrying.
 
 The exact active original session, answer source, private host ownership and
@@ -98,6 +121,10 @@ revoke review. Protected calls and original voice requests are not eligible
 for this native-only increment; UI confirmation does not relabel a voice
 request. Unqualified or unavailable models remain unavailable and cannot
 produce a reviewable successful answer. No provider is enabled by this feature.
+
+The same [registered-setting review](setting-proposals.md) handles the existing
+spoken-summary and Kora-volume suggestion families without expanding settings
+or granting model write authority. Only one native review is active at a time.
 
 ### Navigate without changing a preference
 
@@ -137,6 +164,8 @@ Model execution and reusable grants remain unavailable during a model-preference
 An unconfirmed write holds model admission for the run; inspect saved state and receipts before restarting. No rollback or automatic retry is claimed ([preference admission](../src/Kora.Application/ViewModels/MainViewModel.Preferences.cs)).
 
 Response text and settings remain responsive while bounded audio endpoint discovery runs on a worker ([output discovery](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs)).
+
+Closing the host or changing topology retires an in-flight discovery without publishing its late metadata or starting playback. Disposal still joins the worker; retirement alone is not a discovery failure ([lifecycle regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.AsyncBoundaryFailures.cs)).
 
 Playback waits for discovery and rechecks privacy and response identity. Voice-only window reveal waits for the observed output fallback; a late result cannot reveal a newer or locked response ([response workflow](../src/Kora.Application/ViewModels/MainViewModel.cs)).
 
@@ -449,6 +478,8 @@ Status separates saved choices from models that are ready to use. Unknown, expir
 This is independent of the unchanged **LocalOnly** `providers.default-mode` safety default and existing bootstrap local-model switches. Only subsequent eligible provider-neutral policy turns consume profiles; app edits never reroute/cancel/retry an admitted turn or change the buffered local bootstrap reasoner.
 
 Durable session inheritance/overrides use the separate Sessions controls below. Generic unscoped “Use Claude” and one-turn directives remain deferred; existing [app-scoped commands](commands.md#inspect-or-change-app-provider-profiles) never alias session changes. Larger context choices cannot override Kora's limits. Failed/unconfirmed writes require inspecting saved state and audit/control receipts before explicit repair and refresh, not automatic retry.
+
+Saving a Claude profile is not streaming approval. **Stream explicitly with Claude (text only, separately qualified)** in Sessions requires separate exact-profile stream evidence; an existing buffered approval never supplies it. The shipped Claude source remains unavailable. See [Claude streaming availability, native consent and bounds](claude-requests.md#separately-qualified-native-text-streaming).
 
 ### Review local runtime admission
 
@@ -914,14 +945,14 @@ clear it. No automatic retry, test playback or acoustic audibility claim.
 
 An admitted local model can return exactly `set speech.playback-volume to 30`
 (one canonical integer 0-100). The complete retained successful ASSISTANT answer
-is inert data, never permission. Choose **Review Kora volume suggestion...** on
+is inert data, never permission. Choose **Review setting suggestion...** on
 that exact answer in expanded or compact Sessions. Review displays current
 desired/effective percent, saved/default provenance, proposed percent, shared
 device-local scope and zero-synthesis implications. Review writes nothing and
 never synthesizes or replays the answer.
 
-Choose **Confirm exact Kora volume change** separately within 60 seconds, or
-**Cancel Kora volume review**. Typed/current-name activated routes are
+Choose **Confirm exact setting change** separately within 60 seconds, or
+**Cancel setting review**. Typed/current-name activated routes are
 **review volume suggestion**, **confirm volume change**, **cancel volume review**;
 they use only the exact successful session-submission receipt, never a guessed
 latest answer. Confirmation revalidates source, session, ownership, privacy,
@@ -977,11 +1008,11 @@ An admitted local model may return exactly `set speech.summary-words to 40`
 or `set speech.summary-sentences to 2`. This is inert answer data, not a write,
 approval, tool invocation or a request to speak.
 
-Choose **Review speech limit suggestion...** on that exact retained answer in
+Choose **Review setting suggestion...** on that exact retained answer in
 Sessions or the compact conversation. Review the complete **current** and
 **proposed** sentence/word pair, saved/default provenance, unchanged companion,
 shared device-local scope and next-ordinary-speech timing. Then separately choose
-**Confirm exact speech limit change**, or **Cancel speech limit review**.
+**Confirm exact setting change**, or **Cancel setting review**.
 Only the two existing caps are admitted; provider, installed voice and other
 settings are not suggestions for this operation.
 
@@ -1134,6 +1165,22 @@ fallback.
 
 ## Calls
 
+### Optional communications audio observations
+
+**Inspect observations** shows the selected source, support, automatic policy evidence, observed UTC time, health and the five-second freshness limit.
+The [bounded Windows profile](../Design/Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) is implemented but **not qualified or enabled** in production.
+**Use Windows communications audio** is disabled, and an exact typed enable request is denied without saving or opening a native subscription.
+
+The device-local `calls.activity-source` defaults to **None**.
+A saved enabled source that becomes unavailable remains **Unknown** and suppresses speech; it is not silently disabled.
+Explicit **Disable automatic observations** resets this source only and waits for owned observation release.
+Manual call mode, grants, listening consent and spoken-approval settings remain unchanged ([shared host control](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs)).
+
+Communications audio is at most **Suspected**, not proof of Teams or an actual call.
+Startup, ambiguous/multiple streams, stale health and device/session loss remain Unknown.
+Clear requires the witnessed single-stream transition described by the profile; no audio, transcript, account or network access is requested.
+Protected original voice requests cannot change the source, even through a later Settings click; initiate a fresh native/typed request ([origin rules](../Design/Call_Aware_Speech.md#in-call-settings-origin-gate)).
+
 ### Call detection
 
 Read-only status keeps manual state and automatic evidence separate. Automatic
@@ -1194,12 +1241,15 @@ During protection, all voice-originated voice and in-call preference mutations
 are rejected, including manual clear/reset and ordinary output options masked
 by the call override. Later UI confirmation cannot change voice lineage; start
 a new UI request. Stop speech, disable listening, cancel and read-only status
-remain usable. Protected calls ignore Session/Always reusable model-action
-grants without changing storage; new grant-ignore disabling, temporary overrides
-and speak-once exceptions are unavailable. This is bounded manual behavior, not
+remain usable. Protected calls preserve applicable grants and session action
+levels. **Allow spoken approvals during calls** defaults Off and requires
+fresh native review and explicit downgrade confirmation before enabling.
+Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
 full call/provider/native/audio acceptance.
 
-[The proposed session permission-level design](../Design/Session_Permission_Levels.md#voice-approval-and-protected-calls) will instead keep grants and levels effective during calls and add default-disabled configurable spoken approvals. That migration and selector are not current settings behavior.
+Use [session permission controls](session-permission-levels.md) to review and
+confirm Review all / Model review / Approve all for one exact Active session.
+An unqualified Model reviewer requires your approval; it selects no fallback.
 
 ## Readiness
 

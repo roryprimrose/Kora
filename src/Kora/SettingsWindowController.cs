@@ -1,10 +1,13 @@
 ﻿using Avalonia;
+using Avalonia.Controls;
 
 using Kora.Application.ViewModels;
 using Kora.Application.Hosting;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Application.Presentation;
+using Kora.Application.Configuration.SettingInspection;
+using Kora.SettingInspection;
 
 using Microsoft.Extensions.Logging;
 
@@ -20,6 +23,11 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
     private bool disposed;
     private int nativeVisible;
     private long nativeVisibilityRevision;
+    private SettingInspectionWorkflow? settingInspection;
+    private TimeProvider inspectionTime = TimeProvider.System;
+
+    internal void BindSettingInspection(SettingInspectionWorkflow workflow, TimeProvider time)
+    { settingInspection = workflow; inspectionTime = time; }
 
     internal Action? EditOwnedInstructions { get; set; }
     internal Action? InspectSkillPackages { get; set; }
@@ -137,6 +145,11 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         var settingsWindow = new SettingsWindow(viewModel, chooseMicrophone, captionDisplay);
         settingsWindow.BindNavigation(EditOwnedInstructions, InspectSkillPackages, InspectExactGrants,
             ReviewLocalVersion, ReturnToVersionQuestion);
+        if (settingInspection is { } inspection)
+        {
+            settingsWindow.FindControl<SettingInspectionControl>("SettingInspection")!.Bind(
+                viewModel, inspection, inspectionTime, settingsWindow, CaptureLifetime);
+        }
         settingsWindow.PropertyChanged += OnWindowPropertyChanged;
         settingsWindow.Closed += OnWindowClosed;
         return settingsWindow;
@@ -164,6 +177,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         viewModel.BindWindowsSpeechRateNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechInputNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
+        viewModel.BindConversationalReplyNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindSpeechComponentNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);

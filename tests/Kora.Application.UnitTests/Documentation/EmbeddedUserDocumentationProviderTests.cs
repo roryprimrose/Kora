@@ -2,6 +2,7 @@ using System.Text;
 using System.Text.RegularExpressions;
 
 using AwesomeAssertions;
+using AwesomeAssertions.Execution;
 
 using Kora.Application.Documentation;
 using Kora.Application.Configuration;
@@ -12,6 +13,71 @@ namespace Kora.Application.UnitTests.Documentation;
 
 public sealed class EmbeddedUserDocumentationProviderTests
 {
+    [Fact]
+    public void DocumentInteractionGuideDescribesExactLocalNavigationReadOnlySortingAndUnavailableProfile()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Go to heading**").And.Contain("Enter or Space")
+            .And.Contain("external links require separate review")
+            .And.Contain("Ctrl+Home/End").And.Contain("ordinal text")
+            .And.Contain("Equal values keep original order")
+            .And.Contain("**Reset table order**").And.Contain("never edits the answer")
+            .And.Contain("No table action copies content")
+            .And.Contain("unavailable table profile still shows the complete source")
+            .And.Contain("do not enable an unqualified profile");
+    }
+
+    [Fact]
+    public void FinalDocumentGuideSeparatesLocalReadingFromClipboardAndExternalNavigationConfirmation()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        pages.Single(page => string.Equals(page.Id, "code-highlighting", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Select literal code").And.Contain("programmatic copy remain blocked")
+            .And.Contain("Unavailable Markdown profiles");
+        pages.Single(page => string.Equals(page.Id, "responses-and-calls", StringComparison.Ordinal)).Markdown
+            .Should().Contain("Review external link").And.Contain("Open this exact")
+            .And.Contain("Generated links remain untrusted").And.Contain("offline/local-only");
+    }
+
+    [Fact]
+    public void TwoSourceSkillExampleUsesOnlyAdmittedDeclarativePageToolAndExactCommands()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var guide = pages.Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal)).Markdown;
+        const string start = "```markdown\n---\nname: two-source-comparison";
+        var normalized = guide.Replace("\r\n", "\n", StringComparison.Ordinal);
+        var offset = normalized.IndexOf(start, StringComparison.Ordinal);
+        offset.Should().BeGreaterThanOrEqualTo(0);
+        var text = normalized[(offset + "```markdown\n".Length)..].Split("```", StringSplitOptions.None)[0];
+        var snapshot = Kora.Core.Skills.SharedSkillSnapshot.Parse(Guid.NewGuid(), "two-source-comparison\\SKILL.md",
+            Encoding.UTF8.GetBytes(text), false);
+        snapshot.DeclaredTools.Should().Equal(Kora.Core.Network.WebPageCapability.Id);
+        snapshot.UnavailableReasons.Should().Equal("declared-tools-unavailable");
+        snapshot.Text.Should().Contain("Cite each source URL").And.Contain("either source is missing or failed");
+        var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
+        commands.Should().Contain("tool skill second address https://example.net/")
+            .And.Contain("tool skill clear second address")
+            .And.Contain("three serial model rounds")
+            .And.Contain("Stop and close reviewed use");
+    }
+
+    [Fact]
+    public void RegisteredSettingGuideDescribesTheClosedUnifiedOperationAndMandatoryChannelExceptions()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        var guide = pages.Single(page => string.Equals(page.Id, "setting-proposals", StringComparison.Ordinal)).Markdown;
+        foreach (var descriptor in Kora.Core.Configuration.RegisteredSettings.RegisteredSettingRegistry.Settings)
+        {
+            guide.Should().Contain(descriptor.Id);
+        }
+        guide.Should().Contain("**Review setting suggestion...**").And.Contain("**Confirm exact setting change**")
+            .And.Contain("**Cancel setting review**").And.Contain("both").And.Contain("desired/effective")
+            .And.Contain("Only one native setting review").And.Contain("original local UI request")
+            .And.Contain("Unconfirmed").And.Contain("not success or rollback")
+            .And.Contain("No new static setting aliases").And.Contain("Unqualified/unavailable models remain unavailable");
+    }
+
     [Fact]
     public void TrayGuideDescribesGroupedNavigationAndRelocatedSpecialistLinks()
     {
@@ -53,14 +119,16 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.Contain("select the third session")
             .And.Contain("Positions count from the top")
             .And.Contain("read-only, never live answer or approval buttons")
-            .And.Contain("Automatic current/other/new conversation matching is not available yet")
+            .And.Contain("reviewed local relatedness")
+            .And.Contain("automatic destination submission")
             .And.Contain("selection")
             .And.Contain("supplies context, not a lock");
         var commands = pages.Single(page => string.Equals(page.Id, "commands", StringComparison.Ordinal)).Markdown;
         commands.Should().Contain("show me the current sessions")
             .And.Contain("collapse conversation")
             .And.Contain("out-of-range positions refuse")
-            .And.Contain("model-visible session-list context remain unavailable");
+            .And.Contain("Navigation commands do not")
+            .And.Contain("disclose the session list to a model");
     }
 
     [Fact]
@@ -143,6 +211,20 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void OwnedRefinementGuideSeparatesVolatileProposalConfirmedSaveAndUnavailableQualification()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "instruction-editor", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("## Refine the current owned instruction body")
+            .And.Contain("instructions refine").And.Contain("complete prepared replacement")
+            .And.Contain("does not change the editor buffer or write a file")
+            .And.Contain("Confirm save").And.Contain("saving never enables it")
+            .And.Contain("Structural validation is not semantic harmlessness")
+            .And.Contain("not fence-stripped or truncated")
+            .And.Contain("Production local registrations remain unqualified");
+    }
+
+    [Fact]
     public void Embedded_response_mode_aliases_explain_exact_future_only_controls_and_refusals()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();
@@ -215,12 +297,13 @@ public sealed class EmbeddedUserDocumentationProviderTests
         var second = provider.GetPages();
 
         first.Should().BeSameAs(second);
-        first.Select(page => page.Id).Should().Equal(
+        first.Select(page => page.Id).Should().ContainInOrder(
             "readme",
             "getting-started",
             "voice-and-audio",
             "responses-and-calls",
             "settings",
+            "session-permission-levels",
             "commands",
             "tools-and-built-in-skills",
             "customizations",
@@ -231,16 +314,46 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "skill-and-task-execution-design",
             "troubleshooting",
             "session-instructions",
+            "evidence-answers",
             "agent-profile-authoring",
             "claude-requests",
+            "conversation-notices",
             "owned-skill-authoring",
+            "profile-memory",
+            "session-dictation",
             "hosted-requests",
+            "folder-answers",
             "independent-agent-runs",
+            "knowledge-sources",
+            "code-highlighting",
+            "external-browser",
+            "markdown-strikethrough",
+            "diagrams",
+            "mcp-transport",
+            "setting-proposals",
+            "session-routing",
+            "reviewed-context",
+            "model-session-discovery",
+            "model-memory-proposals",
             "agent-shared-skill-guidance");
+        AssertInventoryMatchesManifest(first, ReadRawGuideManifest());
         first.Should().OnlyContain(page =>
             !string.IsNullOrWhiteSpace(page.Title)
             && page.Markdown.StartsWith("# ", StringComparison.Ordinal));
         provider.GetStartPage().Should().Be(first[0]);
+    }
+
+    [Fact]
+    public void RoutingGuideRequiresExactReviewCorrectionAndTruthfulUnqualifiedNewFallback()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "session-routing", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("**Review this destination**").And.Contain("**Correct destination**")
+            .And.Contain("Unqualified production providers remain unavailable")
+            .And.Contain("physical inference resources are joined")
+            .And.Contain("one page of 50").And.Contain("does not add hands-free routing replies")
+            .And.Contain("grants, provider state, history, sources and permissions are not moved")
+            .And.Contain("separate audited").And.Contain("no automatic fallback after denial");
     }
 
     [Fact]
@@ -259,7 +372,9 @@ public sealed class EmbeddedUserDocumentationProviderTests
         page.Markdown.Should().Contain("## 15. Deferred context, knowledge, and general execution");
         page.Markdown.Should().Contain("General concurrent workers/provider scheduling remain unqualified");
         page.Markdown.Should().Contain("combined script-set hash");
-        page.Markdown.Should().Contain("Ignore reusable grants during calls");
+        page.Markdown.Should().Contain("retain")
+            .And.Contain("applicable grants and selected policy during calls")
+            .And.Contain("Off");
     }
 
     [Fact]
@@ -276,7 +391,24 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Skip(1)
             .ToArray();
 
-        sections.Should().HaveCount(commands.Count + 24);
+        sections.Should().HaveCount(commands.Count + 26);
+        var namedOpening = sections.Single(section => section.StartsWith(
+            "Open a conversation by its readable name", StringComparison.Ordinal));
+        namedOpening.Should().Contain("open conversation \"Exact readable name\"")
+            .And.Contain("read conversation \"Exact readable name\"")
+            .And.Contain("Nothing is selected by default")
+            .And.Contain("Open this exact").And.Contain("real retained history")
+            .And.Contain("never autosaved").And.Contain("60 seconds")
+            .And.Contain("late confirmation cannot substitute")
+            .And.Contain("never creates New");
+        var namedInvocation = sections.Single(section => section.StartsWith(
+            "Invoke an instruction-only skill by readable name", StringComparison.Ordinal));
+        namedInvocation.Should().Contain("use skill <exact declared readable name>")
+            .And.Contain("skill choice <displayed number>").And.Contain("skill close")
+            .And.Contain("read consent").And.Contain("No row is selected automatically")
+            .And.Contain("replacement inspection cannot retarget queued input")
+            .And.Contain("unchanged original user task").And.Contain("Confirm exact invocation once")
+            .And.Contain("original typed/voice channel survives").And.Contain("cancels and joins actual work");
         var volumeSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant Kora volume suggestion", StringComparison.Ordinal));
         foreach (var phrase in PlaybackVolumeSuggestionCommand.FixedPhrases)
@@ -456,6 +588,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             && !ReferenceEquals(section, sessions) && !ReferenceEquals(section, speech)
             && !ReferenceEquals(section, sessionCommands) && !ReferenceEquals(section, summaries)).ToArray();
         sections = sections.Where(section => !ReferenceEquals(section, sharedSkills)
+            && !ReferenceEquals(section, namedOpening)
             && !ReferenceEquals(section, speechSuggestion)
             && !ReferenceEquals(section, volumeSuggestion)
             && !ReferenceEquals(section, sharedInvocation)
@@ -517,6 +650,72 @@ public sealed class EmbeddedUserDocumentationProviderTests
     }
 
     [Fact]
+    public void Inventory_oracle_preserves_preferred_order_title_sort_and_manifest_order_for_title_ties()
+    {
+        UserDocumentationPage[] manifest =
+        [
+            new("zeta", "Alpha custom", "# Alpha custom"),
+            new("settings", "A settings", "# A settings"),
+            new("readme", "Z start", "# Z start"),
+            new("second", "Same title", "# Same title"),
+            new("first", "same title", "# same title"),
+            new("alpha", "Zulu custom", "# Zulu custom"),
+        ];
+        var provider = CreateProvider(manifest
+            .Select(page => ($"Kora.Docs.{page.Id}.md", page.Markdown)).ToArray());
+        var pages = provider.GetPages();
+
+        pages.Select(page => page.Id).Should().Equal(
+            "readme", "settings", "zeta", "second", "first", "alpha");
+        AssertInventoryMatchesManifest(pages, manifest);
+    }
+
+    [Theory]
+    [InlineData("omitted")]
+    [InlineData("extra")]
+    [InlineData("duplicated")]
+    [InlineData("misordered")]
+    [InlineData("wrong-title")]
+    [InlineData("wrong-content")]
+    public void Inventory_oracle_rejects_catalogues_that_differ_from_the_raw_manifest(string mutation)
+    {
+        UserDocumentationPage[] manifest =
+        [
+            new("settings", "Settings", "# Settings"),
+            new("readme", "Start", "# Start"),
+            new("new-guide", "Additional guide", "# Additional guide"),
+        ];
+        List<UserDocumentationPage> catalogue = [manifest[1], manifest[0], manifest[2]];
+        switch (mutation)
+        {
+            case "omitted":
+                catalogue.RemoveAt(2);
+                break;
+            case "extra":
+                catalogue.Add(new("unexpected", "Unexpected", "# Unexpected"));
+                break;
+            case "duplicated":
+                catalogue.Add(catalogue[2]);
+                break;
+            case "misordered":
+                (catalogue[0], catalogue[1]) = (catalogue[1], catalogue[0]);
+                break;
+            case "wrong-title":
+                catalogue[2] = catalogue[2] with { Title = "Wrong title" };
+                break;
+            case "wrong-content":
+                catalogue[2] = catalogue[2] with { Markdown = "# Additional guide\nChanged" };
+                break;
+            default:
+                throw new ArgumentOutOfRangeException(nameof(mutation));
+        }
+
+        using var scope = new AssertionScope();
+        AssertInventoryMatchesManifest(catalogue, manifest);
+        scope.Discard().Should().NotBeEmpty();
+    }
+
+    [Fact]
     public void Missing_documentation_resources_are_rejected()
     {
         var provider = CreateProvider(("Kora.Other.ignore.md", "# Ignore"));
@@ -562,6 +761,85 @@ public sealed class EmbeddedUserDocumentationProviderTests
 
         action.Should().Throw<InvalidDataException>()
             .WithMessage("*no level-one heading*");
+    }
+
+    private static UserDocumentationPage[] ReadRawGuideManifest()
+    {
+        var assembly = typeof(UserDocumentationPage).Assembly;
+        var manifest = new List<UserDocumentationPage>();
+        foreach (var name in assembly.GetManifestResourceNames())
+        {
+            if (!name.StartsWith("Kora.Docs.", StringComparison.Ordinal)
+                || !name.EndsWith(".md", StringComparison.Ordinal))
+            {
+                continue;
+            }
+
+            using var stream = assembly.GetManifestResourceStream(name)
+                ?? throw new InvalidOperationException($"Missing raw guide resource: {name}");
+            using var reader = new StreamReader(stream);
+            var markdown = reader.ReadToEnd();
+            using var lines = new StringReader(markdown);
+            string? title = null;
+            while (lines.ReadLine() is { } line)
+            {
+                var heading = line.Trim();
+                if (heading.StartsWith("# ", StringComparison.Ordinal))
+                {
+                    title = heading[2..].Trim();
+                    break;
+                }
+            }
+
+            title.Should().NotBeNullOrWhiteSpace(because: $"raw resource {name} must have a title");
+            manifest.Add(new UserDocumentationPage(name["Kora.Docs.".Length..^".md".Length], title!, markdown));
+        }
+
+        manifest.Should().NotBeEmpty();
+        manifest.Select(page => page.Id).Should().OnlyHaveUniqueItems();
+        return manifest.ToArray();
+    }
+
+    private static void AssertInventoryMatchesManifest(
+        IReadOnlyList<UserDocumentationPage> catalogue,
+        IReadOnlyList<UserDocumentationPage> manifest)
+    {
+        // These are the fixed navigation slots; all other guides use their source title.
+        string[] preferred =
+        [
+            "readme",
+            "getting-started",
+            "voice-and-audio",
+            "responses-and-calls",
+            "settings",
+            "session-permission-levels",
+            "commands",
+            "tools-and-built-in-skills",
+            "customizations",
+            "instruction-editor",
+            "conversation-instructions",
+            "windows-and-tray",
+            "privacy-safety-and-logs",
+            "skill-and-task-execution-design",
+            "troubleshooting",
+        ];
+        var expected = manifest.Select((page, index) => (Page: page, ManifestIndex: index)).ToArray();
+        Array.Sort(expected, (left, right) =>
+        {
+            var leftSlot = Array.IndexOf(preferred, left.Page.Id);
+            var rightSlot = Array.IndexOf(preferred, right.Page.Id);
+            var navigation = (leftSlot < 0 ? preferred.Length : leftSlot)
+                .CompareTo(rightSlot < 0 ? preferred.Length : rightSlot);
+            if (navigation != 0)
+            {
+                return navigation;
+            }
+
+            var title = StringComparer.CurrentCultureIgnoreCase.Compare(left.Page.Title, right.Page.Title);
+            return title != 0 ? title : left.ManifestIndex.CompareTo(right.ManifestIndex);
+        });
+
+        catalogue.Should().Equal(expected.Select(item => item.Page));
     }
 
     private static EmbeddedUserDocumentationProvider CreateProvider(

@@ -1,8 +1,8 @@
 # Call-Aware Speech and Voice Configuration
 
 Status: bounded manual host mode, independent device-local feedback and conservative output/origin gates delivered;
-full R15 remains partial. Automatic tool detection is unavailable, not implemented.
-The remaining detector and configurable exception contracts below are proposed.
+full R15 remains partial. A bounded Windows communications-notification adapter and host integration are implemented but the exact native profile is unqualified and unavailable.
+The broader tool detectors and configurable exception contracts below remain proposed.
 
 [Session Permission Levels](Session_Permission_Levels.md#voice-approval-and-protected-calls) supersedes future call grant-ignore: disable spoken approvals by default, configurable, while preserving grants and the session's level. Delivered manual-mode grant suppression below remains current behavior until qualified migration; this document change does not remove it.
 
@@ -12,6 +12,40 @@ Voice/Both feedback as permission. Protected Active/Suspected/Unknown call
 evidence holds its admission; a changed call/privacy/lock/owner epoch retires
 held action eligibility. Call end never opens a window, speaks a backlog,
 changes a question target, enables listening or creates reusable authority.
+
+## Bounded Windows Communications Activity Observations - 2026-10-26
+
+This supports the [approved voice/typed/native interaction outcome](MVP_Scope.md#product-admission-and-realignment), not an actual-call or Teams detector.
+The [Windows adapter](../src/Kora.Windows/Communication/WindowsCommunicationsActivitySource.cs) emits metadata-only observations.
+The [application owner](../src/Kora.Application/Communication/CommunicationActivityCallStateService.cs) combines explicit source selection, source health, freshness and host eligibility into the existing [call policy](../src/Kora.Application/Communication/CallCommunicationPolicy.cs).
+
+The local profile uses [Windows communications duck notifications](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessionmanager2-registerducknotification) with a null media-session filter: it observes notifications without opting out of ducking or opening an audio stream.
+The fixed scope is the current default communications output endpoint and unlocked Windows session; it is not a selectable process/account or universal call census ([native lease](../src/Kora.Windows/Communication/WindowsCommunicationsNotificationPlatform.cs)).
+
+- Registration and missing callbacks start **Unknown**, never Clear. A resolved non-Kora communications stream is at most **Suspected**. Process IDs are used only to exclude Kora through session metadata, never to scrape executable names, windows or content.
+- **Clear** requires a witnessed matching end of a previously observed single non-Kora communications stream in the same device epoch. Multiple streams, unresolved identity, unmatched ends and malformed/overflowed notifications cannot establish Clear.
+  Windows [session enumeration can omit new sessions](https://learn.microsoft.com/en-us/windows/win32/api/audiopolicy/nf-audiopolicy-iaudiosessionmanager2-getsessionenumerator); a missing match therefore remains Unknown.
+- One-second device/session health observations maintain the witnessed baseline, not a newly inferred clearance.
+  The host rejects observations at age **5 seconds or greater**, future observations, invalid state/health, stale generations and non-increasing sequences.
+  The freshness timer checks every 250 ms; these deterministic bounds are not a driver/acoustic stop-latency qualification.
+- Device/session/privacy/ownership loss closes the observation generation and remains Unknown.
+  Cancellation joins the owned worker; unregister failure retires callbacks, preserves the COM owner in quarantine and prevents replacement until release is confirmed.
+  Clear/disable never reopens capture, replays suppressed speech or changes manual call state.
+
+The device-local **`calls.activity-source`** defaults/resets to **None**.
+Native Settings > Calls and exact typed/activated discovery/get/status/set/reset share the [admitted, audited writer](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs).
+Protected original voice requests are rejected, including a later native click inside that voice request; fresh native/typed initiation remains required.
+Atomic saved bytes, readback and the unconfirmed marker are independent of microphone consent, grants and manual mode.
+
+**Availability:** the [production source](../src/Kora.Windows/Communication/WindowsCommunicationsActivitySource.cs) deliberately reports unqualified.
+The native source-selection button is disabled; typed selection is denied without a preference write or native subscription.
+Previously selected but unavailable or unconfirmed sources remain Unknown, not implicitly disabled. No source configured preserves ordinary speech policy after preference observation.
+The narrow initial/multiple-stream limitations are implementation semantics, not coverage that a qualification flag can add.
+Native accessibility, notification health, installed/client/device behavior and acoustic timing remain exact-profile E/Q work; deterministic fakes grant none of that readiness.
+
+[Windows seam regressions](../tests/Kora.Windows.IntegrationTests/CommunicationActivitySourceTests.cs) and [host source tests](../tests/Kora.Application.UnitTests/Communication/CommunicationActivityCallStateTests.cs) exercise observation and resource ownership.
+[Configuration tests](../tests/Kora.Application.UnitTests/Configuration/CommunicationActivityTests.cs) and [native-consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.CommunicationActivity.cs) exercise the complete selected-source operation without calls, microphone/playback, network or accounts.
+The existing call/manual/grant and spoken-approval policies remain authoritative.
 
 ## Delivered Bounded Manual Mode - 2026-10-07
 
@@ -115,12 +149,13 @@ reopening capture or replaying output. Changed input needs explicit fresh
 listening enablement/PTT. These are process-memory effects, not an atomic
 persisted manual flag. Lost outcome evidence or unconfirmed resource closure
 does not certify rollback: a separate explicit run-owned
-`ManualControlEvidenceUnavailable` hold prevents speech, activation and reusable
-grant admission, without changing automatic observations or saved flags.
+`ManualControlEvidenceUnavailable` hold prevents speech, activation and action
+admission through mandatory host gates, without revoking grants or changing automatic observations or saved flags.
 Further manual mutations cannot use that unknown state as authority.
 
-The saved `CallAwareSettings` tuple, defaults, Perpetual/session grant records
-and unavailable `ExactReviewUnavailable` relaxation path remain unchanged.
+Perpetual/session grant records remain unchanged. The additive spoken-approval
+preference defaults Off, including known older saved tuples. Other unavailable
+`ExactReviewUnavailable` relaxation paths remain unchanged.
 Restart starts manual-off with the composed detector still unavailable. This
 does not deliver automatic detection, persisted call state, new settings/model
 tools, speak-once, output mode/volume, microphone/consent, or full R15.
@@ -240,11 +275,11 @@ The model-facing `calls.*`, `speech.*`, and `settings.*` boundaries are defined 
 
 ## Ignoring Reusable Grants During Calls
 
-The former proposed default-On `calls.ignoreReusableGrants` setting is superseded by [Spoken Approvals During Calls](#spoken-approvals-during-calls). Keep this heading for historical links. Current reusable-grant suppression remains described in the [delivered manual-mode boundary](#delivered-bounded-manual-mode---2026-10-07); it is not the target behavior for the new feature.
+The former default-On `calls.ignoreReusableGrants` behavior is superseded by [Spoken Approvals During Calls](#spoken-approvals-during-calls). Keep this heading for historical links. Call entry does not withdraw applicable grants or selected session levels.
 
 ## Spoken Approvals During Calls
 
-Propose device-local **`calls.allowSpokenApprovals`**, **Off by default**. During manual Active, supported enabled Active/Suspected, or enabled Unknown/stale/failed call evidence, reject spoken Once/Session/Always approval and disclosure-consent answers while preserving the pending UI card. UI can select every otherwise valid grant duration; calls do not force Once.
+Device-local **`calls.allowSpokenApprovals`** is **Off by default**. During manual Active, supported enabled Active/Suspected, or enabled Unknown/stale/failed call evidence, reject spoken Once/Session/Always approval and disclosure-consent answers while preserving the pending UI card. UI can select every otherwise valid grant duration; calls do not force Once.
 
 Existing applicable grants, preapproved destinations and the selected Review all / Model review / Approve all level remain effective. Call entry does not revoke/ignore those grants or turn automatic admission into a fresh-approval requirement. Safe and Approve-all eligible actions can continue without prompting; independent consent and mandatory gates still apply.
 

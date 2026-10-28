@@ -6,21 +6,21 @@
       <TextBlock Text="{Binding Request.RequestId.Value, StringFormat='Original request {0}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding Request.TaskId.Value, StringFormat='Original task {0}'}" TextWrapping="Wrap" />
       <TextBlock Text="{Binding SubmittedAt, StringFormat='Submitted UTC {0:O}'}" />
-      <TextBlock Text="{Binding Body}" TextWrapping="Wrap" />
+      <TextBlock Name="OriginalMessageText" Text="{Binding Body}" TextWrapping="Wrap" Focusable="True" />
       <StackPanel IsVisible="{Binding HasAssistantResponse}">
         <TextBlock Text="ASSISTANT - finalized admitted local-model answer (not original USER or effect evidence)" />
-        <TextBlock Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap"
+        <TextBlock Name="RetainedAssistantText" Text="{Binding AssistantResponse.Body}" TextWrapping="Wrap" Focusable="True"
             AutomationProperties.Name="Complete finalized retained ASSISTANT text, inert read-only data separate from original USER and typed HOST status" />
+        <Button Name="ReplyToAssistantAnswer" Content="_Reply to this answer"
+            IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"
+            AutomationProperties.Name="Reply to this exact displayed retained assistant answer in the same Active conversation; review and separate local-only confirmation required" />
         <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
-        <Button Name="ReviewAppearanceSuggestion" Content="Review appearance suggestion..."
-            IsEnabled="{Binding $parent[Window].DataContext.CanReviewAppearanceSuggestion}"
-            AutomationProperties.Name="Review this exact assistant answer as an inert theme or native reader text scale suggestion; never applies without separate local confirmation" />
-        <Button Name="ReviewSpeechSummarySuggestion" Content="Review speech limit suggestion..."
-            IsEnabled="{Binding $parent[Window].DataContext.CanReviewSpeechSummarySuggestion}"
-            AutomationProperties.Name="Review this exact inert answer as one shared future ordinary speech cap; never applies or speaks without separate confirmation" />
-        <Button Name="ReviewPlaybackVolumeSuggestion" Content="Review Kora volume suggestion..."
-            IsEnabled="{Binding $parent[Window].DataContext.CanReviewPlaybackVolumeSuggestion}"
-            AutomationProperties.Name="Review this exact inert answer as shared Kora-only playback volume; never changes system or call volume and requires separate confirmation" />
+        <Button Name="ReviewRegisteredSettingSuggestion" Content="Review setting suggestion..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewRegisteredSettingSuggestion}"
+            AutomationProperties.Name="Review this exact inert answer as one registered shared setting proposal; nothing is applied without separate original-user confirmation" />
+        <Button Name="ReviewModelMemoryProposal" Content="Review session-memory proposal..."
+            IsEnabled="{Binding $parent[Window].DataContext.CanReviewModelMemoryProposal}"
+            AutomationProperties.Name="Explicitly inspect this exact answer as one inert session-only memory proposal; separate acceptance and admission, never automatic learning" />
       </StackPanel>
       <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect task recovery', StringFormat='HOST status: {0}'}" />
       <TextBlock Text="{Binding Reason, StringFormat='HOST reason: {0}'}" />

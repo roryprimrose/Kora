@@ -17,8 +17,11 @@ public sealed partial class MainViewModel
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
         await Task.WhenAll(appearancePersistence, preferencePersistence, consentPersistence,
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
+            responseModeSuggestionWork,
             AuditPersistence, outputDiscoveryPersistence,
             outputCatalog.WaitForQuiescenceAsync()).ConfigureAwait(false);
+        if (communicationActivity is not null)
+        { await communicationActivity.JoinAsync().ConfigureAwait(false); }
 #pragma warning restore VSTHRD003
     }
 

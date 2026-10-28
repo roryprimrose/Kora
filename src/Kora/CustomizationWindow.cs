@@ -6,6 +6,7 @@ using Avalonia.Media;
 using Avalonia.Threading;
 
 using Kora.Application.ViewModels;
+using Kora.Application.Definitions;
 using Kora.Core.Customizations;
 
 namespace Kora;
@@ -28,8 +29,11 @@ internal sealed class CustomizationWindow : Window
     internal readonly TextBox FileName = new() { PlaceholderText = @"references\notes.md", MinWidth = 180 };
     internal readonly TextBox Editor = new()
     {
-        AcceptsReturn = true, TextWrapping = TextWrapping.NoWrap, FontFamily = new("Consolas"),
-        HorizontalAlignment = HorizontalAlignment.Stretch, VerticalAlignment = VerticalAlignment.Stretch,
+        AcceptsReturn = true,
+        TextWrapping = TextWrapping.NoWrap,
+        FontFamily = new("Consolas"),
+        HorizontalAlignment = HorizontalAlignment.Stretch,
+        VerticalAlignment = VerticalAlignment.Stretch,
     };
     internal readonly TextBox Request = new() { PlaceholderText = "Describe or discuss a change with Kora...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
@@ -80,7 +84,8 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(PushToTalkButton, "Speak to the selected artifact; hold while speaking");
         ToolTip.SetTip(PushToTalkButton, "Hold to speak to this artifact. Release to review local interpretation; nothing is saved or enabled.");
         var sourceActions = new WrapPanel();
-        foreach (var action in new[] { "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
+        foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
+            "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
         { AddButton(sourceActions, action, action, run); }
         header.Children.Add(sourceActions); header.Children.Add(Files);
         var components = new WrapPanel();
@@ -105,6 +110,8 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(Request, "Definition authoring request");
         AutomationProperties.SetName(NewName, "New artifact ID");
         AutomationProperties.SetName(Destination, "New artifact destination");
+        AutomationProperties.SetName(Status, "Customization operation status and recovery");
+        AutomationProperties.SetLiveSetting(Status, AutomationLiveSetting.Polite);
         SetSource(null, false);
         Deactivated += (_, _) => { if (!openingReview && review?.IsActive != true) { PresentationLost?.Invoke(); } };
         PropertyChanged += (_, change) =>
@@ -121,9 +128,13 @@ internal sealed class CustomizationWindow : Window
         panel.Children.Add(button);
     }
 
-    internal void SetSource(CustomizationSource? source, bool recovery)
+    internal void SetSource(CustomizationSource? source, bool recovery, bool originalRegistered = true)
     {
-        var writable = source is { IsReadOnly: false };
+        var original = source is { Kind: CustomizationKind.Instruction, Scope: CustomizationScope.User };
+        var writable = source is { IsReadOnly: false } && (!original || originalRegistered);
+        actions["Review original registration"].IsEnabled = original;
+        actions["Withdraw original registration"].IsEnabled = original && originalRegistered;
+        actions["Compare external"].IsEnabled = original && originalRegistered;
         var components = writable && source?.Kind == CustomizationKind.Skill && !recovery;
         Editor.IsReadOnly = !writable || recovery;
         actions["Review and save"].IsEnabled = writable;
@@ -162,15 +173,31 @@ internal sealed class CustomizationWindow : Window
             catalogue.Children.Add(new Expander
             {
                 Header = (scope == CustomizationScope.BuiltIn ? "Built-in" : scope.ToString()) + " (" + matches.Length + ")",
-                IsExpanded = true, Content = rows, HorizontalAlignment = HorizontalAlignment.Stretch,
+                IsExpanded = true,
+                Content = rows,
+                HorizontalAlignment = HorizontalAlignment.Stretch,
             });
         }
     }
 
     internal async Task<string> Review(string title, string text, CancellationToken token, params string[] choices)
+        => await ReviewCore(title, text, null, token, choices);
+
+    internal async Task<CustomizationVoiceChoice> ReviewClarification(string text,
+        CustomizationVoiceClarification question, CancellationToken token)
+    {
+        await ReviewCore("Choose voice target", text, question, token,
+            CustomizationVoiceClarification.Spec.Options.Select(option => option.Label).ToArray());
+#pragma warning disable VSTHRD003 // Join this presented question's already completed response and native capture release.
+        return await question.Completion;
+#pragma warning restore VSTHRD003
+    }
+
+    private async Task<string> ReviewCore(string title, string text, CustomizationVoiceClarification? question,
+        CancellationToken token, params string[] choices)
     {
         if (!Dispatcher.UIThread.CheckAccess())
-        { return await Dispatcher.UIThread.InvokeAsync(() => Review(title, text, token, choices)); }
+        { return await Dispatcher.UIThread.InvokeAsync(() => ReviewCore(title, text, question, token, choices)); }
         token.ThrowIfCancellationRequested();
         CancelReview();
         var completion = new TaskCompletionSource<string>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -185,17 +212,46 @@ internal sealed class CustomizationWindow : Window
         foreach (var choice in choices)
         {
             var button = new Button { Content = choice, Margin = new(4) };
-            button.Click += (_, _) => { completion.TrySetResult(choice); opened.Close(); };
+            button.Click += (_, _) =>
+            {
+                if (question is null) { completion.TrySetResult(choice); opened.Close(); }
+                else { question.Choose(choice switch
+                {
+                    "Refine this artifact" => CustomizationVoiceChoice.Refine,
+                    "Discuss this artifact" => CustomizationVoiceChoice.Discuss,
+                    _ => CustomizationVoiceChoice.Cancel,
+                }); }
+            };
             buttons.Children.Add(button);
+        }
+        var replyStatus = new TextBlock { TextWrapping = TextWrapping.Wrap };
+        var speak = new Button { Content = "Answer by voice", Margin = new(4) };
+        void UpdateReply(object? sender, EventArgs args) => Dispatcher.UIThread.Post(() =>
+        {
+            replyStatus.Text = question!.Status;
+            speak.IsEnabled = question.CanAnswerByVoice;
+        });
+        if (question is not null)
+        {
+            question.Changed += UpdateReply;
+            replyStatus.Text = question.Status;
+            speak.IsEnabled = question.CanAnswerByVoice;
+            speak.Click += (_, _) => question.StartVoice();
+            AutomationProperties.SetName(speak, "Answer only this editor clarification by voice");
+            buttons.Children.Add(speak);
+            buttons.Children.Add(replyStatus);
         }
         DockPanel.SetDock(buttons, Dock.Bottom); panel.Children.Add(buttons);
         var body = new TextBox { Text = text, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+        AutomationProperties.SetName(body, title + ": complete exact source and scope review");
         panel.Children.Add(body);
         opened.Content = panel;
         opened.Closed += (_, _) =>
         {
             body.Text = string.Empty;
             if (ReferenceEquals(review, opened)) { review = null; }
+            if (question is not null && !question.Completion.IsCompleted)
+            { question.Cancel("Editor question closed. Nothing was continued."); }
             completion.TrySetResult("Cancel");
         };
         review = opened;
@@ -203,7 +259,19 @@ internal sealed class CustomizationWindow : Window
         openingReview = true;
         try { opened.Show(this); opened.Activate(); }
         finally { openingReview = false; }
-        return await completion.Task;
+        try
+        {
+            if (question is null) { return await completion.Task; }
+#pragma warning disable VSTHRD003 // This window owns presentation of this exact question and must join capture before returning.
+            await question.Completion;
+#pragma warning restore VSTHRD003
+            return "Cancel";
+        }
+        finally
+        {
+            if (question is not null) { question.Changed -= UpdateReply; }
+            opened.Close();
+        }
     }
 
     internal void CancelReview() { review?.Close(); review = null; }

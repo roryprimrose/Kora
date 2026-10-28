@@ -193,7 +193,7 @@ and original-request answer/refusal retention without live inference.
 The distinct [Claude HTTPS runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.cs)
 implements a bounded stateless text-only Models/Messages API profile, pinned to
 `anthropic-version: 2023-06-01`. It does not use a CLI, SDK agent, sidecar,
-ambient credential, tools, files, attachments, retained history, memory or
+ambient credential, files, attachments, retained history, memory or
 provider substitution. The shared hosted authorization and final-review owner
 preserves Copilot's public preparation/confirmation semantics. Claude requires
 private native-only credential entry and final physical-send consent.
@@ -219,6 +219,18 @@ qualification. Deterministic account/HTTP seams do not qualify a real account,
 deployment, terms/cost policy or provider. Missing E/Q evidence cannot fake-enable
 Claude or turn it into a Copilot/local fallback. See the
 [complete operation guide](../docs/claude-requests.md).
+
+The separately selected [Claude observation transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs) now translates only an explicit bounded subset of the original six host-owned read-only tools for the [existing host loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
+The default text operation remains tool-free. Each round separately reviews Count Tokens and Messages; provider names, call IDs, unknown fields and native blocks confer no host authority.
+Strict client-tool-only proposal messages, exact schemas, cumulative physical byte accounting and same-account/catalogue lifetime are deterministic implementation boundaries, not account/provider qualification ([wire translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs), [portable schemas](../src/Kora.Core/Tools/ReadOnlyCapabilitySchema.cs)).
+
+#### Native text-stream implementation, not enablement
+
+The explicit native text-only stream is separately admitted by exact deployment model/reasoning/context/token-ceiling evidence, in addition to the current credential/workspace lease. An existing buffered profile, unknown stream evidence or the shipped unavailable approval source cannot enable it ([evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).
+
+It preserves `anthropic-version: 2023-06-01`, independently reviewed Count Tokens and `stream:true` Messages POSTs, and the canonical typed provisional conversation presentation. The strict SSE state machine admits only ordered text blocks, cumulative bounded usage and a unique normal terminal followed by EOF; buffered and observation paths remain separate ([decoder](../src/Kora.Windows/Dependencies/ClaudeAnswerStream.cs), [official sequence](https://platform.claude.com/docs/en/build-with-claude/streaming), [version policy](https://platform.claude.com/docs/en/api/versioning)).
+
+The [complete user contract](../docs/claude-requests.md#separately-qualified-native-text-streaming) owns inclusive cumulative byte/event/depth/token/deadline limits and native-only consent. Controlled progressive HTTP tests observe provisional output before terminal bytes, no early retention, revocation/cancellation and failed-disposal quarantine; they do not qualify a live provider or advertise stream availability ([transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Streaming.cs), [composed retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
 ### RT1 .NET outcome: selected source-built profile passes
 

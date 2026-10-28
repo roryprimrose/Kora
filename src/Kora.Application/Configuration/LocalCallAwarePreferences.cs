@@ -41,7 +41,15 @@ public sealed class LocalCallAwarePreferences : ICallAwarePreferences
             "0,1" => new CallAwareSettings(false, true),
             "1,0" => new CallAwareSettings(true, false),
             "1,1" => new CallAwareSettings(true, true),
-            var value => throw new InvalidDataException($"The saved call-aware settings '{value}' are invalid."),
+            "v2,0,0,0" => new(false, false, false),
+            "v2,0,0,1" => new(false, false, true),
+            "v2,0,1,0" => new(false, true, false),
+            "v2,0,1,1" => new(false, true, true),
+            "v2,1,0,0" => new(true, false, false),
+            "v2,1,0,1" => new(true, false, true),
+            "v2,1,1,0" => new(true, true, false),
+            "v2,1,1,1" => new(true, true, true),
+            _ => throw new InvalidDataException("The saved call-aware settings are invalid."),
         };
         ApplicationLog.Debug(logger, "Loaded call-aware settings");
         return settings;
@@ -51,7 +59,7 @@ public sealed class LocalCallAwarePreferences : ICallAwarePreferences
     {
         ArgumentNullException.ThrowIfNull(settings);
 
-        var value = $"{(settings.ShowVisualTextDuringCalls ? 1 : 0)},{(settings.AllowVoiceActivationDuringCalls ? 1 : 0)}";
+        var value = $"v2,{(settings.ShowVisualTextDuringCalls ? 1 : 0)},{(settings.AllowVoiceActivationDuringCalls ? 1 : 0)},{(settings.AllowSpokenApprovalsDuringCalls ? 1 : 0)}";
         store.WriteText(FileName, value);
         ApplicationLog.Information(logger, "Saved call-aware settings");
     }

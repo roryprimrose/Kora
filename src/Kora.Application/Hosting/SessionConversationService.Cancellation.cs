@@ -60,11 +60,13 @@ public sealed partial class SessionConversationService
             if (!Current() || session.Authority.SessionId != target.Request.SessionId || !session.Authority.IsActive
                 || session.Authority.Generation != target.Generation || task is null || !task.CurrentSource
                 || task.Generation != target.Generation || task.Task.Request != target.Request
-                || task.Task.Revision != target.TaskRevision || task.Task.State != HostTaskState.DispatchRecorded)
+                || task.Task.Revision != target.TaskRevision
+                || task.Task.State is not (HostTaskState.DispatchRecorded or HostTaskState.IntentRecorded))
             { throw new InvalidOperationException("The exact running task/session/generation changed; no cancellation was accepted."); }
             await running.RequestCancellationAsync(() =>
             {
-                if (!Current()) { throw new InvalidOperationException("Cancellation user authority or freshness changed before acceptance."); }
+                if (!Current() || running.Target != target)
+                { throw new InvalidOperationException("Cancellation user authority or exact waiting/running target changed before acceptance."); }
                 var audit = cancellationAudit
                     ?? throw new InvalidOperationException("Trusted cancellation audit is unavailable; cancellation was not accepted.");
                 var requested = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ProtectedOperation,
@@ -97,8 +99,18 @@ public sealed partial class SessionConversationService
     {
         var identity = new ConversationCancellationTarget(Guid.NewGuid(), turn.Provenance.Request,
             target.Authority.Generation, turn.TaskRevision, turn.Context.CreatedAt, turn.Context.ExpiresAt);
+        var lease = RegisterRunningConversation(identity, live, token);
+        turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
+        return lease;
+    }
+
+    private ConversationCancellationLease RegisterRunningConversation(ConversationCancellationTarget identity,
+        Func<bool> live, CancellationToken token)
+    {
         lock (cancellationGate)
         {
+            RequireConversationDispatchOpen(identity.Request.SessionId);
+            joinedForDisposition.Remove(identity.Request.SessionId);
             if (runningConversations.ContainsKey(identity.Request.SessionId))
             {
                 throw new InvalidOperationException("The exact session already owns a running conversation.");
@@ -112,7 +124,12 @@ public sealed partial class SessionConversationService
 
     private void ReleaseRunningConversation(ConversationCancellationLease lease, bool confirmed)
     {
-        lock (cancellationGate) { runningConversations.Remove(lease.Target.Request.SessionId); }
+        lock (cancellationGate)
+        {
+            runningConversations.Remove(lease.Target.Request.SessionId);
+            lifecycleUnconfirmed |= !confirmed;
+        }
+        lease.ReleasePhysicalCompletion(confirmed);
         if (!confirmed)
         { RunningConversationChanged?.Invoke(new(lease.Target, ConversationExecutionPhase.Unconfirmed)); }
     }

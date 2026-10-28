@@ -6,6 +6,7 @@
     xmlns:hosting="clr-namespace:Kora.Core.Hosting;assembly=Kora.Core"
     xmlns:converters="clr-namespace:Avalonia.Data.Converters;assembly=Avalonia.Base"
     xmlns:controls="using:Kora.Controls"
+    xmlns:inspection="using:Kora.SettingInspection"
     xmlns:local="using:Kora"
     xmlns:viewModels="using:Kora.Application.ViewModels"
     Title="{Binding SettingsWindowTitle}"
@@ -74,6 +75,7 @@
             </StackPanel>
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
+            <inspection:SettingInspectionControl x:Name="SettingInspection" />
 
             <StackPanel Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />
@@ -502,6 +504,22 @@
                   <Button Content="Remove listening permission" Command="{Binding WithdrawVoiceConsentCommand}" IsVisible="{Binding HasVoiceConsent}" />
                 </StackPanel>
               </Grid>
+            </Border>
+
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Conversational voice replies (off by default)" Classes="settings-title" />
+                <TextBlock Text="{Binding ConversationalReplyStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="{Binding ConversationalReplyStatus}" />
+                <TextBlock Text="After Kora finishes speaking a new exact foreground host question, answer without another click or activation name. One reply only: 15 seconds to start, at most 60 seconds of speech. Cancel reply closes capture. No approval, background listening or capture during playback."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Enable conversational replies" Command="{Binding EnableConversationalRepliesCommand}"
+                          IsEnabled="{Binding CanChangeConversationalReplies}" AutomationProperties.Name="Enable bounded conversational voice replies" />
+                  <Button Content="Turn off" Command="{Binding DisableConversationalRepliesCommand}"
+                          IsEnabled="{Binding CanChangeConversationalReplies}" AutomationProperties.Name="Turn conversational voice replies off" />
+                </StackPanel>
+              </StackPanel>
             </Border>
 
             <Border Classes="settings-card">
@@ -1025,6 +1043,21 @@
               <StackPanel Spacing="4">
                 <TextBlock Text="Call detection" Classes="settings-title" />
                 <controls:NamedTextBlock
+                    Text="{Binding CommunicationActivityStatus}"
+                    AutomationProperties.Name="Communications audio observation source, support, freshness and limitations"
+                    AutomationProperties.LiveSetting="Polite"
+                    Classes="settings-description" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Inspect observations" Command="{Binding InspectCommunicationActivityCommand}"
+                          AutomationProperties.Name="Inspect cached communications audio source status" TabIndex="0" />
+                  <Button Content="Use Windows communications audio" Command="{Binding EnableCommunicationActivityCommand}"
+                          IsEnabled="{Binding CanEnableCommunicationActivity}"
+                          AutomationProperties.Name="Select qualified Windows communications audio observations" TabIndex="1" />
+                  <Button Content="Disable automatic observations" Command="{Binding DisableCommunicationActivityCommand}"
+                          IsEnabled="{Binding CanChangeCommunicationActivity}"
+                          AutomationProperties.Name="Explicitly disable only automatic communications observations" TabIndex="2" />
+                </StackPanel>
+                <controls:NamedTextBlock
                     Text="{Binding CallStateStatus}"
                     AutomationProperties.Name="Current call status"
                     AutomationProperties.LiveSetting="Polite"
@@ -1122,6 +1155,18 @@
                     IsEnabled="{Binding CanDisableCallVoiceActivation}"
                     VerticalAlignment="Center" />
               </Grid>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="6">
+                <TextBlock Text="Allow spoken approvals during calls" Classes="settings-title" />
+                <TextBlock Text="{Binding SpokenApprovalsStatus}" TextWrapping="Wrap" Classes="settings-description"
+                    AutomationProperties.Name="Spoken approval setting and explicit downgrade review" />
+                <WrapPanel>
+                  <Button Content="Review spoken approval change" Command="{Binding ReviewSpokenApprovalsCommand}" />
+                  <Button Content="Confirm reviewed change" Command="{Binding ConfirmSpokenApprovalsCommand}" />
+                  <Button Content="Cancel review" Command="{Binding CancelSpokenApprovalsCommand}" />
+                </WrapPanel>
+              </StackPanel>
             </Border>
           </StackPanel>
         </ScrollViewer>
@@ -1241,6 +1286,15 @@
         </ScrollViewer>
       </TabItem>
 
+      <TabItem Header="Knowledge">
+        <StackPanel Margin="30" Spacing="12">
+          <TextBlock Text="Named device-local knowledge folders" FontSize="24" />
+          <TextBlock Text="Review exact bounded text/Markdown membership, retain private Kora copies, explicitly inspect or search, refresh, disable, or remove. Registration never grants model consent."
+                     TextWrapping="Wrap" MaxWidth="700" />
+          <Button x:Name="ManageKnowledgeSources" Content="Manage knowledge sources..."
+                  AutomationProperties.Name="Manage named knowledge sources; opening does not read source content or grant model consent" />
+        </StackPanel>
+      </TabItem>
       <TabItem Header="Custom content">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">

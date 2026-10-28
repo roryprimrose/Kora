@@ -17,5 +17,12 @@ public sealed class ClaudeRequestGuideTests
             .And.Contain("complete actual UTF-8 JSON body").And.Contain("no affirmative default")
             .And.Contain("ASSISTANT").And.Contain("cannot retract bytes already transmitted")
             .And.Contain("actually joins").And.Contain("No hidden preflight");
+        guide.Should().Contain("claude-tools=application.get_version,readiness.get,runtime.get_status")
+            .And.Contain("six calls").And.Contain("32768-byte").And.Contain("4096-byte")
+            .And.Contain("**each needs fresh native consent**").And.Contain("mixed prose/tool proposals");
+        guide.Should().Contain("Stream explicitly with Claude").And.Contain("`stream:true`")
+            .And.Contain("128 events").And.Contain("JSON depth 24").And.Contain("Bounds are inclusive")
+            .And.Contain("buffered approval does not admit streaming").And.Contain("failed disposal quarantines")
+            .And.Contain("two-minute deadline").And.Contain("No implicit selection, retry or buffered fallback");
     }
 }

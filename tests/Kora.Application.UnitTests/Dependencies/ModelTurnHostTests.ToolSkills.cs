@@ -49,6 +49,7 @@ public sealed partial class ModelTurnHostTests
         review.Target.Should().Be(target);
         review.Origin.Should().Be(origin);
         review.Text.Should().Be(skill.Reader.Text);
+        review.SourceDescription.Should().Be("Registered shared skill");
         await workflow.EnableAsync(review, skill.Eligible, origin, Token);
         if (nearExpiry) { f.Time.Now = review.ExpiresAt.AddSeconds(-10); }
         const string body = "  original e\u0301\r\n unchanged ";

@@ -27,11 +27,17 @@ public sealed class DependencySetupWorkflow(
         try
         {
             await localModelSetup.InstallAsync(progress, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
+            const string verifying = "Validating local inference readiness.";
+            progress.Report(new(verifying));
             tasks.Update(
                 LocalModelTaskId,
-                SetupTaskState.Completed,
-                "Validating local inference readiness.");
-            var statuses = await bootstrapper.ProbeAsync(cancellationToken);
+                SetupTaskState.Running,
+                verifying);
+            var setupTask = tasks.Tasks.Single(task =>
+                string.Equals(task.Id, LocalModelTaskId, StringComparison.Ordinal));
+            var statuses = await bootstrapper.ProbeWithinSetupAsync(setupTask, cancellationToken);
+            cancellationToken.ThrowIfCancellationRequested();
             var inference = statuses.Single(status =>
                 string.Equals(status.Id, LocalModelTaskId, StringComparison.Ordinal));
             if (inference.Readiness != DependencyReadiness.Ready)
@@ -43,7 +49,8 @@ public sealed class DependencySetupWorkflow(
             tasks.Update(
                 LocalModelTaskId,
                 SetupTaskState.Completed,
-                inference.Detail);
+                inference.Detail,
+                100);
             return new LocalModelSetupResult(statuses, inference);
         }
         catch (OperationCanceledException) when (cancellationToken.IsCancellationRequested)

@@ -8,6 +8,49 @@ namespace Kora.Application.Definitions;
 public sealed class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
     ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit)
 {
+    public bool IsInstructionRegistered(CustomizationSource source) => store.IsInstructionRegistered(source);
+    public void RetireInstructionRegistration(CustomizationSource source) => store.WithdrawInstruction(source);
+
+    public Task<bool> RegisterInstruction(CustomizationSource source,
+        Func<InstructionOriginalRegistration, CancellationToken, Task<bool>> confirm,
+        Func<bool> eligible, CancellationToken token) =>
+        admission.Run(eligible, async (request, session, current, admitted) =>
+        {
+            var proposal = await store.PrepareInstructionRegistration(source, admitted).ConfigureAwait(false);
+            Require(current, admitted);
+            if (!await confirm(proposal, admitted).ConfigureAwait(false)) { return false; }
+            var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
+                "definition.instruction.register-original", SecurityAuditOutcome.Requested,
+                SecurityAuditInitiator.LocalUser, source.Id);
+            audit.Write(entry);
+            try
+            {
+                await store.RegisterInstruction(proposal, current, admitted).ConfigureAwait(false);
+                await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
+                audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
+                return true;
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                store.WithdrawInstruction(source);
+                audit.Write(entry.WithOutcome(SecurityAuditOutcome.Failed, "registration-not-confirmed"));
+                throw;
+            }
+        }, token);
+
+    public Task WithdrawInstruction(CustomizationSource source, Func<bool> eligible, CancellationToken token) =>
+        admission.Run(eligible, (request, session, current, admitted) =>
+            admission.Publish(request, session, current, () =>
+            {
+                var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
+                    "definition.instruction.withdraw-original", SecurityAuditOutcome.Requested,
+                    SecurityAuditInitiator.LocalUser, source.Id);
+                try { audit.Write(entry); }
+                finally { store.WithdrawInstruction(source); }
+                audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
+                return true;
+            }, admitted).AsTask(), token);
+
     public bool IsDisabled(CustomizationSource source) => use.IsDisabled(source.Id);
     public event EventHandler? UseChanged
     {
@@ -39,6 +82,25 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
                 : await store.Read(source, admitted).ConfigureAwait(false);
             Require(current, admitted);
             return snapshot;
+        }, token);
+
+    public Task RequireUnchangedSource(CustomizationSource source, CustomizationSnapshot? expected,
+        Func<bool> eligible, CancellationToken token) =>
+        admission.Run(eligible, async (_, _, current, admitted) =>
+        {
+            if (expected is null)
+            {
+                var destination = await store.Create(source.Kind, source.Scope, source.Name, admitted).ConfigureAwait(false);
+                if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
+            }
+            else
+            {
+                var live = await store.Read(source, admitted).ConfigureAwait(false);
+                if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
+                { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
+            }
+            Require(current, admitted);
+            return true;
         }, token);
 
     public Task<bool> SetDisabled(CustomizationSource source, bool disabled,
@@ -92,6 +154,15 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         return admission.Run<CustomizationSnapshot?>(eligible, async (request, session, current, admitted) =>
         {
             if (!await confirm(admitted).ConfigureAwait(false)) { return null; }
+            if (source is { Scope: CustomizationScope.User, Kind: CustomizationKind.Instruction }
+                && original is not null && proposal.Single().CopyBytes().AsSpan().SequenceEqual(original.Files.Single().CopyBytes()))
+            {
+                var live = await store.Read(source, admitted).ConfigureAwait(false);
+                Require(current, admitted);
+                if (live.Source != source || !string.Equals(live.Revision, original.Revision, StringComparison.Ordinal))
+                { throw new InvalidOperationException("The unchanged original was replaced or changed. Compare before saving; the draft is retained."); }
+                return live;
+            }
             var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ResourceWrite,
                 "definition.source.save", SecurityAuditOutcome.Requested, SecurityAuditInitiator.LocalUser, source.Id);
             var attempted = false;
@@ -112,9 +183,11 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {
-                audit.Write(entry.WithOutcome(attempted ? SecurityAuditOutcome.Unknown
+                audit.Write(entry.WithOutcome(exception is InstructionOriginalConflictException ? SecurityAuditOutcome.Failed
+                    : attempted ? SecurityAuditOutcome.Unknown
                     : exception is OperationCanceledException ? SecurityAuditOutcome.Cancelled : SecurityAuditOutcome.Failed,
-                    attempted ? "publication-requires-inspection" : "not-published"));
+                    exception is InstructionOriginalConflictException ? "base-changed-not-published"
+                        : attempted ? "publication-requires-inspection" : "not-published"));
                 throw;
             }
         }, token);
@@ -130,8 +203,10 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         if (source.Kind == CustomizationKind.McpServer) { McpDefinitionDocument.ValidateServer(primary.CopyBytes()); }
         else
         {
+            var originalInstruction = source.Scope == CustomizationScope.User && source.Kind == CustomizationKind.Instruction;
             var document = ArtifactFileDocument.Parse(primary.CopyBytes(), CustomizationLayout.ArtifactKind(source.Kind),
-                source.Scope == CustomizationScope.Kora ? "kora-profile" : "user-profile", source.Name);
+                source.Scope == CustomizationScope.Kora ? "kora-profile" : originalInstruction ? "profile-instruction" : "user-profile", source.Name);
+            if (originalInstruction) { document.RequireProfileInstructionSource(); }
             if (source.Scope == CustomizationScope.Kora && source.Kind is CustomizationKind.Instruction or CustomizationKind.Prompt)
             { document.RequireEditableInstruction(); }
         }

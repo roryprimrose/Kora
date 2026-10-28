@@ -151,7 +151,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal async Task InitializeAsync(Kora.Tools.Network.WebPageGet? webPageGet,
         Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
         Kora.Core.Communication.ICallStateService? callState = null,
-        IUiDispatcher? dispatcher = null)
+        IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -160,9 +160,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         var consent = new LocalVoiceConsentPreferences(this, NullLogger<LocalVoiceConsentPreferences>.Instance);
         consent.Save(false);
         var models = new LocalModelExecutionPreferences(this);
-        models.Save(new(false, false));
+        models.Save(new(modelReasoner is not null, false));
         var appearances = new LocalAppearancePreferences(this, NullLogger<LocalAppearancePreferences>.Instance);
-        var bootstrapper = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
+        var bootstrapper = new DependencyBootstrapper(modelProbe is null ? [] : [modelProbe], NullLogger<DependencyBootstrapper>.Instance);
         var execution = new FixtureExecution();
         var catalogue = new ArtifactCatalogue([
             new("kora.fixture.inspect", ArtifactKind.Skill, "Inspect synthetic fixture", "Non-executable native UX catalogue fixture.",
@@ -198,7 +198,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         assistantNameConfiguration = new(new LocalAssistantNamePreferences(this, NullLogger<LocalAssistantNamePreferences>.Instance),
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
-            new(bootstrapper, execution, execution), execution, new LocalModelApprovalPreferences(this), models, Access,
+            new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
             Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,

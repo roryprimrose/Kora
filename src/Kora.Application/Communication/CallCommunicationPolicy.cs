@@ -5,7 +5,7 @@ using Kora.Core.Hosting;
 namespace Kora.Application.Communication;
 
 // One run-owned manual layer; automatic evidence and its availability are never rewritten.
-public sealed class CallCommunicationPolicy : IDisposable
+public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPolicyGate
 {
     private readonly Lock sync = new();
     private readonly ICallStateService automatic;
@@ -17,12 +17,23 @@ public sealed class CallCommunicationPolicy : IDisposable
         this.automatic = automatic;
         current = new(0, automatic.CurrentState, false, CallAwareSettings.Default);
         automatic.StateChanged += OnAutomaticChanged;
+        lock (sync) { SynchronizeAutomatic(); }
     }
 
     public event EventHandler? Changed;
 
     // Presentation reads an immutable observation; consequential admission still takes the commit lock.
     public CallPolicyObservation Current => Volatile.Read(ref current);
+
+    public T WithCurrent<T>(HostAuthorizationPolicy baseline, Func<HostAuthorizationPolicy, T> commit)
+    {
+        lock (sync)
+        {
+            ObjectDisposedException.ThrowIf(disposed, this);
+            SynchronizeAutomatic();
+            return commit(current.Authorization(baseline.IsUnlocked, baseline.OtherMandatoryGatesSatisfied));
+        }
+    }
 
     public void LoadSettings(CallAwareSettings settings)
     {
@@ -52,7 +63,7 @@ public sealed class CallCommunicationPolicy : IDisposable
     }
 
     public CallMutationOutcome SetSettings(CallAwareSettings settings, RequestOrigin origin, long revision,
-        Func<bool> hostEligible, Func<CallAwareSettings, bool> persist)
+        Func<bool> hostEligible, Func<CallAwareSettings, bool> persist, bool spokenApprovalDowngradeConfirmed = false)
     {
         lock (sync)
         {
@@ -60,7 +71,9 @@ public sealed class CallCommunicationPolicy : IDisposable
             if (denied is { } result) { return result; }
             if (settings == current.Settings) { return CallMutationOutcome.Unchanged; }
             if (!settings.ShowVisualTextDuringCalls && current.Settings.ShowVisualTextDuringCalls
-                || settings.AllowVoiceActivationDuringCalls && !current.Settings.AllowVoiceActivationDuringCalls)
+                || settings.AllowVoiceActivationDuringCalls && !current.Settings.AllowVoiceActivationDuringCalls
+                || settings.AllowSpokenApprovalsDuringCalls && !current.Settings.AllowSpokenApprovalsDuringCalls
+                    && (origin != RequestOrigin.LocalUi || !spokenApprovalDowngradeConfirmed))
             {
                 return CallMutationOutcome.ExactReviewUnavailable;
             }
@@ -73,6 +86,7 @@ public sealed class CallCommunicationPolicy : IDisposable
     {
         lock (sync)
         {
+            if (!disposed) { SynchronizeAutomatic(); }
             if (disposed || current.ManualControlEvidenceUnavailable || !hostEligible()) { return CallMutationOutcome.HostUnavailable; }
             if (revision != current.Revision) { return CallMutationOutcome.StaleObservation; }
             if (!current.Authorization(true, true).AllowsVoiceOrCallSettings(origin))
@@ -109,6 +123,7 @@ public sealed class CallCommunicationPolicy : IDisposable
     {
         lock (sync)
         {
+            if (!disposed) { SynchronizeAutomatic(); }
             return disposed || current.SuppressSpeech || !hostEligible() ? Task.CompletedTask : start();
         }
     }
@@ -119,10 +134,12 @@ public sealed class CallCommunicationPolicy : IDisposable
         {
             if (!disposed)
             {
-                Publish(current with { AutomaticState = automatic.CurrentState });
+                SynchronizeAutomatic();
             }
         }
     }
+
+    private void SynchronizeAutomatic() => Publish(current with { AutomaticState = automatic.CurrentState });
 
     private CallMutationOutcome Publish(CallPolicyObservation observation)
     {

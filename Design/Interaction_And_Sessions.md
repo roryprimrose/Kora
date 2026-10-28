@@ -16,11 +16,107 @@ Related: [Architecture](Architecture.md), [Work Management](Work_Management.md),
 This is the canonical interaction/session contract. It replaces the former single-conversation, single-executor, memory-only-history direction.
 Windows login sessions, voice capture generations, provider/SDK conversations, and Kora work sessions are different identities; none substitutes for another.
 
+## Provisional local answer interaction
+
+Use **Answer locally (no tools)** for bounded incremental text in the originating conversation. Provisional text is labelled, volatile and not spoken automatically; **Stop this answer** in the primary pane and the existing exact-task cancellation controls in Sessions/compact retire it independently of the composer. Only validated completed answers are retained as ASSISTANT; failure/privacy/source/view closure clears or invalidates provisional presentation without manufacturing success ([display contract](Information_Display.md#bounded-provisional-local-answers), [native behavior tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Streaming.cs)).
+
+Ordinary tool-capable Send, clarification and hosted requests retain their existing buffered contracts. Local qualification, session instructions, privacy, current-source generation, input/output budgets, original USER and trusted terminal audit rules remain authoritative; this is no runtime auto-enablement or hosted streaming change ([submission owner](../src/Kora.Application/Hosting/SessionConversationService.SessionInstructions.cs), [host selection](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [retention regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)).
+
+The separate native-only **Stream explicitly with Claude (text only, separately qualified)** action now uses the same provisional lifecycle for original-user, tool-free requests. It adds exact-profile stream evidence and separate native physical-send consent, without changing the buffered routes above or enabling the shipped unavailable Claude source ([operation](../docs/claude-requests.md#separately-qualified-native-text-streaming), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
+## Cross-conversation content search and exact message opening
+
+The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)
+completes ordinary query -> bounded retained USER/ASSISTANT matches -> deliberate
+selection -> exact owning-conversation message placement and matched-field
+scroll/focus. This supports the approved independent-conversation/readable-result
+outcomes; storage permission, source validation and native presentation belong to
+the host, not a model, tool or semantic-search extension.
+
+It composes existing metadata browse, exact-session lexical search, exact retained
+detail revalidation and passive session navigation. Continuations retain original
+source generation, sequence ceiling and head revision internally. Names remain
+labels; copied/equal rows are not native selections. Every opening revalidates
+the message and snapshot without substituting a newer record. Existing message
+actions retain original source authority and unsent session buffers are unchanged.
+
+Queries/results are volatile. Explicit clear/edit/close/privacy/source retirement
+fences late reads; bounds, empty-page continuation and unavailable states are
+truthful. No new schema, index, model/provider/network action, clipboard authority,
+retention renewal or history write is introduced. See the [user operation](../docs/windows-and-tray.md#find-a-message-across-conversations)
+and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ContentSearch.cs).
+
 ## Conversation Input Realignment
+
+### Reviewed voluntary application Exit and Restart
+
+Deliberate native, typed and permitted activated-voice application Exit/Restart
+protect unsent topic/New request buffers and definition-editor changes independently
+of already submitted work. Empty foreground input is not evidence that other
+conversations have finished.
+
+The [host lifecycle owner](../src/Kora.Application/Hosting/ApplicationLifecycle/SessionConversationService.ApplicationLifecycle.cs)
+holds a reversible, attempt-owned dispatch barrier and snapshots accepted originals
+across every session, including pending continuations and explicit MCP execution.
+The [native operation](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs)
+shows the affected work and separately asks Confirm/Cancel through the existing
+private question owner. Model action approval, opening Exit or discarding unsent
+text never supplies submitted-work cancellation authority. Confirmation retains
+the original channel; stale source, work revision, generation or private ownership
+requires a fresh deliberate operation.
+
+Cancel releases only that attempt's barrier without stopping work. After current
+confirmation and editor approval, trusted work-control audits precede exact pending
+withdrawal/running cancellation. Every accepted provider/native resource is
+physically joined before the existing desktop Close or application-process restart.
+Already dispatched finite compatibility reads finish under their existing rules;
+reviewed pending compatibility reads are cancelled, not restored as a product.
+Failed audit, terminal readback or uncertain resource release blocks clean success
+with a visible recovery message. Stopped requests are never retried or resurrected;
+retained history and grants are not deleted.
+
+Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
+prompt-free. This does not add computer power actions, input autosave or provider
+qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+and [native regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.ApplicationLifecycle.cs)
+use deterministic provider/process seams, not installed-provider or OS power trials.
+
+Ordinary Send and the exact typed/activated-voice request-confirm route share
+the [submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns).
+A busy existing Active conversation can accept an immutable pending request
+without waiting for its previous provider turn. Sessions/compact show the
+actual submitted request and position and let the user cancel exactly that
+pending request. Only confirmed success and physical resource closure permit
+automatic next dispatch; held work needs deliberate resume and unchanged
+original authority. Questions, approvals, specialized source workflows and
+unqualified providers retain their existing unavailable/review fences.
+Acceptance is not execution success, action approval, renewed source consent or
+foreground voice targeting. Unsent input remains memory-only and separate.
+
+Explicit Claude streaming remains outside the ordinary submitted-turn queue:
+neither route replaces an active turn owned by the other. Refusal retains no
+new input and does not change pending order or renew provider/egress authority.
+Streaming cancellation still joins the physical worker before terminal
+retention, and provisional or late cancelled text is never an ASSISTANT answer
+([combined regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ClaudeStreaming.cs),
+[ordinary FIFO regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs)).
+
+Each queued execution confirms its original terminal readback before publishing
+terminal state and releasing its physical-completion lease. Returning the
+confirmed receipt does not reread that source after release, preserving the
+reviewed stop-and-delete boundary without changing FIFO or original authority
+([combined FIFO/readback regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Pending.cs),
+[tool-join/deletion regression](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.StopAndDelete.cs)).
 
 The [approved product decision](MVP_Scope.md#approved-retirement-and-simplification) replaces first-class saved-conversation-draft management with unsent composer text. A session is an ongoing conversation/work stream, not a draft document; Active/Done lifecycle is independent of whether text is waiting in its input box.
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
+
+### Deliberate exact retained-answer replies
+
+The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.
+
+The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
 
 The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
@@ -782,6 +878,16 @@ work; a local hash chain is not same-user/admin tamper prevention.
 
 ## Interaction Principle
 
+### Local read-only conversational clarification - 2026-10-26
+
+The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one choice** in Sessions/compact; the model may call the existing observation tools, ask one bounded choice, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+
+The host owns original request/origin, unique task/session/generation, question identity/revision, SingleChoice schema, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
+
+The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. One question has two-to-four unambiguous labels; free text and repeated/mixed responses are refused. Legacy tool-free questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+
+The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
 Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.
@@ -802,6 +908,18 @@ support them safely.
 Kora neither bypasses these requirements nor dictates credentials into a model.
 
 ## Conversational Voice Turns
+
+### Explicit original request to the foreground conversation
+
+The approved voice/UI-equivalent conversation operation accepts `ask this conversation <original body>` with the current assistant-name activation for voice. The native [presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) publishes one irreversible snapshot of its unique visible, foreground, eligible Active presenter. Selection alone, names, input/model IDs and cached targets cannot provide that snapshot.
+
+The [host input route](../src/Kora.Application/ViewModels/MainViewModel.cs) captures that snapshot before queued voice dispatch. The [request service](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) freezes the complete body and target for a 60-second one-use review and revalidates original input, exact session/generation/metadata and private control at confirmation and canonical submission fences.
+
+Native **Confirm original request once** and separate `session request confirm` consume the same review without cleansing voice origin ([native decision binding](../src/Kora.Application/ViewModels/MainViewModel.ForegroundRequests.cs)).
+
+This route requests only a local original answer through [SessionConversationService](../src/Kora.Application/Hosting/SessionConversationService.cs), not ordinary scoped-instruction preparation or relatedness routing. It authorizes no prior history, memory or instruction sources. It preserves per-session unsent input, existing unsolicited/new-request behavior and mandatory authentication/hosted physical-send exceptions. Missing local readiness remains a truthful HOST outcome without hosted fallback.
+
+The [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ForegroundRequests.cs) traverse parsing, foreground binding, accessible exact preview, separate confirmation, actual deterministic ModelTurnHost execution and private SQLite answer retention. [Portable regressions](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.ForegroundRequests.cs) cover missing/stale snapshots, expiry, cancellation and replay denial. These are implementation evidence, not production model, microphone or installed-native qualification.
 
 ### Delivered explicit exact-session request commands
 
@@ -835,8 +953,7 @@ The [hosted request regressions](../tests/Kora.Windows.IntegrationTests/HostedSe
 The current implementation provides **Answer by voice** for the authoritative
 host's exact live foreground native question, plus the deliberately selected
 **Hear question, then answer by voice** action. The latter opens one reply only
-after successful playback of that same question. It is not a global automatic
-conversation mode or a Settings preference. Existing consent, listening hold,
+after successful playback of that same question. Existing consent, listening hold,
 unlocked interactive Windows session, ownership/private-control revision,
 exact device/readiness, local recognizer and call-policy gates remain required;
 unknown state denies capture.
@@ -851,9 +968,18 @@ question edits/expiry/answer, privacy/ownership/call/device loss, failures and
 closure synchronously retire admission and fence delayed callbacks. Capture
 returns to closed/ordinary explicit PTT readiness, not Wake Listening.
 
-Answers match only the exact schema, with no optional assistant-name stripping
-and no command, tool, composer or session-routing fallback. Proposal/approval
-questions are refused; approval readback specificity and grants are unchanged.
+Choice answers match the existing bare schema first, then may use one optional
+validated current configured activation-name prefix, separated by whitespace or
+a comma, before that same exact label/number/`option N` answer (for example,
+`Nova Yes` or `Nova, option 2` when the configured name is Nova). Bare labels,
+including ambiguous labels starting with the name, retain their existing meaning;
+free-text answers are never stripped or normalized. The question-specific
+admission captures the name, and name changes retire playback/capture/delayed
+delivery through the same admission fence without retry or rearm.
+There is no command, tool, composer or session-routing fallback; the existing
+privacy-reducing Stop-listening route remains before schema parsing, even for
+an assistant named Stop or a matching option label. Proposal/approval questions
+are refused; approval readback specificity and grants are unchanged.
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained
@@ -862,6 +988,20 @@ of later hardware/acoustic/installed qualification.
 Host-resolved traces preserve same-request presentation parentage and link
 deferred reply/recovery causes; incoming correlation never selects the question
 or session and carries no transcript content.
+
+### Opt-in exact-playback conversational replies
+
+The device-local **Conversational voice replies** preference starts Off ([shared preference](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+Enabling it in **Settings > Speech & audio** permits the first foreground presentation of a new exact host clarification to speak that question and then open the same one-shot reply, without another click or activation name ([native routing](../src/Kora/NativeQuestionViewModel.cs)).
+
+Only canonical host clarification/local-version questions and host-validated model clarifications qualify. Approvals, egress/consent questions and arbitrary source purposes do not. Successful completion of the exact playback is required before capture; a visual-only card never directly starts transcription ([reply admission](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+
+The preference revision joins the existing exact question/session/presenter, microphone, ownership, privacy and call fences. Replacement, cancellation, timeout, failure, editing or foreground loss retires that attempt ([portable regressions](../tests/Kora.Application.UnitTests/Interaction/HostQuestionVoiceReplyServiceTests.Conversational.cs)).
+Re-activation, preference changes and late callbacks cannot retry or rearm it; native answers and the two explicit voice actions remain available under their existing gates ([native regressions](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Conversational.cs)).
+
+The existing 15-second start window and 60-second utterance limit, accessible status and **Cancel reply** apply ([voice lifecycle](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs)).
+This saves only an audited On/Off preference, not audio or transcripts; an invalid/unconfirmed preference holds automatic replies unavailable ([preference storage](../src/Kora.Application/Configuration/LocalConversationalReplyPreferences.cs)).
+It grants no microphone consent, ambient wake, provider readiness, approval or egress authority. Exact-profile installed/acoustic/hardware enablement and qualification remain separate ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ### Broader target behavior
 
@@ -1150,6 +1290,57 @@ path without real hardware/provider/experiment execution. E/Q, installed,
 hardware, acoustic and provider evidence remains separate and unclaimed;
 portable Release checks and raw 100% line/branch coverage remain merge gates.
 
+### Explicit literal existing-session dictation
+
+The same capture/review owner also accepts a host-captured exact Active session
+and its revisioned, memory-only unsent buffer. A dedicated native dictation
+window is opened from Sessions, compact conversation or the expanded main
+conversation without adding a command route. Selection/source/control/buffer
+changes retire the target, preserve independent session input and suppress late
+publication; synchronous publication revocation rolls back only the owned
+insertion. Actual capture release precedes Append/Replace/Cancel review, and
+ordinary Submit remains separate. See the [session dictation guide](../docs/session-dictation.md).
+Production literal capture remains explicitly unqualified and unavailable;
+deterministic platform fakes do not establish speech-profile qualification.
+
+#### Bounded provisional literal feedback
+
+During an explicitly admitted LOCAL existing-session dictation hold, optional
+[hypothesis observation](../src/Kora.Core/Voice/IProvisionalVoiceRecognitionService.cs)
+uses the actual acknowledged capture generation and exact native target. The
+[Windows wrapper](../src/Kora.Windows/Audio/WindowsActivatedCapture.cs) observes
+`System.Speech` hypotheses without expanding microphone lifetime. The shared
+host forwards only activated observations; wake, command dispatch, approvals,
+question replies and New request dictation gain no provisional presentation
+([feedback owner](../src/Kora.Application/Voice/ComposerDictationService.Provisional.cs)).
+
+Complete replace-only snapshots are bounded to 512 UTF-16 characters and
+1,024 strict UTF-8 bytes. Invalid/oversized input visibly retires preview, not
+final-only dictation; older/duplicate/foreign-generation observations cannot
+replace current feedback. One pending UI callback holds no captured text or
+target. Edit/selection/source/private/control/device/call/lock/cancellation,
+expiry, final completion and disposal clear feedback and fence queued work.
+No partial input is inserted, dispatched, retained, copied/exported, spoken,
+logged or used for activity renewal or source/approval authority
+([validation](../src/Kora.Core/Voice/ProvisionalTranscriptSnapshot.cs),
+[native surface](../src/Kora/SessionDictation/SessionDictationWindow.cs)).
+
+Native retirement joins actual recorder, recognizer and stream release. A
+delayed privacy cleanup with no remaining resources must not enqueue new
+release work or revoke the completed stop receipt; outstanding or failed
+native work still prevents quiescence. Deterministic lock/device regressions
+control that ordering without retries or timing sleeps
+([release regressions](../tests/Kora.Windows.IntegrationTests/Audio/ActivatedVoiceRecognitionTests.Quiescence.cs)).
+
+The native read-only `Provisional—may change` area has a stable content-free
+automation label and no live region or value/text editing provider; accessible
+final review remains separate. Only the accepted final transcript enters the
+existing original-input memory publication and subsequent explicitly admitted
+Submit. Deterministic tests cover that complete path through a retained real
+test-model answer, not a disconnected field preview; production literal/profile
+qualification remains unavailable and no hardware/acoustic trial is claimed
+([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ProvisionalDictation.cs)).
+
 ### Explicit retained original USER text reuse — 2026-10-19
 
 An actual currently admitted immutable conversation row in Sessions or compact conversation offers **Review reuse of this original USER text in a New request**. This is content reuse, **never task replay/resumption** or promotion of HOST/model output. Reconstructed/value-equal rows, hidden/private/omitted/revoked records, question answers and generated content are not reuse sources.
@@ -1165,6 +1356,39 @@ The source is authoritatively reread after native opening/activation and immedia
 [Portable cases](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.MessageReuse.cs) and [native/private-store cases](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.MessageReuse.cs) are added. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. This consumes only the existing original-record reader, private admission, New request composer and inert pane I subset. No runtime/model/provider/egress/wake/profile-original writer is enabled; E/Q, installed accessibility, physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed.
 
 ### Proposed relatedness routing
+
+Explicit non-destructive readable-name browsing is separate from request
+relatedness. `open conversation "<name>"` / `read conversation "<name>"`
+uses the existing exact-name metadata search, one bounded currently permitted
+page, no preselected row and a separate native exact-choice acknowledgment.
+Original LocalUi/ActivatedVoice admission, private control revision, source
+metadata/generation/lifecycle and a 60-second lifetime are revalidated before
+publishing real retained conversation history in the existing interaction
+window. No model, original-request submission, task creation, lifecycle change
+or disk unsent-input write is part of browsing. Pending question/review/dictation
+input cannot become this global command. The source-owned native chooser
+retires on source change, cancellation, replacement, privacy or disposal.
+
+The bounded [reviewed destination operation](../docs/session-routing.md) now
+implements host-owned descriptor proposals, exact choice plus New, name
+acknowledgment, pre-submit correction and canonical original-user submission in
+both window modes. It reads one permitted metadata page through
+`SessionWorkspaceService`, not a model-tool catalogue or transcript assembly.
+Production composition now includes one tools-none, LocalOnly inference in a
+routing-specific canonical original-input control domain established before the
+metadata snapshot. The control identity is excluded from routing destinations.
+Strict bounded JSON maps only host-presented indexes/evidence into the existing
+proposal; the shared routing service validates candidate cardinality, evidence and
+revision. Inference resources physically join and canonical control outcomes commit
+before review is returned. Unqualified local providers remain unavailable and
+explicitly offer reviewed New, with deterministic selection available.
+The native review reveals the destination
+without switching the previous reader or moving any unsent input. Hands-free
+routing replies and automatic selection changes remain unavailable. After separate
+confirmation, unchanged canonical conversation submission sends the original body
+and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
+not the routing proposal, is retained. Cancellation and source closure suppress late
+review and join the owned inference without fallback submission.
 
 The [editor-targeting precedence](#editor-targeting-precedence) below
 applies before this general relatedness policy. Editor-bound or ambiguously
@@ -1192,7 +1416,7 @@ route. In expanded mode it reveals that destination without transferring unsent 
 or losing the previous reading position. Background activity never switches selection.
 Spoken ordinal navigation uses the exact host-held presented-list snapshot, not a model's
 reconstructed order; the bounded implementation counts the loaded page, including Last.
-Session descriptors made available to a future routing model must be bounded, permitted
+Session descriptors made available to routing inference must be bounded, permitted
 and bound to that same presentation; navigation does not authorize transcript assembly
 or hosted disclosure.
 
@@ -1258,6 +1482,22 @@ Background progress remains in its session; eligible notifications follow proact
 App exit/restart/power preparation coordinates all sessions, not just the selected one.
 
 ## Inactivity, Done, Resume, and Delete
+
+The bounded native **Stop this conversation's running work, then delete this conversation** operation combines existing actions without claiming atomic rollback.
+A single-use exact-source review discloses the target, unsent/pending input, owned running work and existing disposition inventory.
+Separate native confirmation closes only new conversation dispatch for that exact target, requests its host-owned cancellation, joins actual resources and revalidates the reviewed source before the existing audited disposition transaction.
+Opening or declining review has no stop/discard/delete effect ([operation](../src/Kora.Application/Hosting/SessionConversationService.StopAndDelete.cs), [native presentation](../src/Kora/SessionsViewModel.StopAndDelete.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Only the exact reviewed cancellation's expected terminal changes are permitted; other work, metadata, generation, permission/source or control changes invalidate deletion.
+The original dispatched task may remain truthfully Unknown: physical join is separate host-owned evidence, never inferred from that status or a global all-clear. Unknown/failed join forbids deletion.
+The conversation executor confirms the original terminal readback before releasing its physical-completion lease. Submission returns that confirmed receipt without rereading the original after release, when the reviewed disposition may already have removed it.
+A completed stop with no deletion requires fresh review; uncertain commit/readback requires authoritative inspection, never replay.
+A fresh review can consume that same in-memory host-confirmed stopped-work identity without repeating cancellation; no content or new durable authority is stored in that recovery proof
+([phase plan](../src/Kora.Application/Hosting/SessionStopAndDeleteReview.cs), [source fence](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+Typed exact-target review uses the same native action. Original voice-origin compound deletion remains unavailable under the existing native deletion boundary and is rejected before any stop; a later click cannot relabel it.
+No model/tool mutation grant, new storage schema, secure physical erasure or remote deletion is added.
+Existing independent retention domains and copy exclusions remain unchanged ([command](../src/Kora.Core/Commands/SessionDispositionReviewCommand.cs), [retention domains](Security_Data_Flows.md#retention-defaults)).
 
 Defaults: **archive after 24 hours of inactivity; delete after 30 days of inactivity**.
 Both are device-local configurable settings, not hard-coded safety constants.

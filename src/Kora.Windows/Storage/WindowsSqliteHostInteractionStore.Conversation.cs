@@ -155,8 +155,18 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         return saved;
     }
 
-    public async ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
-        HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token)
+    public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token) =>
+        RetainConversationMessageCoreAsync(request, generation, expectedMetadataRevision, body, null, admitted, token);
+
+    public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        Func<bool> admitted, CancellationToken token) =>
+        RetainConversationMessageCoreAsync(request, generation, expectedMetadataRevision, body, predecessors, admitted, token);
+
+    private async ValueTask<ConversationSubmissionReceipt> RetainConversationMessageCoreAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest>? predecessors,
+        Func<bool> admitted, CancellationToken token)
     {
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -182,7 +192,8 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
                 { throw new InvalidOperationException("This submission identity already belongs to different immutable content."); }
                 return new ConversationSubmissionReceipt(duplicate, ReadTask(connection, request.TaskId)!);
             }
-            RequireDispositionIdle(connection, request.SessionId, request.TaskId);
+            if (predecessors is null) { RequireDispositionIdle(connection, request.SessionId, request.TaskId); }
+            else { RequirePendingConversationPredecessors(connection, request, generation, predecessors); }
             if (ReadTask(connection, request.TaskId) is not null)
             { throw new InvalidOperationException("A fresh host task identity is required for this original submission."); }
             var count = Scalar(connection, "SELECT count(*) FROM conversation_messages WHERE session_id=$id;", request.SessionId);
@@ -408,18 +419,14 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionConversa
         if (message is null) { return null; }
         if (message.Request != task.Request)
         { throw new InvalidDataException("Conversation task source does not match its immutable retained original request."); }
-        using var blockers = connection.CreateCommand();
-        blockers.CommandText = """
-            SELECT 1 FROM host_tasks WHERE session_id=$session AND task_id<>$task AND state IN (0,1,7) LIMIT 1;
-            """;
-        blockers.Parameters.AddWithValue("$session", Id(task.Request.SessionId));
-        blockers.Parameters.AddWithValue("$task", Id(task.Request.TaskId));
         return new(task, session.Generation, "conversation.user-request.v1",
             session.IsActive && message.Generation == session.Generation && message.Outcome is null
                 && task.State == message.ExpectedTaskState
                 && task.Revision.Value == message.Revision
-                && ReadRun(connection, task.Request.TaskId) == runId && blockers.ExecuteScalar() is null
-                && ConversationQuestionsPermitObservation(connection, task, message, session), null);
+                && ReadRun(connection, task.Request.TaskId) == runId
+                && ConversationPeersCurrent(connection, message, dispatch: false)
+                && ConversationQuestionsPermitObservation(connection, task, message, session), null)
+        { ConversationNotice = ObserveConversationNotice(connection, task, message, session) };
     }
 
     private static void RemoveConversation(SqliteConnection connection, SqliteTransaction transaction, HostId<SessionIdentity> session) =>

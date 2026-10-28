@@ -75,6 +75,7 @@ public sealed partial class App : Avalonia.Application
             viewModel = Services.GetRequiredService<MainViewModel>();
             Services.GetRequiredService<DesktopSessionWorkspaceAccess>().Bind(viewModel);
             viewModel.BindWebSummaryWorkflow(Services.GetRequiredService<Kora.Application.Network.WebSummaryWorkflow>());
+            viewModel.BindExternalBrowserWorkflow(Services.GetRequiredService<Kora.Application.Network.ExternalBrowser.ExternalBrowserWorkflow>());
             viewModel.PropertyChanged += OnViewModelPropertyChanged;
             viewModel.PrivacyClosureRequested += OnPrivacyClosureRequested;
             ApplyThemeMode(viewModel.ThemeMode);
@@ -121,6 +122,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);
             grantListWindow = new GrantListWindowController(viewModel);
             BindExactGrants(viewModel);
+            Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>()
+                .BindAuthorizationPolicyGate(viewModel.AuthorizationPolicyGate);
             var nativeQuestions = new NativeQuestionHost(Services.GetRequiredService<Kora.Windows.Storage.WindowsSqliteHostInteractionStore>(),
                 Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ILogger<NativeQuestionViewModel>>(),
                 questions => viewModel.BindQuestionVoiceReplies(questions, Services.GetRequiredService<TimeProvider>(),
@@ -147,6 +150,7 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);
             BindAgentRuns(viewModel);
+            BindCustomizationDiscovery(viewModel);
             instructionEditor = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionEditorActions>(),
                 Services.GetRequiredService<Kora.Application.Definitions.InstructionSaveWorkflow>(),
@@ -158,7 +162,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<ILogger<OwnedInstructionEditorController>>(),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
-                Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>());
+                Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>(),
+                refinement: Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionRefinementService>());
             instructionEditor.Bind();
             customizations = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.CustomizationManagementService>(),
@@ -213,8 +218,10 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Application.Diagnostics.DurableEvidenceQuery>(),
                 Services.GetRequiredService<Kora.Core.Diagnostics.IEvidenceQueryAccess>(),
                 Services.GetRequiredService<ILogger<EvidenceViewModel>>(),
-                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>());
+                Services.GetRequiredService<Kora.Core.Storage.ISessionWorkspaceAccess>(),
+                CreateEvidenceAnswers(), Services.GetRequiredService<TimeProvider>());
             evidenceWindow.Bind();
+            BindSettingInspection(settingsWindow);
             fileWindow = new LocalFilePreviewWindowController(viewModel, GetPresenceOwner);
             var sessionFiles = Services.GetRequiredService<SessionFileAttachmentService>();
             Services.GetRequiredService<SessionWorkspaceService>().BindAttachmentLifecycle(sessionFiles);
@@ -239,7 +246,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<SessionConversationService>(),
                 Services.GetRequiredService<ScopedInstructionUseBroker>(),
                 Services.GetRequiredService<SessionInstructionScopeCommandService>(),
-                Services.GetRequiredService<SessionInstructionScopeBroker>());
+                Services.GetRequiredService<SessionInstructionScopeBroker>(),
+                Services.GetRequiredService<Kora.Application.Dependencies.VerifiedLocalHandoffOperation>());
             sessionsWindow.Bind();
             sessionsWindow.CreateInteraction = (state, owner) =>
                 responseWindow.PrepareSessions(state, owner, sessionsWindow.Open,
@@ -253,7 +261,9 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<IUiDispatcher>());
             newRequestWindow.BindDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>());
             newRequestWindow.Bind();
-            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow);
+            BindSessionRouting(viewModel);
+            ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting);
+            BindApplicationLifecycle(viewModel, nativeQuestions);
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
@@ -303,6 +313,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileSearch>(), fileWindow,
                 Services.GetRequiredService<Kora.Tools.Files.LocalFileRefresh>());
             viewModel.BindFileAnswer(Services.GetRequiredService<Kora.Tools.Files.LocalFileAnswer>());
+            viewModel.BindFolderAnswer(Services.GetRequiredService<Kora.Tools.Files.FolderAnswers.LocalFolderAnswer>());
             maintenanceWindow = new MaintenanceWindowController(viewModel,
                 Services.GetRequiredService<MaintenanceViewModel>(),
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsCapabilityAdmissionOpen
@@ -373,6 +384,8 @@ public sealed partial class App : Avalonia.Application
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();
+        applicationLifecycle?.Dispose();
+        applicationLifecycle = null;
         rendererSwitchContext = null;
         DisposeHandoffPresentation();
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();
@@ -423,6 +436,8 @@ public sealed partial class App : Avalonia.Application
         workspaceSurfaceCommands = null;
         allWorkWindow?.Dispose();
         allWorkWindow = null;
+        sessionRouting?.Dispose();
+        sessionRouting = null;
         sessionsWindow?.Dispose();
         sessionsWindow = null;
         newRequestWindow?.Dispose();

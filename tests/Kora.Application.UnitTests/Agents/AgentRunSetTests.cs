@@ -9,6 +9,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Tools;
+using Kora.Application.UnitTests.Dependencies;
 using Kora.Core.Agents;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
@@ -219,7 +220,7 @@ public sealed class AgentRunSetTests
     internal static CancellationToken Token => TestContext.Current.CancellationToken;
 
     internal sealed class Fixture : ISessionWorkspaceStore, ISessionConversationStore, ISessionWorkspaceAccess,
-        ICapabilityHostAccess, IApplicationInfo, ISecurityAuditLog, IAsyncDisposable
+        ICapabilityHostAccess, IApplicationInfo, ISecurityAuditLog, ISessionProviderProfileStore, IAsyncDisposable
     {
         private readonly ActivityListener listener = new()
         {
@@ -233,6 +234,9 @@ public sealed class AgentRunSetTests
         internal Qualification Qualification { get; }
         internal ModelTurnHost Host { get; }
         internal AgentRunSetFactory Factory { get; }
+        internal SessionConversationService Conversation { get; }
+        internal Configuration.ProviderProfileConfigurationFixture.ProfilePreferences RuntimeProfiles { get; } = new();
+        internal Configuration.ProviderProfileConfigurationFixture.ProfileCatalogue RuntimeCatalogue { get; } = new();
         internal List<Reader> Readers { get; } = [];
         internal Action<Reader>? ConfigureReader { get; set; }
         internal SessionWorkspaceEntry[] Sessions { get; } = Enumerable.Range(0, 3)
@@ -240,13 +244,15 @@ public sealed class AgentRunSetTests
         internal ConcurrentDictionary<HostId<RequestIdentity>, ConversationMessage> Messages { get; } = new();
         internal ConcurrentDictionary<HostId<TaskIdentity>, HostTaskObservation> Tasks { get; } = new();
         internal ConcurrentQueue<SecurityAuditEvent> Audits { get; } = new();
+        internal Action<SecurityAuditEvent>? OnAudit { get; set; }
         public bool CanControl { get; set; } = true;
         public bool CanInspect => CanControl;
         public long ControlRevision { get; set; }
         public bool IsCurrentHost => true;
         public string Version => "test";
 
-        internal Fixture(IModelTurnAdapter? extra = null)
+        internal Fixture(IModelTurnAdapter? extra = null, IRuntimeCapacityQualification? runtimeCapacity = null,
+            IModelProviderRegistrationSource? registrationSource = null)
         {
             ActivitySource.AddActivityListener(listener);
             Qualification = new(Time, Adapter);
@@ -262,9 +268,16 @@ public sealed class AgentRunSetTests
                     ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
                     Time.Now.AddMinutes(10), Adapter)];
             if (extra is not null) { registrations.Add(new(ModelProviderSelection.CopilotCandidate, ModelQualificationGate.None, Time.Now, extra)); }
-            Host = new(this, this, this, registry, this, NullLogger<ModelTurnHost>.Instance, Time, [.. registrations], mode);
+            RuntimeProfiles.Value = new(ProviderService.Local, [RuntimeResourceAllocatorTests.Profile]);
+            RuntimeCatalogue.Status = ProviderCatalogueStatus.Current;
+            var profiles = new ProviderProfileConfigurationService(RuntimeProfiles, RuntimeCatalogue, admission, this, Time);
+            Host = new(this, this, this, registry, this, NullLogger<ModelTurnHost>.Instance, Time, [.. registrations], mode,
+                registrationSource is null ? null : profiles, registrationSource is null ? null : this,
+                registrationSource, runtimeCapacity: runtimeCapacity);
             var workspace = new SessionWorkspaceService(this, new HostTaskCoordinator(store), this,
                 NullLogger<SessionWorkspaceService>.Instance);
+            Conversation = new(this, this, workspace, this, Host, Time,
+                NullLogger<SessionConversationService>.Instance, Host, this);
             Factory = new(Host, Qualification, lane =>
             {
                 var reader = new Reader();
@@ -281,10 +294,18 @@ public sealed class AgentRunSetTests
         internal Task Review(AgentRunSet runs, int number) => runs.ReviewAsync(number, "selected",
             Sessions[number - 1], $"original task {number}", RequestOrigin.LocalUi, () => true, Token);
 
+        public ValueTask<SessionProviderProfile> ReadProviderProfile(HostId<SessionIdentity> session, CancellationToken token) =>
+            ValueTask.FromResult(new SessionProviderProfile(Sessions.Single(item => item.Authority.SessionId == session).Authority,
+                0, SessionProviderOverrides.Inherit, false));
+        public ValueTask<SessionProviderProfile> CommitProviderProfile(HostRequest request, SessionProviderProfile expected,
+            SessionProviderOverrides desired, Func<bool> admitted, CancellationToken token, SessionProviderProfile? source = null) =>
+            throw new NotSupportedException();
+
         public void Write(SecurityAuditEvent auditEvent)
         {
             HostActivity.RequireCurrent();
             Audits.Enqueue(auditEvent);
+            OnAudit?.Invoke(auditEvent);
         }
 
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken) =>
@@ -297,6 +318,13 @@ public sealed class AgentRunSetTests
             Require(admitted, token);
             Messages.TryAdd(request.RequestId, new(request, generation, 1, 1, Time.Now, body, null, null)).Should().BeTrue();
             return ValueTask.FromResult(Publish(request, HostTaskState.IntentRecorded));
+        }
+        public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
+            HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+            Func<bool> admitted, CancellationToken token)
+        {
+            predecessors.Should().OnlyContain(item => item.SessionId == request.SessionId && Messages.ContainsKey(item.RequestId));
+            return RetainConversationMessageAsync(request, generation, expectedMetadataRevision, body, admitted, token);
         }
         public ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
             ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token)
@@ -313,7 +341,9 @@ public sealed class AgentRunSetTests
             var before = Messages[request.RequestId];
             Messages[request.RequestId] = before with
             {
-                Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
+                Revision = 3,
+                Outcome = result.Outcome,
+                Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, before.Execution!) : null,
             };

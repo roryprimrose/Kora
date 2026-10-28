@@ -26,5 +26,6 @@ public static class LocalWebPageTool
         && page.Text is not null
         && reply.Capabilities is null && reply.Descriptor is null && reply.Version is null
         && reply.Readiness is null && reply.Runtimes is null && reply.Runtime is null
+        && reply.Sessions is null && reply.Customizations is null
         && CapabilityReplyWire.GetSerializedSize(reply) <= Descriptor.Limits.MaximumOutputUtf8Bytes;
 }

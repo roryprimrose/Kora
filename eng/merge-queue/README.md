@@ -206,6 +206,31 @@ names qualify. Missing, duplicate, skipped, neutral, failed or cancelled require
 jobs do not qualify. No downloaded artifact, PR text or rendered log grants
 merge authority. Coverage comments remain informational.
 
+Workflow completion is not terminal job evidence. A successful completed
+workflow with missing, nonterminal, null or unknown required-job metadata keeps
+its candidate checks pending and retains the lane. The controller lists the
+exact run attempt's jobs with complete, consistent pagination; every observed
+job must match that run, attempt and workflow source. Duplicate required jobs
+fail validation; repeated job IDs, changed correlation, API/authentication errors
+and incomplete pagination fail explicitly, without accepting partial evidence or
+falling back to step/workflow success.
+
+The first incomplete observation is persisted on the existing ticket. It gets
+the same ten-minute observation budget used for merge confirmation, without
+resetting on restart or reconciliation, changing workflow/job timeouts or
+redispatching CI. Existing hosted events and the five-minute schedule reobserve
+metadata; the controller does not poll, sleep or self-dispatch a pending lane.
+Only exact, current, terminal-success required jobs can admit the candidate
+before that deadline. A confirmed terminal failure quarantines the revision.
+At the deadline, incomplete evidence explicitly fails validation and enters
+retirement, not endless pending admission. Late success cannot revive that
+ticket. Missing/unknown/nonterminal jobs are not proof of physical quiescence:
+cancellation is requested and lane ownership is retained until all required
+jobs exist exactly once and all observed jobs are actually terminal. This also
+applies to stale, cancelled or already-merged candidates. Unknown resource state
+may therefore hold a retired lane for reviewed recovery; it never grants a
+second candidate or automatic success.
+
 The [coverage-comment workflow](../../.github/workflows/coverage-comment.yml)
 checks the source run's latest-attempt jobs before downloading its report.
 A skipped portable job with successful queue-policy feedback identifies a
@@ -227,6 +252,33 @@ permission; there is no separate App permission to disable those APIs. Keep its
 private key restricted to trusted main workflows rather than treating the
 permission name as a review-approval restriction.
 
+## Controller feedback
+
+Open a **Merge queue controller** run and expand **Reconcile selected candidate**
+for live progress. The run's job summary retains the same observations and
+decisions, with its trigger and final outcome, so `idle` is not the only feedback:
+
+- Protection verification, current main, active phase and blocked-revision counts.
+- Inspected PR counts, skip reasons (draft, foreign source, missing squash
+  Auto-merge, missing live enrollment, quarantined revision, unknown mergeability
+  or unmet reviews), and priority/PR-number selection order.
+- Reserved PR/head/base/ticket, branch-update and CI-dispatch requests, matching
+  run identity/status and every required job's match count and conclusion.
+- Stale-candidate retirement, cancellation and lane-hold reasons, exact-evidence
+  revalidation, protected merge requests/confirmation and controller continuation.
+
+Routine progress uses informational log lines; existing exceptional conditions
+remain warnings. Failures propagate to Actions, while the summary retains
+observations made before the failure and labels the outcome `failed`.
+It does not turn partial work into successful admission. Summaries require the
+step to reach its finalizer; runner termination or failure before reconciliation
+starts may prevent them.
+
+The trace contains scheduling metadata, not PR titles, bodies, arbitrary label
+text, event payloads, credentials or API response dumps. Logs and summaries are
+diagnostics, never merge authority. Queue state/schema, eligibility, permissions,
+required checks and retry/cancellation behavior are unchanged.
+
 ## Durable scheduling and cancellation
 
 ### Merge confirmation and native Auto-merge
@@ -245,7 +297,10 @@ The preserved timestamp on an already-completed GitHub check does not date a lat
 Only short controller reconciliations are serialised; no runner waits for CI.
 Pending wakeups may coalesce safely because each run rereads GitHub state.
 PR changes (including label additions/removals), Auto-merge changes, main pushes
-and CI completion wake it.
+and CI completion wake it. A PR merge already wakes the controller through
+`pull_request_target: closed` and the push to `main`; merging does not wait for
+the timer. Events are hints to reread live state, not authority to select or merge
+the PR named in a payload.
 A five-minute scheduled reconciliation provides recovery from missed events and
 eventual review/mergeability updates; GitHub may delay schedules under load.
 
@@ -255,8 +310,20 @@ rather than stopping at the first conflict. Previously blocked head/enrollment p
 consume this selection budget. Each new reservation has its own ticket; at most
 one full candidate workflow is dispatched.
 
-After releasing a candidate lane (merge, failed validation or completed
-retirement), or reaching the selection budget with another selectable PR, the
+After confirming a merge and checkpointing the released lane, the controller
+performs exactly one more reconciliation in the same run. It rereads protection,
+durable state, current main, PRs, enrollment, priorities and reviews before
+reserving the next candidate. This removes a controller-run startup from the
+merge-to-next-build path without waiting on a runner for branch updates or CI.
+The original reconciliation outcome remains the run outcome; **Post-merge handoff
+finished** records the follow-up outcome in the log and summary. An empty queue
+stops, an updating candidate waits for events, and at most one candidate build
+is dispatched. Follow-up failures propagate with the released lane or next
+dispatch intent already persisted, so recovery cannot blindly repeat a merge
+or dispatch.
+
+After failed validation or completed retirement, or reaching the selection
+budget with another selectable PR (including during a post-merge handoff), the
 controller checkpoints state and explicitly dispatches `merge-queue.yml` on
 trusted main using its existing App identity. This continuation does not dispatch
 candidate CI or carry candidate inputs. It avoids relying on delayed scheduled
@@ -264,6 +331,27 @@ wakeups to advance an empty lane. Idle, updating, validating and still-retiring
 lanes do not self-dispatch, so an exhausted blocked queue stops rather than
 creating an idle run loop. A continuation failure propagates; persisted state
 remains authoritative and later events or the schedule can recover it.
+
+### Diagnosing throughput
+
+Compare ticketed **Merge queue PR #...** CI runs, not the short policy-only
+**CI .../merge** runs. Measure a candidate's creation-to-completion time,
+completion-to-next-candidate creation gap, and merge-to-next-candidate gap
+separately. Inspect job timestamps to identify the critical path; the lane
+cannot advance while any required candidate work is nonterminal.
+
+A snapshot of 26 completed candidate runs on 26 October 2026
+(09:38-20:36 UTC) showed a mean duration of 23m52s, a range of 17m56s-31m03s,
+and 10 failed attempts. The 25 intervening gaps were 54s-3m58s, with a median
+of 1m23s: they were not five-minute timer waits. For example,
+[PR #527's candidate](https://github.com/roryprimrose/Kora/actions/runs/40390027511)
+took 26m35s, with its `ui-platform` Windows shard taking 25m52s.
+[The next candidate](https://github.com/roryprimrose/Kora/actions/runs/40394163932)
+was created 81s after completion, or 61s after #527 merged.
+These are pre-change observations, not a benchmark or a promise of future
+runner latency. Same-run handoff removes one startup, not the much larger cost
+of long-running validation and failed attempts. Main release builds remain
+independent and may overlap candidates; their execution is not an idle queue gap.
 
 Controller workflow success means reconciliation completed, not that a PR
 merged. Inspect its `Merge queue:` outcome and the durable active/blocked state.
@@ -401,4 +489,6 @@ Workflow contract tests accept `KORA_QUEUE_WORKFLOW_TEST_PATH` to test a
 separately prepared combined workflow without changing the working copy.
 Octokit's `paginate` returns normalized arrays for workflow runs, jobs and
 check runs. Pagination callbacks and test doubles must use that array contract,
-not the named object envelopes returned by individual REST requests.
+not the named object envelopes returned by individual REST requests. Job-page
+callbacks also retain Octokit's normalized `total_count` metadata so partial
+or changing page sets cannot qualify as complete observations.

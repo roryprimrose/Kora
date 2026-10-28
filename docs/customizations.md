@@ -24,6 +24,25 @@ plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather
 than silently omitting components.
 
+## Discover which selected customizations may help
+
+Type `discover customizations <your question>` or use the current assistant-name activated-voice prefix. With no question, enter it in the private native window. This is a separate metadata-only operation, not the complete-file editing or authoring route below ([original routes](../src/Kora.Application/ViewModels/MainViewModel.CustomizationDiscovery.cs), [native window](../src/Kora/CustomizationDiscoveryWindow.cs)).
+
+1. **Refresh supported source choices** lists the supported Kora roaming and User profile skill, agent and instruction choices without reading definition bodies or MCP configuration. Nothing is selected automatically. Private source-path labels distinguish choices but are never shared with the model.
+2. Deliberately select one to six exact entries across the kinds and one existing Active conversation. Enter or review your original question. No conversation is created, resumed or inferred.
+3. **Read selected primary metadata and preview exact shared fields** reads only those primary definitions, not skill-package components. Review the original question and the complete bounded metadata reply: opaque per-snapshot `ref`, `kind`, readable `name`, bounded `description`, safe `sourceCategory`, `compatible`, `enabled` and `availability`.
+4. **Share only this reviewed metadata for ONE local answer** submits the unchanged question through the canonical conversation route. The local model can call only `customizations.list` and `customizations.get` over the frozen selection, then produce a genuine recommendation. The original question and genuine answer or truthful terminal outcome are retained in the selected conversation; host-added scope text records how many reviewed entries were actually served.
+
+These steps share one [reviewed snapshot owner](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [read-only native metadata projection](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Metadata.cs) and [canonical retained submission](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs). Choosing sources or reviewing metadata never enables a definition, loads instructions, grants authority, registers effects or invokes a recommendation.
+
+`compatible` means supported metadata parsing, **not executable compatibility**. `enabled` reflects current admitted catalogue/use control for the exact observed digest; a missing, held, disabled or unmatched candidate is not reported as enabled. `availability: NotObserved` explicitly means executable readiness was not established ([projection](../src/Kora.Application/Tools/CustomizationDiscoveryService.cs)).
+
+The snapshot expires after two minutes and is single-use. Input, selection, session, privacy, ownership, source or use-control changes require a fresh choice/review. Invalid, missing, changed, interrupted or revoked sources report failure rather than an empty/current or last-good catalogue. Cancel/close retires disclosure immediately; model work remains owned until actual termination, and late answers cannot publish ([freshness owner](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [retention lifecycle](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
+
+The limits are six selected entries, 128 UTF-8 bytes per readable name, 256 UTF-8 bytes per description, 1,024-byte complete callback input, 4,096-byte complete callback reply and 8,192 cumulative reply bytes. Paging stays inside the selected snapshot; `get` accepts only its opaque refs. Unknown fields, queries, paths, forged refs and invalid pages are rejected; oversized fields/results are not truncated ([wire contract](../src/Kora.Core/Tools/CustomizationDiscoveryTools.cs), [input policy](../src/Kora.Core/Tools/CapabilityInputPolicy.cs)).
+
+The operation is **LocalOnly** and requires the existing qualified local model profile; unavailable readiness remains unavailable, without a service fallback. Ordinary turns do not automatically share this metadata. Built-in definitions, additional registered roots outside the supported chooser, prompts, MCP configuration/accounts, source bodies, scripts/hooks, commands/environment, unsaved buffers, history/memory, automatic instruction loading and hosted disclosure are excluded ([model policy](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs)).
+
 ## Edit or add
 
 Use `show me example instruction` or `edit example skill`, or select an exact
@@ -32,6 +51,27 @@ source in the window. Ambiguous names require native source selection.
 Choose a new lowercase ID and **Kora** or **User** destination, then **Add**.
 `add an instruction named example` prepares that same new draft. An unnamed
 `add a skill` opens the creation controls; choose its ID before adding.
+For Instructions, **Add** supports Kora destinations only; User originals use the separately reviewed registration below ([destination policy](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)).
+
+### Edit one registered personal instruction original
+
+Select one exact **User / Instructions** row, then **Review original registration**. Before source content is read, the native review discloses the exact personal file, bounded reading and supported editing scope. Registration lasts only for this Customizations window, not across restarts; previous read-only registrations are not edit consent ([registration workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs)).
+
+Only an existing canonical lowercase `*.instructions.md` in a personal Code or Code - Insiders User prompts/profile-prompts location is supported. This increment admits strict UTF-8 native `kora-format: 1`, at most 65,536 file bytes including a retained BOM, and the existing bounded scalar header. Unsupported metadata, scope/globs, hooks, other formats and unsafe/nonlocal targets are refused, never silently rewritten ([native binding](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs), [format](../src/Kora.Core/ArtifactInvocation/ArtifactFileDocument.ProfileCopy.cs)).
+
+After registering, edit the complete exact source in the existing editor. **Review and save** separately displays the source-qualified shared original and complete original/proposed source, including BOM/byte metadata. **Save disabled** confirms that precise mutation, not a fork: other applications and external sync use the same original ([save owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+BOM, proposed line endings, supported metadata/attribution, owner/group/DACL, ordinary file attributes and creation time are preserved. Named streams or unsupported native attributes are refused rather than dropped. Changed bytes require a separate current-content **Enable** review ([native preservation](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.InstructionOriginal.cs), [use review](../src/Kora.Application/Definitions/CustomizationManagementService.cs)).
+
+Conflicts retain the previous base and dirty draft. **Compare external** offers **Keep draft**, **Rebase complete draft**, **Discard and reload**, and **Cancel**. Rebase adopts only the exact reviewed external base, keeping the complete draft unchanged without merging or saving it. Another external change requires another comparison; replacement of the native original requires renewed registration first ([conflict workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs)).
+
+Single-file publication uses the existing optimistic conflict policy, not content compare-and-swap. Native identity and exact bytes are compared after staging immediately before atomic replacement relative to the pinned directory. A same-name replacement can still race that last comparison. Uncertain publication remains held and requires explicit registration/inspection; there is no rollback claim or automatic retry ([policy](../Design/Definition_Management.md#editing-ownership-and-confirmation), [writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+**Withdraw original registration** clears this window's source/draft and revokes pending access/writes without deleting originals or independent Kora copies. Close/privacy/ownership retirement also retires the registration. For a compatible original you do not want to edit in place, the [owned instruction editor's existing **Create Kora copy from profile** route](instruction-editor.md#create-a-disabled-kora-copy-of-a-personal-instruction) remains independent; unsupported content is not automatically adapted ([retirement](../src/Kora/CustomizationWindowController.cs)).
+
+This bounded original editor adds no agent/skill/prompt/package writer, filesystem tool, model-selected path, external editor launch, inherited use/grant or runtime qualification. Existing typed/activated-voice navigation reaches this same native surface; registration and write consent remain native reviews ([entry routes](../src/Kora/CustomizationWindowController.cs), [authority boundary](../Design/Security_Data_Flows.md#application-integrity-and-no-self-modification)).
+
+### Complete draft review
 
 Edit the source directly. Skills can also **Add file**, **Rename file**, and
 **Remove file**, including bounded relative components such as
@@ -97,13 +137,23 @@ choose refinement/discussion of this artifact, or **Cancel**. For another
 artifact, a session or a New request, cancel and use its explicit route; Kora
 never forwards a rejected editor utterance automatically.
 
+You can answer this exact clarification with its buttons, or select **Answer by
+voice** and say **Refine this artifact**, **Discuss this artifact**, or
+**Cancel** (the displayed option number also works). This is one bounded local
+reply, not another general command; an unmatched reply cancels without forwarding
+it. The question expires after 75 seconds and never extends the original
+request's deadline. Capture must close completely before the original operation
+continues. If voice is unavailable, use the native choices.
+
 After routing, the request appears in **Describe or discuss a change with Kora**.
 The separate complete-draft disclosure shows the captured component and
 resolved edit/discussion mode as well as every supplied file. That same scope
 reaches authoring without rewriting your request, so **this file** keeps its
 component and choosing discussion remains discussion even for edit-worded
-speech. The proposed-draft review above still applies. Discussion cannot change files. Clarification and review use native
-choices, not an interpretation of "yes" or "save" as approval.
+speech. The proposed-draft review above still applies. Discussion cannot change files.
+The spoken clarification is not approval of disclosure, a proposal, Save or
+enablement: those separate native reviews remain required. "Yes" or "save" is
+not an answer to this clarification.
 
 Focus/presentation, component/source, request/draft or host/privacy/call changes
 retire the original target. Returning to it does not revive old speech or late

@@ -51,8 +51,10 @@ internal sealed partial class EvidenceWindow : Window
     internal EvidenceWindow(EvidenceViewModel model, MainViewModel? typographyHost = null)
     {
         typographyHost?.EnsureReaderTypographyAvailable();
+        typographyHostForEvidenceAnswers = typographyHost;
         InitializeComponent();
         DataContext = model;
+        BindEvidenceAnswers(model);
         var scaleBody = NativeReaderTypography.Capture(EvidenceBody);
         var scaleMatch = NativeReaderTypography.Capture(LiteralMatch);
         var retired = false;
@@ -77,6 +79,8 @@ internal sealed partial class EvidenceWindow : Window
         Next.Click += async (_, _) => await model.NextAsync();
         ClearAdvanced.Click += (_, _) => model.ClearAdvancedFilters();
         Trace.Click += async (_, _) => await model.ReadTraceAsync();
+        ReadRequest.Click += async (_, _) => await model.ReadRequestAsync();
+        ReadActivity.Click += async (_, _) => await model.ReadActivityAsync();
         OpenSegment.Click += async (_, _) =>
         {
             if (Segments.SelectedItem is EvidenceSegment segment) { await model.NavigateAsync(segment); }

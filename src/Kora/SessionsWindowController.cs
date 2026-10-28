@@ -21,7 +21,8 @@ internal sealed partial class SessionsWindowController(
     SessionAttachmentWindowController? attachments = null,
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null,
-    SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null) : IDisposable, ISessionDispositionReviewPresenter,
+    SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null,
+    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -162,6 +163,14 @@ internal sealed partial class SessionsWindowController(
     internal QuestionWindowController? ConversationQuestions { get; set; }
     internal async Task<bool> PrepareShutdown()
     {
+        RetireNamedConversation();
+#pragma warning disable VSTHRD003 // Join the exact owned passive navigation, not merely the choice window.
+        if (!NamedConversationOperation.IsCompleted)
+        {
+            try { await NamedConversationOperation; }
+            catch (OperationCanceledException) { }
+        }
+#pragma warning restore VSTHRD003
         if (instructionScopes is { } scopes) { await scopes.QuiesceAsync(); }
         return presentation is { } current ? await current.PrepareShutdown() : true;
     }
@@ -205,11 +214,17 @@ internal sealed partial class SessionsWindowController(
             var revision = access.ControlRevision;
             bool Live() => !disposed && access.CanControl && access.ControlRevision == revision
                 && ReferenceEquals(model, active) && target is not null && active?.SelectedSessionRecord == target
-                && (window?.IsActive == true || compact?.IsActive == true || interaction?.IsActive == true
+                && (presentation?.HasUniqueForegroundWindow == true
                     || active?.IsMcpActive == true && ConversationQuestions?.IsOwnerInUse == true);
             if (!Live()) { throw new InvalidOperationException("MCP commands require the exact foreground selected session and explicit native server/account choices."); }
             token.ThrowIfCancellationRequested();
             if (command.Stop) { await active!.CancelMcpConversationAsync(); return "Cancellation requested; owned work remains held until actual termination. No rollback or automatic retry."; }
+            if (command.Explicit)
+            {
+                await active!.InvokeSelectedMcpAsync(origin, Live);
+                if (!Live()) { throw new OperationCanceledException("The original MCP presentation changed."); }
+                return active.ConversationStatus;
+            }
             var message = await active!.SubmitMcpConversationAsync(command.Body, origin, Live);
             if (!Live()) { throw new OperationCanceledException("The original MCP presentation changed; no result is disclosed to another target."); }
             return message?.AssistantResponse?.Body ?? active.ConversationStatus;
@@ -219,6 +234,7 @@ internal sealed partial class SessionsWindowController(
         service.SessionLifecycleChanged += RevokeSession;
         service.SessionRetired += RevokeSession;
         service.SessionMetadataChanging += OnAnswerSourceChanging;
+        service.SessionMetadataChanging += OnDictationSourceChanging;
     }
 
     internal void Open()
@@ -365,7 +381,9 @@ internal sealed partial class SessionsWindowController(
             confirmSpeechSummarySuggestion: (review, token) => main.ConfirmSpeechSummarySuggestionAsync(review, token),
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
-            confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token));
+            confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
+            localHandoff: localHandoff);
+        model.BindDictation(main.ComposerDictation);
         model.PresentEvidenceDetails = (page, admitted, validate) =>
         {
             if (DetailOwner() is not ResponseWindow primary)
@@ -416,8 +434,24 @@ internal sealed partial class SessionsWindowController(
                 var selectedOption = Array.FindIndex(options, option => string.Equals(option.Id, answer.Choices[0], StringComparison.Ordinal));
                 return selectedOption < 0 ? null : tools[selectedOption].Name;
             };
+            model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
+            {
+                using var schema = System.Text.Json.JsonDocument.Parse(tool.InputSchema);
+                var spec = new Kora.Core.Interaction.QuestionSpec("Enter JSON arguments for " + tool.Id
+                    + ". Every required field must match this schema. Submitting input is NOT approval to send it.\n"
+                    + System.Text.Json.JsonSerializer.Serialize(schema.RootElement),
+                    Kora.Core.Interaction.QuestionKind.Text, [],
+                    maximumTextLength: Kora.Core.Mcp.McpToolSchema.MaximumArgumentsUtf8Bytes,
+                    sourceId: "mcp-tool-arguments");
+                var receipt = await questions.AskConversationAsync(window ?? (Avalonia.Controls.Window?)compact ?? interaction
+                    ?? throw new InvalidOperationException("The exact MCP input window is unavailable."),
+                    request, generation, spec, expiresAt, admitted, token, mcpInput: true);
+                return receipt.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Answered
+                    ? receipt.Completed.Question?.Draft?.Text : null;
+            };
         }
-        presentation = new(model);
+        BindAdditionalRegisteredSettingSuggestions(model, main);
+        presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {
             try
@@ -490,7 +524,9 @@ internal sealed partial class SessionsWindowController(
         bool NativeAdmission() => !disposed && ReferenceEquals(window, owner)
             && Volatile.Read(ref dispositionOwnerOpen) == 1 && ownerEpoch == Volatile.Read(ref dispositionOwnerEpoch)
             && ReferenceEquals(model, state) && access.CanInspect && access.CanControl && main.CanRevealPrivatePresentation;
-        return await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
+        return command.StopRunningWork
+            ? await state.ReviewStopAndDeleteCommandAsync(command, origin, admitted, NativeAdmission, token)
+            : await state.ReviewDispositionAsync(command, origin, admitted, NativeAdmission, token);
     }
 
     internal void RevokeSession(Kora.Core.Hosting.HostId<Kora.Core.Hosting.SessionIdentity> session)
@@ -521,12 +557,13 @@ internal sealed partial class SessionsWindowController(
         { main.ReportHostInteractionFailure("Sessions could not be opened. " + exception.Message); }
     }
     private void OnPrivacyClosure(object? sender, EventArgs args)
-    { instructionScopes?.RevokeAll(); presentation?.Revoke(); }
+    { RetireNamedConversation(); instructionScopes?.RevokeAll(); presentation?.Revoke(); }
 
     public void Dispose()
     {
         if (disposed) { return; }
         disposed = true;
+        RetireNamedConversation();
         instructionScopes?.Retire();
         main.BindSessionInstructionScopes(null, null);
         Volatile.Write(ref dispositionOwnerOpen, 0);
@@ -544,6 +581,7 @@ internal sealed partial class SessionsWindowController(
         service.SessionLifecycleChanged -= RevokeSession;
         service.SessionRetired -= RevokeSession;
         service.SessionMetadataChanging -= OnAnswerSourceChanging;
+        service.SessionMetadataChanging -= OnDictationSourceChanging;
         presentation?.Revoke();
         window = null;
         compact = null;

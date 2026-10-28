@@ -22,6 +22,19 @@ The [Customizations guide](../docs/customizations.md) identifies the delivered
 source/edit/recovery/model-review routes. These and native skill inspection are
 bounded deliveries, not evidence that the full runtime contract is qualified.
 
+The existing supported-source watcher observes the nearest existing ancestor
+when a recognized root has not yet been created, including when several parent
+directories are absent. External creation then refreshes the same catalogue
+without a restart or configuration toggle. Directory rename, move and deletion
+within discovery depth also refresh it, including dotted directory names.
+Notifications are filtered by exact source ancestry, file patterns and existing
+depth bounds before discovery; watching an ancestor grants no broader content
+read or source registration. Reparse exclusions, file budgets, debounce and
+truthful reload failures remain unchanged. Reload retires stale selected
+requests, questions and approvals through the existing consumers; owned
+revisions still require separate exact-use review and enablement. Disk events
+never invoke a definition or adopt an approval.
+
 The owned editor's **Find in selected metadata** is a separate, ephemeral native
 literal Find over exactly one current, selected inventory row's displayed
 metadata details. It reuses admitted metadata state and the shared bounded
@@ -37,6 +50,8 @@ It adds no Ctrl+F binding and confines Enter/F3 to its own controls.
 See the [editor guide](../docs/instruction-editor.md#find-within-selected-displayed-metadata-details).
 
 ## Product Roles
+
+The [bounded owned skill editor](../src/Kora/OwnedSkillEditorWindow.cs) supports native v1 instruction-only packages and additive native v2 selection of exactly the existing host WebPageGet capability. This is immutable disabled publication followed by separate source/target review, enablement, exact request/URL confirmation, independent action approval and genuine retained model answer, not field preparation or automatic Customizations registration ([complete operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill)). General package executors, arbitrary tools/effects and executable resources remain excluded.
 
 | Kind | Value and application |
 |---|---|
@@ -102,6 +117,23 @@ hooks, tools, delegation/concurrency/scheduling, hosted transfer, automatic
 enablement and persistent policies are excluded. Caption and skill-reference
 operations remain independent; this increment does not change their contracts
 or the v1 contract in [Commands, Tools, and Skills](Commands_Tools_And_Skills.md).
+
+### Bounded local agent owned instructions with observation tools (v4)
+
+Explicit `kora-agent-format: 4` combines the v2 exact owned-instruction bundle with a nonempty declared subset of the six original read-only observation IDs in the same serial run.
+It retains every required scalar metadata field, local text input/output and host-clamped budgets. V1 remains reference-free; v2/v3 remain tool-free. No shared skill references are accepted in v4 ([parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
+
+One to four distinct `disk.kora-profile.instruction.<exact-id>` references and one to six distinct canonical tool IDs are required, with positive `maximum-calls`. Unknown/duplicate metadata, unknown kinds, paths, URLs, agent references/cycles, extra tools and unbounded budgets fail closed.
+Tool descriptors/effects come only from the host catalogue; no profile description grants authority ([reference validation](../src/Kora.Core/Agents/AgentInstructionReference.cs), [constraints](../src/Kora.Core/Dependencies/ModelTurnConstraints.cs)).
+
+The existing original native/typed/current-name voice review first shows declared IDs, exact enabled candidates, tool subset and cumulative budgets without reading instructions. Separate resolution consent pins complete source bytes, revision and control epochs.
+Full guidance, original request and exact Active conversation review precedes separate single-use invocation confirmation. Editing, saving and independently enabling an instruction never supplies either consent ([workflow](../src/Kora.Application/Agents/BoundedAgentWorkflow.cs), [native review](../src/Kora/AgentRunController.cs)).
+
+The canonical retained local model/tool loop receives separate immutable LocalOnly evidence and only the reviewed tool subset. Its consumer source fence revalidates the profile and each exact instruction at admission, each tool/continuation boundary and final publication, alongside host/session/generation/privacy authority.
+Source edits or revocation reject further dispatch and late answers without substituting newer content. Stop retains ownership until source/provider/callback work actually joins ([source fence](../src/Kora.Application/Dependencies/ModelTurnHost.Execution.cs), [dispatch](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+
+Native owned authoring accepts v4 through the existing volatile source editor, exact create-only destination review, separate native save confirmation and durable readback. Saved originals remain inert and unselected; no original-replacement or automatic registration is added ([authoring](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+Fake-backed end-to-end tests establish implementation, not provider E or RC Q; unavailable local models remain unavailable ([consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.AgentInstructionsAndTools.cs), [native tests](../tests/Kora.Windows.IntegrationTests/AgentProfileEditorUiTests.cs)).
 
 ## Source and Format Matrix
 
@@ -228,7 +260,7 @@ edit or an approval.
 
 ### Foreground editor voice targeting
 
-**Status: bounded implementation with native clarification/review.** The product owner selected
+**Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected
 foreground editor plus model-interpreted editing intent, with clarification
 when ambiguous. The delivered route requires neither an "in this editor"
 preface nor a separate editor capture mode. This advances the approved
@@ -240,8 +272,9 @@ definition content and models cannot assign that authority.
 The current target-choice surface offers refinement/discussion of the exact
 captured artifact or Cancel. Another artifact/session/New request requires
 cancellation and its explicit admitted route; there is no automatic transfer
-of the held utterance. Spoken target-choice replies and general model-selected
-session relatedness are not delivered by this increment.
+of the held utterance. **Answer by voice** opens one bounded local successor
+capture for this editor question only. General model-selected session
+relatedness remains unavailable.
 
 An open background editor is not a target. At admitted wake/PTT activation,
 before asynchronous capture or UI dispatch, the host snapshots the eligible
@@ -293,13 +326,30 @@ Clarification offers only actual eligible, source-qualified targets, with
 **Cancel**. The delivered choices are the captured artifact's refinement or
 discussion; separate explicit routes select another destination. A later
 cross-target chooser may include **New request** or sessions only when relevant.
-For example: **Did you mean this instruction, or a session request?** A future admitted spoken answer must belong to this exact question and original
+For example: **Did you mean this instruction, or a session request?** An admitted spoken answer belongs to this exact question and original
 utterance, not a fresh command. Choice expiry, cancellation or invalidation discards the pending
 handoff. Selecting a different destination is a new explicit routing decision,
 not replay through the global parser. It preserves the original voice channel
 and uses that destination's ordinary review/admission; choosing an editor does
 not itself approve disclosure or an edit. No choice may silently substitute a
 different source after the original becomes stale.
+
+The delivered editor question is a volatile, single-consumption continuation of
+the original foreground request, not a persisted session question. It binds the
+exact editor target, source/baseline, draft/component, original request/channel
+and host/privacy/call admission. Native buttons and the separately selected
+**Answer by voice** share the same typed Refine/Discuss/Cancel outcome and
+75-second question expiry; neither extends the original operation's deadline.
+Only that question owner can hand over its original capture generation to its
+acknowledged successor and confirmed release. Global voice-generation fences
+and persisted-question admission are unchanged. The reply is parsed against
+this question's whole-utterance schema, never sent to a command/session parser.
+Invalid, duplicate, foreign or late replies cannot resume another operation.
+Withdrawal, expiry, close and disposal retain ownership until opening and
+capture release join. No held request/reply/question is saved or restored.
+Source freshness is rechecked before resumption, local authoring and draft
+adoption; deletion or revision changes require explicit reload/new input.
+Spoken choice is not disclosure, proposal adoption, Save or enablement consent.
 
 #### Complete editing interaction
 
@@ -509,6 +559,12 @@ No reader call, Discover/Recheck/withdrawal, source switch, draft replacement, r
 
 ## Editing, Ownership, and Confirmation
 
+The bounded personal Instruction-original implementation reuses Customizations and its native file owner. One exact existing personal Code/Code - Insiders native v1 instruction receives a window-lifetime registration review before content reads, then separate complete mutation confirmation. Previous read-only registrations grant no editing scope; unsupported formats retain explicit refusal and the compatible owned-fork alternative ([workflow](../src/Kora/CustomizationWindowController.InstructionOriginal.cs), [native owner](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
+The native owner pins/revalidates the registered ancestry and exact original, retains stable write-denying sharing through staging/final comparison, preserves owner/group/DACL and ordinary attributes, and checks exact published identity/bytes. Named streams/unsupported native attributes are refused ([publication](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs), [native access](../src/Kora.Windows/ArtifactDiscovery/WindowsOwnedDefinitionFileAccess.InstructionOriginal.cs)).
+
+Source replacement requires renewed registration; comparison/rebase never writes or merges the draft. Uncertain publication revokes registration and remains disabled pending explicit inspection. This is single-file optimistic publication, not content compare-and-swap or broader writer/enablement qualification ([recovery](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+
 In the target design, Kora is an editor of supported personal profile definitions
 as well as Kora-owned definitions. Registered originals are directly editable;
 there is no separate read-only-by-default tier or edit-enable switch.
@@ -633,7 +689,11 @@ or count as user activity/approval.
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval
-and body dictation/refinement are not implemented. No model/network is needed.
+and body dictation remain unavailable. Manual editing needs no model/network.
+The bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) now adds native and exact `instructions refine` entry points on this existing editor, not a second profile writer.
+The host freezes the exact draft/body/baseline and unchanged critique; only a qualified local, tool-free volatile context turn may propose a complete replacement body. Metadata/source/encoding remain host-owned, and source preparation/freshness precede review and confirmed normal Save ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+The complete comparison leaves both draft and source untouched. Accepted proposals remain volatile until separately confirmed ordinary Save/readback, which holds changed revisions disabled. Draft/source/critique/private/channel/ownership/expiry changes revoke proposals; no fence stripping, truncation, remote fallback or reference execution is admitted ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [actual operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+Real provider enablement remains unavailable; this is not semantic harmlessness or full conversational/package authoring qualification ([registration](../src/Kora/Program.cs)).
 Create and inspect use an explicit bounded ID; mutations target the open original.
 The closed writer kinds admit only immediate canonical lowercase ASCII `*.instructions.md`
 files in `IApplicationDataPaths.RoamingRoot\Instructions` or `*.prompt.md` in

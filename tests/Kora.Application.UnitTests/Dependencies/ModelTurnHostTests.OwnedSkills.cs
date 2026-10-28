@@ -29,6 +29,7 @@ public sealed partial class ModelTurnHostTests
         await using var skill = new OwnedSkillHarness(f, origin);
         using var review = await skill.Review();
         review.Text.Should().Contain(skill.Store.Snapshot!.Document.ManifestText).And.Contain(skill.Store.Snapshot.Document.Guidance);
+        review.RequiredNames.Should().BeEmpty();
         review.IsEnabled.Should().BeFalse();
         skill.Store.Snapshot.Document.IsAvailableForInvocation.Should().BeFalse();
         f.RetainCalls.Should().Be(0);
@@ -225,13 +226,25 @@ public sealed partial class ModelTurnHostTests
     [InlineData("cancel")]
     [InlineData("readback")]
     [InlineData("expiry")]
+    [InlineData("parameter-source")]
+    [InlineData("parameter-privacy")]
+    [InlineData("parameter-cancel")]
+    [InlineData("parameter-control")]
+    [InlineData("parameter-owner")]
+    [InlineData("parameter-generation")]
+    [InlineData("parameter-expiry")]
     public async Task OwnedSkillLateChangesSuppressOutputWithoutReplay(string fault)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
+        var parameterized = fault.StartsWith("parameter-", StringComparison.Ordinal);
+        if (parameterized) { Parameterize(skill); fault = fault["parameter-".Length..]; }
         using var review = await skill.Review();
         await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
-        using var invocation = await skill.Prepare(review);
+        using var invocation = parameterized
+            ? await skill.Workflow.PrepareAsync(review, new(f.Session, null), "original", skill.Authority, skill.Eligible, Token,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["topic"] = "private value" })
+            : await skill.Prepare(review);
         using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
         f.Adapter.OnTool = _ =>
         {
@@ -339,15 +352,21 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task OwnedSkillCancellationDuringFinalAdmissionOrRunningTurnIsTruthfulAndJoined(bool runningTurn)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillCancellationDuringFinalAdmissionOrRunningTurnIsTruthfulAndJoined(bool runningTurn, bool parameterized)
     {
         using var f = new Fixture();
         await using var skill = new OwnedSkillHarness(f);
+        if (parameterized) { Parameterize(skill); }
         using var review = await skill.Review();
         await skill.Workflow.EnableAsync(review, skill.Authority, skill.Eligible, Token);
-        using var invocation = await skill.Prepare(review);
+        using var invocation = parameterized
+            ? await skill.Workflow.PrepareAsync(review, new(f.Session, null), "original", skill.Authority, skill.Eligible, Token,
+                new Dictionary<string, string>(StringComparer.Ordinal) { ["topic"] = "private value" })
+            : await skill.Prepare(review);
         if (!runningTurn)
         {
             using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
@@ -410,17 +429,20 @@ public sealed partial class ModelTurnHostTests
         internal SharedSkillAudit Audit { get; } = new();
         internal OwnedSkillAuthoringAuthority Authority { get; }
         internal OwnedSkillInvocationWorkflow Workflow { get; }
+        internal OwnedSkillSaveWorkflow Saved { get; }
         internal SessionConversationService Conversation { get; }
         internal bool Open { get; set; } = true;
         internal bool Eligible() => Open;
-        internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true)
+        internal OwnedSkillHarness(Fixture model, RequestOrigin origin = RequestOrigin.LocalUi, bool qualified = true, bool inspect = true,
+            SessionConversationService? conversation = null)
         {
             this.model = model;
             Authority = new(origin, Eligible);
             admission = new(Control, Control, new(Control));
+            Saved = new(Store, admission, Audit);
             var host = qualified ? QualifiedHistoryHost(model) : model.ConfiguredProfiles(production: true);
             var workspace = new SessionWorkspaceService(model, new(model), model, NullLogger<SessionWorkspaceService>.Instance);
-            Conversation = model.ConversationService(host, execution: host);
+            Conversation = conversation ?? model.ConversationService(host, execution: host);
             Workflow = new(Store, admission, inspect ? model : new SharedSkillInspectDenied(), model, workspace,
                 Conversation, Audit, model.Time);
         }
@@ -446,9 +468,16 @@ public sealed partial class ModelTurnHostTests
         internal Func<Task>? DuringRead { get; set; }
         internal Exception? Failure { get; set; }
         internal int Writes { get; private set; }
-        public string Destination(OwnedDeclarativeSkillDocument document) => "owned";
-        public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<OwnedDeclarativeSkillSnapshot>>(Snapshot is null ? [] : [Snapshot]);
+        internal Func<Task>? DuringList { get; set; }
+        internal int Lists { get; private set; }
+        public string Destination(OwnedDeclarativeSkillDocument document) => Path.Combine(Environment.CurrentDirectory, "owned");
+        public async Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token)
+        {
+            Lists++;
+            if (DuringList is { } during) { await during(); }
+            if (Failure is not null) { throw Failure; }
+            return Snapshot is null ? [] : [Snapshot];
+        }
         public async Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token)
         {
             if (DuringRead is { } during) { await during(); }

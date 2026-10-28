@@ -14,6 +14,33 @@ namespace Kora.Application.UnitTests.Definitions;
 public sealed partial class InstructionEditorTests
 {
     [Theory]
+    [InlineData("existing")]
+    [InlineData("new")]
+    [InlineData("revision")]
+    [InlineData("source")]
+    [InlineData("destination")]
+    [InlineData("withdrawal")]
+    public async Task Editor_clarification_rechecks_original_source_without_writes(string state)
+    {
+        await using var f = new Fixture();
+        var files = new CustomizationFiles();
+        var expected = files.Current;
+        var source = files.Source;
+        var service = new CustomizationManagementService(files, f.Admission,
+            new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store()), f.Catalogue, f.Audit);
+        if (state is "revision") { files.Current = new(source, "newer", expected.Files); }
+        if (state is "source") { files.Current = new(source with { Id = "file.other" }, expected.Revision, expected.Files); }
+        if (state is "destination") { source = source with { Name = "different" }; }
+        if (state is "withdrawal") { files.AfterRead = () => f.Open = false; }
+        var operation = () => service.RequireUnchangedSource(source, state is "new" or "destination" ? null : expected,
+            f.Eligible, TestContext.Current.CancellationToken);
+        if (state is "existing" or "new") { await operation(); }
+        else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        files.Writes.Should().Be(0);
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
     public async Task Policy_enabled_owned_inventory_and_validation_remain_current_until_use_changes(ArtifactKind kind)
@@ -160,8 +187,10 @@ public sealed partial class InstructionEditorTests
         var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
         var builtin = files.Source with { Scope = CustomizationScope.BuiltIn, IsReadOnly = true };
         foreach (var disabled in new[] { true, false })
-        { (await service.SetDisabled(builtin, disabled, (review, _) => Task.FromResult(review is null),
-            f.Eligible, CancellationToken.None)).Should().BeTrue(); }
+        {
+            (await service.SetDisabled(builtin, disabled, (review, _) => Task.FromResult(review is null),
+            f.Eligible, CancellationToken.None)).Should().BeTrue();
+        }
         files.Reads.Should().Be(0);
         files.Writes.Should().Be(0);
     }
@@ -192,14 +221,29 @@ public sealed partial class InstructionEditorTests
         internal int Writes;
         internal int Reads;
         internal bool FailWrite;
+        internal Exception? WriteFailure;
         internal Action? AfterWrite;
         internal Action? AfterRead;
-        internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction)
+        internal bool Registered;
+        internal Action? BeforeRegister;
+        internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
-            Source = new("file.example", kind, CustomizationScope.Kora, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
+            Source = new("file.example", kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
             Current = new(Source, "original", [new(Source.PrimaryFile,
                 Kora.Core.Artifacts.ArtifactFileDocument.Encode(CustomizationLayout.Template(kind, "example"), false))]);
         }
+        public Task<InstructionOriginalRegistration> PrepareInstructionRegistration(CustomizationSource source, CancellationToken token) =>
+            Task.FromResult(new InstructionOriginalRegistration(source, "native-revision"));
+        public Task RegisterInstruction(InstructionOriginalRegistration proposal, Func<bool> eligible, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            if (!eligible()) { throw new InvalidOperationException("Closed"); }
+            Registered = true;
+            BeforeRegister?.Invoke();
+            return Task.CompletedTask;
+        }
+        public void WithdrawInstruction(CustomizationSource source) => Registered = false;
+        public bool IsInstructionRegistered(CustomizationSource source) => Registered;
         public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<CustomizationSource>>([Source]);
         public Task<CustomizationSource> Create(CustomizationKind kind, CustomizationScope scope, string name, CancellationToken token) =>
@@ -214,6 +258,7 @@ public sealed partial class InstructionEditorTests
         {
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Closed"); }
+            if (WriteFailure is { } failure) { throw failure; }
             if (FailWrite) { throw new IOException("Publication failed"); }
             Writes++;
             Current = new(source, "saved", files);

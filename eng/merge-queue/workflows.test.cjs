@@ -119,6 +119,46 @@ test('controller wakes on both priority label additions and removals without tru
   assert.doesNotMatch(controller, /github\.event\.label|context\.payload\.label/);
 });
 
+test('merge and CI events wake the serialized trusted controller without waiting for the recovery timer', () => {
+  assert.match(controller, /pull_request_target:\n    branches: \[main\]\n    types: \[[^\]]*\bclosed\b[^\]]*\]/);
+  assert.match(controller, /\n  push:\n    branches: \[main\]/);
+  assert.match(controller, /\n  workflow_run:\n    workflows: \[CI\]\n    types: \[requested, completed\]/);
+  assert.match(controller, /\n  schedule:\n    - cron: '\*\/5 \* \* \* \*'/);
+  assert.match(controller, /\n  workflow_dispatch:/);
+  assert.match(controller, /concurrency:\n  group: merge-queue-controller\n  cancel-in-progress: false/);
+});
+
+test('controller workflow awaits its summary on success and preserves reconciliation failures', async () => {
+  const script = controller.match(/          script: \|\n([\s\S]*)/)[1]
+    .split('\n').map(line => line.replace(/^            /, '')).join('\n');
+  const execute = new AsyncFunction('process', 'context', 'core', 'github', 'require', script);
+  for (const outcome of ['idle', 'validating', 'dispatched', 'merged', 'failed']) {
+    const calls = [];
+    const failure = new Error('Synthetic reconciliation failure');
+    const api = { summarize: async result => {
+      await Promise.resolve();
+      calls.push(['summary', result]);
+    } };
+    const operation = execute({ env: { QUEUE_APP_ID: '42' } }, {}, {
+      notice: message => calls.push(['notice', message]),
+    }, {}, name => {
+      if (name === './eng/merge-queue/github.cjs') return { GitHubQueue: class {
+        constructor(github, context, core, appId) { assert.equal(appId, '42'); return api; }
+      } };
+      assert.equal(name, './eng/merge-queue/controller.cjs');
+      return { reconcile: async value => {
+        assert.equal(value, api);
+        if (outcome === 'failed') throw failure;
+        return outcome;
+      } };
+    });
+    if (outcome === 'failed') await assert.rejects(operation, error => error === failure);
+    else await operation;
+    assert.deepEqual(calls, outcome === 'failed' ? [['summary', 'failed']]
+      : [['notice', `Merge queue: ${outcome}.`], ['summary', outcome]]);
+  }
+});
+
 test('privileged controller never checks out PR code, bypasses protection or waits for CI on a runner', () => {
   assert.match(controller, /environment: merge-queue/);
   assert.match(controller, /ref: refs\/heads\/main/);

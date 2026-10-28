@@ -66,6 +66,9 @@ In particular, token timestamps are not proof of an exact exclusive wake end.
 
 ### Approved development direction and remaining admission evidence
 
+The [opt-in conversational reply increment](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies) reuses the existing local question recognizer only after successful exact foreground question playback.
+Its saved default-off preference does not select or qualify a speech profile, enable ambient wake or grant microphone consent. Explicit native question voice controls remain independent ([host routing](../src/Kora.Application/ViewModels/MainViewModel.QuestionVoice.cs)).
+
 On 2026-10-24 the product owner approved local CPU sherpa-onnx keyword spotting,
 initially English configured names, a narrow Windows native adapter, Silero VAD,
 existing activated-only Windows ASR and conservative no-barge-in playback
@@ -120,6 +123,17 @@ Preserve "Kora, open settings" without a pause, without transcribing the precedi
 conversation. PTT enters command capture without requiring a wake name.
 Host-opened replies remain bound to their exact question/revision and cannot
 become general commands or extend ambient transcription.
+
+Explicit command interruption of a retained-answer reading captures the
+foreground session and exact playback at PTT activation, not final recognition.
+The host revalidates that immutable binding and original generation, joins
+command capture, cancels only that playback and joins output before reporting
+interruption. Other model work, dictation and question replies remain untouched.
+`IActivatedVoiceRecognitionService.IsSpeechInterruptionAvailable` defaults to
+false; the Windows adapter remains unqualified and cannot open concurrent
+capture for this operation. Deterministic fakes prove this bounded implementation,
+not acoustic enablement. Typed exact-session stop and native Cancel reading
+remain recovery routes; unknown or stale targets never select current output.
 
 Wake detection, VAD, speaker verification and ASR are separate capabilities:
 speech presence is not a wake match; a wake match is not a speaker match; a

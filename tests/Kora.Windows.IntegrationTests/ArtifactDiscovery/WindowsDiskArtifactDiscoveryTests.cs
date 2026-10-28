@@ -15,6 +15,104 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void Supported_profile_discovery_admits_dotted_directories_but_not_deeper_or_unrelated_sources()
+    {
+        var profile = Path.Combine(root, "profile");
+        var profiles = Path.Combine(profile, "Code", "User", "profiles");
+        var nested = Path.Combine(profiles, "profile.one", "prompts.v1");
+        Directory.CreateDirectory(nested);
+        const string text = "---\nname: Dotted\n---\nSupported source.";
+        File.WriteAllText(Path.Combine(nested, "dotted.prompt.md"), text);
+        var tooDeep = Path.Combine(nested, "too.deep");
+        Directory.CreateDirectory(tooDeep);
+        File.WriteAllText(Path.Combine(tooDeep, "invalid.prompt.md"), "Must not be parsed.");
+        var unrelated = Path.Combine(profile, "unrelated");
+        Directory.CreateDirectory(unrelated);
+        File.WriteAllText(Path.Combine(unrelated, "invalid.prompt.md"), "Must not be parsed.");
+        var discovery = new WindowsDiskArtifactDiscovery(new Paths(Path.Combine(root, "kora")),
+            ArtifactDirectorySettings.Empty, profile);
+        var found = discovery.Load().Should().ContainSingle().Subject;
+        found.CommandName.Should().Be("dotted");
+        found.Source.Should().Be("vscode-profile");
+        var renamed = Path.Combine(profiles, "renamed.profile");
+        Directory.Move(Path.GetDirectoryName(nested)!, renamed);
+        var moved = discovery.Load().Should().ContainSingle().Subject;
+        moved.Id.Should().Be(found.Id);
+        moved.UseControlId.Should().NotBe(found.UseControlId);
+        Directory.Delete(renamed, recursive: true);
+        discovery.Load().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Supported_profile_discovery_preserves_reparse_exclusion_and_file_limit()
+    {
+        var profile = Path.Combine(root, "profile");
+        var profiles = Path.Combine(profile, "Code", "User", "profiles");
+        Directory.CreateDirectory(profiles);
+        var outside = Path.Combine(root, "outside");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "untrusted.prompt.md"), "Must not be parsed.");
+        var junction = Path.Combine(profiles, "linked.profile");
+        var start = new System.Diagnostics.ProcessStartInfo("cmd.exe")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            Arguments = $"/d /c mklink /J \"{junction}\" \"{outside}\"",
+        };
+        using (var process = System.Diagnostics.Process.Start(start)!)
+        {
+            process.WaitForExit();
+            process.ExitCode.Should().Be(0);
+        }
+        try
+        {
+            (File.GetAttributes(junction) & FileAttributes.ReparsePoint).Should().Be(FileAttributes.ReparsePoint);
+            var discovery = new WindowsDiskArtifactDiscovery(new Paths(Path.Combine(root, "kora")),
+                ArtifactDirectorySettings.Empty, profile);
+            discovery.Load().Should().BeEmpty();
+            for (var index = 0; index < 129; index++)
+            {
+                File.WriteAllText(Path.Combine(profiles, $"prompt-{index}.prompt.md"), "Limit checked before parsing.");
+            }
+            var load = () => discovery.Load();
+            load.Should().Throw<InvalidDataException>().WithMessage("*128-file limit*");
+        }
+        finally
+        {
+            Directory.Delete(junction);
+        }
+    }
+
+    [Fact]
+    public void NamedAgentLookupUsesOnlyRegisteredAgentRootsAndNeverReadsOrRepairsProfileContent()
+    {
+        var agents = Path.Combine(root, "agents");
+        Directory.CreateDirectory(agents);
+        var path = Path.Combine(agents, "role.agent.md");
+        File.WriteAllText(path, "---\nname: Readable role\ndescription: Role\n---\nInert role.");
+        var discovery = new WindowsDiskArtifactDiscovery(
+            [new(agents, ArtifactKind.Agent, "additional", "*.agent.md", 0)]);
+        var selected = discovery.Load().Single();
+        discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken).Should().Be(path);
+        File.WriteAllText(path, "Malformed changed bytes are not a new registration or approved profile.");
+        discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken).Should().Be(path);
+        var cancelled = () => discovery.ResolveAgentPath(selected, new CancellationToken(true));
+        cancelled.Should().Throw<OperationCanceledException>();
+        var unbound = () => discovery.ResolveAgentPath(selected with { UseControlId = null }, TestContext.Current.CancellationToken);
+        unbound.Should().Throw<InvalidOperationException>();
+        var wrongKind = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: Prompt\n---\nInert", false),
+            ArtifactKind.Prompt, "additional", "prompt").Definition;
+        var wrong = () => discovery.ResolveAgentPath(wrongKind, TestContext.Current.CancellationToken);
+        wrong.Should().Throw<InvalidOperationException>();
+        File.Delete(path);
+        var missing = () => discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken);
+        missing.Should().Throw<InvalidOperationException>();
+        for (var i = 0; i < 129; i++) { File.WriteAllText(Path.Combine(agents, $"role-{i}.agent.md"), "No content read."); }
+        var overflow = () => discovery.ResolveAgentPath(selected, TestContext.Current.CancellationToken);
+        overflow.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void Load_reads_bounded_skill_prompt_and_instruction_files()
     {
         var skills = Path.Combine(root, "skills");

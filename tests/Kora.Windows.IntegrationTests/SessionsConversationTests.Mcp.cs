@@ -1,5 +1,3 @@
-using System.Collections.Immutable;
-using System.Net;
 using System.Security.Cryptography;
 using System.Text;
 using Avalonia.Controls;
@@ -45,13 +43,18 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Native_mcp_reviews_connects_selects_invokes_and_retains_actual_result_without_live_account_or_network(bool deny)
+    [InlineData(false, false, false)]
+    [InlineData(true, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, true, true)]
+    public async Task Native_mcp_reviews_connects_selects_invokes_and_retains_actual_result_without_live_account_or_network(
+        bool deny, bool explicitUser, bool cancelIgnored)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var file = Path.Combine(f.Paths.RoamingRoot, "Mcp", "mcp.json");
@@ -62,14 +65,33 @@ public sealed partial class SessionsConversationTests
                 Path.Combine(f.Paths.RoamingRoot, "test-profile"));
             var server = configuration.Load().Single();
             preferences.Value = new([], [], [], [], [], [server.Id]);
-            var broker = new NativeMcpBroker();
+            using var broker = new McpTransportFixture();
+            var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            var pending = new TaskCompletionSource<System.Net.Http.HttpResponseMessage>(TaskCreationOptions.RunContinuationsAsynchronously);
+            if (cancelIgnored)
+            {
+                broker.Send = async (sent, _) =>
+                {
+                    using var document = System.Text.Json.JsonDocument.Parse(sent.Bytes);
+                    return await (document.RootElement.GetProperty("method").GetString() switch
+                    {
+                        "initialize" => Task.FromResult(McpTransportFixture.Json(McpTransportFixture.Initialization)),
+                        "notifications/initialized" => Task.FromResult(new System.Net.Http.HttpResponseMessage(System.Net.HttpStatusCode.Accepted)
+                            { Content = new System.Net.Http.ByteArrayContent([]) }),
+                        "tools/list" => Task.FromResult(McpTransportFixture.Json(
+                            "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":" + NativeMcpSchema + "}]}}")),
+                        _ => Hold(),
+                    });
+                };
+                Task<System.Net.Http.HttpResponseMessage> Hold() { entered.SetResult(); return pending.Task; }
+            }
             var sourceRevision = Convert.ToHexStringLower(SHA256.HashData(File.ReadAllBytes(file)));
             var policy = new McpReadOnlyPolicy([new(broker.Account.Destination, broker.Account,
                 sourceRevision, "search", new McpToolSchema(NativeMcpSchema).Digest)]);
             await using var transport = new NativeMcpModel();
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var composed = new Composition(f, adapter: adapter, mcpConfiguration: configuration,
-                mcpBroker: broker, mcpEffects: policy);
+                mcpBroker: broker.Broker, mcpEffects: policy);
             using var native = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
             native.BindGate(static () => true);
             native.BindAdmissionRevision(static () => 1);
@@ -97,6 +119,11 @@ public sealed partial class SessionsConversationTests
                                 window.Activate();
                                 await state.ReviewAsync();
                                 state.ReviewText.Should().Contain("https://example.com/mcp").And.Contain("Native delegated test account");
+                                if (explicitUser)
+                                {
+                                    state.ReviewText.Should().Contain("Configured server: reference").And.Contain(file);
+                                    review.Source!.Path.Should().Be(file);
+                                }
                                 if (review.Stage == McpReviewStage.Invocation)
                                 { state.ReviewText.Should().Contain(NativeMcpSchema).And.Contain("""{"query":"reference"}"""); }
                                 if (deny) { await state.CancelAsync(); }
@@ -128,13 +155,45 @@ public sealed partial class SessionsConversationTests
                         expiresAt, admitted, async state =>
                         {
                             var window = new QuestionWindow(state, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance));
-                            try { window.Show(owner); state.Edit(new(["tool-0"])); await state.SubmitAsync(); }
+                            try
+                            {
+                                window.Show(owner);
+                                state.Edit(new(["tool-0"]));
+                                state.CanSubmit.Should().BeTrue(state.Status);
+                                await state.SubmitAsync();
+                                state.Completion.IsCompleted.Should().BeTrue(state.Status);
+                            }
                             finally { window.Close(); }
                         }, token, mcpSelection: true));
                 }
                 catch (InvalidOperationException exception) { selectorFault = exception.Message; throw; }
                 receipt.Completed.Outcome.Should().Be(HostInteractionOutcome.Answered);
                 return "search";
+            };
+            model.McpInput = async (request, generation, expiresAt, tool, admitted, token) =>
+            {
+                tool.Id.Should().Be("mcp.search");
+                tool.InputSchema.Should().Be(NativeMcpSchema);
+                var receipt = await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() =>
+                    native.AskConversationAsync(request, generation,
+                        new("Enter the reviewed schema-bound JSON", QuestionKind.Text, [],
+                            maximumTextLength: McpToolSchema.MaximumArgumentsUtf8Bytes, sourceId: "mcp-tool-arguments"),
+                        expiresAt, admitted, async state =>
+                        {
+                            var window = new QuestionWindow(state, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance));
+                            try
+                            {
+                                window.Show(owner);
+                                state.Edit(new([], """{"query":"reference"}"""));
+                                state.CanSubmit.Should().BeTrue(state.Status);
+                                await state.SubmitAsync();
+                                state.Completion.IsCompleted.Should().BeTrue(state.Status);
+                            }
+                            finally { window.Close(); }
+                        }, token, mcpInput: true));
+                receipt.Completed.Outcome.Should().Be(HostInteractionOutcome.Answered);
+                broker.Calls.Should().Be(0, "input alone is not invocation approval");
+                return receipt.Completed.Question!.Draft!.Text;
             };
             try
             {
@@ -145,22 +204,55 @@ public sealed partial class SessionsConversationTests
                 model.SelectedMcpServer = model.McpServers.Single();
                 model.SelectedMcpAccount = model.McpAccounts.Single();
                 model.ComposerBody = "Find the reviewed reference.";
-                owner.FindControl<Button>("SubmitMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                owner.FindControl<Button>(explicitUser ? "InvokeMcp" : "SubmitMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (cancelIgnored)
+                {
+                    await entered.Task.WaitAsync(f.Token);
+                    owner.FindControl<Button>("CancelMcp")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    owner.ConversationCancellationOperation.IsCompleted.Should().BeFalse();
+                    owner.ConversationOperation.IsCompleted.Should().BeFalse();
+                    model.IsMcpActive.Should().BeTrue();
+                    model.McpResultText.Should().BeEmpty();
+                    broker.Disposed.Should().BeFalse();
+                    pending.SetResult(McpTransportFixture.Json(McpTransportFixture.Result));
+                    await owner.ConversationCancellationOperation;
+                }
                 await owner.ConversationOperation;
-                var retained = model.ConversationMessages.Should().ContainSingle(model.ConversationStatus).Subject;
-                retained.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded,
+                if (explicitUser)
+                {
+                    model.ConversationMessages.Should().BeEmpty("explicit tools do not fabricate model turns or assistant answers");
+                    model.ComposerBody.Should().Be("Find the reviewed reference.");
+                    model.ConversationStatus.Should().Contain(deny ? "Explicit MCP Denied"
+                        : cancelIgnored ? "Explicit MCP Cancelled" : "Explicit MCP Succeeded");
+                    if (cancelIgnored) { model.ConversationStatus.Should().Contain("Unknown").And.Contain("Remote processing may have occurred"); }
+                    transport.Calls.Should().Be(0);
+                }
+                else
+                {
+                    var retained = model.ConversationMessages.Should().ContainSingle(model.ConversationStatus).Subject;
+                    retained.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded,
                     model.ConversationStatus + " | reviews " + string.Join(", ", stages)
                     + " | connected " + broker.Connected + " | exchanges " + string.Join(", ", broker.Methods)
                     + " | calls " + broker.Calls + " | selector " + selectorFault);
-                (retained.AssistantResponse?.Body).Should().Be(deny ? null : "Actual reviewed MCP reference: 42.");
+                    (retained.AssistantResponse?.Body).Should().Be(deny ? null : "Actual reviewed MCP reference: 42.");
+                    (await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token))
+                        .Should().Be(retained);
+                }
                 broker.Calls.Should().Be(deny ? 0 : 1);
-                if (deny) { model.McpResultText.Should().BeEmpty(); }
+                transport.Calls.Should().Be(explicitUser || deny ? 0 : 2);
+                if (!deny)
+                {
+                    using var call = System.Text.Json.JsonDocument.Parse(broker.Requests[^1].Bytes);
+                    call.RootElement.GetProperty("method").GetString().Should().Be("tools/call");
+                    var parameters = call.RootElement.GetProperty("params");
+                    parameters.GetProperty("name").GetString().Should().Be("search");
+                    parameters.GetProperty("arguments").GetRawText().Should().Be("""{"query":"reference"}""");
+                }
+                if (deny || cancelIgnored) { model.McpResultText.Should().BeEmpty(); }
                 else { model.McpResultText.Should().Contain("reference 42").And.Contain("mcp.search").And.Contain("Observed UTC:"); }
                 broker.Disposed.Should().Be(!deny);
                 stages.Should().Equal(deny ? [McpReviewStage.Connection]
                     : [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation]);
-                (await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token))
-                    .Should().Be(retained);
                 var grants = await f.Store.ReadGrantsAsync(f.Token);
                 if (deny) { grants.Should().BeEmpty(); }
                 else { grants.Should().HaveCount(3).And.OnlyContain(grant => grant.Status == Kora.Core.Authorization.OperationGrantStatus.Consumed); }
@@ -177,42 +269,12 @@ public sealed partial class SessionsConversationTests
         public void Save(ArtifactDirectorySettings settings) => Value = settings;
     }
 
-    private sealed class NativeMcpBroker : IMcpConnectionBroker, IMcpConnection
-    {
-        public McpAccountReference Account { get; } = new(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
-        public McpEndpoint Endpoint => Account.Destination;
-        public IReadOnlyList<IPAddress> RemoteAddresses => [IPAddress.Parse("8.8.8.8")];
-        internal bool Disposed { get; private set; }
-        internal bool Connected { get; private set; }
-        internal List<string> Methods { get; } = [];
-        internal int Calls { get; private set; }
-        public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<McpAccountChoice>>([new(Account, "Native delegated test account")]);
-        public Task<IMcpConnection> ConnectAsync(McpAccountReference account, CancellationToken token)
-        { account.Should().Be(Account); Connected = true; return Task.FromResult<IMcpConnection>(this); }
-        public Task<bool> IsCurrentAsync(CancellationToken token) => Task.FromResult(true);
-        public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token) => Task.CompletedTask;
-        public Task<ImmutableArray<byte>> ExchangeAsync(ImmutableArray<byte> request, int maximumResponseBytes, CancellationToken token)
-        {
-            using var document = System.Text.Json.JsonDocument.Parse(request.AsMemory());
-            var method = document.RootElement.GetProperty("method").GetString();
-            Methods.Add(method!);
-            if (method is "tools/call") { Calls++; }
-            var json = method switch
-            {
-                "initialize" => """{"jsonrpc":"2.0","id":1,"result":{"protocolVersion":"2025-06-18","capabilities":{"tools":{}},"serverInfo":{"name":"fake","version":"1"}}}""",
-                "tools/list" => "{\"jsonrpc\":\"2.0\",\"id\":2,\"result\":{\"tools\":[{\"name\":\"search\",\"inputSchema\":" + NativeMcpSchema + "}]}}",
-                _ => """{"jsonrpc":"2.0","id":3,"result":{"content":[{"type":"text","text":"reference 42"}]}}""",
-            };
-            return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(json)));
-        }
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
-    }
-
     private sealed class NativeMcpModel : IModelToolTransport
     {
+        internal int Calls { get; private set; }
         public Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
+            Calls++;
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
             var message = ModelToolProtocol.ParseAssistant(request.Round == 1
                 ? """{"kind":"toolCalls","calls":[{"callId":"reference_1","capabilityId":"mcp.search","input":{"query":"reference"}}]}"""u8

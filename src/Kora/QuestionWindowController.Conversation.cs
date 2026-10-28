@@ -13,13 +13,13 @@ internal sealed partial class QuestionWindowController
     internal async Task<ConversationQuestionPresentation> AskConversationAsync(Window owner, HostRequest request,
         HostRevision generation, QuestionSpec spec, DateTimeOffset expiresAt, Func<bool> admitted, CancellationToken token,
         HostOperationProposal? webProposal = null, Uri? webAddress = null,
-        Kora.Application.Mcp.McpReview? mcpReview = null, bool mcpSelection = false)
+        Kora.Application.Mcp.McpReview? mcpReview = null, bool mcpSelection = false, bool mcpInput = false)
     {
         if (!Dispatcher.UIThread.CheckAccess())
         {
             return await Dispatcher.UIThread.InvokeAsync(() =>
                 AskConversationAsync(owner, request, generation, spec, expiresAt, admitted, token, webProposal, webAddress,
-                    mcpReview, mcpSelection));
+                    mcpReview, mcpSelection, mcpInput));
         }
         token.ThrowIfCancellationRequested();
         if (disposed || IsOwnerInUse || !main.CanRevealPrivatePresentation || !admitted() || !owner.IsVisible)
@@ -37,7 +37,7 @@ internal sealed partial class QuestionWindowController
                 if (window is null || !ReferenceEquals(state, model))
                 { throw new InvalidOperationException("The exact native question window could not be opened."); }
                 return Task.CompletedTask;
-            }, token, webProposal, webAddress, mcpReview, mcpSelection);
+            }, token, webProposal, webAddress, mcpReview, mcpSelection, mcpInput);
         }
         finally
         {

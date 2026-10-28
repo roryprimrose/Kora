@@ -22,6 +22,15 @@ public sealed partial class WindowsSqliteHostInteractionStore
         { return false; }
         var question = pending[0];
         var spec = question.Spec;
+        if (ReadObservation(connection, task.Request.RequestId) is { } observation
+            && observation.RunId == runId && observation.Generation == session.Generation
+            && observation.LocalHandoff is { } local && local.Execution == message.Execution
+            && local.TaskRevision == task.Revision && local.Question == question.Key
+            && question.Key.Request == task.Request && question.SessionGeneration == session.Generation
+            && question.Proposal is null && question.ExpiresAt == local.ExpiresAt
+            && time.GetUtcNow() >= local.CreatedAt && time.GetUtcNow() < local.ExpiresAt
+            && SameQuestionSpec(spec, LocalHandoffQuestion()))
+        { return true; }
         if (question.Proposal is { } proposal && question.Key.Request.IsWithinIntent(task.Request)
             && question.Key.Request.InvocationId is not null && proposal.Request == question.Key.Request
             && question.SessionGeneration == session.Generation && proposal.ExpiresAt > time.GetUtcNow()

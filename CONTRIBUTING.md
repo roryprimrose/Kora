@@ -57,6 +57,10 @@ its runner.
 
 Portable CI runs the four projects in [Kora.UnitTests.slnx](Kora.UnitTests.slnx) together, using [MTP's processor-count-based module concurrency](https://learn.microsoft.com/en-us/dotnet/core/tools/dotnet-test-mtp#options). The [workflow](.github/workflows/ci.yml) isolates TRX and coverage output in per-module directories and aggregates every module's coverage before enforcing the existing thresholds.
 
+Portable fixtures that require host-resolved absolute source paths must construct
+host-native paths with `Path.GetFullPath`, not hard-coded Windows drive paths.
+Keep relative-path rejection intact; fixture portability must not relax source authority.
+
 Run [Test-PortableTestScheduling.ps1](eng/Test-PortableTestScheduling.ps1) to check solution membership, main-build coverage, parallel scheduling, report isolation, and coverage-gate arguments without building or running test modules.
 
 For a controlled comparison, manually dispatch [CI](.github/workflows/ci.yml) with `compare_portable_tests=true`. Its opt-in job builds the main solution once, then runs [Compare-PortableTestScheduling.ps1](eng/Compare-PortableTestScheduling.ps1) in sequential/parallel/parallel/sequential order with identical coverage and reporting options. The artifact retains all four runs and their mean wall times.
@@ -71,6 +75,35 @@ This keeps nested segmented-store fixtures within native directory path limits
 in long worktrees without changing production path validation or ACL checks.
 Owned child-process creation and release probes share that exact parent and keep
 their GUID-name, existing-directory and non-reparse ownership checks.
+
+Synthetic definition-edit fixtures must explicitly user-own every enumerated
+inventory root, not only the original file's immediate parent:
+[customization inventory](src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.cs)
+also pins the editor `User` directory as an MCP root when no `mcp.json` exists.
+Create each new fixture root with
+[CreateRestrictedDirectory](src/Kora.Windows/Storage/RestrictedStorageDirectory.cs),
+and assert both owner and protected ACL for `User` and `prompts`, as in the
+[original-edit fixture](tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.InstructionOriginal.cs).
+
+Legacy interaction-store fixtures must remove only empty later-version tables
+before declaring an older schema. Use the shared fixture staging helpers;
+never discard current session policy, admission or conversation authority to
+construct a migration case. Repeated grant-use history fixtures must resolve
+a fresh host invocation for each use, not replay one admitted invocation.
+
+Personal-instruction metadata fixtures use an existing owner-only original,
+not the forbidden create route. Metadata observation must not register that
+original for editing, create a Kora copy or publish a transaction journal.
+Stop-and-delete regressions coordinate terminal publication and disposition
+with completion signals so a post-release readback race cannot hide behind
+test-runner scheduling. Speech receipt-pinning fixtures inject changes after
+terminal publication and outside the submission's host scope, not at a
+particular count of internal metadata reads.
+
+Native streaming fixtures await the exact terminal presentation notification
+separately from the submission operation. Terminal storage/readback and resource
+joins can finish before the UI dispatcher applies its queued status; retain
+the exact outcome, task identity and joined-resource assertions after that barrier.
 
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
@@ -92,6 +125,23 @@ window's `IsActive` property becomes true; it cannot rely on `Activated` alone,
 which Avalonia raises before updating that property. The editor push-to-talk
 integration cases await the actual active-state notification and cover
 consent/read-only denial and capture release without retargeting.
+
+Metadata-search publication regressions revoke admission at the completed service
+read activity's disposal, after its final admission check and before native
+publication. Keep these cases in the nonparallel `Host tracing` collection; do
+not trigger revocation by counting revision-property reads from UI notifications.
+
+The native MCP review/exchange fixture uses its existing frozen test timers:
+it verifies exact native approval, real fake-broker results and physical joins,
+not elapsed-time policy. Deadline regressions retain their explicit clock/timer
+boundaries; production model and transport deadlines are unchanged.
+Native stop-and-delete assertions await the exact cancellation-accepted event.
+Paging gestures await the existing Next readiness notification when passive
+work refresh is outstanding; draining dispatcher jobs does not join that I/O.
+The portable speech-quarantine fixture observes the actual output-stop entry
+before submitting a new request and releases its held stop in `finally`.
+Native cancellation and clarification fixtures separately await exact-task
+terminal UI publication after the real operation/resource join.
 
 The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 

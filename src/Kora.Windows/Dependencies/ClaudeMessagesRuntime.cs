@@ -7,7 +7,7 @@ using Microsoft.Extensions.Logging;
 namespace Kora.Windows.Dependencies;
 
 /// <summary>Bounded, tool-free, stateless native Messages profile. All HTTP work remains owned until joined.</summary>
-public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDisposable
+public sealed partial class ClaudeMessagesRuntime : IClaudeToolTurnRuntime, IClaudeAnswerTurnRuntime, IAsyncDisposable
 {
     private readonly ClaudeAccountBroker accounts;
     private readonly TimeProvider time;
@@ -18,7 +18,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
     private readonly Lock disposalGate = new();
     private Task? disposal;
     private bool disposed;
-    public bool IsQuiescent => operation.CurrentCount != 0;
+    private volatile bool quarantined;
+    public bool IsQuiescent => !quarantined && operation.CurrentCount != 0;
 
     public ClaudeMessagesRuntime(ClaudeAccountBroker accounts, TimeProvider time, ILogger<ClaudeMessagesRuntime> logger)
         : this(accounts, time, logger, ClaudeAccountBroker.CreateHttpClient) { }
@@ -36,7 +37,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
         await operation.WaitAsync(token).ConfigureAwait(false);
         try
         {
-            if (disposed || profile.Service != ProviderService.Claude
+            if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request) || context.ToolMode != ModelToolMode.None
                 || !context.Evidence.IsEmpty || context.McpTool is not null
                 || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
@@ -57,8 +58,9 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
             using var http = create();
             var sender = new ClaudeFinalRequestHandler(http, accounts);
             async ValueTask<bool> Live(CancellationToken ct) => !disposed && !ct.IsCancellationRequested
-                && context.ExpiresAt > time.GetUtcNow() && await current(ct).ConfigureAwait(false)
-                && await accounts.CurrentAsync(account, ct).ConfigureAwait(false);
+                && context.ExpiresAt > time.GetUtcNow() && await accounts.CurrentAsync(account, ct).ConfigureAwait(false)
+                && await current(ct).ConfigureAwait(false)
+                && !disposed && !ct.IsCancellationRequested && context.ExpiresAt > time.GetUtcNow();
             var counted = await sender.SendAsync(ClaudeFinalRequestHandler.Prepare(provenance, profile, account,
                 "/v1/messages/count_tokens", countBody), account, admit, Live, token).ConfigureAwait(false);
             if (counted is null) { return new(ModelTurnOutcome.DeniedEgress); }
@@ -86,7 +88,8 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
         finally { operation.Release(); }
     }
 
-    internal static byte[] Serialize(ModelContextEnvelope context, ProviderProfileTuple profile, int? outputLimit)
+    internal static byte[] Serialize(ModelContextEnvelope context, ProviderProfileTuple profile, int? outputLimit,
+        bool streamAnswer = false)
     {
         using var memory = new MemoryStream();
         using (var writer = new Utf8JsonWriter(memory))
@@ -106,7 +109,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
             if (outputLimit is not null)
             {
                 writer.WriteNumber("max_tokens", outputLimit.Value);
-                writer.WriteBoolean("stream", false);
+                writer.WriteBoolean("stream", streamAnswer);
                 if (profile.Reasoning.Value is not "disabled")
                 {
                     writer.WriteStartObject("output_config");
@@ -146,22 +149,7 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
     {
         using var json = Parse(bytes);
         var root = json.RootElement;
-        if (root.EnumerateObject().Any(property => property.Name is not
-            ("id" or "type" or "role" or "model" or "content" or "stop_reason" or "stop_sequence" or "usage"))
-            || root.GetProperty("type").GetString() is not "message" || root.GetProperty("role").GetString() is not "assistant"
-            || string.IsNullOrWhiteSpace(root.GetProperty("id").GetString())
-            || !string.Equals(root.GetProperty("model").GetString(), profile.Model.Value, StringComparison.Ordinal)
-            || root.GetProperty("stop_reason").GetString() is not "end_turn"
-            || root.GetProperty("stop_sequence").ValueKind != JsonValueKind.Null)
-        { throw new InvalidDataException("Claude did not return an exact final text message."); }
-        var usage = root.GetProperty("usage");
-        if (usage.EnumerateObject().Any(property => property.Name is not
-                ("input_tokens" or "output_tokens" or "cache_creation_input_tokens" or "cache_read_input_tokens"))
-            || !usage.GetProperty("output_tokens").TryGetInt32(out var output) || output <= 0 || output > outputLimit
-            || !usage.GetProperty("input_tokens").TryGetInt32(out var input) || input <= 0 || input > inputLimit
-            || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
-            || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
-        { throw new InvalidDataException("Claude token usage exceeds the exact profile."); }
+        ValidateMessage(root, profile, outputLimit, inputLimit, "end_turn");
         var content = root.GetProperty("content");
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 64)
         { throw new InvalidDataException("Claude final text blocks are missing or oversized."); }
@@ -181,6 +169,26 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
         return text;
     }
 
+    internal static void ValidateMessage(JsonElement root, ProviderProfileTuple profile, int outputLimit, int inputLimit, string stopReason)
+    {
+        if (root.EnumerateObject().Any(property => property.Name is not
+            ("id" or "type" or "role" or "model" or "content" or "stop_reason" or "stop_sequence" or "usage"))
+            || root.GetProperty("type").GetString() is not "message" || root.GetProperty("role").GetString() is not "assistant"
+            || string.IsNullOrWhiteSpace(root.GetProperty("id").GetString())
+            || !string.Equals(root.GetProperty("model").GetString(), profile.Model.Value, StringComparison.Ordinal)
+            || !string.Equals(root.GetProperty("stop_reason").GetString(), stopReason, StringComparison.Ordinal)
+            || root.GetProperty("stop_sequence").ValueKind != JsonValueKind.Null)
+        { throw new InvalidDataException("Claude did not return an exact final text message."); }
+        var usage = root.GetProperty("usage");
+        if (usage.EnumerateObject().Any(property => property.Name is not
+                ("input_tokens" or "output_tokens" or "cache_creation_input_tokens" or "cache_read_input_tokens"))
+            || !usage.GetProperty("output_tokens").TryGetInt32(out var output) || output <= 0 || output > outputLimit
+            || !usage.GetProperty("input_tokens").TryGetInt32(out var input) || input <= 0 || input > inputLimit
+            || usage.TryGetProperty("cache_creation_input_tokens", out var created) && created.GetInt32() != 0
+            || usage.TryGetProperty("cache_read_input_tokens", out var cached) && cached.GetInt32() != 0)
+        { throw new InvalidDataException("Claude token usage exceeds the exact profile."); }
+    }
+
     public ValueTask DisposeAsync()
     {
         lock (disposalGate) { return new(disposal ??= DisposeCoreAsync()); }
@@ -189,9 +197,19 @@ public sealed partial class ClaudeMessagesRuntime : IClaudeTurnRuntime, IAsyncDi
     private async Task DisposeCoreAsync()
     {
         disposed = true;
-        await lifetime.CancelAsync().ConfigureAwait(false);
-        await operation.WaitAsync().ConfigureAwait(false);
-        operation.Release();
-        lifetime.Dispose();
+        try { await StopAsync().ConfigureAwait(false); }
+        finally
+        {
+            await operation.WaitAsync().ConfigureAwait(false);
+            operation.Release();
+            ClaudeAnswerStream.DisposeOwned(lifetime, () => quarantined = true);
+        }
+        if (quarantined) { throw new IOException("Claude resource disposal is unconfirmed; runtime remains quarantined."); }
+    }
+
+    private async Task StopAsync()
+    {
+        try { await lifetime.CancelAsync().ConfigureAwait(false); }
+        catch { quarantined = true; throw; }
     }
 }

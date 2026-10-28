@@ -15,6 +15,7 @@ using Kora.Core.Configuration;
 using Kora.Core.Voice;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Presentation;
 using Kora.Application.Hosting;
 using Kora.Controls;
 using Kora.Windows.Presentation;
@@ -31,6 +32,7 @@ public sealed partial class MainWindow : Window
     private readonly ILogger<PresenceRenderWorker> rendererLogger;
     private readonly bool useNativePresence;
     private readonly PresenceControl presence;
+    private readonly PresenceMotionBinding? motionPreference;
     private readonly DispatcherTimer presenceTimeoutTimer;
     private readonly PresentationInactivityTimeout presenceInactivity = new();
     private readonly DispatcherTimer positionSaveTimer;
@@ -43,6 +45,7 @@ public sealed partial class MainWindow : Window
     private bool initialized;
     private bool positionInitialized;
     private bool shutdownRequested;
+    private readonly PresenceReviewGesture reviewGesture;
 
     public MainWindow()
         : this(
@@ -58,9 +61,10 @@ public sealed partial class MainWindow : Window
     }
 
     internal MainWindow(MainViewModel viewModel, ILogger<MainWindow> logger, bool useNative, bool initializeHost,
-        ILogger<PresenceRenderWorker> rendererLogger)
+        ILogger<PresenceRenderWorker> rendererLogger, IMotionPreferenceSource? motionSource = null)
     {
         this.viewModel = viewModel;
+        reviewGesture = new(viewModel);
         this.logger = logger;
         this.rendererLogger = rendererLogger;
         this.initializeHost = initializeHost;
@@ -90,6 +94,8 @@ public sealed partial class MainWindow : Window
         AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerWheelChangedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         PointerPressed += OnPointerPressed;
+        PointerReleased += OnPresencePointerReleased;
+        PointerCaptureLost += (_, _) => reviewGesture.Cancel();
         PositionChanged += OnPositionChanged;
         Loaded += OnLoaded;
         Closing += OnClosing;
@@ -103,6 +109,9 @@ public sealed partial class MainWindow : Window
                 ? WindowsPresenceWindowInput.CreateForNativeRenderer(handle)
                 : new WindowsPresenceWindowInput(handle);
             InitializeNativePresence();
+            motionPreference = new PresenceMotionBinding(presence, motionSource ?? new WindowsMotionPreferenceSource(),
+                action => Dispatcher.UIThread.Post(action), ReportMotionPreferenceFailure);
+            motionPreference.SetEligible(viewModel.CanRevealPrivatePresentation);
         }
         catch (Exception failure) when (failure is not OutOfMemoryException)
         {
@@ -214,9 +223,14 @@ public sealed partial class MainWindow : Window
         }
 
         initialized = true;
-        presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
         DesktopLog.Information(logger, "Main window loaded");
         await viewModel.InitializeAsync();
+        motionPreference?.Refresh();
+        if (windowActionFailed)
+        {
+            HidePresenceWindow();
+            return;
+        }
         RestorePosition();
         if (useNativePresence && ActualTransparencyLevel != WindowTransparencyLevel.Transparent)
         {
@@ -371,7 +385,8 @@ public sealed partial class MainWindow : Window
             case WindowAction.Show:
                 DesktopLog.Debug(logger, "Showing the presence");
                 CancelPendingHide();
-                presence.IsMotionEnabled = WindowsPresenceMotionPreference.IsAnimationEnabled();
+                motionPreference?.Refresh();
+                if (windowActionFailed) { return; }
                 EnsurePositionOnConnectedScreen();
                 ShowPresenceWindow();
                 presence.IsPresenceVisible = true;
@@ -469,6 +484,7 @@ public sealed partial class MainWindow : Window
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         presence.IsPresentationEligible = viewModel.CanRevealPrivatePresentation;
+        motionPreference?.SetEligible(viewModel.CanRevealPrivatePresentation);
         if (eventArgs.PropertyName is nameof(MainViewModel.IsSpeaking))
         {
             viewModel.RefreshSpeechPlaybackFrame();
@@ -530,6 +546,7 @@ public sealed partial class MainWindow : Window
 
     private void HidePresenceWindow()
     {
+        reviewGesture.Cancel();
         nativePresence?.Suspend();
         presenceInputTimer.Stop();
         IsHitTestVisible = false;
@@ -546,14 +563,34 @@ public sealed partial class MainWindow : Window
 
     private void OnPointerPressed(object? sender, PointerPressedEventArgs eventArgs)
     {
-        if (presenceInput?.InterceptsMouse == true
-            && viewModel.CanRevealPrivatePresentation
-            && eventArgs.KeyModifiers.HasFlag(KeyModifiers.Control)
-            && eventArgs.GetCurrentPoint(this).Properties.IsLeftButtonPressed)
+        var point = eventArgs.GetCurrentPoint(this);
+        var button = point.Properties.IsLeftButtonPressed ? MouseButton.Left
+            : point.Properties.IsRightButtonPressed ? MouseButton.Right : MouseButton.None;
+        var intent = reviewGesture.Press(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers, button);
+        if (intent == PresencePointerIntent.Review)
+        {
+            eventArgs.Handled = true;
+            eventArgs.Pointer.Capture(this);
+            return;
+        }
+        if (intent == PresencePointerIntent.Drag)
         {
             eventArgs.Handled = true;
             viewModel.NotifyPresenceInteraction();
             BeginMoveDrag(eventArgs);
+        }
+    }
+
+    private void OnPresencePointerReleased(object? sender, PointerReleasedEventArgs eventArgs)
+    {
+        var target = reviewGesture.Release(presenceInput?.InterceptsMouse == true, eventArgs.KeyModifiers,
+            eventArgs.InitialPressMouseButton, new Rect(Bounds.Size).Contains(eventArgs.GetPosition(this)));
+        if (eventArgs.InitialPressMouseButton == MouseButton.Right) { eventArgs.Pointer.Capture(null); }
+        if (target is not null && !shutdownRequested)
+        {
+            eventArgs.Handled = true;
+            HostRequestRunner.Run(RequestOrigin.LocalUi, () => viewModel.ActivateModelActionReview(target),
+                HostActivityLayer.Desktop, HostOperation.Presentation);
         }
     }
 

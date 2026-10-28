@@ -71,6 +71,35 @@ The [All work window](../src/Kora/AllWorkWindow.axaml) retains lifecycle, name/e
 
 Raw task/request correlation predicates and authority/queue/count-range widgets are removed. Displayed provenance, explicit omissions/unavailable/output-bound status and full consumed-source validation remain mandatory. Browsing neither dispatches/resumes work, answers a question, changes voice focus nor renews activity.
 
+### Waiting-question overview through typed and activated voice requests
+
+The approved concurrent-conversation outcome includes **show sessions needing an
+answer**, optionally activated by the current assistant name. This host-owned
+operation opens/reuses native All work and completes one actual bounded
+`SessionWorkspaceService.ReadWorkOverviewAsync` observation. It is not a tool,
+MCP operation or skill: private presentation, source admission and original input
+currency remain host responsibilities.
+
+The fresh query is Needs answer only, first page, all stored lifecycles, no
+carried-over name/exact-ID or task-state predicates. Native Needs answer plus
+Refresh remains equivalent; ordinary open all work stays read-free. No saved
+filter or new technical predicate is introduced.
+
+The original host request/channel and deferred causal continuation survive UI
+dispatch and the read. Changed input, name, call, privacy, ownership, source,
+filters or window retire publication, page/selection and Find authority.
+Cancellation/close own and join the original returned read task, including
+noncooperative storage. The existing ten-second authority deadline is not
+renewed and is not a physical-shutdown guarantee. Failed, busy, disposed or
+withdrawn readers never report completed navigation as a completed observation.
+
+Waiting groups retain explicit unavailable/output-bound rows, omitted question
+counts, source scope and Next status, including zero-match pages with Next.
+No page or end-of-observation proves nobody is waiting. The operation never
+answers/retargets a question, consumes a review, submits composer text, dispatches,
+resumes, grants, renews activity or invokes a provider. See the
+[user guide](../docs/waiting-questions.md) for the complete interaction.
+
 ## Delivered native authority observation
 
 The [bounded R18 visual broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
@@ -259,6 +288,72 @@ Retired fixed-read replacement workflows do not create new tasks. Retained histo
 
 ## Queue and Dispatch
 
+### Ordinary submitted conversation turns
+
+The [ordinary conversation owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+accepts another explicitly submitted request to an exact existing Active
+conversation while its previous turn runs. Acceptance physically retains the
+immutable original USER body and task intent with the existing typed audit.
+Qualified admission captures the original provider/account/model, policy,
+serialized context and reviewed instruction sources before reporting queued
+position. Unqualified providers return their existing unavailable outcome,
+never a success-shaped queued fallback. Questions, approvals, hosted review,
+MCP and other specialized operations retain their separate admission fences.
+
+Arrival order is authoritative, with at most ten pending requests per session
+using the existing domain maximum. There is no new queue-settings product,
+allocator, reorder surface, eviction or aggregate storage quota. The existing
+100-message session and complete input bounds still apply. Concurrent admission
+to the same session is explicitly refused until the first acceptance completes,
+not silently replayed. Independent sessions have independent admission lanes.
+
+Eligibility is bounded by both the existing thirty-minute pending default and
+the **unchanged original context/source authorization expiry**, whichever is
+earlier. In particular, ordinary local input still has its original fifteen-second
+context lifetime; queueing does not turn it into thirty-minute consent.
+Expiry retains a denied HOST/task outcome without resource acquisition or
+provider dispatch. A fresh explicit request/review is required, not automatic
+deadline extension. The active provider budget remains owned by the runtime
+and begins at dispatch.
+
+Only successful, confirmed terminal retention after the preceding physical
+resource join permits automatic next dispatch. Failure, pending/active
+cancellation or uncertainty holds the addressed lane; **Resume held dispatch**
+is deliberate and cannot renew original authority. The exact ledger transaction
+also refuses a later request before an earlier live intent or alongside another
+dispatched turn. Unknown/unclassified work and pending questions cannot become
+queue authority. The existing runtime allocator alone owns execution resources;
+pending turns acquire no lease and the queue never waits globally for other
+sessions.
+
+Before dispatch, the same original source/session/generation/metadata,
+privacy/control, provider policy/profile/qualification and context fences run
+again. No later global setting, foreground selection, new history, grant or
+unseen prior answer is substituted. Invalidated authority becomes an explicit
+denied or unconfirmed/held recovery outcome, never a renewed grant or fallback.
+Deferred execution uses a fresh activity linked to the captured admitted context
+while retaining the host-issued request/channel and trusted typed audit.
+Bodies and reviewed sources are not telemetry.
+
+Sessions and compact conversation share factual pending position, the submitted
+USER input, exact selected pending cancellation and held/resume controls.
+Cancellation wins atomically against dispatch, preserves submitted history and
+unrelated requests, and has zero provider/egress/resource effects for that
+pending turn. Active cancellation stays with the existing running-turn owner.
+Logical cancellation and caller observation retirement do not release physical
+resources; the service retains and joins its workers, quarantining uncertain
+late output through the runtime. Restart uses existing Interrupted/Unknown
+history recovery and never replays pending requests.
+
+The composer clears only after real accepted intent, then remains available
+for another request or independent memory-only unsent text. Selection changes
+after acceptance do not retarget submitted work; results remain in the original
+conversation. This is bounded implementation, not new provider/hardware
+qualification, foreground-relative voice authority, effect execution or
+revival of the retired diagnostic scheduler.
+
+### Broader proposed management policy
+
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
 - Default order is arrival order. Contextual reordering requires a clear user instruction and acknowledgement; the delivered bounded route is the separately reviewed exact adjacent pending pair above.
 - A task needing clarification keeps its position and blocks dispatch at that position until clarified, removed, or explicitly deferred.
@@ -309,6 +404,20 @@ Restart restores readable request/ledger history with interrupted/unknown work, 
 Pending-request/context execution expiry does not erase durable history or extend session retention.
 
 ## Required Concurrent Session Execution
+
+### Ordinary-session resource allocation implementation
+
+The [host allocator](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) issues single-use, owner-checked resource leases before [ordinary retained dispatch](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs). Legacy qualification admits only one exclusive execution across unknown physical resources, including hosted single-flight runtimes; it never implies capacity two.
+
+The trusted [runtime qualification seam](../src/Kora.Application/Dependencies/IRuntimeCapacityQualification.cs) can supply current exact provider/account/profile/runtime-generation evidence for two independently owned transports and canonical shared/exclusive resource identities. The allocator rejects unknown identities, shared-resource/profile conflicts, duplicate session ownership and reused active transports. It bounds FIFO waiting to ten requests and at most fifteen seconds, within original context expiry.
+
+Waiting/running/Stop use the [same exact-request cancellation owner](../src/Kora.Application/Hosting/SessionConversationService.Cancellation.cs). Cancellation does not release resources before physical join; each original request joins only its own lease. Failed joins or release-audit failures quarantine affected resources, preventing reuse rather than claiming cancellation or rollback. Required content-free acquisition/release/quarantine audit uses the existing typed audit sink.
+
+[Reviewed tool-skill submissions](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs) use that same retained-execution join, not an additional host-wide wait. Caller shutdown retains source ownership until the exact dispatched turn joins. Resource admission refusal retains the exact unavailable receipt without dispatching a provider or fetching a page; an unconfirmed owned join still prevents terminal success.
+
+Reviewed stop-and-delete observes the same exact resource join before deletion. A failed physical join or required resource-release audit remains **Stop unconfirmed**, not work-stopped success; confirmed resource closure with an unconfirmed terminal receipt remains **Work stopped; not deleted**. Neither outcome permits deletion or waiting on another session's resource.
+
+This is implementation, not new profile qualification. [Production composition](../src/Kora/OllamaModelProviderFactory.cs) supplies only existing independently qualified single-execution registrations; no production two-capacity qualification source is composed. [Deterministic consumer regressions](../tests/Kora.Application.UnitTests/Dependencies/RuntimeResourceAllocatorTests.cs) exercise admitted capacity two without enabling or advertising it for physical hardware/providers. Exact two-capacity enablement evidence remains required.
 
 Bounded independent session execution, including writes to different resources, is required in the revised Slice A3 design.
 Unrestricted parallel agents or multiple concurrent tasks within one session are not implied.

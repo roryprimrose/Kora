@@ -3,27 +3,40 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Application.Hosting.ModelHistoryContext;
 
 namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
-    public async Task<ConversationHistoryReview> ReviewHistoryAsync(SessionWorkspaceEntry target, string body,
+    public Task<ConversationHistoryReview> ReviewHistoryAsync(SessionWorkspaceEntry target, string body,
         IEnumerable<ConversationHistorySelection> selections, Func<bool> admitted, CancellationToken token,
-        RequestOrigin origin = RequestOrigin.LocalUi)
+        RequestOrigin origin = RequestOrigin.LocalUi) =>
+        ReviewHistoryCoreAsync(target, body, selections, admitted, origin, null, token);
+
+    private async Task<ConversationHistoryReview> ReviewHistoryCoreAsync(SessionWorkspaceEntry target, string body,
+        IEnumerable<ConversationHistorySelection> selections, Func<bool> admitted, RequestOrigin origin,
+        ModelHistoryContextSource? advisorySource, CancellationToken token)
     {
         RequireOriginalSource(origin);
         var control = access.ControlRevision;
-        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted();
+        bool Live() => !token.IsCancellationRequested && access.CanInspect && access.CanControl
+            && access.ControlRevision == control && admitted() && advisorySource?.IsCurrent != false;
         using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
             new(Guid.NewGuid()), origin), HostActivityLayer.Application, HostOperation.Request);
         try
         {
             var ordered = ConversationHistoryContext.ValidateAndOrder(target.Authority.SessionId, selections);
-            await workspace.ValidateConversationHistoryAsync(target, ordered, Live, token).ConfigureAwait(false);
+            await workspace.ValidateConversationHistoryAsync(target, ordered, Live, token, advisorySource?.Message).ConfigureAwait(false);
             var now = time.GetUtcNow();
+            var expires = now.AddSeconds(60);
+            if (advisorySource is not null)
+            {
+                advisorySource.RequireOwner(this, reviewing: true);
+                expires = advisorySource.ExpiresAt;
+            }
             var review = new ConversationHistoryReview(this, target, body, ordered, origin, Live, time,
-                now, now.AddSeconds(60), new(activity.Activity!.Context));
+                now, expires, new(activity.Activity!.Context), advisorySource);
             activity.Complete(HostOperationOutcome.Completed);
             return review;
         }
@@ -51,15 +64,18 @@ public sealed partial class SessionConversationService
         using (var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), review.Target.Authority.SessionId,
             new(Guid.NewGuid()), review.Origin), HostActivityLayer.Application, HostOperation.Request, [review.Cause]))
         {
-            bool Live() => admitted() && review.IsCurrent;
+            bool Live() => !token.IsCancellationRequested && admitted() && review.IsCurrent;
             Task Revalidate(CancellationToken cancellation) =>
-                workspace.ValidateConversationHistoryAsync(review.Target, input.Selections, Live, cancellation);
+                workspace.ValidateConversationHistoryAsync(review.Target, input.Selections, Live, cancellation,
+                    review.AdvisorySource?.Message);
+            ConversationSubmissionReceipt receipt;
             try
             {
-                var receipt = await SubmitReviewedContextAsync(review.Target, input.Body,
+                receipt = await SubmitReviewedContextAsync(review.Target, input.Body,
                     (request, now) => ConversationHistoryContext.CreateEnvelope(request, input.Body,
                         input.Selections, now, review.ExpiresAt < now.AddSeconds(15) ? review.ExpiresAt : now.AddSeconds(15)),
-                    Live, Revalidate, [review.Cause], review.Origin, token).ConfigureAwait(false);
+                    Live, Revalidate, [review.Cause], review.Origin, token,
+                    joinCancelledResources: review.AdvisorySource is not null).ConfigureAwait(false);
                 activity.Complete(receipt.Message.Outcome switch
                 {
                     ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,
@@ -67,7 +83,6 @@ public sealed partial class SessionConversationService
                     ModelTurnOutcome.Unknown => HostOperationOutcome.Unknown,
                     _ => HostOperationOutcome.Failed,
                 });
-                return receipt;
             }
             catch (OperationCanceledException)
             {
@@ -79,6 +94,7 @@ public sealed partial class SessionConversationService
                 activity.Complete(HostOperationOutcome.Failed);
                 throw;
             }
+            return receipt;
         }
     }
 }

@@ -2,6 +2,7 @@ using System.ComponentModel;
 using System.Text;
 
 using Avalonia.Controls;
+using Avalonia.Input;
 using Avalonia.Threading;
 using Avalonia.VisualTree;
 
@@ -20,8 +21,10 @@ internal sealed partial class SessionInteractionView : UserControl
     internal event EventHandler? ManagementRequested;
     internal event EventHandler? NewConversationRequested;
     internal Task Operation { get; private set; } = Task.CompletedTask;
+    internal Task CancellationOperation { get; private set; } = Task.CompletedTask;
     private SessionDetailView? activeDetails;
     private SessionsViewModel? observedModel;
+    private readonly ReplyPresentationFence replyPresentation;
     private Guid? selectedSession;
     private readonly Dictionary<DetailContentReference, DetailReadingPosition> readingPositions = [];
     private GridLength conversationWidth = new(1, GridUnitType.Star);
@@ -39,8 +42,34 @@ internal sealed partial class SessionInteractionView : UserControl
     public SessionInteractionView()
     {
         InitializeComponent();
+        replyPresentation = new(this);
+        ConversationTabs.SelectionChanged += (_, _) => replyPresentation.Retire();
         RefreshSessions.Click += async (_, _) => await Run(model => model.RefreshAsync());
         NextSessions.Click += async (_, _) => await Run(model => model.NextAsync());
+        SearchSessionNames.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync());
+        NextSessionNameSearch.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync(next: true));
+        ClearSessionNameSearch.Click += (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { model.ClearListSearch(); SessionNameQuery.Focus(); }
+        };
+        CancelSessionNameSearch.Click += (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { model.CancelListSearch(); }
+        };
+        SessionNameQuery.KeyDown += async (_, args) =>
+        {
+            if (DataContext is not SessionsViewModel model) { return; }
+            if (args.Key == Key.Enter && model.CanSearchSessionNames)
+            {
+                args.Handled = true;
+                await Run(current => current.SearchSessionNamesAsync());
+            }
+            else if (args.Key == Key.Escape)
+            {
+                args.Handled = true;
+                model.ClearListSearch();
+            }
+        };
         ReadConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync());
         NextConversation.Click += async (_, _) => await Run(model => model.ReadConversationAsync(next: true));
         ReadSessionLogs.Click += async (_, _) => await Run(model => model.ReadEvidenceDetailsAsync(EvidenceSource.Log));
@@ -49,10 +78,17 @@ internal sealed partial class SessionInteractionView : UserControl
         NextActivity.Click += async (_, _) => await Run(model => model.ReadHistoryAsync(next: true));
         ActivityDetails.Click += async (_, _) => await Run(model => model.OpenHistoryDetailAsync());
         SubmitMessage.Click += async (_, _) => await Run(model => model.SubmitConversationAsync());
+        SubmitLocalAnswer.Click += async (_, _) => await Run(model => model.SubmitLocalAnswerAsync());
+        StopLocalAnswer.Click += async (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model)
+            { await (CancellationOperation = model.CancelRunningConversationAsync()); }
+        };
         DiscardMessage.Click += async (_, _) => await Run(model => model.DiscardComposerBufferAsync());
         SessionList.SelectionChanged += async (_, args) =>
         {
-            if (args.AddedItems.Count == 1 && args.AddedItems[0] is SessionWorkspaceEntry entry)
+            if (args.AddedItems.Count == 1 && args.AddedItems[0] is SessionWorkspaceEntry entry
+                && DataContext is SessionsViewModel selectedModel && selectedModel.SelectedSessionRecord != entry)
             { await Run(model => model.SelectAsync(entry)); }
         };
         ActivityList.SelectionChanged += (_, args) =>
@@ -93,7 +129,14 @@ internal sealed partial class SessionInteractionView : UserControl
     {
         try
         {
-            if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }
+            if (args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage replySource }
+                && DataContext is SessionsViewModel)
+            {
+                args.Handled = true;
+                var presenter = replyPresentation.Capture();
+                await Run(current => current.ReplyToAnswerAsync(replySource, presenter));
+            }
+            else if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }
                 && DataContext is SessionsViewModel model)
             { args.Handled = true; model.DismissDetailsOffer(message); }
             else if (args.Source is Button { Name: "OpenSessionEvidence", DataContext: SessionEvidenceDetail detail })

@@ -37,7 +37,7 @@ function fixture(overrides = {}) {
     repos: ['getContent', 'getBranchProtection', 'compareCommits'],
     pulls: ['list', 'get', 'updateBranch', 'merge'],
     checks: ['create', 'update'],
-    actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRun', 'cancelWorkflowRun', 'getWorkflowRun'],
+    actions: ['createWorkflowDispatch', 'listWorkflowRuns', 'listJobsForWorkflowRunAttempt', 'cancelWorkflowRun', 'getWorkflowRun'],
   };
   const rest = {};
   for (const [group, names] of Object.entries(groups)) {
@@ -51,13 +51,16 @@ function fixture(overrides = {}) {
       const response = await method(args);
       const data = Array.isArray(response.data) ? response.data : response.data.workflow_runs ?? response.data.jobs;
       assert.ok(Array.isArray(data), 'Octokit pagination returns a normalized array.');
-      return transform ? transform({ ...response, data }) : data;
+      if (!transform) return data;
+      const normalized = Object.assign([...data], { total_count: response.data.total_count });
+      return [...transform({ ...response, data: normalized })];
     },
     graphql: async (query, args) => {
       calls.push(['graphql', args]);
       return { repository: { pullRequest: { reviewDecision: null, autoMergeRequest: { enabledAt: ENROLLED } } } };
     } };
-  const core = { warning: message => calls.push(['warning', message]) };
+  const core = { warning: message => calls.push(['warning', message]),
+    info: message => calls.push(['info', message]) };
   return { github, core, calls, responses, api: new GitHubQueue(github, context, core, '42') };
 }
 
@@ -205,13 +208,14 @@ test('candidate admission requires trusted main, the exact ticket and still-curr
 test('paginated run and job lookups cannot accidentally select an unrelated workflow', async () => {
   const value = fixture({
     list: () => [pr()], listWorkflowRuns: () => ({ workflow_runs: [{ id: 1 }] }),
-    listJobsForWorkflowRun: () => ({ jobs: [{ id: 2 }] }),
+    listJobsForWorkflowRunAttempt: () => ({ total_count: 1, jobs: [{ id: 2 }] }),
   });
   assert.equal((await value.api.pulls()).length, 1);
   assert.deepEqual(await value.api.runs(candidate()), [{ id: 1 }]);
   assert.deepEqual(await value.api.jobs(1), [{ id: 2 }]);
   assert.equal(value.calls.find(call => call[0] === 'listWorkflowRuns')[1].workflow_id, 'ci.yml');
-  assert.equal(value.calls.find(call => call[0] === 'listJobsForWorkflowRun')[1].filter, 'latest');
+  assert.deepEqual(value.calls.find(call => call[0] === 'listJobsForWorkflowRunAttempt')[1],
+    { owner: 'owner', repo: 'repo', run_id: 1, attempt_number: 1, per_page: 100 });
   assert.equal(await value.api.reviewReady(1), true);
   for (const decision of ['APPROVED', 'REVIEW_REQUIRED', 'CHANGES_REQUESTED']) {
     value.github.graphql = async () => ({ repository: { pullRequest: { reviewDecision: decision } } });
@@ -225,9 +229,90 @@ test('normalized pagination preserves empty and multiple workflow run and job re
   for (const records of [[], [{ id: 1 }, { id: 2 }], [{ id: 1 }, { id: 1 }]]) {
     const value = fixture({
       listWorkflowRuns: () => ({ total_count: records.length, workflow_runs: records }),
-      listJobsForWorkflowRun: () => ({ total_count: records.length, jobs: records }),
+      listJobsForWorkflowRunAttempt: () => ({ total_count: records.length, jobs: records }),
     });
     assert.deepEqual(await value.api.runs(candidate()), records);
     assert.deepEqual(await value.api.jobs(1), records);
   }
+});
+
+test('job observations pin the workflow attempt and reject unknown attempts or incomplete page counts', async () => {
+  const value = fixture({ listJobsForWorkflowRunAttempt: () => ({ total_count: 1, jobs: [{ id: 2 }] }) });
+  assert.deepEqual(await value.api.jobs(9, 2), [{ id: 2 }]);
+  assert.equal(value.calls.find(call => call[0] === 'listJobsForWorkflowRunAttempt')[1].attempt_number, 2);
+  for (const attempt of [0, -1, null, '1', 1.5]) {
+    await assert.rejects(value.api.jobs(9, attempt), /Unknown candidate job attempt/);
+  }
+  for (const total_count of [undefined, null, -1, '1', 0, 2]) {
+    const incomplete = fixture({ listJobsForWorkflowRunAttempt: () => ({ total_count, jobs: [{ id: 2 }] }) });
+    await assert.rejects(incomplete.api.jobs(9), /candidate job pagination/);
+  }
+});
+
+test('job pagination joins every normalized page and propagates later-page API or authentication errors', async () => {
+  for (const scenario of ['complete', 'partial', 'changed-count', '401', '403', '404', '429', '500']) {
+    const value = fixture();
+    value.github.paginate = async (method, args, transform) => {
+      assert.equal(method, value.github.rest.actions.listJobsForWorkflowRunAttempt);
+      assert.equal(args.run_id, 9);
+      assert.equal(args.attempt_number, 1);
+      const first = [{ id: 1 }];
+      first.total_count = 2;
+      const records = [...transform({ data: first })];
+      if (scenario === 'partial') return records;
+      if (/^\d+$/.test(scenario)) throw error(Number(scenario));
+      const second = [{ id: 2 }];
+      second.total_count = scenario === 'changed-count' ? 3 : 2;
+      return [...records, ...transform({ data: second })];
+    };
+    if (scenario === 'complete') assert.deepEqual(await value.api.jobs(9), [{ id: 1 }, { id: 2 }]);
+    else await assert.rejects(value.api.jobs(9), /pagination|HTTP/);
+    assert.equal(value.calls.some(call => ['update', 'merge', 'createWorkflowDispatch'].includes(call[0])), false);
+  }
+  for (const status of [401, 403, 404, 429, 500]) {
+    const value = fixture({ listJobsForWorkflowRunAttempt: () => { throw error(status); } });
+    await assert.rejects(value.api.jobs(9), new RegExp(`HTTP ${status}`));
+  }
+});
+
+test('decision logs and warnings appear in both the console and awaited Actions summary', async () => {
+  for (const result of ['idle', 'dispatched', 'failed']) {
+    const value = fixture();
+    const summaryCalls = [];
+    let written = false;
+    const summary = {};
+    for (const name of ['addHeading', 'addTable', 'addCodeBlock', 'addRaw']) {
+      summary[name] = (...args) => { summaryCalls.push([name, ...args]); return summary; };
+    }
+    summary.write = async () => {
+      await Promise.resolve();
+      written = true;
+    };
+    value.core.summary = summary;
+    value.api.info('PR #1: skipped; required reviews are not satisfied.');
+    value.api.notice('Candidate dispatch has no observable run; lane held.');
+    await value.api.summarize(result);
+    assert.equal(written, true);
+    assert.deepEqual(value.calls, [
+      ['info', 'PR #1: skipped; required reviews are not satisfied.'],
+      ['warning', 'Candidate dispatch has no observable run; lane held.'],
+    ]);
+    assert.deepEqual(summaryCalls.find(call => call[0] === 'addTable')[1][1],
+      ['owner/repo', 'workflow_dispatch', result]);
+    assert.deepEqual(summaryCalls.find(call => call[0] === 'addCodeBlock').slice(1), [
+      'PR #1: skipped; required reviews are not satisfied.\nWarning: Candidate dispatch has no observable run; lane held.',
+      'text',
+    ]);
+    assert.equal(summaryCalls.find(call => call[0] === 'addRaw')[1].includes('no successful admission outcome'),
+      result === 'failed');
+  }
+});
+
+test('summary write failures propagate rather than claiming a persisted report', async () => {
+  const value = fixture();
+  const summary = {};
+  for (const name of ['addHeading', 'addTable', 'addCodeBlock', 'addRaw']) summary[name] = () => summary;
+  summary.write = async () => { throw new Error('Summary unavailable'); };
+  value.core.summary = summary;
+  await assert.rejects(value.api.summarize('idle'), /Summary unavailable/);
 });

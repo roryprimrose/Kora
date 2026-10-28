@@ -11,6 +11,95 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task NamedConversationOpeningCarriesOriginalTypedAndVoiceChannelAndNoModelAuthority()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var observed = new List<WorkspaceSurfaceNavigation>();
+        f.ViewModel.WorkspaceSurfaceRequested += request =>
+        {
+            request.IsAdmitted().Should().BeTrue();
+            request.Origin.Should().Be(Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin);
+            observed.Add(request);
+            return Task.CompletedTask;
+        };
+        await f.RunAsync("open conversation \"Exact name\"");
+        await f.RaiseActivatedTranscriptAsync("Kora, read conversation \"Exact name\"", 1);
+        observed.Select(item => item.Origin).Should().Equal(RequestOrigin.LocalUi, RequestOrigin.ActivatedVoice);
+        observed.Should().OnlyContain(item => item.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+            && item.ConversationName!.Value == "Exact name");
+        observed[0].IsAdmitted().Should().BeFalse("another original input retires the first choice");
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.HostStore.Records.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NamedOpeningCannotBorrowAnExistingQuestionOrApprovalInput()
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
+        f.Reasoner.Question = new("Which target?", ["One", "Two"]);
+        await f.ViewModel.InitializeAsync();
+        var calls = 0;
+        f.ViewModel.WorkspaceSurfaceRequested += _ => { calls++; return Task.CompletedTask; };
+        await f.RunAsync("choose");
+        await f.ViewModel.ActiveReasoningTask!;
+        await f.RaiseActivatedTranscriptAsync("Kora, open conversation \"One\"", 1);
+        f.ViewModel.IsModelQuestionPending.Should().BeTrue();
+        calls.Should().Be(0);
+        await f.ViewModel.CancelModelQuestionAsync();
+        await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+        await f.RunAsync("open conversation \"One\"");
+        f.ViewModel.IsGrantChangePending.Should().BeTrue();
+        calls.Should().Be(0);
+        await f.ViewModel.RejectPendingGrantChangeAsync();
+    }
+
+    [Fact]
+    public async Task NamedOpeningRejectsOriginalEditorTargetAndNewlyOpenedDecision()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var calls = 0;
+        f.ViewModel.WorkspaceSurfaceRequested += async request =>
+        {
+            calls++;
+            request.IsAdmitted().Should().BeTrue();
+            await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always));
+            request.IsAdmitted().Should().BeFalse("another decision cannot lend authority to the existing choice");
+            await f.ViewModel.RejectPendingGrantChangeAsync();
+        };
+        f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget());
+        await f.RaiseActivatedTranscriptAsync("Kora, open conversation \"One\"", 1);
+        calls.Should().Be(0);
+        f.ViewModel.PublishCustomizationVoiceTarget(null);
+        await f.RunAsync("open conversation \"One\"");
+        calls.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Fact]
+    public async Task NamedOpeningWordsInsideLiteralDictationStayInTheComposer()
+    {
+        var f = CreateVoicePrivacyFixture();
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        f.Voice.IsLiteralDictationAvailable = true;
+        await f.ViewModel.InitializeAsync();
+        using var composer = DictationComposer(f);
+        await using var service = f.ViewModel.BindComposerDictation(
+            Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Application.Voice.ComposerDictationService>.Instance);
+        var calls = 0;
+        f.ViewModel.WorkspaceSurfaceRequested += _ => { calls++; return Task.CompletedTask; };
+        await service.BeginAsync(composer, static () => true, TestContext.Current.CancellationToken);
+        await f.Voice.RaiseTranscriptAsync("Kora, open conversation \"One\"", 1);
+        await service.EndAsync();
+        await service.Quiescence;
+        composer.Body.Should().Be("Kora, open conversation \"One\"");
+        calls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        await f.ViewModel.ExitAsync();
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
     public async Task WorkspaceNavigationHasContentFreeHostOwnedRequestRootsAndTruthfulTermination()
     {
         var f = await Fixture.CreateInitializedAsync();

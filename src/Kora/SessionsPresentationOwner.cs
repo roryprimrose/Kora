@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
+using Kora.Application.ViewModels;
 using Kora.Core.Conversation;
 
 namespace Kora;
@@ -11,6 +12,7 @@ internal sealed partial class SessionsPresentationOwner
     private readonly SessionsViewModel model;
     private readonly EventHandler<RoutedEventArgs> conversationDetailClick;
     private readonly List<Window> surfaces = [];
+    private readonly Dictionary<Window, ReplyPresentationFence> replyPresenters = [];
     private readonly DispatcherTimer refresh = new() { Interval = TimeSpan.FromSeconds(5) };
     private Window? active;
     private Window? draftDialog;
@@ -18,10 +20,17 @@ internal sealed partial class SessionsPresentationOwner
     private bool revoked;
     internal Task CloseOperation { get; private set; } = Task.CompletedTask;
     internal Task DetailOperation { get; private set; } = Task.CompletedTask;
+    internal Task ReplyOperation { get; private set; } = Task.CompletedTask;
     internal async Task<bool> PrepareShutdown()
     {
         try
         {
+            foreach (var panel in surfaces.Select(RequestPanel).OfType<SessionRequestReviewPanel>().ToArray())
+            {
+#pragma warning disable VSTHRD003 // Join this owner's exact native request operation before voluntary shutdown.
+                await panel.Operation;
+#pragma warning restore VSTHRD003
+            }
             if (!model.CanRead) { throw new InvalidOperationException("Finish the current native operation before voluntary shutdown."); }
             return await model.ConfirmUnsentDiscardAsync(all: true);
         }
@@ -32,9 +41,12 @@ internal sealed partial class SessionsPresentationOwner
         }
     }
 
-    internal SessionsPresentationOwner(SessionsViewModel model)
+    internal SessionsPresentationOwner(SessionsViewModel model, MainViewModel? requestCommands = null)
     {
         this.model = model;
+        this.requestCommands = requestCommands;
+        model.PropertyChanged += OnForegroundModelChanged;
+        if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted += OnForegroundRequestSubmitted; }
 #pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.
         conversationDetailClick = OpenConversationDetail;
 #pragma warning restore MA0147
@@ -47,6 +59,8 @@ internal sealed partial class SessionsPresentationOwner
     {
         if (revoked) { throw new InvalidOperationException("The selected-session presentation was closed."); }
         surfaces.Add(surface);
+        ObserveForegroundSurface(surface);
+        replyPresenters.Add(surface, new(surface));
         surface.Activated += Activated;
         surface.Closing += Closing;
         surface.Closed += Closed;
@@ -55,6 +69,8 @@ internal sealed partial class SessionsPresentationOwner
         surface.AddHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surface.AddHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.AddHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
+        surface.AddHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.AddHandler(Button.ClickEvent, OnModelMemoryProposal);
         refresh.Start();
     }
 
@@ -83,6 +99,15 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && sender is Window replyPresenter
+            && args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage source })
+        {
+            args.Handled = true;
+            try { await (ReplyOperation = model.ReplyToAnswerAsync(source, replyPresenters[replyPresenter].Capture())); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportComposerCloseFailure(exception); }
+            return;
+        }
         if (revoked || args.Source is not Button { Name: "OpenConversationDetail" or "OpenAssistantConversationDetail", DataContext: ConversationMessage message } button
             || !model.CanOpenConversationDetails) { return; }
         args.Handled = true;
@@ -133,7 +158,11 @@ internal sealed partial class SessionsPresentationOwner
         surface.RemoveHandler(Button.ClickEvent, OnAppearanceSuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnSpeechSummarySuggestion);
         surface.RemoveHandler(Button.ClickEvent, OnPlaybackVolumeSuggestion);
+        surface.RemoveHandler(Button.ClickEvent, OnRegisteredSettingSuggestion);
+        surface.RemoveHandler(Button.ClickEvent, OnModelMemoryProposal);
+        ForgetForegroundSurface(surface);
         surfaces.Remove(surface);
+        if (replyPresenters.Remove(surface, out var replyPresentation)) { replyPresentation.Dispose(); }
         if (ReferenceEquals(active, surface)) { active = null; }
         if (surfaces.Count != 0) { return; }
         revoked = true;
@@ -146,6 +175,9 @@ internal sealed partial class SessionsPresentationOwner
         refresh.Stop();
         refresh.Tick -= Refresh;
         model.DecideComposerDraft = null;
+        model.PropertyChanged -= OnForegroundModelChanged;
+        if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted -= OnForegroundRequestSubmitted; }
+        RetireForegroundTarget();
         active = null;
     }
 

@@ -1,7 +1,9 @@
 using System.Diagnostics;
+using Kora.Application.Configuration;
 using Kora.Application.Infrastructure;
 using Kora.Application.Voice;
 using Kora.Core.Diagnostics;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Core.Voice;
@@ -23,6 +25,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     private readonly ILogger<HostQuestionVoiceReplyService> logger;
     private readonly Func<string, Task<bool>>? tryStopListening;
     private readonly Func<IEnumerable<string>>? listeningStopPhrases;
+    private readonly Func<ConversationalReplyState?>? conversationalPreference;
     private Turn? turn;
     private Task retirement = Task.CompletedTask;
     private Task delivery = Task.CompletedTask;
@@ -32,7 +35,8 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     public HostQuestionVoiceReplyService(HostQuestionService questions, IQuestionVoiceRecognitionService capture,
         TimeProvider time, IUiDispatcher dispatcher, Func<QuestionVoiceAdmission?> observe,
         Func<string, Func<bool>, CancellationToken, Task> speak, ILogger<HostQuestionVoiceReplyService> logger,
-        Func<string, Task<bool>>? tryStopListening = null, Func<IEnumerable<string>>? listeningStopPhrases = null)
+        Func<string, Task<bool>>? tryStopListening = null, Func<IEnumerable<string>>? listeningStopPhrases = null,
+        Func<ConversationalReplyState?>? conversationalPreference = null)
     {
         this.questions = questions;
         this.capture = capture;
@@ -43,6 +47,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
         this.logger = logger;
         this.tryStopListening = tryStopListening;
         this.listeningStopPhrases = listeningStopPhrases;
+        this.conversationalPreference = conversationalPreference;
         questions.ReplyTargetChanging += OnTargetChanging;
         capture.TranscriptRecognized += OnTranscript;
         capture.ReplySpeechStarted += OnSpeechStarted;
@@ -57,8 +62,30 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     public Task Quiescence { get { lock (gate) { return Task.WhenAll(retirement, delivery); } } }
 #pragma warning restore VSTHRD003
 
-    public async Task OpenAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
-        Action<HostInteractionDecision> accepted, bool afterPlayback, CancellationToken cancellationToken)
+    public Task OpenConversationalAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
+        Action<HostInteractionDecision> accepted, CancellationToken cancellationToken)
+    {
+        var preference = conversationalPreference?.Invoke();
+        if (preference is not { Enabled: true } || !IsConversationalQuestion(question))
+        {
+            return Task.CompletedTask;
+        }
+        return OpenCoreAsync(question, () => conversationalPreference!() == preference && isExactVisiblePresenter(),
+            accepted, afterPlayback: true, conversational: true, cancellationToken);
+    }
+
+    private static bool IsConversationalQuestion(HostQuestionRecord question) =>
+        question.Proposal is null && (string.Equals(question.Spec.SourceId, "host", StringComparison.Ordinal)
+            && question.Spec.Purpose is "clarification" or "local-version"
+            || string.Equals(question.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal)
+            && string.Equals(question.Spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal));
+
+    public Task OpenAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
+        Action<HostInteractionDecision> accepted, bool afterPlayback, CancellationToken cancellationToken) =>
+        OpenCoreAsync(question, isExactVisiblePresenter, accepted, afterPlayback, conversational: false, cancellationToken);
+
+    private async Task OpenCoreAsync(HostQuestionRecord question, Func<bool> isExactVisiblePresenter,
+        Action<HostInteractionDecision> accepted, bool afterPlayback, bool conversational, CancellationToken cancellationToken)
     {
         if (capture is HandsFreeVoiceRecognitionService handsFree) { await handsFree.PauseWakeForReplyAsync(); }
         Turn opened;
@@ -102,6 +129,12 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 || canonical.Key != question.Key || canonical.SessionGeneration != question.SessionGeneration)
             {
                 Retire(opened, "Exact question is unavailable for voice. No capture opened; use native controls.");
+                activity.Complete(HostOperationOutcome.Failed);
+                return;
+            }
+            if (conversational && !IsConversationalQuestion(canonical))
+            {
+                Retire(opened, "This question requires explicit native interaction. No automatic capture opened.");
                 activity.Complete(HostOperationOutcome.Failed);
                 return;
             }
@@ -341,7 +374,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                     Retire(current, "Listening disabled. Native question remains answerable; no answer was submitted.");
                     return;
                 }
-                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript);
+                var answer = QuestionVoiceAnswer.Parse(current.Question, transcript, current.Admission.ActivationName);
                 if (answer is null)
                 {
                     Retire(current, "Reply did not match this question's schema. Nothing was routed or submitted. Microphone closed; use native controls or try again.");

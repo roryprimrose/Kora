@@ -1,9 +1,11 @@
 using System.Globalization;
 using System.Text;
+using Kora.Core.Artifacts;
+using Kora.Core.Network;
 
 namespace Kora.Core.Skills;
 
-/// <summary>The closed native v1 two-file format. Guidance is data, never executable metadata.</summary>
+/// <summary>The closed native two-file formats. Guidance is data, never executable metadata.</summary>
 public sealed class OwnedDeclarativeSkillDocument
 {
     private static readonly UTF8Encoding Encoding = new(false, true);
@@ -11,20 +13,27 @@ public sealed class OwnedDeclarativeSkillDocument
     private readonly byte[] instructions;
 
     private OwnedDeclarativeSkillDocument(string id, string version, string name, string description,
-        byte[] manifest, byte[] instructions)
+        byte[] manifest, byte[] instructions, OwnedSkillToolSelection tool, OwnedPromptTemplate? inputTemplate)
     {
         Id = id;
         Version = version;
         Name = name;
         Description = description;
+        Tool = tool;
+        InputTemplate = inputTemplate;
         this.manifest = manifest;
         this.instructions = instructions;
+        RevisionDigest = SkillPackageDigest.Compute(SkillPackageDigest.DefinitionVersion,
+            [new("manifest.yaml", "owned.manifest", manifest), new("instructions.md", "owned.instructions", instructions)]);
     }
 
     public string Id { get; }
     public string Version { get; }
     public string Name { get; }
     public string Description { get; }
+    public OwnedSkillToolSelection Tool { get; }
+    public OwnedPromptTemplate? InputTemplate { get; }
+    public string RevisionDigest { get; }
     public string ManifestText => Encoding.GetString(manifest);
     public string Guidance => Encoding.GetString(instructions);
     public ReadOnlyMemory<byte> ManifestBytes => manifest;
@@ -47,12 +56,21 @@ public sealed class OwnedDeclarativeSkillDocument
     }
 
     public static OwnedDeclarativeSkillDocument Create(string id, string version, string name,
-        string description, string guidance)
+        string description, string guidance, OwnedSkillToolSelection tool = OwnedSkillToolSelection.None,
+        OwnedSkillGuidanceFormat guidanceFormat = OwnedSkillGuidanceFormat.Literal)
     {
         RequireIdentity(id, version);
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        var text = $"kora-skill-format: 1\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: none\nreferences: none\n";
+        var (format, declaration) = (tool, guidanceFormat) switch
+        {
+            (OwnedSkillToolSelection.None, OwnedSkillGuidanceFormat.Literal) => ("1", "none"),
+            (OwnedSkillToolSelection.WebPageGet, OwnedSkillGuidanceFormat.Literal) => ("2", WebPageCapability.Id),
+            (OwnedSkillToolSelection.None, OwnedSkillGuidanceFormat.RequiredLiteralInputs) => ("3", "none"),
+            _ => throw new InvalidDataException("Required literal inputs support only instruction-only skills; select a supported format and capability."),
+        };
+        var text = $"kora-skill-format: {format}\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: {declaration}\nreferences: none\n";
+        if (guidanceFormat == OwnedSkillGuidanceFormat.RequiredLiteralInputs) { text += "inputs: required-literal\n"; }
         try { return Parse(Encoding.GetBytes(text), Encoding.GetBytes(guidance)); }
         catch (EncoderFallbackException exception)
         { throw new InvalidDataException("Skill text must be well-formed Unicode.", exception); }
@@ -73,8 +91,8 @@ public sealed class OwnedDeclarativeSkillDocument
         if (string.IsNullOrWhiteSpace(guidance))
         { throw new InvalidDataException("Literal skill guidance is required."); }
         var lines = metadata.Split('\n');
-        if (lines.Length != 9 || lines[^1].Length != 0)
-        { throw new InvalidDataException("The native manifest requires exactly eight scalar fields and a final newline."); }
+        if (lines.Length is not (9 or 10) || lines[^1].Length != 0)
+        { throw new InvalidDataException("The native manifest requires its exact versioned scalar fields and a final newline."); }
         var fields = new Dictionary<string, string>(StringComparer.Ordinal);
         foreach (var line in lines[..^1])
         {
@@ -84,9 +102,27 @@ public sealed class OwnedDeclarativeSkillDocument
         }
         string Field(string key) => fields.TryGetValue(key, out var value) ? value
             : throw new InvalidDataException("Unknown or missing native skill metadata.");
-        if (Field("kora-skill-format") is not "1" || Field("runtime") is not "local"
-            || Field("tools") is not "none" || Field("references") is not "none")
-        { throw new InvalidDataException("Only native v1 local, tool-free, reference-free skills can be saved."); }
+        var format = Field("kora-skill-format");
+        var tool = (format, Field("tools")) switch
+        {
+            ("1", "none") => OwnedSkillToolSelection.None,
+            ("2", WebPageCapability.Id) => OwnedSkillToolSelection.WebPageGet,
+            ("3", "none") => OwnedSkillToolSelection.None,
+            _ => throw new InvalidDataException("Only native v1 literal, v2 exact host WebPageGet or v3 instruction-only required literal inputs are supported."),
+        };
+        OwnedPromptTemplate? template = null;
+        if (format is "3")
+        {
+            if (fields.Count != 9 || Field("inputs") is not "required-literal")
+            { throw new InvalidDataException("Native v3 requires the explicit required-literal input field."); }
+            template = OwnedPromptTemplate.Parse(guidance);
+            if (template.RequiredNames.IsEmpty)
+            { throw new InvalidDataException("Native v3 requires at least one declared ${input:name} literal input."); }
+        }
+        else if (fields.Count != 8)
+        { throw new InvalidDataException("Literal native v1/v2 skills cannot declare inputs."); }
+        if (Field("runtime") is not "local" || Field("references") is not "none")
+        { throw new InvalidDataException("Only local, reference-free native skills can be saved."); }
         var id = Field("id");
         var version = Field("version");
         RequireIdentity(id, version);
@@ -94,7 +130,7 @@ public sealed class OwnedDeclarativeSkillDocument
         var description = Field("description");
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray());
+        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray(), tool, template);
     }
 
     private static void RequireText(string text)

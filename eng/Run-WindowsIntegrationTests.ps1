@@ -23,11 +23,13 @@ $repositoryRoot = Split-Path -Parent $PSScriptRoot
 $projectPath = Join-Path $repositoryRoot 'tests\Kora.Windows.IntegrationTests\Kora.Windows.IntegrationTests.csproj'
 $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $ResultsDirectory))
 
-# Balance slow headless UI classes across processes without parallelizing the process-wide UI thread.
+# Run 40468340968 exhausted ui-platform's whole-job budget. Move its 544s conversation class
+# to the 477s synchronous definitions shard, retaining whole classes and the serial UI dispatcher.
 $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
     'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
     'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
+    'Kora.Windows.IntegrationTests.SessionsConversationTests.'
 )
 $nativeUiPrefixes = @(
     'Kora.Windows.IntegrationTests.NativeUx.'

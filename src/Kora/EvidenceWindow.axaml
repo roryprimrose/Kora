@@ -211,15 +211,29 @@
           </ListBox.ItemTemplate>
         </controls:ScrollableListBox>
       </Grid>
-      <ScrollViewer Grid.Column="1" HorizontalScrollBarVisibility="Disabled">
+      <Grid x:Name="EvidenceRecordBody" Grid.Column="1" RowDefinitions="Auto,*,Auto" RowSpacing="10">
+        <controls:NamedTextBlock Text="{Binding RequestSummary}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Exact request outcome and evidence availability" />
+      <ScrollViewer Grid.Row="1" HorizontalScrollBarVisibility="Disabled">
         <controls:NamedTextBlock x:Name="EvidenceBody" Text="{Binding ResultText}" TextWrapping="Wrap" FontFamily="Consolas"
                    AutomationProperties.Name="Bounded structured evidence result, read only, no copy or export" />
       </ScrollViewer>
+      <Expander x:Name="AskEvidence" Grid.Row="2" Header="Ask about this exact evidence" IsVisible="{Binding HasEvidenceAnswers}"
+                AutomationProperties.Name="Review one exact diagnostic page and separately confirm a local answer">
+        <ScrollViewer MaxHeight="420">
+          <StackPanel x:Name="EvidenceAnswerPanel" Spacing="8" />
+        </ScrollViewer>
+      </Expander>
+      </Grid>
     </Grid>
-    <StackPanel Grid.Row="7" Orientation="Horizontal" Spacing="10">
+    <WrapPanel Grid.Row="7">
       <Button x:Name="OpenSegment" Content="Open selected segment" IsEnabled="{Binding CanQuery}" />
+      <Button x:Name="ReadRequest" Content="Read request outcomes" IsEnabled="{Binding CanReadRequest}"
+              AutomationProperties.Name="Read exact selected host request audit outcomes" />
+      <Button x:Name="ReadActivity" Content="Inspect related diagnostics" IsEnabled="{Binding CanReadActivity}"
+              AutomationProperties.Name="Inspect exact selected activity and causal links; diagnostics are not authority" />
       <Button x:Name="CloseView" Content="Close" />
-      <TextBlock Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />
-    </StackPanel>
+      <TextBlock x:Name="EvidenceRestrictions" Text="No copy, export, model, browser, deletion or execution." VerticalAlignment="Center" />
+    </WrapPanel>
   </Grid>
 </Window>

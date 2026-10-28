@@ -21,7 +21,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class HostedClaudeSessionRequestTests
+public sealed partial class HostedClaudeSessionRequestTests
 {
     [Theory]
     [InlineData(RequestOrigin.LocalUi, 2)]
@@ -174,12 +174,16 @@ public sealed class HostedClaudeSessionRequestTests
         internal ClaudeAccountBrokerTests.Fixture Http { get; }
         internal ClaudeAccountBroker Accounts { get; }
         internal ClaudeMessagesRuntime Runtime { get; }
+        internal HostBoundary Boundary { get; } = new();
+        internal ObservationTime TurnTime { get; }
 
-        internal Composition(InteractionStorageFixture fixture)
+        internal Composition(InteractionStorageFixture fixture, bool streamAnswer = false)
         {
             f = fixture; Workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
+            TurnTime = new(f.Time);
             admission = new(f.Store, f.Store, new(f.Tasks));
-            Http = new() { Time = f.Time };
+            Http = new() { Time = f.Time, Approval = new(DateTimeOffset.UtcNow.AddHours(1),
+                streamAnswer ? [new(new("exact-model"), new("disabled"), new("8192"), 8192, 4096)] : []) };
             Accounts = Http.Create();
             Runtime = new(Accounts, f.Time, NullLogger<ClaudeMessagesRuntime>.Instance, Http.CreateHttp);
             Reviews = new(Http, f.Time);
@@ -196,12 +200,13 @@ public sealed class HostedClaudeSessionRequestTests
             var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Paths),
                 new Catalogue(Accounts, f.Time), admission, Http, f.Time);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
-            var boundary = new HostBoundary();
+            var boundary = Boundary;
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(boundary, new(), new(), new(boundary), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
-            Turns = new(f.Store, Access, boundary, registry, Http, NullLogger<ModelTurnHost>.Instance, f.Time,
-                [], mode, profiles, f.Store, new ClaudeModelProviderFactory(Accounts, Runtime, Reviews, f.Time), Reviews);
+            Turns = new(f.Store, Access, boundary, registry, Http, NullLogger<ModelTurnHost>.Instance, TurnTime,
+                [], mode, profiles, f.Store, new ClaudeModelProviderFactory(Accounts, Runtime, Reviews, f.Time,
+                    NullLogger<BoundedModelTurnAdapter>.Instance), Reviews);
             Conversation = new(f.Store, f.Store, Workspace, Access, Turns, f.Time, NullLogger<SessionConversationService>.Instance,
                 execution: Turns, cancellationAudit: Http, interactions: f.Store);
             Http.Respond = message => ClaudeAccountBrokerTests.Fixture.Json(message.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
@@ -224,9 +229,35 @@ public sealed class HostedClaudeSessionRequestTests
                     : new ProviderCapabilityCatalogue(service, ProviderCatalogueStatus.Unavailable, null, new(1), now, now.AddMinutes(1), [])).ToArray());
         }
     }
-    private sealed class HostBoundary : ICapabilityHostAccess, IApplicationInfo
+    internal sealed class HostBoundary : ICapabilityHostAccess, IApplicationInfo
     {
         public bool IsCurrentHost => true;
-        public string Version => "1.0.0";
+        internal int VersionReads { get; private set; }
+        public string Version { get { VersionReads++; return "1.0.0"; } }
+    }
+
+    internal sealed class ObservationTime(TimeProvider source) : TimeProvider
+    {
+        private readonly List<ObservationTimer> timers = [];
+        public override DateTimeOffset GetUtcNow() => source.GetUtcNow();
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            var timer = new ObservationTimer(callback, state, dueTime);
+            timers.Add(timer); return timer;
+        }
+        internal void FireDeadline()
+        {
+            var timer = timers.Single(item => item.Due == ModelToolProtocol.Deadline && !item.Disposed);
+            timer.Fire();
+        }
+        private sealed class ObservationTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer
+        {
+            internal TimeSpan Due { get; private set; } = due;
+            internal bool Disposed { get; private set; }
+            public bool Change(TimeSpan dueTime, TimeSpan period) { Due = dueTime; return !Disposed; }
+            internal void Fire() { if (!Disposed) { callback(state); } }
+            public void Dispose() => Disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
     }
 }

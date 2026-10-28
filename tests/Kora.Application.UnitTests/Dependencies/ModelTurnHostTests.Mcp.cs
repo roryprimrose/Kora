@@ -216,6 +216,106 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData("disconnect")]
+    [InlineData("body")]
+    [InlineData("disposal")]
+    [InlineData("timeout")]
+    [InlineData("withdrawal")]
+    public async Task Mcp_transport_failure_completes_one_original_request_without_retry_or_result_disclosure(string fault)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(Kora.Core.Providers.ProviderService.Local, [Profile()]);
+        var model = new McpModelTransport();
+        await using var loop = new BoundedModelTurnAdapter(model, f.Time, f);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var approval = new McpApprovals(f);
+        var pending = new TaskCompletionSource<ImmutableArray<byte>>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var broker = new McpBroker(source.Account) { PendingCall = pending, EnteredCall = entered };
+        var service = McpService(f, host, source, broker, approval, await source.Policy());
+        var observed = 0;
+        var submission = service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approval.Present, McpSelect, static () => true, Token,
+            onResult: (_, _) => observed++);
+        await entered.Task.WaitAsync(Token);
+        try
+        {
+            submission.IsCompleted.Should().BeFalse();
+            host.IsQuiescent.Should().BeFalse();
+            broker.Disposed.Should().BeFalse();
+            f.ExecutionCompletions.Should().Be(0);
+            if (fault is "withdrawal") { broker.Fault = "withdrawn-connection"; }
+            pending.SetException(fault switch
+            {
+                "disconnect" => new HttpRequestException("synthetic private disconnect"),
+                "body" => new IOException("synthetic private body failure"),
+                "disposal" => new ObjectDisposedException("synthetic private disposed transport"),
+                _ => new OperationCanceledException("synthetic connection cancellation"),
+            });
+            var receipt = await submission;
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+            receipt.Message.Reason.Should().Be(ModelTurnReason.ToolResultRejected);
+            receipt.Message.AssistantResponse.Should().BeNull();
+            receipt.Message.Should().Be(f.Retained);
+            receipt.Task.IsTerminal.Should().BeTrue();
+            f.ExecutionCompletions.Should().Be(1);
+            f.RetainCalls.Should().Be(1);
+            observed.Should().Be(0);
+            model.Requests.Should().ContainSingle();
+            broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
+            broker.Disposed.Should().BeTrue();
+            host.IsQuiescent.Should().BeTrue();
+            var exchange = f.CancelAudit.Events.Where(item => string.Equals(item.ActionId, "mcp.exchange", StringComparison.Ordinal)).ToArray();
+            exchange.Select(item => item.Outcome).Should().Equal(
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Succeeded,
+                Kora.Core.Auditing.SecurityAuditOutcome.Requested, Kora.Core.Auditing.SecurityAuditOutcome.Unknown);
+            exchange.GroupBy(item => item.CorrelationId).Should().HaveCount(3)
+                .And.OnlyContain(group => group.Count() == 2);
+            f.Messages.Should().NotContain(message => message.Contains("synthetic private", StringComparison.Ordinal));
+        }
+        finally
+        {
+            pending.TrySetException(new IOException("synthetic cleanup failure"));
+            try { await submission; }
+            finally { await host.WaitForQuiescenceAsync(CancellationToken.None); }
+        }
+    }
+
+    [Theory]
+    [InlineData("initialize")]
+    [InlineData("tools/list")]
+    public async Task Mcp_preparation_disconnect_retains_one_explicit_unknown_without_connecting_again(string method)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        var broker = new McpBroker(source.Account)
+        {
+            AfterExchange = observed =>
+            {
+                if (string.Equals(observed, method, StringComparison.Ordinal))
+                { throw new HttpRequestException("synthetic private preparation disconnect"); }
+            },
+        };
+        var approval = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approval, await source.Policy());
+        var receipt = await service.SubmitMcpAsync(new(f.Session, null), "Find the reviewed reference.",
+            source.ServerId, source.Account, approval.Present, McpSelect, static () => true, Token);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Unknown);
+        receipt.Message.Reason.Should().Be(ModelTurnReason.ProviderOutcome);
+        receipt.Message.AssistantResponse.Should().BeNull();
+        receipt.Task.IsTerminal.Should().BeTrue();
+        f.RetainCalls.Should().Be(1);
+        f.ExecutionCompletions.Should().Be(0);
+        broker.Methods.Should().Equal(string.Equals(method, "initialize", StringComparison.Ordinal)
+            ? ["initialize"] : ["initialize", "tools/list"]);
+        broker.Disposed.Should().BeTrue();
+        f.Messages.Should().NotContain(message => message.Contains("synthetic private", StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData("wrong-tool")]
     [InlineData("bad-arguments")]
     [InlineData("mixed-batch")]
@@ -247,7 +347,8 @@ public sealed partial class ModelTurnHostTests
     {
         var workspace = new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance);
         return new(f, f, workspace, f, host, f.Time, NullLogger<SessionConversationService>.Instance, host,
-            f.CancelAudit, approvals, mcpConfiguration: source.Configuration, mcpBroker: broker, mcpEffects: policy);
+            f.CancelAudit, approvals, mcpConfiguration: source.Configuration, mcpBroker: broker, mcpEffects: policy,
+            explicitTaskCoordinator: new(f));
     }
 
     private sealed class McpSource : IDisposable
@@ -329,20 +430,24 @@ public sealed partial class ModelTurnHostTests
         internal List<string> Methods { get; } = [];
         internal bool Connected { get; private set; }
         internal bool Disposed { get; private set; }
+        internal Action? AfterDispose { get; set; }
         public McpAccountReference Account => Fault is "account-swap"
             ? new(Guid.NewGuid(), new(1), Guid.NewGuid(), account.Destination) : account;
         public McpEndpoint Endpoint => Fault is "redirect" ? new(new("https://other.example.com/mcp")) : account.Destination;
         public IReadOnlyList<IPAddress> RemoteAddresses => Fault switch
         { "private-dns" => [IPAddress.Loopback], "unknown-dns" => [], _ => [IPAddress.Parse("8.8.8.8")] };
         public Task<IReadOnlyList<McpAccountChoice>> ReadAccountsAsync(CancellationToken token) =>
-            Task.FromResult<IReadOnlyList<McpAccountChoice>>(Fault is "denied-account" ? [] : [new(account, "Test delegated user")]);
+            Fault is "unavailable" ? throw new McpUnavailableException()
+                : Task.FromResult<IReadOnlyList<McpAccountChoice>>(Fault is "denied-account" ? [] : [new(account, "Test delegated user")]);
         public Task<IMcpConnection> ConnectAsync(McpAccountReference selected, CancellationToken token)
         {
             selected.Should().Be(account);
             Connected = true;
             return Task.FromResult<IMcpConnection>(this);
         }
-        public Task<bool> IsCurrentAsync(CancellationToken token) => Task.FromResult(Fault is not "expired-account");
+        public Task<bool> IsCurrentAsync(CancellationToken token) => Fault is "withdrawn-connection"
+            ? throw new OperationCanceledException("synthetic connection withdrawal")
+            : Task.FromResult(Fault is not "expired-account");
         public Task NotifyAsync(ImmutableArray<byte> notification, CancellationToken token)
         {
             Encoding.UTF8.GetString(notification.AsSpan()).Should().Contain("notifications/initialized");
@@ -375,7 +480,7 @@ public sealed partial class ModelTurnHostTests
             AfterExchange?.Invoke(method);
             return Task.FromResult(ImmutableArray.CreateRange(Encoding.UTF8.GetBytes(response)));
         }
-        public ValueTask DisposeAsync() { Disposed = true; return ValueTask.CompletedTask; }
+        public ValueTask DisposeAsync() { Disposed = true; AfterDispose?.Invoke(); return ValueTask.CompletedTask; }
     }
 
     private sealed class McpApprovals(Fixture f) : IHostInteractionStore
@@ -398,7 +503,11 @@ public sealed partial class ModelTurnHostTests
             Stages.Add(review.Stage);
             var previous = Snapshots.GetValueOrDefault(proposal.Request);
             Snapshots[proposal.Request] = new(f.Task!.Task, f.Session, new(true, true, false, true), proposal,
-                previous?.Questions ?? [], previous?.Grants ?? []);
+                previous?.Questions ?? [], previous?.Grants ?? [])
+            {
+                Permission = previous?.Permission,
+                Admissions = previous?.Admissions ?? [],
+            };
             var authorization = new HostAuthorizationService(this, f.Time);
             var initial = (await authorization.PresentMcpOnceAsync(proposal.Request, review, token)).Question!;
             var completed = Deny ? new(HostInteractionOutcome.Denied, "user-denied")
@@ -432,6 +541,13 @@ public sealed partial class ModelTurnHostTests
             Snapshots[request] = commit.Snapshot;
             if (Fault is "consume-grant" && commit.Decision.Outcome == HostInteractionOutcome.Consumed)
             { return ValueTask.FromResult(commit.Decision with { Grant = null }); }
+            if (Fault is "consume-admission" && commit.Decision.Admission is { Dispatched: false })
+            { return ValueTask.FromResult(commit.Decision with { Admission = null }); }
+            if (commit.Decision.Admission is { Dispatched: true })
+            {
+                if (Fault is "dispatch-denied") { return ValueTask.FromResult(commit.Decision with { Outcome = HostInteractionOutcome.Denied }); }
+                if (Fault is "dispatch-admission") { return ValueTask.FromResult(commit.Decision with { Admission = null }); }
+            }
             return ValueTask.FromResult(commit.Decision);
         }
 

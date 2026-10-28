@@ -26,6 +26,7 @@ internal sealed partial class CustomizationWindowController(
     private IReadOnlyList<CustomizationSource> sources = [];
     private readonly Dictionary<string, CustomizationSnapshot> bundled = new(StringComparer.Ordinal);
     private CustomizationSource? source;
+    private CustomizationSource? registeredOriginal;
     private CustomizationSnapshot? baseline;
     private List<CustomizationFile> draft = [];
     private string? selectedFile;
@@ -38,7 +39,7 @@ internal sealed partial class CustomizationWindowController(
     private Task active = Task.CompletedTask;
     private CustomizationCommand? pendingCommand;
     private CustomizationVoiceTarget? voiceTarget;
-    private (CustomizationVoiceTarget Target, string Text, Func<bool> Current)? voiceRequest;
+    private CustomizationVoiceRequest? voiceRequest;
     private bool voiceHandoff;
     internal CustomizationVoiceTarget? VoiceTarget => voiceTarget;
 
@@ -115,7 +116,8 @@ internal sealed partial class CustomizationWindowController(
         busy = true;
         var token = lifetime.Token;
         var call = main.CallPolicyRevision;
-        var originalInput = main.CaptureInstructionEditorEligibility();
+        Func<bool> originalInput = action is "Voice"
+            ? () => voiceRequest?.IsAdmitted == true : main.CaptureInstructionEditorEligibility();
         bool Current() => ReferenceEquals(window, opened) && Eligible() && originalInput() && main.CallPolicyRevision == call;
         try
         {
@@ -134,6 +136,9 @@ internal sealed partial class CustomizationWindowController(
                     if (await LeaveDraft(Current, token)) { await Create(opened.Scope, Current, token); }
                     break;
                 case "Create Kora copy": await Copy(Current, token); break;
+                case "Review original registration": await RegisterOriginal(Current, token); break;
+                case "Withdraw original registration": await WithdrawOriginal(Current, token); break;
+                case "Compare external": await CompareOriginal(Current, token); break;
                 case "Review and save": await Save(Current, token); break;
                 case "Reload":
                     if (source is not null && await LeaveDraft(Current, token)) { await Inspect(source, false, Current, token); }
@@ -142,7 +147,8 @@ internal sealed partial class CustomizationWindowController(
                     if (source is not null && await LeaveDraft(Current, token)) { await Inspect(source, true, Current, token); }
                     else if (opened.SelectedSource is { } recovery && await LeaveDraft(Current, token)) { await Inspect(recovery, true, Current, token); }
                     break;
-                case "Disable": case "Enable":
+                case "Disable":
+                case "Enable":
                     await ChangeUse(action is "Disable", Current, token); break;
                 case "Refine": await Refine(Current, token); break;
                 case "Add file": case "Rename file": case "Remove file": EditComponent(action); break;
@@ -195,11 +201,11 @@ internal sealed partial class CustomizationWindowController(
             + "\n" + source.Location + "\nActivate voice to request a proposal; this never saves or enables it.";
     }
 
-    internal async Task RouteVoice(CustomizationVoiceTarget target, string text, Func<bool> current)
+    internal async Task RouteVoice(CustomizationVoiceRequest request)
     {
-        if (busy || !ReferenceEquals(target, voiceTarget) || !target.IsCurrent || !current())
+        if (busy || !ReferenceEquals(request.Target, voiceTarget) || !request.IsCurrent)
         { main.ReportHostInteractionFailure("The original editor voice target is no longer current. No session received this input."); return; }
-        voiceRequest = (target, text, current);
+        voiceRequest = request;
         active = Run("Voice");
 #pragma warning disable VSTHRD003 // Join this controller's exact voice operation, including delayed inference release.
         await active;
@@ -208,8 +214,8 @@ internal sealed partial class CustomizationWindowController(
 
     private async Task VoiceCore(Func<bool> current, CancellationToken token)
     {
-        var request = voiceRequest!.Value;
-        bool Exact() => current() && request.Current() && request.Target.IsCurrent;
+        var request = voiceRequest!;
+        bool Exact() => current() && request.IsCurrent;
         RequireCurrent(Exact, token);
         if (source is null || source.IsReadOnly || baseline?.RecoveryDetails is not null)
         { throw new InvalidOperationException("Voice authoring needs an editable artifact without pending recovery. Built-ins require an explicitly chosen Kora copy."); }
@@ -226,23 +232,38 @@ internal sealed partial class CustomizationWindowController(
         RequireCurrent(Exact, token);
         if (intent is CustomizationVoiceIntent.Clarify)
         {
-            var choice = await window.Review("Choose voice target",
+            var originalSource = source;
+            var originalBaseline = baseline;
+            var revision = draftRevision;
+            bool QuestionCurrent() => current() && request.IsAdmitted && ReferenceEquals(source, originalSource)
+                && ReferenceEquals(baseline, originalBaseline) && draftRevision == revision;
+            await using var question = main.CreateCustomizationClarification(request, QuestionCurrent, logger, token);
+            CustomizationVoiceChoice choice;
+            try
+            {
+                choice = await window.ReviewClarification(
                 "Did you mean this artifact?\n" + source.Kind + " / " + source.Scope + " / " + source.Name
                 + "\n" + source.Location
                 + "\n\nREQUEST\n" + request.Text
                 + "\n\nChoose only an artifact refinement or discussion. Nothing has been sent to another session."
                 + "\nFor another artifact, a session, a New request, literal dictation or mixed destinations, cancel and explicitly address the intended target.",
-                token, "Refine this artifact", "Discuss this artifact", "Cancel");
+                question, token);
+            }
+            finally { main.ReleaseCustomizationClarification(question); }
+            if (choice is CustomizationVoiceChoice.Cancel)
+            { if (window is { } presented) { presented.Status.Text = question.Status; } return; }
             RequireCurrent(Exact, token);
-            if (choice is "Cancel") { return; }
-            intent = choice is "Discuss this artifact" ? CustomizationVoiceIntent.Discuss : CustomizationVoiceIntent.Edit;
+            await management.RequireUnchangedSource(originalSource, originalBaseline, Exact, token);
+            RequireCurrent(Exact, token);
+            intent = choice is CustomizationVoiceChoice.Discuss ? CustomizationVoiceIntent.Discuss : CustomizationVoiceIntent.Edit;
         }
         voiceHandoff = true;
         try { window.Request.Text = request.Text; }
         finally { voiceHandoff = false; }
         RequireCurrent(Exact, token);
         await Refine(Exact, token, new(request.Target.Context.Component,
-            intent is CustomizationVoiceIntent.Discuss ? CustomizationAuthoringMode.Discuss : CustomizationAuthoringMode.Edit));
+            intent is CustomizationVoiceIntent.Discuss ? CustomizationAuthoringMode.Discuss : CustomizationAuthoringMode.Edit),
+            revalidateSource: true);
     }
 
     private async Task Refresh(Func<bool> current, CancellationToken token)
@@ -269,6 +290,11 @@ internal sealed partial class CustomizationWindowController(
         source = selected;
         baseline = null; draft = []; selectedFile = null;
         ShowDraft();
+        if (IsInstructionOriginal(selected) && !management.IsInstructionRegistered(selected))
+        {
+            window!.Status.Text = "Review original registration to disclose this exact file's bounded reading and supported native v1 editing scope. No original content has been read. Existing read-only registration is not edit consent; the separate owned instruction editor also offers Create Kora copy from profile.";
+            return;
+        }
         var snapshot = selected.Scope == CustomizationScope.BuiltIn ? bundled[selected.Id]
             : await management.Read(selected, recovery, current, token);
         RequireCurrent(current, token);
@@ -311,7 +337,8 @@ internal sealed partial class CustomizationWindowController(
             changingBuffer = true;
             window.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
             window.FileName.Text = selectedFile;
-            window.SetSource(source, baseline?.RecoveryDetails is not null);
+            window.SetSource(source, baseline?.RecoveryDetails is not null,
+                source is not null && management.IsInstructionRegistered(source));
         }
         catch (InvalidDataException exception)
         {
@@ -333,7 +360,8 @@ internal sealed partial class CustomizationWindowController(
                 ? selectedFile : source?.PrimaryFile;
             selectedFile = opened.Files.SelectedItem as string;
             opened.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
-            opened.SetSource(source, baseline?.RecoveryDetails is not null);
+            opened.SetSource(source, baseline?.RecoveryDetails is not null,
+                source is not null && management.IsInstructionRegistered(source));
             opened.FileName.Text = selectedFile;
             var artifact = source is null ? null : management.ObservedArtifact(source);
             opened.Details.Text = source is null ? "Select an artifact"
@@ -343,6 +371,10 @@ internal sealed partial class CustomizationWindowController(
                     + (artifact?.IsUseEnabled == true ? "Available through its existing admitted runtime route."
                         : "Use may still require source registration, revision review, compatibility, authentication or a qualified runtime.")
                     + (baseline?.RecoveryDetails is not null ? "\nRecovery required. Review and save resumes only the exact staged proposal." : string.Empty);
+            if (IsInstructionOriginal(source))
+            {
+                opened.Details.Text += "\nSHARED ORIGINAL: other applications and external sync use this file. Registration lasts only for this window; each write still requires separate exact-change native confirmation. Create Kora copy is the independent alternative.";
+            }
         }
         finally { changingBuffer = false; }
     }
@@ -391,6 +423,16 @@ internal sealed partial class CustomizationWindowController(
         var result = new StringBuilder("Destination: " + source!.Scope + " | " + source.Location
             + "\nSaving leaves this artifact disabled in Kora and grants no execution or connection authority.\n"
             + "Multi-file updates are recoverable, not atomic; other applications may observe intermediate files.\n\n");
+        if (IsInstructionOriginal(source))
+        {
+            result.Clear();
+            result.AppendLine("SHARED PERSONAL INSTRUCTION ORIGINAL\n" + source.Location
+                + "\nThis changes the exact original used by other applications and external sync, not a Kora copy."
+                + "\nComplete strict UTF-8 native v1 source is atomically replaced with its BOM, exact proposed newlines/metadata, owner/group/DACL and ordinary file attributes."
+                + "\nThe host compares the complete current identity and bytes immediately before replacement."
+                + "\nThis is optimistic conflict detection, not content compare-and-swap; a final same-name external edit can race replacement."
+                + "\nChanged bytes remain disabled in Kora and require a separate current-content use review. No grants or model authority are inherited.\n");
+        }
         if (baseline?.RecoveryDetails is { } recovery) { result.AppendLine(recovery); }
         foreach (var name in draft.Select(file => file.Name).Union(baseline?.Files.Select(file => file.Name) ?? [], StringComparer.Ordinal).Order(StringComparer.Ordinal))
         {
@@ -398,8 +440,8 @@ internal sealed partial class CustomizationWindowController(
             var after = draft.SingleOrDefault(file => string.Equals(file.Name, name, StringComparison.Ordinal));
             result.AppendLine("===== " + name + (before is null ? " [Added]" : after is null ? " [Removed]"
                 : string.Equals(before.Digest, after.Digest, StringComparison.Ordinal) ? " [Unchanged]" : " [Modified]") + " =====");
-            if (before is not null) { result.AppendLine("ORIGINAL\n" + before.Text); }
-            if (after is not null) { result.AppendLine("PROPOSED\n" + after.Text); }
+            if (before is not null) { result.AppendLine("ORIGINAL [UTF-8 BOM: " + before.HasBom + "; bytes: " + before.CopyBytes().Length + "]\n" + before.Text); }
+            if (after is not null) { result.AppendLine("PROPOSED [UTF-8 BOM: " + after.HasBom + "; bytes: " + after.CopyBytes().Length + "]\n" + after.Text); }
         }
         return result.ToString();
     }
@@ -437,7 +479,8 @@ internal sealed partial class CustomizationWindowController(
         { ShowDraft(); RenderSources(); }
     }
 
-    private async Task Refine(Func<bool> current, CancellationToken token, CustomizationAuthoringContext? context = null)
+    private async Task Refine(Func<bool> current, CancellationToken token, CustomizationAuthoringContext? context = null,
+        bool revalidateSource = false)
     {
         if (source is null || source.IsReadOnly || baseline?.RecoveryDetails is not null)
         { throw new InvalidOperationException("Open an editable draft without pending recovery. Built-ins require a Kora copy."); }
@@ -455,7 +498,9 @@ internal sealed partial class CustomizationWindowController(
             + "\n\nREQUEST\n" + request + "\n\n"
             + string.Join("\n\n", frozen.Select(file => "===== " + file.Name + " =====\n" + file.Text));
         if (await window.Review("Review model authoring disclosure", disclosure, token, "Send for local authoring", "Cancel") is not "Send for local authoring" || !Exact()) { return; }
+        if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
         var result = await authoring.Refine(source, frozen, context, request, Exact, token);
+        if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
         if (!Exact()) { throw new InvalidOperationException("The draft changed during generation. Late output was not applied."); }
         if (context.Mode is CustomizationAuthoringMode.Discuss && (result.Files.Count != frozen.Length || result.Files.Any(file =>
             !frozen.Any(original => string.Equals(original.Name, file.Name, StringComparison.Ordinal)
@@ -466,7 +511,11 @@ internal sealed partial class CustomizationWindowController(
         var proposal = result.Explanation + "\n\n" + ReviewText();
         draft = previous;
         if (await window.Review("Review proposed draft", proposal, token, "Use proposed draft", "Cancel") is "Use proposed draft" && Exact())
-        { draft = result.Files.ToList(); draftRevision++; ShowDraft(); window.Status.Text = "Proposal applied to the draft only. Review and save is still required."; }
+        {
+            if (revalidateSource) { await management.RequireUnchangedSource(source, baseline, Exact, token); }
+            RequireCurrent(Exact, token);
+            draft = result.Files.ToList(); draftRevision++; ShowDraft(); window.Status.Text = "Proposal applied to the draft only. Review and save is still required.";
+        }
     }
 
     private async Task Copy(Func<bool> current, CancellationToken token)
@@ -583,6 +632,8 @@ internal sealed partial class CustomizationWindowController(
     private void ClearWindow()
     {
         RetireVoiceTarget();
+        if (source is not null) { management.RetireInstructionRegistration(source); }
+        if (registeredOriginal is not null) { management.RetireInstructionRegistration(registeredOriginal); registeredOriginal = null; }
         var retired = lifetime; lifetime = null;
         var retiredWindow = window;
         window = null; source = null; baseline = null; draft = []; selectedFile = null; sources = []; bundled.Clear();

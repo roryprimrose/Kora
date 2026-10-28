@@ -41,8 +41,16 @@ through the existing LocalOnly, tools-none conversation route; the package
 cannot authorize itself. Complete source identity/byte revalidation and the
 32768-byte serialized input limit fail closed, without truncation or provider
 fallback. See [the complete user operation](../docs/owned-skill-authoring.md#review-and-invoke-one-saved-revision).
-This does not deliver generated authoring, general YAML, profile editing,
-tools, references, scripts, hooks or agent execution.
+The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) selects only the existing host WebPageGet binding, saves disabled and separately reviews/enables one exact owned source, Active target, original request/channel and explicit URL. It uses the same [reviewed tool consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) as shared one-tool use, with owned-store admission/freshness rather than shared-root consent.
+Neither version delivers generated authoring, general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+
+The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
+explicitly declares instruction-only inputs, reusing the owned prompt template
+parser/bounds and private controls, not Prompt artifact authority. Both direct
+and named owned-skill use review original source, exact bindings and single-pass
+expansion through the same canonical local workflow. Old v1/v2 guidance bytes
+remain literal; tool parameters and shared/agent guidance-reference policy are
+not extended.
 
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
@@ -93,8 +101,8 @@ Registered profile originals remain read-only in this increment. The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
-Conversational refinement, dictation, profile forks, rename/restore and broader
-applicability are not delivered. The same native editor also supports immediate
+Bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) uses this editor's unchanged critique, local-only tool-free proposal, complete comparison and separately confirmed normal Save/readback; changed saved revisions remain disabled ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.

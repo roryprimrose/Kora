@@ -25,6 +25,8 @@ public sealed partial class MainViewModel
     {
         Volatile.Write(ref manualCallNativeAvailable, available ? 1 : 0);
         Interlocked.Increment(ref manualCallNativeRevision);
+        OnPropertyChanged(nameof(CanEnableCommunicationActivity));
+        OnPropertyChanged(nameof(CanChangeCommunicationActivity));
     }
 
     private sealed record ManualCallInput(RequestOrigin Origin, long Revision, Func<bool> Eligible, Func<bool> RetiredEligible)
@@ -36,6 +38,8 @@ public sealed partial class MainViewModel
         internal long InputRevision { get; init; }
         internal AttachmentCataloguePreparationCommand? CataloguePreparation { get; init; }
         internal Func<bool> CatalogueEligible { get; init; } = static () => true;
+        internal Kora.Application.Presentation.ModelActionReviewTarget? ModelActionReview { get; init; }
+        internal Func<bool> NamedSkillChoiceEligible { get; init; } = static () => false;
     }
 
     public string ManualCallConfigurationStatus => manualCallControl is null
@@ -69,6 +73,8 @@ public sealed partial class MainViewModel
             AssistantNameRevision = assistantNameConfiguration.Get().Revision,
             OwnershipBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
             InputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision),
+            ModelActionReview = pendingModelActionReview,
+            NamedSkillChoiceEligible = namedSkillChoiceCapture?.Invoke() ?? (static () => false),
         };
     }
 
@@ -78,19 +84,26 @@ public sealed partial class MainViewModel
     public bool IsProtectedCall => communicationPolicy.Current.IsProtected;
     public bool AreReusableGrantsIgnored => !communicationPolicy.Current.Authorization(true, true).AllowsReusableGrants;
     public CallPolicyObservation CallObservation => communicationPolicy.Current;
+    public Kora.Core.Authorization.IHostAuthorizationPolicyGate AuthorizationPolicyGate => communicationPolicy;
     public bool CanEnableCallVisualProtection => !ShowVisualTextDuringCalls;
     public bool CanDisableCallVoiceActivation => AllowVoiceActivationDuringCalls;
     public string CallManualStatus => IsManualCallActive
         ? "Manual call mode is on until you turn it off or restart Kora. Automatic detection is unchanged."
         : "Manual call mode is off. It resets when Kora restarts.";
     public string CallProtectionLimitations =>
-        "Automatic call detection is not available in this version. Your saved response and listening choices are kept. "
-        + "Previous approvals cannot be reused during protected calls. Call protections cannot be relaxed temporarily.";
+        (communicationActivity is { IsQualified: true }
+            ? "Optional Windows communications audio supplies supporting observations only, not actual-call identification. "
+            : "Automatic call detection is not available in this version. Your saved response and listening choices are kept. ")
+        + "Exact grants and the originating session action level remain unchanged during calls. "
+        + "Spoken approvals are disabled by default; independent authentication and privacy still apply.";
 
     public void BindCallOwnershipGate(Func<bool> gate, Func<long>? revision = null)
     {
         RetireCurrentResponseSpeech();
         callOwnershipEligible = gate;
+        communicationActivity?.BindHost(() => !disposed && callOwnershipEligible()
+            && privacyObservation.Current.SessionState == Kora.Core.Platform.WindowsSessionState.Unlocked,
+            () => (revision?.Invoke() ?? 0, privacyObservation.Current.TopologyRevision));
         settingsOwnershipRevision = revision ?? (static () => 0);
         Interlocked.Increment(ref settingsOwnershipBindingRevision);
         UpdateSpeechPreparation();
@@ -340,7 +353,7 @@ public sealed partial class MainViewModel
         || InCallFeedbackRules.Resolve(Kora.Core.Voice.ResponseOutputMode.Hybrid,
             DesiredInCallFeedback, observation.EffectiveState) == Kora.Core.Voice.ResponseOutputMode.VisualOnly;
 
-    private async Task SetCallSettingsAsync(CallAwareSettings settings)
+    private async Task SetCallSettingsAsync(CallAwareSettings settings, bool spokenApprovalDowngradeConfirmed = false)
     {
         var origin = OriginalOrigin();
         var revision = CallPolicyRevision;
@@ -356,7 +369,7 @@ public sealed partial class MainViewModel
                 {
                     callAwarePreferences.Save(value);
                     return true;
-                }));
+                }, spokenApprovalDowngradeConfirmed));
             await CompleteAuditAsync(audit, outcome is CallMutationOutcome.Applied or CallMutationOutcome.Unchanged
                 ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Denied, outcome.ToString().ToLowerInvariant());
         }
@@ -379,12 +392,12 @@ public sealed partial class MainViewModel
     private bool CanReuseLegacyModelGrant(BuiltInAction action) =>
         !auditEvidenceUnavailable && Volatile.Read(ref pendingAuditWrites) == 0
         && !modelPreferenceWriteActive && !modelPreferencesUnavailable
-        && IsCallMutationHostEligible && communicationPolicy.Current.Authorization(true, true).AllowsReusableGrants
+        && IsCallMutationHostEligible
         && (sessionAllowedModelActions.Contains(action) || alwaysAllowedModelActions.Contains(action));
 
     private bool IsModelCallDispatchEligible(SecurityAuditInitiator initiator, long? observedCallRevision) =>
         initiator != SecurityAuditInitiator.ModelSuggestion
-        || !auditEvidenceUnavailable && Volatile.Read(ref pendingAuditWrites) == 0
+        || Volatile.Read(ref pendingAuditWrites) == 0
             && !modelPreferenceWriteActive && !modelPreferencesUnavailable && IsCallMutationHostEligible
-            && observedCallRevision is { } revision && revision == CallPolicyRevision;
+            && observedCallRevision is not null;
 }

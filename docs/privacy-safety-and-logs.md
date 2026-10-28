@@ -96,14 +96,44 @@ admitted actual playback can create them.
 Logical disposition redacts history source/content in the same transaction that
 removes addressed live authority rows; it retains immutable citation metadata
 and the non-reusable tombstone. Exact known Removed IDs can read redacted
-citations only. SQLite free pages/journals, inert migration copies and exports/
+citations only. Confirmed exact-session deletion removes addressed name,
+question/draft/answer, observation, history and session-owned reviewed-memory
+content from owned SQLite cells/free pages and verifies the committed rollback
+journal is empty before reporting completion. This also applies to memory-only
+or name-only sessions with no attachment, provider override, conversation
+message or saved conversation draft. Unknown managed copies hold deletion.
+If cleanup, durable flush or readback fails after the logical commit, removal
+is explicitly unconfirmed: inspect durable authority and storage recovery;
+do not infer rollback or retry automatically.
+Independent device-profile memories, Perpetual grants and content-minimising
+task/audit provenance remain retained under their separate policies.
+Other databases and their journals/free pages, inert migration copies and exports/
 provider copies are not erased. No new history retention timer, automatic purge,
-backup deletion or forensic-erasure claim is added. Full composer/search/model
+general backup deletion or forensic-erasure claim is added. Full composer/search/model
 history reasoning, Ask Evidence and broad export remain unavailable; the
 separate fixed local-version queue/native work surface is not a general
 effect/provider scheduler.
 
 ## Committed authority audit inspection
+
+In **Evidence (read-only)**, select a typed audit record and choose **Read
+request outcomes** to read that exact original host request and audit
+correlation. The fresh read stays in its source and original session, without
+the search filters; **Next page** continues the bounded snapshot. The summary
+separates committed interaction audit from diagnostic audit copies and shows
+recorded outcomes. Requested-only means pending **or** missing terminal
+evidence, not success or proof that work is still running. Select an event to
+read its exact outcome/reason and retention state. Missing or unavailable
+evidence is not replaced with another request.
+
+**Inspect related diagnostics** separately reads the selected activity in the
+original session. Select its span, then **Open selected segment** to follow a
+recorded parent or explicit causal link. Missing/foreign segments stay
+unavailable; expired-but-present evidence is labelled. Diagnostic correlation
+never becomes audit, approval or execution authority. Legacy uncorrelated
+diagnostics cannot select a host request. Privacy closure and filter changes
+retire these views. No retry, execution, grant renewal, copy/export or retention
+change occurs.
 
 Native Evidence's optional inclusive **Retained due UTC from / until** filters
 match only admitted retained `EvidenceRecord.DueUtc`, independently of existing

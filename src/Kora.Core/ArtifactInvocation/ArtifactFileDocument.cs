@@ -10,21 +10,32 @@ public sealed partial class ArtifactFileDocument
     private readonly byte[] bytes;
 
     private ArtifactFileDocument(byte[] bytes, string text, bool bom,
-        Dictionary<string, string> metadata, ArtifactDefinition definition)
+        Dictionary<string, string> metadata, ArtifactDefinition definition, int bodyOffset)
     {
         this.bytes = bytes;
         Text = text;
         HasBom = bom;
         Metadata = new ReadOnlyDictionary<string, string>(metadata);
         Definition = definition;
+        Body = text[bodyOffset..];
     }
 
     public string Text { get; }
+    public string Body { get; }
     public bool HasBom { get; }
     public int ByteCount => bytes.Length;
     public IReadOnlyDictionary<string, string> Metadata { get; }
     public ArtifactDefinition Definition { get; }
     public byte[] CopyBytes() => bytes.ToArray();
+
+    public ArtifactFileDocument WithInstructionBody(string body)
+    {
+        RequireEditableInstruction();
+        if (Definition.Kind != ArtifactKind.Instruction)
+        { throw new InvalidDataException("Body-only refinement supports owned instructions only."); }
+        return Parse(Encode(Text[..(Text.Length - Body.Length)] + body, HasBom),
+            Definition.Kind, Definition.Source, Definition.OwnedInstructionName!);
+    }
 
     public static ArtifactFileDocument PrepareOwnedSave(ArtifactKind kind, string name,
         OwnedInstructionSnapshot? original, string draft)
@@ -163,7 +174,7 @@ public sealed partial class ArtifactFileDocument
                 RequiresInstructionReview = kind is ArtifactKind.Instruction or ArtifactKind.Prompt && metadata.ContainsKey("kora-format"),
                 PromptTemplate = nativeParameters ? OwnedPromptTemplate.Parse(content) : null,
             };
-            var document = new ArtifactFileDocument(original.ToArray(), text, bom, metadata, definition);
+            var document = new ArtifactFileDocument(original.ToArray(), text, bom, metadata, definition, bodyOffset);
             if (nativeParameters)
             {
                 document.RequireEditableInstruction();

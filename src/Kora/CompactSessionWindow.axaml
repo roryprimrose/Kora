@@ -1,6 +1,7 @@
 <Window x:Class="Kora.CompactSessionWindow"
     xmlns="https://github.com/avaloniaui"
     xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora"
     xmlns:controls="using:Kora.Controls"
     Title="Kora - selected session conversation" Icon="/Assets/Kora.ico"
     Width="620" Height="740" MinWidth="420" MinHeight="420"
@@ -23,6 +24,7 @@
       <controls:NamedTextBlock x:Name="ComposerTargetLabel" Text="{Binding ComposerTarget}" TextWrapping="Wrap"
           AutomationProperties.Name="Conversation name and exact session identity for this message" />
       <TextBlock Text="{Binding SelectedSessionRecord.Authority.IsActive, TargetNullValue='No selected target', StringFormat='Observed Active lifecycle: {0}'}" />
+      <local:SessionRequestReviewPanel x:Name="OriginalRequestReview" />
       <controls:NamedTextBlock Text="{Binding WorkStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Observed exact selected-session work source and time; not inferred execution or current success" />
       <TextBlock Text="No target? Open Sessions and explicitly select one. Opening never selects, loads bodies, resumes work or grants permission. Questions, approvals and voice stay in their existing windows." TextWrapping="Wrap" />
@@ -77,6 +79,7 @@
           AutomationProperties.Name="Shared exact-session memory draft, not question input or approval" />
       <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
           AutomationProperties.Name="Current editable shared conversation draft size and shape" />
+      <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
       <CheckBox x:Name="WrapDraftText" Content="Wrap draft text" IsEnabled="{Binding CanCompose}"
           AutomationProperties.Name="Wrap draft text"
           ToolTip.Tip="Visual rows only, not logical lines or tokens. Exact draft text is unchanged. Uncheck to scroll long lines horizontally; this view and source only, until closed." />
@@ -88,6 +91,9 @@
         <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
           IsEnabled="{Binding CanSubmitConversationWithClarification}"
           AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
+        <Button x:Name="SubmitReadOnlyWithClarification" Content="Ask locally with observations and one choice"
+          IsEnabled="{Binding CanSubmitConversationWithClarification}"
+          AutomationProperties.HelpText="Uses only six read-only observation tools and at most one bounded choice. A reply is not approval or permission. Unqualified local providers remain unavailable." />
         <Button x:Name="SubmitWebPage" Content="Retrieve and summarize one page locally"
           IsEnabled="{Binding CanSubmitConversation}"
           AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />
@@ -98,25 +104,23 @@
       </WrapPanel>
       <controls:NamedTextBlock Text="{Binding RunningConversationStatus}" TextWrapping="Wrap"
         AutomationProperties.Name="Exact running conversation task and cancellation state" />
+      <local:PendingConversationPanel />
+      <Button x:Name="SubmitLocalAnswer" Content="Answer locally (no tools)" IsEnabled="{Binding CanSubmitConversation}" />
+      <StackPanel IsVisible="{Binding HasProvisionalAnswer}" Spacing="4">
+        <TextBlock Text="Provisional answer — not retained" TextWrapping="Wrap" />
+        <TextBlock Text="{Binding ProvisionalAnswer}" TextWrapping="Wrap"
+            AutomationProperties.Name="Unstable provisional local answer; not spoken automatically" />
+      </StackPanel>
       <controls:NamedTextBlock Text="{Binding ConversationStatus}" TextWrapping="Wrap"
           AutomationProperties.Name="Actual shared conversation submission, unavailable or legacy recovery outcome" />
-      <TextBlock Text="{Binding AppearanceSuggestionDescription}" TextWrapping="Wrap"
-          AutomationProperties.Name="Exact current and proposed shared appearance; review is not approval" />
+      <local:ModelMemoryProposalPanel />
+      <local:AssistantReplyPanel />
+      <TextBlock Text="{Binding RegisteredSettingsDescription}" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding RegisteredSettingSuggestionDescription}" TextWrapping="Wrap"
+          AutomationProperties.Name="Exact current and proposed registered setting values, provenance, shared scope, timing and recovery; review is not approval" />
       <WrapPanel>
-        <Button Name="ConfirmAppearanceSuggestion" Content="Confirm exact appearance change" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-        <Button Name="CancelAppearanceSuggestion" Content="Cancel appearance review" IsEnabled="{Binding CanConfirmAppearanceSuggestion}" />
-      </WrapPanel>
-      <TextBlock Text="{Binding PlaybackVolumeSuggestionDescription}" TextWrapping="Wrap"
-          AutomationProperties.Name="Current desired and effective Kora-only volume, saved or default provenance, proposed percent, shared device-local scope and zero-synthesis implications" />
-      <WrapPanel>
-        <Button Name="ConfirmPlaybackVolumeSuggestion" Content="Confirm exact Kora volume change" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-        <Button Name="CancelPlaybackVolumeSuggestion" Content="Cancel Kora volume review" IsEnabled="{Binding CanConfirmPlaybackVolumeSuggestion}" />
-      </WrapPanel>
-      <TextBlock Text="{Binding SpeechSummarySuggestionDescription}" TextWrapping="Wrap"
-          AutomationProperties.Name="Complete current and proposed shared device-local speech limits and next ordinary speech timing" />
-      <WrapPanel>
-        <Button Name="ConfirmSpeechSummarySuggestion" Content="Confirm exact speech limit change" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
-        <Button Name="CancelSpeechSummarySuggestion" Content="Cancel speech limit review" IsEnabled="{Binding CanConfirmSpeechSummarySuggestion}" />
+        <Button Name="ConfirmRegisteredSettingSuggestion" Content="Confirm exact setting change" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
+        <Button Name="CancelRegisteredSettingSuggestion" Content="Cancel setting review" IsEnabled="{Binding CanConfirmRegisteredSettingSuggestion}" />
       </WrapPanel>
       <Button x:Name="CloseView" Content="_Close compact view (work unchanged)" HorizontalAlignment="Right" />
     </StackPanel>

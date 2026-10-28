@@ -87,6 +87,44 @@ Select Hidden to inspect the intended runtime default: no visible idle object.
 
 ## State language
 
+### Exact pending model-action attention
+
+An already-admitted model-action proposal keeps presence in warm-amber Waiting
+until the authoritative proposal is confirmed, rejected or retired. Attention
+contains no proposal text or technical identifiers. It is not a second review
+registry, a grant, or evidence that the action has completed.
+
+Ctrl + right-click on interactive presence opens that exact captured proposal;
+Ctrl + left-drag remains reposition-only. The keyboard-accessible native tray
+command **Review pending action**, or already-activated
+**"Kora, review pending action"** (using the configured assistant name), opens the
+same original review. No new listening or capture path is enabled. Passive
+attention never activates a window.
+
+Opening another named conversation remains unavailable while this approval owns
+input; refusal leaves the exact original review and its separate decision intact.
+
+Opening uses the existing response surface's original action description and
+separate Once / This session / Always / Reject controls, with existing artifact
+single-use and call-channel restrictions. It never approves or executes.
+Affirmative controls require a fresh gesture after their initial 500-ms
+presentation guard; focus goes to the composer, not approval.
+
+The volatile host-owned target binds the original host request/session, review
+epoch, audit, host ownership generation/binding/revision and privacy topology.
+Selection and voice-capture generation are not review targets. Voice callbacks
+retain their existing activation/generation fences. The original confirmation
+path still owns its input-preparation and grant-revision checks across awaits;
+a separate confirmation gesture does not create a newer review target.
+Named-skill choice captures remain independent: they cannot open, replace or
+approve a pending action, and review activation cannot authorize a skill choice.
+Replacement, withdrawal, privacy/ownership loss, changed artifact, disposal or
+late callbacks fail closed without following a newer review or changing another
+session. Closing/hiding presentation is not action completion; only the original
+owner's retirement clears attention. Targets are not saved, replayable or
+model-supplied. Deterministic native tests are implementation evidence, not
+physical keyboard, screen-reader, provider or installed qualification.
+
 | State | Colour family | Motion | Persistence |
 |---|---|---|---|
 | Idle / Wake Listening | None on presence surface | None | Presence hidden; wake-listening status remains visible in tray/status UI |
@@ -379,7 +417,17 @@ explicit ([events](../src/Kora.Application/Visuals/PresenceRenderWorker.Logging.
 Speech visualization samples the existing host-owned playback frame while speech is active. Neither the presenter nor its worker owns microphone capture, synthesis, audio output, caption text or task state. Host privacy/visibility remains the admission boundary. Particle density, dot size, footprint, speed, theme, state transitions, visibility fades and speech-scale settings remain live inputs
 ([integration](../src/Kora/MainWindow.NativePresence.cs)).
 
-Both presenters consume the Windows animation preference read during initialization and each show request. As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
+Both presenters consume a typed Windows animation preference. The presence owner
+subscribes before its first read and follows live preference notifications on the
+UI thread, including while already visible. Privacy withdrawal and retirement
+unsubscribe; restoration takes a fresh read and ignores callbacks from the old
+subscription or queued generation. Read or notification-subscription failure
+hides the presence and reports Settings/restart recovery, never assumes motion
+is enabled. This does not change saved theme/renderer choices or add a new
+reduced-motion setting. Windows high-contrast versus explicit theme/renderer
+precedence remains outside this implementation.
+
+As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
 ([inputs](../src/Kora.Application/Visuals/PresenceRenderInputs.cs)).
 
 The native path preserves #250's eligibility, seeded-prefix selection, motion rates and bounded elapsed-time integration. Static and fully faded frames stop recurring drawing; all nonzero particle motion uses 33 ms even at low configured speed. The 198-ms value remains an elapsed-integration bound and native static backoff, not a moving-particle frame interval. A host-owned 16-ms sampler observes authoritative playback during speech work even before audio starts; it does not drive particle calculations or

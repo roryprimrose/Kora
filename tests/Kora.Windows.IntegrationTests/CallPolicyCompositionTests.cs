@@ -15,18 +15,25 @@ public sealed class CallPolicyCompositionTests
     [Theory]
     [InlineData("session")]
     [InlineData("perpetual")]
-    public async Task Real_durable_reuse_respects_manual_layer_without_revoking_or_consuming(string scope)
+    public async Task Real_durable_reuse_remains_applicable_during_manual_calls_without_broadening_or_replaying(string scope)
     {
         using var f = new InteractionStorageFixture();
         using var policy = new CallCommunicationPolicy(new UnavailableCallStateService());
         await f.InitializeAsync();
+        f.Store.BindAuthorizationPolicyGate(policy);
         var grant = await f.GrantAsync(scope);
         policy.SetManual(true, RequestOrigin.LocalUi, policy.Current.Revision, static () => true);
         f.Policy = policy.Current.Authorization(true, true);
         await f.PublishAsync();
-        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token)))
-            .Outcome.Should().Be(HostInteractionOutcome.Denied);
-        (await f.Store.ReadGrantsAsync(f.Token)).Single().Should().Be(grant);
+        var first = await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token));
+        first.Outcome.Should().Be(HostInteractionOutcome.Consumed);
+        var used = first.Grant!;
+        used.Id.Should().Be(grant.Id);
+        used.Scope.Should().Be(grant.Scope);
+        used.Status.Should().Be(OperationGrantStatus.Active);
+        used.UseCount.Should().Be(1);
+        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, used.Id, used.Revision, f.Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Conflict);
         var callRequest = f.Request;
         f.Request = InteractionStorageFixture.NewRequest(callRequest.SessionId);
         await f.AdmitAsync(newSession: false);
@@ -37,11 +44,16 @@ public sealed class CallPolicyCompositionTests
         f.Policy = policy.Current.Authorization(true, true);
         await f.PublishAsync();
         policy.Current.AutomaticState.Should().Be(CallState.Unavailable);
-        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, grant.Id, grant.Revision, f.Token)))
+        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, once.Id, new(2), f.Token)))
+            .Outcome.Should().Be(HostInteractionOutcome.Conflict);
+        f.Request = InteractionStorageFixture.NewRequest(callRequest.SessionId);
+        await f.AdmitAsync(newSession: false);
+        (await f.RunAsync(() => f.Authorization.ConsumeAsync(f.Request, used.Id, used.Revision, f.Token)))
             .Outcome.Should().Be(HostInteractionOutcome.Consumed);
         var persisted = (await f.Store.ReadGrantsAsync(f.Token)).Single(g => g.Id == grant.Id);
         persisted.Status.Should().Be(OperationGrantStatus.Active);
-        persisted.UseCount.Should().Be(1);
+        persisted.UseCount.Should().Be(2);
+        (await f.Store.ReadGrantsAsync(f.Token)).Should().HaveCount(2);
     }
 
     [Fact]
@@ -107,14 +119,16 @@ public sealed class CallPolicyCompositionTests
         var document = XDocument.Load(Path.Combine(root!.FullName, "src", "Kora", "SettingsWindow.axaml"));
         var tab = document.Descendants().Single(e => string.Equals(e.Name.LocalName, "TabItem", StringComparison.Ordinal)
             && string.Equals(e.Attribute("Header")?.Value, "Calls", StringComparison.Ordinal));
-        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand" })
+        foreach (var command in new[] { "EnableManualCallCommand", "ClearManualCallCommand", "ResetManualCallCommand", "GetManualCallStatusCommand",
+            "InspectCommunicationActivityCommand", "EnableCommunicationActivityCommand", "DisableCommunicationActivityCommand" })
         {
             var button = tab.Descendants().Single(e => string.Equals(e.Attribute("Command")?.Value,
                 "{Binding " + command + "}", StringComparison.Ordinal));
             button.Attribute("AutomationProperties.Name")!.Value.Should().NotBeNullOrWhiteSpace();
             button.Attribute("TabIndex").Should().NotBeNull();
         }
-        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "ManualCallConfigurationStatus", "CallProtectionLimitations" })
+        foreach (var status in new[] { "CallStateStatus", "CallManualStatus", "ManualCallConfigurationStatus", "CallProtectionLimitations",
+            "CommunicationActivityStatus" })
         {
             tab.Descendants().Should().Contain(e => e.Attribute("Text") != null && e.Attribute("Text")!.Value == "{Binding " + status + "}");
         }

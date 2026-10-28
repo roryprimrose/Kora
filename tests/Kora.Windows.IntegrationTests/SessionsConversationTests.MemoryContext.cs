@@ -88,11 +88,15 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData("disable")]
-    [InlineData("forget")]
-    [InlineData("cancel")]
-    [InlineData("close")]
-    public async Task NativeMemoryContextRevocationSuppressesNonCooperativeLateAnswerThroughCanonicalLifecycle(string revoke)
+    [InlineData("disable", false)]
+    [InlineData("forget", false)]
+    [InlineData("cancel", false)]
+    [InlineData("close", false)]
+    [InlineData("disable", true)]
+    [InlineData("forget", true)]
+    [InlineData("cancel", true)]
+    [InlineData("close", true)]
+    public async Task NativeMemoryContextRevocationSuppressesNonCooperativeLateAnswerThroughCanonicalLifecycle(string revoke, bool deviceProfile)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -107,7 +111,7 @@ public sealed partial class SessionsConversationTests
             window.Show();
             try
             {
-                await PrepareMemoryContext(model);
+                await PrepareMemoryContext(model, deviceProfile);
                 var source = model.MemoryRecords.Single();
                 model.SelectMemoryContext([source]);
                 model.MemoryContextRequest = "Answer this reviewed fact.";
@@ -121,10 +125,19 @@ public sealed partial class SessionsConversationTests
                 running!.Phase.Should().Be(ConversationExecutionPhase.Running);
                 if (revoke is "disable" or "forget")
                 {
-                    await composition.Memories.ExecuteAsync(new(revoke is "disable"
+                    var command = new Kora.Core.Commands.MemoryCommand(revoke is "disable"
                         ? Kora.Core.Commands.MemoryCommandOperation.Disable : Kora.Core.Commands.MemoryCommandOperation.Forget,
-                        target.Authority.SessionId.Value, source.Id, source.Revision),
-                        RequestOrigin.LocalUi, static () => true, f.Token);
+                        target.Authority.SessionId.Value, source.Id, source.Revision);
+                    if (deviceProfile)
+                    {
+                        await composition.Memories.ExecuteDeviceProfileAsync(command,
+                            RequestOrigin.LocalUi, static () => true, f.Token);
+                    }
+                    else
+                    {
+                        await composition.Memories.ExecuteAsync(command,
+                            RequestOrigin.LocalUi, static () => true, f.Token);
+                    }
                 }
                 else if (revoke is "cancel") { model.CancelMemoryContext(); }
                 else { window.ClosePrivate(); }
@@ -242,10 +255,11 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private static async Task PrepareMemoryContext(SessionsViewModel model)
+    private static async Task PrepareMemoryContext(SessionsViewModel model, bool deviceProfile = false)
     {
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
+        model.DeviceProfileMemory = deviceProfile;
         await model.ReadConversationAsync();
         model.MemoryClass = MemoryContentClass.Decision;
         model.MemoryDraft = "private reviewed session decision";
@@ -263,6 +277,7 @@ public sealed partial class SessionsConversationTests
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal Task<ModelProviderReply>? Pending { get; init; }
+        internal Func<Task<ModelProviderReply>>? Next { get; set; }
         internal TaskCompletionSource Entered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
 
         public async Task<ModelProviderReply> RunAsync(ModelTurnProvenance provenance, ProviderProfileTuple? profile,
@@ -272,6 +287,7 @@ public sealed partial class SessionsConversationTests
             Calls++;
             Wire = context.ToArray();
             Entered.TrySetResult();
+            if (Next is { } next) { return await next(); }
             return Pending is { } pending ? await pending
                 : new(ModelTurnOutcome.Succeeded, provenance.Selection, new("Answer from reviewed session fact.", null));
         }

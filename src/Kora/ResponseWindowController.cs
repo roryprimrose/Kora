@@ -50,6 +50,13 @@ public sealed class ResponseWindowController : IDisposable, ICurrentResponsePres
         viewModel.WindowActionRequested += OnWindowActionRequested;
         viewModel.CurrentResponseChanged += OnCurrentResponseChanged;
         viewModel.BindCurrentResponsePresentation(this);
+        viewModel.BindModelActionReviewPresentation(PresentModelActionReview);
+    }
+
+    private bool PresentModelActionReview(ModelActionReviewTarget target)
+    {
+        if (disposed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
+        return EnsureWindow().ShowModelActionReview(target);
     }
 
     public Func<bool> CaptureLifetime()

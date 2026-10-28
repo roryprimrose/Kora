@@ -79,6 +79,7 @@ public sealed partial class MainViewModel
     private void OnWindowsPrivacyChanged(object? sender, WindowsPrivacyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        communicationActivity?.Refresh();
         auditImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         diagnosticImpactPreview?.Retire("Private/lock/desktop revision changed; preview retired.");
         sessionRetentionPlanner?.Retire("Private/lock/desktop revision changed; preview retired.");
@@ -202,11 +203,10 @@ public sealed partial class MainViewModel
             var work = Task.Run(async () =>
             {
                 var observed = await outputCatalog.RefreshAsync(token).ConfigureAwait(false);
-                if (disposed || lifecycleAdmissionClosed || privacyObservation.Current.TopologyRevision != topology)
+                if (!disposed && !lifecycleAdmissionClosed && privacyObservation.Current.TopologyRevision == topology)
                 {
-                    throw new InvalidOperationException("Output discovery lost its original host or topology. Refresh under current admission.");
+                    outputConfiguration?.Observe(observed);
                 }
-                outputConfiguration?.Observe(observed);
                 return observed;
             }, token);
             outputDiscoveryPersistence = work;
@@ -305,6 +305,7 @@ public sealed partial class MainViewModel
             speechPreparation.Request(null);
         }
         questionVoiceReplies?.CloseAdmission();
+        if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
         PropertyChanged -= ComposerVoiceReadinessChanged;
@@ -328,6 +329,11 @@ public sealed partial class MainViewModel
         voiceRecognition.RecognitionCompleted -= OnRecognitionCompleted;
         communicationPolicy.Changed -= OnCommunicationPolicyChanged;
         communicationPolicy.Dispose();
+        if (communicationActivity is not null)
+        {
+            communicationActivity.Changed -= OnCommunicationActivityChanged;
+            communicationActivity.BindHost(static () => false);
+        }
         textToSpeech.InvalidateOutput();
         appearanceConfiguration.Changed -= OnAppearanceChanged;
         speechConfiguration.Changed -= OnSpeechConfigurationChanged;
@@ -471,6 +477,7 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
+            await JoinCustomizationClarification();
             await ClosePromptPreparation();
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -698,6 +705,12 @@ public sealed partial class MainViewModel
     public async Task BeginPushToTalkAsync()
     {
         var editorTarget = Volatile.Read(ref customizationVoiceTarget);
+        var speechInput = CaptureSpeechInterruptionInput();
+        if (speechInput.Playback is not null && !voiceRecognition.IsSpeechInterruptionAvailable)
+        {
+            ReportResponseRead("Spoken interruption is unavailable for this speech-input profile. Use the selected answer's native Cancel reading or typed stop speaking; playback was not stopped by activation.");
+            return;
+        }
         RetirePromptInputVoice();
 #pragma warning disable VSTHRD003 // Ordinary command activation joins the retired prompt input's exact capture receipt.
         if (promptInputVoice is not null) { await promptInputVoice.Quiescence; }
@@ -707,6 +720,7 @@ public sealed partial class MainViewModel
         if (composerDictation is not null) { await composerDictation.Quiescence; }
 #pragma warning restore VSTHRD003
         RetireQuestionVoiceReply();
+        await JoinCustomizationClarification();
         if (voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
         {
             try { await handsFree.PauseWakeForReplyAsync(); }
@@ -740,7 +754,7 @@ public sealed partial class MainViewModel
         var revision = Interlocked.Read(ref voiceRecoveryRevision);
         using var opening = new CancellationTokenSource(TimeSpan.FromSeconds(5));
         captureOpenCancellation = opening;
-        var ownsBusyState = !IsBusy;
+        var ownsBusyState = !IsBusy && speechInput.Playback is null;
         long generationToAccept = -1;
         if (ownsBusyState)
         {
@@ -756,12 +770,15 @@ public sealed partial class MainViewModel
                 throw new InvalidOperationException("The selected microphone, permission or voice policy is unavailable.");
             }
 
-            RetireResponseReadPlayback();
-            RetireSpeechCaption();
-            textToSpeech.InvalidateOutput();
-            await textToSpeech.StopAsync(opening.Token);
-            IsSpeaking = false;
-            activeSpokenText = null;
+            if (speechInput.Playback is null)
+            {
+                RetireResponseReadPlayback();
+                RetireSpeechCaption();
+                textToSpeech.InvalidateOutput();
+                await textToSpeech.StopAsync(opening.Token);
+                IsSpeaking = false;
+                activeSpokenText = null;
+            }
             await voiceRecognition.BeginPushToTalkAsync(SelectedMicrophone!, GetRecognitionPhrases(), AssistantName, opening.Token);
             if (revision != Interlocked.Read(ref voiceRecoveryRevision)
                 || !IsVoiceReadinessEligible(privacyObservation.Current)
@@ -773,10 +790,15 @@ public sealed partial class MainViewModel
             }
 
             CaptureCustomizationVoice(editorTarget);
+            Volatile.Write(ref capturedSpeechInterruption, speechInput with { Generation = voiceRecognition.Generation });
             Interlocked.Exchange(ref acceptedTranscriptGeneration, voiceRecognition.Generation);
             IsListening = voiceRecognition.IsListening;
             BeginPushToTalkCommand.NotifyCanExecuteChanged();
-            if (HasWebResultDetails)
+            if (speechInput.Playback is not null)
+            {
+                Transcript = "Capturing an explicit speech command for the original session. Release Push to talk to finish; playback is unchanged until an admitted stop.";
+            }
+            else if (HasWebResultDetails)
             {
                 // Activated input must not replace the exact source before the user can name it.
                 ReportWebResultDetailStatus("Capturing your command. Release Push to talk to finish.");

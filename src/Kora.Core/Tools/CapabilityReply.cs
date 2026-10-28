@@ -10,4 +10,6 @@ public sealed record CapabilityReply(
     RuntimePage? Runtimes = null,
     RuntimeObservation? Runtime = null,
     Kora.Core.Network.LocalWebPageResult? WebPage = null,
-    Kora.Core.Mcp.McpModelResult? Mcp = null);
+    Kora.Core.Mcp.McpModelResult? Mcp = null,
+    SessionDescriptorPage? Sessions = null,
+    CustomizationMetadataPage? Customizations = null);

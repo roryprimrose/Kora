@@ -299,11 +299,14 @@ internal static class Program
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
-        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore, WindowsCustomizationStore>();
+        services.AddSingleton<WindowsCustomizationStore>();
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
+        services.AddSingleton<Kora.Application.Tools.CustomizationDiscoveryService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
-        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Application.Mcp.UnavailableMcpConnectionBroker>();
+        services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Windows.Mcp.WindowsMcpConnectionBroker>();
         services.AddSingleton(new Kora.Application.Mcp.McpReadOnlyPolicy([]));
         services.AddSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>();
         services.AddKeyedSingleton<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt,
@@ -342,6 +345,7 @@ internal static class Program
             provider.GetRequiredService<TimeProvider>()));
         services.AddSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>();
         services.AddSingleton<Kora.Application.Definitions.InstructionSaveWorkflow>();
+        services.AddSingleton<Kora.Application.Definitions.OwnedInstructionRefinementService>();
         services.AddSingleton<IProfileInstructionReader, WindowsProfileInstructionReader>();
         services.AddSingleton<Kora.Application.Definitions.ProfileInstructionForkWorkflow>();
         services.AddKeyedSingleton<Kora.Application.Definitions.OwnedInstructionEditorActions>(ArtifactKind.Prompt, (provider, _) => new(
@@ -369,6 +373,10 @@ internal static class Program
         services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
         services.AddSingleton<IInstructionControlSessionStore>(interactions);
+        services.AddSingleton<ISessionRoutingControlStore>(interactions);
+        services.AddSingleton<Kora.Application.Hosting.SessionRouting.SessionRoutingControlAdmission>();
+        services.AddSingleton<Kora.Core.Conversation.SessionRouting.ISessionRelatednessMatcher,
+            Kora.Application.Hosting.SessionRouting.LocalSessionRelatednessMatcher>();
         services.AddSingleton<ISharedSkillSourceReader, WindowsProfileSkillReader>();
         services.AddSingleton<LocalSharedSkillPreferences>();
         services.AddSingleton<SharedSkillAdmission>();
@@ -407,10 +415,14 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
         services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
         services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
+        ExternalBrowserComposition.Configure(services);
         services.AddSingleton<InCallFeedbackConfigurationService>();
         services.AddSingleton<IInCallFeedbackPreferences>(provider =>
             new LocalInCallFeedbackPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SpeechTextConfigurationService>();
+        services.AddSingleton<IConversationalReplyPreferences>(provider =>
+            new LocalConversationalReplyPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ConversationalReplyConfigurationService>();
         services.AddSingleton<DesktopSessionWorkspaceAccess>();
         services.AddSingleton<ISessionWorkspaceAccess>(provider => provider.GetRequiredService<DesktopSessionWorkspaceAccess>());
         services.AddSingleton<SessionWorkspaceService>();
@@ -534,6 +546,7 @@ internal static class Program
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
+        services.AddSingleton<VerifiedLocalHandoffOperation>();
         services.AddSingleton<ModelHandoffPresentation>();
 #if DEBUG
         services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));
@@ -634,7 +647,13 @@ internal static class Program
             new LocalVoiceConsentPreferences(
                 provider.GetRequiredService<IPreferenceStore>(),
                 provider.GetRequiredService<ILogger<LocalVoiceConsentPreferences>>()));
-        services.AddSingleton<ICallStateService, UnavailableCallStateService>();
+        services.AddSingleton<LocalCommunicationActivityPreferences>(provider =>
+            new LocalCommunicationActivityPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<ICommunicationActivitySource, WindowsCommunicationsActivitySource>();
+        services.AddSingleton<Kora.Application.Communication.CommunicationActivityCallStateService>();
+        services.AddSingleton<CommunicationActivityConfigurationService>();
+        services.AddSingleton<ICallStateService>(provider =>
+            provider.GetRequiredService<Kora.Application.Communication.CommunicationActivityCallStateService>());
         services.AddSingleton<IMicrophoneAccessService, WindowsMicrophoneAccessService>();
         services.AddSingleton<IWindowsPrivacyObservationService, WindowsPrivacyObservationService>();
         VoiceInputComposition.Configure(services);
@@ -676,6 +695,7 @@ internal static class Program
         services.AddSingleton<SessionAttachmentCatalogueService>();
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
+        services.AddSingleton<Kora.Tools.Files.FolderAnswers.LocalFolderAnswer>();
         services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();

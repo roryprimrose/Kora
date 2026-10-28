@@ -25,7 +25,8 @@ public sealed partial class MainViewModel
         }
         if (voiceRecognition is not IQuestionVoiceRecognitionService capture) { return null; }
         questionVoiceReplies = new(questions, capture, time, uiDispatcher, ObserveQuestionVoiceAdmission,
-            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases);
+            SpeakExactQuestionAsync, replyLogger, TryStopQuestionListeningAsync, GetListeningStopPhrases,
+            () => conversationalReplies?.Get());
         PropertyChanged += OnQuestionVoiceReadinessChanged;
         dictationQuestions = questions;
         questions.ReplyTargetChanging += OnComposerQuestionChanging;
@@ -45,16 +46,21 @@ public sealed partial class MainViewModel
     }
 
     private QuestionVoiceAdmission? ObserveQuestionVoiceAdmission() =>
-        promptInputVoice?.IsActive != true ? ObserveActivatedInputVoiceAdmission() : null;
+        promptInputVoice?.IsActive != true && ObserveActivatedInputVoiceAdmission() is { } admission
+            ? admission with { ActivationName = AssistantName }
+            : null;
 
-    private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission()
+    private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission() =>
+        !IsBusy ? ObserveAdmittedVoiceCaptureReadiness() : null;
+
+    private QuestionVoiceAdmission? ObserveAdmittedVoiceCaptureReadiness()
     {
         var privacy = privacyObservation.Current;
         return composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
-            && !IsBusy && !IsResponseInteractionPending && (!textToSpeech.IsSpeaking && !IsSpeaking || questionSpeech)
+            && !IsResponseInteractionPending && (!textToSpeech.IsSpeaking && !IsSpeaking || questionSpeech)
                 ? new(EffectiveMicrophone!, Interlocked.Read(ref voiceRecoveryRevision), privacy.TopologyRevision, CallPolicyRevision)
                 : null;
     }
@@ -64,6 +70,7 @@ public sealed partial class MainViewModel
 
     public void RetireQuestionVoiceReply()
     {
+        customizationClarification?.Cancel("Voice admission withdrawn. No editor operation continued.");
         RetirePromptInputVoice();
         questionVoiceReplies?.Retire("Voice admission changed. Microphone closed; native question remains answerable.");
     }
@@ -78,7 +85,8 @@ public sealed partial class MainViewModel
     {
         var voice = activeSpeechVoice;
         var output = SelectedOutputDevice;
-        if (voice is null || output is null || !eligible() || !IsSpeechResponseEnabled || textToSpeech.IsSpeaking || IsSpeaking)
+        if (voice is null || output is null || !eligible() || !IsSpeechResponseEnabled || textToSpeech.IsSpeaking || IsSpeaking
+            || speechInterruptionActive)
         {
             throw new InvalidOperationException("Exact question playback is unavailable. Capture was not opened.");
         }

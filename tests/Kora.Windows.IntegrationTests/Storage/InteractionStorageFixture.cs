@@ -174,7 +174,15 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         if (Count("conversation_messages") != 0 || Count("conversation_drafts") != 0)
         { throw new InvalidOperationException("A legacy fixture must not discard current conversation authority."); }
+        DropEmptySessionPermissionSchemaForLegacy();
         Mutate("DROP TABLE conversation_messages; DROP TABLE conversation_drafts;");
+    }
+
+    internal void DropEmptySessionPermissionSchemaForLegacy()
+    {
+        if (Count("session_permission") != 0 || Count("session_admissions") != 0)
+        { throw new InvalidOperationException("A legacy fixture must not discard current session permission authority."); }
+        Mutate("DROP TABLE session_admissions; DROP TABLE session_permission;");
     }
 
     internal static HostRequest NewRequest(HostId<SessionIdentity>? session = null,
@@ -192,8 +200,18 @@ internal sealed class InteractionStorageFixture : IDisposable
     {
         internal DateTimeOffset Now { get; set; } = new(2026, 10, 6, 12, 0, 0, TimeSpan.Zero);
         internal long MonotonicTicks { get; set; }
+        internal bool UseFrozenTimers { get; set; }
         public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override long GetTimestamp() => MonotonicTicks;
         public override DateTimeOffset GetUtcNow() => Now;
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period) =>
+            UseFrozenTimers ? new FrozenTimer() : base.CreateTimer(callback, state, dueTime, period);
+
+        private sealed class FrozenTimer : ITimer
+        {
+            public bool Change(TimeSpan dueTime, TimeSpan period) => true;
+            public void Dispose() { }
+            public ValueTask DisposeAsync() => ValueTask.CompletedTask;
+        }
     }
 }

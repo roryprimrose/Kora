@@ -141,8 +141,16 @@ public sealed partial class MainViewModelTests
         };
         if (modelAction) { await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync(); }
         else { await fixture.ViewModel.ConfirmGrantChangeAsync(); }
-        fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
-        fixture.Session.LockCalls.Should().Be(0);
+        if (modelAction && string.Equals(transition, "call", StringComparison.Ordinal))
+        {
+            fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle().Which.Action.Should().Be(BuiltInAction.LockMachine);
+            fixture.Session.LockCalls.Should().Be(1);
+        }
+        else
+        {
+            fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
+            fixture.Session.LockCalls.Should().Be(0);
+        }
     }
 
     [Fact]
@@ -404,6 +412,78 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.RefreshCommand.ExecuteAsync();
         await closing;
         fixture.ViewModel.IsBusy.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("disposed", false)]
+    [InlineData("exit", false)]
+    [InlineData("topology", false)]
+    [InlineData("disposed", true)]
+    [InlineData("exit", true)]
+    [InlineData("topology", true)]
+    public async Task RetiredOutputDiscoveryJoinsWithoutPublishingMetadataAndPreservesWorkerFailures(
+        string transition, bool workerFails)
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        var metadata = fixture.OutputConfiguration!.Metadata;
+        var devices = fixture.ViewModel.OutputDevices.ToArray();
+        var selected = fixture.ViewModel.SelectedOutputDevice;
+        var token = TestContext.Current.CancellationToken;
+        using var release = new ManualResetEventSlim();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        fixture.TextToSpeech.OutputDevices = [new("late", "Retired output")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "late";
+        if (workerFails)
+        {
+            fixture.TextToSpeech.OutputEnumerationException = new IOException("Owned output discovery failed.");
+        }
+        fixture.TextToSpeech.BeforeOutputEnumeration = () =>
+        {
+            entered.SetResult();
+            release.Wait(token);
+        };
+        var preview = fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        Task closing = Task.CompletedTask;
+        try
+        {
+            await entered.Task.WaitAsync(token);
+            switch (transition)
+            {
+                case "disposed": closing = fixture.ViewModel.DisposeAsync().AsTask(); break;
+                case "exit": closing = fixture.ViewModel.ExitAsync(); break;
+                default:
+                    var current = fixture.PrivacyObservation.Current;
+                    fixture.PrivacyObservation.Current = current with { TopologyRevision = current.TopologyRevision + 1 };
+                    break;
+            }
+            preview.IsCompleted.Should().BeFalse();
+            if (transition is not "topology")
+            {
+                closing.IsCompleted.Should().BeFalse("the retired discovery still owns its worker");
+            }
+        }
+        finally { release.Set(); }
+        await preview;
+        if (workerFails && transition is not "topology")
+        {
+            await FluentActions.Awaiting(() => closing).Should().ThrowAsync<IOException>()
+                .WithMessage("Owned output discovery failed.");
+        }
+        else { await closing; }
+        (await fixture.ViewModel.OutputRefresh).Should().BeFalse();
+        fixture.OutputConfiguration.Metadata.Should().BeSameAs(metadata);
+        fixture.ViewModel.OutputDevices.Should().Equal(devices);
+        fixture.ViewModel.SelectedOutputDevice.Should().Be(selected);
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.TextToSpeech.SpokenText.Should().BeNull();
+        if (workerFails)
+        {
+            await FluentActions.Awaiting(async () => await fixture.ViewModel.DisposeAsync()).Should()
+                .ThrowAsync<IOException>().WithMessage("Owned output discovery failed.");
+        }
+        else { await fixture.ViewModel.DisposeAsync(); }
     }
 
     [Theory]

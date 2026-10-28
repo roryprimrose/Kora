@@ -28,6 +28,14 @@ public sealed class OwnedSkillUseReview : IDisposable
     }
 
     internal ActivityLink Cause { get; }
+    public IReadOnlyList<string> RequiredNames
+    {
+        get { lock (gate) { return Require(owner).Document.InputTemplate?.RequiredNames.ToArray() ?? []; } }
+    }
+    public OwnedSkillToolSelection Tool
+    {
+        get { lock (gate) { return snapshot?.Document.Tool ?? throw new InvalidOperationException("Review the current source first."); } }
+    }
     public DateTimeOffset ExpiresAt { get; }
     public bool IsCurrent
     {

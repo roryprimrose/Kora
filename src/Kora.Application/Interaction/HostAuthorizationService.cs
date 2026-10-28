@@ -8,14 +8,15 @@ using Kora.Core.Storage;
 
 namespace Kora.Application.Interaction;
 
-public sealed class HostAuthorizationService(
+public sealed partial class HostAuthorizationService(
     IHostInteractionStore store,
     TimeProvider time,
-    IPreapprovedUriConfiguration? preapprovedUris = null)
+    IPreapprovedUriConfiguration? preapprovedUris = null,
+    Kora.Core.Authorization.SessionPermission.ISessionPermissionReviewer? reviewer = null)
 {
     private readonly InteractionTransaction transaction = new(store);
     private static readonly QuestionSpec ApprovalSpec = new("Approve this exact host-resolved operation?",
-        QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This work session"), new("perpetual", "Until explicitly removed or edited")],
+        QuestionKind.SingleChoice, [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")],
         purpose: "authorization", sourceId: "host-operation");
 
     public async ValueTask<ExactGrantBatchDecision> RevokeExactBatchAsync(HostRequest request, HostRevision controlGeneration,
@@ -96,10 +97,8 @@ public sealed class HostAuthorizationService(
             + " record, including destination, delegated account, schema and any outgoing arguments. "
             + "Approve once only if this read-only external processing and local-only result use are intended.",
             QuestionKind.SingleChoice, [new("once", "Approve once")], purpose: "authorization", sourceId: "mcp-https-read-only");
-        var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)), spec,
-            snapshot.Session.Generation, snapshot.Proposal!.ExpiresAt, Proposal: snapshot.Proposal);
-        return (snapshot with { Questions = snapshot.Questions.Add(question) },
-            new(HostInteractionOutcome.Presented, "exact-mcp-approval-presented", question));
+        var (next, decision) = Decide(snapshot, request, independentConsentRequired: true, spec, out _);
+        return (next, decision with { Reason = "exact-mcp-approval-presented" });
     }, cancellationToken);
 
     public ValueTask<HostInteractionDecision> PresentWebPageOnceAsync(
@@ -114,10 +113,8 @@ public sealed class HostAuthorizationService(
                 + "Other destinations and redirects are not approved. Page text stays local.\n" + address.AbsoluteUri,
                 QuestionKind.SingleChoice, [new("once", "Approve once")],
                 purpose: "authorization", sourceId: "local-web-page");
-            var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)),
-                spec, snapshot.Session.Generation, snapshot.Proposal!.ExpiresAt, Proposal: snapshot.Proposal);
-            return (snapshot with { Questions = snapshot.Questions.Add(question) },
-                new(HostInteractionOutcome.Presented, "exact-page-approval-presented", question));
+            var (next, decision) = Decide(snapshot, request, independentConsentRequired: true, spec, out _);
+            return (next, decision with { Reason = "exact-page-approval-presented" });
         }, cancellationToken);
 
     public ValueTask<HostInteractionDecision> RequestWebPageAccessAsync(
@@ -151,8 +148,7 @@ public sealed class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "preapproved-uri-policy-unavailable");
         }
-        if (snapshot.Policy.AllowsReusableGrants
-            && preapprovedUris.IsPreapproved(address))
+        if (preapprovedUris.IsPreapproved(address))
         {
             return (snapshot, new(HostInteractionOutcome.Approved, "preapproved-address"));
         }
@@ -162,7 +158,7 @@ public sealed class HostAuthorizationService(
     private (HostInteractionSnapshot, HostInteractionDecision) Present(
         HostInteractionSnapshot snapshot,
         HostRequest request,
-        bool eligibilityConfirmed = false)
+        bool eligibilityConfirmed = false, QuestionSpec? consentSpec = null)
     {
         if (!eligibilityConfirmed && !Eligible(snapshot, request))
         {
@@ -173,8 +169,12 @@ public sealed class HostAuthorizationService(
         {
             return InteractionTransaction.Reject(snapshot, "duplicate-proposal", HostInteractionOutcome.Conflict);
         }
+        var spec = consentSpec ?? (proposal.Effect == HostOperationEffect.VoiceOrCallSettings
+            ? new QuestionSpec("Confirm this exact protected control operation. Session action policy cannot supply this confirmation.",
+                QuestionKind.SingleChoice, [new("once", "Once")], purpose: "authorization", sourceId: "host-operation")
+            : ApprovalSpec);
         var question = new HostQuestionRecord(new(request, new(Guid.NewGuid()), new(1)),
-            ApprovalSpec, snapshot.Session.Generation, proposal.ExpiresAt, Proposal: proposal);
+            spec, snapshot.Session.Generation, proposal.ExpiresAt, Proposal: proposal);
         return (snapshot with { Questions = snapshot.Questions.Add(question) },
             new(HostInteractionOutcome.Presented, "approval-presented", question));
     }
@@ -201,8 +201,9 @@ public sealed class HostAuthorizationService(
             return HostQuestionService.Replace(snapshot, question with { Key = key.Next(), Status = QuestionStatus.Expired },
                 HostInteractionOutcome.Expired, "question-expired");
         }
+        if (!snapshot.Policy.AllowsApprovalChannel(channel))
+        { return InteractionTransaction.Reject(snapshot, "approval-channel-unavailable-use-native-ui"); }
         if (!Eligible(snapshot, key.Request) || question.Proposal is null || question.Proposal != snapshot.Proposal
-            || channel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice)
             || !question.Spec.Accepts(answer, submitting: true))
         {
             return InteractionTransaction.Reject(snapshot, "approval-not-applicable");
@@ -253,10 +254,12 @@ public sealed class HostAuthorizationService(
             || grant.ApprovedProposal.Effect != proposal.Effect
             || (grant.Scope == OperationGrantScope.Once && grant.ApprovedProposal != proposal)
             || (grant.Scope == OperationGrantScope.Session && grant.ApprovedProposal.Request.SessionId != request.SessionId)
-            || (grant.Scope != OperationGrantScope.Once && !snapshot.Policy.AllowsReusableGrants))
+            || (proposal.Effect == HostOperationEffect.VoiceOrCallSettings && grant.Scope != OperationGrantScope.Once))
         {
             return InteractionTransaction.Reject(snapshot, "grant-not-applicable");
         }
+        if (snapshot.Admissions.Any(item => item.Proposal == snapshot.Proposal))
+        { return InteractionTransaction.Reject(snapshot, "invocation-already-admitted", HostInteractionOutcome.Conflict); }
         var consumed = grant with
         {
             Revision = new(checked(grant.Revision.Value + 1)),
@@ -264,8 +267,9 @@ public sealed class HostAuthorizationService(
             Status = grant.Scope == OperationGrantScope.Once ? OperationGrantStatus.Consumed : OperationGrantStatus.Active,
             LastUsedAt = time.GetUtcNow(),
         };
-        return (snapshot with { Grants = snapshot.Grants.SetItem(index, consumed) },
-            new(HostInteractionOutcome.Consumed, "grant-use-committed", Grant: consumed));
+        var next = snapshot with { Grants = snapshot.Grants.SetItem(index, consumed) };
+        return Admit(next, Kora.Core.Authorization.SessionPermission.SessionPermissionBasis.ExistingGrant,
+            HostInteractionOutcome.Consumed, "grant-use-committed", consumed);
     }
 
     public ValueTask<HostInteractionDecision> ObserveContentAsync(HostRequest request, CancellationToken cancellationToken) =>

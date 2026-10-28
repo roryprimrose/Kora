@@ -15,13 +15,21 @@ public sealed partial class SessionConversationService
     internal Task<ConversationSubmissionReceipt> SubmitReviewedToolSkillAsync(SessionWorkspaceEntry target, string body,
         Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, Uri destination, WebPageApprovalPresenter presenter,
         Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
+        RequestOrigin origin, CancellationToken token) =>
+        SubmitReviewedToolSkillAsync(target, body, createContext, new LocalWebPageScope([destination]), presenter,
+            admitted, validateSource, links, origin, token);
+
+    internal async Task<ConversationSubmissionReceipt> SubmitReviewedToolSkillAsync(SessionWorkspaceEntry target, string body,
+        Func<HostRequest, DateTimeOffset, ModelContextEnvelope> createContext, LocalWebPageScope scope, WebPageApprovalPresenter presenter,
+        Func<bool> admitted, Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink> links,
         RequestOrigin origin, CancellationToken token)
     {
         ArgumentNullException.ThrowIfNull(presenter);
-        _ = WebPageAccessBinding.DestinationDigest(destination);
+        ArgumentNullException.ThrowIfNull(scope);
         if (webPageAction is null || interactions is null || turns is not ModelTurnHost modelHost)
         { throw new InvalidOperationException("The governed local page action and native approval host are unavailable. Nothing was submitted."); }
-        LocalWebPageInvocation? invocation = null;
+        LocalWebPageWorkflow? invocation = null;
+        ModelTurn? boundTurn = null;
         var terminalCommitted = false;
         async Task Validate(CancellationToken checkToken)
         {
@@ -33,19 +41,32 @@ public sealed partial class SessionConversationService
             var context = createContext(request, now);
             if (context.Request != request || !string.Equals(context.UserRequest, body, StringComparison.Ordinal)
                 || context.ToolMode != ModelToolMode.LocalWebPage || context.Evidence.Length != 2
+                || context.WebPages is null || !context.WebPages.Destinations.SequenceEqual(scope.Destinations)
                 || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.LocalOnly))
             { throw new InvalidDataException("Reviewed tool skill context requires exact original input, local-only instruction and destination evidence, and the single bounded host tool mode."); }
             return context;
         }
         void Bind(ModelTurn turn, Func<bool> live)
         {
-            invocation = new(webPageAction, interactions, presenter, turn.Provenance.Request, target.Authority.Generation,
-                destination, turn.Context.ExpiresAt, live, time);
+            var workflowInvocation = new HostId<InvocationIdentity>(Guid.NewGuid());
+            invocation = new(scope.Destinations.Select(destination => (destination,
+                new LocalWebPageInvocation(webPageAction, interactions, presenter, turn.Provenance.Request, target.Authority.Generation,
+                    destination, turn.Context.ExpiresAt, live, time, workflowInvocation, scope, validateSource))).ToArray());
             modelHost.BindWebPage(turn, invocation);
+            boundTurn = turn;
         }
         ModelTurnResult Resolve(ModelTurnResult result) => invocation?.Completed == true
             ? result : new(ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected, result.Provenance);
-        return SubmitCoreAsync(target, body, admitted, Validate, links, origin, Create, ModelTurnChoice.Local, token,
-            resolveResponse: Resolve, bindWebPage: Bind, terminalCommitted: () => terminalCommitted = true);
+        try
+        {
+            return await SubmitCoreAsync(target, body, admitted, Validate, links, origin, Create, ModelTurnChoice.Local, token,
+                resolveResponse: Resolve, bindWebPage: Bind, terminalCommitted: () => terminalCommitted = true).ConfigureAwait(false);
+        }
+        finally
+        {
+            // Retained execution delegates caller-shutdown joins to the source owner.
+            if (token.IsCancellationRequested && boundTurn is { ResourceDispatched: true })
+            { await modelHost.JoinConversationResourcesAsync(boundTurn, CancellationToken.None).ConfigureAwait(false); }
+        }
     }
 }

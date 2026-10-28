@@ -15,7 +15,8 @@ internal sealed partial class OwnedInstructionEditorController(
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedInstructionEditorController> logger,
     OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null,
     ProfileInstructionForkWorkflow? profileForks = null,
-    Kora.Core.Context.IUserFilePicker? profilePicker = null) : IDisposable
+    Kora.Core.Context.IUserFilePicker? profilePicker = null,
+    OwnedInstructionRefinementService? refinement = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -79,6 +80,7 @@ internal sealed partial class OwnedInstructionEditorController(
         window = new(action =>
         {
             if (action is "Cancel profile copy") { CancelProfileCopy(); }
+            else if (action is "Cancel refinement") { CancelRefinement(); }
             else if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
             else { _ = Run(action); }
         });
@@ -88,24 +90,31 @@ internal sealed partial class OwnedInstructionEditorController(
         window.Source.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
-            { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); }
+            { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.CopyNameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
+            if (change.Property == TextBox.TextProperty)             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
+        };
+        window.Critique.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty)
+            { Interlocked.Increment(ref critiqueRevision); CancelRefinement(); }
         };
         window.NameInput.PropertyChanged += (_, change) =>
         {
-            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
+            if (change.Property == TextBox.TextProperty)             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); inventoryChoiceWithdrawn = false; window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
         window.Files.SelectionChanged += (_, _) =>
         {
+            if (preservingRefinementInventory) { return; }
             Interlocked.Increment(ref sourceRevision);
+            CancelRefinement();
             window?.CancelRebaseReview();
             window?.ClearValidation();
             if (window is { } opened) { AdmitSelectedMetadata(opened); }
         };
-        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); window?.CancelRebaseReview(); window?.ClearValidation(); };
+        window.KindInput.SelectionChanged += (_, _) => { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); };
         window.SelectKind(kind);
         window.Closing += OnClosing;
         window.Closed += (_, _) => Clear();
@@ -124,7 +133,7 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task OnRequested(ArtifactKind requestedKind, string operation, string? name)
     {
-        if (operation is "Validate" or "Compare" or "Rebase")
+        if (operation is "Validate" or "Compare" or "Rebase" or "Refine")
         {
             if (window is null || lifetime is null || requestedKind != kind)
             { main.ReportHostInteractionFailure("Validate/Compare/Rebase requires the currently open same-kind owned draft. Inspect or Create explicitly; no source is opened implicitly."); return; }
@@ -136,7 +145,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (window is null || lifetime is null) { return; }
         if (operation is "Cancel" && requestedKind == kind)
         {
-            if (ownsHost() && main.CaptureInstructionEditorEligibility()()) { window.CancelReview(); }
+            if (ownsHost() && main.CaptureInstructionEditorEligibility()()) { CancelRefinement(); window.CancelReview(); }
             return;
         }
         if (busy) { return; }
@@ -206,6 +215,9 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Rebase":
                     await RebaseDraft(opened, Eligible, token);
                     break;
+                case "Refine":
+                    await RefineDraft(opened, Eligible, token);
+                    break;
                 case "Save":
                     await Save(opened, delete: false, Eligible, token);
                     break;
@@ -241,6 +253,12 @@ internal sealed partial class OwnedInstructionEditorController(
         }
         catch (OperationCanceledException)
         {
+            if (action is "Refine")
+            {
+                if (ReferenceEquals(window, opened))
+                { opened.Report("Refinement cancelled. Current draft and critique retained; no definition write or activation."); }
+                return;
+            }
             if (action is "Create Kora copy from profile instruction")
             {
                 if (ReferenceEquals(window, opened))
@@ -373,9 +391,11 @@ internal sealed partial class OwnedInstructionEditorController(
         var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
         // Admission/publication callbacks run off the UI thread; never read an Avalonia control there.
         bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision;
-        var result = await Saves.Save(name, baseline, text, delete,
-            new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)), CurrentDraft, kind),
-            CurrentDraft, token);
+        var review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)), CurrentDraft, kind);
+        var pending = pendingRefinement;
+        var result = !delete && pending is not null
+            ? await (refinement ?? throw new InvalidOperationException("Local refinement is unavailable.")).Save(pending, review, CurrentDraft, token)
+            : await Saves.Save(name, baseline, text, delete, review, CurrentDraft, token);
         if (!CurrentDraft()) { return false; }
         if (result.Reloaded)
         {
@@ -490,6 +510,13 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (!closing && refinementLifetime is not null)
+        {
+            args.Cancel = true;
+            CancelRefinement();
+            window?.Report("Cancelling local refinement; wait for actual model quiescence. Draft and critique retained.");
+            return;
+        }
         if (!closing && rebaseLifetime is not null)
         {
             args.Cancel = true;
@@ -523,13 +550,14 @@ internal sealed partial class OwnedInstructionEditorController(
         return false;
     }
 
-    private void OnPrivacyClosed(object? sender, EventArgs args) { CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
+    private void OnPrivacyClosed(object? sender, EventArgs args) { CancelRefinement(); CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
+        pendingRefinement = null;
     }
 
     public void Dispose()

@@ -17,7 +17,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class ClaudeUiContractTests
+public sealed partial class ClaudeUiContractTests
 {
     [Fact]
     public async Task Shipped_unavailable_setup_disables_actual_native_credential_control_before_network()
@@ -84,8 +84,10 @@ public sealed class ClaudeUiContractTests
         });
     }
 
-    [Fact]
-    public async Task Actual_native_Claude_submit_action_uses_same_retained_operation_without_ordinary_fallback()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Actual_native_Claude_submit_action_uses_same_retained_operation_without_ordinary_fallback(bool observations)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -109,11 +111,64 @@ public sealed class ClaudeUiContractTests
                 await model.ReadConversationAsync();
                 const string original = "  native explicit Claude body  ";
                 window.FindControl<TextBox>("ConversationComposer")!.Text = original;
-                window.FindControl<Button>("SubmitClaudeConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                if (observations) { window.FindControl<TextBox>("ClaudeObservationIds")!.Text = "application.get_version"; }
+                window.FindControl<Button>(observations ? "SubmitClaudeObservations" : "SubmitClaudeConversation")!
+                    .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await window.ConversationOperation;
                 model.ConversationStatus.Should().Contain("DeniedEgress");
                 (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single().Body.Should().Be(original);
                 composition.Http.Requests.Should().OnlyContain(request => string.Equals(request.Method, "GET", StringComparison.Ordinal));
+            }
+            finally { window.ClosePrivate(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ActualNativeObservationActionReturnsGenuineAnswerOrFencesChangedAndRestoredScope(bool changeScope)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync(); await WindowsSqliteConversationTests.FinishInitial(f);
+            await using var composition = new HostedClaudeSessionRequestTests.Composition(f);
+            await composition.InitializeAsync();
+            var sink = new WindowsSqliteEvidenceSink(f.Paths); sink.Initialize();
+            var model = new SessionsViewModel(composition.Workspace,
+                new DurableEvidenceQuery(new WindowsSqliteEvidenceReader(sink), composition.Access, f.Time,
+                    NullLogger<DurableEvidenceQuery>.Instance), composition.Access, NullLogger<SessionsViewModel>.Instance,
+                conversation: composition.Conversation);
+            var window = new SessionsWindow(model); window.Show();
+            var messages = 0;
+            composition.Http.Respond = request => ClaudeAccountBrokerTests.Fixture.Json(request.RequestUri!.AbsolutePath.EndsWith("count_tokens", StringComparison.Ordinal)
+                ? """{"input_tokens":25}""" : ++messages == 1
+                    ? HostedClaudeSessionRequestTests.Proposal(HostedClaudeSessionRequestTests.VersionProposal) : ClaudeMessagesRuntimeTests.Answer);
+            var offers = 0;
+            composition.Reviews.ClaudeOffered += review =>
+            {
+                using var presentation = review.Presentation();
+                if (++offers == 3 && changeScope)
+                {
+                    var original = model.ClaudeObservationIds;
+                    model.ClaudeObservationIds = "runtime.list";
+                    model.ClaudeObservationIds = original;
+                }
+                composition.Reviews.Confirm(review, true, RequestOrigin.LocalUi).Should().BeTrue();
+            };
+            try
+            {
+                await model.RefreshAsync(); await model.SelectAsync(model.Sessions.Single()); await model.ReadConversationAsync();
+                window.FindControl<TextBox>("ClaudeObservationIds")!.Text = "application.get_version";
+                window.FindControl<TextBox>("ConversationComposer")!.Text = "native original";
+                window.FindControl<Button>("SubmitClaudeObservations")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await window.ConversationOperation;
+                var retained = (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Single();
+                retained.Body.Should().Be("native original");
+                (retained.AssistantResponse?.Body).Should().Be(changeScope ? null : "genuine exact answer");
+                if (!changeScope) { retained.Outcome.Should().Be(ModelTurnOutcome.Succeeded); }
+                composition.Http.Requests.Count(item => item.Method is "POST").Should().Be(changeScope ? 2 : 4);
+                composition.Turns.IsQuiescent.Should().BeTrue(); composition.Runtime.IsQuiescent.Should().BeTrue();
             }
             finally { window.ClosePrivate(); }
         });

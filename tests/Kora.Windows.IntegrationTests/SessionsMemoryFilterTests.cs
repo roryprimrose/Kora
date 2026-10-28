@@ -443,7 +443,7 @@ public sealed partial class SessionsMemoryFilterTests
             {
                 var tabs = window.GetLogicalDescendants().OfType<TabControl>().Single();
                 var memoryTab = tabs.Items.OfType<TabItem>().Single(tab =>
-                    string.Equals(tab.Header?.ToString(), "Session memories", StringComparison.Ordinal));
+                    string.Equals(tab.Header?.ToString(), "Memories", StringComparison.Ordinal));
                 tabs.SelectedItem = memoryTab;
                 window.Activate();
                 window.UpdateLayout();

@@ -53,6 +53,11 @@ public sealed partial class SettingsWindow : Window
         callsTab = this.FindControl<TabItem>("CallsTab")
             ?? throw new InvalidOperationException("The call settings tab is unavailable.");
         DataContext = viewModel;
+        PropertyChanged += (_, args) =>
+        {
+            if (args.Property == IsVisibleProperty && !IsVisible) { model.CancelSpokenApprovalReview(); }
+        };
+        Closed += (_, _) => model.CancelSpokenApprovalReview();
         BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {
@@ -62,6 +67,7 @@ public sealed partial class SettingsWindow : Window
             ?? throw new InvalidOperationException("The microphone recovery control is unavailable.");
         recovery.IsEnabled = chooseMicrophone is not null;
         recovery.Click += (_, _) => chooseMicrophone?.Invoke();
+        BindKnowledgeSources();
     }
 
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;

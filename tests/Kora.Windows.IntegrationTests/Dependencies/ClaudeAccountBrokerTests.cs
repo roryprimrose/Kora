@@ -155,7 +155,8 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
         internal TimeProvider Time { get; init; } = TimeProvider.System;
         internal bool Approved { get; set; } = true;
         internal bool Bound { get; set; } = true;
-        internal ClaudeDeploymentApproval Approval { get; } = new(DateTimeOffset.UtcNow.AddHours(1));
+        internal Action? BeforeApprovalRead { get; set; }
+        internal ClaudeDeploymentApproval Approval { get; init; } = new(DateTimeOffset.UtcNow.AddHours(1));
         internal ClaudeCredentialLease Lease { get; } = new(new("approved-opaque-account"), "wrkspc_test",
             Convert.ToHexString(SHA256.HashData(Encoding.UTF8.GetBytes(Credential))), DateTimeOffset.UtcNow.AddHours(1));
         internal List<(string Method, string Uri, byte[] Body)> Requests { get; } = [];
@@ -170,7 +171,11 @@ public sealed class ClaudeAccountBrokerTests : IDisposable
         internal ProviderProfileTuple Profile(ProviderCapabilityCatalogue catalogue) => new(ProviderService.Claude,
             catalogue.Account!, catalogue.Revision, catalogue.Models[0].Id,
             catalogue.Models[0].Reasoning[0].Id, catalogue.Models[0].Context[0].Id);
-        public ValueTask<ClaudeDeploymentApproval?> ResolveAsync(CancellationToken token) => ValueTask.FromResult(Approved ? Approval : null);
+        public ValueTask<ClaudeDeploymentApproval?> ResolveAsync(CancellationToken token)
+        {
+            BeforeApprovalRead?.Invoke();
+            return ValueTask.FromResult(Approved ? Approval : null);
+        }
         public ValueTask<ClaudeCredentialLease?> BindCredentialAsync(ClaudeDeploymentApproval approval, string credentialSha256, CancellationToken token) =>
             ValueTask.FromResult(Bound && ReferenceEquals(approval, Approval) && string.Equals(credentialSha256, Lease.CredentialSha256, StringComparison.Ordinal) ? Lease : null);
         public void Write(SecurityAuditEvent auditEvent) { HostActivity.RequireCurrent(); Audits.Add(auditEvent); }

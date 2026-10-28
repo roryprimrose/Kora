@@ -1,5 +1,30 @@
 # Security and Data Flows
 
+## Exact pending model-action presence activation
+
+The [presence review route](Ambient_UI.md#exact-pending-model-action-attention)
+projects an opaque, volatile target from the existing pending model-action
+owner, not a new approval registry. Its original host request/session, epoch,
+audit reference and host/private lifetime are captured at admission. Deferred
+reasoning and an existing model clarification preserve that original host
+context through causal links; retained text cannot reconstruct it.
+
+Ctrl-right-click, native tray/keyboard and already-activated voice capture that
+same target before deferred dispatch. They never follow workspace selection,
+reuse a withdrawn target or treat activation as confirmation. The separate
+native decision controls bind the displayed original target, retire carried
+gestures on rebinding/detachment and retain their presentation guard.
+Supersession, withdrawal, changed artifact, privacy/ownership loss and disposal
+fail closed without disclosing another review or dispatching an action.
+
+Existing approval audit, call-channel, artifact, preparation, grant and execution
+checks remain authoritative, including the existing committed native-decision
+semantics on call entry. Voice capture generations still gate callbacks; they
+are not review identities. Attention ends only when the original pending owner
+retires the review, not when a window opens/closes. There are no new grants,
+saved targets, retention domains, model identities, listeners or providers, and
+no review content/identifiers are added to telemetry.
+
 ## Private retained attachment metadata search boundary
 
 The [retained catalogue](File_And_Folder_Ingestion.md#delivered-retained-attachment-metadata-catalogue---2026-10-11) exposes bounded metadata Browse/exact-session navigation and meaningful lifecycle/type/copy-status/byte filters, not engineering source/profile/revision/digest queries. Selected displayed-text Find remains volatile and inert.
@@ -26,6 +51,34 @@ The [Detail Find contract](Information_Display.md#native-admitted-text-literal-f
 Queries and one exact match are volatile presentation only: no persistence, logging, export, clipboard transfer, egress, audit-body data or new schema. Existing trusted admission/revocation remains authoritative; every Find gesture and final match/focus publication fails closed on source/private loss or closed/replaced content. Cancel/Clear release navigation state; closure releases private presentation, without managed-memory zeroization or qualification claims. Existing independently admitted copy policy remains unchanged and retained conversation copy is blocked.
 
 ## Exact-session conversation retention boundary
+
+The [ordinary submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns)
+stores actual original request/task history, not unsent drafts or renewed
+authority. Pending turns hold no runtime lease, grant or provider transmission.
+Original provider/profile, serialized body/context, reviewed sources and input
+channel stay bound to their admission; dispatch repeats the existing source,
+session, privacy, qualification, consent and expiry fences. A later setting or
+foreground selection cannot retarget them. Original context expiry is never
+extended to the queue's longer maximum. Exact pending cancellation and
+held/resume controls use trusted typed audit; the ledger atomically enforces
+FIFO and one dispatched conversation task, while the runtime remains the sole
+resource allocator. Failure/Unknown/source withdrawal holds or denies work,
+and restart never replays it. Deferred activities link captured admission
+context without content, secrets or identity in baggage.
+
+An explicit `ask this conversation <original body>` request uses the [existing native presenter owner](../src/Kora/SessionsPresentationOwner.Foreground.cs), not provider/input identifiers or cached selection. Its [one-use source-bound review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) preserves original voice/UI lineage and validates exact target/currentness through retention and model consumption. It confers no earlier-history, memory or instruction-source permission and never rewrites unsent input.
+
+The [ordinary resource boundary](Work_Management.md#ordinary-session-resource-allocation-implementation) retains original request/channel/context and existing per-task tool/question/egress authority. Only the [host allocator's live issued-lease table](../src/Kora.Application/Dependencies/RuntimeResourceAllocator.cs) confers allocation authority; constructing a qualification record or lease-shaped value cannot consume budget or release another owner's resources. Expiry/revocation/profile/runtime changes close dispatch and answer publication. Unknown physical identity remains globally exclusive; failed physical joins quarantine affected resources. Resource audit contains host turn identity and fixed outcomes, never source text or provider/account details.
+
+Once an existing live adapter continuation observes withdrawn authority or a
+validation failure, the [original turn](../src/Kora.Application/Dependencies/ModelTurn.cs)
+is permanently retired. Previously published provisional output becomes stale;
+later recovery of the external authority cannot renew that turn's progress,
+tools or final answer. Retirement does not claim cancellation or physical
+termination: the existing resource owner still joins or quarantines the
+original provider. Other turns and subsequent explicit admissions retain their
+existing policy. [Controlled-barrier regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs)
+exercise authority withdrawal, late callbacks and recovery without a real provider.
 
 The [native conversation foundation](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
 stores exact explicitly submitted user content in the private session authority. Unsent input is memory-only; ordinary saved-draft writes are removed. Existing legacy saved text remains read-only recoverable under its original retention.
@@ -210,7 +263,7 @@ The design concerns are resolved under the chosen trust model by the following h
 - Admit only scoped capabilities and approved destinations; keep credentials, protected Kora resources, unrestricted execution, and trusted consent out of model control.
 - Preserve deterministic stop/mute/cancel, truthful receipt/unknown outcomes, and no blind replay after timeout/restart.
 - Explain which session, operation, and grant permitted an effect, without leaking sensitive data into ordinary diagnostics.
-- Under the proposed [session permission-level contract](Session_Permission_Levels.md), disable spoken approval during calls by default without changing grants or levels, and preserve voice-origin settings restrictions independently of output mode. Current grant-ignore enforcement remains until qualified migration.
+- Under the [session permission-level contract](Session_Permission_Levels.md), disable spoken approval during calls by default without changing grants or levels, and preserve voice-origin settings restrictions independently of output mode. Broader reviewer, provider and physical qualification remains unavailable where reported.
 
 Acceptance of these design choices is not proof of runtime enforcement. Implement and test the associated controls before enabling their capabilities; the bootstrap/full-design boundary remains explicit.
 An absence of compulsory speaker authentication is not an unresolved release blocker. Optional learned-voice or verifier claims require their own quality/privacy evidence.
@@ -488,6 +541,11 @@ See [Out-of-the-Box Skills and Session Policy](Built_In_Skills.md#mandatory-lock
 ## Call-Aware Output Privacy
 
 Call state and detector preferences are device-local; collect only metadata needed for speech gating.
+The [bounded local communications observer](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) keeps native endpoint/session identifiers volatile inside Windows and exposes only opaque device/generation epochs, sequence, state, timestamp and health to the host.
+Session process IDs only exclude Kora; no executable/window names, content or audio are collected. Source status is not model context, capture consent, speaking permission or grant authority.
+The [host aggregator](../src/Kora.Application/Communication/CommunicationActivityCallStateService.cs) treats selected-but-unavailable, stale, failed and invalid observations as Unknown.
+The unqualified production profile cannot be enabled through native, typed or voice routes; deterministic platform fakes are implementation evidence only.
+Callback retirement and actual worker/COM release remain separate; failed unregister retains the retired owner in quarantine without replacement or late publication.
 Do not record communications audio, meeting contents, participants, or transcripts for detection.
 An optional Graph presence source uses explicitly approved account/network access with least privilege; it cannot operate remotely under local-only mode.
 Current state and speech suppression reasons are not silently sent to models.
@@ -661,6 +719,10 @@ Re-detect and re-approve after a transformation changes the outgoing content.
 
 ### Runtime Egress Enforcement
 
+The [explicit Claude observation route](../docs/claude-requests.md#explicit-read-only-observations) freezes an original-six-ID subset and delegates proposals to the existing host loop.
+Account/catalogue lease and host request/profile/session authority are rechecked across each await, physical POST and final publication. Every Count Tokens and Messages body, including inert host results, receives independent one-send native approval; previous consent and provider metadata confer none.
+Cumulative physical byte accounting and joined transport disposal retain ownership after cancellation ([transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs), [shared review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
+
 The [exact provider handoff workflow](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
 binds original-user host intent, immutable complete envelope/evidence lineage,
 destination/catalogue and policy revisions, question revision, session/task
@@ -751,7 +813,7 @@ admission are still independent gates.
 
 The default treatment/risk tables below describe review when needed, especially Review all, rather than mandatory ordinary approval in all levels. Prohibited effects, unknown authority, containment, OS/provider checks, source privacy and required disclosure consent remain fail-closed. Combined action/disclosure cards may record distinct exact authorities from one explicit user answer.
 
-The proposed [call approval-channel policy](Call_Aware_Speech.md#spoken-approvals-during-calls) preserves reusable grants and levels while disabling spoken approvals by default. The R05/manual-call implementation paragraphs below remain source-backed current behavior, not the migrated feature.
+The implemented bounded [call approval-channel policy](Call_Aware_Speech.md#spoken-approvals-during-calls) preserves applicable grants and levels while disabling spoken approvals by default. The [session policy implementation boundary](Session_Permission_Levels.md#delivered-bounded-implementation) distinguishes deterministic admission from unqualified reviewer/execution profiles.
 
 ### R05 Authorization Foundation
 
@@ -815,9 +877,9 @@ exact review and approval, not in-place widening.
 
 The original request origin remains part of the proposal. UI may answer an
 allowed voice-originated proposal, but a protected-call voice/in-call-settings
-mutation remains denied after a UI confirmation. In-call reusable-grant-ignore
-temporarily denies Session/Perpetual use while allowing a fresh exact Once
-decision; it never deletes reusable records. Changed known effects cannot
+mutation remains denied after a UI confirmation. Calls restrict spoken approval
+by default without withdrawing applicable Session/Perpetual authority or forcing
+Once; fresh native UI approval remains independently gated. Changed known effects cannot
 reuse a grant for a different effect.
 
 The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
@@ -895,7 +957,7 @@ Persist its revoked state and reason without deleting the perpetual record.
 Restoring the old bytes never restores authorization; fresh exact approval
 creates a new grant. Temporary call-policy blocking and unverifiable resources
 are inapplicability, not content-change revocation.
-The proposed [call spoken-approval setting](Call_Aware_Speech.md#spoken-approvals-during-calls) defaults Off and restricts spoken grant/consent answers during protection, without changing grant reuse, scope or session level. Current call grant-ignore remains until the qualified migration.
+The [call spoken-approval setting](Call_Aware_Speech.md#spoken-approvals-during-calls) defaults Off and restricts spoken grant/consent answers during protection, without changing grant reuse, scope or session level. Native review/confirmation and the live policy commit gate enforce the bounded implementation; broader physical/provider qualification remains separate.
 The host revalidates voice-answer eligibility at acceptance and ordinary operation authority at dispatch, including background work; feedback/speak-once preferences cannot enable spoken approval.
 During protected calls, the [settings origin gate](Call_Aware_Speech.md#in-call-settings-origin-gate) rejects voice-initiated voice/in-call configuration changes, including enabling spoken approvals, disabling detection and clearing manual call state.
 Trusted initiating-channel lineage and request/apply revalidation prevent model/tool or later UI-confirmation laundering; a new UI request is required.
@@ -1490,17 +1552,29 @@ Do not persist content-bearing temporary stores or plaintext FTS, emit decrypted
 Maintain an explicit inventory of managed recoverable copies and key-wrapper/backup generations: deleting a wrapper, rekeying the live database or unlinking an artifact does not revoke historical copies.
 The deletion contract must remove or rewrite owned recoverable content without destroying unrelated sessions or independently retained grants.
 The delivered [native exact-ID logical disposition](Interaction_And_Sessions.md#delivered-bounded-exact-id-logical-disposition---2026-10-08)
-is narrower than that deletion contract. It requires a host-held single-use
+completes owned SQLite content removal, not general backup or forensic erasure. It requires a host-held single-use
 preview and fresh LocalUi confirmation, unchanged admission, exact generation/
 metadata/live-record revision and no live/Unknown work or pending questions.
-Only addressed live name/question/observation/wait/scoped-grant rows are
-removed. A durable generation-advanced tombstone, control terminal success and
+Addressed live name/question (including drafts/answers)/observation/wait/scoped-grant rows are
+removed; history and session-owned reviewed-memory bodies are redacted atomically.
+Secure deletion is enabled before every disposition's addressed-content mutation,
+including memory-only, name-only and completed-question/history sessions with no
+attachments, provider overrides, conversation messages or saved conversation drafts.
+Post-commit compaction under the same restricted database owner removes cells
+freed by earlier revisions as well as current deletions; SQLite transient storage
+stays in memory, not a new disk backup or export. Unrelated live records are preserved.
+Owned SQLite cells/free pages are cleared and the committed rollback journal is
+cleared, durably flushed and verified empty before returning a successful receipt.
+Unknown managed copies hold removal; a hot/uncertain journal or failed post-commit
+cleanup/readback holds acceptance explicitly. A logical commit is not rolled back
+by cleanup failure: inspect durable authority and storage recovery, never retry
+automatically or claim complete removal. A durable generation-advanced tombstone, control terminal success and
 trusted typed audit commit together. Late task/interaction appends are denied.
-Independent Perpetual grants and task/audit provenance survive; audit carries
+Independent device-profile memories, Perpetual grants and task/audit provenance survive; audit carries
 opaque identities/revisions/digests, not names, answers or request text.
-Journals/free pages, copied or inert legacy databases, independent diagnostics,
-user exports and provider copies are disclosed as retained. Managed
-artifact/backup/history removal and forensic erasure remain unavailable.
+Other databases and their journals/free pages, copied or inert legacy databases,
+independent diagnostics, user exports and provider copies are disclosed as retained.
+General managed artifact/backup removal and forensic erasure remain unavailable.
 Do not describe shared-key deletion as per-session cryptographic erasure or content authentication as detection of whole-record removal/valid-backup rollback.
 Source revocation may remove restricted content before normal session expiry. Mark omissions/redactions explicitly.
 Independent content-minimising security/diagnostic events retain their disclosed lifetimes and do not reconstruct deleted chats; perpetual grant records are excluded from retention/eviction, and local deletion cannot erase user exports or provider copies.

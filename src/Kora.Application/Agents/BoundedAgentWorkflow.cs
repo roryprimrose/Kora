@@ -218,7 +218,7 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
     private async Task<ConversationSubmissionReceipt> InvokeReviewedAsync(BoundedAgentReview review, CancellationToken token)
     {
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, lifetime.Token, review.Token);
-        bool Current() => IsCurrent(review);
+        bool Current() => !token.IsCancellationRequested && IsCurrent(review);
         async Task Validate(CancellationToken check)
         {
             await ValidateProfileAsync(review, Current, check).ConfigureAwait(false);
@@ -228,7 +228,9 @@ public sealed class BoundedAgentWorkflow(IAgentProfileReader reader, ISessionWor
             { await lease.ValidateAsync(check).ConfigureAwait(false); }
             Require(Current, check);
         }
-        using var activity = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, review.Origin);
+        ActivityLink[] links = HostActivity.Current?.Activity is { } confirmation ? [new(confirmation.Context)] : [];
+        using var activity = HostActivity.BeginRoot(HostRequest.Create(review.Origin),
+            HostActivityLayer.Application, HostOperation.Request, links);
         SecurityAuditEvent? requested = null;
         HostRequest? admittedRequest = null;
         ActivityLink cause = default;

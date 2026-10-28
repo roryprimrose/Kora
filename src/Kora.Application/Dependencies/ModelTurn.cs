@@ -10,13 +10,26 @@ public sealed class ModelTurn
 {
     private int used;
     private bool running;
+    private int retirementReason;
     private int forbiddenToolAttempt;
     private int toolCalls;
     internal bool TryAdmitTool() => Interlocked.Increment(ref toolCalls) <=
-        (Context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls);
+        (Context.WebPages?.MaximumCalls ?? Context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls);
     internal bool HasForbiddenToolAttempt => Volatile.Read(ref forbiddenToolAttempt) != 0;
     internal void RejectToolAttempt() => Interlocked.Exchange(ref forbiddenToolAttempt, 1);
-    internal bool IsRunning { get => Volatile.Read(ref running); set => Volatile.Write(ref running, value); }
+    internal ModelTurnReason RetirementReason => (ModelTurnReason)Volatile.Read(ref retirementReason);
+    internal Action? AuthorityRetired { get; set; }
+    internal void Retire(ModelTurnReason reason)
+    {
+        if (Interlocked.CompareExchange(ref retirementReason, (int)reason, (int)ModelTurnReason.None)
+            == (int)ModelTurnReason.None)
+        { AuthorityRetired?.Invoke(); }
+    }
+    internal bool IsRunning
+    {
+        get => Volatile.Read(ref running) && RetirementReason == ModelTurnReason.None;
+        set => Volatile.Write(ref running, value);
+    }
     internal ModelTurn(Guid owner, HostActivity issuer, ModelTurnProvenance provenance, ModelContextEnvelope context,
         byte[] wire, HostRevision sessionGeneration, HostRevision taskRevision,
         long controlRevision, ModelProviderRegistration registration)
@@ -46,6 +59,12 @@ public sealed class ModelTurn
     internal ModelProviderRegistration Registration { get; set; }
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
+    internal LocalUnavailableObservation? LocalUnavailable { get; set; }
+    internal RuntimeResourceAllocator.Lease? ResourceLease { get; set; }
+    internal bool ResourceDispatched { get; set; }
     internal Kora.Application.Hosting.ConversationQuestionContinuation? QuestionContinuation { get; set; }
+    internal Func<ModelAnswerUpdate, CancellationToken, ValueTask>? PublishAnswer { get; set; }
+    internal Func<CancellationToken, ValueTask<ModelTurnReason>>? ValidateAnswerCommit { get; set; }
+    internal Action<Kora.Core.Conversation.ConversationExecutionStep>? PublishExecutionStep { get; set; }
     internal bool TryUse() => Interlocked.Exchange(ref used, 1) == 0;
 }

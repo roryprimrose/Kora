@@ -32,8 +32,11 @@ expansion/collapse does not recreate the session model, move input, save, submit
 The expanded window does not use the ordinary response inactivity timer.
 
 - The left pane defaults to Active on its first list load, with All/Done filters and
-  explicit Refresh/Next. A list request admits a bounded metadata page, never all
-  transcripts. Opening does not select a default session.
+  explicit Refresh/Next. Ordinary conversation-name substring Search/Clear/Next
+  matches/Cancel reuses the validated bounded metadata search; edits read nothing,
+  retire captured ordinal targets and never select or resume a match. Matching is
+  case-sensitive ordinal text, not transcript search. A list request admits a
+  bounded metadata page, never all transcripts. Opening does not select a default session.
 - The right pane separates retained Conversation (original user text, genuine assistant
   answers and native action outcomes) from read-only Activity (the existing ordered
   host task/question/answer/decision receipts). Read/More are explicit source reads.
@@ -42,7 +45,7 @@ The expanded window does not use the ordinary response inactivity timer.
   tool-trace store or complete exact-grant-change feed.
 - A named session composer uses the existing admitted submit path and per-session
   memory-only input. Done browsing never resumes work. Advanced provider, retention,
-  search, evidence and lifecycle controls remain under **Session management**.
+  additional search, evidence and lifecycle controls remain under **Session management**.
 - **Current interaction** reveals the original response/question/approval controls
   inside the same window. Pending legacy interaction is indicated in the header;
   the independent authoritative native question window remains independent.
@@ -50,6 +53,13 @@ The expanded window does not use the ordinary response inactivity timer.
 - Closing the last participating native view protects unsent input through the
   existing Discard/Cancel owner; privacy/ownership/session retirement revokes content
   and delayed publication without saving it.
+
+Running-task notifications retain the exact selected source, selection lifetime and
+private-control revision captured before native dispatch. Switching away and back,
+replacing session metadata or closing the presenter retires that callback; it cannot
+restore old task controls on a new selection or reopened presenter. Fresh explicit
+running-work inspection remains available. This does not change stop/delete,
+last-view-close, submitted-work ownership or physical-resource joins.
 
 ### Presented-list voice selection
 
@@ -65,6 +75,8 @@ bodies, start listening, dispatch work, resume Done or change question/approval 
 
 ### Routing is independent of window mode
 
+The explicit `ask this conversation <original body>` command binds only the unique current foreground Active presenter, with readable exact native review and a separate one-use confirmation. The [shared presentation owner](../src/Kora/SessionsPresentationOwner.Foreground.cs) supplies this host snapshot; current selection is not permission for other utterances. The [complete operation](Interaction_And_Sessions.md#explicit-original-request-to-the-foreground-conversation) preserves independent unsent buffers and default routing.
+
 The approved [relatedness contract](Interaction_And_Sessions.md#proposed-relatedness-routing)
 applies in both modes. Selection supplies conversational context, not a routing lock.
 Explicit session composers/dictation and named targets win. Untargeted general voice
@@ -73,10 +85,14 @@ several plausible matches require a choice including New. A user-requested accep
 route acknowledges its destination and reveals it in expanded mode while preserving
 the previous input/reading position. Background events never navigate.
 
-This increment delivers deterministic native/typed/activated-voice navigation only.
-Automatic matching, model-visible session-list descriptors and model-callable window
-navigation are not composed. The existing fresh-target New request fallback remains
-truthfully narrower. No runtime, installed accessibility, physical display or provider
+Untargeted original requests now compose the reviewed local relatedness operation:
+one permitted metadata page, one admitted tools-free local inference, exact
+destination acknowledgment/correction including New, then canonical original-body
+submission and genuine final answering. Its routing control domain is not a user
+destination; inference physically joins before review. No hosted matching,
+model-callable window navigation or automatic destination submission is admitted.
+Unqualified local inference still offers reviewed New rather than guessing.
+No runtime, installed accessibility, physical display or provider
 qualification is claimed by headless [adaptive tests](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.cs).
 
 ## Integrated session content pane - 2026-10-25
@@ -615,6 +631,8 @@ Do not rely on color/animation alone; expose state text and readable blocker rea
 Basic list/new/select/Done/resume/delete/status controls do not require a model, internet, or working microphone.
 
 ### Conversation Pane
+
+The [deliberate native Reply operation](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) is shared by the primary conversation, Sessions and compact surface. Its row action chooses one exact retained ASSISTANT answer; visible reply/source/cancel controls use the existing memory-only composer and separate full-source/new-input review followed by one-use local-only confirmation. Choosing Reply is not submission, and ordinary Send outside Reply remains unchanged ([native state](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs), [three-surface execution evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
 
 Show ordered user/assistant exchanges, structured questions, accepted answers, plans, artifacts, approval decisions, and observed actions/results.
 Collapsible task/event groups reduce noise but cannot replace or discard full evidence.

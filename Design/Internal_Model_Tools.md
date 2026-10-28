@@ -39,7 +39,39 @@ deployment mode. Runtime health is not permission or R02 qualification;
 ToolLoopQualified remains false. No settings/evidence/session/side-effect entries
 are added, and existing exact lock/power behavior is unchanged.
 
+### Reviewed Active-session discovery - 2026-10-26
+
+The separate [session discovery catalogue](../src/Kora.Core/Tools/SessionDiscoveryTool.cs)
+contains only `sessions.list` in an explicit `SessionDiscovery` tool mode.
+It does not add a seventh tool to ordinary read-only turns, admit a management
+lane, or widen tool-free requests. The [host operation](../src/Kora.Application/Dependencies/ModelTurnHost.SessionDiscovery.cs)
+admits the original local UI/activated-voice task before reading metadata through
+`SessionWorkspaceService`, presents the complete exact source page for explicit
+user confirmation, and runs the real admitted callback only after confirmation.
+The model receives at most six Active-session IDs and optional names as
+lower-trust observations, with offset/count pagination inside that review.
+Source continuation stays host-only and requires a separate review.
+
+The [guide](../docs/model-session-discovery.md) defines exact fields, complete
+1,024-byte input / 4,096-byte result bounds, mutable-source freshness and
+cancellation. Host lifecycle/private control and exact metadata are revalidated
+before callbacks and every continuation. No transcript/history, summary,
+navigation, relatedness selection, grant transfer or hosted disclosure is
+introduced. Native review is a required host adapter, not a model decision.
+Production provider/tool-loop qualification remains unavailable; deterministic
+real-host/fake-transport evidence does not enable a runtime.
+
+### Reviewed customization metadata discovery - 2026-10-26
+
+The separate [customization catalogue](../src/Kora.Core/Tools/CustomizationDiscoveryTools.cs) advertises only `customizations.list` and `customizations.get` in `CustomizationDiscovery` mode. The user chooses one to six supported skill, agent and instruction sources, reviews the exact immutable metadata projection, and confirms one local retained recommendation. This is neither the six legacy host descriptors nor activation/invocation.
+
+The [complete interaction guide](../docs/customizations.md#discover-which-selected-customizations-may-help) defines source/entry choice, original typed/activated routes, private native review, exact fields, currentness, byte bounds, honest coverage and unavailable behavior. The [canonical conversation route](../src/Kora.Application/Hosting/SessionConversationService.CustomizationDiscovery.cs) retains the genuine answer or terminal without changing ordinary/read-only/session-discovery paths.
+
+Callbacks expose only frozen reviewed metadata through opaque snapshot refs, with exact selected-source revalidation. No source body, raw identity, path, native handle, MCP/account/configuration, prompt expansion, automatic instruction loading, invocation, grant or hosted disclosure is introduced ([snapshot lifecycle](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [primary-only reader](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Metadata.cs)). Deterministic native/host/fake-model tests do not qualify or enable a real provider.
+
 ### Bounded provider-neutral continuation implementation - 2026-10-20
+
+The additive [read-only clarification protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs) uses request schema 3 only for an explicitly admitted local read-only question turn. Schema 1 read-only-only and schema 2 tool-free question requests retain their formats. Complete serial tool-result history may contain one exact SingleChoice question/host answer pair; the answer is user data, not a tool call or authority. The [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserves chronological assistant/tool/assistant/user history and rejects mixed content/tool responses. See the [complete interaction](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26).
 
 [ModelToolProtocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs) owns the
 closed immutable assistant-call, host-result and final-answer messages and the
@@ -319,11 +351,12 @@ All mutating entries below are host-validated proposals or admitted invocations,
 
 ### Sessions and History
 
-The delivered [native exact-session retention status and Keep/ordinary review](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) has no qualified model descriptor or typed/voice mutation adapter. Native original-user confirmation is mandatory; `sessions.list/get` below remain proposed model tools. A SESSION retention hold is never a Perpetual OPERATION grant or model memory/recall permission.
+The delivered [native exact-session retention status and Keep/ordinary review](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) has no qualified model descriptor or typed/voice mutation adapter. Native original-user confirmation is mandatory. The separately reviewed minimal `sessions.list` implementation above does not admit retention, summaries or history. A SESSION retention hold is never a Perpetual OPERATION grant or model memory/recall permission.
 
 | Tool IDs | Inputs and bounded results | Lanes | Availability / boundary |
 |---|---|---|---|
-| `sessions.list`, `sessions.get` | Lifecycle/work-state filter or session ID; metadata, due dates, grounded status and permitted summary | M/E | Proposed A3; M receives minimal routing descriptors only |
+| `sessions.list` | Offset/count inside one explicitly reviewed Active-session page; only IDs and optional names | E | Bounded implementation above; unqualified production runtime remains unavailable; no M authority |
+| `sessions.get` | Session ID; metadata, due dates, grounded status and permitted summary | M/E | Proposed A3; no broader metadata or summary authority from minimal list |
 | `sessions.search` | Query, lifecycle/date filter, cursor; permitted matches and evidence references | E; M metadata-only | Proposed A3; full-text content is not unrestricted routing context |
 | `sessions.read_history` | Session/event/task/time filter and cursor; ordered permitted messages, decisions, receipts and grant references | E | Proposed A3; no implicit resume or retention refresh |
 | `sessions.read_artifact` | Session/artifact ID, digest and bounded range; immutable source/provenance | E | Proposed A3/A4; never execute historic scripts |

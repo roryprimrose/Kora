@@ -1,4 +1,5 @@
-﻿using System.Diagnostics;
+﻿using System.Collections.Immutable;
+using System.Diagnostics;
 using System.Text.Json;
 using AwesomeAssertions;
 using Kora.Application.Dependencies;
@@ -509,13 +510,15 @@ public sealed partial class ModelTurnHostTests : IDisposable
         internal bool Current { get; set; } = true;
         internal Action? OnRead { get; set; }
         internal Func<Task>? BeforeRead { get; set; }
+        internal Func<Task>? BeforeTaskRead { get; set; }
         internal Action? OnVersion { get; set; }
         internal bool AuditFailure { get; set; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
         internal List<string> Messages { get; } = [];
         internal List<HostRequest> LogRequests { get; } = [];
         public bool IsCurrentHost => Current;
-        public bool CanInspect => CanControl;
+        internal bool Inspect { get; set; } = true;
+        public bool CanInspect => CanControl && Inspect;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
         public string Version { get { OnVersion?.Invoke(); return "1.0"; } }
@@ -609,14 +612,27 @@ public sealed partial class ModelTurnHostTests : IDisposable
         {
             OnRead?.Invoke();
             if (BeforeRead is { } before) { await before().ConfigureAwait(false); }
+            if (DiscoveryEntries is { } entries && session != Request.SessionId)
+            {
+                return entries.GetValueOrDefault(session.Value)
+                    ?? new(new(session, new(1), false), null);
+            }
             return new SessionWorkspaceEntry(Session, Metadata);
         }
-        public ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token) =>
-            ValueTask.FromResult(Task);
+        public async ValueTask<HostTaskObservation?> ReadTaskAsync(HostId<SessionIdentity> session, HostId<TaskIdentity> task, CancellationToken token)
+        {
+            if (BeforeTaskRead is { } before) { await before().ConfigureAwait(false); }
+            if (handoffSources.TryGetValue(task, out var source)) { return source; }
+            return TrackPendingRecords
+                ? PendingRecords.Values.Where(item => item.Task.Request.TaskId == task)
+                    .Select(item => new HostTaskObservation(item.Task, item.Message.Generation, "host", true, null)).SingleOrDefault()
+                : Task;
+        }
         public void Write(SecurityAuditEvent auditEvent)
         {
             if (AuditFailure) { throw new IOException("audit unavailable"); }
-            HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request);
+            if (TrackPendingRecords) { PendingRecords.Values.Select(item => item.Message.Request).Should().Contain(HostActivity.RequireCurrent().Request); }
+            else { HostActivity.RequireCurrent().Request.Should().BeSameAs(ExpectedAuditRequest ?? Request); }
             Audits.Add(auditEvent);
             OnAudit?.Invoke(auditEvent);
         }
@@ -646,17 +662,30 @@ public sealed partial class ModelTurnHostTests : IDisposable
             public void ConfirmWrite() => Pending = false;
         }
         public ValueTask<SessionDispositionPreview> PreviewDispositionAsync(HostId<SessionIdentity> session, HostRevision generation, long revision, CancellationToken token) => throw new NotSupportedException();
-        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<SessionDispositionReceipt> DisposeSessionAsync(HostRequest request, SessionDispositionPreview preview, Func<bool> eligible, CancellationToken token) =>
+            DisposeCompoundSession(request, preview, eligible, token);
         public ValueTask<HostTaskRecord> RecordControlIntentAsync(HostRequest request, CancellationToken token)
         {
             Request = request;
             Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
+            ExplicitIntentRecorded?.Invoke();
             return ValueTask.FromResult(Task.Task);
         }
         public ValueTask<SessionPage<WorkSessionAuthorization>> ReadSessionsAsync(Guid? after, int limit, CancellationToken token) => throw new NotSupportedException();
         internal SessionPage<SessionWorkspaceEntry>? MetadataPage { get; set; }
+        internal Dictionary<Guid, SessionWorkspaceEntry>? DiscoveryEntries { get; set; }
         public ValueTask<SessionPage<SessionWorkspaceEntry>> ReadMetadataPageAsync(Guid? after, int limit, CancellationToken token)
         {
+            if (DiscoveryEntries is { } entries)
+            {
+                limit.Should().Be(SessionListSearchPage.MaximumScannedRecords);
+                OnRead?.Invoke();
+                var records = entries.Values.OrderBy(entry => entry.Authority.SessionId.Value.ToString("D"),
+                    StringComparer.Ordinal).Where(entry => after is null
+                        || string.CompareOrdinal(entry.Authority.SessionId.Value.ToString("D"), after.Value.ToString("D")) > 0)
+                    .Take(limit).ToImmutableArray();
+                return ValueTask.FromResult(new SessionPage<SessionWorkspaceEntry>(records, null));
+            }
             limit.Should().Be(25);
             OnRead?.Invoke();
             return ValueTask.FromResult(MetadataPage ?? throw new NotSupportedException());
@@ -671,10 +700,13 @@ public sealed partial class ModelTurnHostTests : IDisposable
 
     private sealed class Adapter : IModelTurnAdapter
     {
+        internal bool JoinConfirmed { get; set; } = true;
+        public bool IsQuiescent => JoinConfirmed;
         internal int Calls { get; private set; }
         internal byte[]? Wire { get; private set; }
         internal ModelTurnProvenance? Provenance { get; private set; }
         internal Kora.Core.Providers.ProviderProfileTuple? Profile { get; private set; }
+        internal CancellationToken RunToken { get; private set; }
         internal Action? OnRun { get; set; }
         internal Task<ModelProviderReply>? Pending { get; set; }
         internal Func<Func<string, string, CancellationToken, ValueTask<CapabilityReply>>, Task>? OnTool { get; set; }
@@ -686,6 +718,7 @@ public sealed partial class ModelTurnHostTests : IDisposable
             Wire = context.ToArray();
             Provenance = provenance;
             Profile = profile;
+            RunToken = token;
             OnRun?.Invoke();
             if (OnTool is { } tool) { await tool(invokeTool); }
             return Pending is { } pending ? await pending : Reply;

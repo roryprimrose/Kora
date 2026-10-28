@@ -35,6 +35,38 @@ The actual production outcome remains HOST Unavailable; test-only qualified/fake
 
 ## Product Decision
 
+### Implemented model-advised review of same-conversation history
+
+For the approved explicit local answering outcome, an ordinary final answer may
+carry the strict inert `{"version":1,"advisory":"HISTORYREVIEW"}` object. Only
+that discriminator and version are admitted; model-supplied message/session
+identities, replacement questions and authority fields are rejected. The
+ordinary policy can suggest review, but grants no history read or disclosure.
+
+The native selected-answer action binds the exact authoritative retained
+advisory request/body/revision/execution and Active session generation/metadata.
+The original user selects whole already observed messages strictly before that
+turn, reviews their full text with the host's unchanged original question and
+LOCAL/no-tools destination, then separately confirms once. The existing
+history-review and retained-submit lifecycle performs actual local inference,
+terminal retention and exact readback, preserving LocalUi/ActivatedVoice origin
+without exposing a voice-consent bypass. The advisory source is a validity pin,
+not implicitly included evidence.
+
+Privacy, original input/presentation/lifetime, source revisions, expiry and
+ownership remain live fences through review, retention, dispatch and answer
+publication. The 60-second advisory deadline cannot be renewed by another
+review; cancellation revokes consent while joining outstanding ignoring work
+owned by that turn, never an independent conversation. A completed answer or
+truthful unavailable receipt returns without waiting for another session's runtime.
+Unsent composer bytes, manual history, replies and local-first handoffs remain
+independent. No automatic context folding, cross-session recall, default memory,
+tools, hosted fallback, automatic speech or source-content diagnostics are
+admitted. Missing runtime qualification remains truthful HOST Unavailable;
+deterministic adapter/native tests establish implementation, not enablement or
+provider/physical qualification. See the [complete interaction](../docs/reviewed-context.md#answer-the-original-question-after-a-model-history-advisory)
+and [shared host route](../src/Kora.Application/Hosting/SessionConversationService.History.cs).
+
 Kora supports qualified local inference through Ollama and separately
 qualified hosted inference through GitHub Copilot, Anthropic Claude, and
 OpenAI Codex. It does not require every user or session to use local and hosted
@@ -80,7 +112,7 @@ are not provider enablement or qualification.
 An explicit native Claude submission or the existing typed/activated request
 review and separate confirmation retains the unchanged original USER body and
 channel. Ordinary/default/local-only reviewed-source routes do not acquire
-Claude authority. This first stateless text-only profile includes no tools,
+Claude authority. The default stateless text-only profile includes no tools,
 files, history, attachments, memory or other source instructions.
 Every content-bearing physical POST, including Count Tokens, requires a new
 private native complete-final-byte disclosure and affirmative one-send consent.
@@ -88,6 +120,12 @@ A genuine bounded final answer is retained as ASSISTANT data; denial/failure
 retains a truthful terminal, never a substitute answer. Cancellation joins
 actual outstanding work and cannot retract transmitted bytes.
 See [Claude requests](../docs/claude-requests.md) for the complete interaction.
+
+The separate [native text-stream operation](../docs/claude-requests.md#separately-qualified-native-text-streaming) requires positive exact-profile streaming evidence, not buffered approval or a desired profile setting. Only the original USER body enters this native-only, tool-free request. Actual incremental SSE text uses canonical volatile presentation; final-only retention, independent physical-send consent and actual reader/disposal join remain mandatory. The default deployment source stays unavailable ([stream runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
+An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-observations) additionally admits only the six original host read-only capabilities through the [canonical bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs).
+Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
+Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each has its own adapter,
@@ -401,7 +439,29 @@ Kora owns context selection for every provider. Provider conversation state,
 SDK transcripts, caches, and native memory features cannot become a second
 authority or an unreviewed durable store.
 
+The [explicit mixed-context operation](../docs/reviewed-context.md) combines whole
+original/assistant history, one enabled owned instruction and existing admitted
+SESSION memories for one exact Active session. Complete review includes the
+unchanged new request and total serialized budget; separate single-use confirmation
+admits one local-only tool-free answer or cancellation. Source brokers and retention
+remain independent; device-profile/model-proposed memories and provider qualification
+are not implementation prerequisites or implicitly enabled capabilities.
+
+Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
+
 ## User-Governed Durable Memory
+
+### Delivered explicit Device-profile operation
+
+The [Device-profile guide](../docs/profile-memory.md) describes the native
+original-user propose, complete inspect/review, separate admission,
+list/edit/disable/forget and later-conversation one-shot local-only answer.
+The explicit profile route extends the authoritative memory transaction with
+independent lifetime and profile-bound lineage. Existing session transactions,
+typed commands, model proposals and session-context consumers remain
+Session-only. No automatic recall, provider learning, Project/Source scope
+or hosted disclosure is enabled. Historical session-only availability notes
+below describe the earlier increments, not this explicit profile route.
 
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.
@@ -465,7 +525,7 @@ The [exact grammar](../src/Kora.Core/Commands/MemoryCommand.cs) provides `memory
 The [command-level transition matrix and mutation-boundary tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.ManagementMatrix.cs) cover each state/action, model-origin rejection and session/ownership/privacy changes.
 [SQLite surface tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.Management.cs) exercise the authoritative round-trip, redaction/tombstones and corrupt saved state without cached fallback.
 
-Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing **Remember this**/proposal triggers remain separate, undelivered workstreams.
+Provider ranking/prompt attachment, cross-session/global/device-profile/project/source recall, hosted disclosure, and model-facing admission remain separate, undelivered workstreams. The [explicit reviewed model-memory proposal](../docs/model-memory-proposals.md) adds only a strict inert candidate from an actual retained ASSISTANT answer: the original user inspects complete source/channel/turn lineage and exact value/classification, then separately accepts and admits it through the existing session-only admission/audit/store. No answer is automatically converted, used, promoted or learned; stale/private/source/lifecycle closure retires review.
 The original 2026-10-09 surface had no create/propose route. The bounded original-user extension below supersedes that gap only; arbitrary conversation and model responses still cannot trigger creation.
 
 ### Bounded Selected-Subset Session Memory Disable - 2026-10-18
@@ -1032,10 +1092,11 @@ outcomes are typed; removing exact evidence IDs retires the old offer and create
 a reduced envelope requiring fresh review. No confidence field, default answer,
 grant or model-selected Kora identity is accepted.
 
-The workflow can offer review after the
-[audited local Unavailable terminal result](../src/Kora.Application/Dependencies/ModelTurnHost.Policy.cs)
-of a host-issued policy-bound turn; it does not automatically dispatch another
-provider. Other [typed reasons](../src/Kora.Core/Dependencies/ModelHandoffReason.cs)
+The executable local-Unavailable subset requires the
+[owning runtime's observation](../src/Kora.Application/Dependencies/ModelTurnHost.LocalOutcome.cs)
+of its actual Unavailable result **and exact issued physical lease join**.
+A logical result or unrelated quiescence is insufficient. Other
+[typed reasons](../src/Kora.Core/Dependencies/ModelHandoffReason.cs)
 must come from host-owned capability/budget/acceptance or explicit-user decisions,
 not model text. One-use review is bound to the original user/request, exact
 context object including evidence lineage, exact policy and destination revision,
@@ -1053,12 +1114,25 @@ enter an offer. Required audit failures throw and return no new policy/review
 capability; cancellation and late callbacks cannot acquire one
 ([workflow tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Policy.cs)).
 
-**Boundary:** confirmation is neither runtime qualification nor a final-request
-egress receipt. Production still composes no adapters or qualification evidence,
-and even qualified test registrations plus approved review return DeniedEgress
-at the [turn host](../src/Kora.Application/Dependencies/ModelTurnHost.cs).
-No account/model acquisition, network send, RT1/RT2/PV1 proof, memory
-storage/retrieval or prompt ranking is delivered by that increment. The generic
+The [explicit native local-first operation](../src/Kora.Application/Dependencies/VerifiedLocalHandoffOperation.cs)
+keeps the original source until reviewed. The existing
+[canonical store transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.LocalHandoff.cs)
+revalidates the live outcome capability, exact answered question, source/task
+revision, generation, context, original expiry, private authority and configured
+provider policy. One physical commit records the legal local Unavailable failure,
+one new intent, immutable lineage and trusted audit. It introduces no terminal
+source exception, ordinary queue change or second executor. Only that exact
+committed successor enters configured Copilot admission and the existing,
+independent actual final-byte/destination/account review. Cancellation keeps
+physical ownership; only a validated final answer is retained in the original
+session. Generic offers without the observation remain review-only.
+
+**Boundary:** context confirmation is neither runtime qualification nor a
+final-request egress receipt. Production qualification stays unavailable unless
+positively supplied by the existing host; deterministic local/runtime/account/
+egress fakes prove implementation, not provider or RT1/RT2/PV1 qualification.
+There is no account/model acquisition, automatic fallback/retry, memory
+storage/retrieval or prompt ranking in this operation. The generic
 native question surface cannot itself issue this workflow's review capability;
 the separate exact native consumer below now closes that review-only gap.
 Durable session policy awaits dependent

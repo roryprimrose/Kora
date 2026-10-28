@@ -28,6 +28,10 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
+
+The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.
+
 Kora has one source-qualified artifact invocation route for bundled skills and
 compatible skill, instruction, prompt, and agent definitions. The route is
 available from the typed composer and activated voice:
@@ -212,6 +216,33 @@ foreground selected-session route; they never choose a server, account, session
 or tool implicitly. Authentication/approval still uses mandatory native review.
 The original voice/UI channel is preserved. Cancellation closes new dispatch
 and publication; the owner joins late provider/transport work before disconnect.
+
+For provider-independent execution, **Invoke reviewed MCP tool without a model**
+or `invoke selected mcp tool` uses the same explicit foreground server/account,
+connection review, host read-only mapping and tool/schema selection. The original
+user supplies the bounded required JSON arguments; submitting that input is not
+permission to send it. A separate exact invocation review approves destination,
+account, tool, schema and outgoing arguments. The canonical MCP invocation and
+original-session cancellation owner perform one exchange, physically join the
+transport, and display only its actual inert result. No model is selected or
+called, no assistant answer is fabricated, and unsent conversation input stays
+unchanged. Task/audit outcomes remain durable; the tool result is a volatile
+original-session presentation. Cancellation or an uncertain dispatched outcome
+does not claim remote rollback and never retries automatically.
+
+An exchange disconnect, disposed transport, or transport-owned cancellation
+retires that invocation's connection without reconnecting, retrying or falling
+back. A failed tool exchange completes the original conversation as
+`Unknown` / `ToolResultRejected`, with no assistant answer or tool-result
+publication; the exchange audit remains `Unknown`, not a claim that the remote
+read never occurred. Inspect the original request and explicitly start a newly
+reviewed request to recover. Failure-only completion still requires current
+session, configuration-source and approval authority; storage, audit or host
+authority failures remain explicitly unconfirmed. Caller cancellation retains
+its existing cancellation policy. The existing 30-second per-exchange deadline
+also covers serial waiters. Lifetime/account withdrawal cancels waiting
+exchanges before any new send, and disposal retains the handler and credential
+lease until cancellation-ignoring work actually terminates.
 
 Implementation is exercised with deterministic delegated-account, transport and
 model fakes, not live servers. The shipped broker remains explicitly
@@ -465,6 +496,35 @@ Profile prose is inert untrusted guidance: paths, URLs and instructions in it ar
 
 The [agent conversation consumer](../src/Kora.Application/Hosting/SessionConversationService.Agents.cs) uses local model admission and canonical retained request/task/answer terminal receipts. Exact source-qualified revision fingerprints correlate through typed request/terminal audit; raw profile/input/answer text never enters diagnostics or audit. Stop/revoke closes dispatch and publication; native source and provider ownership remain held until actual quiescence, including cancellation-ignoring transport. See the [user interaction](../docs/tools-and-built-in-skills.md#run-one-reviewed-local-agent-profile).
 
+The same exact running-conversation lease projects content-free host model and
+numbered observation steps, not provider reasoning or tool-result text. Deferred
+native presentation revalidates the live lease, original source/private lifetime
+and current progress revision; waiting snapshots cannot overwrite a later phase
+when dispatch advances the durable task revision. Review/consent remains in the
+existing agent review window. Exact-task Cancel reports pending physical join
+before the existing confirmed terminal; no progress snapshot grants authority,
+persists partial output, cancels another run or manufactures a successful answer.
+Original caller cancellation closes the bounded run's source/dispatch predicate
+immediately, without waiting for asynchronous linked-token callbacks.
+
+**Named static invocation:** original typed/current-name activated
+`agent invoke "Exact readable name" <original task>` resolves exactly one
+file-backed Agent from the existing registered catalogue. Missing/duplicate
+names, disabled use, reload failure or changed source refuse without fallback.
+The host resolves only the matching registered source identity within the
+existing bounded roots; the native reader then pins and revalidates its exact
+bytes against the captured catalogue digest before invocation review can
+authorize anything. No new catalogue, engine or approval policy is introduced.
+The same native bounded workflow owns explicit readable Active-target choice,
+complete source/input/channel review, separate reference consents and invocation
+confirmation, original-channel retained terminals and joined cancellation.
+Source/task changes require a new command. See
+[exact syntax](../docs/commands.md#invoke-one-registered-agent-by-readable-name)
+and [complete operation](../docs/tools-and-built-in-skills.md#invoke-a-registered-agent-by-readable-name).
+
+**Combined owned instructions and observation tools (v4):** an explicit compatible v4 profile uses the same canonical loop with one to four exact independently enabled Kora-owned instruction references and a nonempty subset of the six existing read-only tools.
+Resolution consent and complete exact invocation review remain separate. V1 tool-only and v2/v3 reference-only contracts do not widen ([v4 contract](Definition_Management.md#bounded-local-agent-owned-instructions-with-observation-tools-v4), [parser](../src/Kora.Core/Agents/BoundedAgentProfile.cs)).
+
 The host maintains related but distinct registries:
 
 - A command/intent catalogue maps canonical phrases and aliases to host actions or original bundled skill/task identities.
@@ -552,6 +612,9 @@ Model: tool definitions, skill summaries, request/context        |
 9. Kora renders the response under speech, privacy, and locked-session policy. Cancellation invalidates pending calls/approvals and suppresses late model responses.
 
 Native SDK function/tool calling and typed inference responses are alternative transports for this contract.
+
+The [local observation-and-choice conversation](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) composes the existing host question service with the canonical six-tool read-only loop. It permits one SingleChoice question between complete serial exchanges, never an action approval or new tool capability. Native/activated-voice replies use the existing exact question owner, and the actual final answer is retained on the original request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs), [user interaction](../docs/responses-and-calls.md#conversation-clarification)).
+
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
 In neither case does the model directly execute application code.
@@ -575,6 +638,10 @@ call/round and deadline limits, no retries and actual transport termination
 remain mandatory. This is not a running provider, a skill/agent executor or
 permission to use the legacy action selector as a tool loop. Production
 qualification and default enablement remain unavailable.
+
+Explicit [Claude observations](../docs/claude-requests.md#explicit-read-only-observations) reuse this same loop and actual six-ID registry callback, rather than introducing a provider tool engine.
+A bounded advertised subset is frozen by the host; both native Count Tokens and Messages sends, including every result continuation, require separate affirmative final-byte consent.
+Ordinary Claude requests stay tool-free; provider-native tools and other capability groups remain excluded ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Safe/Approve-all admissions create no grants. Commands/UI, MCP, generated/stored scripts and skill steps share the host decision; unsupported profiles remain unavailable. [Call approval eligibility](Session_Permission_Levels.md#voice-approval-and-protected-calls) restricts spoken approval by default, not grants or the level. These are proposed additions, not implemented transports.
 

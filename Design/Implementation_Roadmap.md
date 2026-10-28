@@ -61,6 +61,10 @@ dependency and does not authorize a blanket owner-only command policy.
 
 ## Completed product realignment
 
+The bounded R08 [provisional local answer increment](Information_Display.md#bounded-provisional-local-answers) adds explicit local tool-free incremental presentation to the ordinary conversation owner, with exact-turn publication, independent cancellation/resource join and final-only ASSISTANT retention. Existing tool/clarification/ordinary hosted paths stay buffered; local enablement and broader R08 qualification remain separate ([deterministic host tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.Streaming.cs), [native transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/WindowsOllamaToolTransportTests.Streaming.cs)).
+
+The separate bounded R08 [native Claude text-stream increment](Runtime_Provider_Feasibility.md#native-text-stream-implementation-not-enablement) implements explicitly selected original-user SSE text through the same provisional owner, independently consented Count Tokens/Messages POSTs and final-only retention. Exact deployment/account/model stream enablement remains unavailable by default; no provider trial or broader R08 qualification is claimed ([runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs), [composed deterministic evidence](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
+
 - Product-admission rules are merged in [#419](https://github.com/roryprimrose/Kora/pull/419); native calculator/clock/clipboard-analysis utilities are removed in [#420](https://github.com/roryprimrose/Kora/pull/420).
 - Memory-only unsent input and read-only legacy recovery replace draft documents in [#421](https://github.com/roryprimrose/Kora/pull/421). Read separation, composer chrome and shutdown protection follow in [#424](https://github.com/roryprimrose/Kora/pull/424), [#425](https://github.com/roryprimrose/Kora/pull/425) and [#426](https://github.com/roryprimrose/Kora/pull/426).
 - Engineering-only normal browsing predicates and public diagnostic scheduling are retired in [#422](https://github.com/roryprimrose/Kora/pull/422); historical link correction is [#423](https://github.com/roryprimrose/Kora/pull/423). Internal scheduler/domain/audit/schema compatibility, safe existing-work controls and Evidence/grant diagnostics remain.
@@ -81,8 +85,12 @@ Source changes refuse stale positions; historical events never answer or grant.
 Advanced session management and authoritative question windows remain separate.
 
 The approved relatedness policy is mode-independent, with selection as context rather
-than a routing lock. Automatic matching and model-visible session-list context remain
-unavailable, as explicitly scoped by the product owner. This does not qualify providers,
+than a routing lock. The bounded reviewed operation now composes one tools-free
+LocalOnly inference over the existing permitted metadata page, followed by exact
+acknowledgment/correction and unchanged canonical original-user answering. Routing
+has its own canonical control domain and physically joins before destination review.
+Unqualified local inference remains unavailable; there is no hosted matching or
+automatic submission. This implementation does not qualify providers,
 installed accessibility or physical display behavior. See
 [design and evidence](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25).
 
@@ -446,10 +454,10 @@ descriptors; native delivery does not make a model tool available.
 | Authority and storage | Private standard SQLite, typed task/question/grant/audit transactions, no-replay recovery, exact native grant inspection/revocation | General worker/effect admission, audit anchors/pruning/whole-store rollback and managed-copy/installed qualification | [Security](Security_Data_Flows.md), [grant controls](User_Configuration.md) |
 | Sessions and work | Durable conversation/lifecycle/history/retention, session-local unsent input and safe retained-work inspection/cancellation | Qualified production conversation execution, arbitrary effects, concurrent workers and model tools | [Sessions](Interaction_And_Sessions.md), [work](Work_Management.md) |
 | Native workspace and evidence | Conversation/history search, passive cross-session attention, bounded SQLite/DailyLog/CombinedLog/AuthorityAudit inspection | General Ask Evidence/model retrieval/export and full installed accessibility | [Workspace](UI_Workspace_And_Windows.md), [display](Information_Display.md) |
-| Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery and run-only manual call protection | Automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
+| Preferences and audio | Admitted native/exact preferences, consented PTT, installed/local speech, visual recovery, run-only manual call protection and [bounded communications-observation implementation](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) | Exact Windows observation-profile enablement, broader automatic call detectors, call-policy downgrades, temporary speech exceptions and acoustic qualification | [Configuration](User_Configuration.md), [call policy](Call_Aware_Speech.md) |
 | File/clipboard inspection | Immutable previews, folder lexical retrieval, reviewed refresh, one retained file/session, replacement/removal, metadata catalogue, opt-in Markdown, exact citations and native current-file literal Find | Managed sources, model grounding/egress, indexes, screen/OCR context | [Ingestion](File_And_Folder_Ingestion.md), [clipboard](Security_Data_Flows.md) |
 | Memory and providers | Original-user memory review/admission and session-only durable storage with [native frozen-list GUID/Scope/Review/Retention metadata filters and portable full-row validation](Model_Providers_Memory_And_Knowledge.md#delivered-native-content-free-session-memory-filters---2026-10-14); host policy/handoff, initial mode, audited app profiles and durable exact-session sparse overrides with native/exact review and subsequent-turn capture | Authentication/qualified hosted adapters, generic/one-turn profile directives, memory content search/global catalogue/model recall or automatic handoff; full memory and installed-accessibility qualification | [Profiles and session resolution](Model_Providers_Memory_And_Knowledge.md#session-overrides-and-effective-resolution) |
-| Definitions | Categorized Built-in/Kora/User Customizations editor for skills, instructions, agents, MCP and prompts; persisted runtime exclusions; recoverable reviewed profile-original/component writes; activation-bound foreground editor voice intent with native clarification and separate tool-free local-model authoring reviews; existing owned instruction/prompt and literal-input routes remain | Automatic registration/applicability, arbitrary execution, spoken editor choice-answer capture, general model-selected session routing, production provider enablement and full qualification matrix remain unavailable or unqualified | [Management](Definition_Management.md), [Customizations](../docs/customizations.md), [owned editor](../docs/instruction-editor.md) |
+| Definitions | Categorized Built-in/Kora/User Customizations editor for skills, instructions, agents, MCP and prompts; persisted runtime exclusions; recoverable reviewed profile-original/component writes; activation-bound foreground editor voice intent with native clarification and separate tool-free local-model authoring reviews; existing owned instruction/prompt and literal-input routes remain | Automatic registration/applicability, arbitrary execution, spoken editor choice-answer capture, automatic session submission, production provider enablement and full qualification matrix remain unavailable or unqualified | [Management](Definition_Management.md), [Customizations](../docs/customizations.md), [owned editor](../docs/instruction-editor.md) |
 | Captions and local events | Off-default playback-bound captions, run-only pin/display choice; trusted visual notices, cached maintenance and routine quiet mode | Sentence alignment, general rich rendering, proactive speech and broad reminder scheduling | [Display](Information_Display.md), [proactive interaction](Proactive_Interaction.md) |
 | Distribution | MSI/custom Burn packaging, release/source-tool automation and reviewed build-only source workflow | Full installed/protected-byte/runtime qualification and install-capable updater | [Distribution](Distribution_And_Updates.md), [installer](../installer/README.md) |
 
@@ -693,6 +701,29 @@ hardware, provider, acoustic or installed experiments are required or changed.
 Hosted protected candidate validation retains the full Windows/coverage/installer
 gates independently of focused deterministic implementation checks.
 
+### R10 retained response-mode proposal increment
+
+The existing registered-setting producer, retained-answer review and shared
+expanded/compact confirmation surface accept one canonical
+`responses.default-mode` Set proposal (`Hybrid`, `VoiceOnly`, `VisualOnly`).
+Exact typed/current-name activated review/confirm/cancel use the same host-pinned
+successful source and existing authoritative response-mode writer, not direct
+execution of model text. Review discloses saved/default, desired/configured
+effective mode, shared future-output scope and mandatory visual/privacy/call exceptions.
+
+Fresh original-user confirmation within 60 seconds revalidates the exact source,
+settings and original channel before admitted audited atomic persistence and
+readback. Cancel/expiry/stale authority/duplicate confirmation cannot write;
+unconfirmed persistence remains unavailable with explicit recovery.
+Voice source classification cannot become UI authority at the audio admission.
+See the [owning response-mode contract](User_Configuration.md#retained-model-response-mode-proposal).
+
+This is the bounded approved registered-setting operation, not broader R10
+completion, model write authority, a new setting variant, output replay,
+provider enablement or hardware/acoustic/installed qualification. VoiceOnly
+preserves full mandatory visual output. Existing protected candidate portable
+100% line/branch, Windows and installer gates remain unchanged.
+
 ### R13 selected pending cancellation increment - 2026-10-12
 
 One-session/current-run pending-only subset review and separate atomic confirmation are delivered through native/exact/current-name activated routes.
@@ -730,7 +761,7 @@ of the topic contract or acceptance fixtures.
 | R19 | Manifest-scoped RC qualification and truthful Slice A reporting | Q: included R07-R18 and shared/transitive controls; not an I prerequisite |
 | R20 | Select and admit one read-only MCP connector and bundled integration skill | R06/R10/R11; E: connector profile |
 | R21 | Shared-source enablement/invocation and bounded common reload across all supported definition kinds; reconcile owned/profile files, UI/voice lookup, and dependent revisions without automatically activating changes | R05/R06/R10/R11; E: source/format profile |
-| R22 | Owned editing/copy/Disable/Validate/search and prompt v2 required literal native fields/complete expanded preview/separate fresh admission delivered. Generation unavailable; source-preserving holds require fresh review. Next: deferred profile originals/forks, skill/agent formats, refinement and expanded applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
+| R22 | Owned editing/copy/Disable/Validate/search, prompt v2 required inputs and bounded [owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) through complete comparison and confirmed ordinary Save/readback. Production generation remains unavailable; changed revisions stay disabled. Next: broader conversational/package authoring and applicability. Full matrix/runtime unqualified | R05/R10/R12/R14/R20/R21 |
 | R22 bounded Compare | Owned frozen-baseline/raw-draft [Compare](../docs/instruction-editor.md#compare-the-open-draft-without-saving), independent bounded private ordinal literal Find, exact UTF-16 locations, no wrap; absent baseline is not searchable. Historical memory only; no reload/mutation/clipboard/model authority or expanded qualification | Existing editor / Validate / Core literal Find |
 | R23 | Slice B/C and manifest-scoped release regression | Q: R19 and included R20-R22 scope |
 

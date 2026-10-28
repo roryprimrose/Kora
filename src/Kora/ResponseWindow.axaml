@@ -24,6 +24,7 @@
           Cursor="SizeAll" PointerPressed="OnDragHandlePointerPressed" />
       <Button x:Name="ExpandSessions" Content="Show sessions" Click="OnExpandSessionsClicked" />
       <Button x:Name="CollapseSessions" Content="Collapse" Click="OnCollapseSessionsClicked" IsVisible="False" />
+      <local:SessionDictationButton x:Name="SessionDictation" DataContext="{x:Null}" IsEnabled="{Binding CanCompose}" IsVisible="False" />
       <Button x:Name="ShowCurrentInteraction" Content="Current interaction" Click="OnCurrentInteractionClicked" IsVisible="False"
           ToolTip.Tip="Original response, question and approval controls; selecting a session never retargets them." />
       <Button x:Name="HideInteraction" Content="Hide" Click="OnHideInteractionClicked" IsVisible="False" />
@@ -118,6 +119,8 @@
                       HorizontalAlignment="Left" />
               <Button Content="Review local summary of this exact web result"
                       Tag="{Binding}" Click="OnWebSummaryClicked" HorizontalAlignment="Left" />
+              <Button Content="Open in external browser"
+                      Tag="{Binding}" Click="OnExternalBrowserClicked" HorizontalAlignment="Left" />
               </StackPanel>
             </DataTemplate>
           </ItemsControl.ItemTemplate>
@@ -154,24 +157,25 @@
         </ItemsControl>
       </StackPanel>
 
-      <StackPanel
-          Grid.Row="4"
-          Orientation="Horizontal"
-          Spacing="10"
-          IsVisible="{Binding IsModelActionApprovalPending}">
-        <Button
-            Classes="primary"
-            Content="Once"
-            Command="{Binding ApproveModelActionCommand}" />
-        <Button
-            Content="This session"
-            Command="{Binding ApproveModelActionForSessionCommand}" />
-        <Button
-            Content="Always"
-            Command="{Binding ApproveModelActionAlwaysCommand}" />
-        <Button
-            Content="Reject"
-            Command="{Binding RejectModelActionCommand}" />
+      <StackPanel Grid.Row="4" Spacing="6">
+        <ItemsControl ItemsSource="{Binding ModelActionReviews}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <StackPanel Orientation="Horizontal" Spacing="10">
+                <controls:ModelActionReviewButton Classes="primary" Content="Once" Click="OnApproveModelActionOnce"
+                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmModelActionReview}" />
+                <controls:ModelActionReviewButton Content="This session" Click="OnApproveModelActionForSession"
+                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}" />
+                <controls:ModelActionReviewButton Content="Always" Click="OnApproveModelActionAlways"
+                    IsEnabled="{Binding $parent[Window].DataContext.CanConfirmReusableModelActionReview}" />
+                <controls:ModelActionReviewButton Content="Reject" Click="OnRejectModelAction"
+                    IsEnabled="{Binding $parent[Window].DataContext.CanRejectModelActionReview}" />
+              </StackPanel>
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
+        <TextBlock Text="{Binding ModelActionReviewStatus}" TextWrapping="Wrap"
+                   AutomationProperties.LiveSetting="Polite" />
       </StackPanel>
 
       <StackPanel Grid.Row="5" Spacing="6" IsVisible="{Binding IsGrantEditorVisible}">

@@ -1,6 +1,7 @@
 using System.Globalization;
 
 using Kora.Core.Conversation;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 
@@ -42,6 +43,7 @@ internal sealed partial class SessionsViewModel
                 return;
             }
             RestoreUnsent();
+            RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
             RememberUnsent();
@@ -116,7 +118,8 @@ internal sealed partial class SessionsViewModel
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
         && !conversationHeld && !conversationSourceHeld;
-    public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody);
+    public bool CanSubmitConversation => CanCompose && !string.IsNullOrWhiteSpace(composerBody)
+        && (!assistantReply || ReplySourceCurrent);
     public async Task DiscardComposerBufferAsync()
     {
         if (!CanReadConversation) { return; }
@@ -153,12 +156,19 @@ internal sealed partial class SessionsViewModel
             + (conversationHeld ? " Submission uncertainty remains held; inspect task receipts/restart recovery, never retry automatically." : string.Empty);
     }, sourceRead: true);
 
-    public Task SubmitConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false);
+    public Task SubmitConversationAsync() => assistantReply ? ReviewAssistantReplyAsync() : SubmitOrdinaryConversationAsync(localAnswer: false);
+    public Task SubmitLocalAnswerAsync() => assistantReply
+        ? SubmitConversationCoreAsync(allowQuestion: false, localAnswer: true)
+        : SubmitOrdinaryConversationAsync(localAnswer: true);
     public Task SubmitCopilotConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, copilot: true);
+    public bool CanSubmitLocalFirst => CanSubmitConversation && localHandoff is not null && !assistantReply;
+    public Task SubmitLocalFirstAsync() => SubmitConversationCoreAsync(allowQuestion: false, localFirst: true);
 
     private Task SubmitConversationCoreAsync(bool allowQuestion, Uri? pageAddress = null, bool copilot = false,
         bool useMcp = false, string? mcpBody = null, RequestOrigin mcpOrigin = RequestOrigin.LocalUi,
-        Func<bool>? mcpCallerAdmission = null, bool claude = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
+        Func<bool>? mcpCallerAdmission = null, bool claude = false, bool claudeObservations = false,
+        ModelToolMode clarificationTools = ModelToolMode.None, bool localAnswer = false, bool claudeStreamAnswer = false,
+        bool localFirst = false, CancellationToken mcpToken = default) => RunConversationAsync(async (target, live) =>
     {
         if (conversationHeld) { throw new InvalidOperationException("An unconfirmed submission is held; inspect without retry."); }
         var body = mcpBody ?? composerBody;
@@ -167,7 +177,12 @@ internal sealed partial class SessionsViewModel
         if (useMcp && !HasCurrentMcpOptions)
         { throw new InvalidOperationException("Refresh explicit MCP options for this exact session before submission."); }
         var mcpRevision = Interlocked.Read(ref mcpSelectionRevision);
-        var receipt = useMcp
+        var observationIds = ClaudeObservationIds;
+        var observationRevision = Interlocked.Read(ref claudeObservationRevision);
+        var receipt = localFirst
+            ? await (localHandoff ?? throw new InvalidOperationException("The verified local-first operation is not composed."))
+                .RunAsync(target, body, live, lifetime.Token)
+            : useMcp
             ? await conversation!.SubmitMcpAsync(target, body,
                 mcpServer is { } server && mcpServers.Any(item => ReferenceEquals(item, server)) ? server.Id
                     : throw new InvalidOperationException("Select an actual app-included MCP server from refreshed options."),
@@ -183,10 +198,19 @@ internal sealed partial class SessionsViewModel
                     mcpResultRequest = request;
                     mcpResultControl = access.ControlRevision;
                 })
+            : localAnswer
+            ? await conversation!.SubmitLocalAnswerAsync(target, body, live, lifetime.Token)
             : claude
-            ? await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
+            ? claudeObservations
+                ? await conversation!.SubmitClaudeObservationsAsync(target, body, observationIds.Split(','),
+                    () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
+                : claudeStreamAnswer
+                    ? await conversation!.SubmitClaudeAnswerStreamAsync(target, body, live, lifetime.Token)
+                    : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
+            : clarificationTools == ModelToolMode.ReadOnly
+            ? await conversation!.SubmitReadOnlyWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
             : pageAddress is null
             ? await conversation!.SubmitAsync(target, body, live, lifetime.Token, questionPresenter: presenter)
             : await conversation!.SubmitWebPageAsync(target, body, pageAddress, WebPagePresenter
@@ -214,9 +238,20 @@ internal sealed partial class SessionsViewModel
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false,
-        RequestOrigin origin = RequestOrigin.LocalUi)
+        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false)
     {
         if (!CanReadConversation) { return; }
+        if (replyOperation)
+        {
+            try { Kora.Application.Hosting.SessionConversationService.RequireOriginalSource(origin); }
+            catch (InvalidOperationException exception)
+            {
+                Failure(logger, exception.GetType().Name);
+                conversationStatus = "Reply requires live original native user authority without channel relabelling. Nothing submitted.";
+                NotifyConversation();
+                return;
+            }
+        }
         var target = RequireSelected();
         var epoch = selectionEpoch;
         var revision = access.ControlRevision;
@@ -229,6 +264,8 @@ internal sealed partial class SessionsViewModel
             new(Guid.NewGuid()), origin), HostActivityLayer.Desktop, HostOperation.Request);
         try
         {
+            if (submission && assistantReply && !replyOperation)
+            { throw new InvalidOperationException("Reply mode requires its own exact source review and separate local-only confirmation. Cancel reply before another submission route."); }
             if (submission && (conversationHeld || conversationSourceHeld))
             { throw new InvalidOperationException("Submission is held; inspect the exact conversation/task receipts before proceeding."); }
             await operation(target, Live);
@@ -297,6 +334,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
         ClearHistoryContext();
@@ -304,7 +342,9 @@ internal sealed partial class SessionsViewModel
         CancelAppearanceSuggestion(reportCancellation: false);
         CancelSpeechSummarySuggestion(reportCancellation: false);
         CancelPlaybackVolumeSuggestion(reportCancellation: false);
+        CancelModelMemoryProposal();
         if (preserveUnsent) { RememberUnsent(); }
+        ClearAssistantReply();
         if (selected is { } target) { revokeConversationDetails?.Invoke(target.Authority.SessionId); }
         ClearConversationSearch();
         composerBody = string.Empty;
@@ -318,6 +358,10 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        RestoreUnsent();
+        NotifyAssistantReply();
+        NotifyMixedContext();
+        NotifyModelMemoryProposal();
         NotifyAnswerRead();
         ObserveConversationCancellation();
         NotifyConversationCancellation();
@@ -333,13 +377,13 @@ internal sealed partial class SessionsViewModel
         OnPropertyChanged(nameof(PlaybackVolumeSuggestionDescription));
         OnPropertyChanged(nameof(CanConfirmPlaybackVolumeSuggestion));
         OnPropertyChanged(nameof(CanReviewPlaybackVolumeSuggestion));
-        RestoreUnsent();
+        NotifyRegisteredSettings();
         NotifyInstructionContext();
         NotifyHistoryContext();
         NotifyConversationSearch();
         foreach (var name in new[] { nameof(ComposerBody), nameof(ComposerDirty), nameof(ComposerTarget),
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
-            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation),
+            nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails),
             nameof(DetailsOfferMessage),

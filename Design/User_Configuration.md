@@ -46,6 +46,14 @@ No format/limit override, folder attachment, managed source, extra version, mode
 
 ## Configuration Contract
 
+### Conversational voice replies
+
+**Settings > Speech & audio > Conversational voice replies** provides explicit **Enable conversational replies** and **Turn off** actions ([native controls](../src/Kora/SettingsWindow.axaml)).
+The shared device-local preference defaults Off and uses current original-user/native/call admission, typed requested/terminal audit, atomic preference replacement, exact readback and an unconfirmed-write hold ([configuration owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
+This choice permits a new exact foreground host clarification to finish speaking before one bounded schema reply. It never enables listening by itself, replaces microphone consent or approves an operation ([conversational turn contract](Interaction_And_Sessions.md#opt-in-exact-playback-conversational-replies)).
+Manual voice/native answers remain available under that contract. This preference is not a new registered model-proposal setting or an alias for session dictation ([shared setting owner](../src/Kora.Application/Configuration/ConversationalReplyConfigurationService.cs)).
+
 ### Exact existing Settings-section navigation
 
 Original typed/current-name activated voice uses the [closed seven-phrase grammar](../src/Kora.Application/Configuration/SettingsSectionCommand.cs) to request only Appearance, Speech & audio (speech/audio/microphone aliases), Responses, Sessions or Calls.
@@ -671,6 +679,39 @@ new tools/grants/providers/gain/global mixer, or broader lifecycle authority.
 Maintained deterministic grammar/workflow/UI/SQLite tests are not replacements
 for unique speech/hardware/runtime/worker/storage experiments or historical receipts.
 
+#### Retained-model response-mode proposal
+
+The [closed registered-setting path](../docs/setting-proposals.md) also accepts
+one exact successful retained answer: `set responses.default-mode to Hybrid`,
+`set responses.default-mode to VoiceOnly`, or `set responses.default-mode to VisualOnly`.
+The model policy advertises those canonical enum values as inert data, never
+approval or write authority. Undefined/numeric enums, aliases, batches and
+commentary are rejected without a write.
+
+Both expanded and compact conversations reuse **Review setting suggestion...**,
+showing current saved/default provenance, desired/configured effective mode,
+the exact proposed mode, shared device-local future-output scope and mandatory
+visual/privacy/call exceptions. Exact typed/current-name activated **review
+response mode suggestion**, **confirm response mode change** and **cancel response
+mode review** use the host-pinned successful answer, not a latest-answer lookup.
+
+Separate fresh original-user confirmation consumes the ephemeral 60-second
+review once through `ResponseModeConfigurationService`, fresh audio admission,
+host-held choice, audited atomic preference write and committed readback.
+Source/session/generation, preference revision, ownership, private topology,
+original channel or call uncertainty invalidates authority. Activated-voice
+source classification survives later UI confirmation and reaches the audio
+admission and locked writer unchanged. Cancel, expiry, stale source and duplicate
+confirmation cannot write. Failed persistence/audit/readback is explicitly
+unconfirmed, possibly persisted, with no automatic retry or rollback claim.
+
+Only the device default changes. Existing narrower overrides and mandatory full
+visual warnings/security/questions/approvals and speech-unavailable recovery
+remain authoritative even for VoiceOnly. Review/apply never re-executes a model,
+synthesizes/replays the selected answer, opens capture, changes consent/grants
+or enables an unqualified provider. Deterministic implementation coverage is
+separate from hardware, acoustic, installed/native and provider E/Q evidence.
+
 ### Delivered bounded assistant display/PTT prefix (R10)
 
 Schema 1 admits only `assistant.name` (spoken: **assistant name**), the already
@@ -843,6 +884,15 @@ slice above; the original provider/voice slice supplies no rate authority.
 
 ### Delivered bounded spoken summary limits (R10)
 
+The [closed registered-setting proposal registry](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs)
+now owns bounded inspection and the [shared suggestion parser/model policy](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingSuggestions.cs)
+for the existing theme, reader-text-scale, two spoken-summary caps and Kora-only
+playback-volume subset. Both native conversation sizes use one exact-answer
+Review/Confirm/Cancel path through the existing family validators and audited
+writers. No new setting family, model write tool, static command aliases,
+provider qualification or authentication exception is introduced.
+See the [complete user interaction and recovery](../docs/setting-proposals.md).
+
 The [retained-answer review](../src/Kora.Application/Configuration/SpeechSummarySuggestionReview.cs)
 completes the registered-setting model proposal route for these two caps only.
 The canonical request policy advertises one inert exact Set, using the existing
@@ -855,7 +905,7 @@ timing. A distinct fresh original-user confirmation consumes a memory-only,
 60-second, revision/source-bound review through the existing speech proposal,
 atomic call-policy/write and typed audit path. Source or confirmation voice
 classification is preserved, including later native confirmation. Appearance
-review remains a separate native-only operation. Existing direct setters/resets
+uses the shared surface but remains original-local-UI/native-only. Existing direct setters/resets
 are unchanged; no option, cap, batch, provider qualification or approval grant is
 added. Uncertain writes require explicit Settings/audit inspection, not retry,
 rollback claims or fabricated success. The current answer is never shortened,
@@ -1103,6 +1153,19 @@ hardware/acoustic acceptance. The speech experiment's file-rendered SAPI
 samples, capture/threshold executable, hardware/provider gaps and historical
 receipts have no whole-executable maintained equivalent here: retain all;
 nothing is deleted or rerun.
+
+### Bounded communications activity source
+
+The device-local `calls.activity-source` defaults/resets to `None`.
+Settings > Calls and exact typed/current-name activated `list call observation settings`, `get/status calls.activity-source`, `set calls.activity-source to None|WindowsCommunicationsAudio` and `reset calls.activity-source` share the [host writer](../src/Kora.Application/Configuration/CommunicationActivityConfigurationService.cs), not a caller-selected OS authority.
+
+The [bounded source contract](Call_Aware_Speech.md#bounded-windows-communications-activity-observations---2026-10-26) owns normalization, freshness and limitations.
+Native status shows selected source, qualification, automatic evidence, observed UTC time and health.
+Production Windows qualification is unavailable: enable selection is disabled/denied, no native subscription is opened, and saved enabled-but-unavailable state remains Unknown.
+
+Original protected-call voice changes are rejected before mutation or relabelled confirmation.
+Source changes preserve manual mode, grants, microphone consent and independent spoken-approval policy; disable completes only after prior owned observation release.
+Unconfirmed preference/audit/resource evidence remains protective and explicit, never automatic recovery ([preference format](../src/Kora.Application/Configuration/LocalCommunicationActivityPreferences.cs), [regressions](../tests/Kora.Application.UnitTests/Configuration/CommunicationActivityTests.cs)).
 
 ### Proposed full configuration contract
 
@@ -1430,6 +1493,8 @@ Sign-in is visibly Unavailable without a qualified adapter; no credentials, auth
 Controls expose exact advertised provider-managed choices and context presets/token metadata, not generic effort levels or budget overrides. Bounds and failure recovery are owned by the canonical provider topic and [workflow tests](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs).
 
 Only subsequent eligible provider-neutral turns consume these app profiles. Existing admitted turns and buffered bootstrap local reasoning are not rerouted. Durable exact-session controls below are separate; generic unscoped directives and one-turn changes remain future work and are never silently promoted to app scope.
+
+Saving a Claude tuple or approving its buffered operation does not enable native streaming. The separate native-only text-stream action additionally requires positive exact tuple/token-ceiling deployment evidence and a current credential/workspace lease. Unknown evidence and the shipped unavailable source fail closed; no setting supplies that authority ([profile contract](Runtime_Provider_Feasibility.md#native-text-stream-implementation-not-enablement), [user operation](../docs/claude-requests.md#separately-qualified-native-text-streaming)).
 
 ### Delivered exact-session sparse provider overrides
 

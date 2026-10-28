@@ -128,9 +128,11 @@ public sealed partial class MainViewModelTests
     {
         var (f, _, read) = await StartInterruptibleAnswerAsync(ignoreCancellation: true);
         f.TextToSpeech.HoldSpeechCompletionOnStop = true;
+        f.TextToSpeech.StopCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await f.ViewModel.BeginPushToTalkAsync();
         await f.ViewModel.EndPushToTalkAsync();
         var stop = f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
+        await f.TextToSpeech.StopCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
         stop.IsCompleted.Should().BeFalse();
         read.IsCompleted.Should().BeFalse();
         f.ViewModel.IsCurrentResponseReadActive.Should().BeTrue();

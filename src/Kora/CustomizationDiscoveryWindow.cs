@@ -17,6 +17,8 @@ internal sealed class CustomizationDiscoveryWindow : Window
     internal TextBox Result { get; } = new() { AcceptsReturn = true, IsReadOnly = true, Height = 150, IsUndoEnabled = false };
     internal TextBlock Status { get; } = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     internal Button Confirm { get; } = new() { Content = "Share only this reviewed metadata for ONE local answer", IsEnabled = false };
+    internal CheckBox ProposeAgent { get; } = new() { Content = "Ask for one agent recommendation (never invocation consent)" };
+    internal Button ReviewAgent { get; } = new() { Content = "Review proposed agent in its original conversation", IsEnabled = false };
 
     internal CustomizationDiscoveryWindow(Action<string> run)
     {
@@ -33,6 +35,7 @@ internal sealed class CustomizationDiscoveryWindow : Window
         panel.Children.Add(Targets);
         panel.Children.Add(new TextBlock { Text = "Original question (retained in the explicitly selected conversation)" });
         panel.Children.Add(Request);
+        panel.Children.Add(ProposeAgent);
         Add("Read selected primary metadata and preview exact shared fields", "Review");
         panel.Children.Add(Preview);
         panel.Children.Add(Confirm);
@@ -40,6 +43,8 @@ internal sealed class CustomizationDiscoveryWindow : Window
         Add("Cancel / close and join owned work", "Close");
         panel.Children.Add(Status);
         panel.Children.Add(Result);
+        panel.Children.Add(ReviewAgent);
+        ReviewAgent.Click += (_, _) => run("ReviewAgent");
         Content = new ScrollViewer { Content = panel };
         AutomationProperties.SetName(Sources, "Private exact source choices; paths are not shared");
         AutomationProperties.SetName(Targets, "Exact Active conversation");
@@ -60,5 +65,6 @@ internal sealed class CustomizationDiscoveryWindow : Window
         Targets.ItemsSource = null;
         Request.Text = Preview.Text = Result.Text = Status.Text = string.Empty;
         Confirm.IsEnabled = false;
+        ReviewAgent.IsEnabled = false;
     }
 }

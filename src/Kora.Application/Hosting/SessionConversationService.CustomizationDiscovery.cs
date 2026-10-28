@@ -21,7 +21,7 @@ public sealed partial class SessionConversationService
         Task Validate(CancellationToken check) => bound?.TerminalResult is { Outcome: not ModelTurnOutcome.Succeeded }
             ? Task.CompletedTask : snapshot.Validate(check);
         ModelContextEnvelope Create(Kora.Core.Hosting.HostRequest request, DateTimeOffset now) =>
-            new(request, DiscoveryPolicy, snapshot.OriginalRequest,
+            new(request, DiscoveryPolicy + (snapshot.ProposeAgent ? " " + Kora.Core.Agents.ModelAgentUseProposal.ModelPolicy : string.Empty), snapshot.OriginalRequest,
                 [new(new(Guid.NewGuid()), request, new(1),
                     JsonSerializer.Serialize(new { reviewedEntries = snapshot.Records.Length,
                         coverage = "Only the exact selected metadata snapshot; not the complete inventory. Call list, then get only returned opaque refs." }),

@@ -69,6 +69,14 @@ The [complete interaction guide](../docs/customizations.md#discover-which-select
 
 Callbacks expose only frozen reviewed metadata through opaque snapshot refs, with exact selected-source revalidation. No source body, raw identity, path, native handle, MCP/account/configuration, prompt expansion, automatic instruction loading, invocation, grant or hosted disclosure is introduced ([snapshot lifecycle](../src/Kora.Application/Tools/CustomizationDiscoverySnapshot.cs), [primary-only reader](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Metadata.cs)). Deterministic native/host/fake-model tests do not qualify or enable a real provider.
 
+An optional [one-agent recommendation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent)
+uses the same metadata-only callbacks and a strict final `{"agentRef":"<returned opaque ref>"}`
+proposal, never an executable model tool. The host labels it as a recommendation
+and binds it to the exact original question/conversation/source. Separate native
+complete review and confirmation may invoke the existing local tools-none agent
+workflow; discovery itself still invokes nothing. No new descriptor, parent
+continuation, hosted disclosure or runtime qualification is implied.
+
 ### Bounded provider-neutral continuation implementation - 2026-10-20
 
 The additive [read-only clarification protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs) uses request schema 3 only for an explicitly admitted local read-only question turn. Schema 1 read-only-only and schema 2 tool-free question requests retain their formats. Complete serial tool-result history may contain one exact SingleChoice question/host answer pair; the answer is user data, not a tool call or authority. The [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserves chronological assistant/tool/assistant/user history and rejects mixed content/tool responses. See the [complete interaction](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26).

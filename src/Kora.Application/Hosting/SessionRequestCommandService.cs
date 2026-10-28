@@ -1,5 +1,6 @@
 using System.Diagnostics;
 
+using Kora.Application.Dependencies;
 using Kora.Core.Commands;
 using Kora.Core.Conversation;
 using Kora.Core.Diagnostics;
@@ -86,7 +87,8 @@ public sealed class SessionRequestCommandService(
                     { throw new InvalidOperationException("Observation scope requires an explicit Claude request."); }
                     _ = ClaudeObservationTools.Constrain(command.RequestClaudeTools);
                 }
-                var body = command.RequestBody ?? throw new InvalidOperationException("An original request body is required.");
+                var body = command.RequestFailedMessage?.Body ?? command.RequestBody
+                    ?? throw new InvalidOperationException("An original request body is required.");
                 ConversationText.Validate(body, submission: true);
                 var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
                 if (target.Authority.SessionId != session || !target.Authority.IsActive
@@ -96,10 +98,23 @@ public sealed class SessionRequestCommandService(
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
                     command.RequestProvider) { ClaudeTools = command.RequestClaudeTools };
+                ModelTurnHost.RetryProviderReview? retryProvider = null;
+                if (command.RequestFailedMessage is { } failed)
+                {
+                    if (origin != failed.Request.Origin)
+                    { throw new InvalidOperationException("Failed-request retry requires current admission of its original channel. Retained voice content cannot create or renew activated-voice authority from a native button."); }
+                    if (command.RequestForegroundTarget || command.RequestProvider != SessionRequestReview.ProviderChoice.Default
+                        || command.RequestBody is not null)
+                    { throw new InvalidOperationException("Failed-request review cannot replace its exact original body, provider or scope."); }
+                    var failedSource = await workspace.ReadFailedRetrySourceAsync(target, failed, Live, token).ConfigureAwait(false);
+                    review = review with { FailedSource = failedSource, Origin = failed.Request.Origin };
+                    retryProvider = await conversation.ReviewRetryProviderAsync(review, Live, token).ConfigureAwait(false);
+                    review = review with { RetryProviderProfile = retryProvider.Profile };
+                }
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget);
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
                 return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
@@ -130,6 +145,12 @@ public sealed class SessionRequestCommandService(
                 var actual = await workspace.ReadExactMetadataAsync(session, cancellation).ConfigureAwait(false);
                 if (actual != previous.Review.Target || !OriginalLive())
                 { throw new InvalidOperationException("The reviewed session generation, metadata or original admission changed."); }
+                if (previous.Review.FailedSource is { } failed)
+                {
+                    if (await workspace.ReadFailedRetrySourceAsync(actual, failed.Message, OriginalLive, cancellation).ConfigureAwait(false) != failed)
+                    { throw new InvalidOperationException("The original failed task or message revision changed. Review again."); }
+                    await previous.RetryProvider!.ValidateAsync(cancellation).ConfigureAwait(false);
+                }
             }
             await Revalidate(token).ConfigureAwait(false);
             // A local confirmation may confirm voice content, but cannot convert its original source to LocalUi.
@@ -138,7 +159,10 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.Foreground
+                receipt = previous.RetryProvider is { } provider
+                    ? await conversation.SubmitFailedRetryAsync(previous.Review, provider, OriginalLive, Revalidate,
+                        [previous.Cause], () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
+                    : previous.Foreground
                     ? await conversation.SubmitOriginalLocalAsync(previous.Review.Target, previous.Review.Body, OriginalLive,
                         Revalidate, [previous.Cause], previous.Review.Origin, token).ConfigureAwait(false)
                     : previous.Review.Provider == SessionRequestReview.ProviderChoice.Claude
@@ -209,5 +233,5 @@ public sealed class SessionRequestCommandService(
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
-        bool Foreground);
+        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider);
 }

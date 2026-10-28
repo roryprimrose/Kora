@@ -24,6 +24,7 @@ public sealed partial class SessionsConversationTests
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
+            f.Time.UseFrozenTimers = true;
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
             var adapter = new HistoryAdapter();

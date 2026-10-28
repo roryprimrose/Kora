@@ -113,6 +113,15 @@ public sealed partial class SessionConversationService(
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
+        if (pending?.Retry is { } retry)
+        {
+            var originalValidation = beforeRetain;
+            beforeRetain = async cancellation =>
+            {
+                if (originalValidation is not null) { await originalValidation(cancellation).ConfigureAwait(false); }
+                await retry.ValidateSource(cancellation).ConfigureAwait(false);
+            };
+        }
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)
@@ -201,6 +210,21 @@ public sealed partial class SessionConversationService(
                     {
                         Failure(logger, exception.GetType().Name);
                         admission = new(new(ModelTurnOutcome.Unknown, ModelTurnReason.ProviderOutcome));
+                    }
+                    if (admission.Turn is { } reviewedTurn && pending?.Retry is { } retryIntent)
+                    {
+                        if (!retryIntent.Provider.Matches(reviewedTurn))
+                        { admission = new(new(ModelTurnOutcome.Denied, ModelTurnReason.PolicyChanged)); }
+                        else
+                        {
+                            var sourceValidation = beforeRetain!;
+                            beforeRetain = async cancellation =>
+                            {
+                                await sourceValidation(cancellation).ConfigureAwait(false);
+                                if (!retryIntent.Provider.Matches(reviewedTurn))
+                                { throw new InvalidOperationException("Original retry provider/profile changed before dispatch. Review again; nothing may be sent."); }
+                            };
+                        }
                     }
                     if (admission.Turn is not null)
                     {

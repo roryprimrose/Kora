@@ -121,6 +121,30 @@ supplies context, not a lock for unrelated general voice requests. Exact compose
 and the fresh-target **New conversation** workflow remain available independently;
 expansion does not add model availability or permissions.
 
+### Review a failed request for a new attempt
+
+After **Read conversation**, select the exact failed USER request and choose
+**Review selected failed request for a NEW attempt**. Review its complete
+immutable input, recorded original provider, terminal task/message revisions,
+original conversation/channel, current account/profile and review expiry.
+**Decline failed-request review** changes neither history nor unsent input.
+**Confirm one NEW attempt** consumes that review once and uses ordinary
+new-request admission; it never resets or replays the original task.
+
+A held queue still requires its existing separate explicit **Resume** control.
+FIFO, queue bounds, original expiry, cancellation and physical resource joins
+are unchanged. Hosted requests still require native approval of each final
+physical send. Changing source, provider/profile/account, session, privacy or
+authority requires fresh review or refusal, never a provider fallback.
+
+Legacy/pre-dispatch failures without a recorded original provider are explicitly
+unavailable for retry. Successful, cancelled, timed-out, uncertain or still-active
+work is not a confirmed failed source. No provider is inferred from error text,
+history or current defaults. Review/decline never overwrites unsent input or
+saves it to disk, and no tools/effects are replayed automatically.
+Retained voice content also cannot acquire fresh activated-voice authority from
+a native button: a retry review needs current admission of the original channel.
+
 ### Details beside the conversation
 
 After explicitly reading a conversation or selecting an activity receipt, use

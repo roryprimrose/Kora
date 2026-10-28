@@ -123,27 +123,51 @@ public sealed partial class MainViewModelTests
         await read;
     }
 
-    [Fact]
-    public async Task SpeechInterruptionWaitsForIgnoredCancellationAndSuppressesLateSuccess()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SpeechInterruptionWaitsForIgnoredCancellationAndSuppressesLateSuccess(bool delayStop)
     {
         var (f, _, read) = await StartInterruptibleAnswerAsync(ignoreCancellation: true);
         f.TextToSpeech.HoldSpeechCompletionOnStop = true;
         f.TextToSpeech.StopCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        if (delayStop) { f.TextToSpeech.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+        var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.TextToSpeech.BeforeStop = () => stopping.TrySetResult();
         await f.ViewModel.BeginPushToTalkAsync();
         await f.ViewModel.EndPushToTalkAsync();
         var stop = f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
-        await f.TextToSpeech.StopCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
-        stop.IsCompleted.Should().BeFalse();
-        read.IsCompleted.Should().BeFalse();
-        f.ViewModel.IsCurrentResponseReadActive.Should().BeTrue();
-        f.ViewModel.CanReadCurrentResponse.Should().BeFalse();
-        f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "speech.interrupt", StringComparison.Ordinal)
-            && item.Outcome == SecurityAuditOutcome.Succeeded);
-        f.TextToSpeech.SpeakGate!.TrySetResult();
-        await stop;
+        try
+        {
+            await stopping.Task.WaitAsync(TestContext.Current.CancellationToken);
+            if (delayStop)
+            {
+                f.TextToSpeech.StopCompleted.Task.IsCompleted.Should().BeFalse();
+                stop.IsCompleted.Should().BeFalse();
+                read.IsCompleted.Should().BeFalse();
+                f.TextToSpeech.StopGate!.TrySetResult();
+            }
+            await f.TextToSpeech.StopCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
+            stop.IsCompleted.Should().BeFalse();
+            read.IsCompleted.Should().BeFalse();
+            f.ViewModel.IsCurrentResponseReadActive.Should().BeTrue();
+            f.ViewModel.CanReadCurrentResponse.Should().BeFalse();
+            f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "speech.interrupt", StringComparison.Ordinal)
+                && item.Outcome == SecurityAuditOutcome.Succeeded);
+        }
+        finally
+        {
+            f.TextToSpeech.StopGate?.TrySetResult();
+            f.TextToSpeech.SpeakGate!.TrySetResult();
+            await Task.WhenAll(stop, read);
+        }
         (await read).Should().Contain("interrupted");
         f.ViewModel.IsCurrentResponseReadActive.Should().BeFalse();
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("released");
+        f.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, SpeechReadOnce.AuditActionId, StringComparison.Ordinal)
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
+        f.Audit.Events.Should().ContainSingle(item => string.Equals(item.ActionId, "speech.interrupt", StringComparison.Ordinal)
+            && item.Outcome == SecurityAuditOutcome.Succeeded);
     }
 
     [Theory]

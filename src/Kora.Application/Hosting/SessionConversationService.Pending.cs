@@ -29,8 +29,10 @@ public sealed partial class SessionConversationService
         }
     }
 
-    internal sealed class PendingConversation(SessionWorkspaceEntry target, IReadOnlyList<HostRequest> predecessors, Action? accepted)
+    internal sealed class PendingConversation(SessionWorkspaceEntry target, IReadOnlyList<HostRequest> predecessors, Action? accepted,
+        RetryIntent? retry)
     {
+        internal RetryIntent? Retry { get; } = retry;
         internal SessionWorkspaceEntry Target { get; } = target;
         internal IReadOnlyList<HostRequest> Predecessors { get; } = predecessors;
         internal readonly TaskCompletionSource<ConversationQueuedSubmission> Accepted = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -56,10 +58,18 @@ public sealed partial class SessionConversationService
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "The host-owned worker signals acceptance off the UI context; all continuations are asynchronous.")]
-    public async Task<ConversationQueuedSubmission> SubmitQueuedAsync(SessionWorkspaceEntry target, string body,
+    public Task<ConversationQueuedSubmission> SubmitQueuedAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi, bool localAnswer = false,
-        Action? accepted = null)
+        Action? accepted = null) =>
+        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
+        Justification = "The host-owned worker signals acceptance off the UI context; all continuations are asynchronous.")]
+    private async Task<ConversationQueuedSubmission> SubmitQueuedCoreAsync(SessionWorkspaceEntry target, string body,
+        Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
+        IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
+        CancellationToken token)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -85,7 +95,7 @@ public sealed partial class SessionConversationService
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
-                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted);
+                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry);
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,
@@ -119,7 +129,7 @@ public sealed partial class SessionConversationService
         try
         {
             var receipt = await SubmitOrdinaryWithScopeAsync(pending.Target, body, admitted,
-                validateSource, links, origin, linked.Token, localAnswer, pending).ConfigureAwait(false);
+                validateSource, links, origin, localAnswer, pending, linked.Token).ConfigureAwait(false);
             completion = new(receipt, null);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

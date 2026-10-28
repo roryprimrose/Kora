@@ -27,6 +27,7 @@ public sealed partial record SessionCommand
         + "Confirmation consumes only the one host-held request review; it never answers another question or approval.";
 
     public string? RequestBody { get; init; }
+    public ConversationMessage? RequestFailedMessage { get; init; }
     public Guid? RequestReviewId { get; init; }
     public SessionRequestReview.ProviderChoice RequestProvider { get; init; }
     public ImmutableArray<string> RequestClaudeTools { get; init; } = [];

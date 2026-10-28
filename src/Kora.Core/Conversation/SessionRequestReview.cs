@@ -12,6 +12,8 @@ public sealed record SessionRequestReview(Guid Id, SessionWorkspaceEntry Target,
     SessionRequestReview.ProviderChoice Provider = SessionRequestReview.ProviderChoice.Default)
 {
     public ImmutableArray<string> ClaudeTools { get; init; } = [];
+    public FailedRequestRetrySource? FailedSource { get; init; }
+    public Kora.Core.Providers.ProviderProfileTuple? RetryProviderProfile { get; init; }
 
     [JsonConverter(typeof(JsonStringEnumConverter<ProviderChoice>))]
     public enum ProviderChoice { Default, Copilot, Claude }

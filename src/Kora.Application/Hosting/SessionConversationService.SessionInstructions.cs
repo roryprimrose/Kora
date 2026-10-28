@@ -5,6 +5,7 @@ using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Application.Dependencies;
 
 namespace Kora.Application.Hosting;
 
@@ -18,9 +19,20 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
         SessionWorkspaceEntry target, string body, Func<bool> admitted,
         Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
-        CancellationToken token, bool localAnswer = false, PendingConversation? pending = null)
+        bool localAnswer, PendingConversation pending, CancellationToken token)
     {
         RequireOriginalSource(origin);
+        var retry = pending.Retry;
+        if (retry is not null && retry.Source.Provider.Provider != ModelProviderIdentity.Ollama)
+        {
+            var provider = retry.Source.Provider.Provider;
+            if (provider is not (ModelProviderIdentity.Copilot or ModelProviderIdentity.Claude))
+            { throw new InvalidOperationException("The recorded provider has no admitted retry route. No fallback."); }
+            return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
+                (request, now) => new(request, Policy, body, [], now, now.Add(HostedTurnAuthorization.MaximumDuration), ModelToolMode.None),
+                ModelTurnChoice.Hosted, token, copilot: provider == ModelProviderIdentity.Copilot,
+                claude: provider == ModelProviderIdentity.Claude, pending: pending).ConfigureAwait(false);
+        }
         var review = sessionInstructionScopes is null ? null
             : await sessionInstructionScopes.PrepareRequestAsync(target, body, origin, token).ConfigureAwait(false);
         if (review is null)

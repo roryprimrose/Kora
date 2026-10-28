@@ -176,11 +176,15 @@ public sealed class CustomizationVoiceClarificationTests
         f.Question.StartVoice();
         if (failure is "failure") { f.Capture.StopFailure = new IOException("Synthetic release failure"); }
         if (failure is "non-quiescent") { f.Capture.NonQuiescent = true; }
-        if (failure is "foreign-generation") { f.Capture.Closing = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+        if (failure is "foreign-generation")
+        {
+            f.Capture.Closing = new(TaskCreationOptions.RunContinuationsAsynchronously);
+            f.Capture.StoppedGenerationObserved = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        }
         f.Capture.Transcript("Refine this artifact");
         if (failure is "foreign-generation")
         {
-            await f.Capture.StopStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+            await f.Capture.StoppedGenerationObserved!.Task.WaitAsync(TestContext.Current.CancellationToken);
             f.Capture.AdvanceGeneration();
             f.Capture.Closing!.SetResult();
         }

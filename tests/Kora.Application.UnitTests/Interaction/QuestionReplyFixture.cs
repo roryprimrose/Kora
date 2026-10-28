@@ -77,7 +77,16 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? ReplySpeechStarted;
         public bool IsListening { get; private set; }
         public long Generation { get; private set; }
-        public long CaptureGeneration => Generation;
+        public long CaptureGeneration
+        {
+            get
+            {
+                var generation = Generation;
+                if (Stops > 0) { StoppedGenerationObserved?.TrySetResult(); }
+                return generation;
+            }
+        }
+        public TaskCompletionSource? StoppedGenerationObserved { get; set; }
         public bool PreserveGenerationOnInvalidate { get; set; }
         public bool IsAmbientListeningAvailable => false;
         public bool IsCaptureQuiescent => !IsListening && !NonQuiescent;

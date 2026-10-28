@@ -331,7 +331,11 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session,
             HostId<RequestIdentity> request, CancellationToken token)
         {
-            if (TrackPendingRecords) { return ValueTask.FromResult(PendingRecords[request].Message); }
+            if (TrackPendingRecords)
+            {
+                return ValueTask.FromResult(PendingRecords.TryGetValue(request, out var record) ? record.Message
+                    : throw new InvalidOperationException("The exact retained conversation record is unavailable."));
+            }
             if (HistoryMessages.TryGetValue(request, out var history))
             {
                 HistoryReads++;

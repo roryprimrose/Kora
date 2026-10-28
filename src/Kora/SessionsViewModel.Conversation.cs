@@ -334,6 +334,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        ClearFailedRetry();
         ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
@@ -358,6 +359,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyFailedRetry();
         RestoreUnsent();
         NotifyAssistantReply();
         NotifyMixedContext();

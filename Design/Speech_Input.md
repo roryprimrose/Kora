@@ -1,7 +1,8 @@
 # Local Speech Input
 
-Status: product direction approved on 2026-10-22; provider selection,
-implementation and exact-profile enablement remain open.
+Status: product direction approved on 2026-10-22; span-end-capable local wake
+component approved on 2026-10-28. The native/command implementation is present;
+exact-profile enablement and acoustic qualification remain open.
 
 Related: [activation names](Activation_Name.md),
 [voice settings](User_Configuration.md#1-voice-input-and-activation),
@@ -44,10 +45,10 @@ reports ambient listening unavailable. A dictation grammar alone does not
 qualify literal composer dictation; that has its own
 [capture contract](../src/Kora.Core/Voice/IActivatedVoiceRecognitionService.cs).
 
-The configurable pipeline, performance profiles, wake detector, speaker
-learning and enrolled verification described below are not delivered by this
-document. A selected local reasoning model or Kokoro output voice is not a
-speech-input provider. Source presence is not runtime readiness.
+Performance profiles, speaker learning and enrolled verification described
+below are not delivered by this increment. A selected local reasoning model
+or Kokoro output voice is not a speech-input provider. Source presence is not
+runtime readiness.
 
 The mode-independent [hands-free host lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.cs)
 defines wake-only processing, generation-bound command capture, joined resource
@@ -56,13 +57,14 @@ release, existing governed text dispatch and fresh-policy re-arm. Its
 observation from command-only transcription; the
 [pre-roll buffer](../src/Kora.Core/Voice/WakeAudioBuffer.cs) retains at most two
 seconds and consumes only the exact post-name interval. These contracts and
-deterministic fakes are implementation groundwork, not an acoustic detector.
-The [Windows adapter](../src/Kora.Windows/Audio/UnavailableHandsFreeAudioStage.cs)
-is explicitly unavailable. D-002 has an approved development direction below,
-but still requires admitted exact bytes, configured-name/language, endpointing
-and playback-rejection profiles; no package,
-model, microphone capture or implicit consent is introduced by this groundwork.
-In particular, token timestamps are not proof of an exact exclusive wake end.
+deterministic fakes alone do not establish acoustic accuracy.
+The [Windows stage](../src/Kora.Windows/Audio/WindowsHandsFreeAudioStage.cs)
+now owns a real local native keyword-span path and command-only PCM consumer.
+Its [host-owned release catalogue](../src/Kora.Windows/Audio/HandsFreeNativeProfileCatalogue.cs)
+contains no admitted payload/profile: production remains explicitly unavailable
+until exact native dependencies, model/VAD bytes, configured-name/language,
+endpointing and conservative playback exclusion are qualified. No package,
+model download, recording consent or installed readiness is inferred.
 
 ### Approved development direction and remaining admission evidence
 
@@ -91,7 +93,7 @@ Source inspection establishes only these bounded facts:
   [MIT licence](https://github.com/snakers4/silero-vad/blob/v6.2/LICENSE).
   This is not evidence for an arbitrary ONNX export or third-party redistribution;
   the exact VAD bytes and provenance still require admission.
-- The candidate English model is documented as
+- The historical sherpa candidate English model is documented as
   [sherpa-onnx-kws-zipformer-gigaspeech-3.3M-2024-01-01](https://k2-fsa.github.io/sherpa/onnx/kws/pretrained_models/index.html#sherpa-onnx-kws-zipformer-gigaspeech-3-3m-2024-01-01-english).
   Its exact model licence, redistribution terms and digest are **not verified**.
   Engine/package licences must not be substituted for model licensing.
@@ -100,10 +102,83 @@ Source inspection establishes only these bounded facts:
   [native result](https://github.com/k2-fsa/sherpa-onnx/blob/v1.13.8/sherpa-onnx/c-api/c-api.h)
   includes token timestamps and start time, but does not establish an exclusive
   wake end. A last-token timestamp, detection callback time or arbitrary padding
-  cannot supply the required boundary. Until a real alignment contract preserves
-  immediate command words while excluding wake/preceding audio, the adapter
-  remains unavailable. Synthetic sample-boundary tests verify the host contract,
-  not acoustic alignment.
+  cannot supply the required boundary. Decoder population records token emission
+  frames, not word/name ends; it does not qualify this operation. Synthetic
+  sample-boundary tests verify the host contract, not acoustic alignment.
+
+### Span-end implementation decision - 2026-10-28
+
+The product owner approved a local span-end-capable wake/alignment component
+after the sherpa limitation was established, preserving no compulsory pause,
+no ambient general transcription and all existing host authority. The selected
+implementation is CPU PocketSphinx **v5.1.1**, official commit
+`511126b492dcb267cf30d49d631946d7b61a9530`, in **single-keyphrase search**, not
+ambient language-model or dictation search. This supersedes sherpa as the
+proposed wake producer; it does not select a new general ASR product.
+
+The pinned [segment contract](https://github.com/cmusphinx/pocketsphinx/blob/511126b492dcb267cf30d49d631946d7b61a9530/include/pocketsphinx.h#L967)
+explicitly defines inclusive first/last active segment frames.
+[Keyphrase search](https://github.com/cmusphinx/pocketsphinx/blob/511126b492dcb267cf30d49d631946d7b61a9530/src/kws_search.c#L282)
+populates the entire matched phrase's first/last frame from final-phone HMM
+history, and its segment iterator copies that span. Reporting delay controls
+when the stored span becomes observable, not its end.
+The [frontend clock](https://github.com/cmusphinx/pocketsphinx/blob/511126b492dcb267cf30d49d631946d7b61a9530/src/fe/fe_interface.c#L234)
+is fixed and checked at 16 kHz / 100 frames per second. A fresh decoder and
+utterance receive every original mono PCM sample in each host generation:
+the exclusive command start is **`checked((lastFrame + 1L) * 160)`**.
+The upstream [time formatter](https://github.com/cmusphinx/pocketsphinx/blob/511126b492dcb267cf30d49d631946d7b61a9530/programs/pocketsphinx_main.c#L118)
+independently uses the same inclusive-frame duration convention. No callback,
+last-token start, silence endpoint, window padding or reporting-delay padding
+is used as a name end. This deterministic API mapping is not a claim that a
+particular acoustic model always places the boundary accurately.
+
+The [typed C-ABI detector](../src/Kora.Windows/Audio/PocketSphinxKeywordDetector.cs)
+disables the native default log sink, explicitly disables alternative searches
+and dump paths, checks the effective clock, and owns config/decoder/library
+lifetimes. Windows C `long` parameters are 32-bit. The
+[asset binder](../src/Kora.Windows/Audio/HandsFreeNativeProfile.cs)
+requires compiled host metadata, complete size/SHA-256 identities, exact
+supported English names, non-reparse paths and closed model/native inventories;
+it holds verified file handles until native resources have joined. Editable
+JSON, installed/fake platform availability and an arbitrary model directory
+cannot grant qualification. Native packaging/dependency closure, redistribution
+and exact model/VAD provenance remain release admission work, not assumed
+licensing or executable download permission.
+
+One [WASAPI owner](../src/Kora.Windows/Audio/HandsFreeMicrophone.cs) feeds the
+bounded volatile ring and keyword detector. Subsequent discontinuities or
+unknown sample timing fail closed; initial packet origin starts the fresh
+generation. The [session](../src/Kora.Windows/Audio/WindowsHandsFreeAudioSession.cs)
+allocates no general recognizer before a valid name span. It consumes only
+post-name pre-roll and subsequent bounded command PCM into the existing
+`System.Speech` recognizer/grammar helper, **without opening a second microphone**.
+[Silero endpointing](../src/Kora.Windows/Audio/SileroCommandEndpoint.cs) retains
+the approved v6.2 direction, pinned to
+`be95df9152c0d7618fa1edfeb296fc3dae32376f` and its
+[official ONNX wrapper](https://github.com/snakers4/silero-vad/blob/be95df9152c0d7618fa1edfeb296fc3dae32376f/src/silero_vad/utils_vad.py#L51):
+512 samples at 16 kHz, 64 samples context, float state `[2,1,128]`, scalar
+int64 sample rate. It processes command audio only, never determines the name
+boundary, and ends speech after 800 ms silence or an empty activation after
+four seconds. The command keeps the existing 60-second/4,096-character limits.
+
+The host supplies a default-deny live callback for the exact consent, owner,
+session/call/device/name/profile generation and no-playback admission. It is
+checked before acquisition/start, on each callback and after native work.
+Invalidation permanently retires the ring, clears/ends command PCM, rejects
+late observations/finals, and retains ownership until microphone callbacks,
+ignoring decoder/open/recognizer work, VAD and file leases have joined.
+The existing host closes capture **before** dispatching the final command into
+the same governed operation and readable-result route used by typed/native
+input. Wake detection alone performs no action or context acquisition.
+
+Deterministic regressions exercise original chunk origins, inclusive/exclusive
+mapping, no-pause command samples, forbidden preamble/name disclosure, stale or
+expired boundaries, live admission/playback revocation, overflow, one final,
+single use and ignoring native work/teardown. They execute no real model,
+microphone or native keyword payload. Exact bytes, acoustic false
+activation/boundary accuracy, echo/device playback exclusion and installed
+resource qualification remain E/Q, and therefore production is **not enabled**
+or advertised as a completed usable hands-free feature.
 
 ## Processing and Data Boundaries
 

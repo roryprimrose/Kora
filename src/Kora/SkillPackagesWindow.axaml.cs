@@ -24,12 +24,17 @@ public sealed partial class SkillPackagesWindow : Window
 
     internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer, Action? sharedSources = null,
         Func<bool>? current = null, Action<SkillPackageSnapshot>? execute = null,
-        Action<SkillPackageSnapshot>? executeBound = null)
+        Action<SkillPackageSnapshot>? executeBound = null, Action<SkillPackageSnapshot>? runtimeSetup = null)
     {
         this.catalogue = catalogue;
         this.renderer = renderer;
         this.current = current ?? (() => false);
         AvaloniaXamlLoader.Load(this);
+        this.FindControl<Button>("ReviewBundledRuntime")!.IsEnabled = runtimeSetup is not null;
+        this.FindControl<Button>("ReviewBundledRuntime")!.Click += (_, _) =>
+        {
+            if (!closed && this.current() && SelectedPackage is { } selected) { runtimeSetup?.Invoke(selected); }
+        };
         this.FindControl<Button>("ReviewBundledExecution")!.IsEnabled = execute is not null;
         this.FindControl<Button>("ReviewBundledExecution")!.Click += (_, _) =>
         {

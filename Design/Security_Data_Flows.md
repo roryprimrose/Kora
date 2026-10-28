@@ -361,8 +361,23 @@ microphone. Native logs/dumps are disabled; model/VAD state, pre-roll and
 command PCM are volatile. A default-deny live host gate rechecks admission and
 known playback before/after native work. Retirement rejects queued audio and
 finals permanently, and ownership remains held through actual native joins.
-No exact payload/name/playback profile is admitted yet: this implementation
-does not enable ambient capture or qualify device playback exclusion.
+The exact native/data preparation package is admitted separately from capture:
+its profile has no qualified names or playback/acoustic evidence, so it cannot
+enable ambient capture or qualify device playback exclusion.
+
+The [shared preparation owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)
+uses the existing reviewed speech-component store and private per-user paths.
+Only explicit preparation downloads the compiled catalogue's exact public
+source data/notices; it sends no audio, configured name, transcripts or identity.
+The native library is bundled application code, not downloaded model data.
+Inert verification hashes the complete inventory and holds read-only handles
+through readback and mutation retirement; no library/model is loaded or run.
+Capture and preparation share exclusive ownership. Cancellation does not
+release it until ignoring acquisition/verification work joins; host retirement
+rejects new work and waits for the current owner rather than releasing early.
+Malformed/foreign saved ownership and changed bytes fail explicitly, preserve
+unknown data, and require fresh inspection/review. Prepared data grants no
+microphone, inference, session, name or playback authority.
 
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).

@@ -61,10 +61,15 @@ deterministic fakes alone do not establish acoustic accuracy.
 The [Windows stage](../src/Kora.Windows/Audio/WindowsHandsFreeAudioStage.cs)
 now owns a real local native keyword-span path and command-only PCM consumer.
 Its [host-owned release catalogue](../src/Kora.Windows/Audio/HandsFreeNativeProfileCatalogue.cs)
-contains no admitted payload/profile: production remains explicitly unavailable
-until exact native dependencies, model/VAD bytes, configured-name/language,
-endpointing and conservative playback exclusion are qualified. No package,
-model download, recording consent or installed readiness is inferred.
+now binds a bundled, exact Windows x64 PocketSphinx library and an explicitly
+prepared optional data package. Settings and optional installer assistance share
+the [preparation offer](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+and existing speech-component service/store. Preparation verifies bytes and
+the inert production asset binder; it does not load native code or execute a
+model. The profile has **no qualified configured names**, so production capture
+remains unavailable pending name/acoustic and conservative playback-exclusion
+qualification. No microphone consent, profile selection or capture readiness
+is inferred from preparation.
 
 ### Approved development direction and remaining admission evidence
 
@@ -141,9 +146,11 @@ requires compiled host metadata, complete size/SHA-256 identities, exact
 supported English names, non-reparse paths and closed model/native inventories;
 it holds verified file handles until native resources have joined. Editable
 JSON, installed/fake platform availability and an arbitrary model directory
-cannot grant qualification. Native packaging/dependency closure, redistribution
-and exact model/VAD provenance remain release admission work, not assumed
-licensing or executable download permission.
+cannot grant qualification. The [bundled native provenance](../src/Kora.Windows/Audio/Native/README.md)
+records the frozen source-built DLL and its KERNEL32-only import closure.
+The preparation catalogue pins the official en-US acoustic files, CMU dictionary,
+Silero ONNX and their separate notices/size/SHA-256 identities. Native code is
+delivered with Kora, never installed as an optional data download.
 
 One [WASAPI owner](../src/Kora.Windows/Audio/HandsFreeMicrophone.cs) feeds the
 bounded volatile ring and keyword detector. Subsequent discontinuities or
@@ -175,10 +182,11 @@ Deterministic regressions exercise original chunk origins, inclusive/exclusive
 mapping, no-pause command samples, forbidden preamble/name disclosure, stale or
 expired boundaries, live admission/playback revocation, overflow, one final,
 single use and ignoring native work/teardown. They execute no real model,
-microphone or native keyword payload. Exact bytes, acoustic false
+microphone or native keyword payload. Acoustic false
 activation/boundary accuracy, echo/device playback exclusion and installed
 resource qualification remain E/Q, and therefore production is **not enabled**
-or advertised as a completed usable hands-free feature.
+or advertised as a completed usable hands-free feature. Exact data preparation
+is delivered separately through the [shared lifecycle](Environment_Setup.md#optional-local-speech-component-lifecycle).
 
 ## Processing and Data Boundaries
 

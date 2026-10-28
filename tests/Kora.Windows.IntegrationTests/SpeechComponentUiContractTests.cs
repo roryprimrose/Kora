@@ -34,5 +34,7 @@ public sealed class SpeechComponentUiContractTests
         var program = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
         program.Should().Contain("SpeechComponentCatalogue.Production").And.NotContain("ISpeechComponentReadiness")
             .And.Contain("UnavailableSpeechComponentRuntime");
+        File.ReadAllText(Path.Combine(root, "src", "Kora", "HandsFreeSetupComposition.cs"))
+            .Should().Contain("HandsFreeSetupCatalogue.Production").And.Contain("HandsFreeSetupRuntime");
     }
 }

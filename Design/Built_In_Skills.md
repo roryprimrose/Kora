@@ -178,6 +178,16 @@ If an engine requires a loose script file, choose a compatible execution impleme
 Read-only display/exported text is never a source for subsequent execution.
 Runtime engine binaries remain separately protected application prerequisites, not model-selectable executables.
 
+The [contained-runtime setup operation](Environment_Setup.md#bundled-contained-runtime-registration)
+can inspect and explicitly prepare/verify/forget Kora's local registration of
+an existing independently protected installation. It pins the complete local
+inventory/device/host implementation and reconciles a separate pending journal;
+it never extracts these resources, downloads or removes runtime files, creates
+a grant or supplies qualification. The production worker consumes that owner
+and remains unavailable while the release-owned contained profile set is empty.
+An executable signature or prepared file inventory cannot stand in for exact
+native dependency/containment admission.
+
 For multiple scripts, the worker receives the verified set as separate
 script blocks with stable logical identities, not one concatenated PowerShell
 source string. A candidate in-memory runspace implementation initialises

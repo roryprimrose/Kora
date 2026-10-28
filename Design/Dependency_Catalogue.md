@@ -67,6 +67,21 @@ The OS probes currently require Windows 10 build 19041 or later for speech.
 That check is not an accepted Windows support matrix or hardware floor; D-007
 still requires actual supported-version, device and packaged-host evidence.
 
+## Bundled Worker Preparation Boundary
+
+The [native contained-runtime registration operation](Environment_Setup.md#bundled-contained-runtime-registration)
+now prepares/verifies a device-local pin of an **already installed,
+independently protected** PowerShell 7.4-or-later x64 family installation at the
+single host-selected Program Files location. It measures the exact local
+inventory, declared assets, protection, native metadata and installed notices;
+it does not choose upstream distribution bytes or authenticate companion files
+as an upstream release. No new runtime acquisition offer, package manager,
+native installation, PATH fallback, profile enablement or removal ownership is
+introduced. The existing generic PowerShell setup/probe below remains separate.
+Protected bundled deployment and external native/OS closure qualification are
+still release-owned. Local registration preparation is not W1-W4 or execution
+readiness.
+
 ## Implemented User-Optional Dependencies
 
 These handlers/probes are registered in the current

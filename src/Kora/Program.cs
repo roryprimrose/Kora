@@ -671,7 +671,7 @@ internal static class Program
         services.AddSingleton<ISpeechPreparationService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
         services.AddSingleton<Kora.Application.Voice.SpeechPreparationCoordinator>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
-        services.AddSingleton<Kora.Core.Skills.IBundledScriptWorker, Kora.Windows.Skills.WindowsBundledScriptWorker>();
+        BundledRuntimeSetupComposition.Configure(services);
         services.AddSingleton<Kora.Core.Skills.IFixedSessionEffect, Kora.Windows.Skills.WindowsFixedSessionEffect>();
         services.AddSingleton<Kora.Tools.SessionControl.FixedSessionActionBroker>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();

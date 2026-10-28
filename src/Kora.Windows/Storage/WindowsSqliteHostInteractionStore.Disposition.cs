@@ -96,12 +96,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
             var completed = intent.Next(HostTaskState.Succeeded);
             var memories = MemoryInvalidations(connection, request.SessionId);
             var attachments = AttachmentInvalidation(connection, request.SessionId);
-            if (attachments.Length != 0 || CountDispositionRows(connection, "session_provider_profile", request.SessionId) != 0
-                || preview.ConversationMessages != 0 || preview.SavedConversationDrafts != 0)
-            {
-                database.RequireEmptyArtifactInventory();
-                Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
-            }
+            database.RequireEmptyArtifactInventory();
+            Execute(connection, transaction, "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0;");
             var sequence = AppendAudit(connection, transaction, intent, removed, audit,
                 changes: [SessionChange(removed, 2), TaskChange(completed), .. memories.Select(MemoryChange), .. attachments]);
             RevokeAttachment(connection, transaction, request.SessionId, sequence);
@@ -120,12 +116,29 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 """, ("$id", Id(request.SessionId)));
             return new SessionDispositionReceipt(request.SessionId, removed.Generation, preview);
         }, cancellationToken, canControl, requireIdle: preview.StoppedWork is null).ConfigureAwait(false);
-        if (receipt.Removed.Attachments != 0 || receipt.Removed.ProviderProfiles != 0
-            || receipt.Removed.ConversationMessages != 0 || receipt.Removed.SavedConversationDrafts != 0)
+        try
         {
-            using var lease = database.AcquireReadLease(CancellationToken.None);
-            database.ClearCommittedJournal();
-            database.RequireEmptyArtifactInventory();
+            await Task.Run(() =>
+            {
+                using var lease = database.AcquireReadLease(CancellationToken.None);
+                database.ClearCommittedJournal();
+                database.RequireEmptyArtifactInventory();
+                using (var connection = Open(created: false, CancellationToken.None))
+                using (var cleanup = connection.CreateCommand())
+                {
+                    // secure_delete cannot retroactively clear cells freed by earlier question/history revisions.
+                    // Open keeps SQLite's transient rebuild in memory; no backup or export is created.
+                    cleanup.CommandText = "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0; VACUUM;";
+                    cleanup.ExecuteNonQuery();
+                }
+                database.ClearCommittedJournal();
+                database.RequireEmptyArtifactInventory();
+            }, CancellationToken.None).ConfigureAwait(false);
+        }
+        catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException)
+        {
+            throw new IOException("Session disposition committed, but owned-copy removal acceptance is unconfirmed. "
+                + "Inspect durable authority and storage recovery before any fresh review; do not infer rollback or retry automatically.", exception);
         }
         return receipt;
     }

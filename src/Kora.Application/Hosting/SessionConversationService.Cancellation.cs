@@ -124,7 +124,11 @@ public sealed partial class SessionConversationService
 
     private void ReleaseRunningConversation(ConversationCancellationLease lease, bool confirmed)
     {
-        lock (cancellationGate) { runningConversations.Remove(lease.Target.Request.SessionId); }
+        lock (cancellationGate)
+        {
+            runningConversations.Remove(lease.Target.Request.SessionId);
+            lifecycleUnconfirmed |= !confirmed;
+        }
         lease.ReleasePhysicalCompletion(confirmed);
         if (!confirmed)
         { RunningConversationChanged?.Invoke(new(lease.Target, ConversationExecutionPhase.Unconfirmed)); }

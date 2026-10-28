@@ -48,6 +48,39 @@ and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/Sessions
 
 ## Conversation Input Realignment
 
+### Reviewed voluntary application Exit and Restart
+
+Deliberate native, typed and permitted activated-voice application Exit/Restart
+protect unsent topic/New request buffers and definition-editor changes independently
+of already submitted work. Empty foreground input is not evidence that other
+conversations have finished.
+
+The [host lifecycle owner](../src/Kora.Application/Hosting/ApplicationLifecycle/SessionConversationService.ApplicationLifecycle.cs)
+holds a reversible, attempt-owned dispatch barrier and snapshots accepted originals
+across every session, including pending continuations and explicit MCP execution.
+The [native operation](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs)
+shows the affected work and separately asks Confirm/Cancel through the existing
+private question owner. Model action approval, opening Exit or discarding unsent
+text never supplies submitted-work cancellation authority. Confirmation retains
+the original channel; stale source, work revision, generation or private ownership
+requires a fresh deliberate operation.
+
+Cancel releases only that attempt's barrier without stopping work. After current
+confirmation and editor approval, trusted work-control audits precede exact pending
+withdrawal/running cancellation. Every accepted provider/native resource is
+physically joined before the existing desktop Close or application-process restart.
+Already dispatched finite compatibility reads finish under their existing rules;
+reviewed pending compatibility reads are cancelled, not restored as a product.
+Failed audit, terminal readback or uncertain resource release blocks clean success
+with a visible recovery message. Stopped requests are never retried or resurrected;
+retained history and grants are not deleted.
+
+Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
+prompt-free. This does not add computer power actions, input autosave or provider
+qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+and [native regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.ApplicationLifecycle.cs)
+use deterministic provider/process seams, not installed-provider or OS power trials.
+
 Ordinary Send and the exact typed/activated-voice request-confirm route share
 the [submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns).
 A busy existing Active conversation can accept an immutable pending request

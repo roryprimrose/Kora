@@ -54,8 +54,20 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             (store as ISessionWorkStore ?? throw new InvalidOperationException("The authoritative work snapshot service is unavailable."))
                 .ReadWorkAsync(session, admissionRevision, current, token).AsTask(), token);
 
-    public Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
-        Func<bool> admission, CancellationToken token) => ExecuteCommandCoreAsync(command, origin, admission, token);
+    public async Task<SessionCommandResult> ExecuteCommandAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admission, CancellationToken token)
+    {
+        ArgumentNullException.ThrowIfNull(command);
+        using var lifecycle = command.Operation is SessionCommandOperation.QueueList
+            or SessionCommandOperation.QueueStatus or SessionCommandOperation.QueuePauseStatus
+            ? null : EnterLifecycleCommand(command);
+        try { return await ExecuteCommandCoreAsync(command, origin, admission, token).ConfigureAwait(false); }
+        catch (Exception exception)
+        {
+            if (lifecycle is not null) { lifecycle.Failure = exception; }
+            throw;
+        }
+    }
 
     private async Task<SessionCommandResult> ExecuteCommandCoreAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admission, CancellationToken token)
@@ -326,6 +338,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                     RequireEligible(eligible);
                     while (admittedCount < 32)
                     {
+                        if (!await WaitLifecycleDispatchAsync(linked.Token).ConfigureAwait(false)) { break; }
                         linked.Token.ThrowIfCancellationRequested();
                         var work = await WithLimitsAsync<(SessionQueueEntry Entry, Func<HostActivity> Continuation, long Started)?>(async current =>
                         {
@@ -336,7 +349,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
                             lock (causeGate) { links = causes.TryGetValue(ready.Request.TaskId, out var cause) ? [new(cause.Context)] : []; }
                             using var dispatch = HostActivity.BeginRoot(ready.Request, HostActivityLayer.Application, HostOperation.Runtime, links);
                             var admitted = await store.AdmitAsync(ready, admissionRevision, current,
-                                () => eligible() && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
+                                () => eligible() && LifecycleDispatchOpen && (configuration is null || configuration.IsCurrent(current)), linked.Token).ConfigureAwait(false);
                             admitted.Entry.Validate();
                             if (admitted.Entry.RecordVersion is not (SessionQueueEntry.CapturedActiveRecordVersion or SessionQueueEntry.FixedReadRecordVersion or SessionQueueEntry.TargetedReadRecordVersion)
                                 || admitted.Entry.ActiveBudgetMinutes != current.ActiveBudgetMinutes)
@@ -400,6 +413,7 @@ public sealed partial class SessionQueueService : IAsyncDisposable
             var outcome = SessionQueueReadProfiles.Accepts(admitted.ReadProfile, result, admitted.Target)
                 && time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)
                 ? SessionQueueState.Succeeded : SessionQueueState.Failed;
+            lock (causeGate) { lifecycleRevision++; }
             var completed = await store.CompleteAsync(admitted, outcome,
                 () => eligible() && !token.IsCancellationRequested && (outcome != SessionQueueState.Succeeded
                     || time.GetElapsedTime(started) < SessionQueueLimits.ActiveBudget(admitted.ActiveBudgetMinutes!.Value)),

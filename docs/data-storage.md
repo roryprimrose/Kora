@@ -47,6 +47,10 @@ If a definition changes while you edit it, keep your draft and compare it with
 the current file before saving. Choose whether to reload, keep your draft or
 save a supported new copy. Overwriting needs another review.
 
+If the catalogue cannot reload, the editor marks historical observations as
+unavailable and withholds new selections without discarding your draft.
+Refresh successfully before reviewing the current definition again.
+
 Avoid editing the same definition on both computers at once. Windows may resolve
 competing copies before Kora sees them; Kora cannot recover an overwritten
 version that it never observed. Some network-redirected profile locations are

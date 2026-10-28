@@ -116,8 +116,10 @@ public sealed class ArtifactCatalogue : IDisposable
             maskedCandidates = null;
             Interlocked.Increment(ref reloadFailureRevision);
         }
-        ReloadFailed?.Invoke(this, new(exception));
+        // Invalidation can retire consumers and unsubscribe their terminal failure handlers.
+        var reloadFailed = ReloadFailed;
         Changed?.Invoke(this, EventArgs.Empty);
+        reloadFailed?.Invoke(this, new(exception));
     }
 
     private static ReadOnlyCollection<ArtifactDefinition> Validate(

@@ -147,6 +147,53 @@ public sealed class CustomizationContractTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public void Reload_failure_withholds_file_use_before_notifications_and_leaves_failure_as_the_terminal_notice(bool withPolicy)
+    {
+        var file = new ArtifactDefinition("file.test", ArtifactKind.Instruction, "File", "Description", "file", ["file"],
+            "user-profile", "1", new string('a', 64), "Guidance") { UseControlId = "file.source", PreservesCapturedUse = true };
+        var bundled = new ArtifactDefinition("bundled.test", ArtifactKind.Skill, "Bundled", "Description", "bundled", ["bundled"],
+            "bundled", "1", new string('b', 64), "Guidance");
+        using var catalogue = new ArtifactCatalogue([file, bundled], withPolicy ? new Policy() : null);
+        var original = catalogue.Candidates;
+        var notifications = new List<string>();
+        IReadOnlyList<ArtifactDefinition>? withheld = null;
+        var failure = new IOException("Synthetic reload failure");
+        void RequireWithheld()
+        {
+            catalogue.IsReloadUnavailable.Should().BeTrue();
+            catalogue.ReloadFailureRevision.Should().Be(1);
+            catalogue.SourceCandidates.Should().Equal(file, bundled);
+            catalogue.Candidates.Should().NotBeSameAs(original);
+            catalogue.Candidates.Single(item => string.Equals(item.Id, file.Id, StringComparison.Ordinal)).IsUseEnabled.Should().BeFalse();
+            catalogue.IsCurrent(file.Id, file.Digest).Should().BeFalse();
+            catalogue.IsCapturedRevisionCurrent(file.Id, file.Digest).Should().BeFalse();
+            catalogue.Artifacts.Should().ContainSingle().Which.Should().BeSameAs(bundled);
+        }
+        void ReloadFailed(object? sender, ArtifactCatalogueReloadFailedEventArgs args)
+        {
+            RequireWithheld();
+            args.Exception.Should().BeSameAs(failure);
+            catalogue.Candidates.Should().BeSameAs(withheld);
+            notifications.Add("reload-failed");
+        }
+        catalogue.ReloadFailed += ReloadFailed;
+        catalogue.Changed += (_, _) =>
+        {
+            RequireWithheld();
+            withheld = catalogue.Candidates;
+            notifications.Add("changed");
+            catalogue.ReloadFailed -= ReloadFailed;
+        };
+
+        catalogue.ReportReloadFailure(failure);
+
+        notifications.Should().Equal(["changed", "reload-failed"],
+            "the failure-specific recovery notice must not be overwritten by generic catalogue invalidation");
+    }
+
+    [Theory]
     [InlineData("references", @"references\notes.md")]
     [InlineData("REFERENCES", @"references\notes.md")]
     [InlineData(@"a\b", @"a\b\notes.md")]

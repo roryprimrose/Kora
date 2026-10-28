@@ -2,8 +2,11 @@ using System.Text.Json;
 
 using AwesomeAssertions;
 
+using Kora.Application.Agents;
 using Kora.Application.Configuration;
+using Kora.Application.UnitTests.Agents;
 using Kora.Application.UnitTests.Configuration;
+using Kora.Core.Agents;
 using Kora.Core.Artifacts;
 
 namespace Kora.Application.UnitTests.Definitions;
@@ -98,6 +101,50 @@ public sealed class RoamingDefinitionTests
         { Text = text.Replace("DIGEST", new string('a', 64), StringComparison.Ordinal) };
         ((Action)(() => _ = new ArtifactUsePreferences(state))).Should().Throw<InvalidDataException>();
         state.Writes.Should().Be(0);
+    }
+
+    [Fact]
+    public void RecoveryDuringCatalogueInvalidationCannotReviveAPendingOwnedSourceReview()
+    {
+        var fixture = new AgentInstructionReferenceResolverTests.Fixture();
+        var source = fixture.Store.Value!;
+        AgentInstructionReferenceReview? observed = null;
+        fixture.Catalogue.Changed += (_, _) =>
+        {
+            if (!fixture.Catalogue.IsReloadUnavailable) { return; }
+            observed!.IsCurrent().Should().BeFalse();
+            fixture.Catalogue.Publish(fixture.Catalogue.SourceCandidates);
+            observed.IsCurrent().Should().BeFalse();
+        };
+        var profile = BoundedAgentProfile.Parse(ArtifactFileDocument.Parse(ArtifactFileDocument.Encode($"""
+            ---
+            name: role
+            description: Role
+            kora-agent-format: 2
+            runtime: local
+            input: text
+            output: text
+            references: {source.Document.Definition.Id}
+            tools: none
+            maximum-calls: 0
+            maximum-rounds: 1
+            maximum-input-bytes: 32768
+            maximum-output-bytes: 4096
+            deadline-ms: 15000
+            ---
+            Role guidance.
+            """, false), ArtifactKind.Agent, "selected-user-source", "role"));
+        using var review = fixture.Resolver.Review(profile, () => fixture.Revocations++);
+        observed = review;
+
+        fixture.Catalogue.ReportReloadFailure(new IOException("Synthetic transient reload failure"));
+
+        fixture.Catalogue.IsReloadUnavailable.Should().BeFalse();
+        review.IsCurrent().Should().BeFalse();
+        review.Bundle.Should().BeNull();
+        fixture.Revocations.Should().Be(1);
+        fixture.Store.Reads.Should().Be(0, "recovering catalogue metadata is not consent to read the referenced source");
+        fixture.Revisions.IsEnabled(source).Should().BeTrue();
     }
 
     private static ArtifactDefinition Definition(ArtifactKind kind) =>

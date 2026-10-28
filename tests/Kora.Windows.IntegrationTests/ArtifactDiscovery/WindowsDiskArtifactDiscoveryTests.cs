@@ -15,6 +15,75 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void Supported_profile_discovery_admits_dotted_directories_but_not_deeper_or_unrelated_sources()
+    {
+        var profile = Path.Combine(root, "profile");
+        var profiles = Path.Combine(profile, "Code", "User", "profiles");
+        var nested = Path.Combine(profiles, "profile.one", "prompts.v1");
+        Directory.CreateDirectory(nested);
+        const string text = "---\nname: Dotted\n---\nSupported source.";
+        File.WriteAllText(Path.Combine(nested, "dotted.prompt.md"), text);
+        var tooDeep = Path.Combine(nested, "too.deep");
+        Directory.CreateDirectory(tooDeep);
+        File.WriteAllText(Path.Combine(tooDeep, "invalid.prompt.md"), "Must not be parsed.");
+        var unrelated = Path.Combine(profile, "unrelated");
+        Directory.CreateDirectory(unrelated);
+        File.WriteAllText(Path.Combine(unrelated, "invalid.prompt.md"), "Must not be parsed.");
+        var discovery = new WindowsDiskArtifactDiscovery(new Paths(Path.Combine(root, "kora")),
+            ArtifactDirectorySettings.Empty, profile);
+        var found = discovery.Load().Should().ContainSingle().Subject;
+        found.CommandName.Should().Be("dotted");
+        found.Source.Should().Be("vscode-profile");
+        var renamed = Path.Combine(profiles, "renamed.profile");
+        Directory.Move(Path.GetDirectoryName(nested)!, renamed);
+        var moved = discovery.Load().Should().ContainSingle().Subject;
+        moved.Id.Should().Be(found.Id);
+        moved.UseControlId.Should().NotBe(found.UseControlId);
+        Directory.Delete(renamed, recursive: true);
+        discovery.Load().Should().BeEmpty();
+    }
+
+    [Fact]
+    public void Supported_profile_discovery_preserves_reparse_exclusion_and_file_limit()
+    {
+        var profile = Path.Combine(root, "profile");
+        var profiles = Path.Combine(profile, "Code", "User", "profiles");
+        Directory.CreateDirectory(profiles);
+        var outside = Path.Combine(root, "outside");
+        Directory.CreateDirectory(outside);
+        File.WriteAllText(Path.Combine(outside, "untrusted.prompt.md"), "Must not be parsed.");
+        var junction = Path.Combine(profiles, "linked.profile");
+        var start = new System.Diagnostics.ProcessStartInfo("cmd.exe")
+        {
+            UseShellExecute = false,
+            CreateNoWindow = true,
+            Arguments = $"/d /c mklink /J \"{junction}\" \"{outside}\"",
+        };
+        using (var process = System.Diagnostics.Process.Start(start)!)
+        {
+            process.WaitForExit();
+            process.ExitCode.Should().Be(0);
+        }
+        try
+        {
+            (File.GetAttributes(junction) & FileAttributes.ReparsePoint).Should().Be(FileAttributes.ReparsePoint);
+            var discovery = new WindowsDiskArtifactDiscovery(new Paths(Path.Combine(root, "kora")),
+                ArtifactDirectorySettings.Empty, profile);
+            discovery.Load().Should().BeEmpty();
+            for (var index = 0; index < 129; index++)
+            {
+                File.WriteAllText(Path.Combine(profiles, $"prompt-{index}.prompt.md"), "Limit checked before parsing.");
+            }
+            var load = () => discovery.Load();
+            load.Should().Throw<InvalidDataException>().WithMessage("*128-file limit*");
+        }
+        finally
+        {
+            Directory.Delete(junction);
+        }
+    }
+
+    [Fact]
     public void NamedAgentLookupUsesOnlyRegisteredAgentRootsAndNeverReadsOrRepairsProfileContent()
     {
         var agents = Path.Combine(root, "agents");

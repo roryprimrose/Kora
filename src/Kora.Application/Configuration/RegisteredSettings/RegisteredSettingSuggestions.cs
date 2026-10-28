@@ -16,7 +16,8 @@ public static class RegisteredSettingSuggestions
             $"'{item.Id}' ({item.Description}; {item.Scope}; "
             + item.SuggestedValues
             + (item.RequiresNativeReview ? "; original local UI and separate native confirmation only)" : ")")))
-        + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values. "
+        + ". Use 'set <exact ID> to <value>', canonical decimal integers for numeric values and true/false for booleans. "
+        + "Presence suggestions require that exact syntax, ID and canonical value, without aliases or surrounding text. "
         + "No reset, adjustment, batch, commentary, other setting, approval or claimed save. "
         + "The original user must review exact current/proposed values and scope, then separately confirm or cancel. "
         + "Spoken-summary review includes both caps and preserves the companion cap. Volume review includes desired/effective "
@@ -35,11 +36,12 @@ public static class RegisteredSettingSuggestions
 
         if (AppearanceCommand.Parse(answer, AssistantNameRules.DefaultName) is
             { Operation: AppearanceCommandOperation.Set, Descriptor: { } appearance, Value: { } appearanceValue }
-            && appearance.Option is AppearanceOption.Theme or AppearanceOption.ReaderTextScale)
+            && RegisteredSettingRegistry.Settings.FirstOrDefault(item =>
+                item.RequiresNativeReview && string.Equals(item.Id, appearance.Id, StringComparison.Ordinal)) is { } setting
+            && (appearance.Option is AppearanceOption.Theme or AppearanceOption.ReaderTextScale
+                || string.Equals(answer, $"set {appearance.Id} to {AppearanceCommand.Format(appearanceValue)}", StringComparison.Ordinal)))
         {
-            return new RegisteredSettingProposal.Appearance(
-                appearance.Option == AppearanceOption.Theme ? RegisteredSetting.Theme : RegisteredSetting.ReaderTextScale,
-                appearance.Option, appearanceValue);
+            return new RegisteredSettingProposal.Appearance(setting.Setting, appearance.Option, appearanceValue);
         }
         if (SpeechCommand.Parse(answer, AssistantNameRules.DefaultName) is
             { Operation: AppearanceCommandOperation.Set, Descriptor.IsSummaryLimit: true, Value: { } summaryValue } speech

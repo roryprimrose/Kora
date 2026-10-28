@@ -29,7 +29,11 @@ public sealed class SettingInspectionTests
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(RegisteredSettingRegistry.Settings.Count);
+        review.Observations.Should().HaveCount(6);
+        review.Observations.Select(item => item.Setting).Should().Equal(
+            RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
+            RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
+            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
         Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only six closed scalar rows can enter the source");

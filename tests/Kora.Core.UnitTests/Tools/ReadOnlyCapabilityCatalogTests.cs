@@ -47,6 +47,6 @@ public sealed class ReadOnlyCapabilityCatalogTests
         ReadOnlyCapabilityCatalog.MatchCommand("lock the machine").Should().BeNull();
         ReadOnlyCapabilityCatalog.MatchCommand("runtime get status")!.TargetId.Should().Be("local.inference");
         ReadOnlyCapabilityCatalog.MatchCommand("runtime list extra")!.InvalidInput.Should().BeTrue();
-        Enum.GetValues<BuiltInAction>().Should().HaveCount(26);
+        Enum.GetValues<BuiltInAction>().Should().HaveCount(27);
     }
 }

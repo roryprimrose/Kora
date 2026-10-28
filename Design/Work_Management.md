@@ -352,6 +352,19 @@ conversation. This is bounded implementation, not new provider/hardware
 qualification, foreground-relative voice authority, effect execution or
 revival of the retired diagnostic scheduler.
 
+### Delivered Stop All submitted work
+
+`stop all work` and the explicit native All Work control share the existing
+host-owned full-set review and physical-join owners. This is not a bounded
+overview operation: opening, Refresh, Find, selection and close remain passive.
+Separate current original-channel confirmation is required before exact pending
+withdrawal/running cancellation. The reversible review hold releases only its
+own reference; acceptance retains joins through view closure and failures.
+Already dispatched compatibility reads finish rather than pretend to cancel.
+Results identify completed, partial-unconfirmed, stale, cancelled or truly empty
+reviews, never a persistent global pause or future cancellation grant.
+See [interaction contract](Interaction_And_Sessions.md#stop-all-submitted-work-while-staying-open).
+
 ### Broader proposed management policy
 
 - Proposed initial capacity: 10 pending entries, configurable. Full means ask the user to remove/defer work; never evict silently.
@@ -364,7 +377,7 @@ revival of the retired diagnostic scheduler.
 - Failure, cancellation, or unknown side effects pause automatic dispatch and explain why. The user can resume or explicitly choose a replacement.
 - A cancellation request immediately pauses the addressed dispatch; deliberate exact voice or UI confirmation completes cancellation while preserving unrelated pending entries.
 - "Clear the queue" pauses the addressed queue and requires explicit voice or UI confirmation before removing its displayed pending entries from dispatch, not history.
-- "Stop all work" explicitly targets all sessions, pauses dispatch immediately, and requires exact affected-work voice or UI confirmation before cancel/clear.
+- "Stop all work" uses the delivered reversible full-set review above; it does not clear retained history.
 - "Pause the queue" blocks new dispatch without suspending/cancelling the active task; resume still revalidates dependencies/policy.
 - A replacement waits for host-side execution quiescence. If remote work may still be running, report the uncertainty and require an explicit decision before dispatching more work.
 - Scheduling mutations, execution-slot acquisition, and canonical shared/exclusive resource leases are atomic host operations. Concurrent proposals with stale revisions are re-evaluated, not blindly replayed.

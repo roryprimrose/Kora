@@ -30,6 +30,7 @@ internal sealed partial class AllWorkWindow : Window
         };
         Next.Click += async (_, _) => await model.RefreshAsync(next: true);
         CancelRead.Click += (_, _) => model.Cancel();
+        StopAllSubmittedWork.Click += async (_, _) => await model.StopAllAsync();
         Navigate.Click += async (_, _) => await model.NavigateAsync();
         Records.SelectionChanged += (_, _) => model.Select(Records.SelectedItem as SessionWorkOverviewRow);
         CloseView.Click += (_, _) => Close();

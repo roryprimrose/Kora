@@ -27,6 +27,7 @@ public sealed class BuiltInCommandCatalog
             Define(BuiltInAction.CancelTask, "cancel task", $"Cancel the current {name} task.", "cancel current task", "stop", "cancel the current task", "stop the current task", "stop current task", "cancel the download", "stop generating"),
             Define(BuiltInAction.StopSpeaking, "stop speaking", $"Stop {name} speech playback.", "stop talking", "be quiet", "stop reading aloud", "stop the voice"),
             Define(BuiltInAction.DisableListening, "stop listening", "Disable voice input for this run and await microphone release. Recover separately with native Enable listening.", "disable listening"),
+            Define(BuiltInAction.StopAllWork, "stop all work", "Review all submitted work, separately confirm stopping its exact originals and join their resources. Keep Kora open; preserve unsent text, history and grants."),
             Define(BuiltInAction.LockMachine, "lock the machine", "Lock the current Windows session.", "lock my computer", "lock windows", "lock this computer", "lock my pc", "lock my screen", "lock this workstation"),
             Define(BuiltInAction.ProposeShutdown, "shut down the computer", "Prepare a protected shutdown proposal.", "shut down this machine", "power off the computer", "turn off my computer", "shut down my pc", "power down this computer"),
             Define(BuiltInAction.ProposeRestart, "restart the computer", "Prepare a protected restart proposal.", "reboot this machine", "restart windows", "reboot my computer", "restart my pc", "reboot the computer"),

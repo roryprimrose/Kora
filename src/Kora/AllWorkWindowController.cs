@@ -16,6 +16,8 @@ internal sealed class AllWorkWindowController(
     private AllWorkWindow? window;
     private long openedRevision;
     private bool disposed;
+    private AllWorkViewModel? stopAllOwner;
+    private Task retiredStopAll = Task.CompletedTask;
     private Task<WorkspaceSurfaceNavigationOutcome> waitingQuestionOperation =
         Task.FromResult(WorkspaceSurfaceNavigationOutcome.Unavailable);
 #pragma warning disable VSTHRD003 // Exposes only this controller's exact owned read for lifecycle observation.
@@ -63,8 +65,15 @@ internal sealed class AllWorkWindowController(
         if (window is not null && openedRevision != revision) { window.Close(); }
         if (window is null)
         {
-            var opened = new AllWorkWindow(new(service, access, logger, sessions.NavigateAsync));
-            opened.Closed += (_, _) => { if (ReferenceEquals(window, opened)) { window = null; } };
+            var model = new AllWorkViewModel(service, access, logger, sessions.NavigateAsync);
+            model.BindStopAll(main.StopAllWorkAsync);
+            stopAllOwner = model;
+            var opened = new AllWorkWindow(model);
+            opened.Closed += (_, _) =>
+            {
+                retiredStopAll = Task.WhenAll(retiredStopAll, model.StopAllOperation);
+                if (ReferenceEquals(window, opened)) { window = null; }
+            };
             window = opened;
             openedRevision = revision;
             opened.Show();
@@ -102,6 +111,8 @@ internal sealed class AllWorkWindowController(
         Dispose();
 #pragma warning disable VSTHRD003 // Join the original owned operation, including cancellation-ignoring storage.
         await waitingQuestionOperation;
+        await retiredStopAll;
+        if (stopAllOwner is not null) { await stopAllOwner.StopAllOperation; }
 #pragma warning restore VSTHRD003
     }
 }

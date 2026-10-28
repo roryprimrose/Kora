@@ -40,5 +40,7 @@ public sealed class ApplicationLifecycleReview : IDisposable
     public DateTimeOffset ExpiresAt { get; }
     public ImmutableArray<ApplicationLifecycleWork> Work { get; }
     public bool Joined { get; internal set; }
+    public bool StopAccepted => Consumed;
+    public ImmutableArray<AllWorkStopResult.Original> Results { get; internal set; } = [];
     public void Dispose() => release(this);
 }

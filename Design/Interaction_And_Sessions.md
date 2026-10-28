@@ -48,6 +48,32 @@ and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/Sessions
 
 ## Conversation Input Realignment
 
+### Stop all submitted work while staying open
+
+The exact original-user `stop all work` action and explicit **All Work > Stop all
+work…** control use the same host operation, not a loop over per-session Cancel.
+The host reviews every accepted original across sessions independently of the
+overview's loaded page, filters and selection. Its reference-owned reversible
+barrier fences admission, dispatch and Resume while the review is current.
+Preparing/in-admission/completing producers that cannot be represented make the
+review unavailable; omissions never prove an empty set.
+
+A separate `stop-all-work` question binds this operation, exact set, original
+channel, private/control/source authority and expiry. It cannot authorize Exit or
+Restart. Cancel, closing the review or stale authority releases only that attempt,
+with no stop. After acceptance, pending originals are withdrawn, running originals
+cancelled and already-cancelling work physically joined. Already admitted finite
+compatibility reads finish and join; their pending successors retire.
+
+The typed result retains exact original stop acceptance, physical joins and
+terminal states plus compatibility terminal facts. Partial audit/storage/source/
+release failures remain **PartialUnconfirmed**, never rollback or all-cancelled.
+Captured accepted work is awaited even when another participant fails. No stopped
+original replays and existing per-session holds still require fresh Resume.
+Kora remains open; composers, editors, history, grants and future submissions are
+not discarded, deleted or globally paused. A model suggestion is denied even
+with a generic reusable grant. Missing native binding is explicitly unavailable.
+
 ### Reviewed voluntary application Exit and Restart
 
 Deliberate native, typed and permitted activated-voice application Exit/Restart

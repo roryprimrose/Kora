@@ -154,6 +154,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private BuiltInAction? pendingModelAction;
     private LocalModelArtifact? pendingModelActionArtifact;
     private SecurityAuditEvent? pendingModelActionAudit;
+    private Func<HostActivity>? pendingModelQuestionContinuation;
     private GrantChange? pendingGrantChange;
     private SecurityAuditEvent? pendingGrantChangeAudit;
     private LocalModelQuestion? pendingModelQuestion;
@@ -607,6 +608,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                       || AttachmentCataloguePreparationCommand.Parse(CommandText, AssistantName) is not null
                       || EvidenceTraceCommand.Parse(CommandText, AssistantName) is not null
                       || PendingQuestionCommand.Parse(CommandText, AssistantName) is not null
+                      || IsModelActionReviewCommand(CommandText)
                       || MemoryCommand.Parse(CommandText, AssistantName) is not null
                       || IsInstructionEditorCommand(CommandText)
                       || Kora.Application.Definitions.CustomizationCommand.Parse(CommandText, AssistantName) is not null
@@ -661,6 +663,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RejectModelActionCommand = CreateCommand(
             RejectPendingModelActionAsync,
             () => IsModelActionApprovalPending);
+        ApproveModelActionCommand.CanExecuteChanged += OnModelActionReviewAvailabilityChanged;
+        ApproveModelActionForSessionCommand.CanExecuteChanged += OnModelActionReviewAvailabilityChanged;
+        ApproveModelActionAlwaysCommand.CanExecuteChanged += OnModelActionReviewAvailabilityChanged;
+        RejectModelActionCommand.CanExecuteChanged += OnModelActionReviewAvailabilityChanged;
         PrepareGrantChangeCommand = CreateCommand(
             async () =>
             {
@@ -1001,6 +1007,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref isLocalModelSetupActive, value))
             {
+                NotifyModelActionReviewAvailability();
                 OnPropertyChanged(nameof(CanInstallLocalModel));
                 OnPropertyChanged(nameof(CanInstallPowerShell));
                 RefreshCommand.NotifyCanExecuteChanged();
@@ -1021,6 +1028,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref isPowerShellSetupActive, value))
             {
+                NotifyModelActionReviewAvailability();
                 OnPropertyChanged(nameof(CanInstallPowerShell));
                 OnPropertyChanged(nameof(CanInstallLocalModel));
                 RefreshCommand.NotifyCanExecuteChanged();
@@ -1842,6 +1850,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (SetProperty(ref state, value))
             {
                 OnPropertyChanged(nameof(StateLabel));
+                OnPropertyChanged(nameof(PresenceState));
             }
         }
     }
@@ -2001,6 +2010,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         {
             if (SetProperty(ref isBusy, value))
             {
+                NotifyModelActionReviewAvailability();
                 ToggleListeningCommand.NotifyCanExecuteChanged();
                 OnPropertyChanged(nameof(CanPushToTalk));
                 BeginPushToTalkCommand.NotifyCanExecuteChanged();
@@ -2845,6 +2855,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         pendingQuestionRequest = request;
         pendingQuestionArtifact = artifact;
         pendingQuestionDepth = depth;
+        pendingModelQuestionContinuation = HostActivity.CaptureContinuation(
+            HostActivityLayer.Application, HostOperation.Request, OriginalOrigin());
         ModelQuestionChoices = question.Options.Select((text, index) =>
             new ModelQuestionChoice(index + 1, text)).ToArray();
         OnPropertyChanged(nameof(ModelQuestionChoices));
@@ -2864,6 +2876,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         pendingModelQuestion = null;
         pendingQuestionRequest = null;
         pendingQuestionArtifact = null;
+        pendingModelQuestionContinuation = null;
         ModelQuestionChoices = [];
         OnPropertyChanged(nameof(ModelQuestionChoices));
         OnPropertyChanged(nameof(IsModelQuestionPending));
@@ -2894,6 +2907,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         bool selectedOption,
         SecurityAuditInitiator initiator)
     {
+        var continuation = pendingModelQuestionContinuation;
+        if (continuation is null)
+        {
+            ShowFailure("The clarification could not continue.", "The original host request is unavailable. Initiate a fresh request.");
+            return;
+        }
         var artifact = pendingQuestionArtifact;
         var followup = selectedOption
             ? JsonSerializer.Serialize(new
@@ -2927,12 +2946,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
 
+        using var routing = continuation();
         await HandleUnmatchedRequestAsync(
             followup,
             initiator,
             depth,
             artifact: artifact,
             activationAlreadyValidated: initiator == SecurityAuditInitiator.VoiceCommand);
+        routing.Complete(HostOperationOutcome.Completed);
     }
 
     public async Task CancelModelQuestionAsync()
@@ -4122,6 +4143,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             { Transcript = "Evidence trace unavailable: the original voice generation or host was revoked."; }
             if (questionTarget.Command is not null)
             { PendingQuestionNavigationStatus = "Pending question navigation unavailable: original voice or host admission was revoked."; }
+            if (IsModelActionReviewCommand(eventArgs.Transcript)
+                || manualInput.ModelActionReview is not null
+                    && ModelApprovalSpeech.TryMatch(eventArgs.Transcript, AssistantName, false, out _))
+            { ReportModelActionReviewUnavailable(); }
             return;
         }
         if (Interlocked.CompareExchange(ref acceptedTranscriptGeneration, -1, eventArgs.Generation) != eventArgs.Generation)
@@ -4195,6 +4220,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        var reviewInput = manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision);
+        if (TryActivateModelActionReview(spokenText, initiator, reviewInput)) { return; }
+        if (ModelApprovalSpeech.TryMatch(spokenText, AssistantName, false, out _)
+            && (reviewInput.ModelActionReview is not null || IsModelActionApprovalPending)
+            && (!reviewInput.Eligible() || !IsModelActionReviewCurrent(reviewInput.ModelActionReview)))
+        {
+            ReportModelActionReviewUnavailable();
+            return;
+        }
         if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
         {
@@ -4979,7 +5013,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             artifact is null
                 ? "Only your current request text is sent to the selected local model."
                 : "Your current request and the selected bundled artifact instructions are sent only to the selected local model. Artifact selection does not approve or execute an action.");
-        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth, artifact);
+        var continuation = HostActivity.CaptureContinuation(
+            HostActivityLayer.Application, HostOperation.Request, OriginalOrigin());
+        activeReasoningTask = RunReasoningAsync(request, cancellation, questionDepth, artifact, continuation);
         _ = activeReasoningTask.ContinueWith(completed =>
         {
             if (completed.Exception is { } exception)
@@ -5003,8 +5039,10 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         string request,
         CancellationTokenSource cancellation,
         int questionDepth,
-        LocalModelArtifact? artifact)
+        LocalModelArtifact? artifact, Func<HostActivity> continuation)
     {
+        using var activity = continuation();
+        var outcome = HostOperationOutcome.Completed;
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
@@ -5087,6 +5125,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     var callRevision = CallPolicyRevision;
                     var recoveryRevision = Interlocked.Read(ref voiceRecoveryRevision);
                     var preparationRevision = Interlocked.Read(ref approvalPreparationRevision);
+                    var reviewRequest = HostActivity.RequireCurrent().Request;
+                    var reviewHostEligible = CaptureModelActionReviewHost();
                     var proposedAudit = await StartAuditAsync(
                         SecurityAuditCategory.SecurityApproval,
                         $"{ModelActionApprovalPrefix}{action.ToString().ToLowerInvariant()}",
@@ -5101,14 +5141,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         Guid.NewGuid());
                     if (cancellation.IsCancellationRequested || !IsCallMutationHostEligible
                         || CallPolicyRevision != callRevision || Interlocked.Read(ref voiceRecoveryRevision) != recoveryRevision
-                        || preparationRevision != Interlocked.Read(ref approvalPreparationRevision))
+                        || preparationRevision != Interlocked.Read(ref approvalPreparationRevision)
+                        || !reviewHostEligible())
                     {
                         await CompleteAuditAsync(proposedAudit, SecurityAuditOutcome.Denied, "approval-admission-changed");
+                        activity.Complete(HostOperationOutcome.Cancelled);
                         return;
                     }
                     pendingModelAction = action;
                     pendingModelActionArtifact = artifact;
                     pendingModelActionAudit = proposedAudit;
+                    pendingModelActionReview = new(reviewRequest, checked(++modelActionReviewEpoch), proposedAudit,
+                        reviewHostEligible);
+                    ModelActionReviewStatus = "An action needs review. Open it explicitly, then confirm or reject separately.";
+                    NotifyModelActionReviewChanged();
                     OnPropertyChanged(nameof(IsModelActionApprovalPending));
                     OnPropertyChanged(nameof(IsApprovalPending));
                     OnPropertyChanged(nameof(IsResponseInteractionPending));
@@ -5116,16 +5162,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     ApproveModelActionForSessionCommand.NotifyCanExecuteChanged();
                     ApproveModelActionAlwaysCommand.NotifyCanExecuteChanged();
                     RejectModelActionCommand.NotifyCanExecuteChanged();
-                    var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == action);
-                    var voicePrefix = RequireAssistantNameForVoiceApproval
-                        ? $"{AssistantName}, "
-                        : string.Empty;
-                    var approvalChoices = artifact is null
-                        ? $"Say “{voicePrefix}approve once”, “{voicePrefix}approve for this session”, “{voicePrefix}always allow this”, or “{voicePrefix}reject”."
-                        : $"The proposal came from artifact revision {artifact.Digest[..12]}. Only a single-use approval is valid. Say “{voicePrefix}approve once” or “{voicePrefix}reject”.";
-                    ShowInformation(
-                        "Approve a model-suggested action?",
-                        $"{command.Description} {approvalChoices} You can also use the buttons below.");
+                    PresentPendingModelActionReview();
                     WindowActionRequested?.Invoke(this, WindowAction.Show);
                     announceApproval = true;
                 }
@@ -5146,6 +5183,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         catch (OperationCanceledException) when (cancellation.IsCancellationRequested)
         {
+            outcome = HostOperationOutcome.Cancelled;
             dependencyBootstrapper.Tasks.Update(
                 "local.reasoning", SetupTaskState.Cancelled, "The local request was cancelled.");
             ShowInformation("Local request cancelled.", "No local model answer will continue.");
@@ -5153,6 +5191,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         catch (Exception exception) when (exception is HttpRequestException or TimeoutException
             or JsonException or InvalidDataException or InvalidOperationException)
         {
+            outcome = HostOperationOutcome.Failed;
             ApplicationLog.Error(logger, exception, "Calling the verified local model");
             dependencyBootstrapper.Tasks.Update(
                 "local.reasoning", SetupTaskState.Failed, exception.Message);
@@ -5193,6 +5232,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             catch (Exception exception) when (exception is InvalidOperationException
                 or UnauthorizedAccessException or IOException)
             {
+                outcome = HostOperationOutcome.Failed;
                 ApplicationLog.Error(logger, exception, "Speaking a model action approval prompt");
                 var description = pendingModelQuestion is { } question
                     ? question.Prompt
@@ -5219,6 +5259,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 ShowInformation("Saved permission is not eligible.",
                     "Call policy changed before dispatch. Initiate a fresh request; no action was replayed.");
+                activity.Complete(HostOperationOutcome.Cancelled);
                 return;
             }
             isModelActionDispatchActive = true;
@@ -5234,6 +5275,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
                 or InvalidOperationException or HttpRequestException or JsonException or InvalidDataException)
             {
+                outcome = HostOperationOutcome.Failed;
                 ApplicationLog.Error(logger, exception, "Executing a model-suggested built-in action");
                 ShowFailure("The model-suggested action failed.", exception.Message);
             }
@@ -5242,6 +5284,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 isModelActionDispatchActive = false;
             }
         }
+        activity.Complete(outcome);
     }
 
     private async Task SpeakModelApprovalPromptAsync(long? expectedSpeechRevision = null)
@@ -5408,6 +5451,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
 
         var approval = pendingModelActionAudit;
+        var reviewTarget = pendingModelActionReview;
         var callRevision = CallPolicyRevision;
         var preparation = Interlocked.Read(ref approvalPreparationRevision);
         try
@@ -5416,11 +5460,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await StopModelApprovalPromptAsync();
             if (!ReferenceEquals(pendingModelActionAudit, approval))
             {
+                ReportModelActionReviewUnavailable();
                 return;
             }
             if (!IsHostInputEligible)
             {
                 ApplicationLog.Information(logger, "Denied model-action approval after a Windows privacy transition");
+                ReportModelActionReviewUnavailable();
+                return;
+            }
+            if (!IsModelActionReviewCurrent(reviewTarget))
+            {
+                ReportModelActionReviewUnavailable();
                 return;
             }
             if (initiator == SecurityAuditInitiator.VoiceCommand
@@ -5437,14 +5488,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 && !await SaveModelApprovalPreferencesAsync(
                     requireAssistantNameForVoiceApproval,
                     alwaysAllowedModelActions.Append(action).Distinct(),
-                    initiator, () => ReferenceEquals(pendingModelActionAudit, approval)
+                    initiator, () => ReferenceEquals(pendingModelActionAudit, approval) && IsModelActionReviewCurrent(reviewTarget)
                         && Interlocked.Read(ref reusableGrantRevision) == expectedGrantRevision))
             {
                 return;
             }
-            if (!ReferenceEquals(pendingModelActionAudit, approval) || !IsHostInputEligible) { return; }
+            if (!ReferenceEquals(pendingModelActionAudit, approval) || !IsModelActionReviewCurrent(reviewTarget))
+            {
+                ReportModelActionReviewUnavailable();
+                return;
+            }
             await ClearPendingModelActionAsync($"approved-{scope.ToString().ToLowerInvariant()}");
             if (disposed || !IsHostInputEligible
+                || !reviewTarget.Eligible()
                 || preparation != Interlocked.Read(ref approvalPreparationRevision)) { return; }
             if (modelPreferenceWriteActive || Interlocked.Read(ref reusableGrantRevision) != expectedGrantRevision)
             {
@@ -5526,6 +5582,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
 
         var approval = pendingModelActionAudit;
+        var reviewTarget = pendingModelActionReview;
         try
         {
             await StopModelApprovalPromptAsync();
@@ -5537,9 +5594,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return false;
         }
 
-        if (ReferenceEquals(pendingModelActionAudit, approval))
+        if (ReferenceEquals(pendingModelActionAudit, approval) && IsModelActionReviewCurrent(reviewTarget))
         {
             await RejectPendingModelActionCoreAsync();
+        }
+        else
+        {
+            ReportModelActionReviewUnavailable();
+            return false;
         }
 
         return true;
@@ -5567,6 +5629,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         pendingModelActionAudit = null;
         pendingModelAction = null;
         pendingModelActionArtifact = null;
+        pendingModelActionReview = null;
+        ModelActionReviewStatus = "The original action review is retired.";
+        NotifyModelActionReviewChanged();
         var retirement = audit is null ? Task.CompletedTask : CompleteAuditAsync(audit,
             reason.StartsWith("approved-", StringComparison.Ordinal)
                 ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled, reason);
@@ -6424,6 +6489,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     {
         var commands = commandCatalog.GetCommands(AssistantName)
             .SelectMany(command => command.AllPhrases)
+            .Concat([ReviewPendingActionPhrase])
             .Concat(ClipboardCommand.FixedPhrases)
             .Concat(ClipboardSnapshotStatusCommand.DiscoveryPhrases)
             .Concat(LocalFileCommand.FixedPhrases)

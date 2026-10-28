@@ -18,7 +18,7 @@
     WindowStartupLocation="Manual">
   <controls:PresenceControl
       x:Name="Presence"
-      State="{Binding State}"
+      State="{Binding PresenceState}"
       IsSpeaking="{Binding IsSpeechPlaybackActive}"
       IsSpeechWorkActive="{Binding IsSpeaking}"
       IsPresentationEligible="{Binding CanRevealPrivatePresentation}"

@@ -9,7 +9,7 @@ namespace Kora;
 
 internal sealed partial class QuestionWindowController
 {
-    internal async Task<HostInteractionDecision> RequestClipboardPermissionAsync(Window owner,
+    internal async Task<HostInteractionDecision> RequestClipboardPermissionAsync(Window? owner,
         HostOperationProposal proposal, HostRevision generation, Func<bool> admitted, CancellationToken token)
     {
         if (!Dispatcher.UIThread.CheckAccess())
@@ -18,7 +18,7 @@ internal sealed partial class QuestionWindowController
                 RequestClipboardPermissionAsync(owner, proposal, generation, admitted, token));
         }
         token.ThrowIfCancellationRequested();
-        if (disposed || IsOwnerInUse || !main.CanRevealPrivatePresentation || !admitted() || !owner.IsVisible)
+        if (disposed || IsOwnerInUse || !main.CanRevealPrivatePresentation || !admitted() || owner is { IsVisible: false })
         { throw new InvalidOperationException("The original clipboard permission window is unavailable or occupied."); }
         main.RetireCurrentResponseSpeech();
         running = true;
@@ -26,7 +26,7 @@ internal sealed partial class QuestionWindowController
         {
             return await host.RequestClipboardPermissionAsync(proposal, generation, admitted, model =>
             {
-                if (!admitted() || disposed || !owner.IsVisible)
+                if (!admitted() || disposed || owner is { IsVisible: false })
                 { throw new OperationCanceledException("Original clipboard presentation changed.", token); }
                 OpenExact(owner, model);
                 if (window is null || !ReferenceEquals(state, model))

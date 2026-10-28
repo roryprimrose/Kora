@@ -34,9 +34,9 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class ClipboardExplanationPermissionTests
 {
     [Theory]
-    [InlineData("once", 2)]
-    [InlineData("session", 1)]
-    [InlineData("perpetual", 1)]
+    [InlineData("once", 4)]
+    [InlineData("session", 2)]
+    [InlineData("perpetual", 2)]
     [InlineData("deny", 1)]
     public async Task NativeReviewAndActualGrantReachRealHostAndOnlyVolatileExactAnswer(string scope, int expectedQuestions)
     {
@@ -60,8 +60,9 @@ public sealed class ClipboardExplanationPermissionTests
                     fixture.Time.GetUtcNow().AddHours(1), adapter)], configuration);
             await using var admission = new ClipboardExplanationAdmission(fixture.Store, fixture.Store, new(fixture.Tasks));
             var policy = new ClipboardPermissionSourceUsePolicy(fixture.Store, fixture.Store, fixture.Time);
-            using var broker = new ClipboardSnapshotBroker(new Reader(), fixture.Time, NullLogger<ClipboardSnapshotBroker>.Instance);
-            using var workflow = new ClipboardExplanationWorkflow(broker, new(broker), admission, modelHost, controls,
+            var reader = new Reader();
+            using var broker = new ClipboardSnapshotBroker(reader, fixture.Time, NullLogger<ClipboardSnapshotBroker>.Instance);
+            using var workflow = new ClipboardExplanationWorkflow(broker, new(new ClipboardReadWorkflow(broker, admission, policy)), admission, modelHost, controls,
                 fixture.Time, NullLogger<ClipboardExplanationWorkflow>.Instance, policy);
             using var native = new NativeQuestionHost(fixture.Store, fixture.Time, NullLogger<NativeQuestionViewModel>.Instance);
             native.BindGate(() => true);
@@ -78,6 +79,11 @@ public sealed class ClipboardExplanationPermissionTests
                     try
                     {
                         questions++;
+                        if (string.Equals(proposal.Binding.ActionId, ClipboardPermissionSourceUsePolicy.ReadActionId, StringComparison.Ordinal))
+                        {
+                            reader.Calls.Should().Be(scope is "once" ? questions / 2 : 0);
+                            state.Question.Spec.Text.Should().Contain("without reading the clipboard");
+                        }
                         state.IsApproval.Should().BeTrue();
                         state.CanAnswerByVoice.Should().BeFalse();
                         state.Answer.Choices.Should().BeEmpty();
@@ -99,8 +105,15 @@ public sealed class ClipboardExplanationPermissionTests
             var runs = scope is "deny" ? 1 : 2;
             for (var index = 0; index < runs; index++)
             {
-                (await workflow.ExplainAsync(null, () => true, fixture.Token)).Outcome
-                    .Should().Be(ClipboardExplanationOutcome.ReviewRequired);
+                var captured = await workflow.ExplainAsync(null, () => true, fixture.Token);
+                if (scope is "deny")
+                {
+                    captured.Outcome.Should().Be(ClipboardExplanationOutcome.Unavailable);
+                    captured.CaptureOutcome.Should().Be(ClipboardOutcome.Denied);
+                    broker.Current.Should().BeNull();
+                    break;
+                }
+                captured.Outcome.Should().Be(ClipboardExplanationOutcome.ReviewRequired);
                 var source = broker.Current!;
                 var window = new ClipboardPreviewWindow(_ => throw new InvalidOperationException("Unexpected clipboard UI failure"));
                 ClipboardExplanationResult? result = null;
@@ -139,6 +152,7 @@ public sealed class ClipboardExplanationPermissionTests
             }
             questions.Should().Be(expectedQuestions);
             adapter.Calls.Should().Be(scope is "deny" ? 0 : runs);
+            reader.Calls.Should().Be(scope is "deny" ? 0 : runs);
             (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().HaveCount(scope is "deny" ? 0 : expectedQuestions);
             fixture.Count("conversation_messages").Should().Be(0);
             fixture.Count("conversation_drafts").Should().Be(0);
@@ -155,8 +169,12 @@ public sealed class ClipboardExplanationPermissionTests
     private sealed class Reader : IPlainTextClipboardReader
     {
         internal const string Source = "private-clipboard-fixture-80f7 ordinary untrusted exact source";
-        public Task<ClipboardReadResult> ReadAsync(CancellationToken cancellationToken) =>
-            Task.FromResult(new ClipboardReadResult(ClipboardOutcome.Captured, Source, 19));
+        internal int Calls { get; private set; }
+        public Task<ClipboardReadResult> ReadAsync(CancellationToken cancellationToken)
+        {
+            Calls++;
+            return Task.FromResult(new ClipboardReadResult(ClipboardOutcome.Captured, Source, 19));
+        }
     }
 
     private sealed class Adapter : IModelTurnAdapter

@@ -87,6 +87,14 @@ resource joins and independent runtime qualification remain mandatory.
 This advances approved model interaction and readable results; the host owns
 clipboard permission and native disclosure, not an extension-provided classifier.
 
+The user's clarification also requires a grant before the clipboard tool reads,
+not only before explanation. The [read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)
+consumes and revalidates a separate `clipboard.read` grant before native access.
+Original input and built-in implementation are not permission exemptions.
+Model-generated tool, skill, agent or script requests convey no execution authority;
+the host must validate applicable permission before execution, never execute a proposal as approval
+([grant rules](Internal_Model_Tools.md#grant-and-feedback-rules)).
+
 ## Decision inventory
 
 | ID | Decision | Owner | Due before | Status | Required evidence |

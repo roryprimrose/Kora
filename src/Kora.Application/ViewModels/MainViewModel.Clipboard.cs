@@ -72,7 +72,8 @@ public sealed partial class MainViewModel
                 if (!disposed && IsHostInputEligible)
                 {
                     ShowInformation("Local clipboard capture requested.",
-                        "Reading one bounded plain-text source. Cancel task discards the request; native resource release must finish before handoff/exit.");
+                        "A clipboard read permission grant is required before reading one bounded plain-text source. "
+                        + "Cancel question denies the read; native resource release must finish before handoff/exit.");
                 }
                 outcome = await clipboardRead.ExecuteAsync(Eligible, CancellationToken.None);
                 break;
@@ -145,7 +146,7 @@ public sealed partial class MainViewModel
         ClipboardOutcome.AccessDenied => "Windows denied clipboard access. Resolve the access issue, then make a new explicit request.",
         ClipboardOutcome.Changed => "The source version changed during capture. Make a new explicit request; no mixed-version snapshot was admitted.",
         ClipboardOutcome.Unavailable => "The clipboard source or native read/release could not be verified. Resolve the failure; unverified native release requires restart and blocks clean handoff.",
-        ClipboardOutcome.Denied => "Current host ownership, privacy, call policy or original input origin does not permit capture/reuse.",
+        ClipboardOutcome.Denied => "A clipboard read grant or current host ownership, privacy, call policy or original input origin does not permit capture/reuse.",
         ClipboardOutcome.Stale => "That snapshot ID is no longer selected or was revoked. Request a fresh preview; no automatic recapture occurred.",
         ClipboardOutcome.Cancelled => "Capture was cancelled or its generation/eligibility changed. No late result was presented.",
         _ => throw new ArgumentOutOfRangeException(nameof(outcome)),

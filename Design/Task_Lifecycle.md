@@ -107,6 +107,10 @@ The original terminal failure and user input remain unchanged; one new task
 retains only its genuine new terminal answer/outcome. Held lanes still require
 their existing explicit Resume, and queue bounds, resource ownership, joins,
 late-output suppression, audit and retention are unchanged. No live-predecessor
+Application lifecycle review counts the new attempt once through its ordinary
+submission lifetime, whether running or pending. Confirmed shutdown holds
+admission and joins the original producer; it neither replays the failed task
+nor dispatches a cancelled pending retry. No live-predecessor
 exemption, handoff transaction, automatic retry/backoff, fallback, mutating-tool
 replay, composer replacement, disk autosave or new permission is introduced.
 

@@ -22,13 +22,16 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false, false, false)]
-    [InlineData(false, true, false)]
-    [InlineData(true, false, false)]
-    [InlineData(true, true, false)]
-    [InlineData(false, false, true)]
-    [InlineData(true, true, true)]
-    public async Task NamedSkillOriginalTypedOrVoiceChoiceAndNativeKeyboardUseRetainCanonicalAnswer(bool voice, bool sharedChoice, bool stop)
+    [InlineData(false, false, false, false)]
+    [InlineData(false, true, false, false)]
+    [InlineData(true, false, false, false)]
+    [InlineData(true, true, false, false)]
+    [InlineData(false, false, true, false)]
+    [InlineData(true, true, true, false)]
+    [InlineData(false, false, false, true)]
+    [InlineData(true, false, false, true)]
+    [InlineData(false, false, true, true)]
+    public async Task NamedSkillOriginalTypedOrVoiceChoiceAndNativeKeyboardUseRetainCanonicalAnswer(bool voice, bool sharedChoice, bool stop, bool parameterized)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -45,7 +48,9 @@ public sealed partial class SessionsConversationTests
             using var native = new NativeUxFixtureSession(parent, syntheticVoice: voice);
             await native.InitializeAsync();
             var store = new WindowsOwnedDeclarativeSkillStore(native);
-            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "concise-review", "Description", "Literal guidance\nowned skill invoke");
+            var document = OwnedDeclarativeSkillDocument.Create("example", "1.0.0", "concise-review", "Description",
+                parameterized ? "Review ${input:topic}" : "Literal guidance\nowned skill invoke",
+                guidanceFormat: parameterized ? OwnedSkillGuidanceFormat.RequiredLiteralInputs : OwnedSkillGuidanceFormat.Literal);
             await store.Publish(document, static () => true, commit => Task.FromResult(commit()), native.Token);
             await using var admission = new OwnedSkillControlAdmission(native.Interactions, native.Interactions, new(native.Tasks));
             var owned = new OwnedSkillInvocationWorkflow(store, admission, composed.Access, f.Store, composed.Workspace,
@@ -116,6 +121,12 @@ public sealed partial class SessionsConversationTests
                 window.Request.Focus().Should().BeTrue();
                 window.KeyTextInput(body);
                 window.Request.Text.Should().Be(body);
+                if (parameterized)
+                {
+                    var input = window.LiteralInputs.Inputs["topic"];
+                    input.Focus().Should().BeTrue();
+                    window.KeyTextInput("literal ${input:topic} e\u0301");
+                }
                 await Press("Review exact invocation");
                 window.Confirm.IsEnabled.Should().BeTrue();
                 if (sharedChoice) { window.Confirmation.Text.Should().Contain(body); }
@@ -123,6 +134,7 @@ public sealed partial class SessionsConversationTests
                 {
                     using var preview = JsonDocument.Parse(window.Confirmation.Text!);
                     preview.RootElement.GetProperty("UserRequest").GetString().Should().Be(body);
+                    preview.RootElement.GetProperty("Evidence").GetArrayLength().Should().Be(parameterized ? 3 : 2);
                 }
                 adapter.Calls.Should().Be(0);
                 if (stop)

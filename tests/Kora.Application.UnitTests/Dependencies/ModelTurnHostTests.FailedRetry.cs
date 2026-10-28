@@ -15,6 +15,57 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FailedRetryLifecycleReviewCountsEachProducerOnceAndConfirmationJoinsRunningAndPendingAttempts(bool pending)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedFailedRetry(f);
+        var host = ConfigureCancellation(f);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var commands = conversation.CreateRequestCommands();
+        var review = (await commands.ExecuteAsync(FailedReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+        var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.Adapter.Pending = provider.Task;
+        f.Adapter.OnRun = () => started.TrySetResult();
+        ConversationQueuedSubmission? peer = pending
+            ? await conversation.SubmitQueuedAsync(new(f.Session, null), "running peer", () => true, Token) : null;
+        var operation = commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token);
+        try
+        {
+            if (pending) { (await operation).RequestSubmission!.Message.Outcome.Should().BeNull(); }
+            await started.Task.WaitAsync(Token);
+            using var lifecycle = await conversation.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.Exit,
+                RequestOrigin.LocalUi, () => true, Token);
+            lifecycle.Work.Should().HaveCount(pending ? 2 : 1);
+            lifecycle.Work.Select(item => item.Request).Should().OnlyHaveUniqueItems()
+                .And.NotContain(source.Request);
+            lifecycle.Work.Should().ContainSingle(item => item.Description == source.Body);
+            f.Adapter.Calls.Should().Be(1);
+            var joining = conversation.ConfirmApplicationLifecycleAsync(lifecycle, Token);
+            joining.IsCompleted.Should().BeFalse("the original producer still owns a physical provider call");
+            provider.SetResult(LateAnswer());
+            await joining;
+            lifecycle.Joined.Should().BeTrue();
+            await operation;
+            if (peer is not null) { await peer.Completion; }
+            f.PendingRecords[source.Request.RequestId].Message.Should().Be(source);
+            f.PendingRecords.Values.Where(item => item.Message.Request != source.Request)
+                .Should().OnlyContain(item => item.Message.Outcome == ModelTurnOutcome.Cancelled
+                    && item.Message.AssistantResponse == null);
+            f.Adapter.Calls.Should().Be(1, "pending retry cancellation must not dispatch another provider");
+            host.IsQuiescent.Should().BeTrue();
+        }
+        finally
+        {
+            provider.TrySetResult(LateAnswer());
+            await operation;
+            if (peer is not null) { await peer.Completion; }
+        }
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]
     public async Task FailedSourceReviewBindsOriginalInputTaskProviderAndChannelThroughCanonicalNewTurnAndDeniesReplay(RequestOrigin origin)

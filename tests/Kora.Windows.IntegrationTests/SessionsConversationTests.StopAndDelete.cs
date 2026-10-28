@@ -45,15 +45,22 @@ public sealed partial class SessionsConversationTests
                 model.ComposerBody = "other conversation memory";
                 await model.SelectAsync(model.Sessions.Single(row => row.Authority.SessionId == original));
                 var target = model.SelectedSessionRecord!;
-                var reviewedInput = nativeSubmission ? "running request" : "reviewed unsent text";
+                const string removedBody = "NATIVE_STOP_DELETE_BODY_7EB864E8";
+                var reviewedInput = nativeSubmission ? removedBody : "reviewed unsent text";
                 model.ComposerBody = reviewedInput;
                 if (nativeSubmission)
                 {
                     window.FindControl<Button>("SubmitConversation")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                     submission = window.ConversationOperation;
                 }
-                else { submission = composed.Conversation.SubmitAsync(target, "running request", static () => true, f.Token); }
+                else { submission = composed.Conversation.SubmitAsync(target, removedBody, static () => true, f.Token); }
                 var provenance = await adapter.Started.Task;
+                var accepted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                composed.Conversation.RunningConversationChanged += observed =>
+                {
+                    if (observed.Target.Request == provenance.Request && observed.Phase == ConversationExecutionPhase.Cancelling)
+                    { accepted.TrySetResult(); }
+                };
                 if (nativeSubmission)
                 {
                     await WhenModelAsync(model, () => model.CanCompose && !model.ComposerDirty);
@@ -70,6 +77,8 @@ public sealed partial class SessionsConversationTests
                 else { review.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
                 await window.StopAndDeleteOperation;
                 model.StopAndDeleteStatus.Should().Contain("Review only");
+                model.StopAndDeleteStatus.Should().Contain(SessionDispositionPreview.Scope)
+                    .And.Contain("owned SQLite cells/free pages").And.Contain("verified empty before completion");
                 if (reviewedInput.Length != 0) { model.StopAndDeleteStatus.Should().Contain(reviewedInput); }
                 model.ComposerBody.Should().Be(reviewedInput);
                 composed.Audit.Events.Should().NotContain(value => string.Equals(value.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
@@ -88,6 +97,7 @@ public sealed partial class SessionsConversationTests
                 model.StopAndDeleteStatus.Should().Contain("not deleted yet");
                 model.CanConfirmStopAndDelete.Should().BeFalse();
                 await model.ConfirmStopAndDeleteAsync();
+                await accepted.Task.WaitAsync(f.Token);
                 var auditCount = composed.Audit.Events.Count(value => string.Equals(value.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
                 auditCount.Should().Be(2, "double confirmation cannot accept another cancellation");
                 adapter.Release.SetResult(new(ModelTurnOutcome.Succeeded, provenance.Selection, new("late answer", null)));
@@ -95,6 +105,11 @@ public sealed partial class SessionsConversationTests
                 try { await submission; }
                 catch (ConversationSubmissionUnconfirmedException) { }
                 model.StopAndDeleteStatus.Should().Contain("logically deleted");
+                foreach (var path in new[] { f.DatabasePath, f.DatabasePath + "-journal" })
+                {
+                    File.ReadAllBytes(path).AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(removedBody)).Should().Be(-1);
+                }
+                new FileInfo(f.DatabasePath + "-journal").Length.Should().Be(0);
                 model.ComposerBody.Should().BeEmpty();
                 (await f.Store.ReadHistoryAsync(original, null, 50, f.Token)).Disposed.Should().BeTrue();
                 (await f.Store.ReadMetadataAsync(other, f.Token)).Authority.IsActive.Should().BeTrue();

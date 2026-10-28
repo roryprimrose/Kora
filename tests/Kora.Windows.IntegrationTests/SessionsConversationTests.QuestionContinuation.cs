@@ -76,14 +76,6 @@ public sealed partial class SessionsConversationTests
             host.BindAdmissionRevision(static () => 1);
             host.BindPrivateRevision(static () => 1);
             var model = composed.Model;
-            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            void TerminalChanged(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
-            {
-                if (string.Equals(args.PropertyName, nameof(SessionsViewModel.RunningConversationStatus), StringComparison.Ordinal)
-                    && model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal))
-                { terminalPresented.TrySetResult(); }
-            }
-            model.PropertyChanged += TerminalChanged;
             var presentation = new SessionsPresentationOwner(model);
             var workspace = compact ? null : new SessionsWindow(model, presentation);
             var compactWindow = compact ? new CompactSessionWindow(model, presentation) : null;
@@ -106,6 +98,17 @@ public sealed partial class SessionsConversationTests
                     }
                     finally { questionWindow?.Close(); }
                 });
+            var terminalPresented = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            string? exactTaskId = null;
+            void ObserveTerminal(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(model.RunningConversationStatus), StringComparison.Ordinal)
+                    && exactTaskId is not null
+                    && model.RunningConversationStatus.Contains(exactTaskId, StringComparison.Ordinal)
+                    && model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal))
+                { terminalPresented.TrySetResult(); }
+            }
+            model.PropertyChanged += ObserveTerminal;
             try
             {
                 await model.RefreshAsync();
@@ -116,6 +119,7 @@ public sealed partial class SessionsConversationTests
                     .RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
                 var operation = workspace?.ConversationOperation ?? compactWindow!.ConversationOperation;
                 var state = await displayed.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                exactTaskId = state.Question.Key.Request.TaskId.Value.ToString("D");
                 await model.RefreshRunningConversationAsync();
                 model.CanCancelRunningConversation.Should().BeTrue();
                 var cancel = owner.FindControl<Button>("CancelRunningConversation")!;
@@ -127,7 +131,7 @@ public sealed partial class SessionsConversationTests
                     text.Contains("Cancelling requested", StringComparison.Ordinal)
                     || text.Contains("Terminal Cancelled", StringComparison.Ordinal));
                 await operation;
-                await terminalPresented.Task.WaitAsync(TimeSpan.FromSeconds(10), f.Token);
+                await terminalPresented.Task.WaitAsync(f.Token);
                 state.IsEditable.Should().BeFalse();
                 state.Edit(new(["option-0"]));
                 await state.SubmitAsync();
@@ -137,6 +141,8 @@ public sealed partial class SessionsConversationTests
                 retained.ExpectedTaskState.Should().Be(HostTaskState.Unknown);
                 retained.AssistantResponse.Should().BeNull();
                 transport.Requests.Should().ContainSingle();
+                await WhenModelAsync(model, () => model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal)
+                    && model.RunningConversationStatus.Contains(retained.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
                 model.RunningConversationStatus.Should().Contain("Terminal Cancelled");
                 model.CanCancelRunningConversation.Should().BeFalse();
                 composed.Audit.Events.Where(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal))
@@ -146,12 +152,7 @@ public sealed partial class SessionsConversationTests
                     .Should().Be(retained);
                 (await f.Store.ReadQuestionsAsync(retained.Request.SessionId, f.Token)).Single().Status.Should().NotBe(QuestionStatus.Answered);
             }
-            finally
-            {
-                model.PropertyChanged -= TerminalChanged;
-                questionWindow?.Close();
-                presentation.Revoke();
-            }
+            finally { model.PropertyChanged -= ObserveTerminal; questionWindow?.Close(); presentation.Revoke(); }
         });
     }
 

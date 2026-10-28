@@ -16,6 +16,7 @@ internal sealed class ConversationCancellationLease(
     private ConversationCancellationTarget currentTarget = target;
     private ModelTurnOutcome? outcome;
     private HostTaskState? taskState;
+    private ConversationExecutionProgress progress = new(ConversationExecutionStep.GeneratingAnswer, 0, 0);
     private bool accepted;
     private Task signal = Task.CompletedTask;
     private readonly TaskCompletionSource<ConversationExecutionStatus> physicalCompletion =
@@ -42,7 +43,31 @@ internal sealed class ConversationCancellationLease(
     internal CancellationToken Token => cancellation.Token;
     internal bool CancellationAccepted { get { lock (gate) { return accepted; } } }
     internal bool CanContinue { get { lock (gate) { return !accepted && admitted(); } } }
-    internal ConversationExecutionStatus Status { get { lock (gate) { return new(currentTarget, phase, outcome, taskState); } } }
+    internal ConversationExecutionStatus Status
+    {
+        get
+        {
+            lock (gate)
+            {
+                return new(currentTarget, phase, outcome, taskState,
+                    phase == ConversationExecutionPhase.Running ? progress : null);
+            }
+        }
+    }
+
+    internal void PresentExecutionStep(ConversationExecutionStep step)
+    {
+        ConversationExecutionStatus status;
+        lock (gate)
+        {
+            if (phase != ConversationExecutionPhase.Running || !CanContinue || cancellation.IsCancellationRequested)
+            { return; }
+            progress = new(step, progress.ObservationCount + (step == ConversationExecutionStep.ReadingObservation ? 1 : 0),
+                progress.Revision + 1);
+            status = Status;
+        }
+        publish(status);
+    }
 
     internal void Dispatched(HostRevision revision)
     {

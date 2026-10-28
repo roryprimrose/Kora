@@ -16,6 +16,8 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
     public long? ExecutionMetadataRevision { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ConversationResponse? AssistantResponse { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public ConversationHandoffLineage? Handoff { get; init; }
     [JsonIgnore]
     public bool HasAssistantResponse => AssistantResponse is not null;
     [JsonIgnore]
@@ -50,6 +52,7 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
         Request.SessionId.Validate();
         Request.TaskId.Validate();
         Execution?.Turn.Validate();
+        Handoff?.Validate(Request);
         AssistantResponse?.Validate();
         if (AssistantResponse is { } answer && answer.Provenance != Execution)
         { throw new InvalidDataException("Assistant response does not belong to the retained original execution."); }

@@ -1,4 +1,6 @@
 using Kora.Application.Hosting;
+using Kora.Application.Hosting.SessionRouting;
+using Kora.Core.Conversation.SessionRouting;
 using Kora.Core.Storage;
 
 using Microsoft.Extensions.DependencyInjection;
@@ -13,7 +15,8 @@ public partial class App
     {
         sessionRouting = new(main, Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),
-            Services.GetRequiredService<TimeProvider>());
+            Services.GetRequiredService<TimeProvider>(), Services.GetRequiredService<ISessionRelatednessMatcher>(),
+            Services.GetRequiredService<SessionRoutingControlAdmission>());
         sessionRouting.Bind();
     }
 }

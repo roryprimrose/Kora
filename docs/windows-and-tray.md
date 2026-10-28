@@ -94,12 +94,13 @@ question windows and **Return to current question** remain independent.
 **Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
 
-Automatic current/other/new conversation matching is not available yet, and
-the session list is not supplied to a model by these navigation commands.
+Untargeted requests use [reviewed local relatedness](session-routing.md), not
+automatic destination submission. The session list is not supplied to a model by
+these navigation commands.
 The approved design uses relatedness routing in both window modes: selection
-supplies context, not a lock for unrelated general voice requests. Today use
-the explicitly addressed composer or the existing fresh-target **New conversation**
-workflow; expansion does not add model availability or permissions.
+supplies context, not a lock for unrelated general voice requests. Exact composers
+and the fresh-target **New conversation** workflow remain available independently;
+expansion does not add model availability or permissions.
 
 ### Review a failed request for a new attempt
 
@@ -310,6 +311,35 @@ Search returns chronological retained messages, not generated summaries. Enter s
 
 The bounded reader validates original identity, revision and snapshot continuity. Queries use whole lexical words, not executable instructions; results never add model context, resume work or establish execution authority ([reader](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationSearch.cs)).
 
+### Find a message across conversations
+
+In **Sessions / Session management**, expand **Search conversation content**.
+Enter ordinary words and choose **Search content** (or Enter). Typing alone
+reads nothing. The existing lexical matching rules search original USER text
+and separately retained ASSISTANT answers, not names, drafts or HOST metadata.
+Results show the observed conversation name, source role and retained text.
+Duplicate names do not choose identity.
+
+Choose a result and press Enter or **Open exact selected message**. Kora
+rechecks the original conversation, retained message and sequence snapshot,
+opens its owning conversation at that exact message, and scrolls/focuses the
+matching USER or ASSISTANT text. It never substitutes the current last message.
+The complete original text and existing deliberate Details, reply, read and
+reuse actions remain available under their original permissions; opening a
+match does not execute, speak, copy, submit or resume anything.
+
+Each page returns at most 25 matches from at most eight bounded source reads.
+**Next content matches** continues across messages and conversations; an empty
+page can still have Next. This is a bounded observation of retained sources,
+not an atomic global snapshot or semantic ranking. New messages appear only
+after a fresh search. Stale, deleted, expired, renamed or privacy-revoked
+matches cannot open a replacement. No retention clock or stored history changes.
+
+**Cancel / clear content search** or Escape clears the transient query,
+matches and continuation and cancels pending search/navigation. Closing or
+private-ownership loss clears them too. Query text and matches are not saved,
+logged, added to model context or sent to a provider/network.
+
 ### Search retained assistant answers
 
 Select the exact retained Active or Done session. In the existing conversation role selector choose **ASSISTANT**, enter lexical words unchanged and choose **Search this conversation**. **All** still searches only USER/HOST fields; **ASSISTANT** searches only complete saved answer bodies, never provider/provenance metadata or an absent answer's USER/HOST text ([role policy](../src/Kora.Core/Conversation/ConversationSearch.cs)).
@@ -332,7 +362,7 @@ Typing writes nothing. Switching topics preserves a separate memory-only unsent 
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
-Deliberate Kora **Exit** and **Restart** review all topic buffers and New request using Discard/Cancel, retaining the instruction-editor guard. Cancelled/failed prompts or changed input/private source do not confirm shutdown; state is rechecked after async work ([host guard](../src/Kora.Application/ViewModels/MainViewModel.ConversationShutdown.cs)).
+Deliberate Kora **Exit** and **Restart** protect all topic/New request input with Discard/Cancel and retain definition-editor guards. A separate affected-work review includes submitted running and pending requests in **every conversation**, even when the foreground composer is empty. **Cancel** leaves submitted requests unchanged and releases that review's dispatch hold. A fresh **Confirm** using the original input channel withdraws pending requests, stops running originals and waits for their actual resources before closing or restarting Kora. Uncertain release, failed audit/readback or changed input/private source prevents clean shutdown and shows a recovery message; stopped requests are not replayed and retained history/grants are not deleted ([lifecycle operation](../Design/Interaction_And_Sessions.md#reviewed-voluntary-application-exit-and-restart)).
 
 Mandatory privacy/ownership/session-lock retirement and application/OS-required shutdown do not wait for discard review. Unsent text is volatile: no disk autosave, restart restoration or protection against forced termination is promised ([native lifetime policy](../src/Kora/NativeShutdownPolicy.cs), [native retirement](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Shutdown.cs)).
 

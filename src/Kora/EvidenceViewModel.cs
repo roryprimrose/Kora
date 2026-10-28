@@ -130,8 +130,7 @@ internal sealed partial class EvidenceViewModel(
             inspectedRequest = requestSubject;
             selected = null;
             resultText = Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(result));
-            var sourceFailed = target.Source is EvidenceSource.CombinedLog or EvidenceSource.AuthorityAudit
-                && result.UnavailableSources.Count > 0;
+            var sourceFailed = HasUnavailableSource(result, target.Source);
             status = $"{result.Status}: {result.Records.Count} records. "
                 + (sourceFailed
                     ? "An included source could not be read; no complete or empty-success result is claimed. Verify access and start a fresh search. "
@@ -175,6 +174,11 @@ internal sealed partial class EvidenceViewModel(
         }
     }
 
+    private static bool HasUnavailableSource(EvidencePage result, EvidenceSource? requestedSource) =>
+        result.Status == EvidencePageStatus.Unavailable
+        || result.UnavailableSources.Any(source => requestedSource != EvidenceSource.All
+            || source is not (EvidenceSource.Session or EvidenceSource.Conversation));
+
     public void Close()
     {
         if (closed) { return; }
@@ -193,6 +197,7 @@ internal sealed partial class EvidenceViewModel(
 
     private void Clear(string message)
     {
+        RetireEvidenceAnswer();
         page = null;
         selected = null;
         inspectedRequest = null;
@@ -215,5 +220,6 @@ internal sealed partial class EvidenceViewModel(
         OnPropertyChanged(nameof(CanReadActivity));
         OnPropertyChanged(nameof(RequestSummary));
         NotifyFind();
+        NotifyEvidenceAnswer();
     }
 }

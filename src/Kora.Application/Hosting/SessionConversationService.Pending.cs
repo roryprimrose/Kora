@@ -90,6 +90,7 @@ public sealed partial class SessionConversationService
             lock (cancellationGate)
             {
                 ObjectDisposedException.ThrowIf(pendingClosed, this);
+                RequireConversationDispatchOpen(target.Authority.SessionId);
                 if (lane.Entries.Count == 0) { lane.ControlRevision = access.ControlRevision; }
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
@@ -165,7 +166,7 @@ public sealed partial class SessionConversationService
             pending.ExpiresAt = context.ExpiresAt;
             pending.Cause = new(HostActivity.RequireCurrent().Activity!.Context);
             pending.OnAccepted?.Invoke();
-            if (!lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+            if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
             { pending.Phase = ConversationPendingPhase.Dispatching; }
             lane.Pulse();
             var snapshot = Snapshot(pending.Target.Authority.SessionId, lane);
@@ -178,11 +179,12 @@ public sealed partial class SessionConversationService
             TimeSpan remaining;
             lock (cancellationGate)
             {
+                ExpireLifecycleBarrier();
                 if (pending.CancelRequested) { return ModelTurnReason.CallerCancelled; }
                 remaining = pending.ExpiresAt - time.GetUtcNow();
                 if (remaining <= TimeSpan.Zero || time.GetUtcNow() < context.CreatedAt) { return ModelTurnReason.ContextExpired; }
                 token.ThrowIfCancellationRequested();
-                if (!lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+                if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
                 {
                     pending.Phase = ConversationPendingPhase.Dispatching;
                     lane.Pulse();
@@ -237,6 +239,7 @@ public sealed partial class SessionConversationService
         PendingConversation pending;
         lock (cancellationGate)
         {
+            RequireConversationDispatchOpen(target.Authority.SessionId);
             if (!Live() || actual != target || !target.Authority.IsActive
                 || !conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
                 || lane.Revision != revision
@@ -266,6 +269,7 @@ public sealed partial class SessionConversationService
         token.ThrowIfCancellationRequested();
         lock (cancellationGate)
         {
+            RequireConversationDispatchOpen(target.Authority.SessionId);
             if (!Live() || actual != target || !target.Authority.IsActive
                 || !conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
                 || lane.Revision != revision || !lane.Paused)

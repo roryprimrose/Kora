@@ -15,6 +15,10 @@ const TICKET = /^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/;
 const PRIORITY_LABELS = Object.freeze(['queue:priority-high', 'queue:priority-normal', 'queue:priority-low']);
 const MERGE_PHASES = Object.freeze(['merging', 'merge-refused', 'merge-unconfirmed']);
 const MERGE_CONFIRMATION_MS = 10 * 60_000;
+const JOB_OBSERVATION_MS = MERGE_CONFIRMATION_MS;
+const JOB_CONCLUSIONS = Object.freeze([
+  'success', 'failure', 'cancelled', 'timed_out', 'neutral', 'skipped', 'action_required', 'stale',
+]);
 
 function invariant(condition, message) {
   if (!condition) throw new Error(message);
@@ -69,6 +73,14 @@ function validateState(state) {
         && [...CHECKS, GATE].every(name => active.checks[name]),
         'Invalid merge reconciliation identity or timestamp.');
     }
+    if (active.jobObservationStarted !== undefined) {
+      invariant(['dispatched', 'retiring'].includes(active.phase) && active.mergeStarted === undefined
+        && typeof active.jobObservationStarted === 'string'
+        && Number.isFinite(Date.parse(active.jobObservationStarted))
+        && new Date(Date.parse(active.jobObservationStarted)).toISOString() === active.jobObservationStarted
+        && Date.parse(active.jobObservationStarted) >= Date.parse(active.created),
+        'Invalid required-job observation timestamp.');
+    }
   }
   return state;
 }
@@ -107,13 +119,29 @@ function matchingRuns(runs, active) {
     && run.event === 'workflow_dispatch' && run.head_branch === 'main');
 }
 
-function successfulJobs(jobs) {
-  return JOBS.every(name => {
-    const matches = jobs.filter(job => job.name === name);
-    return matches.length === 1 && matches[0].conclusion === 'success';
-  });
+function jobOutcome(job) {
+  if (job.status !== 'completed' || !JOB_CONCLUSIONS.includes(job.conclusion)) return 'pending';
+  return job.conclusion === 'success' ? 'success' : 'failure';
 }
 
-module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS,
+function requiredJobsState(jobs) {
+  const outcomes = JOBS.map(name => {
+    const matches = jobs.filter(job => job.name === name);
+    if (matches.length > 1) return 'failure';
+    return matches.length === 0 ? 'pending' : jobOutcome(matches[0]);
+  });
+  return outcomes.includes('failure') ? 'failure' : outcomes.includes('pending') ? 'pending' : 'success';
+}
+
+function terminalJobs(jobs) {
+  return JOBS.every(name => jobs.filter(job => job.name === name).length === 1)
+    && jobs.every(job => jobOutcome(job) !== 'pending');
+}
+
+function successfulJobs(jobs) {
+  return requiredJobsState(jobs) === 'success';
+}
+
+module.exports = { CHECKS, GATE, JOBS, STATE_BRANCH, SHA, TICKET, MERGE_PHASES, MERGE_CONFIRMATION_MS, JOB_OBSERVATION_MS,
   invariant, mode, execution,
-  validateState, ready, readinessIssue, priority, title, matchingRuns, successfulJobs };
+  validateState, ready, readinessIssue, priority, title, matchingRuns, requiredJobsState, terminalJobs, successfulJobs };

@@ -86,6 +86,7 @@ public sealed partial class MainViewModel
 
     private void RetireSpeechSummarySuggestions()
     {
+        RetireResponseModeSuggestions();
         RetirePlaybackVolumeSuggestions();
         commandSpeechReview?.Dispose();
         commandSpeechReview = null;

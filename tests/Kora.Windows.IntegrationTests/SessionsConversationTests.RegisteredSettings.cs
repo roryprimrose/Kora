@@ -106,18 +106,22 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public async Task RegisteredSettingReviewReportsPersistedButUnconfirmedWriteWithoutRetryOrRollback()
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task RegisteredSettingReviewReportsPersistedButUnconfirmedWriteWithoutRetryOrRollback(bool presence, bool failRequested)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
         var preferences = new LocalAppearancePreferences(new LocalPreferenceStore(f.Paths),
             NullLogger<LocalAppearancePreferences>.Instance);
-        var audit = new UnconfirmedSettingAudit();
+        var audit = new UnconfirmedSettingAudit(failRequested);
         var appearance = new AppearanceConfigurationService(preferences, audit,
             NullLogger<AppearanceConfigurationService>.Instance);
-        await using var composed = new Composition(f, adapter: new AppearanceAnswerAdapter(false), appearance: appearance);
+        var adapter = new AppearanceAnswerAdapter(presence ? "set appearance.movement-speed to 50" : "set appearance.theme to dark");
+        await using var composed = new Composition(f, adapter: adapter, appearance: appearance);
         var model = composed.Model;
         await model.RefreshAsync();
         await model.SelectAsync(model.Sessions.Single());
@@ -126,14 +130,22 @@ public sealed partial class SessionsConversationTests
         await model.SubmitConversationAsync();
         await model.ReviewRegisteredSettingSuggestionAsync(model.ConversationMessages.Single());
         await model.ConfirmRegisteredSettingSuggestionAsync();
-        preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark, "the failed terminal receipt cannot promise rollback");
+        if (presence)
+        {
+            preferences.LoadPresenceMovementSpeedPercent().Should().Be(failRequested ? null : 50,
+                "a failed requested receipt prevents writes, but a failed terminal receipt cannot promise rollback");
+            preferences.LoadThemeMode().Should().BeNull();
+        }
+        else { preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark, "the failed terminal receipt cannot promise rollback"); }
         model.ConversationStatus.Should().Contain("save is unconfirmed").And.Contain("a write may have persisted")
             .And.Contain("No automatic retry or rollback");
         model.CanConfirmRegisteredSettingSuggestion.Should().BeFalse();
         model.RegisteredSettingSuggestionDescription.Should().BeEmpty();
-        audit.Events.Should().ContainSingle().Which.Outcome.Should().Be(SecurityAuditOutcome.Requested);
+        audit.Events.Should().HaveCount(failRequested ? 0 : 1);
+        audit.Events.Should().OnlyContain(item => item.Outcome == SecurityAuditOutcome.Requested);
         await model.ConfirmRegisteredSettingSuggestionAsync();
-        audit.Events.Should().ContainSingle("a consumed review cannot retry an uncertain save");
+        audit.Events.Should().HaveCount(failRequested ? 0 : 1, "a consumed review cannot retry an uncertain save");
+        adapter.Calls.Should().Be(1);
     }
 
     [Fact]
@@ -194,6 +206,8 @@ public sealed partial class SessionsConversationTests
         {
             Calls++;
             Encoding.UTF8.GetString(context.Span).Should().Contain("Registered Kora setting suggestions are inert data")
+                .And.Contain("responses.default-mode").And.Contain("Hybrid/VoiceOnly/VisualOnly")
+                .And.Contain("including VoiceOnly")
                 .And.Contain("explicitly requests a session-memory proposal");
             return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Succeeded, provenance.Selection,
                 new(Calls == 1 ? "set appearance.theme to dark" : MemoryProposal, null)));
@@ -215,13 +229,13 @@ public sealed partial class SessionsConversationTests
 
     }
 
-    private sealed class UnconfirmedSettingAudit : ISecurityAuditLog
+    private sealed class UnconfirmedSettingAudit(bool failRequested = false) : ISecurityAuditLog
     {
         internal List<SecurityAuditEvent> Events { get; } = [];
 
         public void Write(SecurityAuditEvent auditEvent)
         {
-            if (auditEvent.Outcome == SecurityAuditOutcome.Succeeded)
+            if (failRequested || auditEvent.Outcome == SecurityAuditOutcome.Succeeded)
             { throw new IOException("Terminal setting audit unavailable."); }
             Events.Add(auditEvent);
         }

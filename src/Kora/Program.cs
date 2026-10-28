@@ -373,6 +373,10 @@ internal static class Program
         services.AddSingleton<SessionRetentionService>();
         services.AddSingleton<ISharedSkillSessionStore>(interactions);
         services.AddSingleton<IInstructionControlSessionStore>(interactions);
+        services.AddSingleton<ISessionRoutingControlStore>(interactions);
+        services.AddSingleton<Kora.Application.Hosting.SessionRouting.SessionRoutingControlAdmission>();
+        services.AddSingleton<Kora.Core.Conversation.SessionRouting.ISessionRelatednessMatcher,
+            Kora.Application.Hosting.SessionRouting.LocalSessionRelatednessMatcher>();
         services.AddSingleton<ISharedSkillSourceReader, WindowsProfileSkillReader>();
         services.AddSingleton<LocalSharedSkillPreferences>();
         services.AddSingleton<SharedSkillAdmission>();
@@ -542,6 +546,7 @@ internal static class Program
         services.AddTransient<NewRequestComposer>();
         services.AddSingleton<Kora.Application.Definitions.PromptConversationSubmission>();
         services.AddSingleton<ModelProviderHandoffWorkflow>();
+        services.AddSingleton<VerifiedLocalHandoffOperation>();
         services.AddSingleton<ModelHandoffPresentation>();
 #if DEBUG
         services.AddSingleton<ILocalModelSetup>(_ => new WindowsOllamaSetupService(coordinator.DebugRecovery));

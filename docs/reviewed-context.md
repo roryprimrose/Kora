@@ -5,6 +5,49 @@ tool-free conversation answer. It never assembles context or recalls memories
 automatically. Ordinary **Submit exact message** and all separate source reviews
 remain unchanged.
 
+## Answer the original question after a model history advisory
+
+An ordinary retained ASSISTANT answer can contain exactly
+`{"version":1,"advisory":"HISTORYREVIEW"}`. This bounded, versioned advisory is
+untrusted data, not permission to read history, select messages or replace your
+question. Merely receiving or selecting it reads no additional history and
+starts no model turn.
+
+In **Sessions**, explicitly read the conversation, select that retained answer
+and choose **Review context for selected model advisory**. The private window
+offers only already observed whole USER/ASSISTANT messages strictly before the
+advisory turn. Nothing is preselected. If the required earlier messages are not
+on the observed page, cancel and explicitly read the intended sources; Kora
+does not silently fetch or fold more history.
+
+Select your subset, then choose **Review complete selection and original
+question**. Inspect every complete selected source and the unchanged original
+USER question, its originating channel, and the LOCAL ONLY, NO TOOLS destination.
+The advisory itself is not included as evidence. Your unrelated unsent composer
+is neither used nor changed. The complete envelope still has the shared
+16-item / 32768-UTF-8-byte limit; nothing is truncated.
+
+Separately choose **Confirm ONE local-only tool-free answer**. This consumes one
+source-bound confirmation and submits the host's byte-exact original question in
+the same Active conversation, preserving LocalUi or ActivatedVoice origin.
+The actual shared local model lifecycle retains a genuine ASSISTANT answer or a
+truthful HOST unavailable/failure outcome. Opening the window and reviewing are
+not completion. Existing qualification remains authoritative; this feature
+does not enable an unavailable provider or fall back to a hosted model.
+
+The advisory binding expires after 60 seconds; reviewing again does not renew
+it. Changed/deleted advisory or selected sources, session generation/metadata,
+input, answer/page selection, channel authority, privacy, ownership or
+presentation invalidate stale use. Closing cancels consent without retracting
+an already retained request. Ignoring outstanding model/storage work remains
+owned until physically joined; late results cannot renew consent. There is no
+spoken ordinal shortcut, automatic speech, memory creation, source-body copy
+into new history, raw-content diagnostics, tool use or hosted disclosure.
+Manual history follow-ups, exact-answer replies and per-session unsent input
+remain separate ([strict advisory](../src/Kora.Core/Conversation/ModelHistoryContextProposal.cs),
+[host binding](../src/Kora.Application/Hosting/SessionConversationService.ModelHistoryContext.cs),
+[native interaction](../src/Kora/ModelHistoryContext/ModelHistoryContextWindow.axaml)).
+
 ## Reply deliberately to one exact assistant answer
 
 In the native conversation or Sessions window, explicitly read the conversation, then choose **Reply to this answer** on the retained ASSISTANT answer you mean. Reply mode shows that exact complete answer and **Cancel reply**. Write your new follow-up (for example, `expand the second point`) in the session's existing memory-only composer; choosing Reply never pastes old text into your input ([native reply operation](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs)).

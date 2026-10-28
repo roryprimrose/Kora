@@ -379,7 +379,17 @@ explicit ([events](../src/Kora.Application/Visuals/PresenceRenderWorker.Logging.
 Speech visualization samples the existing host-owned playback frame while speech is active. Neither the presenter nor its worker owns microphone capture, synthesis, audio output, caption text or task state. Host privacy/visibility remains the admission boundary. Particle density, dot size, footprint, speed, theme, state transitions, visibility fades and speech-scale settings remain live inputs
 ([integration](../src/Kora/MainWindow.NativePresence.cs)).
 
-Both presenters consume the Windows animation preference read during initialization and each show request. As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
+Both presenters consume a typed Windows animation preference. The presence owner
+subscribes before its first read and follows live preference notifications on the
+UI thread, including while already visible. Privacy withdrawal and retirement
+unsubscribe; restoration takes a fresh read and ignores callbacks from the old
+subscription or queued generation. Read or notification-subscription failure
+hides the presence and reports Settings/restart recovery, never assumes motion
+is enabled. This does not change saved theme/renderer choices or add a new
+reduced-motion setting. Windows high-contrast versus explicit theme/renderer
+precedence remains outside this implementation.
+
+As in the default renderer, reduced motion freezes particle movement without disabling the independent speech-sizing setting; colour/visibility transitions still settle. The native buffer bounds each physical dimension to 4096 pixels; invalid geometry is explicitly unavailable
 ([inputs](../src/Kora.Application/Visuals/PresenceRenderInputs.cs)).
 
 The native path preserves #250's eligibility, seeded-prefix selection, motion rates and bounded elapsed-time integration. Static and fully faded frames stop recurring drawing; all nonzero particle motion uses 33 ms even at low configured speed. The 198-ms value remains an elapsed-integration bound and native static backoff, not a moving-particle frame interval. A host-owned 16-ms sampler observes authoritative playback during speech work even before audio starts; it does not drive particle calculations or

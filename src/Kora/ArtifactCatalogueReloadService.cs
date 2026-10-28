@@ -99,10 +99,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
-    private void OnDiskChanged(WatchTarget target, FileSystemEventArgs args)
+    private void OnDiskChanged(WatchTarget target, FileSystemEventArgs args, bool isDirectory)
     {
-        if (!AffectsTarget(target, args.FullPath, includeDirectory:
-            args.ChangeType != WatcherChangeTypes.Changed))
+        if (!AffectsTarget(target, args.FullPath, isDirectory))
         {
             return;
         }
@@ -116,11 +115,11 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
     }
 
-    private void OnDiskRenamed(WatchTarget target, RenamedEventArgs args)
+    private void OnDiskRenamed(WatchTarget target, RenamedEventArgs args, bool isDirectory)
     {
-        if (!AffectsTarget(target, args.OldFullPath, includeDirectory: true))
+        if (!AffectsTarget(target, args.OldFullPath, isDirectory))
         {
-            OnDiskChanged(target, args);
+            OnDiskChanged(target, args, isDirectory);
             return;
         }
 
@@ -230,33 +229,36 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             {
                 continue;
             }
-            var watcher = new FileSystemWatcher(directory)
-            {
-                Filter = target.IsFile && string.Equals(
-                    directory,
-                    Path.GetDirectoryName(target.Path),
-                    StringComparison.OrdinalIgnoreCase)
-                        ? Path.GetFileName(target.Path)
-                        : "*",
-                IncludeSubdirectories = !target.IsFile
-                    || !string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase),
-                NotifyFilter = NotifyFilters.FileName
-                    | NotifyFilters.DirectoryName
-                    | NotifyFilters.LastWrite
-                    | NotifyFilters.CreationTime
-                    | NotifyFilters.Size,
-            };
-            watcher.Changed += (_, args) => OnDiskChanged(target, args);
-            watcher.Created += (_, args) => OnDiskChanged(target, args);
-            watcher.Deleted += (_, args) => OnDiskChanged(target, args);
-            watcher.Renamed += (_, args) => OnDiskRenamed(target, args);
-            watcher.Error += OnWatcherError;
-            watcher.EnableRaisingEvents = true;
-            watchers.Add(watcher);
+            AddWatcher(target, directory, desiredDirectory, isDirectory: false);
+            AddWatcher(target, directory, desiredDirectory, isDirectory: true);
         }
     }
 
-    private static bool AffectsTarget(WatchTarget target, string changedPath, bool includeDirectory)
+    private void AddWatcher(WatchTarget target, string directory, string? desiredDirectory, bool isDirectory)
+    {
+        // DirectoryName-only notifications retain the event's kind even after a rename or deletion.
+        // No source enumeration or filename-extension heuristic is needed to classify a directory.
+        var watcher = new FileSystemWatcher(directory)
+        {
+            Filter = !isDirectory && target.IsFile && string.Equals(
+                directory, desiredDirectory, StringComparison.OrdinalIgnoreCase)
+                    ? Path.GetFileName(target.Path)
+                    : "*",
+            IncludeSubdirectories = !target.IsFile
+                || !string.Equals(directory, desiredDirectory, StringComparison.OrdinalIgnoreCase),
+            NotifyFilter = isDirectory ? NotifyFilters.DirectoryName
+                : NotifyFilters.FileName | NotifyFilters.LastWrite | NotifyFilters.CreationTime | NotifyFilters.Size,
+        };
+        watchers.Add(watcher);
+        watcher.Changed += (_, args) => OnDiskChanged(target, args, isDirectory);
+        watcher.Created += (_, args) => OnDiskChanged(target, args, isDirectory);
+        watcher.Deleted += (_, args) => OnDiskChanged(target, args, isDirectory);
+        watcher.Renamed += (_, args) => OnDiskRenamed(target, args, isDirectory);
+        watcher.Error += OnWatcherError;
+        watcher.EnableRaisingEvents = true;
+    }
+
+    private static bool AffectsTarget(WatchTarget target, string changedPath, bool isDirectory)
     {
         var expected = Path.GetFullPath(target.Path);
         var changed = Path.GetFullPath(changedPath);
@@ -266,7 +268,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         }
 
         var separator = Path.DirectorySeparatorChar.ToString();
-        if (expected.StartsWith(changed.TrimEnd(Path.DirectorySeparatorChar) + separator,
+        if (isDirectory && expected.StartsWith(changed.TrimEnd(Path.DirectorySeparatorChar) + separator,
             StringComparison.OrdinalIgnoreCase))
         {
             return true;
@@ -288,19 +290,17 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             return true;
         }
 
-        var fileName = segments[^1];
-        var fileDepth = segments.Length - 1;
-        if (fileDepth <= target.MaximumDepth
-            && (target.WatchAllFiles || target.Patterns.Any(pattern =>
-                System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(
-                    pattern, fileName, ignoreCase: true))))
+        if (isDirectory)
         {
-            return true;
+            return segments.Length <= target.MaximumDepth;
         }
 
-        return includeDirectory
-            && !Path.HasExtension(fileName)
-            && segments.Length <= target.MaximumDepth;
+        var fileName = segments[^1];
+        var fileDepth = segments.Length - 1;
+        return fileDepth <= target.MaximumDepth
+            && (target.WatchAllFiles || target.Patterns.Any(pattern =>
+                System.IO.Enumeration.FileSystemName.MatchesSimpleExpression(
+                    pattern, fileName, ignoreCase: true)));
     }
 
     private static string? FindExistingDirectory(string? path)
@@ -309,34 +309,46 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         {
             return null;
         }
-        if (Directory.Exists(path))
+        while (!string.IsNullOrWhiteSpace(path))
         {
-            return path;
+            if (Directory.Exists(path))
+            {
+                return path;
+            }
+            path = Path.GetDirectoryName(path);
         }
-        var parent = Path.GetDirectoryName(path);
-        return !string.IsNullOrWhiteSpace(parent) && Directory.Exists(parent)
-            ? parent
-            : null;
+        return null;
     }
 
     private void OnWatcherError(object sender, ErrorEventArgs args)
     {
-        var exception = args.GetException();
-        ArtifactWatcherFailed(logger, exception.GetType().Name);
-        HoldOwnedInstructions();
-        catalogue.ReportReloadFailure(exception);
         lock (gate)
         {
-            if (!disposed)
+            if (disposed) { return; }
+            var exception = args.GetException();
+            ArtifactWatcherFailed(logger, exception.GetType().Name);
+            HoldOwnedInstructions();
+            catalogue.ReportReloadFailure(exception);
+            try
             {
                 ConfigureWatchers();
                 ScheduleReload();
+            }
+            catch (Exception failure) when (failure is IOException
+                or UnauthorizedAccessException
+                or InvalidDataException
+                or ArgumentException
+                or NotSupportedException)
+            {
+                ArtifactWatcherFailed(logger, failure.GetType().Name);
+                catalogue.ReportReloadFailure(failure);
             }
         }
     }
 
     public void Dispose()
     {
+        Timer? pending;
         lock (gate)
         {
             if (disposed)
@@ -350,8 +362,13 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                 watcher.Dispose();
             }
             watchers.Clear();
-            timer?.Dispose();
+            pending = timer;
             timer = null;
+        }
+        if (pending is not null)
+        {
+            using var completed = new ManualResetEvent(false);
+            if (pending.Dispose(completed)) { completed.WaitOne(); }
         }
     }
 

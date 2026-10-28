@@ -57,8 +57,9 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 owner = ownerRevision();
                 call = main.CallPolicyRevision;
                 runs = factory.Create();
+                var created = runs;
 #pragma warning disable MA0147 // Native button callbacks have a void boundary; Route owns and reports their asynchronous work.
-                window = new(Start);
+                window = new(command => Start(command, () => ReferenceEquals(runs, created) && Eligible()));
 #pragma warning restore MA0147
                 window.Closed += (_, _) => Close();
                 for (var index = 0; index < 2; index++)
@@ -83,8 +84,10 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
             if (command.Action is "Stop")
             {
                 Retire(command.Number, panelRun);
+                var revision = panelRun.Revision;
                 await runs!.StopAsync(command.Number);
-                panelRun.Status.Text = "Stopped; this run's workflow and source resources are joined.";
+                if (Eligible() && eligible() && ReferenceEquals(window, opened) && panelRun.Revision == revision)
+                { panelRun.Status.Text = "Stopped; this run's workflow and source resources are joined."; }
                 return;
             }
             if (command.Action is "Source") { panelRun.Source.Text = command.Argument; Retire(command.Number, panelRun); return; }
@@ -121,6 +124,8 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
 
     private void Retire(int number, AgentRunSetWindow.RunPanel panel)
     {
+        if (!ReferenceEquals(window?.Runs[number - 1], panel)) { return; }
+        presentations[number - 1] = null;
         panel.Revision++;
         panel.ClearReview();
         runs?.Revoke(number);
@@ -129,7 +134,8 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Native event boundary; Route owns, joins and reports every operation failure.")]
-    private async void Start(AgentRunSetCommand command) => await Route(command, RequestOrigin.LocalUi, Eligible);
+    private async void Start(AgentRunSetCommand command, Func<bool> eligible) =>
+        await Route(command, RequestOrigin.LocalUi, eligible);
 
     private async Task RunReported(AgentRunSetCommand command, RequestOrigin origin, Func<bool> eligible)
     {
@@ -157,6 +163,8 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
             }
             else if (command.Action is "Review")
             {
+                Retire(command.Number, panel);
+                revision = panel.Revision;
                 await captured.StopAsync(command.Number);
                 if (!Current()) { throw new InvalidOperationException("Original review eligibility expired while joining resources."); }
                 var target = (panel.Targets.SelectedItem as AgentRunSetWindow.Target)?.Entry
@@ -165,15 +173,19 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
                 await captured.ReviewAsync(command.Number, panel.Source.Text ?? string.Empty, target,
                     panel.Input.Text ?? string.Empty, panel.InputOrigin, Current, CancellationToken.None);
                 if (!Current()) { captured.Revoke(command.Number); return; }
-                ShowReview(captured.Read(command.Number)!, panel);
+                var snapshot = captured.Read(command.Number)!;
+                presentations[command.Number - 1] = new(captured, panel, revision, target, snapshot.Review!);
+                if (ReadCurrentPresentation(command.Number, panel) is { } reviewed) { ShowReview(reviewed, panel); }
             }
             else if (command.Action is "Resolve")
             {
+                RequireCurrentPresentation(command.Number, panel);
                 await captured.ResolveAsync(command.Number, origin, CancellationToken.None);
-                if (Current()) { ShowReview(captured.Read(command.Number)!, panel); }
+                if (Current() && ReadCurrentPresentation(command.Number, panel) is { } resolved) { ShowReview(resolved, panel); }
             }
             else if (command.Action is "Invoke")
             {
+                RequireCurrentPresentation(command.Number, panel);
                 panel.Confirm.IsEnabled = panel.Resolve.IsEnabled = false;
                 panel.Status.Text = "Invocation requested; canonical admission may report unavailable or resource-blocked. No running state inferred.";
                 await captured.InvokeAsync(command.Number, origin, CancellationToken.None);
@@ -185,8 +197,9 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
             Failed(logger, exception.GetType().Name);
-            if (ReferenceEquals(window, opened))
+            if (Current())
             {
+                presentations[command.Number - 1] = null;
                 panel.ClearReview();
                 panel.Status.Text = "Unavailable, resource-blocked, revoked, cancelled or unconfirmed. Inspect the selected conversation. No success or rollback claimed.";
             }
@@ -210,15 +223,6 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         }
     }
 
-    private void ShowStatus(int number, AgentRunSetWindow.RunPanel panel)
-    {
-        var snapshot = runs?.Read(number);
-        panel.Status.Text = snapshot?.Receipt is { } receipt
-            ? $"Run {number}: {receipt.Message.Outcome}; {receipt.Message.Reason}. Result belongs only to the selected conversation."
-            : $"Run {number}: {snapshot?.Status.ToString() ?? "Not reviewed"}. Allocated or invoking does not establish provider execution.";
-        panel.Result.Text = snapshot?.Receipt?.Message.AssistantResponse?.Body ?? string.Empty;
-    }
-
     private void PrivacyClosed(object? sender, EventArgs args) => Close();
     private void MainChanged(object? sender, PropertyChangedEventArgs args) { if (!Eligible()) { Close(); } }
 
@@ -230,6 +234,7 @@ internal sealed partial class AgentRunSetController(MainViewModel main, AgentRun
         var captured = runs;
         window = null;
         runs = null;
+        Array.Clear(presentations);
         var prior = cleanup;
         var pending = operations.ToArray();
         var resourceClose = captured?.DisposeAsync().AsTask() ?? Task.CompletedTask;

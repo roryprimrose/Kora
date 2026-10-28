@@ -292,7 +292,8 @@ public sealed partial class SessionsConversationTests
     private sealed class SearchReader(
         Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read,
         Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null,
-        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? readMetadata = null)
+        Func<HostId<SessionIdentity>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? readMetadata = null,
+        Func<HostId<SessionIdentity>, HostId<RequestIdentity>, CancellationToken, ValueTask<ConversationMessage>>? readMessage = null)
         : ISessionWorkspaceStore, ISessionConversationStore
     {
         internal int Reads { get; private set; }
@@ -316,7 +317,8 @@ public sealed partial class SessionsConversationTests
             if (AfterDraftRead is { } after) { await after(); }
             return result;
         }
-        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) => throw new NotSupportedException();
+        public ValueTask<ConversationMessage> ReadConversationMessageAsync(HostId<SessionIdentity> session, HostId<RequestIdentity> request, CancellationToken token) =>
+            (readMessage ?? throw new NotSupportedException())(session, request, token);
         public ValueTask<HostTaskRecord> RecordConversationCredentialRejectionAsync(HostRequest request, HostRevision generation, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<ConversationDraftSnapshot> CommitConversationDraftAsync(HostRequest control, ConversationDraftSnapshot expected, string? body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();
         public ValueTask<ConversationSubmissionReceipt> RetainConversationMessageAsync(HostRequest request, HostRevision generation, long expectedMetadataRevision, string body, Func<bool> admitted, CancellationToken token) => throw new NotSupportedException();

@@ -9,7 +9,7 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration;
 
-public sealed class PlaybackVolumeConfigurationService(
+public sealed partial class PlaybackVolumeConfigurationService(
     IPlaybackVolumePreferences preferences, ISpeechPlaybackService playback,
     AudioControlAdmission admission, ISecurityAuditLog auditLog)
 {

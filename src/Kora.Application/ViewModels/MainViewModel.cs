@@ -9,6 +9,7 @@ using Kora.Application.Dependencies;
 using Kora.Application.Auditing;
 using Kora.Application.Communication;
 using Kora.Application.Configuration;
+using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Diagnostics;
 using Kora.Application.Infrastructure;
 using Kora.Application.Hosting;
@@ -2997,57 +2998,68 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public async Task ExitAsync(bool fromModelActionDispatch = false)
     {
-        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
-        var conversationCurrent = await PrepareConversationShutdown();
-        if (conversationCurrent is null) { return; }
-        if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
-        if (customizationShutdown is not null && !await customizationShutdown()) { return; }
-        await ClosePromptPreparation();
-        await CloseAgentRun();
-        await CloseNamedSkillUse();
-        await CloseSharedSkillUse();
-        await CloseInstructionUse();
-        if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
-        ApplicationLog.Information(logger, "Kora exit was requested");
-        hostExitRequested = true;
-        lifecycleAdmissionClosed = true;
-        speechPreparation?.Request(null);
-        if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
-#pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
-        await AppearanceUpdate;
-        await PreferenceUpdate;
-        await preferencePersistence;
-        await ApprovalPreparation;
-        await AuditPersistence;
-        await consentPersistence;
-        await outputCatalog.WaitForQuiescenceAsync();
-#pragma warning restore VSTHRD003
-        RetireWebResultDetails();
-        await StopWebPageRetrievalAsync();
-        await StopWebSummary();
-        ClearClipboardPreview();
-        ClearFilePreview();
-        HoldVoiceInput("Microphone closed · application exiting");
-        textToSpeech.InvalidateOutput();
+        if (voluntaryShutdownRunning || hostExitRequested) { return; }
+        voluntaryShutdownRunning = true;
+        var closeDispatched = false;
         try
         {
-            await StopAudioAsync(fromModelActionDispatch);
+            if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
+            var conversationCurrent = await PrepareConversationShutdown();
+            if (conversationCurrent is null) { return; }
+            using var submitted = await PrepareSubmittedWorkShutdown(Hosting.ApplicationLifecycleOperation.Exit, conversationCurrent);
+            if (submitted is null) { return; }
+            if (instructionEditorShutdown is not null && !await instructionEditorShutdown()) { return; }
+            if (customizationShutdown is not null && !await customizationShutdown()) { return; }
+            if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
+            if (!await JoinSubmittedWorkShutdown(submitted)) { return; }
+            await ClosePromptPreparation();
+            await CloseAgentRun();
+            await CloseNamedSkillUse();
+            await CloseSharedSkillUse();
+            await CloseInstructionUse();
+            if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
+            ApplicationLog.Information(logger, "Kora exit was requested");
+            hostExitRequested = true;
+            lifecycleAdmissionClosed = true;
+            speechPreparation?.Request(null);
+            if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
+#pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
+            await AppearanceUpdate;
+            await PreferenceUpdate;
+            await preferencePersistence;
+            await ApprovalPreparation;
+            await AuditPersistence;
+            await consentPersistence;
+            await outputCatalog.WaitForQuiescenceAsync();
+#pragma warning restore VSTHRD003
+            RetireWebResultDetails();
+            await StopWebPageRetrievalAsync();
+            await StopWebSummary();
+            ClearClipboardPreview();
+            ClearFilePreview();
+            HoldVoiceInput("Microphone closed · application exiting");
+            textToSpeech.InvalidateOutput();
+            try
+            {
+                await StopAudioAsync(fromModelActionDispatch);
+            }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            {
+                ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
+            }
+            await clipboardPreview.WaitForQuiescenceAsync();
+            if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
+            if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
+            if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
+            if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
+            closeDispatched = true;
+            WindowActionRequested?.Invoke(this, WindowAction.Close);
         }
-        catch (Exception exception) when (exception is not OutOfMemoryException)
+        finally
         {
-            ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
+            if (!closeDispatched) { hostExitRequested = false; lifecycleAdmissionClosed = false; }
+            voluntaryShutdownRunning = false;
         }
-        await clipboardPreview.WaitForQuiescenceAsync();
-        if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
-        if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
-        if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
-        if (!RequireConversationShutdownCurrent(conversationCurrent))
-        {
-            hostExitRequested = false;
-            lifecycleAdmissionClosed = false;
-            return;
-        }
-        WindowActionRequested?.Invoke(this, WindowAction.Close);
     }
 
     private async Task RefreshAsync()
@@ -4183,6 +4195,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+            && (!CanEnterRetainedAnswerRead || editorTarget is not null))
+        {
+            ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
+            return;
+        }
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
         var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
@@ -4508,6 +4526,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
         {
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
+        if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
+        {
+            await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
+                commandRouter.IsActivationPrefixed(spokenText, AssistantName));
             return;
         }
         if (PlaybackVolumeSuggestionCommand.Parse(spokenText, AssistantName) is { } volumeSuggestionCommand)
@@ -6040,74 +6064,98 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task RestartApplicationAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
     {
-        if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
-        var restartDispatched = false;
-        var privacyRevision = privacyObservation.Current.TopologyRevision;
-        bool Eligible() => IsCallMutationHostEligible
-            && privacyObservation.Current.TopologyRevision == privacyRevision;
-        var audit = await StartAuditAsync(
-            SecurityAuditCategory.ApplicationExecution,
-            ApplicationRestartAction,
-            initiator,
-            CurrentApplicationTarget);
+        if (voluntaryShutdownRunning) { return; }
+        voluntaryShutdownRunning = true;
         try
         {
-            var conversationCurrent = await PrepareConversationShutdown();
-            if (conversationCurrent is null)
+            if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
+            var restartDispatched = false;
+            var privacyRevision = privacyObservation.Current.TopologyRevision;
+            bool Eligible() => IsCallMutationHostEligible
+                && privacyObservation.Current.TopologyRevision == privacyRevision;
+            var audit = await StartAuditAsync(
+                SecurityAuditCategory.ApplicationExecution,
+                ApplicationRestartAction,
+                initiator,
+                CurrentApplicationTarget);
+            try
             {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-not-confirmed");
-                return;
-            }
-            if (instructionEditorShutdown is not null && !await instructionEditorShutdown())
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "editor-shutdown-not-confirmed");
-                return;
-            }
-            if (customizationShutdown is not null && !await customizationShutdown())
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "customization-shutdown-not-confirmed");
-                return;
-            }
-            await ClosePromptPreparation();
-            await CloseAgentRun();
-            await CloseNamedSkillUse();
-            await CloseSharedSkillUse();
-            await CloseInstructionUse();
-            await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
-                && isModelActionDispatchActive);
+                var conversationCurrent = await PrepareConversationShutdown();
+                if (conversationCurrent is null)
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-not-confirmed");
+                    return;
+                }
+                using var submitted = await PrepareSubmittedWorkShutdown(Hosting.ApplicationLifecycleOperation.Restart, conversationCurrent);
+                if (submitted is null)
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "submitted-work-review-cancelled");
+                    return;
+                }
+                if (instructionEditorShutdown is not null && !await instructionEditorShutdown())
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "editor-shutdown-not-confirmed");
+                    return;
+                }
+                if (customizationShutdown is not null && !await customizationShutdown())
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "customization-shutdown-not-confirmed");
+                    return;
+                }
+                if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)
+                    || !Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "submitted-work-review-changed");
+                    return;
+                }
+                if (!await JoinSubmittedWorkShutdown(submitted))
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "submitted-work-release-unconfirmed");
+                    return;
+                }
+                await ClosePromptPreparation();
+                await CloseAgentRun();
+                await CloseNamedSkillUse();
+                await CloseSharedSkillUse();
+                await CloseInstructionUse();
+                await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
+                    && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.
-            await AppearanceUpdate;
-            await PreferenceUpdate;
-            await preferencePersistence;
-            await ApprovalPreparation;
-            await consentPersistence;
-            await AuditPersistence;
+                await AppearanceUpdate;
+                await PreferenceUpdate;
+                await preferencePersistence;
+                await ApprovalPreparation;
+                await consentPersistence;
+                await AuditPersistence;
 #pragma warning restore VSTHRD003
-            await outputCatalog.WaitForQuiescenceAsync();
-            if (!RequireConversationShutdownCurrent(conversationCurrent))
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-changed");
-                return;
+                await outputCatalog.WaitForQuiescenceAsync();
+                if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent))
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "conversation-shutdown-changed");
+                    return;
+                }
+                if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
+                {
+                    await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
+                    ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before restart; no restart was dispatched.");
+                    return;
+                }
+                lifecycleAdmissionClosed = true;
+                applicationProcessController.RestartCurrentApplication();
+                restartDispatched = true;
+                hostExitRequested = true;
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Succeeded);
+                WindowActionRequested?.Invoke(this, WindowAction.Close);
             }
-            if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
+            catch (InvalidOperationException exception)
             {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
-                ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before restart; no restart was dispatched.");
-                return;
+                if (!restartDispatched) { lifecycleAdmissionClosed = false; }
+                await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "restart-failed");
+                ApplicationLog.Error(logger, exception, "Restarting Kora");
+                ShowFailure($"{AssistantName} could not restart.", exception.Message);
             }
-            lifecycleAdmissionClosed = true;
-            applicationProcessController.RestartCurrentApplication();
-            restartDispatched = true;
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Succeeded);
-            WindowActionRequested?.Invoke(this, WindowAction.Close);
         }
-        catch (InvalidOperationException exception)
-        {
-            if (!restartDispatched) { lifecycleAdmissionClosed = false; }
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "restart-failed");
-            ApplicationLog.Error(logger, exception, "Restarting Kora");
-            ShowFailure($"{AssistantName} could not restart.", exception.Message);
-        }
+        finally { voluntaryShutdownRunning = false; }
     }
 
     private Task OpenMicrophonePrivacySettingsAsync()
@@ -6416,6 +6464,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

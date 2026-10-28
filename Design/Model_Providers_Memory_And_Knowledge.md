@@ -56,7 +56,9 @@ not implicitly included evidence.
 Privacy, original input/presentation/lifetime, source revisions, expiry and
 ownership remain live fences through review, retention, dispatch and answer
 publication. The 60-second advisory deadline cannot be renewed by another
-review; cancellation revokes consent while joining outstanding ignoring work.
+review; cancellation revokes consent while joining outstanding ignoring work
+owned by that turn, never an independent conversation. A completed answer or
+truthful unavailable receipt returns without waiting for another session's runtime.
 Unsent composer bytes, manual history, replies and local-first handoffs remain
 independent. No automatic context folding, cross-session recall, default memory,
 tools, hosted fallback, automatic speech or source-content diagnostics are

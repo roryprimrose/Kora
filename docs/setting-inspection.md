@@ -10,8 +10,12 @@ target. Separately choose **Confirm ONE tool-free LocalOnly request** to submit.
 This is not the ordinary model-settings suggestion route: any recommendation is
 inert and changing a preference still requires its separate Review/Confirm/Apply.
 
-Only registered theme, reading text scale, ordinary spoken-summary word/sentence
-caps, Kora-only playback volume and device-default response mode are included.
+Exactly seven registered observations are included: theme, reading text scale,
+ordinary spoken-summary word/sentence caps, Kora-only playback volume,
+device-default response mode and `appearance.presence-display`. Presence display
+is a reviewed Boolean (`true` or `false`), not a claim that the presence renderer
+is currently available or visible. Its saved/default provenance and source
+invalidation follow the same rules as the other six observations.
 No provider, account, device, permission, privacy, credential, session, path or
 file content is read into this source. No setting is saved, applied or reset.
 Service observations are independent, not an atomic cross-service snapshot.

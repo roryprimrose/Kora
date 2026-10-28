@@ -71,7 +71,7 @@ public sealed partial class NativeUxFixtureContractTests
                 var selection = state.Selected;
                 var inspection = state.Inspection;
                 var list = window.GetLogicalDescendants().OfType<ListBox>().Single(item =>
-                    string.Equals(Avalonia.Automation.AutomationProperties.GetName(item), "Retained exact operation grants", StringComparison.Ordinal));
+                    string.Equals(Avalonia.Automation.AutomationProperties.GetName(item), "Permission grants: exact operation grants and URI rules", StringComparison.Ordinal));
                 list.Items.Count.Should().Be(records.Length);
                 foreach (var (label, displayed) in new[]
                 {
@@ -171,7 +171,7 @@ public sealed partial class NativeUxFixtureContractTests
             var window = new ExactGrantsWindow();
             window.IsVisible.Should().BeFalse();
             window.Content.Should().BeOfType<Grid>();
-            window.Title.Should().Be("Exact operation grants");
+            window.Title.Should().Be("Permission grants");
             return Task.CompletedTask;
         });
     }

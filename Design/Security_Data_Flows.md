@@ -845,6 +845,10 @@ The implemented bounded [call approval-channel policy](Call_Aware_Speech.md#spok
 
 The delivered [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) is separate from named model-action preferences. Passive bounded reads are not applicability or effect receipts. One explicit native confirmation admits a fresh original-user control request/session; stored approval/request/trace or model text cannot supply that intent. Independent Perpetual records remain inspectable and exactly revocable after origin-session retirement.
 
+The shared **Permission grants** management inventory presents exact operation records and existing device-local URI preapproval rules through typed grant-kind records. This is management convergence, not an authority/storage migration: URI pattern matching, original-user configuration writes, audit, persistence and consumer-specific mandatory consent remain unchanged. URI rows cannot join exact revocation batches; mixed selections admit neither exact batch revocation nor URI removal. Native URI edits retain the former owning-unlocked-host/no-pending-question-or-approval admission and affect subsequent matches only.
+
+Optional None/Artefact type/Artefact scope grouping is a cached projection of the current bounded exact page plus at most 64 URI rules / 16 KiB pattern bytes, not a global scan or group-selection action. Regrouping retires selection/history/revocation confirmations without I/O or authority changes. Built-in/Kora/User describes target artefact provenance, not grant lifetime. Optional validated host-recorded target metadata is omitted when absent, preserving historical serialization/audit commitments and legacy matching equality. Missing metadata and external URI artefact ownership remain Unknown; no current source/file inference supplies missing authority. Metadata participates in persisted provenance but never substitutes for any existing exact binding field.
+
 The native exact inventory filters observe only stored scope/status, ordinal canonical ActionId and exact originating-session GUID. Core owns validation and a versioned typed filter digest; invalid/undefined/oversized/noncanonical values are refused, never reinterpreted as Any. Defaults preserve the unfiltered record bytes/order and grant/audit serialization; no schema/index change occurs.
 
 Under the initialized shared private read lease/read-only connection, each page advances at most 50 candidates and validates at most 51 including deferred lookahead, returning at most 50 matches / 64 KiB serialized metadata. Candidate row/partition/duplicate/size/audit validation precedes filtering. Scan/omission/advanced-through/Next counts disclose empty matches without pretending exhaustion.
@@ -907,6 +911,16 @@ mutation remains denied after a UI confirmation. Calls restrict spoken approval
 by default without withdrawing applicable Session/Perpetual authority or forcing
 Once; fresh native UI approval remains independently gated. Changed known effects cannot
 reuse a grant for a different effect.
+
+Exact local-page and HTTPS MCP workflows reuse matching explicit Session/Perpetual
+grants through the same authoritative consume/admission/dispatch path, without
+fabricating a new question. Fresh consent offers Once/This session/Always;
+automatic session permission modes cannot supply this external disclosure
+consent. Page bindings retain the exact destination but not an original request
+identity. MCP bindings retain stage/tool, source revision, delegated account,
+schema and exact arguments. Connection consent still requires local UI when
+fresh consent is needed. Runtime authentication, source/currentness, privacy,
+revocation and mandatory gates remain independent of saved consent.
 
 The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
 serializes lifecycle/content/policy/revoke/use changes and atomically commits

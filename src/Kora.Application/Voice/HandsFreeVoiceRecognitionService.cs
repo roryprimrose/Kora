@@ -19,6 +19,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     private Func<VoiceTranscriptEventArgs, HostRequest, Task>? dispatch;
     private Func<bool> canOpen = static () => false;
     private Action<long> commandActivated = static _ => { };
+    private Func<IReadOnlyList<string>> recognitionPhrases = static () => [];
     private CancellationTokenSource? cancellation;
     private IHandsFreeAudioSession? session;
     private HandsFreeVoiceAdmission? admission;
@@ -52,7 +53,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void Bind(Func<HandsFreeVoiceAdmission?> observation,
         Func<VoiceTranscriptEventArgs, HostRequest, Task> governedDispatch, Func<bool> canOpenCapture,
-        Action<long>? onCommandActivated = null)
+        Action<long>? onCommandActivated = null, Func<IReadOnlyList<string>>? getRecognitionPhrases = null)
     {
         ArgumentNullException.ThrowIfNull(observation);
         ArgumentNullException.ThrowIfNull(governedDispatch);
@@ -65,6 +66,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
             dispatch = governedDispatch;
             canOpen = canOpenCapture;
             commandActivated = onCommandActivated ?? (static _ => { });
+            recognitionPhrases = getRecognitionPhrases ?? (static () => []);
         }
     }
 
@@ -157,8 +159,14 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                     }
                     try
                     {
-                        var opened = await audio.OpenAsync(new(generation, current.Microphone,
-                            current.AssistantName, current.Profile), token);
+                        var binding = new HandsFreeAudioBinding(generation, current.Microphone,
+                            current.AssistantName, current.Profile)
+                        {
+                            CanCapture = () => !token.IsCancellationRequested && Generation == generation
+                                && observe() == current && canOpen(),
+                            CommandPhrases = Array.AsReadOnly(recognitionPhrases().ToArray()),
+                        };
+                        var opened = await audio.OpenAsync(binding, token);
                         lock (gate)
                         {
                             session = opened;

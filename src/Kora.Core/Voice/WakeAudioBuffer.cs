@@ -7,6 +7,7 @@ public sealed class WakeAudioBuffer
     private readonly Lock gate = new();
     private long end;
     private int count;
+    private bool retired;
 
     public WakeAudioBuffer(int samplesPerSecond)
     {
@@ -23,6 +24,7 @@ public sealed class WakeAudioBuffer
     {
         lock (gate)
         {
+            if (retired) { return; }
             if (knownPlayback)
             {
                 ClearCore();
@@ -61,6 +63,16 @@ public sealed class WakeAudioBuffer
     public void Clear()
     {
         lock (gate) { ClearCore(); }
+    }
+
+    /// <summary>Clears and permanently rejects late audio from this retired capture generation.</summary>
+    public void Retire()
+    {
+        lock (gate)
+        {
+            retired = true;
+            ClearCore();
+        }
     }
 
     private void ClearCore()

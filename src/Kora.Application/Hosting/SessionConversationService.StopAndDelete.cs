@@ -22,6 +22,9 @@ public sealed partial class SessionConversationService
     {
         lock (cancellationGate)
         {
+            ExpireLifecycleBarrier();
+            if (lifecycleHeld)
+            { throw new InvalidOperationException("Application Exit/Restart is reviewing submitted work. Cancel that review before accepting or resuming requests."); }
             if (stopAndDeleteHolds.Contains(session))
             { throw new InvalidOperationException("This conversation is stopping for reviewed deletion. New dispatch is closed only for this conversation."); }
         }

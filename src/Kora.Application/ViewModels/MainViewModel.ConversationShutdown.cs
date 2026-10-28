@@ -1,4 +1,7 @@
 using Kora.Application.Diagnostics;
+using Kora.Application.Hosting;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.Core.Platform;
 
 namespace Kora.Application.ViewModels;
@@ -7,6 +10,53 @@ public sealed partial class MainViewModel
 {
     private Func<Task<bool>>? conversationShutdown;
     private Func<bool>? conversationShutdownCurrent;
+    private Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? submittedWorkShutdown;
+    private bool voluntaryShutdownRunning;
+
+    public void BindSubmittedWorkShutdown(
+        Func<ApplicationLifecycleOperation, RequestOrigin, Func<bool>, Task<ApplicationLifecycleShutdown?>>? prepare) =>
+        submittedWorkShutdown = prepare;
+
+    private async Task<ApplicationLifecycleShutdown?> PrepareSubmittedWorkShutdown(ApplicationLifecycleOperation operation, Func<bool> current)
+    {
+        var prepare = submittedWorkShutdown;
+        if (prepare is null) { return new(current, () => Task.CompletedTask, () => { }); }
+        var origin = HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi;
+        try
+        {
+            var attempt = await prepare(operation, origin, () => ReferenceEquals(submittedWorkShutdown, prepare) && current());
+            if (attempt is null)
+            { ShowInformation("Exit or restart cancelled.", "Submitted requests were not stopped. The review's dispatch hold was released."); }
+            return attempt;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ReportApplicationShutdownFailure(exception);
+            return null;
+        }
+    }
+
+    private async Task<bool> JoinSubmittedWorkShutdown(ApplicationLifecycleShutdown attempt)
+    {
+        try
+        {
+            await attempt.StopAndJoinAsync();
+            if (!attempt.IsCurrent) { throw new InvalidOperationException("Original source authority changed during resource joins."); }
+            return true;
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            ReportApplicationShutdownFailure(exception);
+            return false;
+        }
+    }
+
+    private void ReportApplicationShutdownFailure(Exception exception)
+    {
+        ApplicationLog.Error(logger, exception, "Joining reviewed submitted work before voluntary shutdown");
+        ShowFailure("Exit or restart was not confirmed.",
+            "Submitted work, required audit or resource release is unconfirmed. No application effect was performed. Inspect current work before trying again. Failure type: " + exception.GetType().Name);
+    }
 
     public void BindConversationShutdown(Func<Task<bool>>? shutdown, Func<bool>? current = null)
     {

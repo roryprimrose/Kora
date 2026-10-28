@@ -112,7 +112,7 @@ public sealed partial class SessionConversationService(
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false)
     {
         RequireOriginalSource(origin);
-        RequireConversationDispatchOpen(target.Authority.SessionId);
+        using var lifecycle = EnterLifecycleSubmission(target, body);
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         try { ConversationText.Validate(body, submission: true); }
         catch (ConversationCredentialException)

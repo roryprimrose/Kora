@@ -263,6 +263,7 @@ public sealed partial class App : Avalonia.Application
             newRequestWindow.Bind();
             BindSessionRouting(viewModel);
             ConversationShutdownGuard.Bind(viewModel, newRequestWindow, sessionsWindow, sessionRouting);
+            BindApplicationLifecycle(viewModel, nativeQuestions);
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
@@ -383,6 +384,8 @@ public sealed partial class App : Avalonia.Application
         presenceRendererTimer.Stop();
         presenceRendererTimer.Tick -= OnPresenceRendererTick;
         presenceWindows?.Stop();
+        applicationLifecycle?.Dispose();
+        applicationLifecycle = null;
         rendererSwitchContext = null;
         DisposeHandoffPresentation();
         Services.GetRequiredService<DesktopInstanceOwnershipBridge>().UnbindCallbacks();

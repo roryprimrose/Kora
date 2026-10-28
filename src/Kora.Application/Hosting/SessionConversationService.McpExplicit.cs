@@ -22,7 +22,7 @@ public sealed partial class SessionConversationService
         if (mcpConfiguration is null || mcpBroker is null || mcpEffects is null || interactions is null
             || cancellationAudit is null || explicitTaskCoordinator is null || store is not ILocalContextTaskStore tasks)
         { throw new McpUnavailableException(); }
-        RequireConversationDispatchOpen(target.Authority.SessionId);
+        using var lifecycle = EnterLifecycleSubmission(target, "Explicit MCP request: " + serverId);
         var control = access.ControlRevision;
         bool Live() => access.CanControl && access.ControlRevision == control && admitted();
         token.ThrowIfCancellationRequested();

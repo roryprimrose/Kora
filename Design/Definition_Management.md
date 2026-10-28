@@ -22,6 +22,19 @@ The [Customizations guide](../docs/customizations.md) identifies the delivered
 source/edit/recovery/model-review routes. These and native skill inspection are
 bounded deliveries, not evidence that the full runtime contract is qualified.
 
+The existing supported-source watcher observes the nearest existing ancestor
+when a recognized root has not yet been created, including when several parent
+directories are absent. External creation then refreshes the same catalogue
+without a restart or configuration toggle. Directory rename, move and deletion
+within discovery depth also refresh it, including dotted directory names.
+Notifications are filtered by exact source ancestry, file patterns and existing
+depth bounds before discovery; watching an ancestor grants no broader content
+read or source registration. Reparse exclusions, file budgets, debounce and
+truthful reload failures remain unchanged. Reload retires stale selected
+requests, questions and approvals through the existing consumers; owned
+revisions still require separate exact-use review and enablement. Disk events
+never invoke a definition or adopt an approval.
+
 The owned editor's **Find in selected metadata** is a separate, ephemeral native
 literal Find over exactly one current, selected inventory row's displayed
 metadata details. It reuses admitted metadata state and the shared bounded

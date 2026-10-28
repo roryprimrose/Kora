@@ -3,12 +3,61 @@ using AwesomeAssertions;
 using Kora.Application.Dependencies;
 using Kora.Core.Dependencies;
 
+using Microsoft.Extensions.Logging;
 using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed class DependencySetupWorkflowTests
 {
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task Original_setup_remains_running_until_all_final_verification_finishes(bool cancel)
+    {
+        var probe = new FinalProbe(DependencyReadiness.Ready);
+        using var bootstrapper = new DependencyBootstrapper([probe], NullLogger<DependencyBootstrapper>.Instance);
+        var transitions = new List<SetupTask>();
+        bootstrapper.Tasks.Changed += (_, _) => transitions.AddRange(bootstrapper.Tasks.Tasks);
+        var workflow = new DependencySetupWorkflow(bootstrapper, new Installer(), new PowerShellSetup());
+        using var cancellation = new CancellationTokenSource();
+        var install = workflow.InstallLocalModelAsync(new InlineProgress(), cancellation.Token);
+        try
+        {
+            await probe.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            bootstrapper.Tasks.Tasks.Should().ContainSingle()
+                .Which.State.Should().Be(SetupTaskState.Running);
+            transitions.Should().OnlyContain(task => task.State == SetupTaskState.Running);
+            bootstrapper.Tasks.ActiveTask!.Detail.Should().Be("Validating local inference readiness.");
+            if (cancel)
+            {
+                await cancellation.CancelAsync();
+            }
+            install.IsCompleted.Should().BeFalse();
+        }
+        finally
+        {
+            if (cancel)
+            {
+                await cancellation.CancelAsync();
+            }
+            probe.Release.TrySetResult();
+            if (cancel)
+            {
+                var complete = () => install;
+                await complete.Should().ThrowAsync<OperationCanceledException>();
+            }
+            else
+            {
+                await install;
+            }
+        }
+
+        transitions.Count(task => task.State != SetupTaskState.Running).Should().Be(1);
+        bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.State.Should()
+            .Be(cancel ? SetupTaskState.Cancelled : SetupTaskState.Completed);
+    }
+
     [Theory]
     [InlineData(DependencyReadiness.Ready)]
     [InlineData(DependencyReadiness.Missing)]
@@ -50,7 +99,7 @@ public sealed class DependencySetupWorkflowTests
     }
 
     [Fact]
-    public async Task Cancellation_at_the_bootstrapper_return_boundary_does_not_publish_a_successful_setup_result()
+    public async Task Cancellation_after_installation_does_not_start_or_publish_final_verification()
     {
         var probe = new FinalProbe(DependencyReadiness.Ready);
         probe.Release.SetResult();
@@ -59,8 +108,8 @@ public sealed class DependencySetupWorkflowTests
         bootstrapper.Tasks.Changed += (_, _) =>
         {
             if (bootstrapper.Tasks.Tasks.Any(task =>
-                task.State == SetupTaskState.Completed
-                && string.Equals(task.Detail, "Final verification.", StringComparison.Ordinal)))
+                task.State == SetupTaskState.Running
+                && string.Equals(task.Detail, "Validating local inference readiness.", StringComparison.Ordinal)))
             {
                 cancellation.Cancel();
             }
@@ -70,9 +119,65 @@ public sealed class DependencySetupWorkflowTests
         var install = () => workflow.InstallLocalModelAsync(new InlineProgress(), cancellation.Token);
 
         await install.Should().ThrowAsync<OperationCanceledException>();
-        probe.Exited.Should().BeTrue();
+        probe.Calls.Should().Be(0);
         bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Cancelled);
         bootstrapper.Tasks.ActiveTask.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Cancellation_at_the_bootstrapper_return_boundary_does_not_complete_the_original_task()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var probe = new FinalProbe(DependencyReadiness.Ready);
+        probe.Release.SetResult();
+        using var bootstrapper = new DependencyBootstrapper([probe],
+            new CallbackLogger(id => { if (id == 3) { cancellation.Cancel(); } }));
+        var transitions = new List<SetupTaskState>();
+        bootstrapper.Tasks.Changed += (_, _) =>
+            transitions.Add(bootstrapper.Tasks.Tasks.Single().State);
+        var workflow = new DependencySetupWorkflow(bootstrapper, new Installer(), new PowerShellSetup());
+
+        var install = () => workflow.InstallLocalModelAsync(new InlineProgress(), cancellation.Token);
+
+        await install.Should().ThrowAsync<OperationCanceledException>();
+        probe.Exited.Should().BeTrue();
+        transitions.Should().Equal(SetupTaskState.Running, SetupTaskState.Running, SetupTaskState.Cancelled);
+        bootstrapper.Tasks.ActiveTask.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Missing_required_final_verification_fails_the_original_task_without_success()
+    {
+        using var bootstrapper = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
+        var transitions = new List<SetupTaskState>();
+        bootstrapper.Tasks.Changed += (_, _) =>
+            transitions.Add(bootstrapper.Tasks.Tasks.Single().State);
+        var workflow = new DependencySetupWorkflow(bootstrapper, new Installer(), new PowerShellSetup());
+
+        var install = () => workflow.InstallLocalModelAsync(new InlineProgress(), TestContext.Current.CancellationToken);
+
+        await install.Should().ThrowAsync<InvalidOperationException>();
+        transitions.Should().Equal(SetupTaskState.Running, SetupTaskState.Running, SetupTaskState.Failed);
+        bootstrapper.Observations.Should().BeEmpty();
+        bootstrapper.Tasks.ActiveTask.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Cancellation_after_an_ignoring_installer_returns_does_not_enter_verification()
+    {
+        using var cancellation = new CancellationTokenSource();
+        var probe = new FinalProbe(DependencyReadiness.Ready);
+        using var bootstrapper = new DependencyBootstrapper([probe], NullLogger<DependencyBootstrapper>.Instance);
+        var workflow = new DependencySetupWorkflow(bootstrapper, new Installer(),
+            new PowerShellSetup());
+        var progress = new InlineProgress(_ => cancellation.Cancel());
+
+        var install = () => workflow.InstallLocalModelAsync(progress, cancellation.Token);
+
+        await install.Should().ThrowAsync<OperationCanceledException>();
+        probe.Calls.Should().Be(0);
+        bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Cancelled);
+        bootstrapper.Observations.Should().BeEmpty();
     }
 
     [Theory]
@@ -92,7 +197,8 @@ public sealed class DependencySetupWorkflowTests
             var result = await install();
             result.Statuses.Should().ContainSingle().Which.Should().Be(result.Inference);
             result.Inference.Readiness.Should().Be(DependencyReadiness.Ready);
-            bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.State.Should().Be(SetupTaskState.Completed);
+            bootstrapper.Tasks.Tasks.Should().ContainSingle().Which.Should().BeEquivalentTo(
+                new SetupTask(probe.TaskId, probe.TaskName, SetupTaskState.Completed, "Final verification.", 100));
         }
         else
         {
@@ -183,8 +289,16 @@ public sealed class DependencySetupWorkflowTests
             throw new InvalidOperationException("Not requested.");
     }
 
-    private sealed class InlineProgress : IProgress<LocalModelSetupProgress>
+    private sealed class CallbackLogger(Action<int> callback) : ILogger<DependencyBootstrapper>
     {
-        public void Report(LocalModelSetupProgress value) { }
+        public IDisposable? BeginScope<TState>(TState state) where TState : notnull => null;
+        public bool IsEnabled(LogLevel logLevel) => true;
+        public void Log<TState>(LogLevel logLevel, EventId eventId, TState state,
+            Exception? exception, Func<TState, Exception?, string> formatter) => callback(eventId.Id);
+    }
+
+    private sealed class InlineProgress(Action<LocalModelSetupProgress>? report = null) : IProgress<LocalModelSetupProgress>
+    {
+        public void Report(LocalModelSetupProgress value) => report?.Invoke(value);
     }
 }

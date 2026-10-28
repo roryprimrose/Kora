@@ -67,7 +67,7 @@ public sealed class AppearanceSuggestionReview : IDisposable
             || message.AssistantResponse is not { } answer)
         { throw new InvalidOperationException("Appearance review requires the original local UI conversation's admitted successful answer."); }
         if (RegisteredSettingSuggestions.Parse(answer.Body) is not RegisteredSettingProposal.Appearance proposal)
-        { throw new InvalidDataException("No bounded appearance suggestion: request one exact theme or native reader text scale suggestion."); }
+        { throw new InvalidDataException("No bounded appearance suggestion: request one exact registered appearance setting suggestion."); }
         token.ThrowIfCancellationRequested();
         if (!eligible()) { throw new InvalidOperationException("The original private appearance review source is no longer eligible."); }
         await validateSource(token).ConfigureAwait(false);

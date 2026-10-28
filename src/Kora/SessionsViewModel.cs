@@ -44,7 +44,8 @@ internal sealed partial class SessionsViewModel(
         Task<Kora.Application.Configuration.PlaybackVolumeSuggestionReview>>? reviewPlaybackVolumeSuggestion = null,
     Func<Kora.Application.Configuration.PlaybackVolumeSuggestionReview, CancellationToken, Task<bool>>?
         confirmPlaybackVolumeSuggestion = null,
-    Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null) : ObservableObject
+    Kora.Application.IUiDispatcher? conversationPresentationDispatcher = null,
+    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null) : ObservableObject
 {
     private readonly HostRequest viewer = HostRequest.Create(RequestOrigin.LocalUi);
     private readonly CancellationTokenSource lifetime = new();

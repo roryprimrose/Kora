@@ -66,6 +66,7 @@ internal sealed partial class SessionsWindow : Window
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
+        SubmitLocalFirst.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalFirstAsync());
         BindClaudeConversation(model);
         SubmitConversationWithClarification.Click += async (_, _) =>
             await (ConversationOperation = model.SubmitConversationWithClarificationAsync());
@@ -74,6 +75,7 @@ internal sealed partial class SessionsWindow : Window
         SubmitWebPage.Click += async (_, _) => await (ConversationOperation = model.SubmitWebPageAsync());
         ReadMcpOptions.Click += async (_, _) => await (ConversationOperation = model.ReadMcpOptionsAsync());
         SubmitMcp.Click += async (_, _) => await (ConversationOperation = model.SubmitMcpConversationAsync());
+        InvokeMcp.Click += async (_, _) => await (ConversationOperation = model.InvokeSelectedMcpAsync());
         CancelMcp.Click += async (_, _) => await (ConversationCancellationOperation = model.CancelMcpConversationAsync());
         RefreshRunningConversation.Click += async (_, _) => await model.RefreshRunningConversationAsync();
         CancelRunningConversation.Click += async (_, _) =>

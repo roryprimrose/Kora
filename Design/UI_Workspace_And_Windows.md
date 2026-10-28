@@ -85,10 +85,14 @@ several plausible matches require a choice including New. A user-requested accep
 route acknowledges its destination and reveals it in expanded mode while preserving
 the previous input/reading position. Background events never navigate.
 
-This increment delivers deterministic native/typed/activated-voice navigation only.
-Automatic matching, model-visible session-list descriptors and model-callable window
-navigation are not composed. The existing fresh-target New request fallback remains
-truthfully narrower. No runtime, installed accessibility, physical display or provider
+Untargeted original requests now compose the reviewed local relatedness operation:
+one permitted metadata page, one admitted tools-free local inference, exact
+destination acknowledgment/correction including New, then canonical original-body
+submission and genuine final answering. Its routing control domain is not a user
+destination; inference physically joins before review. No hosted matching,
+model-callable window navigation or automatic destination submission is admitted.
+Unqualified local inference still offers reviewed New rather than guessing.
+No runtime, installed accessibility, physical display or provider
 qualification is claimed by headless [adaptive tests](../tests/Kora.Windows.IntegrationTests/AdaptiveInteractionTests.cs).
 
 ## Integrated session content pane - 2026-10-25

@@ -99,6 +99,14 @@ public sealed partial class SessionConversationService
     {
         var identity = new ConversationCancellationTarget(Guid.NewGuid(), turn.Provenance.Request,
             target.Authority.Generation, turn.TaskRevision, turn.Context.CreatedAt, turn.Context.ExpiresAt);
+        var lease = RegisterRunningConversation(identity, live, token);
+        turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
+        return lease;
+    }
+
+    private ConversationCancellationLease RegisterRunningConversation(ConversationCancellationTarget identity,
+        Func<bool> live, CancellationToken token)
+    {
         lock (cancellationGate)
         {
             RequireConversationDispatchOpen(identity.Request.SessionId);
@@ -109,7 +117,6 @@ public sealed partial class SessionConversationService
             }
             var lease = new ConversationCancellationLease(identity, live, status => RunningConversationChanged?.Invoke(status),
                 new(HostActivity.RequireCurrent().Activity!.Context), token);
-            turn.AuthorityRetired = () => RunningConversationChanged?.Invoke(lease.Status);
             runningConversations.Add(identity.Request.SessionId, lease);
             return lease;
         }
@@ -117,7 +124,11 @@ public sealed partial class SessionConversationService
 
     private void ReleaseRunningConversation(ConversationCancellationLease lease, bool confirmed)
     {
-        lock (cancellationGate) { runningConversations.Remove(lease.Target.Request.SessionId); }
+        lock (cancellationGate)
+        {
+            runningConversations.Remove(lease.Target.Request.SessionId);
+            lifecycleUnconfirmed |= !confirmed;
+        }
         lease.ReleasePhysicalCompletion(confirmed);
         if (!confirmed)
         { RunningConversationChanged?.Invoke(new(lease.Target, ConversationExecutionPhase.Unconfirmed)); }

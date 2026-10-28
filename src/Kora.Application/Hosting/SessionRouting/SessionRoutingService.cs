@@ -1,4 +1,5 @@
 using System.Collections.Immutable;
+using System.Diagnostics;
 
 using Kora.Core.Conversation;
 using Kora.Core.Conversation.SessionRouting;
@@ -11,7 +12,8 @@ namespace Kora.Application.Hosting.SessionRouting;
 /// <summary>One original request, bounded metadata proposal and explicit destination review. Never reads conversation bodies.</summary>
 public sealed class SessionRoutingService(
     SessionWorkspaceService workspace, SessionConversationService conversation,
-    ISessionWorkspaceAccess access, TimeProvider time, ISessionRelatednessMatcher? matcher = null)
+    ISessionWorkspaceAccess access, TimeProvider time, ISessionRelatednessMatcher? matcher = null,
+    SessionRoutingControlAdmission? admission = null)
 {
     private readonly Lock gate = new();
     private long revision;
@@ -42,11 +44,22 @@ public sealed class SessionRoutingService(
     private bool Live() => access.CanInspect && access.CanControl
         && access.ControlRevision == control && source();
 
-    public async Task<SessionRoutingReview> PrepareAsync(string body, RequestOrigin origin,
+    public Task<SessionRoutingReview> PrepareAsync(string body, RequestOrigin origin,
         Func<bool> admitted, CancellationToken token)
     {
         SessionConversationService.RequireOriginalSource(origin);
         ConversationText.Validate(body, submission: true);
+        var originalControl = access.ControlRevision;
+        bool OriginalAdmitted() => access.CanInspect && access.CanControl
+            && access.ControlRevision == originalControl && admitted();
+        return admission is null ? PrepareCoreAsync(body, origin, admitted, null, token)
+            : admission.RunAsync(origin, OriginalAdmitted, (request, session, current, cancellation) =>
+                PrepareCoreAsync(body, request.Origin, current, session.SessionId, cancellation), token);
+    }
+
+    private async Task<SessionRoutingReview> PrepareCoreAsync(string body, RequestOrigin origin,
+        Func<bool> admitted, HostId<SessionIdentity>? controlSession, CancellationToken token)
+    {
         long attempt;
         lock (gate)
         {
@@ -63,10 +76,11 @@ public sealed class SessionRoutingService(
             var page = await ReadInventory(token).ConfigureAwait(false);
             Require(attempt, token);
             var snapshot = new SessionRouteSnapshot(attempt, [.. page.Records
-                .Where(entry => entry.Authority.IsActive).Select(entry => new SessionRouteDescriptor(entry, Guid.NewGuid()))]);
+                .Where(entry => entry.Authority.IsActive && entry.Authority.SessionId != controlSession)
+                .Select(entry => new SessionRouteDescriptor(entry, Guid.NewGuid()))]);
             var proposal = matcher is null
                 ? new(snapshot.Revision, SessionRouteMatch.Unavailable, [])
-                : await matcher.MatchAsync(body, snapshot, token).ConfigureAwait(false);
+                : await matcher.MatchAsync(body, snapshot, Live, token).ConfigureAwait(false);
             Require(attempt, token);
             var candidates = ValidateProposal(snapshot, proposal);
             var actual = await ReadInventory(token).ConfigureAwait(false);
@@ -155,7 +169,7 @@ public sealed class SessionRoutingService(
             }
             await Revalidate(token).ConfigureAwait(false);
             var receipt = await conversation.SubmitAsync(target, review.Body, OriginalLive, token,
-                Revalidate, origin: review.Origin).ConfigureAwait(false);
+                Revalidate, links: [new ActivityLink(activity.Activity!.Context)], origin: review.Origin).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return new(target, receipt);
         }

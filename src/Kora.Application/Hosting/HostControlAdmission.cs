@@ -21,6 +21,12 @@ public abstract class HostControlAdmission(
     protected abstract ValueTask<WorkSessionAuthorization> CreateSessionAsync(
         HostRequest request, Func<bool> eligible, CancellationToken token);
 
+    protected virtual ValueTask<HostTaskRecord> AdmitOperationAsync(HostTaskRecord intent,
+        WorkSessionAuthorization session, Func<bool> eligible, CancellationToken token) => ValueTask.FromResult(intent);
+
+    protected virtual HostTaskState FailureState(Exception exception) => HostTaskState.Failed;
+    protected virtual ValueTask RecordCancellationAsync(HostTaskRecord prior) => ValueTask.CompletedTask;
+
     protected bool IsDisposed => disposed;
     protected bool IsEvidenceUnavailable => evidenceUnavailable;
     protected void HoldEvidenceUnavailable() => evidenceUnavailable = true;
@@ -108,6 +114,7 @@ public abstract class HostControlAdmission(
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, lifetime.Token);
         cancellationToken = linked.Token;
         origin = CaptureOriginalOrigin(origin);
+        ActivityLink[] links = HostActivity.Current?.Activity is { } parent ? [new(parent.Context)] : [];
         await gate.WaitAsync(cancellationToken).ConfigureAwait(false);
         T admittedResult;
         try
@@ -118,7 +125,7 @@ public abstract class HostControlAdmission(
             if (session is null)
             {
                 var creation = HostRequest.Create(origin);
-                using var activity = HostActivity.BeginRoot(creation, HostActivityLayer.Application, HostOperation.Policy);
+                using var activity = HostActivity.BeginRoot(creation, HostActivityLayer.Application, HostOperation.Policy, links);
                 var intent = await workspace.RecordControlIntentAsync(creation, cancellationToken).ConfigureAwait(false);
                 try { session = await CreateSessionAsync(creation, CurrentEligible, cancellationToken).ConfigureAwait(false); }
                 catch { evidenceUnavailable = true; throw; }
@@ -127,10 +134,11 @@ public abstract class HostControlAdmission(
                 activity.Complete(HostOperationOutcome.Completed);
             }
             var request = new HostRequest(new(Guid.NewGuid()), session.SessionId, new(Guid.NewGuid()), origin);
-            using var requestActivity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
+            using var requestActivity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
             var admitted = await workspace.RecordControlIntentAsync(request, cancellationToken).ConfigureAwait(false);
             try
             {
+                admitted = await AdmitOperationAsync(admitted, session, CurrentEligible, cancellationToken).ConfigureAwait(false);
                 var result = await operation(request, session, CurrentEligible, cancellationToken).ConfigureAwait(false);
                 var outcome = terminalState(result);
                 try { await coordinator.RecordOutcomeAsync(admitted, outcome, CancellationToken.None).ConfigureAwait(false); }
@@ -139,15 +147,19 @@ public abstract class HostControlAdmission(
                     ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
                 admittedResult = result;
             }
-            catch (OperationCanceledException)
+            catch (Exception exception)
             {
-                requestActivity.Complete(HostOperationOutcome.Cancelled);
-                throw;
-            }
-            catch
-            {
-                await coordinator.RecordOutcomeAsync(admitted, HostTaskState.Failed, CancellationToken.None).ConfigureAwait(false);
-                requestActivity.Complete(HostOperationOutcome.Failed);
+                if (exception is OperationCanceledException)
+                {
+                    await RecordCancellationAsync(admitted).ConfigureAwait(false);
+                    requestActivity.Complete(HostOperationOutcome.Cancelled);
+                }
+                else
+                {
+                    var state = FailureState(exception);
+                    await coordinator.RecordOutcomeAsync(admitted, state, CancellationToken.None).ConfigureAwait(false);
+                    requestActivity.Complete(state == HostTaskState.Unknown ? HostOperationOutcome.Unknown : HostOperationOutcome.Failed);
+                }
                 throw;
             }
         }

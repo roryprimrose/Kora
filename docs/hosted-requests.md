@@ -56,3 +56,34 @@ anything again.
 
 Omit `copilot` to use the existing ordinary request operation without explicitly
 selecting Copilot. Do not put credentials in request text.
+
+## Review a verified local Unavailable result
+
+In an explicitly configured **Local first** session, the Sessions window offers
+**Ask locally; review Copilot only if unavailable**. This is separate from ordinary
+Submit and from explicitly requesting Copilot. It starts one tool-free local
+request using the exact selected session and original input.
+
+Only the owning local runtime's actual **Unavailable** result, followed by its
+confirmed exact physical resource join, can open this handoff. A reason label,
+unknown outcome, timeout, cancellation or another request's completion cannot.
+Missing runtime qualification or an unavailable configured Copilot account/profile
+does not enable the operation.
+
+Read the complete immutable context, reason and exact configured destination in
+the handoff window. Approval is single-use. The original turn's expiry still
+applies; review does not renew it or include later history. Decline, cancel or
+stale review sends nothing. Removing evidence requires a new complete review,
+never inherited approval.
+
+Approved current review atomically records the local Unavailable outcome and
+one fresh linked request in the same conversation. It does not retry the local
+request or approve a send. The separate **Copilot - exact hosted disclosure**
+review above must still approve the actual final bytes, destination and account.
+Only a genuine successful hosted result is retained as the successor's answer.
+Original input/channel, private access, resource ownership and retention rules
+remain authoritative; nothing is retargeted to a newly selected conversation.
+
+Generic handoff reviews and hosted/second-opinion reasons without this exact
+local outcome and resource proof remain review-only. Production models and
+runtime qualification remain unavailable where the host reports them unavailable.

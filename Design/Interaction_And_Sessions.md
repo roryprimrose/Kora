@@ -48,6 +48,39 @@ and [native/storage regressions](../tests/Kora.Windows.IntegrationTests/Sessions
 
 ## Conversation Input Realignment
 
+### Reviewed voluntary application Exit and Restart
+
+Deliberate native, typed and permitted activated-voice application Exit/Restart
+protect unsent topic/New request buffers and definition-editor changes independently
+of already submitted work. Empty foreground input is not evidence that other
+conversations have finished.
+
+The [host lifecycle owner](../src/Kora.Application/Hosting/ApplicationLifecycle/SessionConversationService.ApplicationLifecycle.cs)
+holds a reversible, attempt-owned dispatch barrier and snapshots accepted originals
+across every session, including pending continuations and explicit MCP execution.
+The [native operation](../src/Kora/ApplicationLifecycle/ApplicationLifecycleController.cs)
+shows the affected work and separately asks Confirm/Cancel through the existing
+private question owner. Model action approval, opening Exit or discarding unsent
+text never supplies submitted-work cancellation authority. Confirmation retains
+the original channel; stale source, work revision, generation or private ownership
+requires a fresh deliberate operation.
+
+Cancel releases only that attempt's barrier without stopping work. After current
+confirmation and editor approval, trusted work-control audits precede exact pending
+withdrawal/running cancellation. Every accepted provider/native resource is
+physically joined before the existing desktop Close or application-process restart.
+Already dispatched finite compatibility reads finish under their existing rules;
+reviewed pending compatibility reads are cancelled, not restored as a product.
+Failed audit, terminal readback or uncertain resource release blocks clean success
+with a visible recovery message. Stopped requests are never retried or resurrected;
+retained history and grants are not deleted.
+
+Mandatory lock/privacy/ownership retirement and OS-required shutdown remain
+prompt-free. This does not add computer power actions, input autosave or provider
+qualification. [Host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+and [native regressions](../tests/Kora.Windows.IntegrationTests/ApplicationLifecycle/SessionsConversationTests.ApplicationLifecycle.cs)
+use deterministic provider/process seams, not installed-provider or OS power trials.
+
 Ordinary Send and the exact typed/activated-voice request-confirm route share
 the [submitted-turn queue](Work_Management.md#ordinary-submitted-conversation-turns).
 A busy existing Active conversation can accept an immutable pending request
@@ -935,9 +968,18 @@ question edits/expiry/answer, privacy/ownership/call/device loss, failures and
 closure synchronously retire admission and fence delayed callbacks. Capture
 returns to closed/ordinary explicit PTT readiness, not Wake Listening.
 
-Answers match only the exact schema, with no optional assistant-name stripping
-and no command, tool, composer or session-routing fallback. Proposal/approval
-questions are refused; approval readback specificity and grants are unchanged.
+Choice answers match the existing bare schema first, then may use one optional
+validated current configured activation-name prefix, separated by whitespace or
+a comma, before that same exact label/number/`option N` answer (for example,
+`Nova Yes` or `Nova, option 2` when the configured name is Nova). Bare labels,
+including ambiguous labels starting with the name, retain their existing meaning;
+free-text answers are never stripped or normalized. The question-specific
+admission captures the name, and name changes retire playback/capture/delayed
+delivery through the same admission fence without retry or rearm.
+There is no command, tool, composer or session-routing fallback; the existing
+privacy-reducing Stop-listening route remains before schema parsing, even for
+an assistant named Stop or a matching option label. Proposal/approval questions
+are refused; approval readback specificity and grants are unchanged.
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained
@@ -1332,10 +1374,21 @@ implements host-owned descriptor proposals, exact choice plus New, name
 acknowledgment, pre-submit correction and canonical original-user submission in
 both window modes. It reads one permitted metadata page through
 `SessionWorkspaceService`, not a model-tool catalogue or transcript assembly.
-Production matching remains unqualified and explicitly offers fresh New, with
-deterministic selection available. The native review reveals the destination
+Production composition now includes one tools-none, LocalOnly inference in a
+routing-specific canonical original-input control domain established before the
+metadata snapshot. The control identity is excluded from routing destinations.
+Strict bounded JSON maps only host-presented indexes/evidence into the existing
+proposal; the shared routing service validates candidate cardinality, evidence and
+revision. Inference resources physically join and canonical control outcomes commit
+before review is returned. Unqualified local providers remain unavailable and
+explicitly offer reviewed New, with deterministic selection available.
+The native review reveals the destination
 without switching the previous reader or moving any unsent input. Hands-free
-routing replies and automatic selection changes remain unavailable.
+routing replies and automatic selection changes remain unavailable. After separate
+confirmation, unchanged canonical conversation submission sends the original body
+and LocalUi/ActivatedVoice channel in a new request. Only its genuine final answer,
+not the routing proposal, is retained. Cancellation and source closure suppress late
+review and join the owned inference without fallback submission.
 
 The [editor-targeting precedence](#editor-targeting-precedence) below
 applies before this general relatedness policy. Editor-bound or ambiguously
@@ -1363,7 +1416,7 @@ route. In expanded mode it reveals that destination without transferring unsent 
 or losing the previous reading position. Background activity never switches selection.
 Spoken ordinal navigation uses the exact host-held presented-list snapshot, not a model's
 reconstructed order; the bounded implementation counts the loaded page, including Last.
-Session descriptors made available to a future routing model must be bounded, permitted
+Session descriptors made available to routing inference must be bounded, permitted
 and bound to that same presentation; navigation does not authorize transcript assembly
 or hosted disclosure.
 

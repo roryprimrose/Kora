@@ -19,6 +19,7 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
     private static readonly (string Phrase, WorkspaceSurfaceTarget Target)[] Routes =
     [
         ("open all work", WorkspaceSurfaceTarget.AllWork),
+        ("show sessions needing an answer", WorkspaceSurfaceTarget.WaitingQuestions),
         ("open compact conversation", WorkspaceSurfaceTarget.CompactConversation),
         ("open sessions", WorkspaceSurfaceTarget.Sessions),
         ("show sessions", WorkspaceSurfaceTarget.Sessions),

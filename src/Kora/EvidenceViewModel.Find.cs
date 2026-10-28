@@ -32,8 +32,7 @@ internal sealed partial class EvidenceViewModel
     public bool HasFindSelection => findSelection is not null;
     public bool CanFind => CanQuery && page?.Status == EvidencePageStatus.Available
         && !page.Records.Any(record => record.ContentOmitted)
-        && !page.UnavailableSources.Any(source => currentQuery?.Source != EvidenceSource.All
-            || source is not (EvidenceSource.Session or EvidenceSource.Conversation));
+        && !HasUnavailableSource(page, currentQuery?.Source);
     public bool CanMoveFind => CanFind && findAnchor is not null;
     internal long FindRevision => findRevision;
 

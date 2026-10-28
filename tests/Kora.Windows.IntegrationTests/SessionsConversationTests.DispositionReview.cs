@@ -3,12 +3,42 @@ using AwesomeAssertions;
 using Kora.Core.Commands;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Kora.Windows.IntegrationTests.Audio;
 using Kora.Windows.IntegrationTests.Storage;
 
 namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [WindowsFact]
+    public async Task Native_name_only_confirmation_waits_for_actual_owned_store_erasure()
+    {
+        using var f = new InteractionStorageFixture();
+        await f.InitializeAsync();
+        await WindowsSqliteConversationTests.FinishInitial(f);
+        await using var composed = new Composition(f);
+        const string sentinel = "NATIVE_NAME_ERASURE_7EB864E8";
+        await composed.Workspace.RenameAsync(f.Request.SessionId, new(1), 0, new(sentinel), RequestOrigin.LocalUi, f.Token);
+        var model = composed.Model;
+        await model.RefreshAsync();
+        await model.SelectAsync(model.Sessions.Single());
+        await model.PreviewDispositionAsync();
+        model.Detail.Should().Contain(SessionDispositionPreview.Scope)
+            .And.Contain("owned SQLite cells/free pages")
+            .And.Contain("verified empty before completion")
+            .And.Contain("uninventoried copies hold completion");
+        System.Text.Encoding.UTF8.GetString(File.ReadAllBytes(f.DatabasePath)).Should().Contain(sentinel);
+        await model.ConfirmDispositionAsync();
+        model.Status.Should().StartWith("Committed logical disposition");
+        model.Detail.Should().Be(SessionDispositionPreview.Scope);
+        foreach (var path in new[] { f.DatabasePath, f.DatabasePath + "-journal" })
+        {
+            File.ReadAllBytes(path).AsSpan().IndexOf(System.Text.Encoding.UTF8.GetBytes(sentinel)).Should().Be(-1);
+        }
+        new FileInfo(f.DatabasePath + "-journal").Length.Should().Be(0);
+        (await f.Store.ReadSessionAsync(f.Request.SessionId, f.Token))!.Generation.Value.Should().Be(2);
+    }
+
     [Theory]
     [InlineData(RequestOrigin.LocalUi)]
     [InlineData(RequestOrigin.ActivatedVoice)]

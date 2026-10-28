@@ -29,5 +29,11 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("Exact page approval")
             .And.Contain("saved disabled")
             .And.Contain("implementation only");
+        guide.Markdown.Should().Contain("owned skill inputs required-literal")
+            .And.Contain("owned skill input topic: <literal>")
+            .And.Contain("single-pass")
+            .And.Contain("inputs: required-literal")
+            .And.Contain("stay literal")
+            .And.Contain("separately saved");
     }
 }

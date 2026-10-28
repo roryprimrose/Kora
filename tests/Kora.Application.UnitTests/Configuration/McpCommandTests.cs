@@ -15,7 +15,7 @@ public sealed class McpCommandTests
         command.Body.Should().Be("find reference");
         command.Error.Should().BeNull();
         command.Stop.Should().BeFalse();
-        McpCommand.FixedPhrases.Should().Equal("use selected mcp tool", "stop mcp");
+        McpCommand.FixedPhrases.Should().Equal("use selected mcp tool", "invoke selected mcp tool", "stop mcp");
     }
 
     [Theory]
@@ -28,6 +28,14 @@ public sealed class McpCommandTests
         var command = McpCommand.Parse(input, "Kora")!;
         command.Error.Should().NotBeNullOrEmpty();
         command.Body.Should().BeNull();
+    }
+
+    [Fact]
+    public void Explicit_original_input_does_not_invent_task_arguments_or_model_work()
+    {
+        var command = McpCommand.Parse("Kora, invoke selected mcp tool", "Kora")!;
+        command.Should().Be(new McpCommand(null, false, Explicit: true));
+        McpCommand.Parse("invoke selected mcp tool extra", "Kora").Should().BeNull();
     }
 
     [Fact]

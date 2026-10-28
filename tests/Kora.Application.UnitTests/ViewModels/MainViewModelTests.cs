@@ -4604,6 +4604,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
@@ -9698,6 +9699,7 @@ public sealed partial class MainViewModelTests : IDisposable
         public TaskCompletionSource? SpeakGate { get; set; }
 
         public bool HoldSpeechCompletionOnStop { get; set; }
+        public TaskCompletionSource? StopCompleted { get; set; }
         public bool RemainSpeakingOnStop { get; set; }
         public int SpeakCalls { get; private set; }
         public bool ReturnWhileSpeaking { get; set; }
@@ -9842,6 +9844,7 @@ public sealed partial class MainViewModelTests : IDisposable
             {
                 await StopGate.Task.WaitAsync(cancellationToken);
             }
+            StopCompleted?.TrySetResult();
         }
 
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;

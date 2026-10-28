@@ -70,6 +70,8 @@ public sealed partial class SessionsConversationTests
                 }
                 else
                 {
+                    await WhenModelAsync(model, () => model.RunningConversationStatus.Contains("Terminal Cancelled", StringComparison.Ordinal)
+                        && model.RunningConversationStatus.Contains(provenance.Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
                     stored.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
                     model.ConversationMessages.Single().Outcome.Should().Be(ModelTurnOutcome.Cancelled);
                     model.RunningConversationStatus.Should().Contain("Terminal Cancelled").And.Contain("resources joined");

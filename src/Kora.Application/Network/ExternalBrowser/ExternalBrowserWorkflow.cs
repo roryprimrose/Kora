@@ -3,6 +3,7 @@ using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Network.ExternalBrowser;
 using Kora.Core.Presentation;
+using Kora.Application.Presentation;
 
 namespace Kora.Application.Network.ExternalBrowser;
 
@@ -19,6 +20,7 @@ public sealed class ExternalBrowserWorkflow(
     {
         lock (gate)
         {
+            pending?.FinalSource?.Retire();
             pending = null;
             generation++;
 #pragma warning disable VSTHRD003 // The launch owner signals an asynchronous TCS; exit yields until that separately owned handshake terminates.
@@ -34,15 +36,31 @@ public sealed class ExternalBrowserWorkflow(
         RequireNativeUser();
         lock (gate)
         {
+            pending?.FinalSource?.Retire();
             pending = null;
             generation++;
             if (active || !current()) { throw new InvalidOperationException("The exact web-result source or host is unavailable."); }
-            var destination = ExternalBrowserDestination.Validate(snapshot.Provenance.FinalAddress)
-                ?? throw new InvalidOperationException("External browsing requires a validated public HTTPS destination without credentials or a fragment.");
-            var admission = network.Capture();
-            if (!admission.Allowed || !admission.Current())
-            { throw new InvalidOperationException("External browsing is unavailable offline or in local-only/unknown mode. No mode was changed."); }
+            var (destination, admission) = AdmitDestination(snapshot.Provenance.FinalAddress);
             return pending = new(snapshot, destination, current, admission, time.GetUtcNow().AddMinutes(2));
+        }
+    }
+
+    public ExternalBrowserReview Prepare(FinalDocumentNavigationRequest request, Func<bool> current)
+    {
+        ArgumentNullException.ThrowIfNull(request);
+        ArgumentNullException.ThrowIfNull(current);
+        RequireNativeUser();
+        lock (gate)
+        {
+            pending?.FinalSource?.Retire();
+            pending = null;
+            generation++;
+            if (!request.TryConsume(HostActivity.RequireCurrent().Request) || active
+                || !request.IsCurrent || !current())
+            { throw new InvalidOperationException("The exact final source or original native action is no longer available."); }
+            var (destination, admission) = AdmitDestination(request.Destination);
+            return pending = new(destination, () => request.IsCurrent && current(), admission,
+                time.GetUtcNow().AddMinutes(2), request);
         }
     }
 
@@ -57,7 +75,28 @@ public sealed class ExternalBrowserWorkflow(
 
     public void Retire()
     {
-        lock (gate) { pending = null; generation++; }
+        lock (gate) { pending?.FinalSource?.Retire(); pending = null; generation++; }
+    }
+
+    public void Retire(Guid reviewId)
+    {
+        lock (gate)
+        {
+            if (pending?.Id != reviewId) { return; }
+            pending.FinalSource?.Retire();
+            pending = null;
+            generation++;
+        }
+    }
+
+    private (ExternalBrowserDestination Destination, ExternalBrowserNetworkAdmission Admission) AdmitDestination(string address)
+    {
+        var destination = ExternalBrowserDestination.Validate(address)
+            ?? throw new InvalidOperationException("External browsing requires a validated public HTTPS destination without credentials or a fragment.");
+        var admission = network.Capture();
+        if (!admission.Allowed || !admission.Current())
+        { throw new InvalidOperationException("External browsing is unavailable offline or in local-only/unknown mode. No mode was changed."); }
+        return (destination, admission);
     }
 
     public async Task<ExternalBrowserLaunchOutcome> ConfirmAsync(
@@ -71,6 +110,7 @@ public sealed class ExternalBrowserWorkflow(
         lock (gate)
         {
             review = pending?.Id == reviewId && !active ? pending : null;
+            if (pending is { } rejected && !ReferenceEquals(review, rejected)) { rejected.FinalSource?.Retire(); }
             pending = null;
             admittedGeneration = generation;
             if (review is not null)
@@ -91,9 +131,15 @@ public sealed class ExternalBrowserWorkflow(
             bool Live() => review is not null && !token.IsCancellationRequested && current()
                 && Interlocked.Read(ref generation) == admittedGeneration && time.GetUtcNow() < review.ExpiresAt
                 && review.Current() && review.Network.Current();
+            var sourceValid = true;
+            if (review?.FinalSource is { } final && Live())
+            {
+                try { sourceValid = await final.Source.ValidateAsync(token); }
+                catch (OperationCanceledException) when (token.IsCancellationRequested) { sourceValid = false; }
+            }
             var result = token.IsCancellationRequested ? ExternalBrowserLaunchOutcome.Cancelled
-                : !Live() ? ExternalBrowserLaunchOutcome.Denied
-                : await launcher.LaunchAsync(review!.Destination, Live, token).ConfigureAwait(false);
+                : !sourceValid || !Live() ? ExternalBrowserLaunchOutcome.Denied
+                : await launcher.LaunchAsync(review!.Destination, Live, token);
             // Revocation cannot undo a request already handed to another application's lifetime.
             if (result == ExternalBrowserLaunchOutcome.Accepted && !Live()) { result = ExternalBrowserLaunchOutcome.Unknown; }
             terminalAttempted = true;
@@ -122,6 +168,7 @@ public sealed class ExternalBrowserWorkflow(
         {
             if (review is not null)
             {
+                review.FinalSource?.Retire();
                 lock (gate) { active = false; }
                 released!.SetResult();
             }

@@ -14,7 +14,8 @@ public sealed partial class SessionConversationService
         ConversationSubmissionReceipt retained, ModelTurnAdmission admission, ModelContextEnvelope context,
         Func<bool> live, Func<CancellationToken, Task>? validateSource, CancellationToken token,
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, Action<ModelTurnProvenance>? onAdmitted = null,
-        Action? terminalCommitted = null, bool joinCancelledResources = false)
+        Action? terminalCommitted = null, bool joinCancelledResources = false,
+        LocalUnavailableContinuation? localHandoff = null)
     {
         var executor = execution
             ?? throw new InvalidOperationException("The admitted model host execution port is not composed.");
@@ -153,7 +154,10 @@ public sealed partial class SessionConversationService
                     answer = null;
                 }
             }
-            var completed = await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
+            var handoff = result.Outcome == ModelTurnOutcome.Unavailable && localHandoff is not null
+                ? await localHandoff(turn, context, RetainCurrent, token).ConfigureAwait(false) : null;
+            var completed = handoff?.Source
+                ?? await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
             if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
                 || completed.Message.AssistantResponse != answer || completed.Message.Execution != turn.Provenance
                 || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence

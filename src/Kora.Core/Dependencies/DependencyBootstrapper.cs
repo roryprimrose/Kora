@@ -35,12 +35,31 @@ public sealed class DependencyBootstrapper(
 
     public void Dispose() => probeGate.Dispose();
 
-    public async Task<IReadOnlyList<DependencyStatus>> ProbeAsync(CancellationToken cancellationToken = default)
+    public Task<IReadOnlyList<DependencyStatus>> ProbeAsync(CancellationToken cancellationToken = default) =>
+        ProbeAsync(null, cancellationToken);
+
+    public Task<IReadOnlyList<DependencyStatus>> ProbeWithinSetupAsync(
+        SetupTask setupTask,
+        CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(setupTask);
+        if (!ReferenceEquals(Tasks.ActiveTask, setupTask))
+        {
+            throw new InvalidOperationException("Verification requires the current running setup task.");
+        }
+
+        return ProbeAsync(setupTask, cancellationToken);
+    }
+
+    private async Task<IReadOnlyList<DependencyStatus>> ProbeAsync(
+        SetupTask? setupTask,
+        CancellationToken cancellationToken)
     {
         await probeGate.WaitAsync(cancellationToken).ConfigureAwait(false);
         try
         {
-            return await ProbeCoreAsync(cancellationToken).ConfigureAwait(false);
+            ValidateSetupTask(setupTask);
+            return await ProbeCoreAsync(setupTask, cancellationToken).ConfigureAwait(false);
         }
         finally
         {
@@ -48,7 +67,18 @@ public sealed class DependencyBootstrapper(
         }
     }
 
-    private async Task<IReadOnlyList<DependencyStatus>> ProbeCoreAsync(CancellationToken cancellationToken)
+    private void ValidateSetupTask(SetupTask? setupTask)
+    {
+        if (setupTask is not null
+            && !string.Equals(Tasks.ActiveTask?.Id, setupTask.Id, StringComparison.Ordinal))
+        {
+            throw new InvalidOperationException("The setup task no longer owns verification.");
+        }
+    }
+
+    private async Task<IReadOnlyList<DependencyStatus>> ProbeCoreAsync(
+        SetupTask? setupTask,
+        CancellationToken cancellationToken)
     {
         // A new check invalidates old health; interrupted checks must not leave a ready runtime.
         lock (observationLock)
@@ -61,41 +91,47 @@ public sealed class DependencyBootstrapper(
         foreach (var probe in probes)
         {
             cancellationToken.ThrowIfCancellationRequested();
-            if (probe is ISetupDependencyProbe setup)
+            ValidateSetupTask(setupTask);
+            var tracked = setupTask is null ? probe as ISetupDependencyProbe : null;
+            if (tracked is not null)
             {
-                Tasks.Start(setup.TaskId, setup.TaskName, $"Checking {setup.TaskName}.");
+                Tasks.Start(tracked.TaskId, tracked.TaskName, $"Checking {tracked.TaskName}.");
             }
 
             DependencyStatus result;
             try
             {
                 result = await probe.ProbeAsync(cancellationToken).ConfigureAwait(false);
+                cancellationToken.ThrowIfCancellationRequested();
+                ValidateSetupTask(setupTask);
+                CoreLog.DependencyProbeCompleted(
+                    logger,
+                    result.Id,
+                    result.Readiness);
+                cancellationToken.ThrowIfCancellationRequested();
+                ValidateSetupTask(setupTask);
             }
             catch (OperationCanceledException)
             {
-                if (probe is ISetupDependencyProbe cancelled)
+                if (tracked is not null)
                 {
-                    Tasks.Update(cancelled.TaskId, SetupTaskState.Cancelled, "Setup check was cancelled.");
+                    Tasks.Update(tracked.TaskId, SetupTaskState.Cancelled, "Setup check was cancelled.");
                 }
 
                 throw;
             }
             catch (Exception exception)
             {
-                if (probe is ISetupDependencyProbe failed)
+                if (tracked is not null)
                 {
-                    Tasks.Update(failed.TaskId, SetupTaskState.Failed, exception.Message);
+                    Tasks.Update(tracked.TaskId, SetupTaskState.Failed, exception.Message);
                 }
 
                 throw;
             }
-            CoreLog.DependencyProbeCompleted(
-                logger,
-                result.Id,
-                result.Readiness);
             results.Add(result);
             RecordObservation(result);
-            if (probe is ISetupDependencyProbe tracked)
+            if (tracked is not null)
             {
                 Tasks.Update(tracked.TaskId, result.Readiness switch
                 {

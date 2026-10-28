@@ -94,12 +94,13 @@ question windows and **Return to current question** remain independent.
 **Session management** opens the existing advanced workspace for additional search,
 providers, retention, evidence and lifecycle operations.
 
-Automatic current/other/new conversation matching is not available yet, and
-the session list is not supplied to a model by these navigation commands.
+Untargeted requests use [reviewed local relatedness](session-routing.md), not
+automatic destination submission. The session list is not supplied to a model by
+these navigation commands.
 The approved design uses relatedness routing in both window modes: selection
-supplies context, not a lock for unrelated general voice requests. Today use
-the explicitly addressed composer or the existing fresh-target **New conversation**
-workflow; expansion does not add model availability or permissions.
+supplies context, not a lock for unrelated general voice requests. Exact composers
+and the fresh-target **New conversation** workflow remain available independently;
+expansion does not add model availability or permissions.
 
 ### Details beside the conversation
 
@@ -337,7 +338,7 @@ Typing writes nothing. Switching topics preserves a separate memory-only unsent 
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).
 
-Deliberate Kora **Exit** and **Restart** review all topic buffers and New request using Discard/Cancel, retaining the instruction-editor guard. Cancelled/failed prompts or changed input/private source do not confirm shutdown; state is rechecked after async work ([host guard](../src/Kora.Application/ViewModels/MainViewModel.ConversationShutdown.cs)).
+Deliberate Kora **Exit** and **Restart** protect all topic/New request input with Discard/Cancel and retain definition-editor guards. A separate affected-work review includes submitted running and pending requests in **every conversation**, even when the foreground composer is empty. **Cancel** leaves submitted requests unchanged and releases that review's dispatch hold. A fresh **Confirm** using the original input channel withdraws pending requests, stops running originals and waits for their actual resources before closing or restarting Kora. Uncertain release, failed audit/readback or changed input/private source prevents clean shutdown and shows a recovery message; stopped requests are not replayed and retained history/grants are not deleted ([lifecycle operation](../Design/Interaction_And_Sessions.md#reviewed-voluntary-application-exit-and-restart)).
 
 Mandatory privacy/ownership/session-lock retirement and application/OS-required shutdown do not wait for discard review. Unsent text is volatile: no disk autosave, restart restoration or protection against forced termination is promised ([native lifetime policy](../src/Kora/NativeShutdownPolicy.cs), [native retirement](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Shutdown.cs)).
 

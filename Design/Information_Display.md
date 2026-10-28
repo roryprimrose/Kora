@@ -632,17 +632,41 @@ fresh search. Active appends/new daily files do not expand it. Source changes,
 replacement, pruning/rotation, corruption, incomplete final lines, expired
 snapshots, timeout and access failure are visible. `ScanLimitReached` is not a
 complete-file claim and does not imply paging beyond the admitted prefix.
-No combined cross-source ranking, file audit/graph, export or Ask Evidence is
-delivered by this slice; native installed/accessibility acceptance remains open.
+No combined cross-source ranking, file audit/graph or export is delivered by
+this slice; native installed/accessibility acceptance remains open.
 
 Controls have native accessible labels and keyboard navigation. Result text
 is inert and non-selectable. Copy/cut clipboard paths and context menus are
-blocked; there are no export, Ask Evidence, execution or source-deletion
+blocked; there are no export, execution or source-deletion
 controls. Ownership/privacy is checked before and after the read; privacy
 closure cancels the viewer and clears its page/filter state. Reading does not
 refresh retention, consume grants, change runtime admission or resume work.
 Automated real-store/view-model/XAML tests are not native visual, screen-reader,
 DPI, contrast, installed or power-loss acceptance; those trials remain open.
+
+### Reviewed local diagnostic-page answers
+
+The native Evidence reader offers a separate [Ask Evidence review](../docs/evidence-answers.md)
+for one explicitly loaded ordinary SQLite **Log** page. Review includes the
+complete immutable serialized page, stable record citations and bounded original
+question, followed by separate one-shot LocalOnly/tool-free confirmation.
+There is no retrieval, ranking, file read, remote fallback, historical replay or
+authority inferred from correlation fields. Empty, partial, omitted, expired,
+unqualified and over-budget pages fail closed; source expiry is never renewed.
+
+Affirmative sensitivity/source-use policy and local-runtime qualification remain
+independent prerequisites. The default source-use service is explicitly
+unavailable. Qualified execution reuses the canonical reviewed-context
+conversation service for fresh host-created destination admission, original
+question retention, response validation before final retention and exact durable
+readback. The receipt-only local-context runner is not used as answer persistence.
+Validated output labels recorded-fact claims separately from inference and
+rejects malformed or out-of-page citations; citation identity is not semantic
+verification. Source navigation displays only the exact frozen record.
+Conversation, diagnostic and audit retention remain independent. Cancellation
+and privacy/control/window/source changes suppress late disclosure and retain
+resource ownership until joined. Deterministic fake qualification does not
+enable production source use or replace installed/provider/accessibility trials.
 
 The [bounded question window](UI_Workspace_And_Windows.md#delivered-bounded-question-window)
 has an explicit **Review exact record** route through the audited
@@ -721,8 +745,10 @@ and focuses it. IDs come directly from Markdig AutoIdentifiers with no implicit
 reference auto-linking, including duplicate and Unicode headings; percent-encoded
 fragments are strictly decoded and matched ordinally. Missing, malformed,
 non-local, hidden or retired targets report an explicit unavailable outcome.
-External destinations remain inert. The guide/grants facade retains its existing
-inert text controls; this does not enable browser, network, script or file access.
+External destinations never use document-local activation; exact final sources
+may instead offer the [separate source-bound review](#source-bound-final-document-interaction).
+The guide/grants facade retains its existing inert text controls; heading
+navigation does not enable browser, network, script or file access.
 
 The independently admitted `native-pipe-tables-v2` profile carries immutable
 parsed headers/cells into a read-only native table in Details. Arrow keys move
@@ -1335,6 +1361,48 @@ In visual-only/call-gated mode, show the answer panel rather than reusing a play
 Accessibility announcements must not duplicate TTS or announce rapidly changing streamed text by default.
 
 ## Browser Content
+
+### Source-bound final-document interaction
+
+The host may expose local code reading and a distinct external-navigation review
+for an exact final Markdown source. The [source producer](../src/Kora.Application/Presentation/DetailViewerState.cs)
+binds original session/request/task, immutable reference/revision, source and
+render generations, render token and current private read admission. This is
+local visual-read capability, not retained-content execution authority.
+Unavailable render profiles remain unavailable.
+
+The existing parser retains exact external-link token spans and destinations;
+there is no rendered-text inference, second parser or automatic retrieval.
+A fresh original native pointer/keyboard action creates a one-use
+[navigation request](../src/Kora.Application/Presentation/FinalDocumentNavigationRequest.cs).
+The [canonical browser workflow](../src/Kora.Application/Network/ExternalBrowser/ExternalBrowserWorkflow.cs)
+accepts it through a distinct typed overload, reusing destination/network
+admission, separate confirmation, trusted audit and the registered-browser
+launcher. Generated addresses remain untrusted and are never relabelled as
+`RetrievedWebResult` or `WebResultSnapshot`. Existing web-source validation is
+unchanged. Retired, expired, replayed or privately withdrawn reviews cannot
+launch; uncertain native outcomes never become success.
+Retained final sources are freshly resolved before review and again before the
+launcher boundary. Native lifetime cancellation does not declare a still-running
+source validator joined; its pending task remains owned through actual return,
+and late validation cannot reveal or open retired content.
+
+Final heading navigation, independently admitted tables and code reading share
+the same native view and lifetime. Links in table headers or cells retain their
+original parser token spans, including reference links and autolinks; sorting
+does not reconstruct them from displayed text. The complete interaction-control
+budget includes local links, external review buttons, table cells/headers and
+code controls. Exceeding it retains the complete labelled source fallback,
+without partially active navigation or enabling an unavailable profile.
+
+[CODE-only native controls](../src/Kora/CodeHighlighting/NativeCodeBlock.cs)
+provide read-only keyboard focus/local selection and wrapping or horizontal
+scrolling without rebuilding text on resize. Highlighting, exact-source Find
+and the native bounds remain independent. Final no-copy policy is unchanged:
+selection does not authorize clipboard transfer, and keyboard, context and
+programmatic TextBox clipboard routes are blocked. Retirement clears private
+text, selection and pending color projections; no editing, disk autosave,
+scripts, network or new grant is introduced.
 
 ### Internet Pages
 

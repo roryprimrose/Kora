@@ -33,6 +33,7 @@ public sealed class ModelHandoffReviewSession : IAsyncDisposable
     public ModelTurnReason Reason { get; private set; } = ModelTurnReason.None;
     public bool CanReview { get { lock (gate) { return !closed && !busy && eligible(); } } }
     public bool HasReviewed { get; private set; }
+    public ModelHandoffCompletion? Completion { get; private set; }
 
     public Task Refresh(CancellationToken token) => Run((exact, admitted) => workflow.Inspect(exact, admitted), inspecting: true, markReviewed: true, dismissing: false, target: null, requireReview: false, token);
 
@@ -113,6 +114,7 @@ public sealed class ModelHandoffReviewSession : IAsyncDisposable
                 }
                 Outcome = result.Outcome;
                 Reason = result.Reason;
+                Completion = result.Completion;
                 if (inspecting && result.Outcome == ModelHandoffOutcome.Offered) { HasReviewed |= markReviewed; }
                 else if (result.Outcome == ModelHandoffOutcome.Removed)
                 {
@@ -151,7 +153,7 @@ public sealed class ModelHandoffReviewSession : IAsyncDisposable
             if (closed) { return; }
             closed = true;
             HasReviewed = false;
-            workflow.Retire(offer!);
+            workflow.Revoke(offer!);
             offer = null;
         }
         lifetime.Cancel();

@@ -80,5 +80,21 @@ public sealed partial class ModelProviderHandoffWorkflow
         {
             pending.Remove(offer);
         }
+
+    }
+
+    internal async Task ClosePendingAsync(ModelHandoffOffer offer, CancellationToken token)
+    {
+        var closed = await questions.CancelAsync(offer.Question.Key, token).ConfigureAwait(false);
+        if (closed.Outcome is not (HostInteractionOutcome.Cancelled or HostInteractionOutcome.Conflict or HostInteractionOutcome.Expired))
+        { throw new InvalidOperationException("The exact local handoff question could not be retired."); }
+        Retire(offer);
+    }
+
+    internal void Revoke(ModelHandoffOffer offer)
+    {
+        if (offer.Operation?.Completion.Task.IsCompleted != true) { offer.LocalUnavailable?.Revoke(); }
+        offer.Operation?.Cancel();
+        Retire(offer);
     }
 }

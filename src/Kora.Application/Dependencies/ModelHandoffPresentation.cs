@@ -7,7 +7,8 @@ namespace Kora.Application.Dependencies;
 /// <summary>A volatile original-user consumer of exact host-issued offers, never an adapter or egress authority.</summary>
 public sealed class ModelHandoffPresentation(ModelProviderHandoffWorkflow workflow)
 {
-    public const string GateDisclosure = "Exact context review only. Runtime qualification, account authority and final-request egress remain unavailable. Nothing was sent or executed.";
+    public const string GateDisclosure = "Exact context review only. This offer has no admitted execution continuation. Approval is not runtime, account or final-request egress authority. This review sends and executes no hosted request.";
+    public const string VerifiedDisclosure = "The exact local runtime returned Unavailable and its physical resources joined. Context approval creates one new original-session request, not permission to send. Separate final-byte, destination and account review is required; the original expiry is not renewed.";
 
     public async Task<IReadOnlyList<ModelHandoffOffer>> ReadPending(RequestOrigin channel, Func<bool> eligible,
         CancellationToken token)
@@ -38,6 +39,6 @@ public sealed class ModelHandoffPresentation(ModelProviderHandoffWorkflow workfl
 
     public void RevokeAll()
     {
-        foreach (var offer in workflow.Pending()) { workflow.Retire(offer); }
+        foreach (var offer in workflow.Pending()) { workflow.Revoke(offer); }
     }
 }

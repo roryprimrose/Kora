@@ -128,9 +128,11 @@ public sealed partial class MainViewModelTests
     {
         var (f, _, read) = await StartInterruptibleAnswerAsync(ignoreCancellation: true);
         f.TextToSpeech.HoldSpeechCompletionOnStop = true;
+        f.TextToSpeech.StopCompleted = new(TaskCreationOptions.RunContinuationsAsynchronously);
         await f.ViewModel.BeginPushToTalkAsync();
         await f.ViewModel.EndPushToTalkAsync();
         var stop = f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
+        await f.TextToSpeech.StopCompleted.Task.WaitAsync(TestContext.Current.CancellationToken);
         stop.IsCompleted.Should().BeFalse();
         read.IsCompleted.Should().BeFalse();
         f.ViewModel.IsCurrentResponseReadActive.Should().BeTrue();
@@ -209,15 +211,23 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.BeginPushToTalkAsync();
         await f.ViewModel.EndPushToTalkAsync();
         f.TextToSpeech.StopGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.TextToSpeech.BeforeStop = () => stopEntered.TrySetResult();
         var calls = f.TextToSpeech.SpeakCalls;
         var stop = f.Voice.RaiseTranscriptAsync("Kora, stop speaking", 1);
-        stop.IsCompleted.Should().BeFalse();
-        await f.RunAsync("what can you do");
-        f.TextToSpeech.SpeakCalls.Should().Be(calls);
-        f.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeFalse();
-        f.TextToSpeech.StopGate.TrySetResult();
-        await stop;
-        await read;
+        try
+        {
+            await stopEntered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            stop.IsCompleted.Should().BeFalse();
+            await f.RunAsync("what can you do");
+            f.TextToSpeech.SpeakCalls.Should().Be(calls);
+            f.ViewModel.PreviewVoiceCommand.CanExecute(null).Should().BeFalse();
+        }
+        finally
+        {
+            f.TextToSpeech.StopGate.TrySetResult();
+            await Task.WhenAll(stop, read);
+        }
         f.ViewModel.ReadCurrentResponseStatus.Should().Contain("released");
     }
 

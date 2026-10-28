@@ -1,4 +1,5 @@
 using Avalonia;
+using Avalonia.Automation.Peers;
 using Avalonia.Controls;
 using Avalonia.Media;
 using Avalonia.Media.Immutable;
@@ -69,6 +70,7 @@ public sealed class PresenceControl : Control, IDisposable
     private bool disposed;
     private bool transitioning;
     private Func<bool>? authoritativeEligibility;
+    private PresenceStateAutomationPeer? automationPeer;
     private (AssistantState State, bool Speaking, double Level, bool Scaling, int Amount, bool Visible) previousInputs =
         (AssistantState.Information, false, 0, true, PresenceSettings.DefaultSpeechScaleAmountPercent, true);
 
@@ -106,11 +108,24 @@ public sealed class PresenceControl : Control, IDisposable
     internal bool CanInteract => CanRender() && IsPresenceVisible
         && State != AssistantState.Hidden && animation.Current.Opacity > 0;
 
+    internal PresenceRenderInputs CaptureRenderInputs(bool isLightTheme, double width, double height, double scaling) =>
+        new(State, IsSpeaking, SpeechOutputLevel, IsSpeechScalingEnabled, SpeechScaleAmountPercent,
+            DotDensityPercent, DotSizePercent, MovementSpeedPercent, isLightTheme, !IsMotionEnabled,
+            IsPresenceVisible, width, height, scaling);
+
     internal void BindPresentationEligibility(Func<bool> eligibility)
     {
         authoritativeEligibility = eligibility;
+        automationPeer?.Refresh();
         loop.Wake();
     }
+
+    protected override AutomationPeer OnCreateAutomationPeer() =>
+        automationPeer ??= new PresenceStateAutomationPeer(this, CaptureAccessibleState);
+
+    private (AssistantState State, bool IsSpeaking)? CaptureAccessibleState() =>
+        CanRender() && IsEffectivelyEnabled && IsPresenceVisible
+            ? (State, IsSpeaking) : null;
 
     public bool IsPresentationEligible
     {
@@ -232,12 +247,14 @@ public sealed class PresenceControl : Control, IDisposable
             ancestors.Add(ancestor);
             ancestor.PropertyChanged += OnAncestorPropertyChanged;
         }
+        automationPeer?.Refresh();
         loop.Wake();
     }
 
     protected override void OnDetachedFromVisualTree(Avalonia.VisualTreeAttachmentEventArgs e)
     {
         attached = false;
+        automationPeer?.Refresh();
         loop.Stop();
         UnsubscribeAncestors();
         base.OnDetachedFromVisualTree(e);
@@ -246,12 +263,20 @@ public sealed class PresenceControl : Control, IDisposable
     internal void SetAnimationEnabled(bool enabled)
     {
         isAnimationEnabled = enabled;
+        automationPeer?.Refresh();
         loop.Wake();
     }
 
     protected override void OnPropertyChanged(AvaloniaPropertyChangedEventArgs change)
     {
         base.OnPropertyChanged(change);
+        if (change.Property == StateProperty || change.Property == IsSpeakingProperty
+            || change.Property == IsPresenceVisibleProperty || change.Property == IsPresentationEligibleProperty
+            || change.Property == IsVisibleProperty || change.Property == IsEnabledProperty
+            || change.Property == OpacityProperty || change.Property == BoundsProperty)
+        {
+            automationPeer?.Refresh();
+        }
         if (loop is not null && (change.Property == StateProperty
             || change.Property == IsSpeakingProperty
             || change.Property == IsSpeechWorkActiveProperty
@@ -279,6 +304,7 @@ public sealed class PresenceControl : Control, IDisposable
     public void Dispose()
     {
         disposed = true;
+        automationPeer?.Refresh();
         loop.Dispose();
         UnsubscribeAncestors();
         authoritativeEligibility = null;
@@ -296,9 +322,14 @@ public sealed class PresenceControl : Control, IDisposable
 
     private void OnAncestorPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs change)
     {
+        if (change.Property == IsEnabledProperty)
+        {
+            automationPeer?.Refresh();
+        }
         if (change.Property == IsVisibleProperty || change.Property == OpacityProperty
             || change.Property == BoundsProperty || change.Property == Window.WindowStateProperty)
         {
+            automationPeer?.Refresh();
             loop.Wake();
         }
     }

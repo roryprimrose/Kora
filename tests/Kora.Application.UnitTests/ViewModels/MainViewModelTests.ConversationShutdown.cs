@@ -1,5 +1,6 @@
 using AwesomeAssertions;
 using Kora.Application.ViewModels;
+using Kora.Application.Hosting;
 using Kora.Core.Auditing;
 using Kora.Core.Platform;
 
@@ -7,6 +8,122 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Fact]
+    public async Task NewUnsentInputWhileJoiningExistingRunOwnersPreventsExitAfterSubmittedWorkHasStopped()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var current = true;
+        var joined = false;
+        f.ViewModel.BindConversationShutdown(() => Task.FromResult(true), () => current);
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, admitted) =>
+            Task.FromResult<ApplicationLifecycleShutdown?>(new(admitted, () => { joined = true; return Task.CompletedTask; }, () => { })));
+        f.ViewModel.BindAgentShutdown(() =>
+        {
+            joined.Should().BeTrue();
+            current = false;
+            return Task.CompletedTask;
+        });
+        await f.ViewModel.ExitAsync();
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.ViewModel.CanRevealPrivatePresentation.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task ASecondTypedRestartCannotEnterAnAlreadyPendingVoluntaryExitDecision()
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        f.ViewModel.BindConversationShutdown(() => decision.Task);
+        var exiting = f.ViewModel.ExitAsync();
+        await f.RunAsync("restart the app");
+        f.Events.Should().NotContain("process.restart");
+        decision.SetResult(false);
+        await exiting;
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task VoluntaryLifecycleJoinsSubmittedWorkBeforeTheActualApplicationEffectExactlyOnce(bool restart)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var joined = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releases = 0;
+        var stops = 0;
+        f.ViewModel.BindSubmittedWorkShutdown((operation, origin, current) =>
+        {
+            operation.Should().Be(restart ? ApplicationLifecycleOperation.Restart : ApplicationLifecycleOperation.Exit);
+            origin.Should().Be(Kora.Core.Hosting.RequestOrigin.LocalUi);
+            return Task.FromResult<ApplicationLifecycleShutdown?>(new(current, () =>
+            {
+                stops++;
+                stopping.SetResult();
+                return joined.Task;
+            }, () => releases++));
+        });
+        var operation = restart ? f.RunAsync("restart the app") : f.ViewModel.ExitAsync();
+        await stopping.Task;
+        await f.ViewModel.ExitAsync();
+        stops.Should().Be(1);
+        releases.Should().Be(0);
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.Events.Should().NotContain("process.restart");
+        joined.SetResult();
+        await operation;
+        f.WindowActions.Count(action => action == WindowAction.Close).Should().Be(1);
+        f.Events.Count(item => string.Equals(item, "process.restart", StringComparison.Ordinal)).Should().Be(restart ? 1 : 0);
+        releases.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false, "cancel")]
+    [InlineData(true, "cancel")]
+    [InlineData(false, "review-failure")]
+    [InlineData(true, "review-failure")]
+    [InlineData(false, "join-failure")]
+    [InlineData(true, "join-failure")]
+    [InlineData(false, "changed-before-join")]
+    [InlineData(true, "changed-before-join")]
+    [InlineData(false, "changed-after-join")]
+    [InlineData(true, "changed-after-join")]
+    [InlineData(false, "editor-cancel")]
+    [InlineData(true, "editor-cancel")]
+    public async Task SubmittedWorkFailureOrCancelledEditorReleasesOnlyItsAttemptWithoutAnApplicationEffect(bool restart, string fault)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        var released = 0;
+        var stopped = 0;
+        var current = true;
+        f.ViewModel.BindSubmittedWorkShutdown((_, _, _) =>
+        {
+            if (fault is "review-failure") { throw new IOException("Synthetic review failure."); }
+            return Task.FromResult<ApplicationLifecycleShutdown?>(fault is "cancel" ? null : new(() => current, () =>
+            {
+                stopped++;
+                if (fault is "join-failure") { throw new IOException("Synthetic physical join failure."); }
+                if (fault is "changed-after-join") { current = false; }
+                return Task.CompletedTask;
+            }, () => released++));
+        });
+        f.ViewModel.BindInstructionEditorShutdown(() =>
+        {
+            if (fault is "changed-before-join") { current = false; }
+            return Task.FromResult(fault is not "editor-cancel");
+        });
+        if (restart) { await f.RunAsync("restart the app"); }
+        else { await f.ViewModel.ExitAsync(); }
+        f.WindowActions.Should().NotContain(WindowAction.Close);
+        f.Events.Should().NotContain("process.restart");
+        released.Should().Be(fault is "cancel" or "review-failure" ? 0 : 1);
+        stopped.Should().Be(fault is "join-failure" or "changed-after-join" ? 1 : 0);
+        f.ViewModel.BindSubmittedWorkShutdown(null);
+        f.ViewModel.BindInstructionEditorShutdown(null);
+        await f.ViewModel.ExitAsync();
+        f.WindowActions.Should().Contain(WindowAction.Close, "a cancelled or failed attempt cannot latch admission closed");
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

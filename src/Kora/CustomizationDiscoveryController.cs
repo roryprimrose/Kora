@@ -1,6 +1,7 @@
 using System.ComponentModel;
 
 using Kora.Application.Hosting;
+using Kora.Application.Agents;
 using Kora.Application.Tools;
 using Kora.Application.ViewModels;
 using Kora.Core.Customizations;
@@ -14,7 +15,8 @@ namespace Kora;
 
 internal sealed partial class CustomizationDiscoveryController(MainViewModel main, CustomizationDiscoveryService metadata,
     SessionWorkspaceService workspace, SessionConversationService conversation, Func<bool> ownsHost,
-    Func<long> ownerRevision, ILogger<CustomizationDiscoveryController> logger) : IAsyncDisposable
+    Func<long> ownerRevision, ILogger<CustomizationDiscoveryController> logger,
+    Func<ProposedBoundedAgentUse, Task>? reviewAgent = null) : IAsyncDisposable
 {
     private CustomizationDiscoveryWindow? window;
     private CustomizationDiscoverySnapshot? snapshot;
@@ -27,6 +29,7 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
     private Guid? next;
     private RequestOrigin inputOrigin;
     private bool closed;
+    private ProposedBoundedAgentUse? agentProposal;
 
     internal void Bind()
     {
@@ -53,6 +56,10 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         window.Request.Text = command.Request;
         inputOrigin = origin;
         window.Request.PropertyChanged += RequestChanged;
+        window.ProposeAgent.PropertyChanged += (_, args) =>
+        {
+            if (args.Property == Avalonia.Controls.Primitives.ToggleButton.IsCheckedProperty) { Retire(); }
+        };
         window.Sources.SelectionChanged += (_, _) => Retire();
         window.Targets.SelectionChanged += (_, _) => Retire();
         window.Closed += (_, _) => Close();
@@ -71,9 +78,11 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
     {
         inputRevision++;
         snapshot?.Retire();
+        agentProposal = null;
         if (window is null) { return; }
         window.Preview.Text = window.Result.Text = string.Empty;
         window.Confirm.IsEnabled = false;
+        window.ReviewAgent.IsEnabled = false;
     }
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
@@ -126,11 +135,14 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
                 var selected = opened.Sources.SelectedItems!.Cast<SourceChoice>().Select(choice => choice.Source).ToArray();
                 var target = (opened.Targets.SelectedItem as TargetChoice)?.Entry
                     ?? throw new InvalidOperationException("Select one exact Active conversation.");
-                var reviewed = await metadata.Review(selected, target, opened.Request.Text ?? string.Empty, inputOrigin, Current, token);
+                var reviewed = await metadata.Review(selected, target, opened.Request.Text ?? string.Empty, inputOrigin, Current, token,
+                    opened.ProposeAgent.IsChecked == true);
                 if (!Current()) { reviewed.Dispose(); return; }
                 snapshot = reviewed;
                 opened.Preview.Text = CustomizationDiscoverySnapshot.Disclosure + "\n\nORIGINAL QUESTION\n"
-                    + reviewed.OriginalRequest + "\n\nEXACT SHARED METADATA\n" + reviewed.Preview;
+                    + reviewed.OriginalRequest + (reviewed.ProposeAgent
+                        ? "\n\nONE AGENT RECOMMENDATION ONLY. Separate complete source/input/original-conversation review and invocation confirmation remain mandatory."
+                        : string.Empty) + "\n\nEXACT SHARED METADATA\n" + reviewed.Preview;
                 opened.Confirm.IsEnabled = true;
                 opened.Status.Text = "Review is not sharing or execution. Confirmation authorizes only ONE local metadata answer; changed sources require a fresh choice.";
             }
@@ -144,6 +156,18 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
                     ?? $"Retained terminal: {receipt.Message.Outcome} / {receipt.Message.Reason}. "
                         + (reviewed.SourceFailure?.Message ?? "No answer or invocation was fabricated.");
                 opened.Status.Text = "Original request and genuine answer or terminal retained in the selected conversation. No customization was invoked.";
+                agentProposal = reviewed.AgentProposal;
+                opened.ReviewAgent.IsEnabled = agentProposal is not null && reviewAgent is not null;
+            }
+            else if (action is "ReviewAgent")
+            {
+                var proposed = agentProposal ?? throw new InvalidOperationException("No current exact agent recommendation is available.");
+                agentProposal = null;
+                opened.ReviewAgent.IsEnabled = false;
+                await (reviewAgent ?? throw new InvalidOperationException("Native agent review is unavailable."))(proposed);
+                if (!Current()) { return; }
+                opened.Status.Text = "The existing private agent review is open for the exact original conversation. "
+                    + "No agent has run; review its complete source and separately confirm there.";
             }
             activity.Complete(HostOperationOutcome.Completed);
         }
@@ -159,6 +183,7 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
             if (ReferenceEquals(window, opened) && opened is not null)
             {
                 opened.Confirm.IsEnabled = false;
+                opened.ReviewAgent.IsEnabled = false;
                 opened.Status.Text = exception is CustomizationDiscoverySourceException sourceFailure
                     ? sourceFailure.Message : exception is Kora.Core.Conversation.ConversationSubmissionUnconfirmedException { InnerException: { } cause }
                         ? "Conversation retention is unconfirmed (" + cause.GetType().Name + "). Inspect the exact conversation without repeating this request."
@@ -178,6 +203,7 @@ internal sealed partial class CustomizationDiscoveryController(MainViewModel mai
         window = null;
         var retired = snapshot;
         snapshot = null;
+        agentProposal = null;
         retired?.Retire();
         var lifetime = cancellation;
         cancellation = null;

@@ -120,6 +120,13 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
+Cancellation-ignoring playback fixtures wait for the fake speech stop to complete
+before releasing playback. An incomplete command task alone does not establish
+that cancellation was accepted or that the owned resource has joined.
+The speech-interruption regression covers both immediate and gated stop completion,
+then separately releases and joins the original playback; neither phase may
+publish a late successful read.
+
 The Customizations editor publishes its foreground voice target after the
 window's `IsActive` property becomes true; it cannot rely on `Activated` alone,
 which Avalonia raises before updating that property. The editor push-to-talk

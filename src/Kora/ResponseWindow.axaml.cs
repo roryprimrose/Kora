@@ -11,6 +11,8 @@ using Kora.Application.Visuals;
 using Kora.Core;
 using Kora.Core.Configuration;
 using Kora.Core.Presentation;
+using Kora.Core.Commands;
+using Kora.Controls;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -162,6 +164,35 @@ public sealed partial class ResponseWindow : Window
         {
             viewModel.ReportHostInteractionFailure("The response action could not be completed. " + exception.Message);
         }
+    }
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
+    private async void OnApproveModelActionOnce(object? sender, RoutedEventArgs e) =>
+        await RunModelActionReviewAsync(sender, ModelApprovalScope.Once);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
+    private async void OnApproveModelActionForSession(object? sender, RoutedEventArgs e) =>
+        await RunModelActionReviewAsync(sender, ModelApprovalScope.Session);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
+    private async void OnApproveModelActionAlways(object? sender, RoutedEventArgs e) =>
+        await RunModelActionReviewAsync(sender, ModelApprovalScope.Always);
+
+    [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
+        Justification = "Native Click requires void; RunResponseActionAsync reports failures.")]
+    private async void OnRejectModelAction(object? sender, RoutedEventArgs e) => await RunModelActionReviewAsync(sender, null);
+
+    private Task RunModelActionReviewAsync(object? sender, ModelApprovalScope? scope)
+    {
+        var target = (sender as ModelActionReviewButton)?.CapturedTarget;
+        return RunResponseActionAsync(() => Kora.Application.Hosting.HostRequestRunner.RunAsync(
+            Kora.Core.Hosting.RequestOrigin.LocalUi,
+            () => scope is { } approval
+                ? viewModel.ConfirmModelActionReviewAsync(target, approval)
+                : viewModel.RejectModelActionReviewAsync(target)));
     }
 
     private void OnArtifactCommandClicked(object? sender, RoutedEventArgs eventArgs)
@@ -381,6 +412,21 @@ public sealed partial class ResponseWindow : Window
         }
 
         RestartResponseTimeout();
+    }
+
+    internal bool ShowModelActionReview(Kora.Application.Presentation.ModelActionReviewTarget target)
+    {
+        if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target)) { return false; }
+        SetExpanded(false);
+        ShowResponse();
+        if (sessionWindowClosed || !viewModel.IsModelActionReviewCurrent(target))
+        {
+            HideResponse();
+            return false;
+        }
+        Activate();
+        this.FindControl<TextBox>("CommandInput")?.Focus();
+        return true;
     }
 
     internal void HideResponse()

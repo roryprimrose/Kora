@@ -37,6 +37,7 @@ public sealed class SystemTrayController : IDisposable
     private readonly TrayIcons trayIcons;
     private readonly ILogger<SystemTrayController> logger;
     private bool disposed;
+    private NativeMenuItem? modelActionReviewItem;
 
     public SystemTrayController(
         MainViewModel viewModel,
@@ -127,6 +128,7 @@ public sealed class SystemTrayController : IDisposable
         UpdateIdentityText();
         UpdateToolTip();
         UpdateVoiceControls();
+        UpdateModelActionReview();
         DesktopLog.Information(logger, "System tray controls initialized");
     }
 
@@ -162,6 +164,10 @@ public sealed class SystemTrayController : IDisposable
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
         if (disposed) { return; }
+        if (eventArgs.PropertyName is nameof(MainViewModel.PendingModelActionReview))
+        {
+            UpdateModelActionReview();
+        }
         if (string.Equals(
             eventArgs.PropertyName,
             nameof(MainViewModel.AssistantName),
@@ -186,6 +192,19 @@ public sealed class SystemTrayController : IDisposable
         showItem.Header = $"Show {viewModel.AssistantName}";
         settingsItem.Header = "Settings";
         exitItem.Header = $"Exit {viewModel.AssistantName}";
+    }
+
+    private void UpdateModelActionReview()
+    {
+        if (modelActionReviewItem is not null) { menu.Items.Remove(modelActionReviewItem); }
+        modelActionReviewItem = null;
+        if (viewModel.PendingModelActionReview is not { } target) { return; }
+        var item = new NativeMenuItem("Review pending action");
+        item.Click += (_, _) => RunAfterNativeMenuCloses(() =>
+            HostRequestRunner.Run(RequestOrigin.LocalUi, () => viewModel.ActivateModelActionReview(target),
+                HostActivityLayer.Desktop, HostOperation.Presentation));
+        modelActionReviewItem = item;
+        menu.Items.Insert(menu.Items.IndexOf(showItem) + 1, item);
     }
 
     private void UpdateToolTip() =>

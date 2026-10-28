@@ -24,14 +24,16 @@ internal sealed class QuestionReplyFixture : IAsyncDisposable
     public bool PlaybackEligible { get; private set; }
     public HostInteractionDecision? Accepted { get; private set; }
     public int SpeechCalls { get; private set; }
+    public string? Spoken { get; private set; }
     public Action? BeforeObserve { get; set; }
     public QuestionReplyFixture(Func<ReplyCapture, IQuestionVoiceRecognitionService>? captureDecorator = null)
     {
         Time.Now = Host.Time.Now;
         captureRuntime = captureDecorator?.Invoke(Capture) ?? Capture;
         Replies = new(Host.Questions, captureRuntime, Time, Dispatcher, () => { BeforeObserve?.Invoke(); return Admission; },
-            async (_, eligible, token) =>
+            async (text, eligible, token) =>
             {
+                Spoken = text;
                 SpeechCalls++;
                 Speaking = true;
                 try

@@ -65,7 +65,7 @@ public sealed partial class WindowsOllamaToolTransportTests
         messages.Select(message => message.GetProperty("role").GetString()).Should().Equal(toolFirst
             ? ["system", "user", "assistant", "tool", "assistant", "user", "assistant", "tool"]
             : ["system", "user", "assistant", "user", "assistant", "tool"]);
-        sent.RootElement.GetProperty("tools").GetArrayLength().Should().Be(6);
+        sent.RootElement.GetProperty("tools").GetArrayLength().Should().Be(6, "ask_user is no longer advertised after the one question");
         sent.RootElement.GetProperty("format").GetProperty("oneOf")[1].GetProperty("properties")
             .GetProperty("options").GetProperty("minItems").GetInt32().Should().Be(2);
         updates.Should().BeEmpty("read-only clarification must not enter the no-tools provisional answer stream");

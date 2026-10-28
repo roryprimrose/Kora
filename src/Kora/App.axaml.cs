@@ -146,6 +146,7 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            BindBundledRuntimeSetup();
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);

@@ -28,6 +28,25 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
     private Action<SkillPackageSnapshot>? executeBoundBundled;
     private bool controlSessionAvailable;
     private SkillPackageSnapshot? reviewedPackage;
+    private BundledRuntimeSetupWindow? runtimeWindow;
+    private Kora.Windows.Skills.RuntimeSetup.WindowsBundledRuntimeSetup? runtimeSetup;
+    private Func<long>? ownershipRevision;
+    internal string RuntimeDescription => runtimeSetup?.Description ?? "The contained runtime setup owner is unavailable.";
+
+    internal void BindRuntimeSetup(Kora.Windows.Skills.RuntimeSetup.WindowsBundledRuntimeSetup setup, Func<long> revision)
+    { runtimeSetup = setup; ownershipRevision = revision; }
+
+    private void OpenRuntimeSetup(SkillPackageSnapshot package)
+    {
+        if (runtimeSetup is null || ownershipRevision is null || window is null) { return; }
+        if (runtimeWindow is not null) { runtimeWindow.Activate(); return; }
+        var revision = ownershipRevision();
+        var opened = new BundledRuntimeSetupWindow(viewModel, runtimeSetup,
+            () => !disposed && isCurrentHost() && ownershipRevision() == revision && IsReviewing(package));
+        runtimeWindow = opened;
+        opened.Closed += (_, _) => runtimeWindow = null;
+        opened.Show(window);
+    }
 
     internal void BindBundledExecution(Action<SkillPackageSnapshot>? execute, Action<SkillPackageSnapshot>? executeBound = null)
     { executeBundled = execute; executeBoundBundled = executeBound; }
@@ -99,10 +118,15 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
                 var revision = viewModel.CallPolicyRevision;
                 window = new(catalogue, renderer, sharedSources.Open,
                     () => !disposed && isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision,
-                    package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package));
+                    package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package),
+                    runtimeSetup is null ? null : OpenRuntimeSetup);
                 window.SetControlSessionAvailable(controlSessionAvailable);
                 window.Closed += OnClosed;
-                window.PackageChanged += package => Volatile.Write(ref reviewedPackage, package);
+                window.PackageChanged += package =>
+                {
+                    runtimeWindow?.Close();
+                    Volatile.Write(ref reviewedPackage, package);
+                };
                 Volatile.Write(ref reviewedPackage, window.SelectedPackage);
                 InspectionAdmitted(logger, catalogue.Packages.Count, false);
             }
@@ -160,6 +184,7 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
 
     private void Close()
     {
+        runtimeWindow?.Close();
         Volatile.Write(ref reviewedPackage, null);
         // WindowOpened is raised before native Show initialization has finished.
         if (opening)

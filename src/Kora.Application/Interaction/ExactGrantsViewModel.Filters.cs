@@ -49,7 +49,8 @@ public sealed partial class ExactGrantsViewModel
     public void ClearFilters()
     {
         ObjectDisposedException.ThrowIf(disposed, this);
-        scopeFilter = statusFilter = "Any";
+        scopeFilter = "Any";
+        statusFilter = managementView && !ShowRetainedHistory ? "Active" : "Any";
         actionIdFilter = originatingSessionFilter = string.Empty;
         OnPropertyChanged(nameof(ScopeFilter));
         OnPropertyChanged(nameof(StatusFilter));

@@ -1229,59 +1229,16 @@
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
             <StackPanel Spacing="5" Margin="0,0,0,8">
-              <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
-                <TextBlock Text="Preapproved addresses" FontSize="28" FontWeight="SemiBold" />
-                <controls:SettingActionsButton Grid.Column="1" SettingName="Preapproved addresses">
-                  <controls:SettingActionsButton.Flyout>
-                    <MenuFlyout>
-                      <MenuItem Header="Refresh" Command="{Binding RefreshPreapprovedUrisCommand}" AutomationProperties.Name="Refresh preapproved addresses" />
-                    </MenuFlyout>
-                  </controls:SettingActionsButton.Flyout>
-                </controls:SettingActionsButton>
-              </Grid>
+              <TextBlock Text="Permission grants" FontSize="28" FontWeight="SemiBold" />
               <TextBlock
-                  Text="Let AI requests read matching web addresses without asking permission for each address. This does not enable web access by itself."
+                  Text="Manage URI address rules alongside exact operation grants in the shared Permission grants window. Each kind retains its own enforcement and mandatory consent checks. URI rules do not enable web access by themselves."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />
             </StackPanel>
 
-            <Border Classes="settings-card">
-              <StackPanel Spacing="8">
-                <TextBlock Text="Web address pattern" Classes="settings-title" />
-                <TextBlock
-                    Text="Enter a full address starting with http:// or https://. Use * to match part of an address, for example https://*.example.com/*. In a website name, * must replace a whole part between dots. Do not include usernames, passwords or a # section."
-                    Classes="settings-description"
-                    TextWrapping="Wrap" />
-                <WrapPanel ItemSpacing="8" LineSpacing="6">
-                <TextBox Width="340"
-                    Text="{Binding PreapprovedUriInput}"
-                    PlaceholderText="https://*.example.com/*"
-                    AutomationProperties.Name="Preapproved web address pattern" />
-                  <Button Content="Add" AutomationProperties.Name="Add web address pattern"
-                          Command="{Binding AddPreapprovedUriCommand}" />
-                </WrapPanel>
-                <WrapPanel ItemSpacing="8" LineSpacing="6">
-                  <Button Classes="toolbar" Content="Remove selected"
-                          Command="{Binding RemovePreapprovedUriCommand}" />
-                  <Button Classes="toolbar" Content="Clear all"
-                          Command="{Binding ClearPreapprovedUrisCommand}" />
-                </WrapPanel>
-                <controls:NamedTextBlock
-                    Text="{Binding PreapprovedUriStatus}"
-                    AutomationProperties.Name="Preapproved web address status"
-                    AutomationProperties.LiveSetting="Polite"
-                    Classes="settings-description"
-                    TextWrapping="Wrap" />
-              </StackPanel>
-            </Border>
-
-            <ListBox
-                ItemsSource="{Binding PreapprovedUriPatterns}"
-                SelectedItem="{Binding SelectedPreapprovedUri}"
-                MinHeight="84"
-                MaxHeight="220"
-                AutomationProperties.Name="Preapproved web address patterns" />
+            <Button x:Name="InspectNetworkPermissionGrants" Content="Permission grants..." IsEnabled="False"
+                    AutomationProperties.Name="Open shared permission grants to inspect and manage URI rules and exact operation grants" />
           </StackPanel>
         </ScrollViewer>
       </TabItem>
@@ -1594,7 +1551,7 @@
       <TabItem Header="Approvals">
         <ScrollViewer VerticalScrollBarVisibility="Auto">
           <StackPanel Margin="30,4,30,30" Spacing="16" MaxWidth="700" HorizontalAlignment="Left">
-            <Button x:Name="InspectExactGrants" Content="Exact operation grants..." IsEnabled="False"
+            <Button x:Name="InspectExactGrants" Content="Permission grants..." IsEnabled="False"
                     HorizontalAlignment="Left"
                     AutomationProperties.Name="Open the separate retained exact-operation grant inventory, not the legacy named-action approval lists" />
             <TextBlock Text="Model action approvals" FontSize="28" FontWeight="SemiBold" />

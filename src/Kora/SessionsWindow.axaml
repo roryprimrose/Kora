@@ -39,6 +39,8 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Button Content="Permission grants..." Command="{Binding PermissionGrantsCommand}" IsEnabled="{Binding CanRead}"
+            AutomationProperties.Name="Open Always permissions and grants for the exact selected session" />
     <Expander x:Name="ContentSearchPanel" Header="Search conversation content">
       <StackPanel Spacing="6">
         <TextBox x:Name="ContentQuery" Text="{Binding ContentQuery, Mode=TwoWay}" MaxLength="256"

@@ -16,5 +16,6 @@ public sealed partial class App
             Services.GetRequiredService<ExactGrantControlAdmission>(), Services.GetRequiredService<ISessionWorkspaceAccess>(),
             () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                 && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
-            Services.GetRequiredService<ILogger<ExactGrantsViewModel>>());
+            Services.GetRequiredService<ILogger<ExactGrantsViewModel>>(),
+            Services.GetRequiredService<PermissionGrantManagementService>());
 }

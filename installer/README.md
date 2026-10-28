@@ -378,10 +378,16 @@ install time, or later installation/verification through Kora Settings.
 The [shared lifecycle service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
 and [installer choice binding](Kora.Setup/SpeechComponentInstallChoice.cs)
 implement this path, separate from the existing PowerShell/Ollama/Kokoro
-selections. The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
-has no input offers while D-002 backend selection and exact qualification remain
-open. The installer says so explicitly; it does not show a placeholder checkbox
-or claim preparation succeeded. A Kora-only installation remains valid.
+selections. Burn and the desktop now compose the same
+[Windows hands-free preparation catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+and [exclusive asset owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs).
+The Windows x64 CPU offer pins 13 data/notice files (12,222,276 bytes):
+PocketSphinx 5.1.1 en-US acoustic data and CMU dictionary, plus Silero 6.2 ONNX.
+Its native library is bundled with application code, not downloaded as data.
+The checkbox is unchecked; a Kora-only installation remains valid.
+Preparation verifies the inert production file binder without running native
+code, models or microphone capture. No name/playback/acoustic profile is qualified;
+successful preparation is not usable hands-free operation.
 Unknown inspection state is not a missing or failed component; the shared
 [readiness observation](../src/Kora.Core/Dependencies/SpeechComponentReadiness.cs)
 retains explicit reasons and only existing authoritative functional evidence.
@@ -402,8 +408,9 @@ The [deterministic parity tests](../tests/Kora.Windows.IntegrationTests/Dependen
 use exact fixture metadata and fake storage/acquisition, including unchecked
 choices, consent, integrity failures, interrupted publication/removal and fresh
 retry. They do not download data or install anything. Exact-offer native/payload
-qualification and installed acceptance remain separate gates before offering a
-production profile; they are not replaced by these deterministic tests.
+qualification and installed acceptance remain separate capture gates, not
+replaced by these deterministic tests. App-led Inspect/Verify/Remove remains the
+recovery route for declined, partial, corrupt or incompatible preparation.
 
 ## Versioning and GitHub Actions
 

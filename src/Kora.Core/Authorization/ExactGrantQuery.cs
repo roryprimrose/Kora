@@ -11,7 +11,8 @@ namespace Kora.Core.Authorization;
 public sealed record ExactGrantQuery
 {
     public ExactGrantQuery(OperationGrantScope? scope = null, OperationGrantStatus? status = null,
-        string? actionId = null, HostId<SessionIdentity>? originatingSession = null)
+        string? actionId = null, HostId<SessionIdentity>? originatingSession = null,
+        bool managementView = false, HostId<SessionIdentity>? managementSession = null, bool includeOnceHistory = false)
     {
         if (scope is { } s && !Enum.IsDefined(s) || status is { } t && !Enum.IsDefined(t))
         {
@@ -19,14 +20,22 @@ public sealed record ExactGrantQuery
         }
         if (actionId is not null) { InteractionValidation.Identifier(actionId); }
         originatingSession?.Validate();
+        managementSession?.Validate();
+        if (!managementView && (managementSession is not null || includeOnceHistory))
+        { throw new InvalidDataException("A management session requires the bounded permission management view."); }
         Scope = scope;
         Status = status;
         ActionId = actionId;
         OriginatingSession = originatingSession;
+        ManagementView = managementView;
+        ManagementSession = managementSession;
+        IncludeOnceHistory = includeOnceHistory;
         var canonical = "exact-grant-query-v1\n"
             + (scope is { } scopeValue ? ((int)scopeValue).ToString(CultureInfo.InvariantCulture) : "any") + "\n"
             + (status is { } statusValue ? ((int)statusValue).ToString(CultureInfo.InvariantCulture) : "any") + "\n"
             + (actionId ?? string.Empty) + "\n" + (originatingSession?.Value.ToString("D") ?? string.Empty);
+        if (managementView) { canonical += "\nmanagement\n" + (managementSession?.Value.ToString("D") ?? "persistent"); }
+        if (includeOnceHistory) { canonical += "\nwith-once-history"; }
         Digest = Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(canonical)));
     }
 
@@ -36,6 +45,9 @@ public sealed record ExactGrantQuery
     public string? ActionId { get; }
     public HostId<SessionIdentity>? OriginatingSession { get; }
     public string Digest { get; }
+    public bool ManagementView { get; }
+    public HostId<SessionIdentity>? ManagementSession { get; }
+    public bool IncludeOnceHistory { get; }
 
     /// <summary>Parses native canonical values; only Any and empty optional text mean unset. Never trims or repairs input.</summary>
     public static ExactGrantQuery FromInput(string scope, string status, string actionId, string originatingSession)
@@ -74,7 +86,11 @@ public sealed record ExactGrantQuery
     public bool Matches(OperationGrant grant)
     {
         ArgumentNullException.ThrowIfNull(grant);
-        return (Scope is not { } scope || scope == grant.Scope)
+        return (!ManagementView || grant.Scope == OperationGrantScope.Perpetual
+                || ManagementSession is { } target
+                    && (grant.Scope == OperationGrantScope.Session || IncludeOnceHistory && grant.Scope == OperationGrantScope.Once)
+                    && grant.ApprovedProposal.Request.SessionId == target)
+            && (Scope is not { } scope || scope == grant.Scope)
             && (Status is not { } status || status == grant.Status)
             && (ActionId is null || string.Equals(ActionId, grant.ApprovedProposal.Binding.ActionId, StringComparison.Ordinal))
             && (OriginatingSession is not { } session || session == grant.ApprovedProposal.Request.SessionId);

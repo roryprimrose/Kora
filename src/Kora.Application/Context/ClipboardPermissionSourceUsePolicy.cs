@@ -127,7 +127,8 @@ public sealed class ClipboardPermissionSourceUsePolicy(
         return new(actionId, "builtin", "clipboard", definition, definition, definition,
             Hash(typeof(ClipboardPermissionSourceUsePolicy).Module.ModuleVersionId.ToString("D")),
             Hash(invocation), Hash("clipboard.snapshot"), Hash("original-local-user"),
-            Hash(destination), Hash(transformation), new(1));
+            Hash(destination), Hash(transformation), new(1),
+            new(PermissionGrantArtifactKind.Tool, Kora.Core.Customizations.CustomizationScope.BuiltIn));
     }
 
     private static string Hash(string value) => Convert.ToHexStringLower(SHA256.HashData(Encoding.UTF8.GetBytes(value)));

@@ -105,6 +105,10 @@ public sealed partial class ModelTurnHostTests
             : [McpReviewStage.Connection, McpReviewStage.ToolSelection, McpReviewStage.Invocation]);
         approval.Snapshots.Values.SelectMany(snapshot => snapshot.Grants).Should()
             .OnlyContain(grant => grant.Scope == OperationGrantScope.Once && grant.Status == OperationGrantStatus.Consumed);
+        approval.Snapshots.Values.SelectMany(snapshot => snapshot.Grants).Select(grant => grant.ApprovedProposal.Binding.Target)
+            .Should().OnlyContain(target => target != null
+                && target.Kind == Kora.Core.Authorization.PermissionGrantArtifactKind.McpServer
+                && target.Scope == Kora.Core.Customizations.CustomizationScope.User);
         transport.Requests.Should().HaveCount(noTool ? 1 : 2);
         var wire = Encoding.UTF8.GetString(ModelToolProtocol.SerializeRequest(transport.Requests[0]));
         wire.Should().NotContain("https://").And.NotContain(source.Account.AccountId.ToString())
@@ -491,6 +495,8 @@ public sealed partial class ModelTurnHostTests
         internal McpReview? LastReview { get; private set; }
         internal Action? BeforeTransaction { get; set; }
         internal List<McpReviewStage> Stages { get; } = [];
+        internal string Choice { get; init; } = "once";
+        internal int Questions { get; private set; }
         internal Dictionary<HostRequest, HostInteractionSnapshot> Snapshots { get; } = [];
         internal async Task<McpApprovalPresentation> Present(HostOperationProposal proposal, HostRevision generation,
             McpReview review, Func<bool> admitted, CancellationToken token)
@@ -503,15 +509,19 @@ public sealed partial class ModelTurnHostTests
             Stages.Add(review.Stage);
             var previous = Snapshots.GetValueOrDefault(proposal.Request);
             Snapshots[proposal.Request] = new(f.Task!.Task, f.Session, new(true, true, false, true), proposal,
-                previous?.Questions ?? [], previous?.Grants ?? [])
+                previous?.Questions ?? [], Snapshots.Values.SelectMany(snapshot => snapshot.Grants)
+                    .GroupBy(grant => grant.Id).Select(group => group.MaxBy(grant => grant.Revision.Value)!).ToImmutableArray())
             {
                 Permission = previous?.Permission,
                 Admissions = previous?.Admissions ?? [],
             };
             var authorization = new HostAuthorizationService(this, f.Time);
-            var initial = (await authorization.PresentMcpOnceAsync(proposal.Request, review, token)).Question!;
+            var decision = await authorization.PresentMcpOnceAsync(proposal.Request, review, token);
+            if (decision.Outcome == HostInteractionOutcome.Consumed) { return new(null, decision); }
+            var initial = decision.Question!;
+            Questions++;
             var completed = Deny ? new(HostInteractionOutcome.Denied, "user-denied")
-                : await authorization.ApproveAsync(initial.Key, new(["once"]), RequestOrigin.LocalUi, token);
+                : await authorization.ApproveAsync(initial.Key, new([Choice]), RequestOrigin.LocalUi, token);
             if (Fault is "presented-proposal") { initial = initial with { Proposal = null }; }
             if (Fault is "presented-request") { initial = initial with { Key = new(f.Request, initial.Key.QuestionId, new(1)) }; }
             if (Fault is "presented-generation") { initial = initial with { SessionGeneration = new(2) }; }

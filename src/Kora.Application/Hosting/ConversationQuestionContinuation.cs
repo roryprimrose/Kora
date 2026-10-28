@@ -28,7 +28,7 @@ public sealed class ConversationQuestionContinuation(
             RequireLive(token);
             var initial = presented.Presented;
             var completed = presented.Completed;
-            if (initial.Key.Request != request || initial.Key.Revision.Value != 1
+            if (initial is null || initial.Key.Request != request || initial.Key.Revision.Value != 1
                 || initial.SessionGeneration != generation || initial.Status != QuestionStatus.Pending
                 || initial.Proposal is not null || initial.Draft is not null || initial.AnswerChannel is not null
                 || initial.ExpiresAt != expiresAt || !SameSpec(initial.Spec, spec)

@@ -1,1 +1,1 @@
-{"version":1,"active":{"number":548,"head":"8afc86e921c66a49ab36f0ba73704cfcfeabf8af","base":"63f43125407dd7b1779bbaddc99478530b7ce824","ticket":"1d70296b-97d4-44d9-a48d-2b61116a9372","enrollment":"2026-10-27T03:20:08Z","created":"2026-10-28T04:34:03.267Z","phase":"reserved","dispatchRecorded":false,"checks":{}},"blocked":[]}
+{"version":1,"active":null,"blocked":[{"number":548,"head":"8afc86e921c66a49ab36f0ba73704cfcfeabf8af","enrollment":"2026-10-27T03:20:08Z","reason":"Selected PR conflicts with main."}]}

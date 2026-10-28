@@ -1372,8 +1372,11 @@ dependency. Do not claim that the rejected strict candidates now pass.
 
 This decision does not weaken OS denial of protected Kora resources, privacy,
 ownership, an applicable network-denied profile, fixed action/parameter
-approval, protected host-runtime resolution or Unknown receipts. No broker,
-production worker or general user-script capability is selected/enabled.
+approval, protected host-runtime resolution or Unknown receipts. This proof
+selected no broker or production worker and enabled no general user-script
+capability. The later
+[D-013 script-preserving bridge decision](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+permits bounded implementation, not runtime enablement or native substitution.
 W1/W3/W4 and real fixed-control acceptance remain open independently.
 
 ### Windows Containment Continuation Gates
@@ -1404,9 +1407,16 @@ run in parallel. These are R02 follow-up gates, not implemented capabilities.
    actions under their required gates. If it cannot, bring an explicit design
    decision: a narrowly typed trusted native-adapter/broker boundary with its
    own authority/implementation/receipt proof, or continued unavailability.
-   Such a broker is not selected by this proof, may not expose a shell/elevation/
-   installation API, and cannot silently replace the existing bundled-script
-   contract. Do not weaken the worker to ambient execution to make an action run.
+   The proof selected no such broker. The later
+   [D-013 amendment](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+   selects only the [script-preserving bridge](Built_In_Skills.md#script-preserving-host-bridge)
+   for the existing immutable fixed packages: actual reviewed PowerShell still
+   executes, and the host independently authorizes any exact requested effect.
+   It may not expose a shell/elevation/installation API or broaden script/source
+   authority. Do not weaken the worker to ambient execution to make an action run.
+   Implement the selected boundary with deterministic platform seams under
+   the I/E/Q policy; these historical qualification trials do not block
+   bounded fail-closed implementation or establish runtime readiness.
 3. **Prove protected deployment and effective resource identities.** Use the
    [deployment identity and alias gates](#protected-deployment-identity-and-validation)
    under actual non-elevated application and prospective worker tokens.

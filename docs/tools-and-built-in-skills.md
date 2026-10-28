@@ -5,7 +5,8 @@ Use [Commands](commands.md) for exact phrases and parameters,
 workflows. This page explains capability boundaries rather than duplicating
 those references.
 
-**No script-backed built-in skill executor ships in the current release.**
+**The fixed bundled script executor is implemented but unavailable until its installed contained profile is qualified.**
+See the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 Exact commands run host-owned C# actions. A verified local model can answer,
 ask a clarification question or propose an existing action/grant change; this
 does not grant a general execution or browsing capability. Selecting artifact instructions does
@@ -276,37 +277,34 @@ See [maintenance commands](commands.md#exact-cached-release-maintenance).
 
 ## 13. Built-in skills
 
-The three bundled packages are inspectable and their instructions selectable,
-but every script action remains unavailable. Future review binds original
-entry/helper bytes, individual digests, the combined script-set hash and
-definition digest; a package name or model choice is not approval.
+The three bundled packages are inspectable and their instructions selectable, but every script action remains unavailable until its installed contained profile is qualified.
+The [fixed execution implementation](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) binds complete original multi-file packages, separate grants, current source authority and joined resources; a package name or model choice is not approval.
+Review includes the manifest, entry script, every shared helper and combined script-set hash; changing any declared source invalidates the exact binding.
 
 ### Lock the machine
 
-**Current:** an exact lock command calls Windows directly without the planned
-script-bound approval gate. Model-suggested lock requires its existing
-action-specific approval/grant. See [exact lock behavior](commands.md#lock-windows).
+**Current:** voluntary direct lock uses the same package gate as other fixed actions and reports unavailable while its runtime is unqualified. There is no legacy native-lock fallback. Model suggestions open inspection only. See [exact lock behavior](commands.md#lock-windows).
 
-**Planned:** shared content-bound admission for direct/UI/model routes, a durable
-control-session binding and an observed lock receipt. It targets the current
+**Implemented, not enabled:** shared content-bound admission, a durable
+control-session binding and a truthful request-accepted receipt. It targets the current
 Windows session only, not another user, remote computer, unlock or timer.
 
 ### Shut down the computer
 
-**Current:** a visible non-executing proposal only.
+**Current:** source inspection and explicit unavailability under the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system shutdown request is sent.**
 
-**Planned:** exact script/grant review, active-work handling, fresh confirmation
+**Implemented, not enabled:** exact script/grant review, active-work handling, fresh confirmation
 within 30 seconds and a 30-second host countdown with pre-effect revalidation.
 An OS-accepted request may no longer be cancellable; Kora cannot save other
 applications' documents or promise completed shutdown.
 
 ### Restart the computer
 
-**Current:** a visible non-executing proposal only.
+**Current:** source inspection and explicit unavailability under the same [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system restart request is sent.**
 
-**Planned:** the same power safeguards with a distinct restart task/grant.
+**Implemented, not enabled:** the same power safeguards with a distinct restart task/grant.
 This is not **restart Kora** and does not promise interrupted work will resume.
 
 ### Read-only integration skill

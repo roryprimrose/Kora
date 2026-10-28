@@ -5,6 +5,7 @@ using Kora.Definitions.Skills;
 using Kora.Application.ViewModels;
 using Kora.Application.Skills;
 using Kora.Core.Skills;
+
 using Microsoft.Extensions.Logging;
 
 namespace Kora;
@@ -23,6 +24,22 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
     private bool disposed;
     private bool opening;
     private bool closeAfterOpening;
+    private Action<SkillPackageSnapshot>? executeBundled;
+    private Action<SkillPackageSnapshot>? executeBoundBundled;
+    private bool controlSessionAvailable;
+    private SkillPackageSnapshot? reviewedPackage;
+
+    internal void BindBundledExecution(Action<SkillPackageSnapshot>? execute, Action<SkillPackageSnapshot>? executeBound = null)
+    { executeBundled = execute; executeBoundBundled = executeBound; }
+
+    internal void SetControlSessionAvailable(bool available)
+    { controlSessionAvailable = available; window?.SetControlSessionAvailable(available); }
+
+    internal bool OpenPackage(string id, Func<bool> eligible) =>
+        TryOpen(SkillReviewSurface.BundledPackages, eligible) && window is not null && window.SelectPackage(id);
+
+    internal bool IsReviewing(SkillPackageSnapshot package) => Volatile.Read(ref reviewedPackage) is { } selected
+        && string.Equals(selected.DeclaredResourceDigest, package.DeclaredResourceDigest, StringComparison.Ordinal);
 
     internal SkillPackagesWindowController(MainViewModel viewModel, Func<bool> isCurrentHost,
         ILogger<SkillPackagesWindowController> logger, NativeDetailRenderer renderer,
@@ -81,8 +98,12 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
                 { return false; }
                 var revision = viewModel.CallPolicyRevision;
                 window = new(catalogue, renderer, sharedSources.Open,
-                    () => !disposed && isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision);
+                    () => !disposed && isCurrentHost() && viewModel.CanRevealPrivatePresentation && viewModel.CallPolicyRevision == revision,
+                    package => executeBundled?.Invoke(package), package => executeBoundBundled?.Invoke(package));
+                window.SetControlSessionAvailable(controlSessionAvailable);
                 window.Closed += OnClosed;
+                window.PackageChanged += package => Volatile.Write(ref reviewedPackage, package);
+                Volatile.Write(ref reviewedPackage, window.SelectedPackage);
                 InspectionAdmitted(logger, catalogue.Packages.Count, false);
             }
             var opened = window;
@@ -131,10 +152,15 @@ internal sealed partial class SkillPackagesWindowController : IDisposable, ISkil
         if (string.Equals(args.PropertyName, nameof(MainViewModel.CallPolicyRevision), StringComparison.Ordinal)) { Close(); }
     }
 
-    private void OnClosed(object? sender, EventArgs eventArgs) => window = null;
+    private void OnClosed(object? sender, EventArgs eventArgs)
+    {
+        Volatile.Write(ref reviewedPackage, null);
+        window = null;
+    }
 
     private void Close()
     {
+        Volatile.Write(ref reviewedPackage, null);
         // WindowOpened is raised before native Show initialization has finished.
         if (opening)
         {

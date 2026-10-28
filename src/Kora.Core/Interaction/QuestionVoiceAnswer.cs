@@ -1,4 +1,5 @@
 using System.Globalization;
+
 using Kora.Core.Configuration;
 
 namespace Kora.Core.Interaction;
@@ -40,7 +41,8 @@ public static class QuestionVoiceAnswer
     private static QuestionOption[] MatchingOptions(QuestionSpec spec, string spoken) =>
         spec.Options.Where((option, index) =>
             string.Equals(spoken, option.Label, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(spoken, (index + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
-            || string.Equals(spoken, "option " + (index + 1).ToString(CultureInfo.InvariantCulture),
-                StringComparison.OrdinalIgnoreCase)).ToArray();
+            || !string.Equals(spec.Purpose, "computer-power", StringComparison.Ordinal)
+                && (string.Equals(spoken, (index + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    || string.Equals(spoken, "option " + (index + 1).ToString(CultureInfo.InvariantCulture),
+                        StringComparison.OrdinalIgnoreCase))).ToArray();
 }

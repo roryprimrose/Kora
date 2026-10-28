@@ -1,22 +1,3 @@
-## Bundled hands-free CPU library and optional data
-
-PocketSphinx 5.1.1, official source commit
-`511126b492dcb267cf30d49d631946d7b61a9530`, is delivered as a Windows x64 C library.
-The complete [upstream licence and incorporated-code notices](src/Kora.Windows/Audio/Native/pocketsphinx-licence.txt)
-are shipped beside it. [Native provenance](src/Kora.Windows/Audio/Native/README.md)
-records the exact compiled payload and dependency closure.
-
-Optional acoustic data is separately attributed to Alpha Cephei Inc. (2015,
-BSD-style); the CMU pronunciation dictionary retains CMU BSD-style notices;
-Silero VAD 6.2 is MIT, Copyright (c) 2020-present Silero Team.
-Their individual complete notices are exact hash-pinned assets in the
-[preparation catalogue](src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs), downloaded
-and retained with the data only after explicit review. Engine licensing is not
-substituted for model/dictionary licensing. No third-party wheel or general
-language-model data is offered.
-
-## Managed dependencies
-
 | Package                                               | Version            | License Information Origin | License Expression    | License Url                                                 | Copyright                                                            | Authors                                                        | Package Project Url                                                                            |
 | ----------------------------------------------------- | ------------------ | -------------------------- | --------------------- | ----------------------------------------------------------- | -------------------------------------------------------------------- | -------------------------------------------------------------- | ---------------------------------------------------------------------------------------------- |
 | Avalonia                                              | 12.1.3             | Expression                 | MIT                   | https://licenses.nuget.org/MIT                              | Copyright 2013-2026 © The AvaloniaUI Project                         | Avalonia Team                                                  | https://avaloniaui.net/?utm_source=nuget&utm_medium=referral&utm_content=project_homepage_link |

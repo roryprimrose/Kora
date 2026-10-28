@@ -39,3 +39,19 @@ including native bytes, data, notices and the ownership marker, without loading
 the DLL or running a model. This does **not** establish keyword accuracy,
 configured-name support, playback exclusion or acoustic qualification.
 The production profile has no qualified names and cannot open capture.
+
+## Optional-data licences
+
+The engine licence does not replace the individual model/dictionary notices.
+Optional acoustic data is separately attributed to Alpha Cephei Inc. (2015,
+BSD-style); the CMU pronunciation dictionary retains CMU BSD-style notices;
+Silero VAD 6.2 is MIT, Copyright (c) 2020-present Silero Team. Their complete
+notices are exact hash-pinned assets in the
+[preparation catalogue](../HandsFreeSetupCatalogue.cs), downloaded and retained
+with the data only after explicit review. No third-party wheel or general
+language-model data is offered.
+
+[THIRD-PARTY-NOTICES.md](../../../../THIRD-PARTY-NOTICES.md) is the generated
+NuGet dependency report. Keep native provenance and optional-data explanations
+here rather than editing that report; the dependency gate requires it to match
+the scanner's output exactly.

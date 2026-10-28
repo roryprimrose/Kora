@@ -451,7 +451,8 @@ internal static class Program
             UseCookies = false,
             UseDefaultCredentials = false,
             AutomaticDecompression = System.Net.DecompressionMethods.None,
-        }) { Timeout = Timeout.InfiniteTimeSpan });
+        })
+        { Timeout = Timeout.InfiniteTimeSpan });
         services.AddSingleton<IReleaseMetadataClient>(provider => new GitHubReleaseMetadataClient(
             provider.GetRequiredKeyedService<HttpClient>("release-metadata"),
             provider.GetRequiredService<TimeProvider>(),
@@ -670,6 +671,9 @@ internal static class Program
         services.AddSingleton<ISpeechPreparationService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
         services.AddSingleton<Kora.Application.Voice.SpeechPreparationCoordinator>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
+        services.AddSingleton<Kora.Core.Skills.IBundledScriptWorker, Kora.Windows.Skills.WindowsBundledScriptWorker>();
+        services.AddSingleton<Kora.Core.Skills.IFixedSessionEffect, Kora.Windows.Skills.WindowsFixedSessionEffect>();
+        services.AddSingleton<Kora.Tools.SessionControl.FixedSessionActionBroker>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();
         services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
@@ -677,11 +681,14 @@ internal static class Program
         services.AddSingleton<Kora.Core.Context.IPlainTextClipboardReader, Kora.Windows.Context.WindowsPlainTextClipboardReader>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardSnapshotBroker>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRead>();
+        services.AddSingleton<Kora.Core.Context.IClipboardReadWorkflow, Kora.Application.Context.ClipboardReadWorkflow>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardReuse>();
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardRevoke>();
         services.AddSingleton<Kora.Application.Context.ClipboardExplanationAdmission>();
         services.AddSingleton<Kora.Application.Context.ClipboardExplanationWorkflow>();
-        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy, Kora.Tools.Clipboard.UnavailableClipboardSourceUsePolicy>();
+        services.AddSingleton<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.IClipboardSourceUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>());
         services.AddSingleton<Kora.Core.Context.IClipboardExplanationWorkflow>(provider =>
             provider.GetRequiredService<Kora.Application.Context.ClipboardExplanationWorkflow>());
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();

@@ -52,11 +52,11 @@ Ollama 0.35.1 per-user install and qwen3:1.7b model (about 1.36 GB).
 Kora reuses healthy components and checks the expected model files. Passing
 setup is not permission or release approval to generate answers: this build
 still reports model use as **Unavailable**. See [Models](settings.md#models).
-Exact built-in commands take precedence and need no model. **Lock Windows
-commands act directly**, without model-action confirmation; do not use them
-just to test voice recognition.
+Exact built-in commands take precedence and need no model. Windows lock,
+shutdown and restart open package inspection but cannot execute in this build;
+their separate script runtime is not approved for use.
 
-PowerShell 7 is a separate required setup task for future script-backed
+PowerShell 7 is a separate required setup task for script-backed
 actions. Kora checks it on startup and refresh, including after a previously
 working installation disappears or fails. If missing or unhealthy, open
 **Settings > Readiness > Review PowerShell 7 setup** and approve the
@@ -66,7 +66,7 @@ verifies the executable after setup. This never approves or runs a skill
 script. PowerShell readiness does not block exact built-in commands.
 The [tools guide](tools-and-built-in-skills.md) explains what works now; the
 [skill and task execution design](skill-and-task-execution-design.md)
-describes future script execution, not a setup requirement for ordinary use.
+explains the unavailable script runtime, not an extra requirement for ordinary use.
 
 The initial microphone and speaker setting is **System**. System is not a saved
 endpoint snapshot. It follows later Windows default-device changes, including

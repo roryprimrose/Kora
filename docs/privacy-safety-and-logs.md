@@ -315,16 +315,30 @@ Preview displays the exact immutable text, including whitespace, under separate
 host-owned provenance/ID chrome. Quoted commands, HTML, links and credentials
 are inert data; they cannot approve, invoke tools, edit settings or select a
 destination. No content, digest, title, excerpt or raw exception message enters
-diagnostic/audit/status/model payloads. Diagnostics record only the typed
+diagnostic/audit/status payloads. Diagnostics record only the typed
 outcome/failure type under host activity correlation. This slice has no content
 store, history index or persisted context.
 
-All model explanation and egress are unavailable, even for apparently harmless
-text and even after reuse. This follows the accepted policy that secret
-detection is best-effort, not a safety guarantee; no redaction or secret-free
-claim is made. A future answering/egress slice must independently qualify
-the local tool loop, inspect the complete outgoing envelope and enforce secret
-and destination rules. Credential-store material remains excluded.
+Even the initial read requires an applicable Once/Session/Always clipboard read
+grant before native access, separately from explanation. Cancel question denies
+without reading. Host permission validation occurs again after awaited readback,
+before preview publication ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs),
+[broker](../src/Kora.Tools/Clipboard/ClipboardSnapshotBroker.cs)).
+
+Local explanation requires both a clipboard explanation tool permission grant and your
+separate confirmation of one model use of the exact reviewed snapshot.
+You can deny, approve Once, approve for the clipboard explanation session or
+approve Always. You are responsible for sensitive material you place in the
+clipboard and ask Kora to examine. Kora performs no clipboard sensitivity
+classification or credential-pattern analysis and makes no redaction or
+secret-free guarantee.
+
+Only a qualified local runtime can receive the exact bounded envelope. Its
+answer stays volatile in the same native preview, never conversation bodies,
+history, automatic speech or diagnostic/audit sinks. There is no hosted/bootstrap
+fallback or model tool access. Preview/reuse alone never run inference.
+Missing runtime readiness or permission remains explicitly unavailable; native,
+provider and installed qualification are not implied by deterministic tests.
 
 Clear/revoke, close, cancel, privacy/ownership loss, changed call policy,
 handoff and disposal retire the selection/render generation and suppress late
@@ -359,19 +373,24 @@ performs the action through the same built-in handler used by typed and voice
 commands. Arbitrary model-generated commands or API calls are never executed.
 Choosing a clarification option does not approve an action or change a grant.
 
-Suggestions to hide or exit Kora, restart it, cancel a task, lock Windows,
-or prepare a power proposal require explicit approval unless that exact action
+Suggestions to hide or exit Kora, restart it or cancel a task
+require explicit approval unless that exact action
 has a current session or persistent grant. All approval scopes (once, this
 session, and always) are offered for every action that requests approval,
-including Windows lock. A session grant ends on exit, restart, or when Kora
+where applicable. A session grant ends on exit, restart, or when Kora
 locks Windows; an always grant persists locally until revoked in **Settings >
 Approvals**. Grants are keyed to named built-in actions, not arbitrary
 commands, file paths, implementation versions, or model-generated code.
 Rejecting, dismissing, or making a new request discards the pending
 suggestion. This confirmation gate applies to *model-suggested* disruptive
-actions only: direct exact built-in voice and typed commands, including lock,
+actions only: direct exact built-in voice and typed commands
 currently dispatch to C# without model-action approval. They remain
 deterministic and take precedence over the model.
+
+Windows lock/shutdown/restart use a separate
+[exact bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Their runtime is unavailable in this build. Model suggestions open source
+inspection only; named-action grants cannot authorize their execution.
 
 Protected manual calls or enabled Active/Suspected/Unknown observations
 temporarily ignore Session/Always reuse without revoking or consuming those
@@ -509,12 +528,11 @@ VoiceOnly preference cannot hide:
 
 ## Power and session actions
 
-**Lock the machine** is a real local Windows action. Kora releases microphone
-capture before locking.
-
-Shutdown and computer restart commands are non-destructive proposals in the
-current release. They are recognized, displayed, auditable, inspectable, and
-cancellable, but no operating-system power request is sent.
+Windows lock, shutdown and computer restart commands open the bundled source
+review and report unavailable because their execution runtime is not approved
+for use. There is no direct native-lock fallback and no operating-system power
+request is sent. Installing PowerShell or saving an approval cannot enable
+execution. See the [fixed action safeguards](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 ## Logs
 

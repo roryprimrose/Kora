@@ -87,6 +87,19 @@ public sealed partial class HostAuthorizationService(
     public ValueTask<HostInteractionDecision> PresentAsync(HostRequest request, CancellationToken cancellationToken) =>
         transaction.RunAsync(request, "approval.present", snapshot => Present(snapshot, request), cancellationToken);
 
+    /// <summary>Requires a user grant, without automatic session-policy or model-review approval.</summary>
+    public ValueTask<HostInteractionDecision> RequestGrantAsync(
+        HostRequest request, QuestionSpec spec, CancellationToken cancellationToken) =>
+        transaction.RunAsync(request, "approval.tool-grant", snapshot =>
+        {
+            if (!Eligible(snapshot, request))
+            { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
+            var observed = ObserveContent(snapshot, request).Item1;
+            var grant = observed.Grants.FirstOrDefault(item => Matches(observed, request, item));
+            return grant is null ? Present(observed, request, consentSpec: spec)
+                : Consume(observed, request, grant.Id, grant.Revision);
+        }, cancellationToken);
+
     public ValueTask<HostInteractionDecision> PresentMcpOnceAsync(HostRequest request, Mcp.McpReview review,
         CancellationToken cancellationToken) => transaction.RunAsync(request, "approval.mcp-once", snapshot =>
     {

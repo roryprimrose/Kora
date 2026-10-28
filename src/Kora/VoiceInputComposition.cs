@@ -11,7 +11,7 @@ internal static class VoiceInputComposition
     internal static void Configure(IServiceCollection services)
     {
         services.AddSingleton<WindowsVoiceRecognitionService>();
-        services.AddSingleton<IHandsFreeAudioStage, UnavailableHandsFreeAudioStage>();
+        services.AddSingleton<IHandsFreeAudioStage, WindowsHandsFreeAudioStage>();
         services.AddSingleton<HandsFreeVoiceRecognitionService>(provider => new(
             provider.GetRequiredService<WindowsVoiceRecognitionService>(),
             provider.GetRequiredService<IHandsFreeAudioStage>(),

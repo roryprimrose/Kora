@@ -202,6 +202,55 @@ It preserves `anthropic-version: 2023-06-01`, independently reviewed Count Token
 
 The [complete user contract](../docs/claude-requests.md#separately-qualified-native-text-streaming) owns inclusive cumulative byte/event/depth/token/deadline limits and native-only consent. Controlled progressive HTTP tests observe provisional output before terminal bytes, no early retention, revocation/cancellation and failed-disposal quarantine; they do not qualify a live provider or advertise stream availability ([transport tests](../tests/Kora.Windows.IntegrationTests/Dependencies/ClaudeMessagesRuntimeTests.Streaming.cs), [composed retention tests](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Streaming.cs)).
 
+### Native Codex stateless text investigation - 2026-10-28
+
+**Outcome: deferred, not implemented.** F08 admits an explicitly selected,
+distinct Codex service/account/model for one fresh original-user text-only turn,
+without inherited history, workspace context or native tools. Every physical
+content-bearing send requires host review of the exact final bytes, destination
+and account. This investigation delivered no Codex adapter, account producer
+or native transport; it establishes neither implementation nor enablement or
+qualification. No native binary, account login or live inference was exercised.
+
+The official source was inspected at
+[`rust-v0.165.0`](https://github.com/openai/codex/releases/tag/rust-v0.165.0),
+commit `360319d8dee62d87e2d59fc0c21805d79519cfed`:
+
+- The public app-server [server-request enum](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/app-server-protocol/src/protocol/common.rs#L1818)
+  has no final model-request body/destination approval callback. Command or
+  file approvals are not physical-send consent.
+- The native proxy [explicitly rejects body matching](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/network-proxy/src/mitm_hook.rs#L231)
+  as reserved for a future release. Its [policy request](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/network-proxy/src/network_policy.rs#L102)
+  supplies destination/command metadata, not complete body bytes; neither is
+  the required asynchronous final-byte review gate.
+- A real in-process [empty native tool ceiling](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/ext/extension-api/src/tool_policy.rs#L5)
+  exists, but [public thread parameters](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/app-server-protocol/src/protocol/v2/thread.rs#L62)
+  do not expose that policy. An empty dynamic-tools array, ephemeral thread,
+  read-only sandbox or approval policy alone does not establish the required
+  no-tools/no-inherited-context operation.
+
+Supported [custom CA configuration](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/http-client/src/custom_ca.rs#L185)
+makes a process-scoped .NET TLS intermediary technically plausible without
+compiling Codex. However, Kora would terminate credential-bearing native TLS.
+**The pending security decision is whether to authorize that mediation for the
+owned Codex process, without system-wide CA installation.** No approval was
+received or inferred. Approval would permit further engineering, not establish
+feasibility or qualify the complete operation.
+
+Any such design must preserve [native account-selected HTTPS routing](https://github.com/openai/codex/blob/360319d8dee62d87e2d59fc0c21805d79519cfed/codex-rs/model-provider/src/workspace_routing.rs#L40),
+native authentication/privacy boundaries, pre-effect tool denial, absence of
+implicit context/retention, independent consent for every physical content send
+including retries, and cancellation/disposal joining actual process/socket/
+callback work before reuse. A loopback base URL, response filtering or
+cancelled await is not proof of those guarantees.
+
+Until that decision and a compliant implementation exist, Codex remains
+unavailable; no fake-only adapter or Copilot/Claude/OpenAI API-key substitution
+completes F08. Rust is not a Kora integration blocker, and a new OAuth
+registration is not an established prerequisite. This is a version-pinned
+integration limitation and an unresolved trust decision, not a claim that
+Codex is permanently incapable. Existing provider contracts are unchanged.
+
 ### RT1 .NET outcome: selected source-built profile passes
 
 The separately implemented [native Ollama tool transport](Local_Inference.md#native-tool-message-transport-boundary)

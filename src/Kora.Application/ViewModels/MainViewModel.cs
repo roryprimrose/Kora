@@ -3024,6 +3024,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var closeDispatched = false;
         try
         {
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
             var conversationCurrent = await PrepareConversationShutdown();
             if (conversationCurrent is null) { return; }
@@ -3033,26 +3034,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (customizationShutdown is not null && !await customizationShutdown()) { return; }
             if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
             if (!await JoinSubmittedWorkShutdown(submitted)) { return; }
-            await ClosePromptPreparation();
-            await CloseAgentRun();
-            await CloseNamedSkillUse();
-            await CloseSharedSkillUse();
-            await CloseInstructionUse();
+            await CloseVoluntaryOperationsAsync();
             if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
             ApplicationLog.Information(logger, "Kora exit was requested");
             hostExitRequested = true;
             lifecycleAdmissionClosed = true;
-            speechPreparation?.Request(null);
-            if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
-#pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
-            await AppearanceUpdate;
-            await PreferenceUpdate;
-            await preferencePersistence;
-            await ApprovalPreparation;
-            await AuditPersistence;
-            await consentPersistence;
-            await outputCatalog.WaitForQuiescenceAsync();
-#pragma warning restore VSTHRD003
+            await JoinVoluntaryPreparationAsync();
             RetireWebResultDetails();
             await StopWebPageRetrievalAsync();
             await StopWebSummary();
@@ -3068,10 +3055,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
             }
-            await clipboardPreview.WaitForQuiescenceAsync();
-            if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
-            if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
-            if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
+            await JoinVolatileContextAsync();
             if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
             closeDispatched = true;
             WindowActionRequested?.Invoke(this, WindowAction.Close);
@@ -6063,10 +6047,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 await DisableListeningAsync(initiator);
                 break;
             case BuiltInAction.LockMachine:
+                if (bundledAction is not null)
+                {
+                    await InvokeBundledAction(bundledAction, Kora.Core.Skills.FixedSessionAction.Lock, initiator, observedCallRevision, sourceCurrent);
+                    break;
+                }
                 await LockCurrentSessionAsync(initiator, observedCallRevision);
                 break;
             case BuiltInAction.ProposeShutdown:
             case BuiltInAction.ProposeRestart:
+                if (bundledAction is not null)
+                {
+                    await InvokeBundledAction(bundledAction, command.Action == BuiltInAction.ProposeShutdown
+                        ? Kora.Core.Skills.FixedSessionAction.Shutdown : Kora.Core.Skills.FixedSessionAction.Restart,
+                        initiator, observedCallRevision, sourceCurrent);
+                    break;
+                }
                 var preparing = CreatePowerProposalAsync(command.Action, initiator);
                 ApprovalPreparation = ApprovalPreparation.IsCompleted ? preparing : Task.WhenAll(ApprovalPreparation, preparing);
                 if (!await preparing) { break; }
@@ -6078,12 +6074,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     "This bootstrap proves voice routing without executing disruptive power actions. No OS power request was sent.");
                 break;
             case BuiltInAction.CancelPowerAction:
+                if (bundledActionShutdown is not null)
+                {
+                    await bundledActionShutdown();
+                    ShowInformation("Bundled operation retired.", bundledActionStatus?.Invoke()
+                        ?? "No new native request can use the retired invocation. An already accepted Windows request cannot be undone.");
+                    break;
+                }
                 var hadPendingAction = await CancelPendingPowerAuditAsync("user-cancelled");
                 ShowInformation(
                     hadPendingAction ? "Power proposal cancelled." : $"No {AssistantName} power action is pending.",
                     "No operating-system action was sent.");
                 break;
             case BuiltInAction.ShowPowerStatus:
+                if (bundledActionStatus is not null)
+                {
+                    ShowInformation("Bundled operation status.", bundledActionStatus());
+                    break;
+                }
                 ShowInformation(
                     pendingPowerAction switch
                     {
@@ -6145,6 +6153,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         voluntaryShutdownRunning = true;
         try
         {
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
             var restartDispatched = false;
             var privacyRevision = privacyObservation.Current.TopologyRevision;
@@ -6190,11 +6199,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "submitted-work-release-unconfirmed");
                     return;
                 }
-                await ClosePromptPreparation();
-                await CloseAgentRun();
-                await CloseNamedSkillUse();
-                await CloseSharedSkillUse();
-                await CloseInstructionUse();
+                await CloseVoluntaryOperationsAsync();
                 await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                     && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.

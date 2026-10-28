@@ -134,7 +134,7 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
         }
     }
 
-    private void OpenExact(Window owner, NativeQuestionViewModel model)
+    private void OpenExact(Window? owner, NativeQuestionViewModel model)
     {
         model.RefreshEligibility();
         if (disposed || !model.IsEditable) { return; }
@@ -155,7 +155,8 @@ internal sealed partial class QuestionWindowController : IDisposable, IPendingQu
                 if (!running) { state = null; }
             }
         };
-        window.Show(owner);
+        if (owner is null) { window.Show(); }
+        else { window.Show(owner); }
         window.Activate();
     }
 

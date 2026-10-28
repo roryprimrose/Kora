@@ -917,10 +917,17 @@ These exact commands use the local clipboard preview workflow without a model:
 
 | Exact command | Result |
 |---|---|
-| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
-| **explain clipboard** / **explain the clipboard** | The same local preview, with explanation explicitly unavailable |
+| **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Require a clipboard read grant, then read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
+| **explain clipboard** / **explain the clipboard** | Review the immutable snapshot in its native preview; inference requires a separate confirmation and clipboard tool permission |
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
+
+Before any fresh read, the [host read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)
+validates a clipboard read grant. The native permission question offers Once,
+This session and Always; Cancel question denies without reading. Original input,
+built-in tool status and model-generated requests do not replace permission.
+A read grant does not authorize explanation; model use retains its separate
+grant and exact-snapshot confirmation.
 
 **clipboard snapshot status {snapshot-id}** reports only whether that exact
 currently admitted immutable snapshot is present, its host snapshot ID and its
@@ -955,9 +962,22 @@ reads are explicit; there is no truncation, queued retry, background watcher,
 URL fetch, HTML/image/file capture, clipboard write, history or persistence.
 Whitespace and line endings are preserved. Text is untrusted and may contain
 secrets; preview/reuse is neither execution authority nor transmission approval.
-Clipboard explanation is unavailable until qualified local tool-loop and
-clipboard-answering gates pass. Nothing reaches the current JSON selector,
-Ollama or a remote provider. See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
+For explanation, review the complete snapshot, check **I reviewed this exact text
+and confirm one local-only explanation**, then choose **Review and explain locally**.
+The permission question supports denial, **Once**, **This session** or **Always**.
+You are responsible for sensitive text you place in the clipboard; Kora does not
+classify or scan it. A reusable tool grant never replaces each snapshot's separate
+model confirmation. Session grants apply to the active clipboard explanation
+session; Always grants can be revoked through the existing grant controls.
+
+A qualified local runtime is required. The exact complete envelope must fit
+32768 UTF-8 bytes without truncation; review expires 15 minutes after capture,
+and each model envelope lasts at most 15 seconds. The genuine answer appears only
+in that snapshot's native preview after terminal task evidence. It is not saved,
+spoken, added to conversation history or sent to hosted/bootstrap fallback.
+Unavailable runtimes and denied, expired or changed authority produce explicit
+outcomes rather than a synthetic explanation.
+See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
 
 ## Window and application tasks
 
@@ -1670,10 +1690,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock my screen**
 - **lock this workstation**
 
-Locking is a real local action. Kora closes microphone capture before asking
-Windows to lock. This exact built-in command currently calls a C# handler
-without a confirmation prompt. A model-suggested lock requires approval
-unless that named action already has a session or always grant.
+Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
+Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
 
 ## Protected power-proposal tasks
 
@@ -1710,8 +1729,8 @@ unless that named action already has a session or always grant.
 - **is a restart pending**
 - **show pending power action**
 
-Shutdown and Windows restart are proposals in the current release. Kora shows
-the recognized request but does not send a power operation to Windows.
+Shutdown and Windows restart open the [exact bundled source review](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) and report unavailable until the contained runtime is independently qualified. No power operation is sent to Windows.
+The implemented boundary requires a package grant, separate original-channel confirmation, a visible cancellable 30-second countdown, physical resource joins and current one-use authority. Named model-action preferences cannot replace these decisions.
 
 ## Grant-management tasks
 

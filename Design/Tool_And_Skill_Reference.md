@@ -155,16 +155,14 @@ All bundled script invocations remain unavailable.
 
 `kora.session.lock` requests `session.lock`; proposed tool `computer.lock`.
 The [standalone work-session binding](Built_In_Skills.md#standalone-lock-work-session-binding)
-and [lock workflow](Built_In_Skills.md) own future admission. Current direct
-exact lock is native and ungated; model-suggested lock needs its existing
-action-specific approval/grant.
+and [lock workflow](Built_In_Skills.md) own admission. The [composed fixed owner](../src/Kora/BundledFixedActionController.cs) routes direct requests through exact package admission and reports unavailable while its runtime is unqualified; model suggestions open inspection only.
 
 ### Shut Down the Computer
 
 `kora.computer.shutdown` / `computer.shutdown`; model operation is proposal-only
 `computer.propose_shutdown`. [Power safety](Built_In_Skills.md) owns exact grants,
 fresh confirmation, single-use proposal expiry, countdown and pre-effect
-revalidation. Current commands display a non-executing proposal only.
+revalidation. Current commands open [source review](../src/Kora/SkillPackagesWindowController.cs) and report execution unavailable; no installed contained profile is qualified.
 
 ### Restart the Computer
 

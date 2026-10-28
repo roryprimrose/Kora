@@ -533,7 +533,9 @@ Windows through Kora. Always grants are stored in Kora's device-local
 Preferences folder and remain until revoked. These grants are action-name-only:
 they do not authorize a script, executable, or particular implementation
 version. They govern model-suggested disruptive actions, not direct exact
-built-in phrases (including lock). Any model-suggested action that requires
+built-in phrases. Windows lock/shutdown/restart instead use the separate
+[bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge);
+these named-action grants cannot enable its unavailable runtime. Any model-suggested action that requires
 approval can use any of the three scopes; the model cannot choose the scope
 for you.
 

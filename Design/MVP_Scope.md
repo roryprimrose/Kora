@@ -92,9 +92,11 @@ plain-text snapshot and immutable native preview, exact-ID reuse and
 revoke/clear are composed without a model. Reads are bounded to 256 KiB strict
 UTF-8 and denied/stale/unsupported/contended states are explicit. There is no
 background watcher, clipboard write/history/persistence or model egress.
-**Explain the clipboard** currently offers that preview and states that
-explanation is unavailable. Qualified local tool-loop/answering, complete
-secret/egress envelope controls and live clipboard acceptance remain open;
+**Explain the clipboard** offers that preview followed by separate exact-snapshot
+model confirmation and a tool permission grant. The
+[2026-10-28 decision](Decision_Register.md#clipboard-explanation-permission---2026-10-28)
+makes sensitive clipboard content the user's responsibility, without a clipboard
+classifier. Qualified local answering and live clipboard acceptance remain open;
 this is not the product outcome or completion of A0/A2.
 
 Slice A is delivered through independently accepted implementation checkpoints.
@@ -128,9 +130,9 @@ Optional frequent-speaker learning and owner-aware verification remain separatel
 7. Kora speaks a short summary using local text-to-speech.
 8. The user can stop speech, cancel the task, or ask a follow-up using the same approved snapshot.
 
-The bounded [clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) implements native review and an explicit unavailable production path. The required clipboard secret/sensitive-content source-use rule has no production implementation; [the composed policy](../src/Kora.Tools/Clipboard/UnavailableClipboardSourceUsePolicy.cs) refuses before model context or durable source-turn admission.
+The bounded [clipboard workflow](../src/Kora.Application/Context/ClipboardExplanationWorkflow.cs) implements native review, real tool permission-grant consumption and local-only model execution under the [approved clipboard policy](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07). The [composed permission policy](../src/Kora.Application/Context/ClipboardPermissionSourceUsePolicy.cs) fails closed when permission presentation, an actual grant or current authority is unavailable.
 Review/capture is not explanation success or egress approval; no hosted/bootstrap fallback or production model enablement is added. Answers remain volatile native-only text, not speech, transcripts or retained conversation bodies ([presentation](../src/Kora.Application/ViewModels/MainViewModel.Clipboard.cs)).
-The [clipboard context builder](../src/Kora.Core/Context/ClipboardExplanationContext.cs) adds structural credential refusals and full-envelope bounds after source-use acceptance. Deterministic fake-policy/provider [workflow tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.cs) validate execution plumbing, not delivered production explanations or comprehensive sensitive-content admission.
+The [clipboard context builder](../src/Kora.Core/Context/ClipboardExplanationContext.cs) enforces exact source provenance, local-only disclosure and full-envelope bounds after grant admission, without clipboard-specific sensitivity or credential analysis. Deterministic real-grant/fake-provider [consumer tests](../tests/Kora.Application.UnitTests/Context/ClipboardExplanationWorkflowTests.Permissions.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) validate operation completion, not production runtime qualification or comprehensive sensitive-content detection.
 
 Included:
 

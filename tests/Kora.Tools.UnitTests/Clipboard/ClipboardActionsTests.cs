@@ -24,7 +24,7 @@ public sealed class ClipboardActionsTests
             HostActivityLayer.Application, HostOperation.Request);
         var reader = new Reader();
         using var broker = new ClipboardSnapshotBroker(reader, TimeProvider.System, NullLogger<ClipboardSnapshotBroker>.Instance);
-        var read = new ClipboardRead(broker);
+        var read = new ClipboardRead(new ReadWorkflow(broker));
         var reuse = new ClipboardReuse(broker);
         var revoke = new ClipboardRevoke(broker);
         (await read.ExecuteAsync(() => false, TestContext.Current.CancellationToken)).Should().Be(ClipboardOutcome.Denied);
@@ -51,5 +51,12 @@ public sealed class ClipboardActionsTests
             Calls++;
             return Task.FromResult(new ClipboardReadResult(ClipboardOutcome.Captured, "inert untrusted text", 1));
         }
+
+    }
+
+    private sealed class ReadWorkflow(ClipboardSnapshotBroker broker) : IClipboardReadWorkflow
+    {
+        public Task<ClipboardOutcome> ReadAsync(Func<bool> eligible, CancellationToken token) =>
+            broker.CaptureAsync(eligible, token);
     }
 }

@@ -83,7 +83,7 @@ to the model availability above.
 | Understand an external tool connection | [MCP transport and availability](mcp-transport.md) |
 | Ask about a reviewed external-tool result | [MCP result follow-up](mcp-result-follow-up.md) |
 | Understand reviewed session-name sharing with a model | [Model session discovery](model-session-discovery.md) |
-| Understand future script execution, not a current feature | [Execution design](skill-and-task-execution-design.md) |
+| Understand why script execution is unavailable | [Execution design](skill-and-task-execution-design.md) |
 
 ## Reading results
 

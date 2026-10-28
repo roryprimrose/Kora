@@ -71,6 +71,32 @@ gated; authoritative questions/approvals and management surfaces are not redesig
 by this decision. The workspace contract records the exact delivered subset and
 deterministic evidence separately from renderer/provider/native qualification.
 
+## Clipboard explanation permission - 2026-10-28
+
+The product owner explicitly approved the built-in clipboard tool's permission
+grant as sufficient source-use authority, with denial, Once, Session and permanent
+approval scopes. The user is responsible for sensitive material placed in the
+clipboard and explicitly submitted to Kora; no clipboard-specific content
+classification or analysis is required. This supersedes the earlier requirement
+for an affirmative sensitivity classifier and does not add a separate user
+classification attestation.
+
+The [clipboard data-flow contract](Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)
+owns the exact boundary: each reviewed snapshot still requires its own one-use
+local-model confirmation, independent of the reusable tool grant. Local-only,
+no-tools execution, private volatile presentation, expiry, revocation, actual
+resource joins and independent runtime qualification remain mandatory.
+This advances approved model interaction and readable results; the host owns
+clipboard permission and native disclosure, not an extension-provided classifier.
+
+The user's clarification also requires a grant before the clipboard tool reads,
+not only before explanation. The [read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)
+consumes and revalidates a separate `clipboard.read` grant before native access.
+Original input and built-in implementation are not permission exemptions.
+Model-generated tool, skill, agent or script requests convey no execution authority;
+the host must validate applicable permission before execution, never execute a proposal as approval
+([grant rules](Internal_Model_Tools.md#grant-and-feedback-rules)).
+
 ## Decision inventory
 
 | ID | Decision | Owner | Due before | Status | Required evidence |
@@ -686,6 +712,30 @@ loading is blocked by absent compiler, and real Windows controls were not run.
 No typed broker/adapter substitution was selected. W1/W3/W4, protected runtime
 resolution, R11/R16 and installed R17 evidence remain outstanding; no ambient
 execution, general user-script exposure or production profile is authorized.
+
+### 2026-10-28 Accepted Script-Preserving Host Bridge
+
+The owner selected **A**, the narrowly typed script-to-host bridge, after explicitly retaining actual in-memory PowerShell execution and complete multi-file packages, including shared `.ps1` resources.
+This is not the earlier native-substitution alternative: the reviewed entry and helper scripts still execute. The existing [helper callback](../src/Kora.Definitions/Skills/session-control.ps1) motivates the cross-process boundary.
+
+The host may implement an authenticated request/receipt protocol for only the existing immutable bundled lock/shutdown/restart packages.
+A callback request is not authority: the host independently resolves the exact package, invocation and current grant, then applies original-request lineage, mandatory confirmation/authentication, privacy/channel, session/ownership, durable audit and required physical resource joins before an effect.
+
+Keep the complete declared script set and resource mapping exact, helpers separate and ordered, and shared-resource invalidation dependency-wide under the [package contract](Built_In_Skills.md#script-preserving-host-bridge).
+No script extraction, arbitrary executable text/path, general shell API, new account privilege, elevation, security-policy modification or unqualified runtime enablement is selected. No real shutdown/restart trial is authorized.
+
+The selection permits implementation, not a claim that the bridge, contained worker, native effects or qualification have been delivered.
+Unknown readiness remains unavailable under the [I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy); missing physical/lab evidence is not an implementation prerequisite. Request acceptance is not physical effect completion; uncertain outcomes never authorize automatic replay.
+
+Kora-owned/user skills, agent profiles and model proposals do not inherit this fixed callback capability.
+They retain the same host governance while executable source/profile admission remains separate; arbitrary generated/imported scripts remain [R27 scope](Implementation_Roadmap.md#optional-and-deferred-work). A declaration, source label or permission level cannot register an effect or turn model content into code.
+
+Residual risks include compromised worker messages, stale/replayed requests, shared-helper changes and effects whose completion cannot be observed.
+Reconsider here before broadening the effect set, source/profile admission, trust boundary or privilege activation. The [security contract](Security_Data_Flows.md#windows-containment-continuation-gates) and [acceptance criteria](Acceptance_Criteria.md#no-self-modification-gate) retain their independent enforcement and qualification requirements.
+
+**Accepted P1: existing shutdown privilege activation.** The owner explicitly selected P1: temporary activation of only the already-assigned shutdown privilege for the exact authorized host shutdown/restart operation, restoring prior state afterward.
+Windows documents that [shutdown/restart through `ExitWindowsEx`](https://learn.microsoft.com/en-us/windows/win32/api/winuser/nf-winuser-exitwindowsex#remarks) requires enabling `SE_SHUTDOWN_NAME` with `AdjustTokenPrivileges`.
+Do not grant an account right, elevate, change policy or transfer privilege to a worker. Prefer a private duplicate of the host's effective token so concurrent host work never acquires the temporarily enabled right. Missing authority or failed activation/restoration must be reported explicitly; no shell fallback, retry or real power trial is authorized.
 
 ## Decision Completion
 

@@ -8,7 +8,6 @@ public enum ClipboardExplanationOutcome
     Denied,
     Stale,
     Expired,
-    CredentialRejected,
     EnvelopeRejected,
     Unavailable,
     Cancelled,

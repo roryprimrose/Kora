@@ -1,6 +1,9 @@
 using Avalonia.Threading;
 using Kora.Application.ViewModels;
 using Kora.Core.Context;
+using Kora.Core.Authorization;
+using Kora.Core.Hosting;
+using Kora.Core.Interaction;
 
 namespace Kora;
 
@@ -57,6 +60,18 @@ internal sealed class ClipboardPreviewWindowController : IDisposable
             clear();
             reportFailure("Native clipboard preview unavailable. No review or reuse is claimed; start a new explicit request.");
         }
+    }
+
+    internal Task<HostInteractionDecision> RequestPermissionAsync(QuestionWindowController questions,
+        HostOperationProposal proposal, HostRevision generation, Func<bool> admitted, CancellationToken token)
+    {
+        var view = window;
+        var snapshot = showing;
+        if (disposed || view is not Avalonia.Controls.Window owner || snapshot is null)
+        { throw new InvalidOperationException("The original clipboard snapshot preview is unavailable."); }
+        bool Current() => !disposed && ReferenceEquals(window, view) && ReferenceEquals(showing, snapshot)
+            && ReferenceEquals(current(), snapshot) && admitted();
+        return questions.RequestClipboardPermissionAsync(owner, proposal, generation, Current, token);
     }
 
     internal void Refresh()

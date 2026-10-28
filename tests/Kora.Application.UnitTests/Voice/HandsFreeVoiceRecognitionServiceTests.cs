@@ -11,6 +11,34 @@ namespace Kora.Application.UnitTests.Voice;
 public sealed partial class HandsFreeVoiceRecognitionServiceTests
 {
     [Fact]
+    public async Task Native_gate_rechecks_live_admission_exclusion_generation_and_cancellation_without_a_policy_event()
+    {
+        var stage = new Stage();
+        await using var voice = Create(new(), stage);
+        HandsFreeVoiceAdmission? current = Admission;
+        var allowed = true;
+        voice.Bind(() => current, static (_, _) => Task.CompletedTask, () => allowed,
+            getRecognitionPhrases: static () => ["session help"]);
+        await voice.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
+        var first = await stage.NextAsync();
+        first.Binding.CanCapture().Should().BeTrue();
+        first.Binding.CommandPhrases.Should().Equal("session help");
+        allowed = false;
+        first.Binding.CanCapture().Should().BeFalse();
+        allowed = true;
+        current = Admission with { AssistantName = "Nova" };
+        first.Binding.CanCapture().Should().BeFalse();
+        current = Admission;
+        first.Binding.CanCapture().Should().BeTrue();
+        first.Wake.SetResult(new(first.Binding.Generation, 3, true));
+        first.Result.SetResult(null);
+        var second = await stage.NextAsync();
+        first.Binding.CanCapture().Should().BeFalse();
+        second.Binding.CanCapture().Should().BeTrue();
+        await voice.StopAsync(TestContext.Current.CancellationToken);
+        second.Binding.CanCapture().Should().BeFalse();
+    }
+    [Fact]
     public async Task ExistingCaptureAdaptersDoNotImplyQualifiedSpeechInterruption()
     {
         await using var voice = Create(new Activated(), new Stage());

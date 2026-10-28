@@ -48,7 +48,8 @@ public sealed partial class ClipboardSnapshotBroker(
         }
     }
 
-    public async Task<ClipboardOutcome> CaptureAsync(Func<bool> canPresent, CancellationToken cancellationToken)
+    public async Task<ClipboardOutcome> CaptureAsync(Func<bool> canPresent, CancellationToken cancellationToken,
+        Func<CancellationToken, Task>? validatePermission = null)
     {
         var request = HostActivity.RequireCurrent().Request;
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Tool);
@@ -86,7 +87,15 @@ public sealed partial class ClipboardSnapshotBroker(
         {
             Changed?.Invoke(this, EventArgs.Empty);
             cancellation.Token.ThrowIfCancellationRequested();
+            if (validatePermission is not null)
+            {
+                await validatePermission(cancellation.Token).ConfigureAwait(false);
+                cancellation.Token.ThrowIfCancellationRequested();
+                if (!canPresent()) { throw new InvalidOperationException("Clipboard read authority changed."); }
+            }
             var read = await reader.ReadAsync(cancellation.Token).ConfigureAwait(false);
+            if (read.ResourcesReleased && validatePermission is not null)
+            { await validatePermission(cancellation.Token).ConfigureAwait(false); }
             lock (sync)
             {
                 if (!read.ResourcesReleased)

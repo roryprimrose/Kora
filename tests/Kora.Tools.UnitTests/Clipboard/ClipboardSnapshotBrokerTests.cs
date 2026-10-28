@@ -27,6 +27,36 @@ public sealed class ClipboardSnapshotBrokerTests : IDisposable
     }
     public void Dispose() => listener.Dispose();
 
+    [Theory]
+    [InlineData("permission", 0)]
+    [InlineData("eligibility", 0)]
+    [InlineData("cancel", 0)]
+    [InlineData("readback", 1)]
+    public async Task AsyncPermissionIsRevalidatedBeforeReadAndPublication(string change, int reads)
+    {
+        var reader = new Reader();
+        using var service = Service(reader);
+        using var host = Host();
+        using var cancellation = new CancellationTokenSource();
+        var current = true;
+        var validations = 0;
+        Task Validate(CancellationToken token)
+        {
+            validations++;
+            if (change is "permission" || (change is "readback" && validations == 2))
+            { throw new InvalidOperationException("Synthetic revoked authority"); }
+            if (change is "eligibility") { current = false; }
+            if (change is "cancel") { cancellation.Cancel(); }
+            return Task.CompletedTask;
+        }
+        (await service.CaptureAsync(() => current, cancellation.Token, Validate))
+            .Should().Be(change is "cancel" ? ClipboardOutcome.Cancelled : ClipboardOutcome.Unavailable);
+        reader.Calls.Should().Be(reads);
+        service.Current.Should().BeNull();
+        await service.WaitForQuiescenceAsync();
+        service.IsQuiescent.Should().BeTrue();
+    }
+
     [Fact]
     public async Task Explicit_capture_and_same_id_reuse_never_refresh_text_or_transmit_content()
     {
@@ -238,16 +268,18 @@ public sealed class ClipboardSnapshotBrokerTests : IDisposable
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task Failed_native_release_is_latched_and_never_claims_clean_quiescence_or_retries(bool duringCancel)
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task Failed_native_release_is_latched_and_never_claims_clean_quiescence_or_retries(bool duringCancel, bool permission)
     {
         var reader = new Reader { Result = new(ClipboardOutcome.Captured, "must not present", 1, ResourcesReleased: false) };
         var service = Service(reader);
         using var host = Host();
         service.IsQuiescent.Should().BeTrue();
         if (duringCancel) { reader.Completion = new(TaskCreationOptions.RunContinuationsAsynchronously); }
-        var capture = service.CaptureAsync(() => true, CancellationToken.None);
+        var capture = service.CaptureAsync(() => true, CancellationToken.None, permission ? _ => Task.CompletedTask : null);
         var wait = service.WaitForQuiescenceAsync();
         if (duringCancel)
         {

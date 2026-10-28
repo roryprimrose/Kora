@@ -363,7 +363,10 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .Single(page => string.Equals(page.Id, "tools-and-built-in-skills", StringComparison.Ordinal));
 
         page.Title.Should().Be("Tools and built-in skills: current and planned");
-        page.Markdown.Should().Contain("No script-backed built-in skill executor ships in the current release.");
+        page.Markdown.Should().Contain("The fixed bundled script executor is implemented but unavailable")
+            .And.Contain("installed contained profile is qualified")
+            .And.Contain("Model suggestions open inspection only")
+            .And.Contain("There is no legacy native-lock fallback");
         page.Markdown.Should().Contain("### Lock the machine");
         page.Markdown.Should().Contain("### Shut down the computer");
         page.Markdown.Should().Contain("### Restart the computer");

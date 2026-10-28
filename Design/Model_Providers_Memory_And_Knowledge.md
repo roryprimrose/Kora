@@ -67,10 +67,16 @@ deterministic adapter/native tests establish implementation, not enablement or
 provider/physical qualification. See the [complete interaction](../docs/reviewed-context.md#answer-the-original-question-after-a-model-history-advisory)
 and [shared host route](../src/Kora.Application/Hosting/SessionConversationService.History.cs).
 
-Kora supports qualified local inference through Ollama and separately
-qualified hosted inference through GitHub Copilot, Anthropic Claude, and
-OpenAI Codex. It does not require every user or session to use local and hosted
+Kora's provider contract admits qualified local inference through Ollama and
+independently qualified hosted inference through GitHub Copilot, Anthropic
+Claude, and OpenAI Codex. It does not require every user or session to use local and hosted
 inference, or to configure every hosted service.
+
+These are approved provider identities, not a claim that every adapter is
+implemented or enabled. The [Codex stateless-text investigation](Runtime_Provider_Feasibility.md#native-codex-stateless-text-investigation---2026-10-28)
+is deferred, with no native adapter/account producer/transport delivered and
+no qualification. Process-scoped TLS mediation remains an unapproved design
+option, not an available feature.
 
 Provider choice is explicit and host-owned:
 
@@ -128,7 +134,7 @@ Exact native aliases/schemas and call IDs translate to portable proposals, never
 Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
-not as interchangeable names for a model. Each has its own adapter,
+not as interchangeable names for a model. Each requires its own adapter,
 authentication/account state, terms and usage boundary, capability catalogue,
 qualification evidence, and availability. Enabling or signing in to one never
 enables another.
@@ -373,8 +379,8 @@ blocked.
 
 ### Adapter and qualification boundary
 
-Copilot, Claude, and Codex adapters implement the same provider-neutral turn
-protocol and catalogue contract, but qualify independently. Each must prove:
+Each Copilot, Claude, or Codex adapter must implement the same provider-neutral
+turn protocol and catalogue contract, but qualify independently. Each must prove:
 
 - final outbound request/context mediation, host-only tool authorization and
   sanitized tool-result continuation;

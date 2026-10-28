@@ -302,6 +302,9 @@ public sealed partial class App : Avalonia.Application
             viewModel.BindSessionProviderProfiles(Services.GetRequiredService<Kora.Application.Configuration.SessionProviderProfileConfigurationService>());
             viewModel.BindMemoryCommands(memories);
             clipboardWindow = new ClipboardPreviewWindowController(viewModel);
+            Services.GetRequiredService<Kora.Application.Context.ClipboardPermissionSourceUsePolicy>()
+                .BindPresenter((proposal, generation, current, token) =>
+                    clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
             if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
             { copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
                 Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>()); }

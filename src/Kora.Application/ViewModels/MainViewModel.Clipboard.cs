@@ -93,7 +93,7 @@ public sealed partial class MainViewModel
             ShowInformation("Local clipboard preview: " + outcome,
                 DescribeClipboardOutcome(outcome) + " Explicit plain-text snapshot only (256 KiB UTF-8 maximum); no truncation, clipboard write or history. "
                 + "Reuse requires the same snapshot ID; clear/revoke discards it. Clipboard changes never replace an existing snapshot. "
-                + "Explanation requires explicit native review, implemented clipboard source-use policy and a qualified local runtime; capture is not explanation success. "
+                + "Explanation requires explicit native review, a clipboard tool permission grant and a qualified local runtime; capture is not explanation success. "
                 + "Preview is not egress approval. Text may contain secrets; no safety/redaction claim is made.");
         }
 
@@ -106,13 +106,12 @@ public sealed partial class MainViewModel
             result.Outcome switch
             {
                 ClipboardExplanationOutcome.ReviewRequired =>
-                    "Review this exact snapshot in the native preview, then request policy-gated admission with Review and explain locally. "
+                    "Review this exact snapshot in the native preview, then confirm one use with Review and explain locally. "
                     + "This does not approve egress. A qualified local runtime is required; there is no hosted or bootstrap fallback. "
-                    + "Production explanation is unavailable until the required clipboard secret/sensitive-content source-use policy is implemented.",
+                    + "A clipboard tool permission grant is required (deny, Once, This session or Always). "
+                    + "You are responsible for sensitive clipboard text; no clipboard-specific content analysis is performed.",
                 ClipboardExplanationOutcome.Succeeded =>
                     "The admitted local response is available only in the exact native snapshot preview. It is not saved or spoken.",
-                ClipboardExplanationOutcome.CredentialRejected =>
-                    "Structural credential screening refused this text. Nothing was sent. Screening is best-effort, not a secret-free guarantee.",
                 ClipboardExplanationOutcome.EnvelopeRejected =>
                     "The complete local context envelope was refused. Select a smaller source yourself; nothing was truncated or sent.",
                 ClipboardExplanationOutcome.Expired =>
@@ -126,10 +125,9 @@ public sealed partial class MainViewModel
                 ClipboardExplanationOutcome.Denied =>
                     "Original user input, ownership, privacy or call policy does not admit this local explanation.",
                 ClipboardExplanationOutcome.SourceUsePolicyUnavailable =>
-                    "Explanation is unavailable: the required clipboard secret/sensitive-content source-use policy is not implemented. "
-                    + "No model context was constructed or sent. Explicit consent and credential heuristics do not satisfy this rule.",
+                    "Clipboard tool permission admission is unavailable. No model context was constructed or sent.",
                 ClipboardExplanationOutcome.SourceUseDenied =>
-                    "The clipboard source-use policy refused this exact snapshot. No model context was constructed or sent.",
+                    "Clipboard tool permission was denied, revoked or no longer applicable. No model context was constructed or sent.",
                 _ => "Explanation is unavailable. No qualified local response was produced; no hosted or bootstrap fallback was used. "
                     + (result.CaptureOutcome is { } capture ? DescribeClipboardOutcome(capture) : "Model admission reason: " + result.ModelReason),
             });

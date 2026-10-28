@@ -989,6 +989,15 @@ uses inert native plain text, not Markdown/HTML parsing or the document viewer's
 copy controls. It has exact-ID reuse, revoke/clear and native literal Find. Closing it revokes
 the selected snapshot. It does not authorize explanation or model transmission.
 
+To explain it, separately confirm **I reviewed this exact text and confirm one
+local-only explanation**, then choose **Review and explain locally**. The built-in
+tool's permission question supports denial, Once, This session and Always.
+You are responsible for sensitive clipboard text; there is no clipboard-specific
+classification or scanning. Each new explanation still needs exact-snapshot
+confirmation even with a reusable grant. A qualified local runtime is required;
+the answer appears only here, remains volatile and is never automatically spoken.
+There is no hosted/bootstrap fallback.
+
 **Wrap snapshot text** soft-wraps only the original source body to the available
 width. It starts unchecked (the existing unwrapped view); uncheck it to scroll
 long lines horizontally. Resizing and reader text scaling change visual lines,

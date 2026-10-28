@@ -5,6 +5,8 @@ commit `511126b492dcb267cf30d49d631946d7b61a9530`. It is application code, not a
 optional executable download. The complete upstream licence, including incorporated
 code notices, is in [pocketsphinx-licence.txt](pocketsphinx-licence.txt) and is
 copied beside the DLL in build/publish output.
+The payload is included only in Windows x64 and RID-less development outputs,
+not in the unsupported x86 distribution.
 
 The frozen DLL is 668,672 bytes, SHA-256
 `725609787580AA759A9D9A62B1A7E6136408346D159D9E4681AFA1AF9FFAE69B`.

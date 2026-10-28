@@ -133,7 +133,8 @@ internal sealed partial class BundledFixedActionController : IDisposable
                 && main.CanRevealPrivatePresentation && main.IsSkillReviewCallEligible && sources.IsReviewing(script.Package);
             if (!Current()) { throw new InvalidOperationException("The original package review is not current."); }
             if (worker.QualifiedImplementationDigest is null)
-            { throw new InvalidOperationException("The contained PowerShell runtime and typed bridge are not qualified on this installation. Review is available; execution and grants remain unavailable."); }
+            { throw new InvalidOperationException("The contained PowerShell runtime and typed bridge are not qualified on this installation. "
+                + sources.RuntimeDescription + " Review is available; execution and grants remain unavailable."); }
             record = await store.RecordControlIntentAsync(control, cancellation.Token);
             var session = target ?? await store.CreateBundledControlSessionAsync(control, Current, cancellation.Token);
             record = await store.AdmitBundledControlDispatchAsync(control, session.Generation, Current, cancellation.Token);

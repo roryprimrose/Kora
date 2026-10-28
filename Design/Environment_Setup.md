@@ -154,6 +154,52 @@ Internal initialisation must not touch shared skills, source repositories, or ex
 On storage/migration failure, report the affected capability and preserve recoverable data; never silently create a second database elsewhere.
 Schema changes need backup/recovery and downgrade compatibility appropriate to the migration.
 
+## Bundled Contained-Runtime Registration
+
+The bounded native operation is **Settings > Skill packages > Runtime setup
+and readiness**. It inspects only the existing host-selected
+`Program Files\PowerShell\7\pwsh.exe`, not PATH, an artifact/model path, an
+arbitrary picker or the legacy winget/version-probe service. No acquisition
+distribution has been selected for this operation. It never installs,
+downloads, launches, extracts scripts, changes protection or removes runtime
+files.
+
+The [production inspector](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeInstallationInspector.cs)
+hashes the bounded complete local file inventory, checks declared runtime,
+native and resource assets, required self-contained host/engine files and
+framework metadata, rejects reparse paths and unprivileged mutation, and
+obtains current native version/PE/publisher/device observations. Microsoft
+Authenticode uses cached trust only; local companion hashes are not an
+upstream authenticated release manifest, fresh revocation proof or a complete
+external OS-loader closure. Review discloses every file/size/hash, executable,
+source limitations, installed licence/notices, existing storage and zero
+download/native-installation/staging costs.
+
+An original-user native review authorizes exactly one Prepare, Verify or
+Forget-registration operation, bound to current package review, host ownership,
+privacy/call revision, request identity and expiry. The
+[setup owner](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeSetup.cs)
+retains exclusive ownership across cancellation and actual I/O joins. It uses
+the shared atomic preference store for separate inventory registration and
+pending-journal records, correlated requested/terminal audit, native
+reinspection and exact readback. An interrupted or failed audit/readback
+retains unconfirmed reconciliation state; Verify can reconcile a matching pin,
+but cannot silently rebaseline changed bytes/device. Forget removes Kora's
+records only, even when the shared installation is broken. Malformed saved
+records throw `InvalidDataException` and require restoration or explicit local
+record removal; they are not missing installations or another runtime choice.
+
+Reconstructed owners re-read both records and the native installation.
+**Prepared** means only a matching protected local inventory. Changed,
+other-device, unconfirmed, missing and uninspected states remain distinct.
+The [worker composition](../src/Kora/BundledRuntimeSetup/BundledRuntimeSetupComposition.cs)
+consumes this owner, but setup cannot populate release-owned profile
+admissions. No contained profile is admitted in this release: W1-W4/exact
+installed containment and fixed-effect qualification remain unavailable.
+Execution/grants and separate original-user package/native-effect consent are
+unchanged. Deterministic native-platform fakes and headless UI tests are
+implementation evidence, not installed-runtime or real power trials.
+
 ## Ollama and Existing User Installations
 
 Ollama is optional, not a requirement for users selecting remote processing or

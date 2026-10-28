@@ -17,6 +17,92 @@ namespace Kora.Windows.IntegrationTests.Storage;
 
 public sealed class WindowsSqliteSessionDispositionTests
 {
+    [Theory]
+    [InlineData("locked")]
+    [InlineData("short")]
+    [InlineData("hot")]
+    [InlineData("copy")]
+    public async Task Post_commit_cleanup_failure_never_returns_a_receipt_or_promises_rollback(string fault)
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var preview = await fixture.Store.PreviewDispositionAsync(fixture.Request.SessionId, new(1), 0, fixture.Token);
+        fixture.Request = InteractionStorageFixture.NewRequest(fixture.Request.SessionId);
+        await fixture.RunAsync(async () => await fixture.Tasks.CommitAsync(
+            new(fixture.Request, new(1), HostTaskState.IntentRecorded), 0, fixture.Token));
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        var directory = new RestrictedStorageDirectory(fixture.Paths, includeKeys: false, partitionName: HostInteractionSchema.Partition);
+        var copy = Path.Combine(directory.Artifacts, "post-commit-owned-copy");
+        FileStream? pin = null;
+        var injected = false;
+        checkpoint.Commit = (connection, _) =>
+        {
+            connection.StateChange += (_, state) =>
+            {
+                if (state.CurrentState != System.Data.ConnectionState.Closed) { return; }
+                injected = true;
+                switch (fault)
+                {
+                    case "locked":
+                        pin = new FileStream(fixture.DatabasePath + "-journal", FileMode.Open, FileAccess.Read, FileShare.Read);
+                        break;
+                    case "short": File.WriteAllBytes(fixture.DatabasePath + "-journal", [0]); break;
+                    case "hot": File.WriteAllBytes(fixture.DatabasePath + "-journal", [1, 2, 3, 4, 5, 6, 7, 8]); break;
+                    case "copy":
+                        using (var artifact = directory.CreateNewFile(copy))
+                        {
+                            artifact.WriteByte(1);
+                            artifact.Flush(flushToDisk: true);
+                        }
+                        break;
+                }
+            };
+        };
+        try
+        {
+            var removal = () => fixture.RunAsync(() => fixture.Store.DisposeSessionAsync(fixture.Request, preview, () => true, fixture.Token));
+            await removal.Should().ThrowAsync<IOException>().WithMessage("*committed*unconfirmed*do not infer rollback*");
+            injected.Should().BeTrue();
+        }
+        finally
+        {
+            pin?.Dispose();
+            checkpoint.Commit = null;
+            // Remove only the injected fixture fault, not the already committed disposition.
+            if (File.Exists(copy)) { File.Delete(copy); }
+            using var journal = new FileStream(fixture.DatabasePath + "-journal", FileMode.Open, FileAccess.Write, FileShare.None);
+            journal.SetLength(0);
+            journal.Flush(flushToDisk: true);
+        }
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        (await fixture.Store.ReadSessionAsync(fixture.Request.SessionId, fixture.Token))!.Generation.Value.Should().Be(2);
+        (await fixture.Tasks.ReadTaskAsync(fixture.Request.TaskId, fixture.Token))!.State.Should().Be(HostTaskState.Succeeded);
+        var replay = () => fixture.RunAsync(() => fixture.Store.DisposeSessionAsync(fixture.Request, preview, () => true, fixture.Token));
+        await replay.Should().ThrowAsync<InvalidDataException>().WithMessage("*nonterminal intent*");
+    }
+
+    [WindowsFact]
+    public async Task Uninventoried_copy_holds_even_a_counter_empty_disposition_before_mutation()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var service = WindowsSqliteSessionWorkspaceTests.Service(fixture, new());
+        await service.RenameAsync(fixture.Request.SessionId, new(1), 0, new("Kept private name"), RequestOrigin.LocalUi, fixture.Token);
+        var preview = await PreviewAsync(fixture, service, 1);
+        var directory = new RestrictedStorageDirectory(fixture.Paths, includeKeys: false, partitionName: HostInteractionSchema.Partition);
+        var copy = Path.Combine(directory.Artifacts, "uninventoried-disposition-copy");
+        await StorageFilePublication.WriteStagingAsync(directory, copy, File.ReadAllBytes(fixture.DatabasePath),
+            StoragePublicationKind.Artifact, null, fixture.Token);
+        var removal = () => service.ConfirmDispositionAsync(preview, RequestOrigin.LocalUi, () => true, fixture.Token);
+        await removal.Should().ThrowAsync<InvalidDataException>();
+        File.Exists(copy).Should().BeTrue();
+        (await fixture.Store.ReadMetadataAsync(fixture.Request.SessionId, fixture.Token)).Should().Be(preview.Session);
+    }
+
     [WindowsFact]
     public async Task Clear_or_unavailable_automatic_state_with_uncertain_manual_evidence_cannot_admit_disposition()
     {

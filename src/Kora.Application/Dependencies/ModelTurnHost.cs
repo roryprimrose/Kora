@@ -405,7 +405,6 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (turn.ResourceLease is { } resource && !resources.IsCurrent(resource))
         { return ModelTurnReason.QualificationPending; }
         if (!ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
-        await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
@@ -413,6 +412,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
             token).ConfigureAwait(false);
+        await ValidateConsumerSourceAsync(turn, token).ConfigureAwait(false);
         token.ThrowIfCancellationRequested();
         if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         if (session.Authority.SessionId != turn.Provenance.Request.SessionId || !session.Authority.IsActive

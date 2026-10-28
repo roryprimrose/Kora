@@ -12,6 +12,27 @@ public sealed class HostAuthorizationServiceTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ToolGrantRequiresActualUserApprovalEvenUnderApproveAll(bool eligible)
+    {
+        using var fixture = new InteractionFixture();
+        fixture.Store.Change(snapshot => snapshot with
+        {
+            Policy = snapshot.Policy with { OtherMandatoryGatesSatisfied = eligible },
+            Permission = new(snapshot.Session.SessionId, snapshot.Session.Generation, new(1),
+                Kora.Core.Authorization.SessionPermission.SessionPermissionLevel.ApproveAll),
+        });
+        var spec = new QuestionSpec("Allow the tool?", QuestionKind.SingleChoice,
+            [new("once", "Once"), new("session", "This session"), new("perpetual", "Always")]);
+        var decision = await fixture.RunAsync(() =>
+            fixture.Authorization.RequestGrantAsync(fixture.Request, spec, TestContext.Current.CancellationToken));
+        decision.Outcome.Should().Be(eligible ? HostInteractionOutcome.Presented : HostInteractionOutcome.Denied);
+        fixture.Store.Snapshot.Grants.Should().BeEmpty();
+        fixture.Store.Snapshot.Admissions.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task WebRequestsFailClosedWithoutAnExactProposalOrPreapprovalPolicy(bool missingProposal)
     {
         var address = new Uri("https://example.com/page");

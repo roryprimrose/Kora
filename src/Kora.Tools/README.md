@@ -23,7 +23,7 @@ helpers and brokers are not separately advertised actions.
 | [Capabilities](Capabilities) | [CapabilitiesList](Capabilities/CapabilitiesList.cs), [CapabilitiesGet](Capabilities/CapabilitiesGet.cs) | [ReadOnlyPage](Capabilities/ReadOnlyPage.cs) and Core descriptor catalogue. |
 | [Readiness](Readiness) | [ReadinessGet](Readiness/ReadinessGet.cs) | [RecordedDependencyObservation](Readiness/RecordedDependencyObservation.cs). |
 | [Runtime](Runtime) | [RuntimeList](Runtime/RuntimeList.cs), [RuntimeGetStatus](Runtime/RuntimeGetStatus.cs) | [RecordedRuntimeObservation](Runtime/RecordedRuntimeObservation.cs), reusing the readiness projection. |
-| [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy. |
+| [Clipboard](Clipboard) | [ClipboardRead](Clipboard/ClipboardRead.cs), [ClipboardReuse](Clipboard/ClipboardReuse.cs), [ClipboardRevoke](Clipboard/ClipboardRevoke.cs), [ClipboardExplain](Clipboard/ClipboardExplain.cs) | [ClipboardSnapshotBroker](Clipboard/ClipboardSnapshotBroker.cs) owns the snapshot and lifecycle policy; Application owns permission-granted local explanation. |
 | [Files](Files) | [LocalFilePreview](Files/LocalFilePreview.cs), [LocalFileSearch](Files/LocalFileSearch.cs) | The existing preview owns admission/revocation and quiescence; Core `ILocalFileRetrieval` / `LocalFileLexicalRetrieval` own the bounded deterministic lexical policy. |
 | [Network](Network) | `WebPageGet`, `PreapprovedUriList`, `PreapprovedUriAdd`, `PreapprovedUriRemove`, `PreapprovedUriClear` | `WebPageGet` owns bounded redirect-aware retrieval over a pinned-address transport. Core owns URI/network validation and matching; Application owns configuration, native routing and authorization integration. |
 
@@ -66,8 +66,12 @@ and desktop controls use the same actions.
 
 [Clipboard policy](../../Design/Security_Data_Flows.md#delivered-r07-local-clipboard-preview---2026-10-07)
 owns immutable reuse/revoke, exact bounds and privacy/quiescence requirements.
-No clipboard write or model submission is delivered; preview is not transmission
-consent. Do not create separate provider or view-model implementations.
+No clipboard write is delivered; preview is not model consent.
+`ClipboardExplain` delegates to the composed Application workflow, which requires
+an actual tool permission grant and separate exact-snapshot confirmation before
+local-only, no-tools model dispatch. Content is the user's responsibility, not a
+clipboard classifier's decision. Missing runtime qualification remains unavailable.
+Do not create separate provider or view-model implementations.
 
 ### Preapproved network addresses
 

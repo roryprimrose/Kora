@@ -902,7 +902,7 @@ These exact commands use the local clipboard preview workflow without a model:
 | Exact command | Result |
 |---|---|
 | **preview clipboard** / **preview the clipboard** / **snapshot clipboard** | Read one fresh bounded Unicode plain-text snapshot and open its immutable native preview |
-| **explain clipboard** / **explain the clipboard** | The same local preview, with explanation explicitly unavailable |
+| **explain clipboard** / **explain the clipboard** | Review the immutable snapshot in its native preview; inference requires a separate confirmation and clipboard tool permission |
 | **reuse clipboard snapshot {exact snapshot ID}** | Reopen/select that same snapshot only; never reread or silently substitute changed clipboard text |
 | **clear clipboard preview** / **revoke clipboard snapshot** | Discard Kora's snapshot and preview, not the Windows clipboard |
 
@@ -939,9 +939,22 @@ reads are explicit; there is no truncation, queued retry, background watcher,
 URL fetch, HTML/image/file capture, clipboard write, history or persistence.
 Whitespace and line endings are preserved. Text is untrusted and may contain
 secrets; preview/reuse is neither execution authority nor transmission approval.
-Clipboard explanation is unavailable until qualified local tool-loop and
-clipboard-answering gates pass. Nothing reaches the current JSON selector,
-Ollama or a remote provider. See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
+For explanation, review the complete snapshot, check **I reviewed this exact text
+and confirm one local-only explanation**, then choose **Review and explain locally**.
+The permission question supports denial, **Once**, **This session** or **Always**.
+You are responsible for sensitive text you place in the clipboard; Kora does not
+classify or scan it. A reusable tool grant never replaces each snapshot's separate
+model confirmation. Session grants apply to the active clipboard explanation
+session; Always grants can be revoked through the existing grant controls.
+
+A qualified local runtime is required. The exact complete envelope must fit
+32768 UTF-8 bytes without truncation; review expires 15 minutes after capture,
+and each model envelope lasts at most 15 seconds. The genuine answer appears only
+in that snapshot's native preview after terminal task evidence. It is not saved,
+spoken, added to conversation history or sent to hosted/bootstrap fallback.
+Unavailable runtimes and denied, expired or changed authority produce explicit
+outcomes rather than a synthetic explanation.
+See [privacy](privacy-safety-and-logs.md#clipboard-snapshots).
 
 ## Window and application tasks
 

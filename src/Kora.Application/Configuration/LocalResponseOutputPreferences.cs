@@ -78,6 +78,8 @@ public sealed class LocalResponseOutputPreferences : IResponseOutputPreferences
         ApplicationLog.Information(logger, "Saved the default response output mode");
     }
 
+    public void ResetDefaultMode() => store.Delete(DefaultModeFileName);
+
     public bool? LoadMutedOutputVisualFallback()
     {
         var contents = store.ReadText(MutedOutputFallbackFileName);

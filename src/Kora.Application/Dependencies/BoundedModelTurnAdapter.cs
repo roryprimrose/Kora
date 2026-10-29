@@ -121,12 +121,14 @@ internal sealed partial class BoundedModelTurnAdapter(
         var outputBytes = 0;
         var calls = 0;
         var started = time.GetUtcNow();
+        var deadline = context.ToolMode == ModelToolMode.HostedClarification
+            ? HostedTurnAuthorization.MaximumDuration : ModelToolProtocol.Deadline;
         var inputLimit = context.Constraints?.InputUtf8Bytes ?? ModelToolProtocol.MaximumInputUtf8Bytes;
         var outputLimit = context.Constraints?.OutputUtf8Bytes ?? ModelToolProtocol.MaximumOutputUtf8Bytes;
         var callLimit = context.WebPages?.MaximumCalls ?? context.Constraints?.MaximumCalls ?? ModelToolProtocol.MaximumCalls;
         for (var round = 1; ; round++)
         {
-            var denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
+            var denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
             if (denied is not null) { return denied; }
             ModelToolRequest request;
             if (inputBytes >= inputLimit || outputBytes >= outputLimit
@@ -150,7 +152,7 @@ internal sealed partial class BoundedModelTurnAdapter(
                     {
                         update.Validate();
                         if (update.Provenance != provenance
-                            || await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false) is not null)
+                            || await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false) is not null)
                         { throw new InvalidDataException("Provisional answer admission changed."); }
                         updateToken.ThrowIfCancellationRequested();
                         await publish(update, token).ConfigureAwait(false);
@@ -159,7 +161,7 @@ internal sealed partial class BoundedModelTurnAdapter(
             }
             catch (InvalidDataException)
             { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
-            denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
+            denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
             if (denied is not null) { return denied; }
             if (reply is null || reply.Provenance != provenance || !Enum.IsDefined(reply.Outcome)
                 || (reply.Outcome == ModelTurnOutcome.Succeeded) != (reply.Message is not null))
@@ -192,7 +194,7 @@ internal sealed partial class BoundedModelTurnAdapter(
                     Fault(logger, exception.GetType().Name);
                     return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed);
                 }
-                denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
+                denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
                 if (denied is not null) { return denied; }
                 if (replyAnswer is null || !ReferenceEquals(replyAnswer.Question, question))
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse); }
@@ -228,11 +230,11 @@ internal sealed partial class BoundedModelTurnAdapter(
             history.Add(assistant);
             foreach (var call in assistant.Calls)
             {
-                denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
+                denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
                 if (denied is not null) { return denied; }
                 calls++;
                 var toolReply = await invokeTool(call.CapabilityId, call.InputJson, token).ConfigureAwait(false);
-                denied = await CheckContinuationAsync(provenance, started, validateContinuation, token).ConfigureAwait(false);
+                denied = await CheckContinuationAsync(provenance, started, validateContinuation, deadline, token).ConfigureAwait(false);
                 if (denied is not null) { return denied; }
                 if (toolReply is null)
                 { return Finish(provenance, ModelTurnOutcome.Unknown, ModelTurnReason.ToolResultRejected); }
@@ -257,7 +259,8 @@ internal sealed partial class BoundedModelTurnAdapter(
     }
 
     private async ValueTask<ModelProviderReply?> CheckContinuationAsync(ModelTurnProvenance provenance,
-        DateTimeOffset started, Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation, CancellationToken token)
+        DateTimeOffset started, Func<CancellationToken, ValueTask<ModelTurnReason>> validateContinuation,
+        TimeSpan deadline, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
         if (!HasHostContext(provenance))
@@ -269,7 +272,7 @@ internal sealed partial class BoundedModelTurnAdapter(
         if (!HasHostContext(provenance))
         { return Finish(provenance, ModelTurnOutcome.Denied, ModelTurnReason.HostContextRequired); }
         var now = time.GetUtcNow();
-        return now < started || now - started >= ModelToolProtocol.Deadline
+        return now < started || now - started >= deadline
             ? Finish(provenance, ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded) : null;
     }
 

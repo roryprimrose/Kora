@@ -140,6 +140,15 @@ The existing consolidated private SQLite lease owns requested audit, exact polic
 
 Provider-neutral admission captures the immutable effective tuple and session-policy revision; subsequent edits are future-only. Pre-dispatch private session/task/control and catalogue/account/installation loss refuses without fallback. Production still has no advertised models or qualified auth/adapters; buffered local bootstrap inference, LocalOnly/handoff and independent context/resource ceilings remain unchanged. Trace tags/Baggage carry no selection content, account values, paths or credentials.
 
+## Explicit hosted question continuation boundary
+
+The [separate explicit hosted clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) is host-selected Claude-only question authority, not a tool-free or observation request.
+Answer submission, stored answers and previous transmission reviews never supply fresh egress consent. Each Count Tokens/Messages POST requires its own complete native disclosure and affirmative one-send decision ([physical review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
+
+Exact question/session/task/source generations and live privacy/account/policy authority remain authoritative across reply, review, send and final retention.
+Stale/foreign answers and cancellation/expiry/revocation suppress further disclosure and final answer publication ([canonical answer owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+No source/tool/grant transfer or provider enablement is added; actual owned transport/presenter work must join before release ([transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+
 ## Trusted local event broker boundary
 
 The [native exact-session retention control](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10) is original-user metadata authority only. One fresh committed intent plus current native/ownership/privacy/call/selection lifetime controls one exact nonremoved session. Atomic generation, displayed clocks/flags and exemption-audit identity comparison prevents stale/ABA review; old grants, stored names, foreign/model/system/stopped context and incoming traces cannot relabel authority.

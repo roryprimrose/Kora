@@ -23,6 +23,45 @@ public sealed class SettingActionsButtonTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task Reset_menu_tracks_direct_and_inherited_owner_disabling_without_executing(bool inherited)
+    {
+        await HeadlessSession.RunAsync(() =>
+        {
+            var resets = 0;
+            var actions = new SettingActionsButton
+            {
+                SettingName = "Start Kora at Windows user logon",
+                ResetCommand = new AsyncCommand(
+                    () => { resets++; return Task.CompletedTask; },
+                    exception => throw new InvalidOperationException("Reset failed.", exception)),
+            };
+            var window = StyledWindow(actions, false);
+            try
+            {
+                window.Show();
+                var flyout = (MenuFlyout)actions.Flyout!;
+                flyout.ShowAt(actions);
+                window.UpdateLayout();
+                var item = flyout.Items.OfType<MenuItem>().Single();
+                item.IsEffectivelyEnabled.Should().BeTrue();
+                if (inherited) { window.IsEnabled = false; }
+                else { actions.IsEnabled = false; }
+                window.UpdateLayout();
+                item.IsEffectivelyEnabled.Should().BeFalse();
+                if (inherited) { window.IsEnabled = true; }
+                else { actions.IsEnabled = true; }
+                window.UpdateLayout();
+                item.IsEffectivelyEnabled.Should().BeTrue();
+                resets.Should().Be(0);
+                flyout.Hide();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task Cog_is_unboxed_until_hover_and_preserves_its_hit_target_through_pressed_and_open_states(bool dark)
     {
         await HeadlessSession.RunAsync(() =>

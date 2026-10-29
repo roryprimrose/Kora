@@ -1,6 +1,7 @@
 using Kora.Application.Infrastructure;
 using Kora.Application.Diagnostics;
 using Kora.Application.Voice;
+using Kora.Application.Communication;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
@@ -44,7 +45,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         && responseReadDecisionsEligible() && !IsSpeechProviderOperationActive
         && !IsBusy && !IsSpeaking && responseReadCancellation is null;
 
-    private ResponseReadInput CaptureResponseReadInput(SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser)
+    private ResponseReadInput CaptureResponseReadInput(SecurityAuditInitiator initiator = SecurityAuditInitiator.LocalUser,
+        CallSpeechLease? callSpeechLease = null)
     {
         var target = retainedAnswerSpeech?.Target ?? (Volatile.Read(ref ordinaryResponse) is { } source
             ? new ResponseSpeechTarget(source.Id, source.Revision, CallPolicyRevision)
@@ -65,7 +67,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         var feedbackRevision = inCallFeedbackConfiguration?.Get().Revision;
         var voiceGeneration = voiceRecognition.Generation;
         bool ChannelEligible() => origin is RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice
-            && IsSpeechResponseEnabled && !IsProtectedCall && !IsResponseInteractionPending
+            && IsResponseSpeechEligible(callSpeechLease) && (!IsProtectedCall || callSpeechLease is not null)
+            && !IsResponseInteractionPending
             && responseReadDecisionsEligible() && !IsGrantEditorVisible && !IsBusy && !IsSpeechProviderOperationActive
             && privacyObservation.Current.TopologyRevision == privacy.TopologyRevision
             && privacyObservation.Current.MicrophoneAccess == privacy.MicrophoneAccess
@@ -99,6 +102,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
 
     private void RetireResponseReadPlayback()
     {
+        activeCallSpeechLease?.Dispose();
         if (responseReadCancellation is { } cancellation)
         {
             cancellation.Cancel();
@@ -108,6 +112,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
 
     public void RetireCurrentResponseSpeech()
     {
+        RetireCallSpeechReview();
         Interlocked.Exchange(ref ordinaryResponse, null);
         Interlocked.Increment(ref ordinaryResponseRevision);
         RetireResponseReadPlayback();
@@ -131,6 +136,7 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
 
     private void NotifyResponseReadChanged()
     {
+        NotifyCallSpeechChanged();
         OnPropertyChanged(nameof(CanReadCurrentResponse));
         OnPropertyChanged(nameof(ReadCurrentResponseStatus));
         OnPropertyChanged(nameof(IsCurrentResponseReadActive));
@@ -198,10 +204,13 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         await speechReadOnce.ExecuteAsync(target, input.Initiator, CancellationToken.None);
     }
 
-    async Task ISpeechReadOncePlayback.ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator,
-        CancellationToken cancellationToken)
+    Task ISpeechReadOncePlayback.ReadOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator,
+        CancellationToken cancellationToken) => ReadResponseOnceAsync(target, initiator, cancellationToken: cancellationToken);
+
+    private async Task ReadResponseOnceAsync(ResponseSpeechTarget target, SecurityAuditInitiator initiator,
+        CallSpeechLease? callSpeechLease = null, CancellationToken cancellationToken = default)
     {
-        var input = CaptureResponseReadInput(initiator);
+        var input = CaptureResponseReadInput(initiator, callSpeechLease);
         if (target.ResponseId == Guid.Empty || input.Target != target || !input.Eligible()
             || IsSpeaking || responseReadCancellation is not null)
         {
@@ -216,7 +225,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             ReportResponseRead("Response playback requires original native, typed or activated-voice input.");
             return;
         }
-        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken,
+            callSpeechLease?.Expiration ?? CancellationToken.None);
         cancellation.CancelAfter(TimeSpan.FromMinutes(2));
         var released = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         responseReadCancellation = cancellation;
@@ -228,7 +238,8 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Presentation);
         try
         {
-            audit = await StartAuditAsync(SecurityAuditCategory.ApplicationExecution, SpeechReadOnce.AuditActionId, initiator,
+            audit = await StartAuditAsync(SecurityAuditCategory.ApplicationExecution,
+                callSpeechLease is null ? SpeechReadOnce.AuditActionId : CallSpeechAuditAction, initiator,
                 target.ResponseId.ToString("D"));
             responseReadAudit = audit;
             if (retained is not null)
@@ -240,8 +251,9 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
             }
             bool Eligible() => input.Eligible() && !cancellation.IsCancellationRequested;
             var played = Eligible() && await TrySpeakCurrentResponseAsync(cancellationToken: cancellation.Token,
-                additionalEligibility: Eligible, spokenText: retained?.Source.AssistantResponse!.Body,
-                boundedExactReadback: retained is not null, validateReadSource: retained?.Validate);
+                additionalEligibility: Eligible, spokenText: callSpeechLease?.Text ?? retained?.Source.AssistantResponse!.Body,
+                boundedExactReadback: retained is not null || callSpeechLease is not null, validateReadSource: retained?.Validate,
+                callSpeechLease: callSpeechLease);
             await WriteAuditAsync(audit.WithOutcome(played ? SecurityAuditOutcome.Succeeded : SecurityAuditOutcome.Cancelled,
                 played ? retained is null ? "current-response-played" : "retained-answer-played"
                     : "speech-unavailable-or-retired"), retiredResponseReadCancellation: !played);
@@ -267,13 +279,15 @@ public sealed partial class MainViewModel : ISpeechReadOncePlayback
                 await WriteAuditAsync(audit.WithOutcome(SecurityAuditOutcome.Cancelled, "cancelled"),
                     retiredResponseReadCancellation: true);
             }
+            if (callSpeechLease is not null)
+            { ReportResponseRead("Reviewed call speech was cancelled or retired. No successful full reading or replay is claimed."); }
             activity.Complete(HostOperationOutcome.Cancelled);
         }
         catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException
             or AggregateException)
         {
             ResponseReadFailed(logger, exception.GetType().Name);
-            if (retained is not null && audit is not null)
+            if ((retained is not null || callSpeechLease is not null) && audit is not null)
             {
                 await WriteAuditAsync(audit.WithOutcome(SecurityAuditOutcome.Failed, "retained-source-or-playback-unconfirmed"),
                     retiredResponseReadCancellation: true);

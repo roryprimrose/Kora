@@ -282,7 +282,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
-        CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+        CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        LogonStartupConfigurationService? logonStartupConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -338,6 +339,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
         this.responseModeConfiguration = responseModeConfiguration;
+        settingsUndo = new(appearanceConfiguration, speechConfiguration, audioPlaybackSettings.VolumeConfiguration,
+            responseModeConfiguration, communicationPolicy, TimeProvider.System);
+        settingsUndo.Changed += OnSettingsUndoChanged;
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.artifactDirectoryConfiguration = artifactDirectoryConfiguration;
@@ -437,6 +441,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -627,6 +632,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechReadOnce = new Kora.Tools.Speech.SpeechReadOnce(this);
         ReadCurrentResponseCommand = CreateCommand(
             () => ReadCurrentResponseAsync(CaptureResponseReadInput()), () => CanReadCurrentResponse);
+        ReviewCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Review,
+            () => CanReviewCallSpeech);
+        ConfirmCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Confirm,
+            () => CanConfirmCallSpeech);
+        CancelCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Cancel);
+        GetCallSpeechStatusCommand = CreateCallSpeechCommand(CallSpeechOperation.Status);
         DownloadSpeechProviderCommand = CreateCommand(
             DownloadSpeechProviderAsync,
             () => CanDownloadSpeechProvider);
@@ -1719,12 +1730,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
+        IsMandatorySpeechResponseEligible
+        && EffectiveResponseMode != ResponseOutputMode.VisualOnly
+        && !IsCallVisualOverrideActive;
+
+    private bool IsMandatorySpeechResponseEligible =>
         !conversationSearchPresentation
         && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
         && !voiceRecognition.IsListening
-        && EffectiveResponseMode != ResponseOutputMode.VisualOnly
-        && !IsCallVisualOverrideActive
         && IsSpeechOutputAvailable;
 
     public CallState CurrentCallState
@@ -3787,14 +3801,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning disable VSTHRD003 // Stop retires the owned read before replacing its source with recovery text.
             await responseReadQuiescence;
 #pragma warning restore VSTHRD003
+            if (activeCallSpeechLease is not null && textToSpeech.IsSpeaking)
+            { throw new InvalidOperationException("Owned speech release remains unconfirmed."); }
+            activeCallSpeechLease = null;
             activeSpokenText = null;
             IsSpeaking = false;
             ShowInformation("Speech is stopped.", "No speech playback is active.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            ApplicationLog.Error(logger, exception, "Stopping speech output");
-            ShowFailure("Speech output could not be stopped.", exception.Message);
+            var reviewedCall = activeCallSpeechLease is not null;
+            LogSpokenResponseFailure(exception, "Stopping speech output", reviewedCall);
+            ShowFailure("Speech output could not be stopped.", reviewedCall
+                ? "Reviewed call speech release remains unconfirmed. Use Stop speaking after output recovery; no replay is permitted."
+                : exception.Message);
         }
     }
 
@@ -4166,6 +4186,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4207,6 +4228,31 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                CancelLogonStartupReview();
+                Transcript = "Start at logon requires original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteLogonStartup(startupOperation, initiator, manualInput);
+            return;
+        }
+        CancelLogonStartupReview();
+        if (CallSpeechCommand.Parse(spokenText, AssistantName) is { } callSpeechCommand)
+        {
+            if (callSpeechCommand.Operation is not { } operation || !isAssistantNameAvailable
+                || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
+                || (OriginalOrigin(initiator) == RequestOrigin.ActivatedVoice) != (initiator == SecurityAuditInitiator.VoiceCommand))
+            {
+                ReportCallSpeech("Call speech command was not accepted. Use exactly " + CallSpeechCommand.Syntax + ".");
+                return;
+            }
+            await ExecuteCallSpeechAsync(operation, initiator);
+            return;
+        }
         var reviewInput = manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision);
         if (TryActivateModelActionReview(spokenText, initiator, reviewInput)) { return; }
         if (ModelApprovalSpeech.TryMatch(spokenText, AssistantName, false, out _)
@@ -4216,7 +4262,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportModelActionReviewUnavailable();
             return;
         }
-        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target is
+                (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult)
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
         {
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
@@ -4547,6 +4594,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 or BuiltInAction.OpenSettings or BuiltInAction.OpenDocumentation or BuiltInAction.ExitApplication))
         {
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
+            return;
+        }
+        if (RegisteredSettingUndoCommand.Parse(spokenText, AssistantName) is { } undoCommand)
+        {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ShowInformation("Settings undo requires original input.", "Use the current assistant-name prefix. Nothing was applied.");
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteSettingsUndoAsync(undoCommand, initiator, CancellationToken.None));
             return;
         }
         if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
@@ -5699,7 +5758,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task<bool> TrySpeakCurrentResponseAsync(string? spokenText = null, long? expectedSpeechRevision = null,
         Func<bool>? additionalEligibility = null, bool boundedExactReadback = false,
-        Func<CancellationToken, Task>? validateReadSource = null, CancellationToken cancellationToken = default)
+        Func<CancellationToken, Task>? validateReadSource = null, CallSpeechLease? callSpeechLease = null,
+        CancellationToken cancellationToken = default)
     {
         if (speechInterruptionActive) { return false; }
         if (additionalEligibility is null && responseReadCancellation is not null)
@@ -5729,7 +5789,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (!observedCurrentOutput
             && !await RefreshOutputEndpointsAsync(preserveResponse: additionalEligibility is not null, token: cancellationToken)) { return false; }
         if (responseRevision != Interlocked.Read(ref webResponseRevision)) { return false; }
-        bool Eligible() => IsSpeechResponseEnabled && !cancellationToken.IsCancellationRequested
+        bool Eligible() => IsResponseSpeechEligible(callSpeechLease) && !cancellationToken.IsCancellationRequested
             && speechRevision == Interlocked.Read(ref manualCallSpeechRevision)
             && responseRevision == Interlocked.Read(ref webResponseRevision)
             && (additionalEligibility is not null || responseReadCancellation is null)
@@ -5759,7 +5819,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 startedSpeech = true;
-                return StartCaptionedSpeechAsync(spokenText, Eligible,
+                return StartCaptionedSpeechAsync(spokenText, Eligible, callSpeechLease?.Output,
                     additionalEligibility is null ? CancellationToken.None : cancellationToken);
             }
             if (exactReadback)
@@ -5769,7 +5829,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             else
             {
                 var recovery = await speechConfiguration.StartSummarySpeechAsync(spokenText, communicationPolicy,
-                    Eligible, Start, cancellationToken);
+                    Eligible, Start, callSpeechLease, cancellationToken);
                 if (recovery is not null)
                 {
                     spokenSummaryRecovery = recovery;
@@ -5831,7 +5891,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (additionalEligibility is not null && textToSpeech.IsSpeaking)
         {
             // Unconfirmed release retains active ownership and the native Stop recovery route.
-            await textToSpeech.StopAsync(CancellationToken.None);
+            try { await textToSpeech.StopAsync(CancellationToken.None); }
+            catch
+            {
+                callSpeechLease?.HoldUnconfirmedRelease();
+                throw;
+            }
+            if (callSpeechLease is not null && textToSpeech.IsSpeaking)
+            {
+                IsSpeaking = true;
+                callSpeechLease.HoldUnconfirmedRelease();
+                throw new InvalidOperationException("Owned response playback release is unconfirmed.");
+            }
             IsSpeaking = false;
         }
         return completedSpeech;
@@ -6476,6 +6547,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanControlLogonStartup));
+        OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6546,14 +6619,17 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
+            .Concat(CallSpeechCommand.FixedPhrases)
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
+            .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

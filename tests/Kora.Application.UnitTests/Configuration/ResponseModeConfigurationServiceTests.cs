@@ -313,6 +313,7 @@ public sealed partial class ResponseModeConfigurationServiceTests : IDisposable
             AfterConfirm?.Invoke();
         }
         public void SaveDefaultMode(ResponseOutputMode mode) { if (SaveFailure is { } error) { throw error; } Mode = mode; Writes++; AfterWrite?.Invoke(); }
+        public void ResetDefaultMode() { if (SaveFailure is { } error) { throw error; } Mode = null; Writes++; AfterWrite?.Invoke(); }
         public bool? LoadMutedOutputVisualFallback() => false;
         public void SaveMutedOutputVisualFallback(bool enabled) => throw new NotSupportedException();
     }

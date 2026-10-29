@@ -16,6 +16,16 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Bounded explicit Claude clarification - 2026-10-29
+
+The product owner answered "Approve" to the separate explicit Claude-only clarification operation and end-to-end implementation/ready-PR delivery. This supersedes the earlier hosted-question exclusion only for the [bounded interaction](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29), not ordinary text, observation or streaming requests.
+
+The host may present one bounded question using the existing canonical question/session/native and eligible activated-voice reply services ([host owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+The canonical stored answer and unchanged original request may continue only after fresh separate native consent for every physical Count Tokens and Messages POST. An answer is lower-trust user data, never approval or transmission authority ([physical review](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
+
+No observation tools, source access, history, memory, attachments, web, MCP, agents, automatic egress or retry are admitted by this operation ([dedicated mode](../src/Kora.Core/Dependencies/ModelToolMode.cs)).
+Copilot/Codex clarification stays unsupported. Default/tool-free and streaming behavior, independent provider/account approval, production availability and qualification remain unchanged ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
+
 ## Automatic reviewed local source-use admission - 2026-10-29
 
 The product owner explicitly approved: "Approve this bounded automatic LocalOnly

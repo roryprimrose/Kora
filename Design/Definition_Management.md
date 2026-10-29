@@ -630,11 +630,72 @@ automatically. Closing a dirty editor requires Save/Discard/Cancel.
 
 ## Consistent External Change and Reload Contract
 
+### Windows-managed roaming and local revision admission
+
+Windows/profile management owns propagation of Kora roaming definitions and
+supported User originals included by that environment's policy. Kora owns
+safe discovery, exact local review, source revalidation and editor reconciliation;
+it implements no sync transport, remote lock, account enrolment or distributed
+assistant ownership. `.copilot` / `.agents` user-profile roots are not assumed
+to have AppData roaming coverage. Existing native fixed-local-volume restrictions
+remain; network-redirection support is not implied by the Roaming known folder.
+
+The approved scenario is a user opening the same definition on two computers:
+an incoming file is a candidate, never transferred enablement or execution
+authority. This is host-owned reliability within governed definition use,
+not an extension or a new cross-device conversation/memory capability.
+
+`artifact-use.json` remains in local Preferences. Version 2 preserves explicit
+exclusions and adds bounded source-qualified primary-digest reviews; version 1
+reads preserve exclusions without manufacturing reviews. Existing
+entries without a previous digest review require a one-time local review after
+upgrade; no automatic migration marks discovered content approved. General file-backed
+catalogue entries require their current primary digest to have been separately
+reviewed through the existing native/exact typed/activated use-control route.
+The complete current supported source is displayed and re-read before the
+audited local allow. A primary review is not script/package execution authority.
+Owned instructions/prompts retain their independent native revision gate;
+first discovery no longer automatically enables an unmarked legacy file.
+Previously saved exact local revision state remains valid only under its
+existing checks. No change to source content or authority is inferred from a
+filename, Windows account or profile-copy event.
+
+Startup and reload reconcile the bounded local review inventory. Observed
+changes/deletions retire matching general primary reviews durably; restoration
+does not revive them. Reload failure withholds every file-backed catalogue entry,
+including captured-use flags, while bundled resources remain independent.
+Uncertain local preference publication fails closed. Recovery requires successful
+reload and fresh reviews where retired, not last-good source fallback.
+Direct file-backed slash/activated invocation re-reads the bounded registered
+catalogue before model admission, even without a watcher notification. Existing
+exact-source skill/agent/instruction workflows keep their independent reads,
+reviews, package validation and revocation gates.
+
+Multi-file sources must pass their existing complete-set validation; filesystem
+atomic publication on one computer does not make Windows propagation atomic.
+No new format, package runner, companion-file authority or automatic merge is
+introduced. Unsupported/incomplete formats remain unavailable.
+
+Editor base/draft conflict handling below remains authoritative. Local optimistic
+checks cannot detect a competing revision which Windows overwrote before this
+host observed it. Kora does not promise lossless offline concurrent editing,
+remote conflict discovery, automatic recovery/version history or sync status.
+Users should avoid simultaneous edits of the same definition. Windows-managed
+sync is independent of model LocalOnly mode.
+
+Conversations, submitted history, attachments, Device-profile memories, grants,
+consent, pending work, diagnostics, recovery journals and runtime/device settings
+stay local in this increment. Portable personal preferences, shared history,
+account-wide memory and task handoff require separate product decisions.
+The simple user-facing explanation is [Data storage](../docs/data-storage.md).
+
+### Common reconciliation rules
+
 Apply one reconciliation pipeline to Kora-owned and registered profile files
 of every kind, whether the trigger is Save, manual Reload, a bounded watcher,
-scheduled discovery, startup, or pre-use validation. Restart is not the intended
-way to refresh definitions; the current startup-only artifact reader remains a
-documented delivery limitation until this pipeline is qualified.
+scheduled discovery, startup, or pre-use validation. The existing bounded
+watcher/reload owner is reused, not a second synchronization pipeline; watcher
+notifications are advisory and do not establish remote convergence.
 Embedded definitions change only with a verified application replacement.
 
 1. Revalidate registration/read consent, privacy/session admission, source

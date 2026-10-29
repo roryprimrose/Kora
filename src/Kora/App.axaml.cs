@@ -202,6 +202,13 @@ public sealed partial class App : Avalonia.Application
                     .IsCurrent(candidate, () => eligible()
                         && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
             });
+            viewModel.BindFileArtifactFreshness((candidate, token) =>
+            {
+                var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
+                var eligible = viewModel.CaptureInstructionEditorEligibility();
+                return Services.GetRequiredService<ArtifactCatalogueReloadService>().IsCurrentAsync(candidate,
+                    () => eligible() && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
+            });
             systemTray = new SystemTrayController(
                 viewModel,
                 Services.GetRequiredService<ILogger<SystemTrayController>>(),

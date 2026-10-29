@@ -1506,6 +1506,15 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
 
+Windows-managed definition roaming moves content, not local authority.
+The [definition reconciliation owner](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)
+requires local exact-revision review for file-backed catalogue use and withholds
+file-backed entries on uncertain reload. Receiving files cannot renew grants,
+consent, tasks, session/memory scope or provider readiness. Model LocalOnly mode
+does not disable independent OS/profile propagation; external copies and backups
+retain their own privacy/deletion implications. See the simple
+[storage guide](../docs/data-storage.md).
+
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.
 The delivered [bounded ordinary retention slice](Architecture.md#bounded-ordinary-diagnostic-retention)

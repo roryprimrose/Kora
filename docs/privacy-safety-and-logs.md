@@ -8,6 +8,9 @@
   **context** (extra information supplied with a question).
 - Saving a model preference, reusable instruction or approval does not grant
   access to your accounts or permission to send information elsewhere.
+- Definition files may roam, but enablement, review, consent and permissions
+  remain machine-local. Changed revisions remain disabled and unreviewed
+  until reviewed and enabled on this computer.
 - Local AI is not enabled in this build; hosted Copilot and Claude account-use
   approvals are also unavailable. There is no automatic cloud fallback.
 - Diagnostics and security records exclude raw audio, transcripts, request and
@@ -19,6 +22,9 @@
 Jump to [microphone consent](#microphone-consent), [files](#local-file-inspection),
 [clipboard](#clipboard-snapshots), [approvals](#local-model-actions),
 [diagnostics](#logs), or [security records](#committed-authority-audit-inspection).
+
+For a simple overview of local and roaming data, see
+[Data storage and roaming profiles](data-storage.md).
 
 ## Reviewed session memory controls
 
@@ -891,4 +897,6 @@ Preferences are stored under:
 
 `%LOCALAPPDATA%\Kora\Preferences`
 
-They are device-local and do not roam with documentation or future skills.
+They are device-local and do not roam with definition files. Roaming an
+instruction, prompt, skill or agent never transfers its local review or
+enablement, consent, permissions or approval authority.

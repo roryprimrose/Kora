@@ -117,9 +117,40 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
-The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
+Cancellation-ignoring playback fixtures wait for the fake speech stop to complete
+before releasing playback. An incomplete command task alone does not establish
+that cancellation was accepted or that the owned resource has joined.
+The speech-interruption regression covers both immediate and gated stop completion,
+then separately releases and joins the original playback; neither phase may
+publish a late successful read.
+
+The Customizations editor publishes its foreground voice target after the
+window's `IsActive` property becomes true; it cannot rely on `Activated` alone,
+which Avalonia raises before updating that property. The editor push-to-talk
+integration cases await the actual active-state notification and cover
+consent/read-only denial and capture release without retargeting.
+
+Metadata-search publication regressions revoke admission at the completed service
+read activity's disposal, after its final admission check and before native
+publication. Keep these cases in the nonparallel `Host tracing` collection; do
+not trigger revocation by counting revision-property reads from UI notifications.
+
+The native MCP review/exchange fixture uses its existing frozen test timers:
+it verifies exact native approval, real fake-broker results and physical joins,
+not elapsed-time policy. Deadline regressions retain their explicit clock/timer
+boundaries; production model and transport deadlines are unchanged.
+Native stop-and-delete assertions await the exact cancellation-accepted event.
+Paging gestures await the existing Next readiness notification when passive
+work refresh is outstanding; draining dispatcher jobs does not join that I/O.
+The portable speech-quarantine fixture observes the actual output-stop entry
+before submitting a new request and releases its held stop in `finally`.
+Native cancellation and clarification fixtures separately await exact-task
+terminal UI publication after the real operation/resource join.
+
+The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
 Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
+Validate complete retained five-shard TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do

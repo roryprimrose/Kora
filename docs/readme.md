@@ -38,6 +38,7 @@ releases the microphone; device selection alone does not undo that choice.
 | Browse and manage reusable instructions, skills and agents | [Customizations](customizations.md) |
 | Sessions, windows and tray recovery | [Windows and tray](windows-and-tray.md) |
 | Accessible presence states and speech playback | [Presence accessibility](presence-accessibility.md) |
+| Where data lives and using multiple computers | [Data storage and roaming profiles](data-storage.md) |
 | Consent, grants, retained data and diagnostics | [Privacy, safety, and logs](privacy-safety-and-logs.md) |
 | Problems and recovery | [Troubleshooting](troubleshooting.md) |
 

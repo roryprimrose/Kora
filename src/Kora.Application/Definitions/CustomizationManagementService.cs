@@ -110,13 +110,17 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             var controlRevision = use.Revision;
             var snapshot = !disabled && source.Scope != CustomizationScope.BuiltIn
                 ? await store.Read(source, admitted).ConfigureAwait(false) : null;
-            if (snapshot is not null) { ValidatePrimary(source, snapshot.Files); }
+            if (snapshot is not null)
+            {
+                if (snapshot.Source != source) { throw new InvalidOperationException("The selected definition source changed. Review it again."); }
+                ValidatePrimary(source, snapshot.Files);
+            }
             Require(current, admitted);
             if (!await confirm(snapshot, admitted).ConfigureAwait(false)) { return false; }
             if (snapshot is not null)
             {
                 var live = await store.Read(source, admitted).ConfigureAwait(false);
-                if (!string.Equals(live.Revision, snapshot.Revision, StringComparison.Ordinal))
+                if (live.Source != source || !string.Equals(live.Revision, snapshot.Revision, StringComparison.Ordinal))
                 { throw new InvalidOperationException("The reviewed source changed before use control. Review it again; nothing was enabled."); }
             }
             return await admission.Publish(request, session, current, () =>
@@ -129,7 +133,9 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
                 audit.Write(entry);
                 try
                 {
-                    use.SetDisabled(source.Id, disabled);
+                    use.SetDisabled(source.Id, disabled,
+                        snapshot is not null && source.Kind != CustomizationKind.McpServer
+                            ? snapshot.Files.Single(file => string.Equals(file.Name, source.PrimaryFile, StringComparison.Ordinal)).Digest : null);
                     audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
                     return true;
                 }

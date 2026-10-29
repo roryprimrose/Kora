@@ -233,7 +233,19 @@ public sealed partial class WindowsSqliteHostInteractionStore
                         PurgeOrArchive(connection, id, deleting: true, admitted, token);
                         return Task.CompletedTask;
                     }, token).ConfigureAwait(false);
-                    CompleteDeletion(connection, id, admitted);
+                    try
+                    {
+                        database.RequireEmptyArtifactInventory();
+                        RebuildRetiredContent(connection);
+                        database.RequireEmptyArtifactInventory();
+                        database.RequireEmptyJournal();
+                        CompleteDeletion(connection, id, admitted);
+                    }
+                    catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or SqliteException)
+                    {
+                        throw new IOException("Session retention revocation committed, but owned-copy removal acceptance is unconfirmed. "
+                            + "Inspect durable authority and storage recovery; do not infer rollback or replay work.", exception);
+                    }
                 }
 
                 else { PurgeOrArchive(connection, id, deleting: false, admitted, token); }
@@ -296,7 +308,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
         using var completion = connection.BeginTransaction();
         Execute(connection, completion, "UPDATE session_retention SET purged=1 WHERE session_id=$id;", ("$id", Id(id)));
         // A committed revocation is not undone by cancellation; recovery retries incomplete inventories.
-        Commit(completion, HostActivity.RequireCurrent().Request, CancellationToken.None, admitted);
+        Commit(completion, HostActivity.RequireCurrent().Request, CancellationToken.None, () =>
+        {
+            database.RequireEmptyArtifactInventory();
+            return admitted();
+        });
         database.RequireEmptyJournal();
     }
 

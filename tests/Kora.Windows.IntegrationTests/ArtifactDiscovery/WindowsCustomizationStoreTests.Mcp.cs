@@ -1,9 +1,11 @@
 using System.Diagnostics;
 using System.Security.AccessControl;
+using System.Security.Principal;
 
 using AwesomeAssertions;
 
 using Kora.Core.Customizations;
+using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
@@ -71,10 +73,20 @@ public sealed partial class WindowsCustomizationStoreTests
     {
         var store = Create();
         var source = await store.Create(CustomizationKind.McpServer, CustomizationScope.Kora, "example", TestContext.Current.CancellationToken);
-        Directory.CreateDirectory(Path.GetDirectoryName(source.Location)!);
+        var directory = Path.GetDirectoryName(source.Location)!;
+        Directory.CreateDirectory(Path.GetDirectoryName(directory)!);
+        using var identity = WindowsIdentity.GetCurrent();
+        var owner = identity.User ?? throw new InvalidOperationException("The private fixture owner is unavailable.");
+        RestrictedStorageDirectory.CreateRestrictedDirectory(directory, owner);
+        var sections = AccessControlSections.Owner | AccessControlSections.Group | AccessControlSections.Access;
+        var security = new DirectoryInfo(directory).GetAccessControl(sections);
+        security.GetOwner(typeof(SecurityIdentifier)).Should().Be(owner);
+        var descriptor = security.GetSecurityDescriptorSddlForm(sections);
         Func<Task> save = () => Save(store, source, null, Primary(source));
-        await save.Should().ThrowAsync<InvalidOperationException>();
+        (await save.Should().ThrowAsync<InvalidOperationException>()).Which.Message.Should().Contain("reviewed MCP source or parent changed");
         File.Exists(source.Location).Should().BeFalse();
+        Directory.EnumerateFileSystemEntries(directory).Should().BeEmpty();
+        new DirectoryInfo(directory).GetAccessControl(sections).GetSecurityDescriptorSddlForm(sections).Should().Be(descriptor);
     }
 
     [Theory]

@@ -33,7 +33,7 @@
               Value="{Binding $parent[NumericUpDown].(AutomationProperties.Name), StringFormat='Decrease {0}'}" />
     </Style>
   </Window.Styles>
-  <Grid RowDefinitions="72,*">
+  <Grid RowDefinitions="72,Auto,*">
     <Border BorderBrush="{DynamicResource KoraHeaderBorderBrush}" BorderThickness="0,0,0,1" Padding="30,0">
       <Grid ColumnDefinitions="Auto,*,Auto" VerticalAlignment="Center">
         <Border Width="34" Height="34" Background="{DynamicResource KoraAccentBrush}" CornerRadius="9">
@@ -56,9 +56,20 @@
       </Grid>
     </Border>
 
+    <StackPanel Grid.Row="1" Margin="30,12,30,0" Spacing="8">
+      <TextBlock Text="{Binding SettingsUndoDescription}" TextWrapping="Wrap" />
+      <StackPanel Orientation="Horizontal" Spacing="8">
+        <Button x:Name="ReviewSettingsUndo" Content="Undo the last settings change"
+                IsEnabled="{Binding CanReviewSettingsUndo}" />
+        <Button x:Name="ConfirmSettingsUndo" Content="Confirm settings undo"
+                IsEnabled="{Binding CanConfirmSettingsUndo}" />
+        <Button x:Name="CancelSettingsUndo" Content="Cancel settings undo"
+                IsEnabled="{Binding CanConfirmSettingsUndo}" />
+      </StackPanel>
+    </StackPanel>
     <controls:NavigableTabControl
         x:Name="SettingsTabs"
-        Grid.Row="1"
+        Grid.Row="2"
         TabStripPlacement="Left"
         Margin="22"
         Background="Transparent">

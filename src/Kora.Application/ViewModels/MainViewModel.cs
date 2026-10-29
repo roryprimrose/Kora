@@ -342,6 +342,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
         this.responseModeConfiguration = responseModeConfiguration;
+        settingsUndo = new(appearanceConfiguration, speechConfiguration, audioPlaybackSettings.VolumeConfiguration,
+            responseModeConfiguration, communicationPolicy, TimeProvider.System);
+        settingsUndo.Changed += OnSettingsUndoChanged;
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.artifactDirectoryConfiguration = artifactDirectoryConfiguration;
@@ -4584,6 +4587,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (RegisteredSettingUndoCommand.Parse(spokenText, AssistantName) is { } undoCommand)
+        {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ShowInformation("Settings undo requires original input.", "Use the current assistant-name prefix. Nothing was applied.");
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteSettingsUndoAsync(undoCommand, initiator, CancellationToken.None));
+            return;
+        }
         if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
         {
             await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
@@ -6612,6 +6627,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

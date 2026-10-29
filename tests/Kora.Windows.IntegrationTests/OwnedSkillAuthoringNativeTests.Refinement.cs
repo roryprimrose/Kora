@@ -35,8 +35,26 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("late-critique")]
     [InlineData("late-owner")]
     [InlineData("late-privacy")]
+    [InlineData("initial-save")]
+    [InlineData("initial-save-refined")]
+    [InlineData("initial-reject")]
+    [InlineData("initial-cancel-disclosure")]
+    [InlineData("initial-cancel-publication")]
+    [InlineData("initial-unavailable")]
+    [InlineData("initial-missing-input")]
+    [InlineData("initial-missing-output")]
+    [InlineData("initial-draft-edit")]
+    [InlineData("initial-critique-edit")]
+    [InlineData("initial-cancel-after-validate")]
+    [InlineData("initial-late-cancel")]
+    [InlineData("initial-late-draft")]
+    [InlineData("initial-late-critique")]
+    [InlineData("initial-late-owner")]
+    [InlineData("initial-late-privacy")]
     public async Task NativeOwnedGuidanceRefinementCompletesReviewedProposalThroughExistingPublication(string scenario)
     {
+        var initialGeneration = scenario.StartsWith("initial-", StringComparison.Ordinal);
+        if (initialGeneration) { scenario = scenario["initial-".Length..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
@@ -82,23 +100,43 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             }
             static void Choose(Window dialog, string caption) => dialog.GetLogicalDescendants().OfType<Button>()
                 .Single(button => Equals(button.Content, caption)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-            await Run("owned skill create example 1.0.0");
-            await Run("owned skill name: Example");
-            await Run("owned skill description: Description");
+            const string purpose = "explain a deployment failure";
+            if (initialGeneration)
+            {
+                await Run("create a skill that " + purpose);
+                if (scenario is not "missing-input") { await Run("owned skill expected-input: User supplied failure text"); }
+                if (scenario is not "missing-output") { await Run("owned skill expected-output: Explanation and questions"); }
+            }
+            else
+            {
+                await Run("owned skill create example 1.0.0");
+                await Run("owned skill name: Example");
+                await Run("owned skill description: Description");
+            }
             var owned = editor!;
             var inputs = scenario is "save-v3";
             if (inputs) { await Run("owned skill inputs required-literal"); }
-            var initial = inputs ? "CURRENT ${input:topic}" : "  CURRENT e\u0301\U0001f642\r\nowned skill save  ";
-            owned.Guidance.Text = initial;
+            var initial = initialGeneration ? owned.Guidance.Text! : inputs ? "CURRENT ${input:topic}" : "  CURRENT e\u0301\U0001f642\r\nowned skill save  ";
+            if (!initialGeneration) { owned.Guidance.Text = initial; }
             var draft = owned.Document();
             const string critique = "  Original critique e\u0301\U0001f642\r\nKeep the original input names.  ";
             await Run("owned skill critique: " + critique);
             var late = scenario.StartsWith("late-", StringComparison.Ordinal);
             if (late) { adapter.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously); }
             adapter.Body = inputs ? "NEW ${input:topic}" : "  NEW e\u0301\U0001f642\r\nowned skill save  ";
-            var generating = Run("owned skill refine");
+            var generating = Run(initialGeneration ? "owned skill generate" : "owned skill refine");
+            if (scenario is "missing-input" or "missing-output")
+            {
+                await generating;
+                await Run("owned skill validate");
+                await Run("owned skill save");
+                next.Task.IsCompleted.Should().BeFalse();
+                adapter.Calls.Should().Be(0);
+                (await store.List(f.Token)).Should().BeEmpty();
+                return;
+            }
             var disclosure = await Review(generating);
-            disclosure.Title.Should().Be("Review local skill refinement disclosure");
+            disclosure.Title.Should().Be(initialGeneration ? "Review initial skill generation disclosure" : "Review local skill refinement disclosure");
             Choose(disclosure, scenario is "cancel-disclosure" ? "Cancel" : "Generate local guidance proposal");
             if (late)
             {
@@ -124,9 +162,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             if (scenario is not ("cancel-disclosure" or "unavailable"))
             {
                 var comparison = await Review(generating);
-                comparison.Title.Should().Be("Compare complete skill guidance proposal");
+                comparison.Title.Should().Be(initialGeneration ? "Review complete generated skill source" : "Compare complete skill guidance proposal");
                 var sources = comparison.GetLogicalDescendants().OfType<TextBox>().ToArray();
-                sources.Select(source => source.Text).Should().Equal(initial, adapter.Body);
+                sources.Select(source => source.Text).Should().Equal(initialGeneration ? draft.ManifestText : initial, adapter.Body);
+                if (initialGeneration)
+                {
+                    string.Join("\n", comparison.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text))
+                        .Should().Contain(store.Destination(draft));
+                }
                 sources.Should().OnlyContain(source => source.IsReadOnly);
                 Choose(comparison, scenario is "reject" ? "Reject proposal" : "Use proposal for next Save");
             }
@@ -140,8 +183,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             {
                 adapter.Calls.Should().Be(1);
                 using var wire = JsonDocument.Parse(adapter.Wire!);
-                wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(critique);
-                wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(initial);
+                wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(initialGeneration ? purpose : critique);
+                if (!initialGeneration) { wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(initial); }
                 wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             }
             if (scenario is "draft-edit" or "critique-edit" or "cancel-after-validate")
@@ -154,7 +197,20 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 next.Task.IsCompleted.Should().BeFalse("revocation must clear the validated replacement, not fall back to publishing it");
                 (await store.List(f.Token)).Should().BeEmpty();
             }
-            if (scenario is "save" or "save-v3" or "cancel-publication")
+            if (scenario is "save-refined")
+            {
+                await Run("owned skill critique: Make the generated guidance clearer.");
+                var previous = adapter.Body;
+                adapter.Body = "Complete refined generated guidance";
+                var refining = Run("owned skill refine");
+                Choose(await Review(refining), "Generate local guidance proposal");
+                var comparison = await Review(refining);
+                comparison.GetLogicalDescendants().OfType<TextBox>().Select(source => source.Text)
+                    .Should().Equal(previous, adapter.Body);
+                Choose(comparison, "Use proposal for next Save");
+                await refining;
+            }
+            if (scenario is "save" or "save-v3" or "save-refined" or "cancel-publication")
             {
                 await Run("owned skill validate");
                 var saving = Run("owned skill save");
@@ -171,14 +227,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 if (scenario is "cancel-publication") { (await store.List(f.Token)).Should().BeEmpty(); }
                 else
                 {
-                    var saved = (await store.Read("example", "1.0.0", f.Token))!;
+                    var saved = (await store.Read(draft.Id, draft.Version, f.Token))!;
                     saved.Document.ManifestBytes.ToArray().Should().Equal(draft.ManifestBytes.ToArray());
                     saved.Document.Guidance.Should().Be(adapter.Body);
                     saved.Document.IsAvailableForInvocation.Should().BeFalse();
                     owned.Guidance.Text.Should().Be(adapter.Body);
-                    await Run("owned skill reopen example 1.0.0");
+                    await Run($"owned skill reopen {draft.Id} {draft.Version}");
                     owned.Guidance.Text.Should().Be(adapter.Body);
-                    adapter.Calls.Should().Be(1, "Save and Reopen never invoke or enable a skill");
+                    adapter.Calls.Should().Be(scenario is "save-refined" ? 2 : 1, "Save and Reopen never invoke or enable a skill");
                 }
             }
             models.IsQuiescent.Should().BeTrue();

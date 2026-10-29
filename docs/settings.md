@@ -117,6 +117,18 @@ confirmation that records have been removed.
 
 ## Preference Changes and Recovery
 
+### Undo the last registered settings change
+
+At the top of Settings, choose **Undo the last settings change**. Inspect the exact current and previous preference, saved/default source and shared device-local scope. Separately choose **Confirm settings undo**, or **Cancel settings undo** to write nothing. Review lasts 60 seconds ([shared undo workflow](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Confirm settings undo** and **Cancel settings undo** are disabled and skipped by Tab navigation until a current review can be confirmed ([native controls](../src/Kora/SettingsWindow.axaml), [keyboard regression](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs)).
+
+There is only one candidate from this run: the last confirmed registered appearance/presence, summary-cap, Kora-volume or ordinary response-mode change. Restoring a default removes the saved override; summary limits restore the exact previous pair. Undo is unavailable after restart or privacy/lifecycle closure, and cannot overwrite externally changed or unconfirmed preferences. A successful undo is a new audited save, consumes that candidate and offers no redo ([registered settings](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [undo validation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+For summary caps, Kora volume and ordinary response mode, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Appearance requires a new native Settings review. Voice requests blocked by call policy cannot become permitted by clicking Confirm later ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
 Settings uses plain-language labels and short status summaries. For example,
 **Logging** describes diagnostic and security record storage without naming the
 database, and **Providers** shows AI service and model choices rather than raw

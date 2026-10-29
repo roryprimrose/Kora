@@ -1766,6 +1766,16 @@ Reset/undo use normal validation, confirmation, and policy checks; restoring a w
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
 
+### Delivered single registered-preference undo
+
+The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is a separate fresh request; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance retains native-only review; ordinary response settings also support exact typed/current-name activated-voice review/confirm/cancel ([native controls](../src/Kora/SettingsWindow.axaml), [shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
+
+Undo changes future eligible presentation/ordinary response preferences only. It never restores consent, listening, grants, providers, devices, security/retention policy or external effects, and never invokes a model or synthesizes/replays a response. An uncertain setter/readback/audit outcome holds undo explicitly; no automatic retry or rollback is claimed. A weaker prior preference still requires the exact fresh review and confirmation ([operation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Configuration/RegisteredSettingUndoTests.cs)).
+
 ## Unavoidable Boundaries
 
 All supported preference values have verbal operations while Kora can hear the user.

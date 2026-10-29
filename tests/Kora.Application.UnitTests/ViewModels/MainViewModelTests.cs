@@ -1276,8 +1276,7 @@ public sealed partial class MainViewModelTests : IDisposable
         unchanged.Should().BeTrue();
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Light);
         fixture.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Light);
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.ThemeMode));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.ThemeMode)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1319,8 +1318,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.PresenceTimeoutSeconds));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.PresenceTimeoutSeconds)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1373,8 +1371,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.ResponseTimeoutSeconds));
+        changedProperties.Should().Equal(
+            nameof(MainViewModel.SettingsUndoDescription), nameof(MainViewModel.CanReviewSettingsUndo),
+            nameof(MainViewModel.CanConfirmSettingsUndo), nameof(MainViewModel.ResponseTimeoutSeconds));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1588,7 +1587,7 @@ public sealed partial class MainViewModelTests : IDisposable
         unchanged.Should().BeTrue();
         GetPresenceSetting(fixture.ViewModel, setting).Should().Be(value);
         GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().Be(value);
-        changedProperties.Should().Equal(propertyName, descriptionPropertyName);
+        changedProperties.Should().Equal(WithUndoNotifications(propertyName, descriptionPropertyName));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1675,9 +1674,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeFalse();
         fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("normal size");
         fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeFalse();
-        changedProperties.Should().Equal(
+        changedProperties.Should().Equal(WithUndoNotifications(
             nameof(MainViewModel.IsPresenceSpeechScalingEnabled),
-            nameof(MainViewModel.PresenceSpeechScalingDescription));
+            nameof(MainViewModel.PresenceSpeechScalingDescription)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4626,6 +4625,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
@@ -9933,6 +9933,25 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public void ResetRegisteredOption(AppearanceOption setting)
+        {
+            BeforeRegisteredReset?.Invoke();
+            ThrowIfSaveFails();
+            switch (setting)
+            {
+                case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
+                case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
+                case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
+                case AppearanceOption.PresenceSize: PresenceSizePixels = null; break;
+                case AppearanceOption.DotSize: PresenceDotSizePercent = null; break;
+                case AppearanceOption.DotDensity: PresenceDotDensityPercent = null; break;
+                case AppearanceOption.MovementSpeed: PresenceMovementSpeedPercent = null; break;
+                case AppearanceOption.SpeechScaling: PresenceSpeechScalingEnabled = null; break;
+                case AppearanceOption.SpeechScaleAmount: PresenceSpeechScaleAmountPercent = null; break;
+                default: throw new ArgumentOutOfRangeException(nameof(setting));
+            }
+        }
         public bool? NativePresenceRendererEnabled { get; private set; }
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
@@ -10019,6 +10038,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Action? BeforePresencePreferenceSave { get; set; }
         public Action? BeforeThemeSave { get; set; }
+        public Action? BeforeRegisteredReset { get; set; }
 
         public Action? BeforeResponseTimeoutPreferenceSave { get; set; }
 
@@ -10273,6 +10293,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechPreferences : ITextToSpeechPreferences
     {
+        public void ResetSummaryLimits()
+        {
+            if (SaveException is not null) { throw SaveException; }
+            SummaryLimits = null;
+        }
         public SpokenSummaryLimits? SummaryLimits { get; set; }
         public Exception? SummaryLimitsLoadFailure { get; set; }
         public SpokenSummaryLimits? LoadSummaryLimits() => SummaryLimitsLoadFailure is { } exception ? throw exception : SummaryLimits;
@@ -10411,6 +10436,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeResponseOutputPreferences : IResponseOutputPreferences
     {
+        public void ResetDefaultMode()
+        {
+            if (SaveException is not null) { throw SaveException; }
+            Mode = null;
+        }
         private bool unconfirmed;
         public ResponseOutputMode? Mode { get; set; }
 

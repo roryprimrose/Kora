@@ -6,10 +6,25 @@ the saved skill. You can create and inspect skills
 without AI. **Using one for an answer is unavailable in this build**, because
 no local model is approved.
 
-Start with [create and save](#complete-operation), then
+Start with [a purpose](#create-a-new-skill-from-a-purpose) or [manual create and save](#complete-operation), then
 [review a saved version for use](#review-and-invoke-one-saved-revision).
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
+
+## Create a new skill from a purpose
+
+This bounded operation implements initial **native v1 literal, local, tool-free** guidance generation through the [existing proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs). Generation is **unavailable in this build** while the local runtime is unqualified; it never falls back to a hosted model, installs a model or claims qualification.
+
+1. Type `create a skill that explains a deployment failure`, or say it with the current activation name, for example **Kora, create a skill that explains a deployment failure**.
+2. The same editor retains the unchanged original purpose and assigns a new ID/version and owned destination. Supply only the missing bounded fields: `owned skill expected-input: User supplied failure text` and `owned skill expected-output: An explanation and next questions`. Enter **none** explicitly if no input is needed. Native fields are equivalent; this does not create v3 template parameters.
+3. Optionally replace the host's default readable name and description in the existing editor. Choose **Generate initial guidance**, or `owned skill generate`. Review the unchanged purpose and exact input/output fields, then separately confirm **Generate local guidance proposal**. Before that admission, nothing is sent to a model.
+4. Review the **complete generated manifest and guidance**, exact host-chosen owned destination, local runtime, tools none and references none. **Use proposal for next Save** stages only that exact source in memory. **Reject proposal** preserves the original fields and draft, with no save.
+5. To refine the staged guidance, enter `owned skill critique: Make the generated steps clearer.` and use the existing **Refine** operation below. It compares against the generated guidance, not the initial placeholder. Original purpose/input/output and catalogue bindings remain attached; the model cannot change metadata or destination.
+6. Choose **Validate**, then **Save**, review both complete files and the exact destination, and continue to the **separate native publication confirmation**. Only **Publish exact new version** saves the atomic no-overwrite package, **disabled**. Enablement and invocation remain independent exact-revision operations.
+
+Only the purpose and the two explicit fields enter one local tool-free model turn. Model output must be exactly one JSON `body` string; invented IDs, paths, tools, effects, dependencies or extra fields are rejected, not stripped. Guidance containing commands or attempted instructions remains untrusted literal data, never approval or executable metadata ([generation validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs), [native v1 document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
+
+Complete serialized model input must fit **32768 bytes** and the complete two-file source **64 KiB**; there is no truncation. Missing fields, malformed output, provider failure, cancellation or late results do not save or enable anything. Draft/clarification/name/source/catalogue changes retire proposals; occupied or ambiguous names require choosing another name or cancelling, never automatic overwrite. Cancellation retains originals and the volatile draft; the host owns an ignoring model until it joins ([proposal lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [atomic store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)).
 
 ## Complete operation
 
@@ -51,7 +66,7 @@ Save authority. Drafts are not autosaved.
 The bounded refinement operation supports the current Kora-owned **declarative,
 instruction-only draft**: native v1 literal guidance or native v3 required
 literal inputs. Tool-declaring v2 skills, shared originals, scripts, fixtures and
-package generation are not supported. This does not complete the entire Builder.
+general package generation are not supported. The bounded initial v1 operation above is separate. This does not complete the entire Builder.
 
 1. Create a draft and supply its metadata and complete guidance as above. If you
    reopened an immutable version, first enter a **new version** in the native

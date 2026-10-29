@@ -15,6 +15,59 @@ public sealed class ConversationQuestionContinuationTests
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task SpokenQuestionReadsEveryOptionAndBoundsBeforeAcceptingExactAnswers(int selections)
+    {
+        await using var f = new QuestionReplyFixture();
+        var spec = LocalModelQuestionPolicy.CreateSpec(new("Which details?", selections == 0 ? [] : ["Version", "Readiness"],
+            1, Math.Max(1, selections)));
+        var question = await f.Host.QuestionAsync(spec);
+        await f.OpenAsync(question, afterPlayback: true);
+        f.Spoken.Should().Be(selections == 0 ? "Which details?" : selections == 1
+            ? "Which details? Option 1: Version. Option 2: Readiness. Choose one option."
+            : "Which details? Option 1: Version. Option 2: Readiness. Choose 1 to 2 options. "
+                + "Say option numbers separated by and, or use the checkboxes.");
+        f.Capture.Transcript(selections == 0 ? "Exact user text" : selections == 1 ? "option 1" : "option 1 and option 2");
+        await f.Replies.Quiescence;
+        f.Accepted!.Question!.Draft!.Choices.Should().Equal(selections == 0 ? [] : selections == 1 ? ["option-0"] : ["option-0", "option-1"]);
+        f.Accepted.Question.Draft.Text.Should().Be(selections == 0 ? "Exact user text" : null);
+        f.Accepted.Question.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
+        f.Capture.IsListening.Should().BeFalse();
+        f.Host.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(true, false)]
+    [InlineData(false, true)]
+    [InlineData(true, true)]
+    public async Task ChangedCheckboxBoundsCannotSubstituteThePresentedOrCanonicalAnswer(bool minimum, bool canonical)
+    {
+        using var f = new InteractionFixture();
+        using var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Application, HostOperation.Request);
+        var broker = new ConversationQuestionContinuation(f.Store, async (request, _, spec, expiry, _, token) =>
+        {
+            var initial = (await f.Questions.CreateAsync(request, spec, expiry, token)).Question!;
+            var submitted = await f.Questions.SubmitAsync(initial.Key, new(["option-0", "option-1"]), RequestOrigin.LocalUi, token);
+            var changed = new QuestionSpec(spec.Text, spec.Kind, spec.Options, minimum ? 2 : 1, minimum ? 3 : 2,
+                purpose: spec.Purpose, sourceId: spec.SourceId);
+            if (canonical)
+            {
+                f.Store.Change(snapshot => snapshot with { Questions = [submitted.Question! with { Spec = changed }] });
+                return new(initial, submitted);
+            }
+            return new(initial, submitted with { Question = submitted.Question! with { Spec = changed } });
+        }, f.Request, new(1), f.Time.Now.AddSeconds(15), static () => true, f.Time);
+        await broker.Invoking(value => value.AskAsync(new("Choose", ["A", "B", "C"], 1, 3), Token))
+            .Should().ThrowAsync<Exception>();
+        f.Store.Commits.Should().NotContain(commit => commit.Audit.ActionId == "question.continue"
+            && commit.Decision.Outcome == HostInteractionOutcome.Answered);
+        f.Store.Snapshot.Grants.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(false, RequestOrigin.LocalUi, "api_key=synthetic-only-value")]
     [InlineData(true, RequestOrigin.LocalUi, "api_key=synthetic-only-value")]
     [InlineData(false, RequestOrigin.ActivatedVoice, "api_key=synthetic-only-value")]
@@ -44,6 +97,7 @@ public sealed class ConversationQuestionContinuationTests
     [Theory]
     [InlineData("exact")]
     [InlineData("text")]
+    [InlineData("multiple")]
     [InlineData("foreign-generation")]
     [InlineData("not-visible")]
     [InlineData("unavailable-voice")]
@@ -60,7 +114,8 @@ public sealed class ConversationQuestionContinuationTests
             await f.OpenAsync(initial);
             if (f.Capture.IsListening)
             {
-                f.Capture.Transcript(scenario is "text" ? "Exact free text" : scenario is "ambiguous" ? "approve" : "Detailed",
+                f.Capture.Transcript(scenario is "text" ? "Exact free text" : scenario is "multiple" ? "option 1 and option 2"
+                    : scenario is "ambiguous" ? "approve" : "Detailed",
                     scenario is "foreign-generation" ? f.Capture.Generation - 1 : f.Capture.Generation);
             }
             await f.Replies.Quiescence;
@@ -68,13 +123,16 @@ public sealed class ConversationQuestionContinuationTests
             await f.Replies.Quiescence;
             return new(initial, f.Accepted ?? new(HostInteractionOutcome.Denied, "no-fresh-exact-voice-answer"));
         }, f.Host.Request, new(1), f.Time.Now.AddSeconds(15), static () => true, f.Time);
-        var operation = () => broker.AskAsync(new("Which format?", scenario is "text" ? [] : ["Compact", "Detailed"]), Token);
-        if (scenario is "exact" or "text")
+        var operation = () => broker.AskAsync(new("Which format?", scenario is "text" ? [] : ["Compact", "Detailed"],
+            Maximum: scenario is "multiple" ? 2 : 1), Token);
+        if (scenario is "exact" or "text" or "multiple")
         {
             var reply = await operation();
             reply.Question.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
             reply.Question.Proposal.Should().BeNull();
             reply.Question.Draft!.Text.Should().Be(scenario is "text" ? "Exact free text" : null);
+            reply.Question.Draft.Choices.Should().Equal(scenario is "text" ? [] : scenario is "multiple"
+                ? ["option-0", "option-1"] : ["option-1"]);
         }
         else
         {

@@ -78,7 +78,7 @@ public sealed class ConversationQuestionContinuation(
         string.Equals(left.Text, right.Text, StringComparison.Ordinal) && left.Kind == right.Kind
         && string.Equals(left.Purpose, right.Purpose, StringComparison.Ordinal)
         && string.Equals(left.SourceId, right.SourceId, StringComparison.Ordinal)
-        // Supported Text/SingleChoice constructors fix both choice bounds at one.
+        && left.Minimum == right.Minimum && left.Maximum == right.Maximum
         && left.MaximumTextLength == right.MaximumTextLength
         && left.Options.SequenceEqual(right.Options);
 

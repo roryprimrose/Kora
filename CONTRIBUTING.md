@@ -100,6 +100,12 @@ test-runner scheduling. Speech receipt-pinning fixtures inject changes after
 terminal publication and outside the submission's host scope, not at a
 particular count of internal metadata reads.
 
+Stop All notification-failure fixtures inject once at the first accepted
+cancellation notification and retain the observer through joined terminal
+completion. Later Cancelling publications are not additional injected failures;
+every accepted request still requires its physical join and terminal receipt,
+while the operation truthfully retains its partial/unconfirmed outcome.
+
 Native streaming fixtures await the exact terminal presentation notification
 separately from the submission operation. Terminal storage/readback and resource
 joins can finish before the UI dispatcher applies its queued status; retain

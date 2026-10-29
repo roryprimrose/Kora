@@ -62,7 +62,8 @@ $classes = [ordered]@{
     'Storage.WindowsSqliteExactGrantFilterTests' = 'storage-heavy'
     'Storage.WindowsSqliteEvidenceQueryTests' = 'storage-other'
     'Storage.FutureStorageTests' = 'storage-other'
-    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-platform'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra' = 'ui-definitions'
     'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
     'EvidenceLiteralFindTests' = 'ui-platform'
     'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
@@ -215,6 +216,24 @@ Assert ($redistributedPlatformSeconds -lt $deadlineSeconds) 'The retained platfo
 Assert ($redistributedDefinitionsSeconds -lt $deadlineSeconds) 'Do not transfer the measured budget breach to definitions.'
 Assert ([Math]::Max($redistributedPlatformSeconds, $redistributedDefinitionsSeconds) -lt
     $observedPlatformSeconds) 'Reduce the measured critical path.'
+
+# Run 40836599680 retained only 1,400 of 1,421 definitions cases before cancellation.
+# Project only recorded work; the remaining cases still require new-head execution.
+$editorCases = 288
+$editorSeconds = 381.4
+$cancelledDefinitionsSeconds = 1819.0
+$completedPlatformSeconds = 1114.0
+Assert ($cancelledDefinitionsSeconds -gt $deadlineSeconds) 'Reproduce the exact definitions whole-job cancellation.'
+$editorDestination = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test')
+Assert ($editorDestination.Count -eq 1 -and $editorDestination[0].Name -ceq 'ui-platform') 'Move the complete measured editor class to synchronous platform.'
+$projectedDefinitionsSeconds = $cancelledDefinitionsSeconds - $editorSeconds
+$projectedPlatformSeconds = $completedPlatformSeconds + $editorSeconds
+Assert ($projectedDefinitionsSeconds -lt 0.85 * $deadlineSeconds) 'Leave headroom for unfinished definitions work without extending the cap.'
+Assert ($projectedPlatformSeconds -lt 0.85 * $deadlineSeconds) 'Do not transfer the measured budget breach to platform.'
+Assert ([Math]::Max($projectedDefinitionsSeconds, $projectedPlatformSeconds) -lt
+    $cancelledDefinitionsSeconds) 'Reduce the recorded critical path.'
+Assert ((1400 - $editorCases) -eq 1112 -and (3454 + $editorCases) -eq 3742) 'Move all 288 recorded editor cases exactly once.'
+Assert (((1400 - $editorCases) + (3454 + $editorCases)) -eq (1400 + 3454)) 'Preserve every recorded case despite partial definitions evidence.'
 
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)

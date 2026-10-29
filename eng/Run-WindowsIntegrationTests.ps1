@@ -29,6 +29,9 @@ $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Results
 # synchronous ui-platform for predicted whole jobs of 1,671s and 1,561s respectively.
 # Run 40815883491 breached platform's job cap; move its 385s of settings UI work
 # intact to synchronous definitions. Keep native-UX's buffered profile unchanged.
+# Run 40836599680 cancelled definitions after 1,400 of 1,421 cases; move its
+# complete 381.4s owned-editor class to synchronous platform, which finished in 1,114s.
+$platformEditorPrefix = 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.'
 $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
     'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
@@ -56,7 +59,7 @@ $shards = @(
     }
     [pscustomobject]@{
         Name = 'ui-definitions'
-        Filter = ($definitionUiPrefixes | ForEach-Object { "FullyQualifiedName~$_" }) -join '|'
+        Filter = ($definitionUiPrefixes | ForEach-Object { "FullyQualifiedName~$_&FullyQualifiedName!~$platformEditorPrefix" }) -join '|'
     }
     [pscustomobject]@{
         Name = 'native-ux'
@@ -64,7 +67,7 @@ $shards = @(
     }
     [pscustomobject]@{
         Name = 'ui-platform'
-        Filter = ($uiPlatformExclusions | ForEach-Object { "FullyQualifiedName!~$_" }) -join '&'
+        Filter = (($uiPlatformExclusions | ForEach-Object { "FullyQualifiedName!~$_" }) -join '&') + "|FullyQualifiedName~$platformEditorPrefix"
     }
 )
 

@@ -30,9 +30,12 @@ internal sealed class WorkspaceSurfaceCommandController(
     {
         var revision = access.ControlRevision;
         var source = sessions.CaptureCompactNavigationEligibility();
+        var observationSource = navigation.Target == WorkspaceSurfaceTarget.ObservedResult
+            ? sessions.CaptureObservedResultEligibility() : static () => true;
         bool Admitted() => !disposed && navigation.IsAdmitted() && main.CanRevealPrivatePresentation
             && access.CanInspect && revision == access.ControlRevision;
-        bool SourceAdmitted() => navigation.Target != WorkspaceSurfaceTarget.CompactConversation || source();
+        bool SourceAdmitted() => observationSource()
+            && (navigation.Target != WorkspaceSurfaceTarget.CompactConversation || source());
         var selection = navigation.Target == WorkspaceSurfaceTarget.SelectSession
             ? sessions.CaptureSessionSelection(navigation.SessionPosition, Admitted) : null;
         if (!Admitted() || !SourceAdmitted())
@@ -77,6 +80,11 @@ internal sealed class WorkspaceSurfaceCommandController(
                 case WorkspaceSurfaceTarget.SessionLogs:
                 case WorkspaceSurfaceTarget.SessionAudit:
                     await sessions.ShowDetailsAsync(navigation.Target, Admitted);
+                    break;
+                case WorkspaceSurfaceTarget.ObservedResult:
+                    await sessions.OpenObservedResultAsync(navigation.ObservationName
+                        ?? throw new InvalidOperationException("An exact presented observation name is required."),
+                        () => Admitted() && SourceAdmitted());
                     break;
                 default: throw new InvalidOperationException("The native navigation target is unavailable.");
             }

@@ -43,5 +43,12 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not complete the entire Builder")
             .And.Contain("input names cannot be added")
             .And.Contain("until it joins");
+        guide.Markdown.Should().Contain("create a skill that explains a deployment failure")
+            .And.Contain("owned skill expected-input:")
+            .And.Contain("owned skill expected-output:")
+            .And.Contain("owned skill generate")
+            .And.Contain("complete generated manifest and guidance")
+            .And.Contain("no-overwrite")
+            .And.Contain("unqualified");
     }
 }

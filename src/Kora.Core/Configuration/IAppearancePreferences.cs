@@ -6,4 +6,6 @@ public interface IAppearancePreferences :
     IResponseWindowPreferences,
     IReaderTextScalePreferences
 {
+    /// <summary>Removes the saved override for one registered appearance preference.</summary>
+    void ResetRegisteredOption(AppearanceOption setting);
 }

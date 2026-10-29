@@ -128,6 +128,15 @@ public sealed class CallCommunicationPolicy : IDisposable, IHostAuthorizationPol
         }
     }
 
+    internal Task StartReviewedSpeech(CallSpeechLease lease, string text, Func<Task> start, Func<bool> hostEligible)
+    {
+        lock (sync)
+        {
+            if (!disposed) { SynchronizeAutomatic(); }
+            return disposed || !lease.TryStart(this, text) || !hostEligible() ? Task.CompletedTask : start();
+        }
+    }
+
     private void OnAutomaticChanged(object? sender, CallStateChangedEventArgs args)
     {
         lock (sync)

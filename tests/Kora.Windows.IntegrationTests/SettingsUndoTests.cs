@@ -28,25 +28,39 @@ public sealed class SettingsUndoTests
             window.Show();
             try
             {
+                void AssertUndoActions(bool canReview, bool canConfirm)
+                {
+                    Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    window.FindControl<Button>("ReviewSettingsUndo")!.IsEffectivelyEnabled.Should().Be(canReview);
+                    window.FindControl<Button>("ConfirmSettingsUndo")!.IsEffectivelyEnabled.Should().Be(canConfirm);
+                    window.FindControl<Button>("CancelSettingsUndo")!.IsEffectivelyEnabled.Should().Be(canConfirm);
+                }
+
+                AssertUndoActions(canReview: false, canConfirm: false);
                 var preferences = new LocalAppearancePreferences(f, NullLogger<LocalAppearancePreferences>.Instance);
                 f.Main.ThemeMode = ApplicationThemeMode.Dark;
                 await f.Main.AppearanceUpdate;
                 preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
+                AssertUndoActions(canReview: true, canConfirm: false);
                 async Task Click(string name)
                 {
                     Dispatcher.UIThread.RunJobs();
                     window.UpdateLayout();
                     var button = window.FindControl<Button>(name)!;
                     button.IsEffectivelyEnabled.Should().BeTrue();
+                    button.IsEffectivelyVisible.Should().BeTrue();
                     await ((AsyncCommand)button.Command!).ExecuteAsync();
                 }
                 await Click("ReviewSettingsUndo");
                 f.Main.CanConfirmSettingsUndo.Should().BeTrue();
+                AssertUndoActions(canReview: true, canConfirm: true);
                 f.Main.SettingsUndoDescription.Should().Contain("default").And.Contain("shared device-local");
                 preferences.LoadThemeMode().Should().Be(ApplicationThemeMode.Dark);
                 await Click(cancel ? "CancelSettingsUndo" : "ConfirmSettingsUndo");
                 preferences.LoadThemeMode().Should().Be(cancel ? ApplicationThemeMode.Dark : null, f.Main.SettingsUndoDescription);
                 f.Main.CanConfirmSettingsUndo.Should().BeFalse();
+                AssertUndoActions(canReview: cancel, canConfirm: false);
                 f.Main.IsVoiceEnabled.Should().BeFalse();
                 f.Main.HasVoiceConsent.Should().BeFalse();
                 f.Main.IsManualCallActive.Should().BeFalse();

@@ -63,7 +63,8 @@
                 IsEnabled="{Binding CanReviewSettingsUndo}" />
         <Button x:Name="ConfirmSettingsUndo" Content="Confirm settings undo"
                 IsEnabled="{Binding CanConfirmSettingsUndo}" />
-        <Button x:Name="CancelSettingsUndo" Content="Cancel settings undo" />
+        <Button x:Name="CancelSettingsUndo" Content="Cancel settings undo"
+                IsEnabled="{Binding CanConfirmSettingsUndo}" />
       </StackPanel>
     </StackPanel>
     <controls:NavigableTabControl

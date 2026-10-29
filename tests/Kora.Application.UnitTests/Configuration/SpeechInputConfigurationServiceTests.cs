@@ -130,6 +130,8 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         fixture.Runtime.ActiveLease.Should().BeFalse();
         fixture.Preferences.Writes.Should().Be(0);
         fixture.Audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Cancelled);
+        fixture.Service.Get().Desired.Should().Be(SpeechInputSelection.Default);
+        fixture.Service.Get().SavedStateKnown.Should().BeTrue();
     }
 
     [Theory]
@@ -408,6 +410,110 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         logger.Events.Select(item => item.Name).Should().Contain(["StartupPreferenceUnavailable", "SelectionCommitted", "SelectionFailed", "SelectionCancelled"]);
     }
 
+    [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task ReviewAndConfirmationKeepOneOriginalRequestAndDoNotRetireBeforeDecision(bool confirm)
+    {
+        await using var fixture = new Fixture(startup: "unavailable");
+        var old = fixture.Service.Get();
+        HostRequest? reviewedRequest = null;
+        var reviewStarted = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var decision = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var selection = fixture.Service.SelectAsync(SpeechInputSelection.Default, old.Revision, fixture.Policy.Current.Revision,
+            RequestOrigin.ActivatedVoice, SecurityAuditInitiator.VoiceCommand, fixture.Policy, () => fixture.Eligible,
+            TestContext.Current.CancellationToken, async (review, token) =>
+            {
+                reviewedRequest = HostActivity.RequireCurrent().Request;
+                review.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+                review.Current.Should().Be(old);
+                review.Proposed.Should().Be(new SpeechInputGeneration(1, SpeechInputSelection.Default));
+                review.Describe().Should().Contain("Required:").And.Contain("no complete compatible profile")
+                    .And.Contain("Desired:").And.Contain("physically joins");
+                reviewStarted.SetResult();
+                return await decision.Task.WaitAsync(token);
+            });
+        await reviewStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+        fixture.Runtime.Retirements.Should().Be(0);
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Service.Get().Should().Be(old);
+        decision.SetResult(confirm);
+        if (confirm)
+        {
+            (await selection).Should().BeTrue();
+            fixture.Service.Get().Desired.Should().Be(SpeechInputSelection.Default);
+            fixture.Runtime.ProfileGeneration.Number.Should().Be(1);
+        }
+        else
+        {
+            await FluentActions.Awaiting(() => selection).Should().ThrowAsync<OperationCanceledException>();
+            fixture.Service.Get().Should().Be(old);
+            fixture.Runtime.Retirements.Should().Be(0);
+            fixture.Preferences.Writes.Should().Be(0);
+        }
+        fixture.Audit.Requests.Should().OnlyContain(request => ReferenceEquals(request, reviewedRequest));
+    }
+
+    [Theory]
+    [InlineData("generation")]
+    [InlineData("preference")]
+    [InlineData("call")]
+    [InlineData("privacy")]
+    [InlineData("cancel")]
+    public async Task ReviewedDriftRefusesBeforeRetiringCaptureOrWriting(string drift)
+    {
+        await using var fixture = new Fixture(startup: "unavailable");
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var prior = fixture.Service.Get();
+        var selection = () => fixture.Service.SelectAsync(SpeechInputSelection.Default, prior.Revision, fixture.Policy.Current.Revision,
+            RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser, fixture.Policy, () => fixture.Eligible, cancellation.Token,
+            (review, _) =>
+            {
+                switch (drift)
+                {
+                    case "generation": fixture.Runtime.AdvanceGeneration(); break;
+                    case "preference": fixture.Preferences.Value = SpeechInputSelection.Default; break;
+                    case "call": fixture.Call.Set(CallState.Active); break;
+                    case "privacy": fixture.Eligible = false; break;
+                    case "cancel": cancellation.Cancel(); break;
+                }
+                return Task.FromResult(true);
+            });
+        await FluentActions.Awaiting(selection).Should().ThrowAsync<Exception>();
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Runtime.Retirements.Should().Be(0);
+        fixture.Service.Get().Desired.Should().Be(prior.Desired);
+    }
+
+    [Fact]
+    public async Task UnavailableTupleCannotAcquireAReviewedSwitchOrReplaceSavedIntent()
+    {
+        await using var fixture = new Fixture(startup: "saved");
+        var prior = fixture.Service.Get();
+        var reviewed = false;
+        await FluentActions.Awaiting(() => fixture.Service.SelectAsync(SpeechInputSelection.Default with { Resource = SpeechInputResource.Gpu },
+            prior.Revision, fixture.Policy.Current.Revision, RequestOrigin.LocalUi, SecurityAuditInitiator.LocalUser,
+            fixture.Policy, static () => true, TestContext.Current.CancellationToken, (_, _) =>
+            {
+                reviewed = true;
+                return Task.FromResult(true);
+            })).Should().ThrowAsync<InvalidOperationException>();
+        reviewed.Should().BeFalse();
+        fixture.Runtime.Retirements.Should().Be(0);
+        fixture.Preferences.Writes.Should().Be(0);
+        fixture.Service.Get().Should().Be(prior);
+    }
+
+    [Theory]
+    [InlineData("confirm speech.input", true)]
+    [InlineData("Nova, cancel speech.input", false)]
+    public void ParserRecognizesOnlyExactProfileReviewDecisions(string input, bool decision)
+    {
+        SpeechInputCommand.Parse(input, "Nova")!.ReviewDecision.Should().Be(decision);
+        SpeechInputCommand.Parse(input + " extra", "Nova")!.Operation.Should().Be(AppearanceCommandOperation.Clarify);
+        SpeechInputCommand.Parse("confirm speech.input-device", "Nova").Should().BeNull();
+    }
+
     private sealed class Fixture : IAsyncDisposable
     {
         internal Fixture(bool invalidStartup = false, string? startup = null, ILogger<SpeechInputConfigurationService>? logger = null)
@@ -487,6 +593,7 @@ public sealed class SpeechInputConfigurationServiceTests : IDisposable
         internal Action? BeforeReturn { get; set; }
         internal Exception? RetirementFailure { get; set; }
         internal void HoldUnavailable() => IsProfileAvailable = false;
+        internal void AdvanceGeneration() => ProfileGeneration = ProfileGeneration with { Number = ProfileGeneration.Number + 1 };
         public void InitializeProfile(SpeechInputSelection? selection)
         {
             if (selection is not null) { ProfileGeneration = new(0, selection); }

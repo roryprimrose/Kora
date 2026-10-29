@@ -133,6 +133,10 @@ An [explicit observation subset](../docs/claude-requests.md#explicit-read-only-o
 Exact native aliases/schemas and call IDs translate to portable proposals, never provider-owned execution. Each Count Tokens and Messages continuation requires independent complete-final-byte native consent; results remain inert data.
 Cumulative physical byte/call/round/deadline limits, live authority and joined cancellation apply. The default remains tool-free and the production approval source remains unavailable ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
 
+The separate [explicit Claude clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) admits one host-owned bounded question/answer, with no observation tools or sources ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+Only its dedicated mode supports clarification; canonical original-user answers are lower-trust data and every continuation Count Tokens/Messages POST requires fresh native final-byte consent ([adapter](../src/Kora.Application/Dependencies/ClaudeModelTurnAdapter.cs)).
+Default text and streaming requests are unchanged; Copilot/Codex clarification and shipped deployment approval remain unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24)).
+
 Kora treats **Copilot**, **Claude**, and **Codex** as distinct hosted services,
 not as interchangeable names for a model. Each requires its own adapter,
 authentication/account state, terms and usage boundary, capability catalogue,

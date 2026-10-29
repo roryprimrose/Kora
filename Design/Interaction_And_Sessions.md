@@ -919,6 +919,24 @@ The implementation is restricted to local Ollama admission and the original six 
 
 The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
+### Explicit hosted conversational clarification - 2026-10-29
+
+The [approved bounded Claude-only operation](Decision_Register.md#bounded-explicit-claude-clarification---2026-10-29) is separate from the local paths above. In private Sessions or compact view, enter the unchanged original request and select **Ask Claude with one clarification (separate disclosure reviews)**.
+The host captures `HostedClarification`, an empty observation catalogue and no source evidence, not an ordinary tool-free request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+
+Only that explicit Claude mode may advertise `ask_user`. The model can return a final answer immediately or ask one isolated bounded text, single-choice or multiple-choice question ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
+The existing session-owned question window and eligible exact activated-voice reply share canonical schema/draft/submit/cancel validation. The [existing continuation owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs) rechecks original task/session/generation, question/revision/spec, channel, canonical stored answer, expiry and live authority.
+
+Answering does not transmit or approve anything. The unchanged original request, exact question and canonical answer enter a new Count Tokens body and then Messages body ([native transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+**Each** physical POST requires a separate complete-final-byte native disclosure and affirmative one-send consent. Earlier consent and voice answers cannot approve either send ([review owner](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs)).
+
+The original USER and genuine final ASSISTANT answer retain the existing lineage; question/answer retention and content-free audit stay separate ([host regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.HostedClarification.cs)).
+Reviews, reply and transport share the existing two-minute hosted deadline and cumulative 32768-byte input/4096-byte output bounds ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)).
+Repeated/mixed questions, arbitrary tools, source access, cross-session replies, stale/canceled/expired answers and revoked authority fail closed; actual resources remain owned until joined ([physical regressions](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Questions.cs)).
+
+This does not change ordinary local/hosted text, observations or streaming. Copilot/Codex questions remain unsupported ([provider guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs)).
+No provider/account approval, profile activation, automatic microphone opening, retry or production enablement is introduced; the shipped Claude deployment source stays unavailable ([availability](Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24), [native controls](../tests/Kora.Windows.IntegrationTests/ClaudeUiContractTests.Questions.cs)).
+
 Every supported Kora workflow has equivalent verbal and mouse/keyboard-accessible operations.
 Users can interact entirely by voice, entirely through UI, or change channels at any step without restarting the workflow.
 Voice-first means convenient hands-free operation, not reduced UI capability or compulsory speech.
@@ -1011,6 +1029,11 @@ There is no command, tool, composer or session-routing fallback; the existing
 privacy-reducing Stop-listening route remains before schema parsing, even for
 an assistant named Stop or a matching option label. Proposal/approval questions
 are refused; approval readback specificity and grants are unchanged.
+Host-refused replies show an explicit **Reply was not accepted** recovery status,
+not ordinary turn completion; the acceptance callback is reserved for an Answered
+receipt and the reply trace ends Failed. Recovery directs the user to review native
+question status before retry, without retargeting or automatic replay ([reply delivery](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs),
+[native recovery regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Voice.cs)).
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained

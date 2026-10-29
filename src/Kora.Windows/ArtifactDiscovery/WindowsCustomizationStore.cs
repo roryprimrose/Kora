@@ -106,6 +106,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
                 var file = kind == CustomizationKind.Skill ? Path.Combine(root.Path, name, "SKILL.md")
                     : Path.Combine(root.Path, kind == CustomizationKind.McpServer ? "mcp.json" : name + Suffix(kind));
                 var target = MakeTarget(root, file, name);
+                if (kind == CustomizationKind.Skill && Directory.Exists(target.Directory))
+                { throw new InvalidOperationException("That skill destination directory or case alias already exists. Choose a new ID; no existing package is overwritten."); }
                 if (File.Exists(file) && (kind != CustomizationKind.McpServer
                     || new McpDefinitionDocument(WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(file, 256 * 1024, token)!.Bytes)
                         .Names.Contains(name, StringComparer.Ordinal)))

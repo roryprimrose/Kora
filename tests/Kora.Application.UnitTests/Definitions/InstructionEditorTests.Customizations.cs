@@ -231,6 +231,9 @@ public sealed partial class InstructionEditorTests
         internal Action? AfterRead;
         internal bool Registered;
         internal Action? BeforeRegister;
+        internal CustomizationSource? CreatedSource;
+        internal Action? BeforeCommit;
+        internal CustomizationSnapshot? CopySource;
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
             Source = new("file.example", kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
@@ -252,15 +255,20 @@ public sealed partial class InstructionEditorTests
         public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<CustomizationSource>>([Source]);
         public Task<CustomizationSource> Create(CustomizationKind kind, CustomizationScope scope, string name, CancellationToken token) =>
-            Task.FromResult(Source);
+            Task.FromResult(CreatedSource ?? Source);
         public Task<CustomizationSnapshot> Read(CustomizationSource source, CancellationToken token)
         { Reads++; AfterRead?.Invoke(); return Task.FromResult(Current); }
         public Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token) =>
             Task.FromResult(new CustomizationSnapshot(Source, Current.Revision, Current.Files, "Recovery"));
         public Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
             IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token) => commit(() =>
+            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+            CustomizationSnapshot? copiedFrom = null)
         {
+            CopySource = copiedFrom;
+            BeforeCommit?.Invoke();
+            return commit(() =>
+            {
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Closed"); }
             if (WriteFailure is { } failure) { throw failure; }
@@ -269,6 +277,7 @@ public sealed partial class InstructionEditorTests
             Current = new(source, "saved", files);
             AfterWrite?.Invoke();
             return Current;
-        });
+            });
+        }
     }
 }

@@ -223,6 +223,24 @@ set, but editing requires **Create Kora copy** with a distinct destination,
 attribution and initially disabled state. Neither copying nor saving transfers
 bundled action authority.
 
+The delivered skill copy branch is **Create Kora adaptation** (the legacy
+**Create Kora copy** button routes to the same operation for Skills).
+It accepts only the [documented plain single-file shared subset](Skill_Authoring.md#storage-and-versioning).
+Selecting a User skill first requires explicit bounded local read consent;
+inspection/metadata alone does not approve model disclosure, source mutation,
+copying, enablement or use. A distinct owned draft retains fixed source lineage.
+**Review and save** reviews the complete original and complete proposed source,
+then asks separately to save the new disabled file. Successful exact readback
+reopens it disabled through the existing writer/catalogue reconciliation.
+The current bundled packages' required executable implementations cannot be
+represented by this subset, so their adaptation is explicitly refused rather
+than presenting detached guidance as a working copy
+([native owner](../src/Kora/CustomizationWindowController.SkillAdaptation.cs),
+[behavioral evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
+Typed and current-name activated `create kora adaptation <new-id>` and
+`save skill adaptation` route to these same native reviews; neither command is
+itself publication confirmation ([routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
 Selecting an editable source opens a private working draft. A skill exposes its
 primary `SKILL.md` and bounded component tree; instructions and agents start
 with their primary document. MCP editing targets one server definition, not

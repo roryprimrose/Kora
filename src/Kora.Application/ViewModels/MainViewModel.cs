@@ -4379,7 +4379,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
                 () => initiator == SecurityAuditInitiator.VoiceCommand && customization.Operation is "Refine"
                     ? ExecuteCustomizationVoice(editorTarget, customization.Text!)
-                    : ExecuteCustomizationCommand(customization));
+                    : ExecuteCustomizationCommand(customization, reviewEligibility ?? CaptureSkillReviewEligibility(reviewInput)));
             return;
         }
         if (IsInstructionEditorCommand(spokenText))

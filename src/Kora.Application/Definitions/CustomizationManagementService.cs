@@ -5,7 +5,7 @@ using Kora.Core.Customizations;
 
 namespace Kora.Application.Definitions;
 
-public sealed class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
+public sealed partial class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
     ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit)
 {
     public bool IsInstructionRegistered(CustomizationSource source) => store.IsInstructionRegistered(source);
@@ -88,20 +88,26 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, current, admitted) =>
         {
-            if (expected is null)
-            {
-                var destination = await store.Create(source.Kind, source.Scope, source.Name, admitted).ConfigureAwait(false);
-                if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
-            }
-            else
-            {
-                var live = await store.Read(source, admitted).ConfigureAwait(false);
-                if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
-                { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
-            }
-            Require(current, admitted);
+            await RequireUnchangedSourceCore(source, expected, current, admitted).ConfigureAwait(false);
             return true;
         }, token);
+
+    private async Task RequireUnchangedSourceCore(CustomizationSource source, CustomizationSnapshot? expected,
+        Func<bool> current, CancellationToken token)
+    {
+        if (expected is null)
+        {
+            var destination = await store.Create(source.Kind, source.Scope, source.Name, token).ConfigureAwait(false);
+            if (destination != source) { throw new InvalidOperationException("The original draft destination changed."); }
+        }
+        else
+        {
+            var live = await store.Read(source, token).ConfigureAwait(false);
+            if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
+            { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
+        }
+        Require(current, token);
+    }
 
     public Task<bool> SetDisabled(CustomizationSource source, bool disabled,
         Func<CustomizationSnapshot?, CancellationToken, Task<bool>> confirm, Func<bool> eligible, CancellationToken token) =>
@@ -153,13 +159,16 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
 
     public Task<CustomizationSnapshot?> Save(CustomizationSource source, CustomizationSnapshot? original,
         IReadOnlyList<CustomizationFile> files, Func<CancellationToken, Task<bool>> confirm,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
+        CustomizationSnapshot? copiedFrom = null)
     {
         var proposal = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         ValidatePrimary(source, proposal);
         return admission.Run<CustomizationSnapshot?>(eligible, async (request, session, current, admitted) =>
         {
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (!await confirm(admitted).ConfigureAwait(false)) { return null; }
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (source is { Scope: CustomizationScope.User, Kind: CustomizationKind.Instruction }
                 && original is not null && proposal.Single().CopyBytes().AsSpan().SequenceEqual(original.Files.Single().CopyBytes()))
             {
@@ -178,11 +187,15 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
                 await admission.Publish(request, session, current, () =>
                 { use.SetDisabled(source.Id, true); return true; }, admitted).ConfigureAwait(false);
                 var saved = await store.Save(source, original, proposal, current,
-                    operation => admission.Publish(request, session, current, () =>
+                    async operation =>
                     {
-                        attempted = true;
-                        return operation();
-                    }, admitted).AsTask(), admitted).ConfigureAwait(false);
+                        if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                        return await admission.Publish(request, session, current, () =>
+                        {
+                            attempted = true;
+                            return operation();
+                        }, admitted).ConfigureAwait(false);
+                    }, admitted, copiedFrom).ConfigureAwait(false);
                 await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
                 audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
                 return saved;

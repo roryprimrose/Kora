@@ -289,7 +289,7 @@ public sealed partial class SessionsConversationTests
         composed.Model.ComposerBody.Should().Be("dirty independent");
     }
 
-    private sealed class SearchReader(
+    private sealed partial class SearchReader(
         Func<HostId<SessionIdentity>, ConversationCursor?, int, CancellationToken, ValueTask<ConversationPage>> read,
         Func<HostId<SessionIdentity>, CancellationToken, ValueTask<ConversationDraftSnapshot>>? readDraft = null,
         Func<HostId<SessionIdentity>, CancellationToken, ValueTask<SessionWorkspaceEntry>>? readMetadata = null,

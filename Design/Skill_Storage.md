@@ -46,6 +46,12 @@ button and exact original typed/current-name activated
 `shared skill review invocation` command confirm only the displayed pending
 declaration. Other invocation actions cannot skip this step.
 
+**Stop and close reviewed use** remains available before read consent and
+during dependency capture. Stopping before consent reads no references.
+Stopping an admitted read immediately clears the private review and requests
+cancellation; the host retains the read until it actually joins, suppresses
+late content and requires a fresh exact review before another attempt.
+
 The Windows reader revalidates the registered source, selected package,
 canonical ancestors, inventory and exact primary bytes while retaining
 non-writable, non-deletable handles. Reparse points, hardlinks, aliases,

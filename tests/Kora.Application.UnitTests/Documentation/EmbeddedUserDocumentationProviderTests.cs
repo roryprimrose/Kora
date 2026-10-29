@@ -14,6 +14,22 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
+    {
+        var pages = new EmbeddedUserDocumentationProvider().GetPages();
+        pages.Single(page => string.Equals(page.Id, "readme", StringComparison.Ordinal)).Markdown.Should().Contain("(data-storage.md)");
+        pages.Single(page => string.Equals(page.Id, "privacy-safety-and-logs", StringComparison.Ordinal)).Markdown.Should().Contain("(data-storage.md)");
+        var guide = pages.Single(page => string.Equals(page.Id, "data-storage", StringComparison.Ordinal));
+        guide.Title.Should().Be("Data storage and roaming profiles");
+        guide.Markdown.Should().Contain("%LOCALAPPDATA%\\Kora")
+            .And.Contain("%APPDATA%\\Kora")
+            .And.Contain("not autosaved")
+            .And.Contain("does not run its own synchronisation service")
+            .And.Contain("independent conversations and work")
+            .And.Contain("Not all files or");
+    }
+
+    [Fact]
     public void DocumentInteractionGuideDescribesExactLocalNavigationReadOnlySortingAndUnavailableProfile()
     {
         var guide = new EmbeddedUserDocumentationProvider().GetPages()
@@ -105,7 +121,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             .And.NotContain("**Speech & audio settings...**")
             .And.NotContain("**Evidence & diagnostics...**");
         var settings = pages.Single(page => string.Equals(page.Id, "settings", StringComparison.Ordinal)).Markdown;
-        settings.Should().Contain("**Settings > Approvals > Exact operation grants...**")
+        settings.Should().Contain("**Settings > Approvals > Permission grants...**")
             .And.NotContain("double-clicking the tray icon")
             .And.NotContain("bold **Settings...**");
     }
@@ -310,6 +326,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",
+            "data-storage",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",
@@ -419,7 +436,8 @@ public sealed class EmbeddedUserDocumentationProviderTests
         volumeSuggestion.Should().Contain("Review is inert").And.Contain("60 seconds").And.Contain("Original voice");
         sections.Single(section => section.StartsWith("Reviewed one-tool shared skill invocation", StringComparison.Ordinal))
             .Should().Contain("tool skill review tool revision").And.Contain("tool skill confirm invocation")
-            .And.Contain("once-only approval").And.Contain("unqualified local model remains explicitly unavailable");
+            .And.Contain("exact-destination permission grant").And.Contain("This session/Always grant is reused")
+            .And.Contain("unqualified local model remains explicitly unavailable");
         var speechSuggestion = sections.Single(section => section.StartsWith(
             "Review one retained assistant speech limit suggestion", StringComparison.Ordinal));
         foreach (var phrase in SpeechSummarySuggestionCommand.FixedPhrases)
@@ -822,6 +840,7 @@ public sealed class EmbeddedUserDocumentationProviderTests
             "instruction-editor",
             "conversation-instructions",
             "windows-and-tray",
+            "data-storage",
             "privacy-safety-and-logs",
             "skill-and-task-execution-design",
             "troubleshooting",

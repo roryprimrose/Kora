@@ -38,6 +38,7 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
             Directory.Exists(Path.Combine(profile, "Code")).Should().BeFalse();
             var preferences = new Preferences(ArtifactDirectorySettings.Empty);
             using var reload = CreateReload(native.ArtifactCatalogue, native, preferences, profile);
+            native.Main.BindFileArtifactFreshness((candidate, token) => reload.IsCurrentAsync(candidate, () => true, token));
             reload.Start();
             var prompt = Path.Combine(prompts, "recovered.prompt.md");
 
@@ -223,7 +224,7 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
     }
 
     [Fact]
-    public async Task Disk_change_publishes_new_revision_and_invalid_change_keeps_last_valid_catalogue()
+    public async Task Disk_change_publishes_new_revision_and_invalid_change_withholds_last_valid_catalogue()
     {
         var prompts = Path.Combine(root, "prompts");
         Directory.CreateDirectory(prompts);
@@ -265,14 +266,98 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         (await failed.Task.WaitAsync(
             TimeSpan.FromSeconds(10),
             TestContext.Current.CancellationToken)).Should().BeOfType<InvalidDataException>();
-        catalogue.Artifacts.Single(artifact =>
+        catalogue.Candidates.Single(artifact =>
                 string.Equals(artifact.CommandName, "updated", StringComparison.Ordinal))
             .Digest.Should().Be(updatedDigest);
+        catalogue.Artifacts.Should().OnlyContain(artifact => artifact.UseControlId == null);
         catalogue.IsReloadUnavailable.Should().BeTrue();
         await ObserveChange(catalogue,
             () => catalogue.Artifacts.Any(item => string.Equals(item.CommandName, "recovered", StringComparison.Ordinal)),
             () => WritePrompt(prompt, "Recovered", "Valid again."));
         catalogue.IsReloadUnavailable.Should().BeFalse();
+    }
+
+    [Fact]
+    public async Task MissedWatcherChangeCannotUseAnApprovedStaleSourceAndRestorationNeedsNewLocalReview()
+    {
+        var profile = Path.Combine(root, "profile");
+        var prompts = Path.Combine(profile, "Code", "User", "prompts");
+        Directory.CreateDirectory(prompts);
+        var prompt = Path.Combine(prompts, "example.prompt.md");
+        WritePrompt(prompt, "Example", "Original source.");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(ArtifactDirectorySettings.Empty);
+        var use = new ArtifactUsePreferences(paths);
+        using var catalogue = new ArtifactCatalogue(EmbeddedArtifactCatalogue.Load().Artifacts, use);
+        using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
+            new ArtifactDirectoryConfigurationService(preferences, new Audit()),
+            new McpServerConfigurationService(paths, preferences, profile),
+            NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile, use: use);
+        reload.ReloadNow().Should().BeTrue();
+        var selected = catalogue.Candidates.Single(item => item.UseControlId != null);
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeFalse();
+        var saved = new OwnedInstructionSnapshot("owned", new string('a', 48), new string('b', 48),
+            ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+                "---\nkora-format: 1\nname: owned\ndescription: Test\n---\nSaved source.", false),
+                ArtifactKind.Instruction, "kora-profile", "owned"));
+        reload.ReconcileSavedCopy(saved).Should().BeTrue();
+        use.SetDisabled(selected.UseControlId!, false, selected.Digest);
+        (await reload.IsCurrentAsync(selected, () => true, TestContext.Current.CancellationToken)).Should().BeTrue();
+        (await reload.IsCurrentAsync(selected, () => false, TestContext.Current.CancellationToken)).Should().BeFalse();
+        WritePrompt(prompt, "Example", "Externally changed without starting watchers.");
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeTrue("the test deliberately bypasses watcher delivery");
+        (await reload.IsCurrentAsync(selected, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        catalogue.IsReloadUnavailable.Should().BeTrue();
+        reload.ReconcileSavedCopy(saved).Should().BeFalse("an exact save cannot certify other failed sources");
+        catalogue.Artifacts.Should().OnlyContain(item => item.UseControlId == null);
+        use.IsRevisionAllowed(selected.UseControlId!, selected.Digest).Should().BeFalse();
+        WritePrompt(prompt, "Example", "Original source.");
+        reload.ReloadNow().Should().BeTrue();
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeFalse();
+        new ArtifactUsePreferences(paths).IsRevisionAllowed(selected.UseControlId!, selected.Digest).Should().BeFalse();
+        using var cancelled = new CancellationTokenSource();
+        await cancelled.CancelAsync();
+        await reload.Invoking(owner => owner.IsCurrentAsync(selected, () => true, cancelled.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        use.SetDisabled(selected.UseControlId!, false, selected.Digest);
+        File.Delete(prompt);
+        (await reload.IsCurrentAsync(selected, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+        reload.Dispose();
+        (await reload.IsCurrentAsync(selected, () => true, TestContext.Current.CancellationToken)).Should().BeFalse();
+    }
+
+    [Fact]
+    public void IncompleteOrConflictingIncomingDefinitionsHoldUseWithoutPublishingPartialOrDuplicateCommands()
+    {
+        var profile = Path.Combine(root, "profile");
+        var prompts = Path.Combine(profile, "Code", "User", "prompts");
+        Directory.CreateDirectory(prompts);
+        var prompt = Path.Combine(prompts, "example.prompt.md");
+        WritePrompt(prompt, "Example", "Original source.");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(ArtifactDirectorySettings.Empty);
+        var use = new ArtifactUsePreferences(paths);
+        using var catalogue = new ArtifactCatalogue(EmbeddedArtifactCatalogue.Load().Artifacts, use);
+        using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences,
+            new ArtifactDirectoryConfigurationService(preferences, new Audit()),
+            new McpServerConfigurationService(paths, preferences, profile),
+            NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: profile, use: use);
+        reload.ReloadNow().Should().BeTrue();
+        var selected = catalogue.Candidates.Single(item => item.UseControlId != null);
+        use.SetDisabled(selected.UseControlId!, false, selected.Digest);
+        File.WriteAllText(prompt, "---\nname: Example\n");
+        reload.ReloadNow().Should().BeFalse();
+        catalogue.Artifacts.Should().OnlyContain(item => item.UseControlId == null);
+        File.ReadAllText(prompt).Should().Be("---\nname: Example\n");
+        WritePrompt(prompt, "Example", "Original source.");
+        reload.ReloadNow().Should().BeTrue();
+        catalogue.IsCurrent(selected.Id, selected.Digest).Should().BeFalse();
+        use.SetDisabled(selected.UseControlId!, false, selected.Digest);
+        WritePrompt(Path.Combine(prompts, "conflict.prompt.md"), "Example", "A competing copy.");
+        reload.ReloadNow().Should().BeFalse();
+        catalogue.IsReloadUnavailable.Should().BeTrue();
+        catalogue.Artifacts.Should().OnlyContain(item => item.UseControlId == null);
+        File.ReadAllText(prompt).Should().Contain("Original source.");
     }
 
     [Fact]

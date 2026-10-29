@@ -220,5 +220,6 @@ public sealed partial class ModelTurnHostTests
         public long Revision { get; set; }
         internal HashSet<string> Disabled { get; } = [];
         public bool IsDisabled(string identity) => Disabled.Contains(identity);
+        public bool IsRevisionAllowed(string identity, string digest) => !IsDisabled(identity);
     }
 }

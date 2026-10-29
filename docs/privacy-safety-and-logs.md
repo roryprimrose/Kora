@@ -1,5 +1,8 @@
 # Privacy, safety, and logs
 
+For a simple overview of local and roaming data, see
+[Data storage and roaming profiles](data-storage.md).
+
 ## Reviewed session memory controls
 
 Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.

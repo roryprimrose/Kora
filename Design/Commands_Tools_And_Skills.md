@@ -627,7 +627,7 @@ Model: tool definitions, skill summaries, request/context        |
 
 Native SDK function/tool calling and typed inference responses are alternative transports for this contract.
 
-The [local observation-and-choice conversation](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) composes the existing host question service with the canonical six-tool read-only loop. It permits one SingleChoice question between complete serial exchanges, never an action approval or new tool capability. Native/activated-voice replies use the existing exact question owner, and the actual final answer is retained on the original request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs), [user interaction](../docs/responses-and-calls.md#conversation-clarification)).
+The [local observation-and-question conversation](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26) composes the existing host question service with the canonical six-tool read-only loop. Its native `ask_user` tool permits one question between complete serial exchanges: single-choice radio buttons, bounded multiple-choice checkboxes or bounded text input. It never grants action approval or additional tool authority. Native/activated-voice replies use the existing exact question owner, and the actual final answer is retained on the original request ([submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs), [user interaction](../docs/responses-and-calls.md#conversation-clarification)).
 
 An agent SDK can own iteration only if every invocation and result transmission remains mediated.
 An inference adapter uses the shared Kora-owned loop.
@@ -638,8 +638,9 @@ now supplies that host-owned loop over a provider-neutral portable transport.
 Its default discovery mode consumes the existing six read-only capabilities through the admitted
 host callback. A separate explicit `LocalWebPage` mode exposes only
 `network.get_web_page`, classified as bounded network read rather than discovery.
-The original user supplies one exact destination and approves its host-resolved
-once-only proposal in the native grant workflow. The existing `WebPageGet`
+The original user supplies one exact destination; the native grant workflow
+reuses matching explicit Session/Perpetual authority or offers Once/This session/Always
+for its host-resolved exact proposal. The existing `WebPageGet`
 action performs retrieval; another redirect destination requires a fresh request.
 An inert, local-only, provenance-bearing result (2 KiB including framing) resumes
 the same admitted local turn and original retained conversation task. Hosted

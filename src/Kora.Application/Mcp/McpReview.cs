@@ -24,8 +24,10 @@ public sealed record McpReview(McpReviewStage Stage, Uri Endpoint, McpAccountRef
             ? string.Equals(proposal.Binding.DeclaredResourceDigest, Hash(JsonSerializer.Serialize(source)), StringComparison.Ordinal)
                 && string.Equals(proposal.Binding.TrackedContentDigest, source.Revision, StringComparison.Ordinal)
             : string.Equals(proposal.Binding.DeclaredResourceDigest, proposal.Binding.TrackedContentDigest, StringComparison.Ordinal))
-        && string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
-            { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal);
+        && (string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
+                { stage = Stage, arguments = Arguments })), StringComparison.Ordinal)
+            || string.Equals(proposal.Binding.InvocationDigest, Hash(JsonSerializer.Serialize(new
+                { invocation = proposal.Request, stage = Stage, arguments = Arguments })), StringComparison.Ordinal));
 
     public string NativeText => "HTTPS MCP " + Stage + "\nDestination: " + Endpoint.AbsoluteUri
         + (Source is { } source ? "\nConfigured server: " + source.ServerName + "\nConfiguration source: " + source.Path : string.Empty)

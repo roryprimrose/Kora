@@ -7,4 +7,6 @@ public enum ComposerDictationDestination
     NewRequest,
     /// <summary>An exact existing conversation's unsent memory buffer.</summary>
     SessionComposer,
+    /// <summary>An explicitly selected range in one canonical owned instruction body's volatile draft.</summary>
+    OwnedInstructionBody,
 }

@@ -2,7 +2,7 @@
 
 An **instruction** is reusable guidance for an answer; a **prompt** is a reusable
 request. You can edit either without AI. Saving is separate from enabling or
-using it, and every write needs the displayed native confirmation.
+using it, and every write needs exact confirmation after the complete native source review.
 
 Start with [open and select](#open-and-select), [edit and save](#edit-review-and-save),
 [required prompt inputs](#prepare-required-native-prompt-inputs), or
@@ -13,7 +13,8 @@ this build** because no local model is approved.
 
 Use **Settings > Custom content > Owned instructions and prompts...** or type `instructions editor` / `prompts editor`.
 After ordinary push-to-talk admission, `Kora, instructions editor` focuses the same native surface.
-All write and use reviews remain native; definition-source body dictation and voice-only confirmation are unavailable. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
+Write and use reviews remain native. One already reviewed existing owned Instruction Save can use the [exact spoken answer](#confirm-one-reviewed-instruction-save-by-voice); other mutations remain native.
+Definition-source body dictation is not part of this operation. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
 Manual editing needs no model, hosted account or network. Explicit [local body refinement](#refine-the-current-owned-instruction-body) uses the separately admitted local-only model route; production qualification remains unavailable ([composition](../src/Kora/Program.cs)).
 
 | Kind/source/channel | What this editor supports |
@@ -24,7 +25,8 @@ Manual editing needs no model, hosted account or network. Explicit [local body r
 | Skills and agents | Use the separate [skill editor](owned-skill-authoring.md) or [agent profile editor](agent-profile-authoring.md); this editor does not write them |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
-| Voice-only confirmation/body dictation | Unavailable; native text editing and exact native reviews remain the recovery path |
+| Spoken save confirmation | One complete display-reviewed existing canonical owned Instruction, same-source normal Save only; [exact answer](#confirm-one-reviewed-instruction-save-by-voice), not generic assent |
+| Definition-source body dictation | Not supplied by the save operation; native editing remains available |
 
 Use **List**, select an owned ID, then **Inspect**. For a new file enter a lowercase ASCII ID
 (letters, digits and hyphens, at most 64 characters; no paths or device names) and select **Create**.
@@ -270,6 +272,23 @@ unsupported formats are not silently removed; use an external editor. Copying an
 The editable prompt subset requires `name` and `description`. New prompt drafts explicitly use native v2; existing v1 bodies and readers are not silently changed.
 Native v2 supports only required `${input:name}` literal markers in the body; unsupported markers/declarations/defaults, tools/model/agent references and other metadata remain incompatible. This is
 not full Copilot prompt-format support. Original unchanged legacy reader behavior is retained.
+
+## Confirm one reviewed instruction save by voice
+
+For an existing canonical native Kora-owned Instruction, **Save** still opens the complete original/replacement source review. **Confirm save** remains the default.
+After reading every changed field and body line, choose **Reviewed complete source: exact save question** for a separate host-owned question ([review](../src/Kora/NativeInstructionMutationReview.cs)).
+
+Choose **Answer by voice**, or **Hear question then answer**, explicitly. Merely showing either review never starts recording. Say the complete displayed phrase, such as **Save instruction example** or **Cancel saving instruction example**.
+Generic yes, approve, option numbers, another name and extra actions do not confirm ([exact matching](../src/Kora.Core/Interaction/QuestionVoiceAnswer.cs)).
+
+The optional readback describes Save, owned kind/name, same roaming source, byte count/BOM and changed fields. It explicitly covers the entire display-reviewed replacement; it is not a digest or a reading of the source.
+If that summary is insufficient, cancel and use the complete native source review; this increment does not read a 64 KiB source aloud ([question](../src/Kora/QuestionWindowController.InstructionSave.cs)).
+
+The two-minute review binds the original request/channel, exact baseline, prepared bytes and destination. Changed draft, caret, control input, ownership, private session, call or voice readiness invalidates it.
+Protected calls, unavailable speech, detected source risk or noncanonical/ambiguous names require native recovery; no answer is followed to another question ([owner](../src/Kora/NativeQuestionHost.InstructionSave.cs)).
+
+Accepted Save uses the same writer, complete-byte readback and disabled-revision reconciliation. Cancel before publication leaves the source unchanged. An uncertain publication is held for inspection/reconciliation, not rolled back or retried.
+Create, copy, delete, conflict overwrite, prompts, profile originals, grants and enablement retain their existing native reviews ([writer](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.cs)).
 
 ## Prepare required native prompt inputs
 

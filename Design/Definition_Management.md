@@ -746,8 +746,13 @@ or count as user activity/approval.
 
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
-and writer. Activated controls focus the same native editor; voice-only approval
-and body dictation remain unavailable. Manual editing needs no model/network.
+and writer. Activated controls focus the same native editor. One already completely
+display-reviewed existing canonical owned Instruction normal same-source Save now
+supports a separate explicit [exact spoken answer](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+through the shared host question owner; native confirmation remains default/recovery.
+Create/copy/delete/conflict overwrite, prompts, profile originals and use/grant
+reviews stay native. This Save operation does not supply body dictation.
+Manual editing needs no model/network.
 The bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) now adds native and exact `instructions refine` entry points on this existing editor, not a second profile writer.
 The host freezes the exact draft/body/baseline and unchanged critique; only a qualified local, tool-free volatile context turn may propose a complete replacement body. Metadata/source/encoding remain host-owned, and source preparation/freshness precede review and confirmed normal Save ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
 The complete comparison leaves both draft and source untouched. Accepted proposals remain volatile until separately confirmed ordinary Save/readback, which holds changed revisions disabled. Draft/source/critique/private/channel/ownership/expiry changes revoke proposals; no fence stripping, truncation, remote fallback or reference execution is admitted ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [actual operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).

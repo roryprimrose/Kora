@@ -164,7 +164,8 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.OwnedInstructionEditorActions>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>(),
-                refinement: Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionRefinementService>());
+                refinement: Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionRefinementService>(),
+                saveQuestions: questionWindow);
             instructionEditor.Bind();
             customizations = new(viewModel,
                 Services.GetRequiredService<Kora.Application.Definitions.CustomizationManagementService>(),

@@ -1,11 +1,18 @@
-﻿using Kora.Application.Definitions;
+﻿using System.Diagnostics;
+
+using Kora.Application.Definitions;
 using Kora.Core.Artifacts;
+using Kora.Core.Diagnostics;
 
 namespace Kora;
 
 internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWindow window, string sourceRoot, Func<bool> current,
-    ArtifactKind kind = ArtifactKind.Instruction) : IInstructionMutationReview
+    ArtifactKind kind = ArtifactKind.Instruction, QuestionWindowController? questions = null,
+    DateTimeOffset expiresAt = default) : IInstructionMutationReview
 {
+    private bool conflictObserved;
+    private Func<bool>? answerCurrent;
+    internal bool IsAnswerCurrent => answerCurrent?.Invoke() ?? true;
     public async Task<bool> ConfirmCopy(OwnedDefinitionCopy copy, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
@@ -31,6 +38,18 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Confirm(name, expected, proposed, token)); }
         if (!current()) { return false; }
+        var original = questions is null ? null : HostActivity.RequireCurrent();
+        async Task<bool> Ask(Avalonia.Controls.Window owner, CancellationToken admitted)
+        {
+            if (!current() || original!.Activity!.IsStopped) { return false; }
+            answerCurrent = questions!.CaptureInstructionSaveVoiceEligibility()
+                ?? throw new InvalidOperationException("Voice readiness is unavailable. Use the existing native Save confirmation.");
+            using var activity = HostActivity.BeginRoot(original.Request, HostActivityLayer.Desktop, HostOperation.Presentation,
+                [new ActivityLink(original.Activity.Context)]);
+            var confirmed = await questions.ConfirmInstructionSaveAsync(owner, name, expected!, proposed!, expiresAt, current, admitted);
+            activity.Complete(confirmed ? HostOperationOutcome.Completed : HostOperationOutcome.Cancelled);
+            return confirmed;
+        }
         return await window.Choose(proposed is null ? $"Delete exact owned {kind}" : $"Save exact owned {kind}",
             $"Owned kind: {kind}; ID: {name}\nExact source: {Path.Combine(sourceRoot, expected?.CanonicalFileName ?? name + OwnedDefinitionKind.Extension(kind))}\nBase revision: {expected?.Revision ?? "(new)"}\n"
             + $"Base digest: {expected?.Document.Definition.Digest ?? "(missing/new)"}\n"
@@ -39,13 +58,17 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
             + "Full original and proposed source shown, including all metadata, body and attribution. "
             + "Final disk comparison is optimistic: an edit after that comparison may be overwritten by complete-byte atomic replacement. "
             + "Only this host-derived owned file changes. Save does not permit use or execution.",
-            expected?.Document.Text, proposed?.Text, [proposed is null ? "Confirm delete" : "Confirm save", "Cancel"], token) == 0 && current();
+            expected?.Document.Text, proposed?.Text, [proposed is null ? "Confirm delete" : "Confirm save", "Cancel"], token,
+            questions is not null && !conflictObserved && kind == ArtifactKind.Instruction && expected is not null && proposed is not null
+                ? Ask
+                : null) == 0 && current();
     }
 
     public async Task<InstructionConflictChoice> Conflict(OwnedInstructionSnapshot? observed, ArtifactFileDocument? proposed, CancellationToken token)
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
         { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Conflict(observed, proposed, token)); }
+        conflictObserved = true;
         if (!current()) { return InstructionConflictChoice.Cancel; }
         return (InstructionConflictChoice)await window.Choose($"{kind} conflict",
             "Disk changed or the base is missing/replaced. Your draft is preserved.\n"

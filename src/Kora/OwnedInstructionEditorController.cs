@@ -16,7 +16,8 @@ internal sealed partial class OwnedInstructionEditorController(
     OwnedInstructionEditorActions? promptActions = null, InstructionSaveWorkflow? promptSaves = null,
     ProfileInstructionForkWorkflow? profileForks = null,
     Kora.Core.Context.IUserFilePicker? profilePicker = null,
-    OwnedInstructionRefinementService? refinement = null) : IDisposable
+    OwnedInstructionRefinementService? refinement = null,
+    QuestionWindowController? saveQuestions = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -89,6 +90,9 @@ internal sealed partial class OwnedInstructionEditorController(
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
+            if (change.Property == TextBox.CaretIndexProperty || change.Property == TextBox.SelectionStartProperty
+                || change.Property == TextBox.SelectionEndProperty)
+            { Interlocked.Increment(ref sourceRevision); }
             if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
@@ -389,9 +393,15 @@ internal sealed partial class OwnedInstructionEditorController(
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
         var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
+        var reviewedInputRevision = Interlocked.Read(ref copyInputRevision);
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
+        NativeInstructionMutationReview? review = null;
         // Admission/publication callbacks run off the UI thread; never read an Avalonia control there.
-        bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision;
-        var review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)), CurrentDraft, kind);
+        bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision
+            && Interlocked.Read(ref copyInputRevision) == reviewedInputRevision && DateTimeOffset.UtcNow < expiresAt
+            && (review?.IsAnswerCurrent ?? true);
+        review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)),
+            CurrentDraft, kind, saveQuestions, expiresAt);
         var pending = pendingRefinement;
         var result = !delete && pending is not null
             ? await (refinement ?? throw new InvalidOperationException("Local refinement is unavailable.")).Save(pending, review, CurrentDraft, token)

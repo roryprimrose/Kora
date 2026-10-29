@@ -77,6 +77,12 @@ controls and writes exactly one bounded `*.instructions.md` file. Voice and
 typed input can propose the same edits; neither input route bypasses native
 review or the exact Save confirmation.
 
+The first [exact spoken Save increment](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+confirms one already completely display-reviewed existing canonical Kora-owned
+Instruction replacement through the canonical host question service and unchanged
+writer. It does not extend package saves, profile-original writes, creation/copy,
+deletion, conflict overwrite, grants or activation; other mutations remain native.
+
 Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
 Compatible instructions discovered in an existing VS Code or VS Code Insiders
 profile location may be edited in their original file when the user selects

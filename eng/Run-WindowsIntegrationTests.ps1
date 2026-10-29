@@ -27,10 +27,15 @@ $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Results
 # to the 477s synchronous definitions shard, retaining whole classes and the serial UI dispatcher.
 # Run 40781657098 then exhausted definitions at 1,804s; leave its 133s Find class on
 # synchronous ui-platform for predicted whole jobs of 1,671s and 1,561s respectively.
+# Run 40815883491 breached platform's job cap; move its 385s of settings UI work
+# intact to synchronous definitions. Keep native-UX's buffered profile unchanged.
 $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
     'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
     'Kora.Windows.IntegrationTests.SessionsConversationTests.'
+    'Kora.Windows.IntegrationTests.SettingsSectionNavigationTests.'
+    'Kora.Windows.IntegrationTests.SettingsResetMenuTests.'
+    'Kora.Windows.IntegrationTests.SettingsSpecialistNavigationTests.'
 )
 $nativeUiPrefixes = @(
     'Kora.Windows.IntegrationTests.NativeUx.'

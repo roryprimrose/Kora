@@ -51,19 +51,11 @@ internal sealed class LocalWebPageInvocation(
             // Native review owns its own activity; presentation freshness is not executable host context.
             var presented = await present(proposal, generation, destination,
                 () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
-            if (!Live(token) || presented.Presented.Proposal != proposal
-                || presented.Presented.Key.Request != invocation || presented.Presented.SessionGeneration != generation
-                || presented.Completed is not { Outcome: HostInteractionOutcome.Approved, Grant: { } grant }
-                || grant.ApprovedProposal != proposal || grant.Scope != OperationGrantScope.Once
-                || grant.SessionGeneration != generation
-                || presented.Completed.Question is not { Status: QuestionStatus.Answered } answer
-                || answer.Key.QuestionId != presented.Presented.Key.QuestionId
-                || answer.Key.Request != invocation || answer.Proposal != proposal
-                || answer.Draft is not { Text: null } draft || !draft.Choices.SequenceEqual(["once"])
-                || answer.AnswerChannel is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+            if (!Live(token))
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "exact-page-approval-required"); }
             var authorization = new HostAuthorizationService(store, time);
-            var consumed = await authorization.ConsumeAsync(invocation, grant.Id, grant.Revision, token).ConfigureAwait(false);
+            var consumed = await ExternalOperationGrantUse.ConsumeAsync(authorization, proposal, generation,
+                presented.Presented, presented.Completed, requireLocalApproval: false, token).ConfigureAwait(false);
             if (consumed.Outcome != HostInteractionOutcome.Consumed || consumed.Grant is not { } receipt
                 || consumed.Admission is not { } admission)
             { activity.Complete(HostOperationOutcome.Failed); return new(CapabilityOutcome.Denied, "page-approval-not-current"); }
@@ -102,7 +94,8 @@ internal sealed class LocalWebPageInvocation(
                                 && workflowScope.Destinations.Any(item => next.Binding == CreateBinding(invocation, item)))
                         && current == receipt
                         && snapshot.EffectivePermission == dispatch.Policy && snapshot.Admissions.Contains(dispatch)
-                        && current.Status == OperationGrantStatus.Consumed
+                        && current.Status == (current.Scope == OperationGrantScope.Once
+                            ? OperationGrantStatus.Consumed : OperationGrantStatus.Active)
                         ? (snapshot, new(HostInteractionOutcome.Approved, "exact-page-use-current"))
                         : InteractionTransaction.Reject(snapshot, "exact-page-use-retired");
                 }, checkToken).ConfigureAwait(false);
@@ -163,11 +156,12 @@ internal sealed class LocalWebPageInvocation(
         var definition = Hash(JsonSerializer.Serialize(LocalWebPageTool.Descriptor));
         var address = WebPageAccessBinding.DestinationDigest(destination);
         return new(WebPageAccessBinding.ActionId, "builtin", "local-web-page",
-            definition, address, Hash("page-not-yet-retrieved"),
+            definition, Hash("exact-public-page-destination-v2"), Hash("page-not-yet-retrieved"),
             Hash(typeof(WebPageGet).Module.ModuleVersionId.ToString("D")),
-            Hash(JsonSerializer.Serialize(invocation)), address,
-            Hash(JsonSerializer.Serialize(new { original, generation })), address,
-            Hash("inert-local-only-text-v1"), new(1));
+            Hash("exact-page-retrieval-v2"), address,
+            Hash("original-local-user"), address,
+            Hash("inert-local-only-text-v1"), new(1),
+            new(PermissionGrantArtifactKind.Tool, Kora.Core.Customizations.CustomizationScope.BuiltIn));
     }
 
     internal static CapabilityReply Bound(LocalWebPageResult page)

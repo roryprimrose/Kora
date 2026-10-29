@@ -252,12 +252,18 @@ public sealed partial class SessionsConversationTests
                     question.GetLogicalDescendants().OfType<RadioButton>().Single(item =>
                         item.Content is string text && text.StartsWith("Confirm:", StringComparison.Ordinal)).IsChecked = true;
                     var stopping = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    var cancellingNotifications = 0;
+                    var notificationFailures = 0;
                     void Changed(ConversationExecutionStatus status)
                     {
                         if (status.Phase == ConversationExecutionPhase.Cancelling)
                         {
-                            stopping.TrySetResult();
-                            if (decision is "notification") { throw new IOException("Synthetic stop notification failure."); }
+                            Interlocked.Increment(ref cancellingNotifications);
+                            if (stopping.TrySetResult() && decision is "notification")
+                            {
+                                notificationFailures++;
+                                throw new IOException("Synthetic stop notification failure.");
+                            }
                         }
                     }
                     composed.Conversation.RunningConversationChanged += Changed;
@@ -265,14 +271,16 @@ public sealed partial class SessionsConversationTests
                     {
                         question.FindControl<Button>("SubmitAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                         await stopping.Task.WaitAsync(f.Token);
+                        operation.IsCompleted.Should().BeFalse("the noncooperative provider has not physically joined");
+                        first.IsCompleted.Should().BeFalse();
+                        closed.Should().Be(0);
+                        if (decision is "close-joining") { overview.Close(); }
+                        running.Release();
+                        await operation;
                     }
                     finally { composed.Conversation.RunningConversationChanged -= Changed; }
-                    operation.IsCompleted.Should().BeFalse("the noncooperative provider has not physically joined");
-                    first.IsCompleted.Should().BeFalse();
-                    closed.Should().Be(0);
-                    if (decision is "close-joining") { overview.Close(); }
-                    running.Release();
-                    await operation;
+                    cancellingNotifications.Should().BeGreaterThan(1, "the observer remains attached through terminal completion");
+                    notificationFailures.Should().Be(decision is "notification" ? 1 : 0);
                     native.Main.LastAllWorkStop!.Outcome.Should().Be(decision is "confirm"
                         ? AllWorkStopResult.OutcomeKind.Completed : AllWorkStopResult.OutcomeKind.PartialUnconfirmed);
                     native.Main.LastAllWorkStop.Originals.Should().HaveCount(3).And.OnlyContain(item =>

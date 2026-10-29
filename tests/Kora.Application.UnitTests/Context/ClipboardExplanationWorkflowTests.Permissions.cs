@@ -38,6 +38,10 @@ public sealed partial class ClipboardExplanationWorkflowTests
             fixture.Broker.Clear();
         }
         fixture.PermissionQuestions.Should().Be(questions);
+        fixture.Interactions.Interaction!.Grants.Should().OnlyContain(grant =>
+            grant.ApprovedProposal.Binding.Target != null
+            && grant.ApprovedProposal.Binding.Target.Kind == PermissionGrantArtifactKind.Tool
+            && grant.ApprovedProposal.Binding.Target.Scope == Kora.Core.Customizations.CustomizationScope.BuiltIn);
         fixture.Reader.Calls.Should().Be(2);
         fixture.Messages.Should().NotContain(text => text.Contains("synthetic test material", StringComparison.Ordinal));
         fixture.Audits.Should().NotContain(item => item.TargetId.Contains("synthetic test material", StringComparison.Ordinal));

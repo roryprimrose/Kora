@@ -39,6 +39,8 @@
     <ScrollViewer Grid.Row="3" MaxHeight="260" VerticalScrollBarVisibility="Auto"
                   AutomationProperties.Name="Selected-session controls and provider policy review; scroll for complete controls">
     <StackPanel Spacing="6">
+    <Button Content="Permission grants..." Command="{Binding PermissionGrantsCommand}" IsEnabled="{Binding CanRead}"
+            AutomationProperties.Name="Open Always permissions and grants for the exact selected session" />
     <Expander x:Name="ContentSearchPanel" Header="Search conversation content">
       <StackPanel Spacing="6">
         <TextBox x:Name="ContentQuery" Text="{Binding ContentQuery, Mode=TwoWay}" MaxLength="256"
@@ -169,10 +171,10 @@
             IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Requires positive exact-profile native text-stream approval. Separate native consent for token count and stream Messages. Provisional text is not retained; only a fully validated final answer is saved. No tools, retry or buffered fallback." />
           <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
-            AutomationProperties.HelpText="Explicit tool-free local request. Unqualified providers remain unavailable." />
-          <Button x:Name="SubmitReadOnlyWithClarification" Content="Ask locally with observations and one choice"
+            AutomationProperties.HelpText="Local request with ask_user only: one question with radio buttons, checkboxes or bounded text, answered here through the session-owned question window or by voice. Unqualified providers remain unavailable." />
+          <Button x:Name="SubmitReadOnlyWithClarification" Content="Ask locally with observations and one question"
             IsEnabled="{Binding CanSubmitConversationWithClarification}"
-            AutomationProperties.HelpText="Uses only six read-only observation tools and at most one bounded choice. A reply is not approval or permission. Unqualified local providers remain unavailable." />
+            AutomationProperties.HelpText="Uses six read-only observation tools and ask_user once, with radio buttons, checkboxes or bounded text. Answer in the session-owned question window or by voice. A reply is not approval or permission. Unqualified local providers remain unavailable." />
           <Button x:Name="SubmitWebPage" Content="Retrieve and summarize one page locally"
             IsEnabled="{Binding CanSubmitConversation}"
             AutomationProperties.HelpText="Enter get web page followed by one absolute public address. Requires separate exact once-only approval; unqualified local models remain unavailable." />

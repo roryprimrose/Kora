@@ -10,6 +10,50 @@ namespace Kora.Core.UnitTests.Authorization;
 public sealed class ExactGrantQueryTests
 {
     [Theory]
+    [InlineData(OperationGrantScope.Perpetual, false, false, false, true)]
+    [InlineData(OperationGrantScope.Session, false, false, false, false)]
+    [InlineData(OperationGrantScope.Once, false, false, true, false)]
+    [InlineData(OperationGrantScope.Perpetual, true, false, false, true)]
+    [InlineData(OperationGrantScope.Session, true, true, false, true)]
+    [InlineData(OperationGrantScope.Session, true, false, false, false)]
+    [InlineData(OperationGrantScope.Once, true, true, false, false)]
+    [InlineData(OperationGrantScope.Once, true, true, true, true)]
+    [InlineData(OperationGrantScope.Once, true, false, true, false)]
+    public void ManagementViewsNeverIncludeOtherSessionsTransientAuthority(OperationGrantScope scope,
+        bool sessionView, bool sameSession, bool history, bool expected)
+    {
+        var target = new HostId<SessionIdentity>(Guid.NewGuid());
+        var digest = new string('a', 64);
+        var request = new HostRequest(new(Guid.NewGuid()), sameSession ? target : new(Guid.NewGuid()),
+            new(Guid.NewGuid()), RequestOrigin.LocalUi, new(Guid.NewGuid()));
+        var binding = new ExactOperationBinding("bounded.read", "source", "skill", digest, digest, digest, digest,
+            digest, digest, digest, digest, digest, new(1));
+        var grant = new OperationGrant(new(Guid.NewGuid()), new(1),
+            new(request, new(Guid.NewGuid()), new(1), binding, HostOperationEffect.BoundedRead, DateTimeOffset.UnixEpoch),
+            scope, new(1), RequestOrigin.LocalUi, DateTimeOffset.UnixEpoch);
+        var query = new ExactGrantQuery(status: OperationGrantStatus.Active, managementView: true,
+            managementSession: sessionView ? target : null, includeOnceHistory: history);
+        query.Matches(grant).Should().Be(expected);
+        query.Matches(grant with { Status = OperationGrantStatus.Revoked }).Should().BeFalse();
+        query.Digest.Should().NotBe(ExactGrantQuery.Unfiltered.Digest);
+        query.Digest.Should().NotBe(new ExactGrantQuery(status: OperationGrantStatus.Active,
+            managementView: true, managementSession: new(Guid.NewGuid()), includeOnceHistory: history).Digest);
+        new ExactGrantQuery(managementView: true, managementSession: target, includeOnceHistory: true).Digest
+            .Should().NotBe(new ExactGrantQuery(managementView: true, managementSession: target).Digest);
+    }
+
+    [Fact]
+    public void SessionManagementFlagsRequireManagementViewAndValidatedSessionIdentity()
+    {
+        var session = () => new ExactGrantQuery(managementSession: new(Guid.NewGuid()));
+        session.Should().Throw<InvalidDataException>();
+        var history = () => new ExactGrantQuery(includeOnceHistory: true);
+        history.Should().Throw<InvalidDataException>();
+        var empty = () => new ExactGrantQuery(managementView: true, managementSession: default(HostId<SessionIdentity>));
+        empty.Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
     [InlineData("Any", "Any", null, null)]
     [InlineData("Once", "Active", OperationGrantScope.Once, OperationGrantStatus.Active)]
     [InlineData("Session", "Consumed", OperationGrantScope.Session, OperationGrantStatus.Consumed)]

@@ -1,11 +1,52 @@
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Application.UnitTests.Configuration;
 using Kora.Core.Auditing;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ConversationExecutionAndLogonStartupKeepIndependentReviewedWrites(bool typed)
+    {
+        await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
+        var f = new Fixture(enableConversationExecution: true, logonStartupConfiguration: startup.Service);
+        f.ViewModel.BindLogonStartupNativeLifetime(static () => true);
+        f.ViewModel.CanChangeConversationExecution.Should().BeTrue();
+        f.ViewModel.CanControlLogonStartupNative.Should().BeTrue();
+        if (typed) { await f.RunAsync("review conversations.execution-maximum to 1"); }
+        else
+        {
+            f.ViewModel.SelectedConversationExecutionLimit = f.ViewModel.ConversationExecutionLimits[0];
+            await f.ViewModel.ReviewConversationExecutionCommand.ExecuteAsync();
+        }
+        f.ConversationExecutionPreferences.Writes.Should().Be(0);
+        startup.Preferences.Writes.Should().Be(0);
+        startup.Registration.Writes.Should().Be(0);
+        if (typed) { await f.RunAsync("confirm conversations.execution-maximum"); }
+        else { await f.ViewModel.ConfirmConversationExecutionCommand.ExecuteAsync(); }
+        f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        startup.Preferences.Writes.Should().Be(0);
+        startup.Registration.Writes.Should().Be(0);
+        if (typed) { await f.RunAsync("enable start at logon"); }
+        else { await f.ViewModel.EnableLogonStartupCommand.ExecuteAsync(); }
+        startup.Preferences.Writes.Should().Be(0);
+        startup.Registration.Writes.Should().Be(0);
+        if (typed) { await f.RunAsync("confirm start at logon change"); }
+        else { await f.ViewModel.ConfirmLogonStartupCommand.ExecuteAsync(); }
+        startup.Preferences.Value.Should().BeTrue();
+        startup.Registration.State.Enabled.Should().BeTrue();
+        f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Voice.StartCalls.Should().Be(0);
+        f.ViewModel.Dispose();
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

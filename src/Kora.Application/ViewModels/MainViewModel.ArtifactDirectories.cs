@@ -28,8 +28,8 @@ public sealed partial class MainViewModel
         ArtifactCatalogueReloadFailedEventArgs args) =>
         uiDispatcher.Post(() => ShowFailure(
             "Artifact changes could not be loaded.",
-            "Owned instructions are withheld until a successful reload and exact revision review. "
-            + "Other historical catalogue entries may remain available; no managed source is claimed current."));
+            "File-backed definitions are withheld until a successful reload and any required exact revision review. "
+            + "Historical entries are not current sources; built-in definitions remain separate."));
 
     private void OnMcpServerConfigurationChanged(object? sender, EventArgs args) =>
         uiDispatcher.Post(() => RefreshArtifactDirectories(publishConfigurationChange: false));

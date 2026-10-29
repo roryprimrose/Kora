@@ -2,6 +2,7 @@ using AwesomeAssertions;
 using System.Reflection;
 using Kora.Application.Presentation;
 using Kora.Application.ViewModels;
+using Kora.Core.Artifacts;
 using Kora.Core;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -14,6 +15,50 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("current")]
+    [InlineData("stale")]
+    [InlineData("retired")]
+    [InlineData("stale-after-confirmation")]
+    public async Task FileArtifactActionRepeatsSourceValidationAtDecisionWithoutRetargetingOrReusableGrants(string sourceState)
+    {
+        var f = await CreateModelActionReviewFixtureAsync();
+        var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nname: example\ndescription: Test\n---\nBody", false), ArtifactKind.Skill, "user-profile", "example")
+            .Definition with { UseControlId = "file.example" };
+        f.ArtifactCatalogue.Publish([definition]);
+        f.ViewModel.BindFileArtifactFreshness((_, _) => Task.FromResult(true));
+        await f.RunAsync("/example original request");
+        await f.ViewModel.ActiveReasoningTask!;
+        var original = f.ViewModel.CaptureModelActionReview()!;
+        original.Should().NotBeNull();
+        var decisionReads = 0;
+        f.ViewModel.BindFileArtifactFreshness(async (_, _) =>
+        {
+            decisionReads++;
+            if (sourceState is "retired") { await f.ViewModel.RejectModelActionReviewAsync(original); }
+            return sourceState is not "stale" && (sourceState is not "stale-after-confirmation" || decisionReads == 1);
+        });
+        await f.ViewModel.ConfirmModelActionReviewAsync(original, ModelApprovalScope.Once);
+        f.Session.LockCalls.Should().Be(sourceState is "current" ? 1 : 0);
+        f.ViewModel.PendingModelActionReview.Should().BeNull();
+        f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+        if (sourceState is "stale-after-confirmation")
+        {
+            f.ViewModel.ResponseTitle.Should().Be("Definition changed before execution.");
+            f.Audit.Events.Should().OnlyContain(entry => entry.Category == SecurityAuditCategory.SecurityApproval,
+                "the consumed approval is evidence of the user's decision, not an executed action");
+            f.Audit.Events.Should().ContainSingle(entry => entry.CorrelationId == original.Audit.CorrelationId
+                && entry.Outcome == SecurityAuditOutcome.Succeeded && string.Equals(entry.ReasonCode, "approved-once", StringComparison.Ordinal));
+        }
+        else if (sourceState is not "current")
+        {
+            f.Audit.Events.Should().NotContain(entry => entry.CorrelationId == original.Audit.CorrelationId
+                && entry.Outcome == SecurityAuditOutcome.Succeeded);
+        }
+    }
+
     private static async Task<Fixture> CreateModelActionReviewFixtureAsync(bool voice = false)
     {
         var f = voice ? CreateVoicePrivacyFixture() : new Fixture();

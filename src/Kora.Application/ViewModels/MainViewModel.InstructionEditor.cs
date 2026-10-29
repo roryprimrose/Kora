@@ -8,6 +8,7 @@ public sealed partial class MainViewModel
     public event Func<string, string?, Task>? OwnedPromptEditorRequested;
     private Func<Task<bool>>? instructionEditorShutdown;
     private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? ownedInstructionFreshness;
+    private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? fileArtifactFreshness;
     private Func<bool>? instructionRefinementInput;
 
     public void BindInstructionEditorShutdown(Func<Task<bool>>? shutdown) => instructionEditorShutdown = shutdown;
@@ -16,6 +17,27 @@ public sealed partial class MainViewModel
     public void BindOwnedInstructionFreshnessWithCancellation(
         Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? validator) =>
         ownedInstructionFreshness = validator;
+    public void BindFileArtifactFreshness(
+        Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? validator) =>
+        fileArtifactFreshness = validator;
+
+    private async Task<bool> IsArtifactSourceCurrent(Kora.Core.Artifacts.ArtifactDefinition candidate, CancellationToken token)
+    {
+        var validator = candidate.OwnedInstructionName is not null ? ownedInstructionFreshness
+            : candidate.UseControlId is not null ? fileArtifactFreshness : null;
+        if (candidate.OwnedInstructionName is null && candidate.UseControlId is null) { return true; }
+        return validator is not null && await validator(candidate, token) && !token.IsCancellationRequested;
+    }
+
+    private async Task<bool> IsFileArtifactSourceCurrent(Kora.Core.Dependencies.LocalModelArtifact artifact, CancellationToken token)
+    {
+        var candidate = artifactCatalogue.Candidates.SingleOrDefault(item =>
+            string.Equals(item.Id, artifact.Id, StringComparison.Ordinal)
+            && string.Equals(item.Digest, artifact.Digest, StringComparison.Ordinal));
+        if (candidate is null) { return false; }
+        return candidate.OwnedInstructionName is not null || candidate.UseControlId is null
+            || await IsArtifactSourceCurrent(candidate, token);
+    }
 
     public Func<bool> CaptureInstructionEditorEligibility()
     {

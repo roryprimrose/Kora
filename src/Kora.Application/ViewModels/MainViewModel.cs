@@ -4848,10 +4848,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             var promptEligibility = artifactMatch.Invocation.Artifact.PromptTemplate is null ? null : CapturePromptSelection();
-            if (artifactMatch.Invocation.Artifact.OwnedInstructionName is not null
-                && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact, CancellationToken.None)))
+            if (!await IsArtifactSourceCurrent(artifactMatch.Invocation.Artifact, CancellationToken.None))
             {
-                ShowInformation("Owned definition revision is stale or unavailable.", "Reload and review the exact owned instruction or prompt before starting a new request.");
+                ShowInformation("Definition revision is stale or unavailable.", "Reload and review the exact definition on this machine before starting a new request.");
                 return;
             }
             if (artifactMatch.Invocation.Artifact.PromptTemplate is not null)
@@ -5044,9 +5043,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         task.Id, "local.reasoning", StringComparison.Ordinal))
                     .Select(task => new LocalModelTask(
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
+            if (artifact is not null && !await IsFileArtifactSourceCurrent(artifact, cancellation.Token))
+            {
+                await cancellation.CancelAsync();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
             var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (artifact is not null && !artifactCatalogue.IsCapturedRevisionCurrent(artifact.Id, artifact.Digest))
+            if (artifact is not null && (!artifactCatalogue.IsCapturedRevisionCurrent(artifact.Id, artifact.Digest)
+                || !await IsFileArtifactSourceCurrent(artifact, cancellation.Token)))
             {
                 await cancellation.CancelAsync();
                 cancellation.Token.ThrowIfCancellationRequested();
@@ -5423,14 +5428,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Denied model-action approval outside the eligible host generation");
             return;
         }
-        if (pendingModelActionArtifact is { } pendingArtifact
-            && (!artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
-                || scope != ModelApprovalScope.Once))
+        if (pendingModelActionArtifact is { } pendingArtifact)
         {
-            await ClearPendingModelActionAsync("artifact-revision-ineligible");
-            ShowInformation("Fresh single-use approval is required.",
-                "Artifact-based action proposals cannot create reusable grants, and changed artifact revisions require a new request.");
-            return;
+            var originalReview = pendingModelActionReview;
+            var current = artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
+                && await IsFileArtifactSourceCurrent(pendingArtifact, CancellationToken.None);
+            if (!ReferenceEquals(pendingModelActionReview, originalReview))
+            {
+                ReportModelActionReviewUnavailable();
+                return;
+            }
+            if (!current || scope != ModelApprovalScope.Once)
+            {
+                await ClearPendingModelActionAsync("artifact-revision-ineligible");
+                ShowInformation("Fresh single-use approval is required.",
+                    "Artifact-based action proposals cannot create reusable grants, and changed artifact revisions require a new request.");
+                return;
+            }
         }
         var action = ValidateModelActionApproval(
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
@@ -5483,7 +5497,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ReportModelActionReviewUnavailable();
                 return;
             }
+            var approvedArtifact = pendingModelActionArtifact;
             await ClearPendingModelActionAsync($"approved-{scope.ToString().ToLowerInvariant()}");
+            if (approvedArtifact is not null && !await IsFileArtifactSourceCurrent(approvedArtifact, CancellationToken.None))
+            {
+                ShowInformation("Definition changed before execution.",
+                    "The action was not dispatched. Reload and review the exact definition, then start a fresh request.");
+                return;
+            }
             if (disposed || !IsHostInputEligible
                 || !reviewTarget.Eligible()
                 || preparation != Interlocked.Read(ref approvalPreparationRevision)) { return; }
@@ -5509,7 +5530,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 GrantDocumentChanged?.Invoke(this, GetGrantDocument());
             }
-            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, callRevision);
+            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, callRevision,
+                sourceCurrent: approvedArtifact is null ? null
+                    : () => artifactCatalogue.IsCurrent(approvedArtifact.Id, approvedArtifact.Digest));
             if (ShouldSpeakResponse(action))
             {
                 await SpeakCurrentResponseAsync();

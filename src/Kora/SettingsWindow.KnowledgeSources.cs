@@ -2,7 +2,7 @@ using Avalonia.Controls;
 using Kora.Application.Infrastructure;
 using Kora.Application.KnowledgeSources;
 using Kora.Core.Auditing;
-using Kora.Core.Context;
+using Kora.Core.KnowledgeSources;
 using Kora.Core.Dependencies;
 using Kora.KnowledgeSources;
 using Kora.Windows.KnowledgeSources;
@@ -25,7 +25,7 @@ public sealed partial class SettingsWindow
             if (knowledgeSources is null)
             {
                 var store = new WindowsKnowledgeSourceStore(App.Services.GetRequiredService<IApplicationDataPaths>());
-                var manager = new KnowledgeSourceManager(App.Services.GetRequiredService<ILocalFileInspector>(),
+                var manager = new KnowledgeSourceManager(App.Services.GetRequiredService<IKnowledgeSourceInspector>(),
                     store, App.Services.GetRequiredService<ISecurityAuditLog>(), TimeProvider.System);
                 var window = new KnowledgeSourcesWindow(model, manager);
                 knowledgeSources = window;

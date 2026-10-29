@@ -1631,10 +1631,18 @@ Where action approval and disclosure consent cover the same exact operation, off
 Permissions and approvals are host-owned security records, not ordinary preference values.
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
-This is not an executable/script grant, and exact direct lock does not yet
-use the same gate. The broader controls and finer-grained applicability observations below remain proposed;
-future side-effecting built-ins and skills share the content/version-bound
-execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
+These preferences are not executable/script grants and cannot authorize Lock.
+Direct typed/activated-voice/native Lock and model-proposed Lock now share the
+[exact package admission owner](../src/Kora/BundledFixedActionController.cs).
+Intent or source inspection is not approval: expect fresh exact review unless
+an applicable exact grant covers the operation. Retained named Lock preferences
+are neither imported nor upgraded; changed resources, implementation or identity
+cannot reuse old authority. Once/Session/Always retain the same exact-domain rules.
+The mandatory script/native-review boundary applies at every session level;
+the original voice channel remains bound even when native controls answer it.
+Execution stays unavailable without a qualified contained runtime, with no
+native-only fallback. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Broader controls and finer-grained observations below remain proposed.
 The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
 Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/revocation/removal.
 Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).

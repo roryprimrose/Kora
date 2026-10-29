@@ -45,7 +45,7 @@ public sealed partial class MainViewModelTests
         if (boundary is "pending")
         {
             f.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-            f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+            f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
             await f.ViewModel.InitializeAsync();
             await f.RunAsync("lock this workstation please");
             await f.ViewModel.ActiveReasoningTask!;

@@ -1241,6 +1241,17 @@ comprehensive detection.
 Source/account restrictions can require removal or prevent retention; record an explicit content-unavailable reason rather than promising an unrestricted copy.
 Diagnostics remain content-minimising and separate from intentional session history.
 
+### Retained local host observations
+
+Successful original-session local `ReadOnly` turns capture genuinely invoked results from the six existing host observation tools ([capture owner](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+Host-issued item identities and original observation times accompany exact result JSON; provider call IDs and answer prose do not manufacture sources ([value policy](../src/Kora.Core/Conversation/RetainedLocalObservation.cs)).
+
+The optional version-1 collection remains inside the existing conversation message payload and unchanged 32768-byte full-cell and page budgets ([message validation](../src/Kora.Core/Conversation/ConversationMessage.cs)).
+Answer, observations, terminal task and content-free audit share the authoritative transaction. Failure, cancellation, credential rejection or overflow cannot retain a partial successful answer/result set ([terminal owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)).
+
+Explicit exact named links reopen the original source after restart under current private/session/source admission, without tool/model/network replay, Done resume, activity renewal or new context, speech, export, clipboard or execution authority ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+Disposition and retention remove the owning embedded payload; independent audit/grant lifetimes remain unchanged ([deletion regression](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Observations.cs)).
+
 ## New Requests and Routing
 
 ### Delivered native New request fresh-session fallback — 2026-10-13

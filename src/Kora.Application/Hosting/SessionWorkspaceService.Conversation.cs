@@ -48,7 +48,8 @@ public sealed partial class SessionWorkspaceService
         ReadAsync(() => Conversations.ReadConversationPageAsync(session, cursor, limit, token), token);
 
     public Task<AdmittedDetailContent> ReadConversationDetailAsync(SessionWorkspaceEntry target,
-        ConversationMessage expected, Func<bool> admitted, CancellationToken token, bool assistant = false) =>
+        ConversationMessage expected, Func<bool> admitted, CancellationToken token, bool assistant = false,
+        Guid? observationId = null) =>
         ReadAsync(async () =>
         {
             var request = HostActivity.RequireCurrent().Request;
@@ -65,13 +66,23 @@ public sealed partial class SessionWorkspaceService
             { throw new InvalidOperationException("The exact conversation record or session source changed. Refresh; no newer record was substituted."); }
             var answer = assistant ? actual.AssistantResponse
                 ?? throw new InvalidOperationException("This exact message has no retained assistant answer.") : null;
-            var content = new AdmittedDetailContent(new(new(answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
+            var observation = observationId is { } id
+                ? actual.Observations?.Items.SingleOrDefault(item => item.Id == id)
+                    ?? throw new InvalidOperationException("This exact retained observation is unavailable; no replacement was queried.")
+                : null;
+            if (assistant && observation is not null)
+            { throw new InvalidOperationException("Choose one exact retained source, not a combined source."); }
+            var content = new AdmittedDetailContent(new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
                 assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText,
-                assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
+                observation is not null ? DetailContentOrigin.RetainedLocalObservation
+                    : assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
                 DetailSensitivity.DisclosureConfirmationRequired,
-                assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
-                "Private immutable conversation source; not execution permission, an approval or clipboard authority.",
-                answer?.Body ?? actual.Body,
+                observation is not null ? "Observed " + observation.CapabilityId
+                    : assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
+                observation is not null ? "Original local host observation at " + observation.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
+                    + "; not current truth, execution, context, speech, export or clipboard authority."
+                    : "Private immutable conversation source; not execution permission, an approval or clipboard authority.",
+                observation?.ResultJson ?? answer?.Body ?? actual.Body,
                 conversationMessage: actual);
             var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,

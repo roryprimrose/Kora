@@ -7,6 +7,7 @@ using Kora.Application;
 using Kora.Application.Interaction;
 using Kora.Application.Hosting;
 using Kora.Application.Voice;
+using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
 using Kora.Windows.Audio;
@@ -18,6 +19,69 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class NativeQuestionWindowContractTests
 {
+    [Fact]
+    public async Task Refused_clarification_voice_answer_exposes_accessible_recovery_and_native_input_still_completes()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new InteractionStorageFixture();
+            await fixture.InitializeAsync();
+            var spec = LocalModelQuestionPolicy.CreateSpec(new("Describe format", []));
+            var question = (await fixture.RunAsync(() => fixture.Questions.CreateAsync(
+                fixture.Request, spec, fixture.Time.Now.AddMinutes(5), fixture.Token))).Question!;
+            var model = new NativeQuestionViewModel(question, fixture.Questions, fixture.Authorization,
+                new(fixture.Store, fixture.Time), static () => true, fixture.Time, NullLogger<NativeQuestionViewModel>.Instance);
+            using var privacy = new ActivatedVoiceRecognitionTests.FakePrivacy();
+            var factory = new ActivatedVoiceRecognitionTests.FakeFactory();
+            var native = new ActivatedVoiceRecognitionTests.FakeCapture();
+            factory.OpenResult.SetResult(native);
+            await using var capture = new WindowsVoiceRecognitionService(NullLogger<WindowsVoiceRecognitionService>.Instance,
+                privacy, factory, VoiceCaptureLimits.Default);
+            var time = new ReplyUiTime { Now = fixture.Time.Now };
+            await using var replies = new HostQuestionVoiceReplyService(fixture.Questions, capture, time,
+                new ReplyUiDispatcher(), () => new QuestionVoiceAdmission(new("mic", "Synthetic"), 1, 1, 1),
+                (_, _, _) => Task.CompletedTask, NullLogger<HostQuestionVoiceReplyService>.Instance);
+            model.BindVoiceReplies(replies, static () => true);
+            var window = CreateWindow(model);
+            var retired = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            void ObserveStatus(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (string.Equals(args.PropertyName, nameof(NativeQuestionViewModel.VoiceReplyStatus), StringComparison.Ordinal)
+                    && !replies.IsActive) { retired.TrySetResult(); }
+            }
+            try
+            {
+                await ShowAsync(window, model);
+                await model.AnswerByVoiceAsync();
+                model.PropertyChanged += ObserveStatus;
+                native.Transcript("format\u0001");
+                await retired.Task.WaitAsync(fixture.Token);
+                await replies.Quiescence;
+
+                var status = window.FindControl<TextBlock>("VoiceReplyStatus")!;
+                status.Text.Should().Contain("not accepted").And.Contain("native question status");
+                ControlAutomationPeer.CreatePeerForElement(status)!.GetName().Should().Contain("not accepted");
+                capture.IsCaptureQuiescent.Should().BeTrue();
+                model.Completion.IsCompleted.Should().BeFalse();
+                model.IsEditable.Should().BeTrue();
+                var pending = (await fixture.Store.ReadQuestionsAsync(question.Key.Request.SessionId, fixture.Token)).Single();
+                pending.Status.Should().Be(QuestionStatus.Pending);
+                pending.Draft.Should().BeNull();
+                pending.Key.Should().Be(question.Key);
+
+                window.FindControl<TextBox>("AnswerInput")!.Text = "Plain text";
+                window.FindControl<Button>("SubmitAnswer")!.IsEnabled.Should().BeTrue();
+                await model.SubmitAsync();
+                var completed = await model.Completion;
+                completed.Outcome.Should().Be(HostInteractionOutcome.Answered);
+                completed.Question!.Key.Should().Be(question.Key.Next());
+                completed.Question.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+                completed.Question.Draft!.Text.Should().Be("Plain text");
+            }
+            finally { model.PropertyChanged -= ObserveStatus; window.Close(); }
+        });
+    }
+
     [Theory]
     [InlineData(true)]
     [InlineData(false)]

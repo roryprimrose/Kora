@@ -76,6 +76,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         lock (gate)
         {
             ObjectDisposedException.ThrowIf(disposed, this);
+            if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns the capture/runtime lifecycle."); }
             if (!audio.IsAvailable) { return; }
             if (observe is null) { throw new InvalidOperationException("The hands-free host is not bound."); }
             if (!run.IsCompleted || !captureClosed.Task.IsCompletedSuccessfully || !activated.IsCaptureQuiescent)
@@ -312,7 +313,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     {
         lock (gate)
         {
-            if (!audio.IsAvailable || disposed || !run.IsCompleted
+            if (!audio.IsAvailable || disposed || profileSwitchActive || profileRetirementFailed || !run.IsCompleted
                 || state == HandsFreeVoiceState.RecoveryRequired || !captureClosed.Task.IsCompletedSuccessfully) { return; }
         }
         if (observe?.Invoke() is null || !canOpen() || !activated.IsCaptureQuiescent) { return; }

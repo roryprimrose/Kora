@@ -284,8 +284,10 @@ public sealed partial class ModelTurnHostTests
         internal OwnedDeclarativeSkillSnapshot? Target;
         internal Action? BeforePublish;
         internal int Writes;
-        public string Destination(OwnedDeclarativeSkillDocument document) => "fixed-owned-destination";
-        public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) => throw new NotSupportedException();
+        internal string Path = "fixed-owned-destination";
+        internal IReadOnlyList<OwnedDeclarativeSkillSnapshot> Catalogue = [];
+        public string Destination(OwnedDeclarativeSkillDocument document) => Path;
+        public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) => Task.FromResult(Catalogue);
         public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) =>
             Task.FromResult(version is "1.0.0" ? Source : Target);
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,

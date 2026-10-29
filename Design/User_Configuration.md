@@ -1292,6 +1292,10 @@ registered by this design.
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
 
+The [delivered speech-input review](../docs/voice-and-audio.md#speech-input-profile-preference) is narrower than the planned local-provider/resource rows: native controls and exact typed/activated commands review, confirm or cancel the existing compatible Windows activated tuple. The [host workflow](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs) joins runtime retirement before persistence/publication and preserves prior desired intent on cancellation.
+
+No additional qualified local wake/ASR/resource tuple is offered. Existing unsupported desired preferences remain unavailable until an explicit compatible recovery is confirmed; review does not qualify prepared assets or automatically enable listening ([catalogue](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs), [native host](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs)).
+
 The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
 defines the implemented display/command identity, its device-local persistence,
 and the stronger detector requirements that remain future work. The current
@@ -1574,6 +1578,26 @@ confirmation.
 
 ## 7. Startup and Updates
 
+### Delivered reviewed Windows logon startup
+
+**Settings > Appearance > Start Kora at Windows user logon** and exact original typed/current-name activated-voice commands share one [reviewed operation](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs).
+Use **Inspect**, **Review enable**, **Review disable**, or **Review reset to Off**, then separately **Confirm startup change** or **Cancel startup review**. Review alone never writes.
+
+The exact phrases are `check start at logon`, `enable start at logon`, `disable start at logon`, `reset start at logon`, `confirm start at logon change`, and `cancel start at logon review`, optionally prefixed with the current assistant name.
+Reserved malformed input clarifies without model/approval fallthrough ([grammar](../src/Kora.Application/Configuration/LogonStartupCommand.cs), [routing and native lifetime](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Review expires after 60 seconds. Changed input, original channel, native visibility/binding, ownership, privacy, call policy, saved intent, installed image or registration requires a fresh review.
+Voice confirmation uses a separate freshly admitted capture; native confirmation cannot relabel a voice review. Pending questions and approvals remain unchanged ([workflow](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs), [host binding](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+The [Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs) controls the existing MSI-owned HKCU `Kora` Run value only for the exact running current-user MSI installation.
+Developer, older installations lacking install-location metadata, machine-wide, foreign, Windows-disabled and unknown state remain unavailable. Existing unowned entries and Windows approval are never overwritten. Inspect distinguishes last confirmed saved/desired intent, observed registration and unavailable/unconfirmed state.
+
+Save and reset use a [device-local atomic preference with a durable unconfirmed marker](../src/Kora.Application/Configuration/LocalLogonStartupPreferences.cs), requested/terminal audit, committed host intent and exact readback. Reset removes the owned registration and saved intent (default Off), not another installation's entry.
+A failed/uncertain write is not rolled back or retried automatically; inspect saved intent, registration and audit before manual recovery ([configuration owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
+
+Registration launches nothing now and grants no audio/provider/network authority. Next logon runs the ordinary entry point and tray/minimal shell with unchanged instance, storage, ongoing-consent, locked-session and microphone gates; startup presentation customization is not added.
+See the [entry point](../src/Kora/Program.cs) and [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix). Deterministic fake-platform/native tests are implementation evidence, not installed upgrade/logon or protected-deployment qualification ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Start at logon | Explicit opt-in | "Enable start at logon" |
@@ -1718,6 +1742,16 @@ Undo restores the previous compatible preference value, not a side effect such a
 Reset/undo use normal validation, confirmation, and policy checks; restoring a weaker privacy preference is not exempt from confirmation.
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
+
+### Delivered single registered-preference undo
+
+The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is a separate fresh request; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance retains native-only review; ordinary response settings also support exact typed/current-name activated-voice review/confirm/cancel ([native controls](../src/Kora/SettingsWindow.axaml), [shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
+
+Undo changes future eligible presentation/ordinary response preferences only. It never restores consent, listening, grants, providers, devices, security/retention policy or external effects, and never invokes a model or synthesizes/replays a response. An uncertain setter/readback/audit outcome holds undo explicitly; no automatic retry or rollback is claimed. A weaker prior preference still requires the exact fresh review and confirmation ([operation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Configuration/RegisteredSettingUndoTests.cs)).
 
 ## Unavoidable Boundaries
 

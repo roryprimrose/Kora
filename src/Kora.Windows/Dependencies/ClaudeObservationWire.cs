@@ -28,7 +28,7 @@ internal static class ClaudeObservationWire
             {
                 var message = request.Messages[index];
                 writer.WriteStartObject();
-                writer.WriteString("role", message is ModelAssistantToolCalls ? "assistant" : "user");
+                writer.WriteString("role", message is ModelAssistantMessage ? "assistant" : "user");
                 writer.WriteStartArray("content");
                 if (message is ModelAssistantToolCalls assistant)
                 {
@@ -49,12 +49,45 @@ internal static class ClaudeObservationWire
                     while (index + 1 < request.Messages.Length && request.Messages[index + 1] is ModelToolResultMessage next)
                     { WriteResult(writer, next); index++; }
                 }
-                else { throw new InvalidDataException("Only canonical observation history can enter Claude."); }
+                else if (request.ClarificationAllowed && message is ModelClarificationQuestion question)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "tool_use");
+                    writer.WriteString("id", question.CallId);
+                    writer.WriteString("name", ModelToolProtocol.AskUserToolName);
+                    writer.WriteStartObject("input");
+                    writer.WriteString("prompt", question.Question.Prompt);
+                    writer.WriteStartArray("options");
+                    foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
+                    writer.WriteEndArray();
+                    writer.WriteNumber("minimum", question.Question.Minimum);
+                    writer.WriteNumber("maximum", question.Question.Maximum);
+                    writer.WriteEndObject();
+                    writer.WriteEndObject();
+                }
+                else if (request.ClarificationAllowed && message is ModelQuestionAnswerMessage answer)
+                {
+                    writer.WriteStartObject();
+                    writer.WriteString("type", "tool_result");
+                    writer.WriteString("tool_use_id", answer.Question.CallId);
+                    writer.WriteString("content", Encoding.UTF8.GetString(ModelToolProtocol.SerializeMessage(answer)));
+                    writer.WriteEndObject();
+                }
+                else { throw new InvalidDataException("Only canonical admitted history can enter Claude."); }
                 writer.WriteEndArray();
                 writer.WriteEndObject();
             }
             writer.WriteEndArray();
             writer.WriteStartArray("tools");
+            if (request.ClarificationAllowed)
+            {
+                writer.WriteStartObject();
+                writer.WriteString("name", ModelToolProtocol.AskUserToolName);
+                writer.WriteString("description", ModelToolProtocol.AskUserDescription);
+                writer.WritePropertyName("input_schema");
+                writer.WriteRawValue(ModelToolProtocol.AskUserInputSchema);
+                writer.WriteEndObject();
+            }
             foreach (var descriptor in request.Context.Tools)
             {
                 writer.WriteStartObject();
@@ -96,7 +129,7 @@ internal static class ClaudeObservationWire
     }
 
     internal static ModelAssistantMessage Parse(byte[] bytes, ProviderProfileTuple profile, int outputLimit,
-        int inputLimit, IReadOnlyList<CapabilityDescriptor> tools)
+        int inputLimit, IReadOnlyList<CapabilityDescriptor> tools, bool clarificationAllowed = false)
     {
         using var json = ClaudeMessagesRuntime.Parse(bytes);
         var root = json.RootElement;
@@ -107,6 +140,18 @@ internal static class ClaudeObservationWire
         }
         ClaudeMessagesRuntime.ValidateMessage(root, profile, outputLimit, inputLimit, "tool_use");
         var content = root.GetProperty("content");
+        if (clarificationAllowed)
+        {
+            if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() != 1)
+            { throw new InvalidDataException("A hosted clarification must be one isolated question."); }
+            var question = content[0];
+            if (question.EnumerateObject().Count() != 4
+                || question.GetProperty("type").GetString() is not "tool_use"
+                || question.GetProperty("name").GetString() is not ModelToolProtocol.AskUserToolName)
+            { throw new InvalidDataException("Only the explicitly admitted ask_user question is supported."); }
+            return ModelToolProtocol.ParseAskUser(Encoding.UTF8.GetBytes(question.GetProperty("input").GetRawText()),
+                question.GetProperty("id").GetString() ?? throw new InvalidDataException("Question correlation is required."));
+        }
         if (content.ValueKind != JsonValueKind.Array || content.GetArrayLength() is < 1 or > 6)
         { throw new InvalidDataException("Claude observation proposals exceed the finite call bound."); }
         using var memory = new MemoryStream();

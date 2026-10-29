@@ -76,16 +76,17 @@ internal sealed partial class SessionsViewModel
         dismissedSessionDetailsOffer = message.Request.RequestId.Value;
         NotifyConversation();
     }
-    public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false) => RunConversationAsync(async (target, live) =>
+    public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
+        Func<bool>? detailAdmission = null) => RunConversationAsync(async (target, live) =>
     {
         if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
         var searchMatch = ConversationSearchMessages.Any(record => ReferenceEquals(record, message));
         var searchEpoch = conversationSearchEpoch;
-        bool DetailLive() => live() && (!searchMatch || conversationSearchEpoch == searchEpoch);
+        bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true) && (!searchMatch || conversationSearchEpoch == searchEpoch);
         if (searchMatch) { conversationSearchDetailTarget = target; }
         var content = await conversation!.ReadDetailAsync(target, message, DetailLive, lifetime.Token,
-            assistant);
+            assistant, observationId);
         if (!DetailLive()) { throw new OperationCanceledException("The original conversation selection or search changed."); }
         var beginValidation = HostActivity.CaptureContinuation(HostActivityLayer.Desktop, HostOperation.Storage);
         async Task<Kora.Core.Presentation.AdmittedDetailContent> Resolve(CancellationToken token)
@@ -94,7 +95,7 @@ internal sealed partial class SessionsViewModel
             try
             {
                 var exact = await conversation.ReadDetailAsync(target, message, DetailLive, token,
-                    assistant);
+                    assistant, observationId);
                 validation.Complete(HostOperationOutcome.Completed);
                 return exact;
             }
@@ -114,7 +115,8 @@ internal sealed partial class SessionsViewModel
                 content, DetailLive, Resolve, lifetime.Token);
         if (!DetailLive()) { throw new OperationCanceledException("Search match navigation was revoked."); }
         conversationStatus = detailStatus;
-        RememberSelectedDetail(assistant ? DetailPart.Assistant : DetailPart.Original, message.Request.RequestId.Value);
+        RememberSelectedDetail(observationId is null ? assistant ? DetailPart.Assistant : DetailPart.Original : DetailPart.Observation,
+            message.Request.RequestId.Value, observationId);
     }, sourceRead: true, searchDetailEpoch:
         ConversationSearchMessages.Any(record => ReferenceEquals(record, message)) ? conversationSearchEpoch : null);
     public bool CanCompose => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
@@ -207,6 +209,8 @@ internal sealed partial class SessionsViewModel
                     () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
                 : claudeStreamAnswer
                     ? await conversation!.SubmitClaudeAnswerStreamAsync(target, body, live, lifetime.Token)
+                    : allowQuestion
+                    ? await conversation!.SubmitClaudeWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
                     : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
@@ -390,7 +394,7 @@ internal sealed partial class SessionsViewModel
             nameof(ConversationMessages), nameof(ConversationStatus), nameof(CanReadConversation), nameof(CanNextConversation),
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
-            nameof(HasEvidenceDetails), nameof(EvidenceDetails),
+            nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
             nameof(DetailsOfferMessage),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
             nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })

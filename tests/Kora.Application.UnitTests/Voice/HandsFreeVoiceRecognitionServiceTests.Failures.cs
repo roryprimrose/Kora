@@ -336,7 +336,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         var next = new SpeechInputGeneration(2, SpeechInputSelection.Default);
         lease.Publish(next);
         voice.ProfileGeneration.Should().Be(next);
-        voice.IsProfileAvailable.Should().BeTrue();
+        voice.IsProfileAvailable.Should().BeFalse("the exclusive cutover lease still blocks capture after publication");
         lease.HoldUnavailable();
         voice.IsProfileAvailable.Should().BeFalse();
         voice.IsListening.Should().BeFalse();

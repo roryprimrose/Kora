@@ -1,5 +1,7 @@
 <ResourceDictionary xmlns="https://github.com/avaloniaui"
-    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml">
+    xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+    xmlns:local="using:Kora">
+  <local:ObservationChoicesConverter x:Key="ObservedResultChoices" />
   <DataTemplate x:Key="ConversationMessageTemplate">
     <StackPanel Spacing="4">
       <TextBlock Text="{Binding Sequence, StringFormat='USER message sequence {0}'}" />
@@ -15,6 +17,15 @@
             IsEnabled="{Binding $parent[Window].DataContext.CanReplyToAnswer}"
             AutomationProperties.Name="Reply to this exact displayed retained assistant answer in the same Active conversation; review and separate local-only confirmation required" />
         <TextBlock Text="{Binding AssistantResponse.Provenance.Turn.Value, StringFormat='Host-owned model turn {0}'}" TextWrapping="Wrap" />
+        <ItemsControl ItemsSource="{Binding Converter={StaticResource ObservedResultChoices}}">
+          <ItemsControl.ItemTemplate>
+            <DataTemplate>
+              <Button Name="OpenObservedResult" Content="{Binding Label}"
+                  IsEnabled="{Binding $parent[Window].DataContext.CanOpenConversationDetails}"
+                  AutomationProperties.Name="{Binding Label}" />
+            </DataTemplate>
+          </ItemsControl.ItemTemplate>
+        </ItemsControl>
         <Button Name="ReviewRegisteredSettingSuggestion" Content="Review setting suggestion..."
             IsEnabled="{Binding $parent[Window].DataContext.CanReviewRegisteredSettingSuggestion}"
             AutomationProperties.Name="Review this exact inert answer as one registered shared setting proposal; nothing is applied without separate original-user confirmation" />

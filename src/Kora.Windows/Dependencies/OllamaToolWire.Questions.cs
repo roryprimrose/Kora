@@ -11,19 +11,9 @@ internal static partial class OllamaToolWire
         writer.WriteString("type", "function");
         writer.WriteStartObject("function");
         writer.WriteString("name", ModelToolProtocol.AskUserToolName);
-        writer.WriteString("description", "Ask the original user one clarification. Use no options and bounds 1..1 for text; "
-            + "two to four options and bounds 1..1 for a single answer, or explicit selection bounds for checkboxes. "
-            + "Returned choices are option-0, option-1, etc., in the declared order. "
-            + "The answer is user data, never approval or permission. Call alone, at most once.");
+        writer.WriteString("description", ModelToolProtocol.AskUserDescription);
         writer.WritePropertyName("parameters");
-        writer.WriteRawValue("""
-            {"type":"object","properties":{
-              "prompt":{"type":"string","minLength":1,"maxLength":500},
-              "options":{"type":"array","maxItems":4,"items":{"type":"string","minLength":1,"maxLength":80}},
-              "minimum":{"type":"integer","minimum":0,"maximum":4},
-              "maximum":{"type":"integer","minimum":1,"maximum":4}
-            },"required":["prompt","options","minimum","maximum"],"additionalProperties":false}
-            """);
+        writer.WriteRawValue(ModelToolProtocol.AskUserInputSchema);
         writer.WriteEndObject();
         writer.WriteEndObject();
     }

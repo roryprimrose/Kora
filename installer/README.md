@@ -258,7 +258,8 @@ checks are not installed logon/repair/uninstall/upgrade acceptance. The POC
 still needs supported upgrade and stable-launcher qualification.
 
 Installed current-user Kora also exposes the [reviewed shared startup operation](../Design/User_Configuration.md#delivered-reviewed-windows-logon-startup). It reuses this single HKCU value, not a second registration.
-MSI publishes `ARPINSTALLLOCATION`; the app requires current-user Windows Installer identity, matching running EXE/DLL fingerprints and unchanged entry ownership before write ([Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupNative.cs)).
+MSI uses `ARPINSTALLLOCATION` as its costed installation-directory identifier, publishing location metadata without custom actions ([package](Kora.Msi/Package.wxs), [costing checks](../eng/Test-Installer.ps1)).
+The app requires current-user Windows Installer identity, matching running EXE/DLL fingerprints and unchanged entry ownership before write ([Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupNative.cs)).
 
 Older installs without that metadata, machine-wide registrations and Windows-disabled/foreign entries remain unavailable to the app. The app never edits Windows StartupApproved metadata, elevates, launches a process or registers a scheduled task.
 Installer repair/uninstall retain their native component ownership ([registration policy](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs)).
@@ -552,7 +553,7 @@ It is packaged unchanged with an explicit neutral (`0`) language fallback,
 retaining its independent component key path and version-based repair rules.
 The MSI project acknowledges only binder warning 1101 about that authored
 fallback; package inspection verifies the resulting language. No ICE check
-is suppressed. Startup registration uses the quoted, costed `INSTALLFOLDER`
+is suppressed. Startup registration uses the quoted, costed `ARPINSTALLLOCATION`
 path, avoiding a cross-component file reference while retaining its separate
 conditional/transitive scope-matched component and consent rules.
 

@@ -59,7 +59,7 @@ Reset. Settings that already save a selection immediately retain that behavior.
 
 ## Start Kora at Windows logon
 
-In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable** or **Review reset to Off**, read the complete review, then separately choose **Confirm startup change**.
+In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).
 **Cancel startup review** changes nothing. Reset removes the owned registration and saved intent ([shared workflow](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
 
 Typed commands use `check start at logon`, `enable start at logon`, `disable start at logon`, or `reset start at logon`; then separately `confirm start at logon change` or `cancel start at logon review`.

@@ -2,6 +2,7 @@ using System.Reflection;
 using Avalonia.Controls;
 using AwesomeAssertions;
 using Kora.Application.Configuration;
+using Kora.Controls;
 using Kora.NativeUxFixture;
 using Kora.Windows.Startup;
 using Microsoft.Extensions.Logging.Abstractions;
@@ -11,6 +12,35 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class LogonStartupSettingsTests
 {
+    private static readonly string[] StartupControlNames =
+    [
+        "InspectLogonStartup", "EnableLogonStartup", "DisableLogonStartup",
+        "ConfirmLogonStartup", "CancelLogonStartup", "LogonStartupActions",
+    ];
+
+    [Fact]
+    public async Task UnavailableStartupControlsCannotEnterTheKeyboardCycle()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.UpdateLayout();
+                foreach (var name in StartupControlNames)
+                {
+                    window.FindControl<Button>(name)!.IsEffectivelyEnabled.Should().BeFalse();
+                }
+                fixture.Main.HasVoiceConsent.Should().BeFalse();
+                fixture.Main.IsVoiceEnabled.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
     [Fact]
     public async Task NativeSettingsUsesTheAdmittedSqliteWorkflowAndHideRetiresReviewWithoutRealRegistryAccess()
     {
@@ -28,6 +58,9 @@ public sealed class LogonStartupSettingsTests
             var window = (SettingsWindow)typeof(SettingsWindowController).GetField("window", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(controller)!;
             window.FindControl<Button>("EnableLogonStartup")!.Command.Should().BeSameAs(f.Main.EnableLogonStartupCommand);
             window.FindControl<Button>("ConfirmLogonStartup")!.Command.Should().BeSameAs(f.Main.ConfirmLogonStartupCommand);
+            var actions = window.FindControl<SettingActionsButton>("LogonStartupActions")!;
+            actions.ResetCommand.Should().BeSameAs(f.Main.ResetLogonStartupCommand);
+            actions.IsEffectivelyEnabled.Should().BeTrue();
             await f.Main.InspectLogonStartupCommand.ExecuteAsync();
             await f.Main.EnableLogonStartupCommand.ExecuteAsync();
             native.Writes.Should().Be(0);
@@ -40,6 +73,8 @@ public sealed class LogonStartupSettingsTests
             preferences.Load().Should().BeTrue();
             native.Writes.Should().Be(1);
             await f.Main.ResetLogonStartupCommand.ExecuteAsync();
+            preferences.Load().Should().BeTrue();
+            native.Writes.Should().Be(1);
             await f.Main.ConfirmLogonStartupCommand.ExecuteAsync();
             preferences.Load().Should().BeNull();
             native.User.Should().BeNull();

@@ -1097,6 +1097,19 @@ copy. Copying discloses the text to other applications and possibly clipboard
 history/sync. No page can initiate copy, fetch images, follow external links,
 approve an operation or capture model context.
 
+When the separately qualified pipe-table profile is available, Details exposes
+bounded read-only native tables to accessibility as tables. Use arrow keys for
+header/cell navigation, Home/End across a row and Ctrl+Home/End for the first
+header/last cell. Cells name the exact header, row/column and complete value;
+empty cells remain explicit. Source and Find still address the same immutable
+result. Tables do not enable editing, automatic copy, model input or network.
+The subset permits one header row, at most 32 total rows and 8 columns per table,
+128 cells across the document and 2,048 UTF-8 bytes per semantic cell, without
+merged/spanning cells. Unsupported/oversize tables retain labelled complete-source fallback. The profile
+remains unavailable by default; automated tests do not qualify installed
+screen readers, DPI or high contrast
+([supported subset and evidence](../Design/Information_Display.md#document-local-heading-and-final-table-interaction)).
+
 The native-text-v1 source limit is **256 KiB UTF-8**, with **512 blocks**,
 **4,096 nodes**, **32 nesting levels**, and **8 open viewers**. Unsupported
 content, missing rendering or structural limits show labelled exact-source

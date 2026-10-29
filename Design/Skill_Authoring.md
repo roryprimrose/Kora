@@ -113,7 +113,8 @@ packages stay disabled, with separate existing review/enable/invoke. Original
 channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
-Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
+Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.

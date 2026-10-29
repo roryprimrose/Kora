@@ -13,6 +13,6 @@ public static class ClaudeObservationTools
 
     public static bool Supports(ModelContextEnvelope context) =>
         context.Evidence.IsEmpty && context.McpTool is null
-        && (context.ToolMode == ModelToolMode.None
+        && (context.ToolMode is ModelToolMode.None or ModelToolMode.HostedClarification
             || context.ToolMode == ModelToolMode.ReadOnly && context.Constraints is not null);
 }

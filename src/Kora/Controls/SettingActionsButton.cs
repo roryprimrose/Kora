@@ -48,6 +48,7 @@ public sealed class SettingActionsButton : Button
         HorizontalContentAlignment = HorizontalAlignment.Center;
         VerticalContentAlignment = VerticalAlignment.Center;
         resetItem = new MenuItem { Header = "Reset setting" };
+        resetItem.Bind(IsEnabledProperty, new Binding(nameof(IsEffectivelyEnabled)) { Source = this });
         Flyout = new MenuFlyout { Items = { resetItem } };
     }
 

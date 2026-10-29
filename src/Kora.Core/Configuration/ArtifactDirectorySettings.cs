@@ -7,6 +7,7 @@ namespace Kora.Core.Configuration;
 public sealed class ArtifactDirectorySettings
 {
     public const int MaximumPathsPerKind = 16;
+    public const int MaximumConfiguredDirectoriesPerKind = 32;
     public const int MaximumIncludedMcpServers = 128;
     public static ArtifactDirectorySettings Empty { get; } = new([], [], [], [], [], []);
 
@@ -16,12 +17,15 @@ public sealed class ArtifactDirectorySettings
         IReadOnlyList<string> promptDirectories,
         IReadOnlyList<string> agentDirectories,
         IReadOnlyList<string> mcpConfigurationFiles,
-        IReadOnlyList<string> includedMcpServerIds)
+        IReadOnlyList<string> includedMcpServerIds,
+        bool useDefaultDirectories = true)
     {
-        SkillDirectories = ValidatePaths(skillDirectories, nameof(skillDirectories));
-        InstructionDirectories = ValidatePaths(instructionDirectories, nameof(instructionDirectories));
-        PromptDirectories = ValidatePaths(promptDirectories, nameof(promptDirectories));
-        AgentDirectories = ValidatePaths(agentDirectories, nameof(agentDirectories));
+        UseDefaultDirectories = useDefaultDirectories;
+        var directoryLimit = useDefaultDirectories ? MaximumPathsPerKind : MaximumConfiguredDirectoriesPerKind;
+        SkillDirectories = ValidatePaths(skillDirectories, nameof(skillDirectories), directoryLimit);
+        InstructionDirectories = ValidatePaths(instructionDirectories, nameof(instructionDirectories), directoryLimit);
+        PromptDirectories = ValidatePaths(promptDirectories, nameof(promptDirectories), directoryLimit);
+        AgentDirectories = ValidatePaths(agentDirectories, nameof(agentDirectories), directoryLimit);
         McpConfigurationFiles = ValidatePaths(mcpConfigurationFiles, nameof(mcpConfigurationFiles));
         IncludedMcpServerIds = ValidateIdentifiers(includedMcpServerIds, nameof(includedMcpServerIds));
     }
@@ -32,6 +36,37 @@ public sealed class ArtifactDirectorySettings
     public ReadOnlyCollection<string> AgentDirectories { get; }
     public ReadOnlyCollection<string> McpConfigurationFiles { get; }
     public ReadOnlyCollection<string> IncludedMcpServerIds { get; }
+    public bool UseDefaultDirectories { get; }
+
+    public static ArtifactDirectorySettings DefaultDirectories(string koraRoot, string roamingRoot, string userProfile)
+    {
+        string[] EditorDirectories() =>
+        [
+            Path.Combine(roamingRoot, "Code", "User", "prompts"),
+            Path.Combine(roamingRoot, "Code", "User", "profiles"),
+            Path.Combine(roamingRoot, "Code - Insiders", "User", "prompts"),
+            Path.Combine(roamingRoot, "Code - Insiders", "User", "profiles"),
+        ];
+        return new(
+            [Path.Combine(koraRoot, "Skills"), Path.Combine(userProfile, ".copilot", "skills"), Path.Combine(userProfile, ".agents", "skills")],
+            [Path.Combine(koraRoot, "Instructions"), .. EditorDirectories()],
+            [Path.Combine(koraRoot, "Prompts"), .. EditorDirectories()],
+            [Path.Combine(koraRoot, "Agents"), .. EditorDirectories()],
+            [], [], useDefaultDirectories: false);
+    }
+
+    public ArtifactDirectorySettings WithDefaults(ArtifactDirectorySettings defaults)
+    {
+        if (!UseDefaultDirectories) { return this; }
+        static string[] Merge(IReadOnlyList<string> standard, IReadOnlyList<string> additional) =>
+            standard.Concat(additional).Distinct(StringComparer.OrdinalIgnoreCase).ToArray();
+        return new(
+            Merge(defaults.SkillDirectories, SkillDirectories),
+            Merge(defaults.InstructionDirectories, InstructionDirectories),
+            Merge(defaults.PromptDirectories, PromptDirectories),
+            Merge(defaults.AgentDirectories, AgentDirectories),
+            McpConfigurationFiles, IncludedMcpServerIds, useDefaultDirectories: false);
+    }
 
     public IReadOnlyList<string> GetDirectories(ArtifactKind kind) => kind switch
     {
@@ -54,10 +89,11 @@ public sealed class ArtifactDirectorySettings
 
     private static ReadOnlyCollection<string> ValidatePaths(
         IReadOnlyList<string> paths,
-        string parameterName)
+        string parameterName,
+        int maximumPaths = MaximumPathsPerKind)
     {
         ArgumentNullException.ThrowIfNull(paths, parameterName);
-        if (paths.Count > MaximumPathsPerKind
+        if (paths.Count > maximumPaths
             || paths.Any(path => string.IsNullOrWhiteSpace(path)
                 || path.Length > 1024
                 || path.Contains('\0')))

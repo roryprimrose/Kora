@@ -1578,6 +1578,26 @@ confirmation.
 
 ## 7. Startup and Updates
 
+### Delivered reviewed Windows logon startup
+
+**Settings > Appearance > Start Kora at Windows user logon** and exact original typed/current-name activated-voice commands share one [reviewed operation](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs).
+Use **Inspect**, **Review enable**, **Review disable**, or **Review reset to Off**, then separately **Confirm startup change** or **Cancel startup review**. Review alone never writes.
+
+The exact phrases are `check start at logon`, `enable start at logon`, `disable start at logon`, `reset start at logon`, `confirm start at logon change`, and `cancel start at logon review`, optionally prefixed with the current assistant name.
+Reserved malformed input clarifies without model/approval fallthrough ([grammar](../src/Kora.Application/Configuration/LogonStartupCommand.cs), [routing and native lifetime](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Review expires after 60 seconds. Changed input, original channel, native visibility/binding, ownership, privacy, call policy, saved intent, installed image or registration requires a fresh review.
+Voice confirmation uses a separate freshly admitted capture; native confirmation cannot relabel a voice review. Pending questions and approvals remain unchanged ([workflow](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs), [host binding](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+The [Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs) controls the existing MSI-owned HKCU `Kora` Run value only for the exact running current-user MSI installation.
+Developer, older installations lacking install-location metadata, machine-wide, foreign, Windows-disabled and unknown state remain unavailable. Existing unowned entries and Windows approval are never overwritten. Inspect distinguishes last confirmed saved/desired intent, observed registration and unavailable/unconfirmed state.
+
+Save and reset use a [device-local atomic preference with a durable unconfirmed marker](../src/Kora.Application/Configuration/LocalLogonStartupPreferences.cs), requested/terminal audit, committed host intent and exact readback. Reset removes the owned registration and saved intent (default Off), not another installation's entry.
+A failed/uncertain write is not rolled back or retried automatically; inspect saved intent, registration and audit before manual recovery ([configuration owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
+
+Registration launches nothing now and grants no audio/provider/network authority. Next logon runs the ordinary entry point and tray/minimal shell with unchanged instance, storage, ongoing-consent, locked-session and microphone gates; startup presentation customization is not added.
+See the [entry point](../src/Kora/Program.cs) and [microphone matrix](Security_Data_Flows.md#microphone-consent-and-enablement-matrix). Deterministic fake-platform/native tests are implementation evidence, not installed upgrade/logon or protected-deployment qualification ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
+
 | Option | Default / limits | Example verbal setter |
 |---|---|---|
 | Start at logon | Explicit opt-in | "Enable start at logon" |

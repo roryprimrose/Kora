@@ -68,6 +68,7 @@ public sealed class ClaudeObservationToolsTests
     [Theory]
     [InlineData("none", true)]
     [InlineData("bounded", true)]
+    [InlineData("clarification", true)]
     [InlineData("unbounded", false)]
     [InlineData("page", false)]
     [InlineData("sessions", false)]
@@ -79,6 +80,7 @@ public sealed class ClaudeObservationToolsTests
         var mode = kind switch
         {
             "none" or "evidence" => ModelToolMode.None,
+            "clarification" => ModelToolMode.HostedClarification,
             "page" => ModelToolMode.LocalWebPage,
             "sessions" => ModelToolMode.SessionDiscovery,
             "mcp" => ModelToolMode.McpReadOnly,

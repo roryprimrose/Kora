@@ -72,7 +72,7 @@ public sealed partial class MainViewModelTests
         await using var configuration = fixture.InputConfiguration;
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         if (kind is "owner") { fixture.ViewModel.BindCallOwnershipGate(static () => false); }
         if (kind is "pending")

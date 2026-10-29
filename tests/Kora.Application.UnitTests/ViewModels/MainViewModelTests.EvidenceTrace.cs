@@ -211,7 +211,7 @@ public sealed partial class MainViewModelTests
     {
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        if (approval) { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        if (approval) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("choose");
@@ -228,6 +228,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
         f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
         f.Audit.Events.Should().HaveCount(audit);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 

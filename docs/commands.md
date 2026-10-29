@@ -1691,8 +1691,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock this workstation**
 
 Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
-Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+Its installed contained runtime is unqualified, so direct commands and model-proposed Lock open source inspection and report unavailable without calling a legacy native handler. A missing exact host owner also reports unavailable.
 When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
+This intentionally replaces immediate direct Lock and the separate named model-action approval: intent alone is not permission. Direct typed, activated voice, native UI and model proposals reach the same exact review. Existing named Session/Always preferences cannot authorize it or become exact grants. Fresh script grants still require native controls; that answer preserves a voice request's original channel and call restrictions. Applicable exact grants retain their Once/Session/Always rules. No standalone native-only implementation is enabled.
 
 ## Protected power-proposal tasks
 

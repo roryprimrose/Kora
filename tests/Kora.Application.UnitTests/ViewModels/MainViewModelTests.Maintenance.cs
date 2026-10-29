@@ -89,7 +89,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
         if (pending is "question") { f.Reasoner.Question = new("Which exact option?", ["One", "Two"]); }
-        else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         await f.ViewModel.InitializeAsync();
         if (pending is "grant")
         {
@@ -111,6 +111,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Be(preview);
         f.ViewModel.ResponseTitle.Should().Be(title);
         f.ViewModel.Transcript.Should().Contain("remains unchanged");
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 

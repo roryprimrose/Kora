@@ -1431,6 +1431,14 @@ both window modes. It reads one permitted metadata page through
 Production composition now includes one tools-none, LocalOnly inference in a
 routing-specific canonical original-input control domain established before the
 metadata snapshot. The control identity is excluded from routing destinations.
+Before inference, a separate native disclosure shows the unchanged original input,
+original channel and exact bounded Active names. Local advice requires its own
+one-use decision; skipping it retains deterministic destination selection and New.
+Cancellation discloses nothing to the adviser and submits nothing. The snapshot,
+original authority and 60-second disclosure lifetime are revalidated before advice
+and review. This consent grants no eventual answering-model/provider/source authority
+([admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs),
+[native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
 Strict bounded JSON maps only host-presented indexes/evidence into the existing
 proposal; the shared routing service validates candidate cardinality, evidence and
 revision. Inference resources physically join and canonical control outcomes commit
@@ -1511,7 +1519,7 @@ ordinary admission, preserving original voice origin and current eligibility.
 Delivered clarification selects refinement/discussion of the captured artifact
 or Cancel. Selecting another artifact/session/New request requires cancellation
 and its explicit existing route, not automatic held-utterance handoff or a
-model-selected session. General relatedness routing above remains proposed.
+model-selected session. General relatedness uses the separately reviewed operation above.
 Truly unrelated input without editor context/references retains ordinary
 routing. Background tasks remain isolated and cannot acquire editor input.
 

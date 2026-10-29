@@ -64,7 +64,7 @@ public sealed partial class MainViewModelTests
     {
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        if (approval) { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("help with this machine");
@@ -82,6 +82,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseTitle.Should().Be(title);
         f.ViewModel.ResponseBody.Should().Be(body);
         f.Reasoner.Requests.Should().HaveCount(requests);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.Transcript.Should().StartWith("Clarify the Settings section.");
     }

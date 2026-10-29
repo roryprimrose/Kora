@@ -11,4 +11,5 @@ public enum DetailContentOrigin
     RetainedConversation,
     /// <summary>Complete separately retained assistant answer; not an approval, original USER or host receipt.</summary>
     RetainedAssistant,
+    RetainedLocalObservation,
 }

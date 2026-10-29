@@ -307,6 +307,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
         services.AddSingleton<Kora.Application.Tools.CustomizationDiscoveryService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
+        services.AddSingleton<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
         services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Windows.Mcp.WindowsMcpConnectionBroker>();
@@ -722,6 +723,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
         services.AddSingleton<Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector>(provider =>
+            provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
+        services.AddSingleton<Kora.Core.KnowledgeSources.IKnowledgeSourceInspector>(provider =>
             provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();

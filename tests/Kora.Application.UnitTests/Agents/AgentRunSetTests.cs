@@ -349,6 +349,7 @@ public sealed class AgentRunSetTests
                 Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, before.Execution!) : null,
+                Observations = result.Observations,
             };
             return ValueTask.FromResult(Publish(request, Messages[request.RequestId].ExpectedTaskState));
         }

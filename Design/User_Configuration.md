@@ -1631,10 +1631,18 @@ Where action approval and disclosure consent cover the same exact operation, off
 Permissions and approvals are host-owned security records, not ordinary preference values.
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
-This is not an executable/script grant, and exact direct lock does not yet
-use the same gate. The broader controls and finer-grained applicability observations below remain proposed;
-future side-effecting built-ins and skills share the content/version-bound
-execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
+These preferences are not executable/script grants and cannot authorize Lock.
+Direct typed/activated-voice/native Lock and model-proposed Lock now share the
+[exact package admission owner](../src/Kora/BundledFixedActionController.cs).
+Intent or source inspection is not approval: expect fresh exact review unless
+an applicable exact grant covers the operation. Retained named Lock preferences
+are neither imported nor upgraded; changed resources, implementation or identity
+cannot reuse old authority. Once/Session/Always retain the same exact-domain rules.
+The mandatory script/native-review boundary applies at every session level;
+the original voice channel remains bound even when native controls answer it.
+Execution stays unavailable without a qualified contained runtime, with no
+native-only fallback. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Broader controls and finer-grained observations below remain proposed.
 The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
 Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/revocation/removal.
 Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
@@ -1742,6 +1750,16 @@ Undo restores the previous compatible preference value, not a side effect such a
 Reset/undo use normal validation, confirmation, and policy checks; restoring a weaker privacy preference is not exempt from confirmation.
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
+
+### Delivered single registered-preference undo
+
+The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is a separate fresh request; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance retains native-only review; ordinary response settings also support exact typed/current-name activated-voice review/confirm/cancel ([native controls](../src/Kora/SettingsWindow.axaml), [shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
+
+Undo changes future eligible presentation/ordinary response preferences only. It never restores consent, listening, grants, providers, devices, security/retention policy or external effects, and never invokes a model or synthesizes/replays a response. An uncertain setter/readback/audit outcome holds undo explicitly; no automatic retry or rollback is claimed. A weaker prior preference still requires the exact fresh review and confirmation ([operation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Configuration/RegisteredSettingUndoTests.cs)).
 
 ## Unavoidable Boundaries
 

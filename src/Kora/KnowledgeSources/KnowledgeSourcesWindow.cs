@@ -4,7 +4,6 @@ using Avalonia.Automation;
 using Avalonia.Controls;
 using Avalonia.Controls.Templates;
 using Avalonia.Layout;
-using Avalonia.Platform.Storage;
 using Kora.Application.Hosting;
 using Kora.Application.Infrastructure;
 using Kora.Application.KnowledgeSources;
@@ -19,16 +18,19 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
 {
     private readonly MainViewModel host;
     private readonly KnowledgeSourceManager manager;
+    private readonly IUserFolderPicker picker;
     private readonly CancellationTokenSource lifetime = new();
     private readonly StackPanel body = new() { Spacing = 10, Margin = new Thickness(20) };
     private readonly ListBox sources = new();
     private readonly TextBox sourceName = new() { PlaceholderText = "Name for this device-local folder", MaxLength = 80 };
+    private readonly CheckBox descendants = new() { Content = "Explicitly include bounded subfolders (depth 4; 32 directories including root)" };
     private readonly TextBlock status = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
     private readonly StackPanel review = new() { Spacing = 8 };
     private readonly TextBox preview = new() { IsReadOnly = true, AcceptsReturn = true, MinHeight = 120, MaxHeight = 320 };
     private readonly TextBox query = new() { PlaceholderText = "Explicit lexical query in selected source only" };
     private readonly TextBlock results = new() { TextWrapping = Avalonia.Media.TextWrapping.Wrap };
-    private LocalFolderRevision? opened;
+    private readonly StackPanel citationLinks = new() { Spacing = 4 };
+    private KnowledgeSourceRevision? opened;
     private KnowledgeSource? openedSource;
     private bool running;
     private bool closing;
@@ -36,10 +38,11 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
     private TaskCompletionSource? joined;
     private bool disposed;
 
-    internal KnowledgeSourcesWindow(MainViewModel host, KnowledgeSourceManager manager)
+    internal KnowledgeSourcesWindow(MainViewModel host, KnowledgeSourceManager manager, IUserFolderPicker? picker = null)
     {
         this.host = host;
         this.manager = manager;
+        this.picker = picker ?? new KnowledgeSourceFolderPicker(this);
         Title = "Knowledge sources - device-local copies";
         Width = 840;
         Height = 780;
@@ -59,13 +62,16 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         {
             Text = "Device-local, current Windows profile only. No automatic session or model context. "
                 + "Adding and refreshing never grant model or hosted consent. Originals are never changed.\n"
-                + "Immediate UTF-8 .txt/.md/.markdown files only; no recursion or silent exclusions. "
-                + "32 files / 1 MiB total / 256 KiB each. Any unsupported item, subfolder, link or unstable inventory rejects the whole source.\n"
+                + "UTF-8 .txt/.md/.markdown only. Immediate files remain the default. Explicit subfolder opt-in is required before discovery. "
+                + "32 files / 1 MiB total / 256 KiB each; 32 directories including root and empty nodes; root depth 0, maximum 4. "
+                + "Each discovery/read/save/inspection has a 30-second work bound. Any forbidden item, link, exceeded bound or unstable inventory rejects the whole source.\n"
                 + "Copies persist until explicit removal, separately from session history. Disable retains copies but blocks use. "
                 + "Refresh immediately retires old use, even if cancelled. No watcher, embeddings, OCR or network.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         body.Children.Add(sourceName);
+        AutomationProperties.SetName(descendants, "Explicit bounded descendant capture before discovery");
+        body.Children.Add(descendants);
         body.Children.Add(Button("Choose folder and review metadata", AddAsync));
         body.Children.Add(Button("Reload source inventory", LoadAsync));
         body.Children.Add(sources);
@@ -81,6 +87,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         body.Children.Add(query);
         body.Children.Add(Button("Search this exact inspected source locally", SearchAsync));
         body.Children.Add(results);
+        body.Children.Add(citationLinks);
         Content = new ScrollViewer { Content = body };
         host.PropertyChanged += OnHostChanged;
         Closing += OnClosing;
@@ -106,7 +113,8 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         joined = completion;
         body.IsEnabled = false;
         try { await HostRequestRunner.RunAsync(RequestOrigin.LocalUi, operation); }
-        catch (Exception exception) when (exception is IOException or InvalidOperationException
+        catch (Exception exception) when (exception is IOException or InvalidDataException or InvalidOperationException
+            or System.Text.DecoderFallbackException
             or UnauthorizedAccessException or System.Security.Cryptography.CryptographicException or OperationCanceledException)
         {
             RetirePresentation();
@@ -140,47 +148,51 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
     private async Task AddAsync()
     {
         RetirePresentation();
-        if (!Eligible() || !StorageProvider.CanPickFolder)
+        if (!Eligible())
         { throw new InvalidOperationException("Private native folder selection is unavailable."); }
         var generation = epoch;
-        var folders = await StorageProvider.OpenFolderPickerAsync(new()
-        {
-            Title = "Select one bounded folder of immediate text/Markdown files", AllowMultiple = false,
-        });
-        try
-        {
-            if (!Eligible() || generation != epoch) { throw new InvalidOperationException("Native folder selection was revoked."); }
-            if (folders.Count == 0) { status.Text = "Folder selection cancelled; no content read or source added."; return; }
-            if (folders.Count != 1) { throw new InvalidDataException("Select exactly one local folder."); }
-            var path = folders[0].TryGetLocalPath() ?? throw new InvalidDataException("Only a local fixed-drive folder is supported.");
-            ShowReview(await manager.ReviewAsync(sourceName.Text ?? string.Empty, path, null, Eligible, lifetime.Token));
-        }
-        finally { foreach (var folder in folders) { folder.Dispose(); } }
+        var scope = descendants.IsChecked == true ? KnowledgeSourceScope.BoundedDescendants : KnowledgeSourceScope.ImmediateFiles;
+        var name = sourceName.Text ?? string.Empty;
+        var path = await picker.SelectFolderAsync(lifetime.Token);
+        if (!Eligible() || generation != epoch) { throw new InvalidOperationException("Native folder selection was revoked."); }
+        if (path is null) { status.Text = "Folder selection cancelled; no content read or source added."; return; }
+        ShowReview(await manager.ReviewAsync(name, path, null, scope,
+            () => Eligible() && epoch == generation, lifetime.Token));
     }
 
     private async Task RefreshAsync()
     {
         var source = Selected();
         RetirePresentation();
-        ShowReview(await manager.ReviewAsync(source.Name, source.Folder.CanonicalPath, source, Eligible, lifetime.Token));
+        var generation = epoch;
+        ShowReview(await manager.ReviewAsync(source.Name, source.Folder.CanonicalPath, source,
+            () => Eligible() && epoch == generation, lifetime.Token));
     }
 
-    private void ShowReview(LocalFolderReview exact)
+    private void ShowReview(KnowledgeSourceReview exact)
     {
+        var generation = epoch;
         review.Children.Clear();
         review.Children.Add(new TextBlock
         {
             Text = "READ REVIEW (two minutes, one use)\n" + exact.Metadata.CanonicalPath
-                + "\nScope: named device-local, current profile; retained until removal, no model selection. No recursion. "
+                + $"\nScope: {exact.Metadata.Scope}; named device-local, current profile; retained until removal, no model selection. "
+                + "Limits: 32 files / 256 KiB each / 1 MiB total; depth 4; 32 directories including root/empty nodes; 30-second operations. "
                 + "Any failure rejects the entire folder. May contain secrets. Review all members:\n"
-                + string.Join("\n", exact.Metadata.Files.Select(item => $"{item.CanonicalPath} - {item.ByteLength} bytes; {item.LastWrite:O}"))
-                + $"\nComplete membership: {exact.Metadata.Files.Count} files / {exact.Metadata.CombinedBytes} bytes. "
+                + string.Join("\n", exact.Metadata.Directories.Select(item => "Directory: "
+                    + (string.Equals(item.CanonicalPath, exact.Metadata.CanonicalPath, StringComparison.Ordinal) ? "."
+                        : KnowledgeSourcePolicy.RelativePath(exact.Metadata.CanonicalPath, item.CanonicalPath))
+                    + " - native identity retained; exact membership revalidated"))
+                + "\n" + string.Join("\n", exact.Metadata.Files.Select(item =>
+                    $"{KnowledgeSourcePolicy.RelativePath(exact.Metadata.CanonicalPath, item.CanonicalPath)} - {item.ByteLength} bytes; {item.LastWrite:O}; native identity retained"))
+                + $"\nComplete membership: {exact.Metadata.Directories.Count} directories / {exact.Metadata.Files.Count} files / {exact.Metadata.CombinedBytes} bytes. "
                 + "Reading is separate from saving; review the resulting exact snapshot before publication.",
             TextWrapping = Avalonia.Media.TextWrapping.Wrap,
         });
         review.Children.Add(Button("Confirm read of this exact reviewed membership", async () =>
         {
-            var candidate = await manager.CaptureAsync(exact.ReviewId, Eligible, lifetime.Token);
+            var candidate = await manager.CaptureAsync(exact.ReviewId,
+                () => Eligible() && epoch == generation, lifetime.Token);
             review.Children.Clear();
             ShowFiles(candidate);
             review.Children.Add(new TextBlock
@@ -192,21 +204,22 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
             });
             review.Children.Add(Button("Confirm save of this exact complete device-local snapshot", async () =>
             {
-                await manager.PublishAsync(candidate, Eligible, lifetime.Token);
+                await manager.PublishAsync(candidate, () => Eligible() && epoch == generation, lifetime.Token);
                 await LoadAsync();
                 status.Text = "Exact complete source saved. No model or hosted consent was granted.";
             }));
         }));
     }
 
-    private void ShowFiles(LocalFolderRevision snapshot)
+    private void ShowFiles(KnowledgeSourceRevision snapshot)
     {
         var files = new ComboBox
         {
             ItemsSource = snapshot.Files,
             ItemTemplate = new FuncDataTemplate<LocalFileRevision>((item, _) => new TextBlock
             {
-                Text = item?.Review.Metadata.CanonicalPath,
+                Text = item is null ? string.Empty
+                    : KnowledgeSourcePolicy.RelativePath(snapshot.Review.Metadata.CanonicalPath, item.Review.Metadata.CanonicalPath),
             }),
         };
         var generation = epoch;
@@ -225,7 +238,8 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
     {
         var source = Selected();
         RetirePresentation();
-        opened = await manager.OpenAsync(source, Eligible, lifetime.Token);
+        var generation = epoch;
+        opened = await manager.OpenAsync(source, () => Eligible() && epoch == generation, lifetime.Token);
         openedSource = source;
         ShowFiles(opened);
         status.Text = "Explicit inspection of this historical registered snapshot only. It is not model context or current source access.";
@@ -233,6 +247,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
 
     private async Task SearchAsync()
     {
+        citationLinks.Children.Clear();
         var source = openedSource ?? throw new InvalidOperationException("Explicitly inspect an enabled source first.");
         var snapshot = opened ?? throw new InvalidOperationException("No exact inspected snapshot is current.");
         var generation = epoch;
@@ -244,6 +259,21 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         results.Text = $"{found.Outcome}; {found.Citations.Count} excerpts; truncated: {found.Truncated}\n"
             + string.Join("\n\n", found.Citations.Select(item =>
                 $"{item.DisplayIdentity}, lines {item.StartLine}-{item.EndLine}\n{item.Excerpt}"));
+        foreach (var citation in found.Citations)
+        {
+            citationLinks.Children.Add(Button($"Inspect cited saved item: {citation.DisplayIdentity}, line {citation.StartLine}", async () =>
+            {
+                _ = await manager.OpenAsync(source, Eligible, lifetime.Token);
+                if (!Eligible() || epoch != generation || !ReferenceEquals(opened, snapshot))
+                { throw new InvalidOperationException("The exact cited snapshot was retired."); }
+                var span = snapshot.ResolveCitation(citation);
+                preview.Text = span.File.Text;
+                preview.SelectionStart = citation.Start;
+                preview.SelectionEnd = citation.Start + citation.Length;
+                preview.CaretIndex = citation.Start;
+                preview.Focus();
+            }));
+        }
     }
 
     private async Task DisableAsync()
@@ -289,6 +319,7 @@ internal sealed class KnowledgeSourcesWindow : Window, IDisposable
         preview.Text = null;
         query.Text = null;
         results.Text = null;
+        citationLinks.Children.Clear();
         review.Children.Clear();
     }
 

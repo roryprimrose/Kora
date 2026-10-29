@@ -324,7 +324,11 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             return Finish(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
         }
         return Finish(reply.Outcome, reply.Reason, turn.Provenance,
-            reply.Outcome == ModelTurnOutcome.Succeeded ? reply.Response : null);
+            reply.Outcome == ModelTurnOutcome.Succeeded ? reply.Response : null) with
+        {
+            Observations = reply.Outcome == ModelTurnOutcome.Succeeded && turn.RetainsLocalObservations
+                ? turn.SnapshotObservations() : null,
+        };
     }
 
     internal async ValueTask<CapabilityReply> InvokeToolAsync(ModelTurn turn, string id, string input,
@@ -374,6 +378,17 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         {
             ToolDenied(logger);
             return new(CapabilityOutcome.Denied, "model-turn-admission-changed");
+        }
+        if (turn.RetainsLocalObservations)
+        {
+            try { turn.CaptureObservation(id, input, reply, time.GetUtcNow()); }
+            catch (Exception exception) when (exception is InvalidDataException
+                or Kora.Core.Conversation.ConversationCredentialException or System.Text.EncoderFallbackException)
+            {
+                turn.RejectToolAttempt();
+                ToolDenied(logger);
+                return new(CapabilityOutcome.Denied, "local-observation-result-rejected");
+            }
         }
         turn.PublishExecutionStep?.Invoke(Kora.Core.Conversation.ConversationExecutionStep.GeneratingAnswer);
         return reply;

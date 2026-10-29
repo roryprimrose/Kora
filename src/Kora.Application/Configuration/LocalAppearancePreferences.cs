@@ -56,6 +56,24 @@ public sealed class LocalAppearancePreferences : IAppearancePreferences
     public void SaveReaderTextScalePercent(int percent) => readerScale.SaveReaderTextScalePercent(percent);
     public void ConfirmReaderTextScaleWrite() => readerScale.ConfirmReaderTextScaleWrite();
 
+    public void ResetRegisteredOption(AppearanceOption setting)
+    {
+        if (setting == AppearanceOption.ReaderTextScale) { readerScale.Reset(); return; }
+        store.Delete(setting switch
+        {
+            AppearanceOption.Theme => FileName,
+            AppearanceOption.PresenceDisplay => PresenceDisplayEnabledFileName,
+            AppearanceOption.PresenceTimeout => PresenceTimeoutFileName,
+            AppearanceOption.PresenceSize => PresenceSizeFileName,
+            AppearanceOption.DotSize => PresenceDotSizeFileName,
+            AppearanceOption.DotDensity => PresenceDotDensityFileName,
+            AppearanceOption.MovementSpeed => PresenceMovementSpeedFileName,
+            AppearanceOption.SpeechScaling => PresenceSpeechScalingEnabledFileName,
+            AppearanceOption.SpeechScaleAmount => PresenceSpeechScaleAmountFileName,
+            _ => throw new ArgumentOutOfRangeException(nameof(setting)),
+        });
+    }
+
     public ApplicationThemeMode? LoadThemeMode()
     {
         var contents = store.ReadText(FileName);

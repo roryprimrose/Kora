@@ -1276,8 +1276,7 @@ public sealed partial class MainViewModelTests : IDisposable
         unchanged.Should().BeTrue();
         fixture.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.Light);
         fixture.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Light);
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.ThemeMode));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.ThemeMode)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1319,8 +1318,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().Be(15);
         fixture.ViewModel.ResponseTimeoutSeconds.Should().Be(ResponseWindowSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.PresenceTimeoutSeconds));
+        changedProperties.Should().Equal(WithUndoNotifications(nameof(MainViewModel.PresenceTimeoutSeconds)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1373,8 +1371,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.AppearancePreferences.SavedResponseTimeoutSeconds.Should().Be(8);
         fixture.ViewModel.PresenceTimeoutSeconds.Should().Be(PresenceSettings.DefaultTimeoutSeconds);
         fixture.AppearancePreferences.SavedPresenceTimeoutSeconds.Should().BeNull();
-        changedProperties.Should().ContainSingle()
-            .Which.Should().Be(nameof(MainViewModel.ResponseTimeoutSeconds));
+        changedProperties.Should().Equal(
+            nameof(MainViewModel.SettingsUndoDescription), nameof(MainViewModel.CanReviewSettingsUndo),
+            nameof(MainViewModel.CanConfirmSettingsUndo), nameof(MainViewModel.ResponseTimeoutSeconds));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1588,7 +1587,7 @@ public sealed partial class MainViewModelTests : IDisposable
         unchanged.Should().BeTrue();
         GetPresenceSetting(fixture.ViewModel, setting).Should().Be(value);
         GetSavedPresenceSetting(fixture.AppearancePreferences, setting).Should().Be(value);
-        changedProperties.Should().Equal(propertyName, descriptionPropertyName);
+        changedProperties.Should().Equal(WithUndoNotifications(propertyName, descriptionPropertyName));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -1675,9 +1674,9 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsPresenceSpeechScalingEnabled.Should().BeFalse();
         fixture.ViewModel.PresenceSpeechScalingDescription.Should().Contain("normal size");
         fixture.AppearancePreferences.SavedPresenceSpeechScalingEnabled.Should().BeFalse();
-        changedProperties.Should().Equal(
+        changedProperties.Should().Equal(WithUndoNotifications(
             nameof(MainViewModel.IsPresenceSpeechScalingEnabled),
-            nameof(MainViewModel.PresenceSpeechScalingDescription));
+            nameof(MainViewModel.PresenceSpeechScalingDescription)));
         AssertAuditPair(
             fixture,
             SecurityAuditCategory.ConfigurationWrite,
@@ -4620,11 +4619,13 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(Kora.Application.Voice.ResponseReadCommand.FixedPhrases)
+            .Concat(Kora.Application.Voice.CallSpeechCommand.FixedPhrases)
             .Concat(Kora.Application.Presentation.CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(["review speech limit suggestion", "confirm speech limit change", "cancel speech limit review"])
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(Kora.Application.Configuration.RegisteredSettings.RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
@@ -5114,7 +5115,7 @@ public sealed partial class MainViewModelTests : IDisposable
         question.ViewModel.IsModelQuestionPending.Should().BeTrue();
 
         var action = await Fixture.CreateInitializedAsync();
-        action.Reasoner.Action = BuiltInAction.LockMachine;
+        action.Reasoner.Action = BuiltInAction.EnableHostedModels;
         action.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
@@ -5177,9 +5178,9 @@ public sealed partial class MainViewModelTests : IDisposable
     {
         var fixture = await Fixture.CreateInitializedAsync();
         await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
-            GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
+            GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
@@ -5191,11 +5192,13 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.ApproveModelActionForSessionCommand.CanExecute(null).Should().BeFalse();
         fixture.ViewModel.ApproveModelActionAlwaysCommand.CanExecute(null).Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
 
         fixture.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -5203,7 +5206,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Artifact_action_rejects_reusable_approval_even_while_revision_is_current()
     {
         var fixture = await Fixture.CreateInitializedAsync();
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
@@ -5220,6 +5223,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("Fresh single-use approval is required.");
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -5674,13 +5678,13 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Model_requested_session_lock_waits_for_explicit_approval()
+    public async Task Legacy_model_requested_setting_waits_for_explicit_approval()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.DefaultResponseMode = ResponseOutputMode.VoiceOnly;
         fixture.ViewModel.IsVisualResponseVisible.Should().BeFalse();
@@ -5688,23 +5692,26 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
-        fixture.ViewModel.ResponseBody.Should().Contain("Lock the current Windows session.");
+        fixture.ViewModel.ResponseBody.Should().Contain("Allow Kora to use configured hosted model providers.");
         await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
 
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.Audit.Events.Should().Contain(entry =>
-            entry.ActionId == "model.action.lockmachine"
+            entry.ActionId == "model.action.enablehostedmodels"
             && entry.Initiator == SecurityAuditInitiator.ModelSuggestion
             && entry.Outcome == SecurityAuditOutcome.Succeeded);
 
         await fixture.RunAsync("please lock this workstation again");
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Theory]
@@ -5796,6 +5803,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.ApproveModelActionForSessionCommand.ExecuteAsync();
         fixture.ViewModel.SessionAllowedModelActions.Should().ContainSingle();
 
+        BindAdmittedLockResourceOwner(fixture);
         await fixture.RunAsync("lock the machine");
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         await fixture.RunAsync("prepare a different shutdown");
@@ -5804,30 +5812,32 @@ public sealed partial class MainViewModelTests : IDisposable
     }
 
     [Fact]
-    public async Task Always_approval_for_lock_is_persisted_and_survives_the_lock()
+    public async Task Legacy_always_approval_is_persisted_and_reused_for_the_same_setting()
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("please lock the workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
         await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
-            .Contain(BuiltInAction.LockMachine);
-        fixture.Session.LockCalls.Should().Be(1);
+            .Contain(BuiltInAction.EnableHostedModels);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
 
         await fixture.RunAsync("please lock the workstation again");
         await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        fixture.Session.LockCalls.Should().Be(2);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         await fixture.ViewModel.RevokeModelActionApprovalAsync(
-            BuiltInAction.LockMachine, ModelApprovalScope.Always);
+            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
 
@@ -5839,15 +5849,16 @@ public sealed partial class MainViewModelTests : IDisposable
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
         fixture.ApprovalPreferences.Save(new ModelApprovalPreferences(
-            true, [BuiltInAction.LockMachine]));
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+            true, [BuiltInAction.EnableHostedModels]));
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
 
         await fixture.RunAsync("lock the workstation please");
         await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(
             TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
     }
 
@@ -6185,7 +6196,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -6195,6 +6206,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         await fixture.ViewModel.RejectPendingGrantChangeAsync();
     }
@@ -6210,7 +6222,7 @@ public sealed partial class MainViewModelTests : IDisposable
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
         await fixture.ViewModel.RejectPendingGrantChangeAsync();
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
@@ -6373,7 +6385,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Should().Equal("1. Lock it", "2. Explain");
         var selected = fixture.ViewModel.ModelQuestionChoices[0];
         fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
 
         await fixture.ViewModel.SelectModelQuestionChoiceAsync(selected);
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -6381,6 +6393,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Reasoner.Requests.Should().HaveCount(2);
         fixture.Reasoner.Requests[1].Should().Contain("help me with this computer")
             .And.Contain("Lock it").And.Contain("not permission");
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.IsModelQuestionPending.Should().BeFalse();
@@ -6660,7 +6673,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
@@ -6777,7 +6790,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -6788,14 +6801,16 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsListening.Should().BeFalse();
         await fixture.RaiseActivatedTranscriptAsync("always allow this", 0.9f);
         fixture.Voice.StartedPhrases.Should().Contain("Kora always allow this");
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
 
         await fixture.RaiseActivatedTranscriptAsync("Kora, always allow this", 0.9f);
 
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should()
-            .Contain(BuiltInAction.LockMachine);
+            .Contain(BuiltInAction.EnableHostedModels);
     }
 
     [Fact]
@@ -6855,7 +6870,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         fixture.ApprovalPreferences.SaveFailure = new IOException("disk unavailable");
         await fixture.RunAsync("lock this session please");
@@ -6863,6 +6878,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.ViewModel.ApproveModelActionAlwaysCommand.ExecuteAsync();
 
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
@@ -6876,7 +6892,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -6896,6 +6912,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await superseding.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
         await approving.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
 
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
@@ -6910,6 +6927,7 @@ public sealed partial class MainViewModelTests : IDisposable
             DependencyReadiness.Ready, "Inference verified.");
         fixture.Reasoner.Action = BuiltInAction.ShowPowerStatus;
         await fixture.ViewModel.InitializeAsync();
+        BindAdmittedLockResourceOwner(fixture);
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         await fixture.RunAsync("tell me which release this is");
@@ -6930,15 +6948,16 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock the workstation please");
         await fixture.ViewModel.ActiveReasoningTask!;
         await fixture.ViewModel.RejectModelActionCommand.ExecuteAsync();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.Audit.Events.Should().Contain(entry =>
-            entry.ActionId == "model.action.lockmachine"
+            entry.ActionId == "model.action.enablehostedmodels"
             && entry.Outcome == SecurityAuditOutcome.Cancelled);
 
         await fixture.RunAsync("lock the workstation please");
@@ -6946,6 +6965,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RunAsync("show task progress");
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -7064,6 +7084,7 @@ public sealed partial class MainViewModelTests : IDisposable
             "local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
         await fixture.ViewModel.InitializeAsync();
+        BindAdmittedLockResourceOwner(fixture);
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(
             TaskCreationOptions.RunContinuationsAsynchronously);
         await fixture.RunAsync("explain this");
@@ -7154,8 +7175,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
     [Theory]
     [InlineData("question", "Which option?")]
-    [InlineData("grant", "Add Always grant for LockMachine.")]
-    [InlineData("action", "Lock the current Windows session.")]
+    [InlineData("grant", "Add Always grant for EnableHostedModels.")]
+    [InlineData("action", "Allow Kora to use configured hosted model providers.")]
     public async Task Spoken_prompt_failure_keeps_the_exact_interaction_pending(
         string kind, string description)
     {
@@ -7171,10 +7192,10 @@ public sealed partial class MainViewModelTests : IDisposable
                 break;
             case "grant":
                 fixture.Reasoner.GrantChange = new GrantChange(
-                    GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always);
+                    GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
                 break;
             case "action":
-                fixture.Reasoner.Action = BuiltInAction.LockMachine;
+                fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
                 break;
         }
         await fixture.ViewModel.InitializeAsync();
@@ -7187,6 +7208,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseTitle.Should().Be("The spoken approval prompt could not complete.");
         fixture.ViewModel.ResponseBody.Should().Contain(description);
         fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -7196,7 +7218,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -7210,6 +7232,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.ResponseTitle.Should().Be("The spoken approval prompt could not complete.");
         fixture.ViewModel.ResponseBody.Should().Contain("No model action remains pending.");
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -7236,7 +7259,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -7246,6 +7269,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.RaiseActivatedTranscriptAsync("Kora, reject", 0.9f);
 
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -7255,7 +7279,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -7264,7 +7288,8 @@ public sealed partial class MainViewModelTests : IDisposable
 
         await fixture.RaiseActivatedTranscriptAsync("Kora, approve once", 0.9f);
 
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
     }
@@ -7377,7 +7402,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus(
             "local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "Ready.");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         fixture.Voice.Microphones = [new MicrophoneDevice("mic", "Mic")];
         fixture.Voice.DefaultMicrophoneId = "mic";
         await fixture.ViewModel.InitializeAsync();
@@ -7392,6 +7417,7 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseTitle.Should().Be("The approved action failed.");
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
 
         fixture.TextToSpeech.StopException = null;
@@ -7829,7 +7855,7 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.PrepareGrantChangeAsync(new GrantChange(
             GrantChangeOperation.Add, BuiltInAction.ProposeRestart, ModelApprovalScope.Session));
         await fixture.ViewModel.ConfirmGrantChangeAsync();
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
 
@@ -7837,6 +7863,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -8115,6 +8142,7 @@ public sealed partial class MainViewModelTests : IDisposable
     public async Task Lock_command_releases_audio_before_requesting_session_lock()
     {
         var fixture = await Fixture.CreateInitializedAsync();
+        BindAdmittedLockResourceOwner(fixture);
         await fixture.ViewModel.ToggleListeningCommand.ExecuteAsync();
         fixture.ViewModel.CommandText = "Kora, lock the machine";
 
@@ -8122,16 +8150,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.Events.Should().ContainInOrder("voice.stop", "session.lock");
         fixture.ViewModel.IsListening.Should().BeFalse();
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ProtectedOperation,
-            "session.lock",
-            SecurityAuditInitiator.TypedCommand,
-            SecurityAuditOutcome.Succeeded);
+        fixture.Session.LockCalls.Should().Be(1);
     }
 
     [Fact]
-    public async Task Failed_lock_request_is_reported_without_reopening_audio()
+    public async Task Missing_lock_owner_does_not_call_a_rejecting_legacy_native_api()
     {
         var fixture = await Fixture.CreateInitializedAsync();
         fixture.Session.LockResult = false;
@@ -8141,48 +8164,34 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.RunTypedCommand.ExecuteAsync();
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be("Windows did not accept the lock request.");
-        fixture.ViewModel.IsListening.Should().BeFalse();
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ProtectedOperation,
-            "session.lock",
-            SecurityAuditInitiator.TypedCommand,
-            SecurityAuditOutcome.Failed,
-            "os-request-rejected");
+        fixture.ViewModel.ResponseBody.Should().Contain("Exact Lock admission is unavailable");
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Audit.Events.Should().NotContain(item => item.ActionId == "session.lock");
     }
 
     [Fact]
-    public async Task Lock_failure_is_visible_and_audited()
+    public async Task Missing_lock_owner_does_not_call_a_throwing_legacy_native_api()
     {
         var fixture = new Fixture();
         fixture.Session.LockException = new InvalidOperationException("lock unavailable");
 
         await fixture.RunAsync("Kora, lock the machine");
 
-        fixture.ViewModel.ResponseTitle.Should().Be("Windows could not lock the current session.");
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ProtectedOperation,
-            "session.lock",
-            SecurityAuditInitiator.TypedCommand,
-            SecurityAuditOutcome.Failed,
-            "lock-failed");
+        fixture.ViewModel.ResponseBody.Should().Contain("Exact Lock admission is unavailable");
+        fixture.Events.Should().NotContain("session.lock");
+        fixture.Audit.Events.Should().NotContain(item => item.ActionId == "session.lock");
     }
 
     [Fact]
-    public async Task Voice_lock_command_records_the_voice_initiator()
+    public async Task Voice_lock_without_an_exact_owner_has_no_native_effect_or_success_audit()
     {
         var fixture = new Fixture();
 
         await fixture.RaiseActivatedTranscriptAsync("Kora, lock the machine", 0.9f);
 
-        AssertAuditPair(
-            fixture,
-            SecurityAuditCategory.ProtectedOperation,
-            "session.lock",
-            SecurityAuditInitiator.VoiceCommand,
-            SecurityAuditOutcome.Succeeded);
+        fixture.ViewModel.ResponseBody.Should().Contain("Exact Lock admission is unavailable");
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Audit.Events.Should().NotContain(item => item.ActionId == "session.lock");
     }
 
     [Theory]
@@ -9650,6 +9659,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
+        public async Task SpeakAdmittedAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+            SpeechStartAdmission admission, CancellationToken cancellationToken = default)
+        {
+            Task? playback = null;
+            await admission(() => playback = SpeakAsync(text, voice, outputDevice, cancellationToken), cancellationToken);
+            if (playback is not null) { await playback; }
+        }
+
         public Guid? CaptionPlaybackId { get; private set; }
         public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
             Guid playbackId, CancellationToken cancellationToken = default)
@@ -9938,6 +9955,25 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeAppearancePreferences : IAppearancePreferences
     {
+        public void ResetRegisteredOption(AppearanceOption setting)
+        {
+            BeforeRegisteredReset?.Invoke();
+            ThrowIfSaveFails();
+            switch (setting)
+            {
+                case AppearanceOption.Theme: Mode = null; break;
+                case AppearanceOption.ReaderTextScale: ReaderTextScalePercent = null; break;
+                case AppearanceOption.PresenceDisplay: PresenceDisplayEnabled = null; break;
+                case AppearanceOption.PresenceTimeout: PresenceTimeoutSeconds = null; break;
+                case AppearanceOption.PresenceSize: PresenceSizePixels = null; break;
+                case AppearanceOption.DotSize: PresenceDotSizePercent = null; break;
+                case AppearanceOption.DotDensity: PresenceDotDensityPercent = null; break;
+                case AppearanceOption.MovementSpeed: PresenceMovementSpeedPercent = null; break;
+                case AppearanceOption.SpeechScaling: PresenceSpeechScalingEnabled = null; break;
+                case AppearanceOption.SpeechScaleAmount: PresenceSpeechScaleAmountPercent = null; break;
+                default: throw new ArgumentOutOfRangeException(nameof(setting));
+            }
+        }
         public bool? NativePresenceRendererEnabled { get; private set; }
         public bool? LoadNativePresenceRendererEnabled() => NativePresenceRendererEnabled;
         public void SaveNativePresenceRendererEnabled(bool value)
@@ -10024,6 +10060,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         public Action? BeforePresencePreferenceSave { get; set; }
         public Action? BeforeThemeSave { get; set; }
+        public Action? BeforeRegisteredReset { get; set; }
 
         public Action? BeforeResponseTimeoutPreferenceSave { get; set; }
 
@@ -10278,6 +10315,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechPreferences : ITextToSpeechPreferences
     {
+        public void ResetSummaryLimits()
+        {
+            if (SaveException is not null) { throw SaveException; }
+            SummaryLimits = null;
+        }
         public SpokenSummaryLimits? SummaryLimits { get; set; }
         public Exception? SummaryLimitsLoadFailure { get; set; }
         public SpokenSummaryLimits? LoadSummaryLimits() => SummaryLimitsLoadFailure is { } exception ? throw exception : SummaryLimits;
@@ -10416,6 +10458,11 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeResponseOutputPreferences : IResponseOutputPreferences
     {
+        public void ResetDefaultMode()
+        {
+            if (SaveException is not null) { throw SaveException; }
+            Mode = null;
+        }
         private bool unconfirmed;
         public ResponseOutputMode? Mode { get; set; }
 

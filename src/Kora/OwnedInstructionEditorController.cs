@@ -17,6 +17,8 @@ internal sealed partial class OwnedInstructionEditorController(
     ProfileInstructionForkWorkflow? profileForks = null,
     Kora.Core.Context.IUserFilePicker? profilePicker = null,
     OwnedInstructionRefinementService? refinement = null,
+    QuestionWindowController? saveQuestions = null,
+    ProfileInstructionEditorWorkflow? profileOriginals = null,
     Kora.Application.Voice.ComposerDictationService? dictation = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
@@ -35,8 +37,17 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool uncertain;
     private bool newDraft;
     private long sourceRevision;
+    private long caretRevision;
     private long copyInputRevision;
     private long windowOwnershipRevision;
+    private Task activeOperation = Task.CompletedTask;
+
+    internal async Task WaitForOperation()
+    {
+#pragma warning disable VSTHRD003 // Joins only the native operation owned by this controller.
+        await activeOperation;
+#pragma warning restore VSTHRD003
+    }
 
     internal void Bind()
     {
@@ -83,7 +94,7 @@ internal sealed partial class OwnedInstructionEditorController(
             if (action is "Cancel profile copy") { CancelProfileCopy(); }
             else if (action is "Cancel refinement") { CancelRefinement(); }
             else if (action is "Filter" or "Next") { FilterInventory(action is "Next", edited: action is "Filter"); }
-            else { _ = Run(action); }
+            else { activeOperation = Run(action); }
         });
         var findOwner = window;
         bodyDictation = new(window, dictation ?? main.ComposerDictation, CaptureBodyDictation,
@@ -93,6 +104,9 @@ internal sealed partial class OwnedInstructionEditorController(
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
+            if (change.Property == TextBox.CaretIndexProperty || change.Property == TextBox.SelectionStartProperty
+                || change.Property == TextBox.SelectionEndProperty)
+            { Interlocked.Increment(ref caretRevision); }
             if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
@@ -111,7 +125,7 @@ internal sealed partial class OwnedInstructionEditorController(
         };
         window.Files.SelectionChanged += (_, _) =>
         {
-            if (preservingRefinementInventory) { return; }
+            if (preservingOpenSourceInventory) { return; }
             Interlocked.Increment(ref sourceRevision);
             CancelRefinement();
             window?.CancelRebaseReview();
@@ -204,6 +218,7 @@ internal sealed partial class OwnedInstructionEditorController(
                     if (await Actions.Inspect(name, Eligible, token) is not null)
                     { throw new InvalidOperationException("That exact owned ID already exists. Inspect it; no implicit overwrite."); }
                     if (!Eligible()) { return; }
+                    profileOriginal = null;
                     selectedName = name;
                     baseline = null;
                     newDraft = true;
@@ -215,7 +230,9 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Inspect":
                 case "Reload":
-                    await InspectChoice(opened, action is "Reload", exactName, Eligible, token);
+                    if (action is "Reload" && profileOriginal is not null)
+                    { await OpenProfileOriginal(opened, Eligible, token, reloadOriginal: true); }
+                    else { await InspectChoice(opened, action is "Reload", exactName, Eligible, token); }
                     break;
                 case "Rebase":
                     await RebaseDraft(opened, Eligible, token);
@@ -235,6 +252,9 @@ internal sealed partial class OwnedInstructionEditorController(
                     break;
                 case "Create Kora copy from profile instruction":
                     await ForkProfileInstruction(opened, Eligible, token);
+                    break;
+                case "Open registered profile original":
+                    await OpenProfileOriginal(opened, Eligible, token);
                     break;
                 case "Delete":
                     await Save(opened, delete: true, Eligible, token);
@@ -301,12 +321,13 @@ internal sealed partial class OwnedInstructionEditorController(
                 || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
             { opened.Report((exception is InstructionPublicationUnconfirmedException
-                    ? "Atomic owned publication occurred; later completion is unconfirmed. "
+                    ? "Atomic source publication occurred; later completion is unconfirmed. "
                     : exception is InstructionUseRevocationUnconfirmedException revocation
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
-                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals are never modified."); }
+                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite."
+                + (profileOriginal is not null ? " Explicitly Reload/reconcile the registered original before further writes." : " Profile originals are never modified by owned operations.")); }
         }
         finally { busy = false; }
     }
@@ -314,6 +335,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private async Task ValidateDraft(OwnedInstructionEditorWindow opened, Func<bool> eligible, CancellationToken token, bool compare = false)
     {
         opened.ClearValidation();
+        if (profileOriginal is not null) { await CompareProfileDraft(opened, eligible, token); return; }
         if (!opened.IsVisible || opened.Source.IsReadOnly || selectedName is not { } name || baseline is null && !newDraft
             || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
             || opened.KindInput.SelectedItem is not ArtifactKind selectedKind || selectedKind != kind
@@ -390,13 +412,22 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task<bool> Save(OwnedInstructionEditorWindow opened, bool delete, Func<bool> eligible, CancellationToken token)
     {
+        if (profileOriginal is not null) { return await SaveProfileOriginal(opened, delete, eligible, token); }
         if (selectedName is null || uncertain || Actions.IsSourceUnavailable) { throw new InvalidOperationException("Inspect/create, or explicitly Reload/reconcile first."); }
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
         var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
+        var reviewedCaretRevision = Interlocked.Read(ref caretRevision);
+        var reviewedInputRevision = Interlocked.Read(ref copyInputRevision);
+        var expiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
+        NativeInstructionMutationReview? review = null;
         // Admission/publication callbacks run off the UI thread; never read an Avalonia control there.
-        bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision;
-        var review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)), CurrentDraft, kind);
+        bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision
+            && Interlocked.Read(ref caretRevision) == reviewedCaretRevision
+            && Interlocked.Read(ref copyInputRevision) == reviewedInputRevision && DateTimeOffset.UtcNow < expiresAt
+            && (review?.IsAnswerCurrent ?? true);
+        review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)),
+            CurrentDraft, kind, saveQuestions, expiresAt);
         var pending = pendingRefinement;
         var result = !delete && pending is not null
             ? await (refinement ?? throw new InvalidOperationException("Local refinement is unavailable.")).Save(pending, review, CurrentDraft, token)
@@ -460,6 +491,7 @@ internal sealed partial class OwnedInstructionEditorController(
         if (!eligible()) { return; }
         if (observed is not null && !Actions.IsInventoryCurrent(observed))
         { throw new InvalidOperationException("The observed catalogue changed before inspection delivery. Refresh and reselect; draft retained."); }
+        profileOriginal = null;
         baseline = loaded; selectedName = loaded?.Name ?? name; originalText = loaded?.Document.Text ?? string.Empty;
         newDraft = false;
         opened.NameInput.Text = selectedName;
@@ -505,7 +537,7 @@ internal sealed partial class OwnedInstructionEditorController(
         token.ThrowIfCancellationRequested();
         kind = requestedKind;
         InvalidateInventory("Kind changed; explicit List/Refresh required.");
-        baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
         opened.Source.Text = string.Empty; opened.NameInput.Text = string.Empty; opened.CopyNameInput.Text = string.Empty; opened.ClearInventory();
         opened.ClearSearch();
@@ -577,7 +609,7 @@ internal sealed partial class OwnedInstructionEditorController(
         bodyDictation?.Dispose(); bodyDictation = null;
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
-        window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;
+        window?.ClearPrivateText(); window = null; baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;
         newDraft = false;
         pendingRefinement = null;
     }

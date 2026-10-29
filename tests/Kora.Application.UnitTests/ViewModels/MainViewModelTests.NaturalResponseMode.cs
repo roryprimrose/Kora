@@ -231,7 +231,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture(enableResponseModeConfiguration: true);
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         if (question) { fixture.Reasoner.Question = new("Exact choice?", ["one", "two"]); }
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("please do this work");
@@ -245,7 +245,8 @@ public sealed partial class MainViewModelTests
             fixture.ViewModel.ResponseBody.Should().Be(preview);
             fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
             fixture.Reasoner.Requests.Should().HaveCount(requests);
-            fixture.Session.LockCalls.Should().Be(0);
+            fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
             fixture.OutputPreferences.SavedMode.Should().BeNull();
         }
     }

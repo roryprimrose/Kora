@@ -8,6 +8,31 @@ namespace Kora.Application.Dependencies;
 /// <summary>A single-use host capability. Its provider, envelope and authority cannot be replaced by a caller.</summary>
 public sealed class ModelTurn
 {
+    private readonly Lock observationGate = new();
+    private readonly List<Kora.Core.Conversation.RetainedLocalObservation> observations = [];
+    internal bool RetainLocalObservations { get; set; }
+    internal bool RetainsLocalObservations => RetainLocalObservations && ConversationTarget is not null
+        && Context.ToolMode == ModelToolMode.ReadOnly && Provenance.Selection.Provider == ModelProviderIdentity.Ollama
+        && Provenance.Request.InvocationId is null;
+
+    internal void CaptureObservation(string id, string input, Kora.Core.Tools.CapabilityReply reply, DateTimeOffset observedAt)
+    {
+        lock (observationGate)
+        {
+            if (!IsRunning || observations.Count >= ModelToolProtocol.MaximumCalls)
+            { throw new InvalidDataException("The owning observation turn is closed or its bound was exceeded."); }
+            observations.Add(Kora.Core.Conversation.RetainedLocalObservation.Capture(id, input, reply, observedAt));
+        }
+    }
+
+    internal Kora.Core.Conversation.RetainedLocalObservations? SnapshotObservations()
+    {
+        lock (observationGate)
+        {
+            return observations.Count == 0 ? null : new(1, [.. observations]);
+        }
+    }
+
     private int used;
     private bool running;
     private int retirementReason;

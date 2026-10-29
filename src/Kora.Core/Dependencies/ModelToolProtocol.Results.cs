@@ -4,7 +4,7 @@ namespace Kora.Core.Dependencies;
 
 public static partial class ModelToolProtocol
 {
-    private static void ValidateResult(ModelToolCall call, CapabilityReply reply)
+    private static void ValidateResult(ModelToolCall call, CapabilityReply reply, bool historical = false)
     {
         ValidateText(reply.Reason);
         if (reply.Mcp is not null)
@@ -46,11 +46,14 @@ public static partial class ModelToolProtocol
         {
             CapabilityOutputShape.Descriptors => reply.Capabilities is { Records: not null } capabilities
                 && ValidPage(capabilities.Records, capabilities.TotalRecords, capabilities.NextOffset, input.Page!)
-                && capabilities.TotalRecords == ReadOnlyCapabilityCatalog.Descriptors.Count
-                && capabilities.Records.Select((item, index) => item is not null && CapabilityReplyWire.IsExactDescriptor(
-                    item, ReadOnlyCapabilityCatalog.Descriptors[input.Page!.Offset + index])).All(match => match),
+                && (historical ? capabilities.Records.All(ValidHistoricalDescriptor)
+                    : capabilities.TotalRecords == ReadOnlyCapabilityCatalog.Descriptors.Count
+                        && capabilities.Records.Select((item, index) => item is not null && CapabilityReplyWire.IsExactDescriptor(
+                            item, ReadOnlyCapabilityCatalog.Descriptors[input.Page!.Offset + index])).All(match => match)),
             CapabilityOutputShape.Descriptor => reply.Descriptor is not null
-                && CapabilityReplyWire.IsSingleDescriptor(reply, ReadOnlyCapabilityCatalog.FindExact(input.Id!.Id)!),
+                && (historical ? ValidHistoricalDescriptor(reply.Descriptor)
+                        && string.Equals(reply.Descriptor.Id, input.Id!.Id, StringComparison.Ordinal)
+                    : CapabilityReplyWire.IsSingleDescriptor(reply, ReadOnlyCapabilityCatalog.FindExact(input.Id!.Id)!)),
             CapabilityOutputShape.Version => reply.Version is { } version && ValidVersion(version),
             CapabilityOutputShape.Readiness => reply.Readiness is { Records: not null } readiness
                 && ValidPage(readiness.Records, readiness.TotalRecords, readiness.NextOffset, input.Page!)

@@ -1627,6 +1627,22 @@ No approvable action category is categorically denied session/always duration; f
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks subsequent exact-grant consumption. In-flight work is reported as cancelled, completed, or uncertain only when actual evidence supports it; revocation itself never proves physical cancellation or rollback.
 
+### Explain one current pending clipboard read
+
+On the live native **clipboard read** permission card, choose **Why is this allowed / why does it need approval?**.
+The [host authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs) checks the original pending question, exact built-in descriptor, session generation/level and mandatory gates, using the same exact-grant matcher as normal admission.
+The [native presentation](../src/Kora/NativeQuestionViewModel.cs) shows only the safe `clipboard.read` / current plain-text clipboard to volatile native preview label, observed session level, and applicable exact grant scope or independent native permission requirement.
+Review all, Model review and Approve all do not replace this path's exact clipboard-read permission; no reviewer/model is consulted.
+
+This is a **read snapshot**, not current effect authority or permission for later execution.
+It never reads clipboard contents, creates/reserves/consumes a grant, dispatches, revokes content, completes the separate exact-record review, changes the question or renews session activity ([observation transition](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs), [storage transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)).
+Choose **Return to same approval** to recheck the same proposal, question, session policy, gates and exact grant revision; changed evidence invalidates the explanation rather than following another operation.
+Then deliberately review/approve or cancel through the unchanged native path. Unknown/stale identity, implementation/dependency binding, storage/audit, private ownership or source state cannot establish an explanation ([native owner](../src/Kora/NativeQuestionHost.Clipboard.cs), [policy regressions](../tests/Kora.Application.UnitTests/Interaction/PendingOperationExplanationTests.cs)).
+
+Original typed/activated-voice clipboard requests still reach the same native permission card.
+Explanation adds no spoken disclosure/approval, provider/tool exposure, grant-history/global search, automatic revocation or new clipboard/model consent.
+Deterministic [complete-route tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) and [withdrawal/race tests](../tests/Kora.Windows.IntegrationTests/PendingOperationExplanationTests.cs) use fake clipboard/model seams, not real clipboard/network/native effects; they are implementation evidence, not E/Q qualification.
+
 ### Delivered native exact operation grants — 2026-10-10
 
 **Settings > Approvals > Permission grants...** opens the shared management window, also reachable from **Settings > Network > Permission grants...**. It reads exact operation records from the initialized private interaction store, not the legacy tab's named-action list. The same typed inventory includes existing device-local URI permission rules without changing their matching, persistence, audit or consumer-specific consent. URI rows cannot join exact revocation batches. Refresh and Next return at most **50 retained exact records / 64 KiB**, with finite stored-row limits and a continuation bound to that store lifetime and unchanged committed snapshot; URI rules are independently bounded to 64 patterns / 16 KiB and are not affected by exact filters/Next. Source, row or cursor failures are explicit; no empty-success fallback occurs.

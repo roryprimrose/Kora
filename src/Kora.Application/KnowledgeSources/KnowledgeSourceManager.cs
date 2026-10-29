@@ -9,9 +9,9 @@ using Kora.Core.KnowledgeSources;
 namespace Kora.Application.KnowledgeSources;
 
 public sealed class KnowledgeSourceManager(
-    ILocalFileInspector inspector, IKnowledgeSourceStore store, ISecurityAuditLog audit, TimeProvider time) : IDisposable
+    IKnowledgeSourceInspector inspector, IKnowledgeSourceStore store, ISecurityAuditLog audit, TimeProvider time) : IDisposable
 {
-    private ILocalFolderSelection? selection;
+    private IKnowledgeSourceSelection? selection;
     private KnowledgeSource? expected;
     private DateTimeOffset expires;
     private HostRequest? original;
@@ -20,16 +20,25 @@ public sealed class KnowledgeSourceManager(
     private bool disposed;
     private int busy;
     private readonly List<byte[]> capturedBytes = [];
-    public LocalFolderReview? Review { get; private set; }
-    public LocalFolderRevision? Candidate { get; private set; }
+    public KnowledgeSourceReview? Review { get; private set; }
+    public KnowledgeSourceRevision? Candidate { get; private set; }
 
-    public async Task<LocalFolderReview> ReviewAsync(string displayName, string selectedPath,
-        KnowledgeSource? refresh, Func<bool> eligible, CancellationToken cancellationToken)
+    public Task<KnowledgeSourceReview> ReviewAsync(string displayName, string selectedPath,
+        KnowledgeSource? refresh, Func<bool> eligible, CancellationToken cancellationToken) =>
+        ReviewAsync(displayName, selectedPath, refresh, refresh?.Folder.Scope ?? KnowledgeSourceScope.ImmediateFiles,
+            eligible, cancellationToken);
+
+    public async Task<KnowledgeSourceReview> ReviewAsync(string displayName, string selectedPath,
+        KnowledgeSource? refresh, KnowledgeSourceScope scope, Func<bool> eligible, CancellationToken cancellationToken)
     {
         Enter(eligible);
+        using var deadline = new CancellationTokenSource(KnowledgeSourcePolicy.MaximumOperationTime, time);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = operation.Token;
         try
         {
             Clear();
+            KnowledgeSourcePolicy.ValidateScope(scope);
             if (string.IsNullOrWhiteSpace(displayName) || displayName.Length > 80
                 || displayName.Any(char.IsControl))
             { throw new InvalidDataException("Use a nonempty source name of at most 80 characters without control characters."); }
@@ -39,12 +48,22 @@ public sealed class KnowledgeSourceManager(
             cause = host.Activity!.Context;
             if (refresh is not null)
             {
-                if (!string.Equals(selectedPath, refresh.Folder.CanonicalPath, StringComparison.OrdinalIgnoreCase))
-                { throw new InvalidDataException("Refresh cannot change the registered root."); }
-                expected = await Audited("refresh", () => store.BeginRefreshAsync(refresh, cancellationToken)).ConfigureAwait(false);
+                if (!string.Equals(selectedPath, refresh.Folder.CanonicalPath, StringComparison.OrdinalIgnoreCase)
+                    || scope != refresh.Folder.Scope)
+                { throw new InvalidDataException("Refresh cannot change the registered root or traversal policy; remove and add with a full fresh review."); }
+                // Once the exact native refresh is admitted, join revocation even if later work is cancelled.
+                expected = await Audited("refresh", () => store.BeginRefreshAsync(refresh, CancellationToken.None)).ConfigureAwait(false);
+                if (expected.Folder.Scope != scope
+                    || !string.Equals(expected.Folder.CanonicalPath, refresh.Folder.CanonicalPath, StringComparison.Ordinal)
+                    || !string.Equals(expected.Folder.DirectoryIdentity, refresh.Folder.DirectoryIdentity, StringComparison.Ordinal))
+                { throw new InvalidDataException("Refresh admission disagrees with the exact registered root and policy."); }
             }
-            selection = await inspector.InspectFolderAsync(selectedPath, cancellationToken).ConfigureAwait(false);
             Check(eligible, cancellationToken);
+            selection = await inspector.InspectSourceAsync(selectedPath, scope, cancellationToken).ConfigureAwait(false);
+            Check(eligible, cancellationToken);
+            if (selection.Metadata.Scope != scope
+                || !string.Equals(selection.Metadata.CanonicalPath, selectedPath, StringComparison.OrdinalIgnoreCase))
+            { throw new InvalidDataException("Discovery did not return the exact selected root and policy."); }
             if (refresh is not null && !string.Equals(selection.Metadata.DirectoryIdentity,
                 refresh.Folder.DirectoryIdentity, StringComparison.Ordinal))
             { throw new InvalidDataException("The registered physical root changed; remove it and explicitly add a new source."); }
@@ -56,9 +75,12 @@ public sealed class KnowledgeSourceManager(
         finally { Volatile.Write(ref busy, 0); }
     }
 
-    public async Task<LocalFolderRevision> CaptureAsync(Guid reviewId, Func<bool> eligible, CancellationToken cancellationToken)
+    public async Task<KnowledgeSourceRevision> CaptureAsync(Guid reviewId, Func<bool> eligible, CancellationToken cancellationToken)
     {
         Enter(eligible);
+        using var deadline = new CancellationTokenSource(KnowledgeSourcePolicy.MaximumOperationTime, time);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = operation.Token;
         try
         {
             var review = Review;
@@ -86,10 +108,13 @@ public sealed class KnowledgeSourceManager(
         finally { Volatile.Write(ref busy, 0); }
     }
 
-    public async Task<KnowledgeSource> PublishAsync(LocalFolderRevision exactCandidate, Func<bool> eligible,
+    public async Task<KnowledgeSource> PublishAsync(KnowledgeSourceRevision exactCandidate, Func<bool> eligible,
         CancellationToken cancellationToken)
     {
         Enter(eligible);
+        using var deadline = new CancellationTokenSource(KnowledgeSourcePolicy.MaximumOperationTime, time);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = operation.Token;
         KnowledgeSource result;
         KnowledgeSource? published = null;
         try
@@ -130,18 +155,24 @@ public sealed class KnowledgeSourceManager(
         finally { Volatile.Write(ref busy, 0); }
     }
 
-    public async Task<LocalFolderRevision> OpenAsync(KnowledgeSource exact, Func<bool> eligible, CancellationToken cancellationToken)
+    public async Task<KnowledgeSourceRevision> OpenAsync(KnowledgeSource exact, Func<bool> eligible, CancellationToken cancellationToken)
     {
         Enter(eligible);
+        using var deadline = new CancellationTokenSource(KnowledgeSourcePolicy.MaximumOperationTime, time);
+        using var operation = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token);
+        cancellationToken = operation.Token;
         try
         {
             return await Audited("inspect", async () =>
             {
-                using var access = await inspector.InspectFolderAsync(exact.Folder.CanonicalPath, cancellationToken).ConfigureAwait(false);
-                if (!string.Equals(access.Metadata.DirectoryIdentity, exact.Folder.DirectoryIdentity, StringComparison.Ordinal)
-                    || !access.Metadata.Files.SequenceEqual(exact.Folder.Files))
+                using var access = await inspector.InspectSourceAsync(exact.Folder.CanonicalPath, exact.Folder.Scope,
+                    cancellationToken).ConfigureAwait(false);
+                if (!access.Metadata.Matches(exact.Folder))
                 { throw new InvalidDataException("The original source membership or access changed; explicitly refresh before reuse."); }
                 var snapshot = await store.ReadAsync(exact, cancellationToken).ConfigureAwait(false);
+                Check(eligible, cancellationToken);
+                if (snapshot.Review.SourceId != exact.Id || !snapshot.Review.Metadata.Matches(exact.Folder))
+                { throw new InvalidDataException("The retained snapshot does not match the exact registered source."); }
                 await access.ValidateAsync(cancellationToken).ConfigureAwait(false);
                 Check(eligible, cancellationToken);
                 return snapshot;

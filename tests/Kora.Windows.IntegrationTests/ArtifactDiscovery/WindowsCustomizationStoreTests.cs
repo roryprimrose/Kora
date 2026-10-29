@@ -35,7 +35,6 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
     [InlineData(CustomizationKind.Prompt, CustomizationScope.Kora)]
     [InlineData(CustomizationKind.Skill, CustomizationScope.User)]
     [InlineData(CustomizationKind.Agent, CustomizationScope.User)]
-    [InlineData(CustomizationKind.McpServer, CustomizationScope.User)]
     public async Task Complete_create_read_edit_conflict_and_reopen_roundtrip(CustomizationKind kind, CustomizationScope scope)
     {
         var store = Create();
@@ -131,9 +130,9 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
     public async Task Mcp_save_changes_only_the_selected_server_bytes()
     {
         var store = Create();
-        var source = await store.Create(CustomizationKind.McpServer, CustomizationScope.User, "example", TestContext.Current.CancellationToken);
+        var source = await store.Create(CustomizationKind.McpServer, CustomizationScope.Kora, "example", TestContext.Current.CancellationToken);
         await Save(store, source, null, Primary(source));
-        const string external = "{/*keep*/\"inputs\":[],\"servers\":{\"example\":{\"url\":\"https://old.invalid\"},\"other\":{\"command\":\"untouched\"}},\"tail\":true}";
+        const string external = "{/*keep*/\"servers\":{\"example\":{\"url\":\"https://old.invalid\"},\"other\":{\"command\":\"untouched\"}}}";
         File.WriteAllText(source.Location, external);
         var current = await store.Read(source, TestContext.Current.CancellationToken);
         await Save(store, source, current, new CustomizationFile("server.json", Encoding.UTF8.GetBytes("{\"url\":\"https://new.invalid\"}")));

@@ -83,7 +83,8 @@ public sealed partial class InstructionEditorTests
         var files = new CustomizationFiles(kind);
         var state = new LocalSharedSkillPreferencesTests.Store();
         var use = new ArtifactUsePreferences(state);
-        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
+        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit,
+            new ArtifactDirectoryConfigurationService(new CustomizationMcpPreferences(), f.Audit));
         var changes = 0;
         void Changed(object? sender, EventArgs args) => changes++;
         service.UseChanged += Changed;
@@ -233,7 +234,9 @@ public sealed partial class InstructionEditorTests
         internal Action? BeforeRegister;
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
-            Source = new("file.example", kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
+            Source = new(kind == CustomizationKind.McpServer
+                ? ArtifactUseIdentity.Mcp(ArtifactUseIdentity.McpServerId("source", "example")) : "file.example",
+                kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
             Current = new(Source, "original", [new(Source.PrimaryFile,
                 Kora.Core.Artifacts.ArtifactFileDocument.Encode(CustomizationLayout.Template(kind, "example"), false))]);
         }

@@ -21,6 +21,140 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ResponseOutputUpdate;
     }
 
+    [Theory]
+    [InlineData("environment")]
+    [InlineData("topology")]
+    [InlineData("native")]
+    public async Task Removed_saved_output_reports_unavailable_before_speech_without_default_substitution(string refresh)
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.AudioPreferences.OutputDeviceId = "0";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.ViewModel.TaskResponseMode = ResponseOutputMode.VoiceOnly;
+        var speechCalls = fixture.TextToSpeech.SpeakCalls;
+        fixture.TextToSpeech.OutputDevices = [new("other", "Other speakers")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "other";
+
+        if (refresh is "environment") { await fixture.ViewModel.RefreshCommand.ExecuteAsync(); }
+        else if (refresh is "topology") { await PublishTopologyAsync(fixture, 1); }
+        else { await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync(); }
+
+        var state = fixture.OutputConfiguration!.Get(0);
+        state.Desired.Should().Be("0");
+        state.Effective.Should().BeNull();
+        state.SystemDefault.Should().Be("other");
+        state.Available.Should().BeFalse();
+        fixture.ViewModel.SelectedOutputDevice!.Id.Should().Be("0");
+        fixture.ViewModel.AudioOutputConfigurationStatus.Should().Contain("Speaker unavailable");
+        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("unavailable").And.Contain("no endpoint");
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        await fixture.RunAsync("what power action is pending");
+        await fixture.ViewModel.ResponseOutputUpdate;
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseBody.Should().Be("Power execution is intentionally disabled in this bootstrap proof.");
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        await fixture.ViewModel.PreviewVoiceCommand.ExecuteAsync();
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+        fixture.TextToSpeech.SpokenOutputDevice.Should().BeNull();
+        fixture.AudioPreferences.OutputDeviceId.Should().Be("0");
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.AudioPreferences.ClearedOutputDeviceCount.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task Refresh_and_explicit_reselection_recover_saved_output_without_replaying_visual_results()
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.AudioPreferences.OutputDeviceId = "0";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.OutputDevices = [new("other", "Other speakers")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "other";
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        await fixture.RunAsync("what power action is pending");
+        var body = fixture.ViewModel.ResponseBody;
+        var speechCalls = fixture.TextToSpeech.SpeakCalls;
+
+        fixture.TextToSpeech.OutputDevices = [new("0", "Returned speakers"), new("other", "Other speakers")];
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.OutputConfiguration!.Get(0).Effective.Should().Be("0");
+        fixture.AudioPreferences.OutputDeviceId.Should().Be("0");
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+
+        fixture.TextToSpeech.OutputDevices = [new("other", "Other speakers")];
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        fixture.ViewModel.SelectedOutputChoice = fixture.ViewModel.OutputDeviceChoices.Single(choice =>
+            string.Equals(choice.Id, "other", StringComparison.Ordinal));
+        await fixture.ViewModel.SaveOutputDeviceCommand.ExecuteAsync();
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().Be("other");
+        fixture.OutputConfiguration.Get(0).Effective.Should().Be("other");
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+        await fixture.RunAsync("what power action is pending");
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls + 1);
+        fixture.TextToSpeech.SpokenOutputDevice!.Id.Should().Be("other");
+    }
+
+    [Theory]
+    [InlineData(ResponseOutputMode.VisualOnly, CallState.Clear)]
+    [InlineData(ResponseOutputMode.VoiceOnly, CallState.Active)]
+    [InlineData(ResponseOutputMode.VoiceOnly, CallState.Suspected)]
+    [InlineData(ResponseOutputMode.VoiceOnly, CallState.Unknown)]
+    public async Task Recovered_output_does_not_override_visual_only_or_protected_call_policy(ResponseOutputMode mode, CallState call)
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        fixture.AudioPreferences.OutputDeviceId = "0";
+        await fixture.ViewModel.InitializeAsync();
+        fixture.TextToSpeech.OutputDevices = [];
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        fixture.ViewModel.TaskResponseMode = mode;
+        fixture.CallState.SetState(call);
+        await fixture.Dispatcher.LastInvocation;
+        fixture.TextToSpeech.OutputDevices = [new("0", "Returned speakers")];
+        var speechCalls = fixture.TextToSpeech.SpeakCalls;
+        await fixture.ViewModel.RefreshOutputDevicesCommand.ExecuteAsync();
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        await fixture.RunAsync("what power action is pending");
+        await fixture.ViewModel.ResponseOutputUpdate;
+        fixture.ViewModel.IsSpeechResponseEnabled.Should().BeFalse();
+        fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.ResponseTitle.Should().Be("No power action is pending.");
+        fixture.ViewModel.ResponseBody.Should().Be("Power execution is intentionally disabled in this bootstrap proof.");
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+        fixture.AudioPreferences.OutputDeviceId.Should().Be("0");
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task Explicit_system_selection_follows_default_changes_without_synthesizing_or_saving_an_endpoint()
+    {
+        var fixture = new Fixture(enableOutputConfiguration: true);
+        await using var admission = fixture.OutputAdmission;
+        await fixture.ViewModel.InitializeAsync();
+        var speechCalls = fixture.TextToSpeech.SpeakCalls;
+        fixture.TextToSpeech.OutputDevices = [new("other", "Other speakers")];
+        fixture.TextToSpeech.DefaultOutputDeviceId = "other";
+        await PublishTopologyAsync(fixture, 1, WindowsPrivacyChangeReason.DefaultSpeaker);
+        fixture.ViewModel.SelectedOutputDevice.Should().Be(SystemAudioDevices.Output);
+        fixture.OutputConfiguration!.Get(0).Effective.Should().Be("other");
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeTrue();
+        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("follows the Windows default");
+        fixture.TextToSpeech.OutputDevices = [];
+        await PublishTopologyAsync(fixture, 2);
+        fixture.OutputConfiguration.Get(0).Effective.Should().BeNull();
+        fixture.ViewModel.OutputDeviceAvailabilityMessage.Should().Contain("unavailable");
+        fixture.ViewModel.IsSpeechOutputAvailable.Should().BeFalse();
+        fixture.TextToSpeech.SpeakCalls.Should().Be(speechCalls);
+        fixture.AudioPreferences.OutputDeviceId.Should().BeNull();
+        fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+    }
+
     [Fact]
     public async Task Output_exact_commands_and_native_choice_save_reset_share_real_admission_without_autoplay()
     {

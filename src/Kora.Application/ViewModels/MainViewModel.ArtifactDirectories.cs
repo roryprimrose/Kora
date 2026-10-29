@@ -154,10 +154,10 @@ public sealed partial class MainViewModel
 
     public string ArtifactDirectoryStatus =>
         artifactDirectoryConfiguration is null
-            ? "Additional artifact directory configuration is unavailable."
+            ? "Artifact directory configuration is unavailable."
             : AdditionalArtifactDirectories.Count == 0
-                    ? $"No additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(IsMcpConfigurationSelected ? "files" : "directories")} are configured."
-                    : $"{AdditionalArtifactDirectories.Count} additional {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(AdditionalArtifactDirectories.Count == 1 ? ArtifactPathKind : IsMcpConfigurationSelected ? "files" : "directories")} configured.";
+                    ? $"No {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(IsMcpConfigurationSelected ? "files" : "directories")} are configured."
+                    : $"{AdditionalArtifactDirectories.Count} {SelectedArtifactDirectoryKind.ToString().ToLowerInvariant()} {(AdditionalArtifactDirectories.Count == 1 ? ArtifactPathKind : IsMcpConfigurationSelected ? "files" : "directories")} configured.";
 
     private Task RefreshArtifactDirectoriesAsync()
     {
@@ -194,7 +194,7 @@ public sealed partial class MainViewModel
             or NotSupportedException)
         {
             ApplicationLog.Error(logger, exception, "Reading additional artifact and MCP sources");
-            ShowFailure("Additional artifact and MCP sources are unavailable.", exception.Message);
+            ShowFailure("Artifact and MCP sources are unavailable.", exception.Message);
         }
     }
 
@@ -263,8 +263,8 @@ public sealed partial class MainViewModel
             or ArgumentException
             or NotSupportedException)
         {
-            ApplicationLog.Error(logger, exception, "Changing additional artifact and MCP sources");
-            ShowFailure("Additional artifact and MCP sources were not changed.", exception.Message);
+            ApplicationLog.Error(logger, exception, "Changing artifact and MCP sources");
+            ShowFailure("Artifact and MCP sources were not changed.", exception.Message);
         }
         finally
         {

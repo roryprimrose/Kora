@@ -232,7 +232,11 @@ public sealed partial class MainViewModelTests
         fixture.AppearancePreferences.SavedMode.Should().BeNull();
 
         var closing = await Fixture.CreateInitializedAsync();
-        closing.Dispatcher.BeforePost = closing.ViewModel.Dispose;
+        closing.Audit.BeforeWrite = audit =>
+        {
+            if (audit.Outcome == SecurityAuditOutcome.Succeeded)
+            { closing.Dispatcher.BeforePost = closing.ViewModel.Dispose; }
+        };
         closing.ViewModel.SetThemeMode(ApplicationThemeMode.Dark).Should().BeTrue();
         closing.AppearancePreferences.SavedMode.Should().Be(ApplicationThemeMode.Dark);
         closing.ViewModel.ThemeMode.Should().Be(ApplicationThemeMode.System);

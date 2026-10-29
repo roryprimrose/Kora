@@ -123,6 +123,7 @@ public sealed partial class PlaybackVolumeConfigurationService(
         {
             throw new InvalidOperationException("Original activated input provenance is required.");
         }
+        PlaybackVolume? previous = null;
         try
         {
             var accepted = await admission.RunAsync(originalOrigin, remainsEligible, (request, authority) =>
@@ -132,16 +133,18 @@ public sealed partial class PlaybackVolumeConfigurationService(
                     if (applying || publishing || !ReferenceEquals(proposal, candidate) || candidate.Session != authority
                         || candidate.Origin != request.Origin || candidate.Revision != state.Revision
                         || !candidate.Eligible() || !state.Available
-                        || (preferences.Load() ?? PlaybackVolume.Default) != state.Desired)
+                        || preferences.Load() != (string.Equals(state.Source, "saved", StringComparison.Ordinal) ? state.Desired : null))
                     {
                         throw new InvalidOperationException("Volume proposal, saved state or original admission changed.");
                     }
                     applying = true;
+                    previous = preferences.Load();
                     var mutationOrigin = originalOrigin == RequestOrigin.ActivatedVoice ? originalOrigin : request.Origin;
                     var audit = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ConfigurationWrite,
                         "configuration.playback-volume", SecurityAuditOutcome.Requested,
                         mutationOrigin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                         "preferences.device-local");
+                    UndoChanged?.Invoke(null);
                     auditLog.Write(audit);
                     var denied = policy.CommitVoiceSetting(mutationOrigin, candidate.CallRevision,
                         () => ReferenceEquals(HostActivity.RequireCurrent().Request, request)
@@ -150,7 +153,7 @@ public sealed partial class PlaybackVolumeConfigurationService(
                         {
                             try
                             {
-                                if ((preferences.Load() ?? PlaybackVolume.Default) != state.Desired)
+                                if (preferences.Load() != previous)
                                 {
                                     throw new InvalidDataException("Saved volume changed during the requested audit; refresh before a new proposal.");
                                 }
@@ -197,6 +200,7 @@ public sealed partial class PlaybackVolumeConfigurationService(
                     }
                     applying = false;
                     Observe();
+                    RecordVolumeUndo(previous, candidate.Value);
                 }
             }
             return accepted;

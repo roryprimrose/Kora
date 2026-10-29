@@ -34,7 +34,7 @@ public sealed class SpeechTextConfigurationServiceTests : IDisposable
         fixture.Service.Get().Source.Should().Be("default");
         await fixture.Refresh();
         fixture.Service.Choices.Select(choice => choice.Label).Should().Equal("Off", "Show spoken words",
-            "Current sentence (requires qualified alignment)");
+            "Current sentence (unavailable in this build)");
         await fixture.Apply();
         fixture.Service.Get().Saved.Should().Be(SpeechTextMode.CurrentUtterance);
         fixture.Service.Get().Source.Should().Be("saved");

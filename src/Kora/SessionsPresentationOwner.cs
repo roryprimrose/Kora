@@ -99,6 +99,16 @@ internal sealed partial class SessionsPresentationOwner
         Justification = "Avalonia routed Click requires void; failures route to the session model's logged recovery status.")]
     private async void OpenConversationDetail(object? sender, RoutedEventArgs args)
     {
+        if (!revoked && !args.Handled
+            && args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice choice }
+            && model.CanOpenConversationDetails)
+        {
+            args.Handled = true;
+            try { await (DetailOperation = model.OpenObservationAsync(choice)); }
+            catch (Exception exception) when (exception is not OutOfMemoryException)
+            { model.ReportDetailPresentationFailure(exception); }
+            return;
+        }
         if (!revoked && sender is Window replyPresenter
             && args.Source is Button { Name: "ReplyToAssistantAnswer", DataContext: ConversationMessage source })
         {

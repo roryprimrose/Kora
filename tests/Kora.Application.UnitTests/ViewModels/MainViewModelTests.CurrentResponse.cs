@@ -549,6 +549,7 @@ public sealed partial class MainViewModelTests
         public Exception? Failure { get; set; }
         public bool RetireOnDismiss { get; set; } = true;
         public Action? AfterNative { get; set; }
+        public Action? BeforeOpen { get; set; }
         public int Calls { get; private set; }
         public AdmittedDetailContent? Content { get; private set; }
         public Func<bool> CaptureLifetime() => () => Alive;
@@ -563,6 +564,7 @@ public sealed partial class MainViewModelTests
         }
         public bool OpenDetails(AdmittedDetailContent content, Func<bool> admitted)
         {
+            BeforeOpen?.Invoke();
             Calls++;
             admitted().Should().BeTrue();
             if (Failure is { } failure) { throw failure; }

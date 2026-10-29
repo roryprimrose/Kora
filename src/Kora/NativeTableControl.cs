@@ -12,11 +12,11 @@ using Kora.Controls;
 
 namespace Kora;
 
-internal sealed class NativeTableControl : StackPanel
+internal sealed partial class NativeTableControl : StackPanel
 {
     private readonly NativeDocumentInteraction interaction;
     private readonly Grid grid = new() { ColumnSpacing = 12, RowSpacing = 8 };
-    private readonly NamedTextBlock summary = new() { TextWrapping = TextWrapping.Wrap };
+    private readonly NamedTextBlock summary;
     private readonly Button reset = new() { Content = "Reset table order" };
     private readonly List<Button> headers = [];
     private readonly List<TextBlock> headerLabels = [];
@@ -32,6 +32,7 @@ internal sealed class NativeTableControl : StackPanel
     {
         this.data = data;
         this.interaction = interaction;
+        summary = new TableReader(this) { TextWrapping = TextWrapping.Wrap };
         order = Enumerable.Range(0, data.Rows.Length).ToArray();
         Spacing = 8;
         Margin = new Thickness(0, 4, 0, 10);
@@ -43,7 +44,7 @@ internal sealed class NativeTableControl : StackPanel
             var index = column;
             var label = new TextBlock { TextWrapping = TextWrapping.Wrap, FontSize = 14, LineHeight = 14 * 1.55 };
             headerLabels.Add(label);
-            var button = new Button { HorizontalAlignment = HorizontalAlignment.Stretch, Content = label };
+            var button = new TableHeader(this, column) { HorizontalAlignment = HorizontalAlignment.Stretch, Content = label };
             button.Click += (_, _) => Sort(index);
             headers.Add(button);
             positions.Add(button, new(null, column));
@@ -58,7 +59,7 @@ internal sealed class NativeTableControl : StackPanel
             for (var column = 0; column < cells.Length; column++)
             {
                 var position = new CellPosition(row, column);
-                var cell = new NamedTextBlock
+                var cell = new TableReader(this, position)
                 {
                     Text = data.Rows[row][column].Length == 0 ? "(empty cell)" : data.Rows[row][column],
                     Focusable = true,
@@ -84,7 +85,9 @@ internal sealed class NativeTableControl : StackPanel
         UpdateOrder();
     }
 
-    protected override AutomationPeer OnCreateAutomationPeer() => new ControlAutomationPeer(this);
+    protected override AutomationPeer OnCreateAutomationPeer() => new TableAutomationPeer(this);
+
+    private bool CanRead => data is not null && interaction.CanInteract && data is not null;
 
     internal IEnumerable<TextBlock> Readers => headerLabels.Concat(rows.SelectMany(row => row)).Prepend(summary);
 

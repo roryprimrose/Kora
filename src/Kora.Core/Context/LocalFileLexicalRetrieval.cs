@@ -1,4 +1,5 @@
 using System.Text;
+using Kora.Core.KnowledgeSources;
 
 namespace Kora.Core.Context;
 
@@ -38,8 +39,21 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
         return SearchFiles(revision.Files, query, mode, observedAt, cancellationToken);
     }
 
+    public LocalFileSearchResult Search(KnowledgeSourceRevision revision, KnowledgeSourceReference exactSource,
+        string query, DateTimeOffset observedAt, CancellationToken cancellationToken)
+    {
+        ArgumentNullException.ThrowIfNull(revision);
+        ArgumentNullException.ThrowIfNull(exactSource);
+        cancellationToken.ThrowIfCancellationRequested();
+        if (revision.Reference != exactSource)
+        { return LocalFileSearchResult.Empty(LocalFileSearchOutcome.Stale, observedAt); }
+        return SearchFiles(revision.Files, query, LocalFileRetrievalMode.LexicalLines, observedAt,
+            cancellationToken, revision.Review.Metadata.CanonicalPath);
+    }
+
     private static LocalFileSearchResult SearchFiles(IReadOnlyList<LocalFileRevision> files,
-        string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken)
+        string query, LocalFileRetrievalMode mode, DateTimeOffset observedAt, CancellationToken cancellationToken,
+        string? namedRoot = null)
     {
         if (!LocalFileRetrievalPolicy.TryQuery(query, out var terms))
         {
@@ -82,7 +96,8 @@ public sealed partial class LocalFileLexicalRetrieval : ILocalFileRetrieval
             cancellationToken.ThrowIfCancellationRequested();
             var revision = match.Revision;
             var text = revision.Text;
-            var identity = revision.Review.Metadata.CanonicalPath.Split('\\')[^1];
+            var identity = namedRoot is null ? revision.Review.Metadata.CanonicalPath.Split('\\')[^1]
+                : KnowledgeSourcePolicy.RelativePath(namedRoot, revision.Review.Metadata.CanonicalPath);
             var chunk = match.Chunk;
             var excerpt = text.Substring(chunk.Start, chunk.Length);
             var size = Encoding.UTF8.GetByteCount(excerpt);

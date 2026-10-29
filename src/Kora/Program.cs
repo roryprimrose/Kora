@@ -700,6 +700,8 @@ internal static class Program
         services.AddSingleton<Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector>(provider =>
             provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
+        services.AddSingleton<Kora.Core.KnowledgeSources.IKnowledgeSourceInspector>(provider =>
+            provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();
         services.AddSingleton<SessionFileAttachmentService>();

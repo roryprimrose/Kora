@@ -798,6 +798,17 @@ The original files remain authoritative. Snapshots, extracted text,
 embeddings, and indexes are derived data that retain source and revision
 identity and can be rebuilt or deleted.
 
+The implemented named-source subset supports explicit bounded descendant
+capture in addition to the unchanged default immediate-file scope. Separate
+complete-inventory read and immutable-snapshot save reviews, restart inspection,
+global lexical retrieval with root-relative exact saved citations, pinned-policy
+revoke-first refresh and Kora-copy-only removal are owned by the
+[named-source lifecycle](File_And_Folder_Ingestion.md#named-device-local-folder-lifecycle).
+Registration and refresh still provide no named-source model-use, automatic
+session context or hosted approval; the
+[user surface](../docs/knowledge-sources.md#explicit-inspection-and-retrieval)
+keeps AI answers unavailable.
+
 ### Retrieval
 
 The initial useful delivery uses deterministic lexical search over UTF-8 plain

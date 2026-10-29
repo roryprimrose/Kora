@@ -262,13 +262,13 @@ public sealed partial class WindowsKnowledgeSourceTests
         public void Write(SecurityAuditEvent auditEvent) { }
     }
 
-    private static (LocalFolderRevision Snapshot, IReadOnlyList<ReadOnlyMemory<byte>> Bytes) Snapshot(Guid? id = null,
+    private static (KnowledgeSourceRevision Snapshot, IReadOnlyList<ReadOnlyMemory<byte>> Bytes) Snapshot(Guid? id = null,
         string text = "alpha notes")
     {
         var bytes = Encoding.UTF8.GetPreamble().Concat(Encoding.UTF8.GetBytes(text)).ToArray();
         var metadata = new LocalFileMetadata(@"C:\Team\notes.md", "physical-file", bytes.Length, DateTimeOffset.UtcNow);
-        var review = new LocalFolderReview(Guid.NewGuid(), id ?? Guid.NewGuid(), HostRequest.Create(RequestOrigin.LocalUi),
-            new(@"C:\Team", "physical-root", [metadata]));
+        var review = new KnowledgeSourceReview(Guid.NewGuid(), id ?? Guid.NewGuid(), HostRequest.Create(RequestOrigin.LocalUi),
+            new(@"C:\Team", "physical-root", KnowledgeSourceScope.ImmediateFiles, [new(@"C:\Team", "physical-root")], [metadata]));
         var file = new LocalFileRevision(new(review.ReviewId, review.SourceId, review.Request, metadata), bytes, DateTimeOffset.UtcNow);
         return (new(review, [file]), new ReadOnlyMemory<byte>[] { bytes });
     }

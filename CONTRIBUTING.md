@@ -120,7 +120,10 @@ partition and aggregate-gate checks.
 The [shard runner](eng/Run-WindowsIntegrationTests.ps1) keeps the complete settings section navigation, reset-menu and specialist navigation classes on synchronous `ui-definitions`, separate from the buffered native-UX profile.
 The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks exact class boundaries and measured redistribution after the [platform job's deadline breach](https://github.com/roryprimrose/Kora/actions/runs/40815883491/job/123256871731); retained partial timings are not a full-shard pass or a hosted timing guarantee.
 
-The [shard runner](eng/Run-WindowsIntegrationTests.ps1) places the whole owned-definition editor class on synchronous `ui-platform`, and session-routing and waiting-question navigation classes on synchronous `ui-definitions`.
+The [shard runner](eng/Run-WindowsIntegrationTests.ps1) places the whole owned-definition editor class on synchronous `ui-platform`, and session-routing and waiting-question navigation classes on synchronous `ui-definitions`; only the existing native-UX classes use buffered evidence.
+
+[Run 40836599680](https://github.com/roryprimrose/Kora/actions/runs/40836599680) retained partial definitions results before cancellation, so the [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) predicts recorded work only, not a new-head completion or timing guarantee.
+
 The [candidate's cancelled definitions job](https://github.com/roryprimrose/Kora/actions/runs/40840133406/job/123334414374) retained incomplete results; [scheduling checks](eng/Test-WindowsIntegrationScheduling.ps1) preserve exact class partitions and the 30-minute cap while predicting recorded-work redistribution, not new-head completion or timing guarantees.
 
 Cancellation-ignoring playback fixtures wait for the fake speech stop to complete

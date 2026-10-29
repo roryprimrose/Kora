@@ -891,6 +891,10 @@ instance IDs or stored session names. The executable remains `Kora.exe`;
 namespaces and application data paths remain fixed. No wake detector, custom
 profile, learning/enrollment, assets, download or OS/global setting is added.
 
+### Speech input profile
+
+**Review speech input switch** displays the current saved/desired/effective tuple, proposed compatible Windows activated tuple and required local capabilities. **Confirm speech input switch** completes the joined switch; **Cancel speech input switch** leaves intent unchanged. No additional qualified local wake/ASR/resource profile is offered ([complete interaction](voice-and-audio.md#speech-input-profile-preference)).
+
 ### Microphone
 
 | Choice/control | Behavior |

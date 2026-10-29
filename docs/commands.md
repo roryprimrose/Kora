@@ -883,6 +883,12 @@ An observed ready dependency does not grant execution permission. No hosted
 provider, MCP adapter, or model tool/result loop is delivered by this registry.
 Existing help, version, setup/status, lock and power phrases retain their behavior.
 
+## Exact speech-input profile review
+
+Use `get speech.input` or `status speech.input` to inspect saved, desired and effective selection. `set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime` opens review, not an immediate save. Complete the same original-channel operation with `confirm speech.input` or `cancel speech.input` ([parser](../src/Kora.Application/Configuration/SpeechInputCommand.cs)).
+
+Only the existing compatible Windows activated tuple is confirmable. Additional local wake/ASR/resource profiles remain unavailable; old unsupported intent is not silently replaced. Confirmation joins owned runtime retirement before cutover, without enabling listening, downloading or opening capture ([complete workflow](voice-and-audio.md#speech-input-profile-preference)).
+
 ## Exact input-device preference
 
 Typed input and **activated** voice use:

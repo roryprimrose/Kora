@@ -521,7 +521,8 @@ public sealed partial class ModelTurnHostTests : IDisposable
         public bool CanInspect => CanControl && Inspect;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; }
-        public string Version { get { OnVersion?.Invoke(); return "1.0"; } }
+        internal string ObservedVersion { get; set; } = "1.0";
+        public string Version { get { OnVersion?.Invoke(); return ObservedVersion; } }
         private readonly DependencyBootstrapper dependencies = new([], NullLogger<DependencyBootstrapper>.Instance);
         private readonly ReadOnlyCapabilityRegistry registry;
         private readonly List<ModelTurnHost> ownedHosts = [];

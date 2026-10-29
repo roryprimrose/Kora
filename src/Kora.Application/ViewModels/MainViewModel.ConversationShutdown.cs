@@ -116,4 +116,36 @@ public sealed partial class MainViewModel
         ShowFailure("Exit or restart was not confirmed.", "Conversation input or private ownership changed after review. Inspect current input and make a new deliberate decision.");
         return false;
     }
+
+    private async Task CloseVoluntaryOperationsAsync()
+    {
+        await ClosePromptPreparation();
+        await CloseAgentRun();
+        await CloseNamedSkillUse();
+        await CloseSharedSkillUse();
+        await CloseInstructionUse();
+    }
+
+    private async Task JoinVoluntaryPreparationAsync()
+    {
+        speechPreparation?.Request(null);
+        if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
+#pragma warning disable VSTHRD003 // Joins existing owned persistence and output preparation, never starting replacement work.
+        await AppearanceUpdate;
+        await PreferenceUpdate;
+        await preferencePersistence;
+        await ApprovalPreparation;
+        await AuditPersistence;
+        await consentPersistence;
+        await outputCatalog.WaitForQuiescenceAsync();
+#pragma warning restore VSTHRD003
+    }
+
+    private async Task JoinVolatileContextAsync()
+    {
+        await clipboardPreview.WaitForQuiescenceAsync();
+        if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
+        if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
+        if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
+    }
 }

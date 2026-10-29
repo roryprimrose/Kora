@@ -35,9 +35,9 @@ public sealed class SkillPackageSnapshot
     public string DefinitionDigest { get; }
     public string DeclaredResourceDigest { get; }
     public bool IsAvailableForInvocation => false;
-    public const string UnavailableReason = "Inspection only. R11 worker, protected deployment, network and real-control admission are outstanding. No interpreter or adapter identity is admitted.";
+    public const string UnavailableReason = "Inspection only until the installed contained PowerShell runtime and fixed-action bridge are independently qualified. No interpreter or adapter identity is currently admitted.";
     public const string TransitiveDisclosure = "Declared files are byte-exact. Transitive tracking is best effort, not a complete inventory or executable allowlist. Further scripts, modules, binaries and changes may go undetected. A future granting user accepts responsibility for the overall actions within separately admitted scope. This review grants nothing.";
-    public const string TransitiveGaps = "Tracked transitive code: none admitted. The dynamic SessionControl.Invoke adapter call is unresolved until separate host admission; the requested runtime and adapter declarations are not verified identities.";
+    public const string TransitiveGaps = "Tracked transitive code: none admitted. The declared SessionControl.Invoke callback has a closed host bridge implementation, but no installed contained runtime or bridge profile is qualified; manifest dependencies are not authority.";
 
     // Only compares the declared-content portion of an existing exact record.
     // It deliberately does not claim interpreter, invocation, identity or grant validity.

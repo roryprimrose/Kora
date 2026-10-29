@@ -33,6 +33,30 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnedSkillCritiqueAndRefineUseOriginalTypedOrActivatedVoiceAuthority(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        var captured = new List<OwnedSkillAuthoringCommand>();
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured.Add(command);
+            return Task.CompletedTask;
+        }, null);
+        foreach (var command in new[] { "owned skill critique:  unchanged  ", "owned skill refine", "owned skill cancel-refinement" })
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+        captured.Select(command => command.Operation).Should().Equal("critique", "refine", "cancel-refinement");
+        captured[0].Literal.Should().Be(" unchanged  ");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("owned skill run example")]
     [InlineData("owned skill create CON 1.0.0")]
     [InlineData("owned skill save now")]

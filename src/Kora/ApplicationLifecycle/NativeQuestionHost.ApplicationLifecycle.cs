@@ -29,13 +29,19 @@ internal sealed partial class NativeQuestionHost
             var policy = callObservation?.Invoke().Authorization(Eligible(), mandatoryGatesSatisfied: false)
                 ?? new(Eligible(), false, false, true);
             await store.PublishTrustedSnapshotAsync(request, policy, null, expectedObservationRevision: 0, token);
+            var power = operation is ApplicationLifecycleOperation.ComputerShutdown or ApplicationLifecycleOperation.ComputerRestart;
             var spec = new QuestionSpec(prompt, QuestionKind.SingleChoice,
-                [new("confirm", operation == ApplicationLifecycleOperation.StopAllWork
-                    ? "Confirm: stop reviewed requests, join resources, keep Kora open"
-                    : "Confirm: stop reviewed requests, join resources, then continue"),
+                [new("confirm", operation switch
+                {
+                    ApplicationLifecycleOperation.StopAllWork => "Confirm: stop reviewed requests, join resources, keep Kora open",
+                    ApplicationLifecycleOperation.ComputerShutdown => "Confirm shutdown",
+                    ApplicationLifecycleOperation.ComputerRestart => "Confirm computer restart",
+                    _ => "Confirm: stop reviewed requests, join resources, then continue",
+                }),
                     new("cancel", "Cancel: keep submitted requests unchanged")],
-                purpose: operation == ApplicationLifecycleOperation.StopAllWork ? "stop-all-work" : "application-lifecycle",
-                sourceId: operation == ApplicationLifecycleOperation.StopAllWork ? "host-stop-all-work" : "host-application-lifecycle");
+                purpose: power ? "computer-power" : operation == ApplicationLifecycleOperation.StopAllWork ? "stop-all-work" : "application-lifecycle",
+                sourceId: power ? operation == ApplicationLifecycleOperation.ComputerShutdown ? "host-computer-shutdown" : "host-computer-restart"
+                    : operation == ApplicationLifecycleOperation.StopAllWork ? "host-stop-all-work" : "host-application-lifecycle");
             var created = await questions.CreateAsync(request, spec, expiresAt, token);
             if (!Eligible() || created is not { Outcome: HostInteractionOutcome.Presented, Question: { } initial })
             { throw new InvalidOperationException("Application lifecycle confirmation could not be durably presented."); }

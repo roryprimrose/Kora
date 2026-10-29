@@ -36,7 +36,7 @@ public sealed class InstructionRevisionCatalogueTests
         instructions.IsEnabled(instruction).Should().BeFalse();
         prompts.IsEnabled(prompt).Should().BeTrue();
         store.Text["prompt-revisions.json"].Should().Be(promptState);
-        instructions.IsEnabled(legacy).Should().Be(legacyState).And.BeTrue();
+        instructions.IsEnabled(legacy).Should().Be(legacyState).And.BeFalse();
         catalogue.Artifacts.Should().Contain(bundled);
         catalogue.Candidates.Single(item => item.Kind == ArtifactKind.Prompt).IsUseEnabled.Should().BeTrue();
         prompts.HoldCandidate(Candidate(instruction), catalogue);
@@ -205,6 +205,7 @@ public sealed class InstructionRevisionCatalogueTests
         ((Action)(() => registry.IsCapturedUseAllowed(Snapshot() with { Document = source }, epoch))).Should().Throw<InvalidDataException>();
         var legacy = Snapshot(native: false);
         registry.Reconcile([Candidate(legacy)]);
+        registry.CompleteActivation(legacy, registry.PrepareActivation(legacy));
         epoch = registry.CaptureReviewEpoch(legacy);
         registry.IsCapturedUseAllowed(legacy, epoch).Should().BeTrue();
         registry.Hold(legacy.Name, existingOnly: true);
@@ -336,6 +337,8 @@ public sealed class InstructionRevisionCatalogueTests
         var instruction = Snapshot(native: false);
         var prompt = Snapshot(kind: ArtifactKind.Prompt);
         var first = instructions.Reconcile([Candidate(instruction), Candidate(prompt)]);
+        instructions.CompleteActivation(instruction, instructions.PrepareActivation(instruction));
+        first = instructions.Reconcile(first);
         var originalState = store.Text["instruction-revisions.json"];
         var both = prompts.Reconcile(first);
         both[0].IsUseEnabled.Should().BeTrue();
@@ -367,13 +370,15 @@ public sealed class InstructionRevisionCatalogueTests
     }
 
     [Fact]
-    public void UnchangedLegacyAndBundledBehaviorArePreservedButReplacedFileIdentityIsWithheld()
+    public void LegacyDiscoveryNeedsLocalReviewAndBundledBehaviorIsPreservedButReplacementIsWithheld()
     {
         var store = new LocalSharedSkillPreferencesTests.Store();
         var registry = new InstructionRevisionCatalogue(store);
         var legacy = Snapshot(native: false);
         var bundled = new ArtifactDefinition("bundled.test", ArtifactKind.Prompt, "Bundled", "Test", "test",
             ["test"], "bundled", "1", new string('a', 64), "Body");
+        registry.Reconcile([Candidate(legacy), bundled])[0].IsUseEnabled.Should().BeFalse();
+        registry.CompleteActivation(legacy, registry.PrepareActivation(legacy));
         registry.Reconcile([Candidate(legacy), bundled]).Should().OnlyContain(item => item.IsUseEnabled);
         registry.Reconcile([Candidate(legacy with { FileIdentity = new string('c', 48) }), bundled])
             [0].IsUseEnabled.Should().BeFalse();
@@ -448,6 +453,9 @@ public sealed class InstructionRevisionCatalogueTests
             var store = new LocalSharedSkillPreferencesTests.Store();
             var registry = new InstructionRevisionCatalogue(store);
             var legacy = Candidate(Snapshot(native: false));
+            registry.Reconcile([legacy]).Single().IsUseEnabled.Should().BeFalse();
+            var snapshot = Snapshot(native: false);
+            registry.CompleteActivation(snapshot, registry.PrepareActivation(snapshot));
             registry.Reconcile([legacy]).Single().IsUseEnabled.Should().BeTrue();
             store.FailWrite = true;
             ((Action)(() => registry.Hold("example"))).Should().Throw<IOException>();
@@ -513,7 +521,7 @@ public sealed class InstructionRevisionCatalogueTests
         var legacy = Snapshot(native: false);
         registry.IsEnabled(legacy).Should().BeFalse();
         registry.Reconcile([Candidate(legacy)]);
-        registry.IsEnabled(legacy).Should().BeTrue();
+        registry.IsEnabled(legacy).Should().BeFalse();
         registry.Hold(legacy.Name);
         registry.IsEnabled(legacy).Should().BeFalse();
         registry.CompleteActivation(legacy, registry.PrepareActivation(legacy));

@@ -321,6 +321,7 @@ internal static class Program
             var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories,
                 provider.GetRequiredService<WindowsOwnedInstructionStore>(), ownedPrompts:
                 provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)).Load();
+            provider.GetRequiredService<ArtifactUsePreferences>().Reconcile(disk);
             var reconciled = provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
                 .Reconcile([.. embedded.Artifacts, .. disk]);
             return new ArtifactCatalogue(provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt)
@@ -336,7 +337,8 @@ internal static class Program
             provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>(),
             provider.GetRequiredService<WindowsOwnedInstructionStore>(), promptRevisions:
             provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt),
-            ownedPrompts: provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)));
+            ownedPrompts: provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt),
+            use: provider.GetRequiredService<ArtifactUsePreferences>()));
         services.AddSingleton<WindowsOwnedInstructionStore>();
         services.AddKeyedSingleton<WindowsOwnedInstructionStore>(ArtifactKind.Prompt, (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
@@ -406,6 +408,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>
             new LocalPreapprovedUriPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PreapprovedUriConfigurationService>();
+        services.AddSingleton<Kora.Application.Interaction.PermissionGrantManagementService>();
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriConfiguration>(provider =>
             provider.GetRequiredService<PreapprovedUriConfigurationService>());
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriList>();
@@ -415,7 +418,9 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
         services.AddSingleton<Kora.Tools.Network.WebPageGet>();
         services.AddSingleton<Kora.Tools.Network.WebResultSummarize>();
-        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
+        services.AddSingleton(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>());
         services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
         services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
         ExternalBrowserComposition.Configure(services);
@@ -454,7 +459,8 @@ internal static class Program
             UseCookies = false,
             UseDefaultCredentials = false,
             AutomaticDecompression = System.Net.DecompressionMethods.None,
-        }) { Timeout = Timeout.InfiniteTimeSpan });
+        })
+        { Timeout = Timeout.InfiniteTimeSpan });
         services.AddSingleton<IReleaseMetadataClient>(provider => new GitHubReleaseMetadataClient(
             provider.GetRequiredKeyedService<HttpClient>("release-metadata"),
             provider.GetRequiredService<TimeProvider>(),
@@ -673,6 +679,9 @@ internal static class Program
         services.AddSingleton<ISpeechPreparationService>(provider => provider.GetRequiredService<WindowsTextToSpeechService>());
         services.AddSingleton<Kora.Application.Voice.SpeechPreparationCoordinator>();
         services.AddSingleton<ISessionController, WindowsSessionController>();
+        BundledRuntimeSetupComposition.Configure(services);
+        services.AddSingleton<Kora.Core.Skills.IFixedSessionEffect, Kora.Windows.Skills.WindowsFixedSessionEffect>();
+        services.AddSingleton<Kora.Tools.SessionControl.FixedSessionActionBroker>();
         services.AddSingleton<IApplicationProcessController, DesktopApplicationProcessController>();
         services.AddSingleton<ICurrentUserNameProvider, WindowsCurrentUserNameProvider>();
         services.AddSingleton<IUiDispatcher, AvaloniaUiDispatcher>();
@@ -702,7 +711,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
         services.AddSingleton<Kora.Tools.Files.FolderAnswers.LocalFolderAnswer>();
-        services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>());
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();

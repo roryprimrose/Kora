@@ -57,7 +57,7 @@ is still required where policy demands it.
 
 | Canonical phrase | Initial aliases | Behaviour | Confirmation |
 |---|---|---|---|
-| "Lock the machine" | "Lock my computer", "Lock Windows" | Proposed: invoke protected bundled current-session lock skill and release microphone on Windows lock; currently exact direct lock uses the Windows API | Future common action-specific grant gate, not merely the direct phrase; model-suggested lock already asks for approval |
+| "Lock the machine" | "Lock my computer", "Lock Windows" | Inspect the bundled current-session lock package; execution stays unavailable until its contained runtime is qualified, with no native fallback | Exact package grant and current Windows authority; model suggestions open inspection only |
 | "Shut down the computer" | "Shut down this machine", "Power off the computer" | Propose graceful shutdown of this local computer | Fresh "Confirm shutdown" or equivalent explicit UI confirmation; mandatory OS checks preserved |
 | "Restart the computer" | "Reboot this machine", "Restart Windows" | Propose graceful restart of this local computer | Fresh "Confirm computer restart" or equivalent explicit UI confirmation; mandatory OS checks preserved |
 | "Cancel shutdown" | "Cancel that shutdown" | Cancel Kora's pending shutdown/countdown only | Direct, only for an owned pending action |
@@ -67,9 +67,9 @@ is still required where policy demands it.
 Do not interpret "restart", "shutdown", or "close it" without a clear computer/application target.
 Ask whether the user means Kora or Windows when context does not resolve it.
 Sleep, hibernate, sign-out, remote machine control, and forced shutdown are not required initial commands; they need separate capability/safety decisions.
-Future side-effecting built-ins, including the direct lock path, must use the
-same version-bound execution gate as model proposals and user skills; an
-exact phrase does not bypass approval. See
+Fixed lock/shutdown/restart requests use the same version-bound execution gate;
+an exact phrase does not bypass approval or runtime qualification. Model
+suggestions open inspection only. See
 [skill and task execution design](../docs/skill-and-task-execution-design.md).
 
 ### Shutdown and Restart Safety

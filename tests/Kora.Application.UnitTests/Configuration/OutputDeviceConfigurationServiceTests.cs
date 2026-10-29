@@ -330,6 +330,20 @@ public sealed class OutputDeviceConfigurationServiceTests : IDisposable
         fixture.Service.Get(0).Available.Should().BeFalse();
         fixture.Service.Choices.Should().BeEmpty();
         fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+        fixture.Preferences.Id.Should().Be(changed ? "normalized-different" : "two");
+        fixture.Preferences.LoadFailure = null;
+        fixture.Preferences.AfterWrite = null;
+        fixture.Service.Observe(fixture.Snapshot);
+        fixture.Service.Get(0).Effective.Should().BeNull();
+        fixture.Service.Get(0).Recovery.Should().Contain("not confirmed");
+        fixture.Preferences.Writes.Should().Be(1);
+        fixture.Playback.SpeechCalls.Should().Be(0);
+        await fixture.Refresh();
+        await fixture.Select("one");
+        fixture.Service.Get(0).Effective.Should().Be("one");
+        fixture.Service.Get(0).Available.Should().BeTrue();
+        fixture.Preferences.Id.Should().Be("one");
+        fixture.Playback.SpeechCalls.Should().Be(0);
     }
 
     private sealed class Fixture : IAsyncDisposable

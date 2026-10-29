@@ -13,7 +13,7 @@ public sealed partial class WindowsOllamaToolTransportTests
     private const string StructuredQuestion = """{"kind":"question","prompt":"Which format?","options":["Compact","Detailed"]}""";
 
     [Fact]
-    public async Task ExplicitQuestionProfileUsesStrictStructuredFormatAndOneExactAnswerWithoutAnyToolDeclaration()
+    public async Task ExplicitQuestionProfileDeclaresOnlyAskUserAndPreservesLegacyStructuredQuestions()
     {
         await using var f = new Fixture();
         using var root = f.Root();
@@ -31,7 +31,8 @@ public sealed partial class WindowsOllamaToolTransportTests
         completed.Message.Should().BeOfType<ModelFinalResponse>().Which.Answer.Should().Be("Actual final answer");
         f.Bodies.Should().HaveCount(2);
         using var initial = JsonDocument.Parse(f.Bodies[0]);
-        initial.RootElement.TryGetProperty("tools", out _).Should().BeFalse();
+        initial.RootElement.GetProperty("tools").GetArrayLength().Should().Be(1);
+        initial.RootElement.GetProperty("tools")[0].GetProperty("function").GetProperty("name").GetString().Should().Be("ask_user");
         initial.RootElement.GetProperty("format").GetProperty("oneOf").GetArrayLength().Should().Be(2);
         using var continued = JsonDocument.Parse(f.Bodies[1]);
         var messages = continued.RootElement.GetProperty("messages");

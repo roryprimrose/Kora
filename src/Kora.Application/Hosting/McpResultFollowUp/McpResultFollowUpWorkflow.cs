@@ -56,7 +56,7 @@ internal sealed class McpResultFollowUpWorkflow(
         var now = time.GetUtcNow();
         var expires = observation.Invocation.ExpiresAt < now.AddSeconds(60) ? observation.Invocation.ExpiresAt : now.AddSeconds(60);
         var review = new McpResultFollowUpReview(this, observation, task, question, origin,
-            sourceUse.Check(observation, origin), now, expires);
+            sourceUse.Check(observation, question, origin, token), now, expires);
         try
         {
             await ValidateAsync(review, Live, token, requireQualified: false).ConfigureAwait(false);
@@ -92,7 +92,7 @@ internal sealed class McpResultFollowUpWorkflow(
         {
             await ValidateAsync(review, admitted, owned.Token).ConfigureAwait(false);
             return await conversation.SubmitMcpResultFollowUpAsync(review,
-                () => Current(review, admitted), check => ValidateAsync(review, admitted, check), owned.Token).ConfigureAwait(false);
+                () => Current(review, admitted, owned.Token), check => ValidateAsync(review, admitted, check), owned.Token).ConfigureAwait(false);
         }
         catch (ConversationSubmissionUnconfirmedException)
         {
@@ -115,20 +115,20 @@ internal sealed class McpResultFollowUpWorkflow(
         }
     }
 
-    private bool Current(McpResultFollowUpReview review, Func<bool> admitted) =>
+    private bool Current(McpResultFollowUpReview review, Func<bool> admitted, CancellationToken token) =>
         review.Current && admitted() && time.GetUtcNow() >= review.CreatedAt && time.GetUtcNow() < review.ExpiresAt
-        && sourceUse.Check(review.Observation, review.Origin) == review.Decision;
+        && sourceUse.Check(review.Observation, review.Question, review.Origin, token) == review.Decision;
 
     private async Task ValidateAsync(McpResultFollowUpReview review, Func<bool> admitted,
         CancellationToken token, bool requireQualified = true)
     {
         token.ThrowIfCancellationRequested();
-        if (!Current(review, admitted)
+        if (!Current(review, admitted, token)
             || requireQualified && review.Decision.Kind != McpResultSourceUseKind.QualifiedLocalOnly)
         { throw new InvalidOperationException("The exact observation, classification, source channel or independent source-use qualification is unavailable."); }
         var task = await conversation.ValidateMcpObservationAsync(review.Observation,
-            () => Current(review, admitted), token).ConfigureAwait(false);
-        if (task != review.SourceTask || !Current(review, admitted))
+            () => Current(review, admitted, token), token).ConfigureAwait(false);
+        if (task != review.SourceTask || !Current(review, admitted, token))
         { throw new InvalidOperationException("The completed observation's exact host receipt changed."); }
     }
 

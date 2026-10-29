@@ -44,12 +44,12 @@ Feature placement alone does not expose every host method, extension, or worker 
 | Clipboard | Explicit OS snapshot, format/size checks, preview, provenance, permission | Parsers, OCR, explanations, and workflows | Text in Slice A |
 | File/selection context | Explicit source selection, canonical paths, access checks | IDE/app bridges and format extractors | User skill revision selection in Slice C; general workspaces later |
 | Screen capture | Capture consent, region/window scope, indicator, context lifecycle | OCR and visual analysis adapters | Later |
-| Session/task state | Encrypted history/artifacts, Active/Done/retention, context budget, cancellation, structured questions and model history tools | Skills may guide a task, not replace lifecycle or self-submit answers | Slice A3/A4 |
+| Session/task state | Private-profile durable history/artifacts, Active/Done/retention, context budget, cancellation, structured questions and model history tools | Skills may guide a task, not replace lifecycle or self-submit answers | Slice A3/A4 |
 | Work management/queue | Per-session ledger, bounded concurrent scheduling, resource leases, status grounding, session/prompt routing | Replaceable model adapter proposes contextual decisions; cannot execute tasks | Slice A3 |
 | Proactive interaction | Event eligibility, consent/quiet preferences, speech scheduling, prompt binding | Admitted task integrations can supply scoped events, not maintenance authority | Slice A |
 | Application maintenance | Notify-only release discovery during unsigned phase; future signed-metadata trust, exact host-owned approval and OS-gated staging/activation | Initial external manual replacement; future verified updater never exposed as an agent tool | Notify-only initially; install-capable updater deferred |
 | Environment setup | Storage/schema initialisation, dependency catalogue, probes, consent, readiness, ownership | Registered first-party setup handlers; external engines installed only when selected/supported | Internal setup in Slice A; provider-specific setup with its adapter |
-| Model execution | Capability negotiation, policy, task protocol | Copilot/Ollama/Foundry/OpenAI adapters | Copilot proof in Slice A |
+| Model execution | Capability negotiation, policy, task protocol | Qualified Ollama/Copilot/Claude/Codex adapters | Local and independently qualified hosted profiles |
 | Tool execution | Schemas, policy mapping, approvals, results, audit | Registered bundled session/power actions; MCP tools later | Computer controls in Slice A; MCP in Slice B |
 | MCP client | Transports, connection health, identity references, mediated calls | External servers supply domain functionality | Slice B |
 | MCP server exposure | Authentication, export policy, user-session boundaries | Versioned exported Kora capabilities | Later, disabled by default |

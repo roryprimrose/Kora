@@ -1,3 +1,3 @@
 namespace Kora.Application.Hosting;
 
-public enum ApplicationLifecycleOperation { Exit, Restart, StopAllWork }
+public enum ApplicationLifecycleOperation { Exit, Restart, StopAllWork, ComputerShutdown, ComputerRestart }

@@ -51,7 +51,7 @@
 
 - Put agent-created plans, checkpoints, receipts, captured output, intermediate JSON and PR bodies under `<owning-workspace>\.scratch\<purpose>\<session-or-run-id>`. Resolve an absolute path and verify the existing `.scratch/` ignore rule before writing; use native filesystem operations without installing a scratch helper.
 - Do not choose the host session-state folder, user profile, system temporary directory or common Git metadata for agent-created workspace files. Host-managed Copilot storage and tool-owned output are separate: do not relocate them or claim repository instructions control their paths.
-- For coordinated work, use the single registered workspace scratch root under the coordinator's [shared dataset protocol](agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol). Pass its absolute path and required host access at launch; never substitute each child's relative `.scratch` or bypass an approval boundary.
+- When delegating work that shares files, pass the owning workspace's absolute scratch path and required host access at launch. Do not substitute another worktree's relative `.scratch` or bypass an approval boundary.
 - Retain checkpoints and receipts needed by active/resumable owners. Clean only explicitly owned, unreferenced temporary files; do not delete a live dataset or another session's scratch.
 
 ## Pull requests and merge admission

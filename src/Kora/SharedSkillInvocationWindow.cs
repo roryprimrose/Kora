@@ -17,6 +17,7 @@ internal sealed class SharedSkillInvocationWindow : Window
     internal TextBox Confirmation { get; } = new() { IsReadOnly = true, AcceptsReturn = true, IsUndoEnabled = false, Height = 150 };
     internal Button Confirm { get; } = new() { Content = "Confirm exact skill, original request and target", IsEnabled = false };
     internal Button ReadReferences { get; } = new() { Content = "Authorize only the exact declared local Markdown reads", IsVisible = false };
+    internal Button Stop { get; } = new() { Content = "Stop and close reviewed use" };
     private readonly List<Button> operationButtons = [];
 
     internal SharedSkillInvocationWindow(Action<string> run, bool toolCapable = false)
@@ -63,9 +64,10 @@ internal sealed class SharedSkillInvocationWindow : Window
         AddButton("Review exact invocation", "Prepare");
         panel.Children.Add(Confirmation);
         panel.Children.Add(Confirm);
-        AddButton("Stop and close reviewed use", "Close");
+        panel.Children.Add(Stop);
         panel.Children.Add(Status);
         Confirm.Click += (_, _) => run("Invoke");
+        Stop.Click += (_, _) => run("Close");
         Content = new ScrollViewer { Content = panel };
         Instructions.ContextMenu = null;
         Instructions.ContextFlyout = null;

@@ -1,11 +1,10 @@
 # Task Lifecycle and Recovery
 
-Status: proposed full task lifecycle. Setup task progress and registered command/model
-routing coexist with durable exact task observation and atomic cancellation of
-the admitted current-run local-version pre-dispatch question wait. Consolidated
-schema-v5 authority now also contains the fixed local-version deterministic
-queue. It is not the complete effect queue, worker termination or
-script-backed skill lifecycle below.
+Status: durable task observation, admitted model-turn execution and reviewed
+work/application lifecycle controls are implemented. The complete effect queue,
+worker termination and script-backed skill lifecycle remain gated.
+The [roadmap](Implementation_Roadmap.md#current-delivery) owns current delivery;
+the fixed local-version queue below is retained internal compatibility.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -25,8 +24,9 @@ Cancellation/timeout after dispatch conservatively retains Unknown certainty;
 source/commit uncertainty cannot publish an answer and dispatched restart is
 Unknown without replay. No runtime is newly qualified or effect dispatch enabled.
 
-Saved conversation drafts are data, not pending execution. Save/clear controls
-have administrative exact receipts but do not renew meaningful activity.
+Unsent conversation text is memory-only input, not pending execution or a saved
+document. Existing saved text has read-only recovery; historical save/clear
+receipts do not renew authority or meaningful activity.
 Restart recovers an incomplete original submission as Interrupted (or Unknown
 only for actual dispatch uncertainty), retaining its content without retry,
 draft auto-submit or request replay. Uncertain commit/receipt remains held and
@@ -48,7 +48,7 @@ an existing pre-dispatch admitted question wait. The fixed synchronous version
 read admits no in-task wait, effect/resource lease or runtime callback; general
 wait/deadline cancellation and effect/provider qualification remain unavailable.
 
-The [bounded queue settings](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) expose pending capacity 1-10/default-reset 10 and fixed read-only slots 1-2/default-reset 1 for future admission only.
+The [internal compatibility settings](User_Configuration.md#delivered-bounded-fixed-local-version-queue-settings-r10r13) retain pending capacity 1-10/default-reset 10 and fixed read-only slots 1-2/default-reset 1 for future internal admission only; public scheduling/configuration routes are removed.
 Lowering capacity does not evict/reclassify pending work; lowering slots does not cancel/reinterpret active work.
 Pending lifetime is 1-120 integer minutes/default 30 for future enqueues; active budget is 1-60 integer minutes/default 5 captured at future admission, including old pending work without changing its pending metadata. Already-admitted/Unknown/terminal records retain original precise deadlines; legacy admissions remain five minutes.
 The actual monotonic callback budget and persisted UTC projection share original dispatch authority. Equal/late versions are suppressed; cancellation drains callbacks and uncertainty quarantines, not physical termination/replay ([durable enforcement](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionQueueTests.ActiveDeadline.cs)).

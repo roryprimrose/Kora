@@ -4,7 +4,10 @@ Status: bounded manual host mode, independent device-local feedback and conserva
 full R15 remains partial. A bounded Windows communications-notification adapter and host integration are implemented but the exact native profile is unqualified and unavailable.
 The broader tool detectors and configurable exception contracts below remain proposed.
 
-[Session Permission Levels](Session_Permission_Levels.md#voice-approval-and-protected-calls) supersedes future call grant-ignore: disable spoken approvals by default, configurable, while preserving grants and the session's level. Delivered manual-mode grant suppression below remains current behavior until qualified migration; this document change does not remove it.
+[Session Permission Levels](Session_Permission_Levels.md#voice-approval-and-protected-calls)
+owns the implemented call-channel policy: spoken approvals default Off, with
+separate reviewed native enable/disable controls; applicable grants and session
+levels remain effective. This does not qualify automatic call detectors.
 
 The [delivered R18 broker](Proactive_Interaction.md#delivered-r18-trusted-local-visual-broker---2026-10-09)
 is visual/native only. It neither requests synthesis/playback nor inherits
@@ -63,7 +66,7 @@ playback before asynchronous UI dispatch or cleanup. Clearance does not replay
 suppressed output, answer questions or reopen capture. Saved explicit visual/
 activation preferences retain their existing format and behavior; Unknown now
 uses the same conservative protection. New speech or activation protection
-downgrades, reusable-grant-ignore disabling, temporary overrides and speak-once
+downgrades, temporary overrides and speak-once
 exceptions are unavailable because complete exact trusted downgrade review is
 not yet composed. Native controls explain this limitation; no alternate
 confirmation shortcut is supplied.
@@ -291,12 +294,18 @@ Recheck call evidence/setting revision at voice-answer acceptance. Call entry or
 
 Clearance never accepts rejected speech, answers cards, restores grants, reopens capture or replays work. Show **Spoken approvals disabled during call; UI available** separately from the level. See the [voice/call contract](Session_Permission_Levels.md#voice-approval-and-protected-calls) and [acceptance gate](Acceptance_Criteria.md#session-permission-level-gate).
 
-Migration must change host grant applicability, voice-answer eligibility, native/settings explanations and every direct/model/background consumer together behind the feature's enablement gate. Do not advertise the new setting while old grant-ignore remains effective on those routes. Existing stored grants must not be deleted, widened or converted during migration.
+The [host call observation](../src/Kora.Application/Communication/CallPolicyObservation.cs)
+keeps reusable grants applicable and supplies current spoken-approval eligibility.
+[Native review/confirmation](../src/Kora.Application/Interaction/SessionPermission/MainViewModel.SpokenApprovals.cs)
+binds the change to fresh UI origin, call/privacy/ownership revisions and the
+shared audited preference writer. Known older settings migrate Off; stored
+grants are not deleted, widened or converted. Production reviewer and
+automatic-detector qualification remain separate.
 
 ## In-Call Settings Origin Gate
 
 While manual Active, any enabled Active/Suspected source, or enabled Unknown call evidence applies, the host rejects voice-initiated changes to voice settings and **any setting related to in-call options**.
-This covers input/output/activation preferences, in-call feedback, spoken-approval enablement, call speech/Unknown handling, detectors/accounts, manual call state, temporary/speak-once exceptions, and reset/undo. Current grant-ignore downgrades remain restricted until migration.
+This covers input/output/activation preferences, in-call feedback, spoken-approval enablement, call speech/Unknown handling, detectors/accounts, manual call state, temporary/speak-once exceptions, and reset/undo.
 The restriction applies to all scopes, including ordinary device/session/task settings whose voice effects would otherwise be masked by an in-call override.
 Inspecting settings/status remains permitted; unrelated settings are not made UI-only.
 
@@ -391,8 +400,8 @@ Examples:
 | "Use normal speech when call detection is unavailable" | Open an exact voice/UI confirmation for the reduced-protection Unknown fallback |
 | "I'm in a call" | Set manual Active override until explicitly cleared |
 | "My call has ended" | During protected calls, reject the voice-originated manual-clear change; require a new UI request, and enabled automatic sources still apply |
-| "Ignore saved grants while I'm in a call" | Enable fresh single-use approval instead of Session/Perpetual reuse during calls; preserve stored grants |
-| "Use my saved grants during calls" | Outside protected calls, propose the confirmed downgrade; during protected calls reject voice origin and require a new UI request |
+| "Allow spoken approvals during calls" | Request the separate spoken-approval setting; during protection require fresh native initiation and confirmation, without changing grants or session levels |
+| "Require UI approvals during calls" | Disable the spoken channel without withdrawing applicable grants or otherwise eligible automatic admission |
 | "Read that answer aloud once" | Normal speech policy applies outside protected calls; a speak-once call exception must be UI-initiated while protected |
 | "Allow normal speech for this call" | Open exact voice/UI confirmation for a bounded call-wide relaxation; default expiry 1 hour or observed call end, whichever is first |
 | "Restore call-aware speech defaults" | Reset configurable call preferences and temporary overrides |

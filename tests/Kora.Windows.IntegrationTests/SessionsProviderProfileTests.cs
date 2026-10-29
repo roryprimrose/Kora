@@ -250,7 +250,7 @@ public sealed partial class SessionsProviderProfileTests
     {
         public Task<LocalProviderInstallation> ObserveAsync(CancellationToken token) => Task.FromResult(LocalProviderInstallation.Missing);
     }
-    private sealed class Catalogue(TimeProvider time) : IProviderCapabilityCatalogue
+    internal sealed class Catalogue(TimeProvider time) : IProviderCapabilityCatalogue
     {
         public Task<ProviderCatalogueObservation> ObserveAsync(CancellationToken cancellationToken)
         {

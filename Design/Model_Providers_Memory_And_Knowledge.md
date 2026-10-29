@@ -17,21 +17,21 @@ Related: [Architecture](Architecture.md),
 ## Native conversation admission consumer — 2026-10-12
 
 The [exact-session composer](Interaction_And_Sessions.md#delivered-exact-session-conversationcomposer-foundation--2026-10-12)
-now consumes configured `ModelTurnHost` admission with fresh session/app policy,
-qualification and immutable tuple capture, never the buffered bootstrap
-reasoner. Only the newly frozen original user body plus trusted versioned host
-policy enters a complete ≤32768-byte envelope; no retained conversation,
-memory, attachment, evidence or tool-result assembly is implied.
+uses configured `ModelTurnHost` admission with fresh session/app policy,
+qualification and immutable tuple capture, not the legacy bootstrap reasoner.
+The [admitted answer workflow](Interaction_And_Sessions.md#bounded-admitted-local-answer-execution---2026-10-20)
+records dispatch and retains a validated final ASSISTANT answer on the original
+USER/task lineage. Missing model/adapter qualification instead retains a
+truthful HOST Unavailable terminal and matching task receipt, never an answer.
+Complete host envelopes remain bounded to 32768 UTF-8 bytes.
 
-Production no-model/no-qualified-adapter resolution retains original input
-with a separate truthful HOST Unavailable terminal and matching task receipt.
-Even a controlled future qualified admission reports GenerationNotEnabled
-without executing a provider. No authentication, egress, live provider,
-rejected Ollama candidate, send-once override or provider-output parser is
-enabled. Installed-local desired initial service is not inference consent.
-
-Separately confirmed owned-v2 expanded prompts now enter this same conversation consumer as exact USER bodies for one explicitly selected existing Active session. They do not invoke old prompt Use as well, introduce system/instruction/evidence wrappers, inherit source authority or assemble saved history/drafts. Source/expansion digests remain distinct and volatile provenance does not become provider selection or durable template storage.
-The actual production outcome remains HOST Unavailable; test-only qualified/fake admission proves exact immutable input without enabling generation, authentication, HTTP, egress or either rejected Ollama candidate.
+Separately confirmed owned-v2 expanded prompts enter as exact USER bodies for
+one explicitly selected existing Active session, not system instructions,
+source authority or a second legacy prompt invocation. Optional reviewed
+history, memory and source use have their own contracts; ordinary submission
+does not implicitly assemble them. Installed-local selection and provider
+preferences are not inference or transmission consent. Shipped local
+attestations and hosted deployment approvals remain unavailable.
 
 ## Product Decision
 
@@ -249,7 +249,7 @@ The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelT
 Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
 
 This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
-Durable exact-session inheritance/overrides are delivered below. Generic unscoped model directives and explicit one-turn changes remain deferred, never app-scope aliases.
+Durable exact-session inheritance/overrides and explicit local request-only tuples are delivered below. Generic unscoped model directives and hosted one-turn changes remain deferred, never app-scope aliases.
 
 - [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
 - [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
@@ -290,7 +290,17 @@ Production catalogues still advertise **no models**; model-dependent native save
 
 [Single-field workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderFieldConfigurationTests.cs) and actual native/private composition and typed/current-name activated routes retain the same schema, writer, audit/readback, preview bound and subsequent-turn consumer. Retained experiments are unchanged; these deterministic assertions do not establish RT1/RT2/PV1, offline CPU/inference, containment, hardware, installation or accessibility qualification.
 
-The following broader natural-language/one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
+The following broader natural-language/hosted one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
+
+#### Delivered local request-only profile
+
+**Sessions > Selected-session provider overrides > This request only - LOCAL** refreshes the existing bounded local catalogue, then requires explicit model/reasoning/context choices for the unchanged composer input. **Review this request only** discloses the exact Active destination, complete tuple, original channel, input and expiry; separate confirmation executes the request through the ordinary local conversation/instruction-scope owner. Cancel submits and writes nothing.
+
+Exact typed/current-name activated `session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>` uses the same original-user request review and separate `session request confirm`/`cancel`. The body is not rewritten or relabelled; native confirmation of voice input preserves its original admission.
+
+The host issues a reference-owned single-use ephemeral capability bound to the exact input, destination generation, session policy, local tuple, source/control and app observation. Confirmation freshly observes metadata, policy, account/catalogue/installation and preferences before retention. Normal host qualification, resource admission, pre-dispatch source validation, joined cancellation, genuine answer retention and truthful terminal receipts remain authoritative. No preference store or session policy is written; subsequent requests use ordinary inheritance.
+
+Unavailable production catalogues advertise no choices and no qualified adapter is enabled. This does not acquire models, qualify/enable a runtime, switch implicitly, add hosted fallback, broaden context/history, or introduce a global override system. Existing instruction-scope review is preserved.
 
 #### Exact sparse session-provider copy implementation - 2026-10-19
 
@@ -300,7 +310,7 @@ The action copies the original immutable `SessionProviderOverrides`, never `Effe
 
 Confirmation rereads both exact saved policies/lifecycles and reobserves catalogue/account/installation/app-policy/private-control state. Revision ABA, source/destination lifecycle drift, private/control changes, edits/selections/cancel/close, expired or forged/reused tokens fail closed. The existing `ISessionProviderProfileStore.CommitProviderProfile` accepts the optional reviewed source fence: the same private destination transaction/audit writer rereads that source on its owned connection at every requested/save/terminal commit boundary. Its revision, lifecycle, sparse bytes and nonheld state must still match; no source control/audit mutation occurs. Even an identical-value copy uses the existing destination revision and terminal receipt.
 
-Storage/audit/readback uncertainty keeps the existing destination durable hold and inspection-only recovery; no retry or rollback claim is added. [Portable workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderProfileConfigurationTests.Copy.cs), [typed/activated consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SessionProviderCopy.cs), [private SQLite boundary tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionProviderProfileTests.Copy.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsProviderProfileTests.Copy.cs) are authored. Current-head maintained builds, tests and exact portable line-and-branch coverage are required before merge; this implements only the existing configuration I subset and makes no broader E/Q claim.
+Storage/audit/readback uncertainty keeps the existing destination durable hold and inspection-only recovery; no retry or rollback claim is added. [Portable workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderProfileConfigurationTests.Copy.cs), [typed/activated consumer tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.SessionProviderCopy.cs), [private SQLite boundary tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionProviderProfileTests.Copy.cs) and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsProviderProfileTests.Copy.cs) cover the configuration path, not runtime/provider E/Q qualification.
 
 A Kora work session may store a sparse override of hosted service, model,
 reasoning level, and context size. Each field is either **Inherit app setting**
@@ -595,8 +605,8 @@ recall, scope promotion, provider/network action, retention-policy change, foren
 [authoritative action tests](../tests/Kora.Application.UnitTests/Memory/MemoryAdmissionServiceTests.BatchForget.cs),
 [native controls](../tests/Kora.Windows.IntegrationTests/SessionsMemoryFilterTests.BatchForget.cs) and
 [private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteMemoryTests.BatchForget.cs)
-are authored. Current-head maintained builds, full checks and exact portable line/branch coverage are required
-before merge; the disable-only historical proof above does not validate this extension.
+cover this operation independently of the earlier disable-only proof. They
+do not establish provider, physical-erasure or broader E/Q qualification.
 
 ### Delivered Original-User Session Memory Proposals - 2026-10-10
 

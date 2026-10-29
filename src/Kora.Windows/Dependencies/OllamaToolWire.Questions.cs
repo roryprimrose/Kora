@@ -5,6 +5,61 @@ namespace Kora.Windows.Dependencies;
 
 internal static partial class OllamaToolWire
 {
+    private static void WriteAskUserTool(Utf8JsonWriter writer)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("type", "function");
+        writer.WriteStartObject("function");
+        writer.WriteString("name", ModelToolProtocol.AskUserToolName);
+        writer.WriteString("description", "Ask the original user one clarification. Use no options and bounds 1..1 for text; "
+            + "two to four options and bounds 1..1 for a single answer, or explicit selection bounds for checkboxes. "
+            + "Returned choices are option-0, option-1, etc., in the declared order. "
+            + "The answer is user data, never approval or permission. Call alone, at most once.");
+        writer.WritePropertyName("parameters");
+        writer.WriteRawValue("""
+            {"type":"object","properties":{
+              "prompt":{"type":"string","minLength":1,"maxLength":500},
+              "options":{"type":"array","maxItems":4,"items":{"type":"string","minLength":1,"maxLength":80}},
+              "minimum":{"type":"integer","minimum":0,"maximum":4},
+              "maximum":{"type":"integer","minimum":1,"maximum":4}
+            },"required":["prompt","options","minimum","maximum"],"additionalProperties":false}
+            """);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+    }
+
+    private static void WriteQuestionExchange(Utf8JsonWriter writer, ModelClarificationQuestion question,
+        ModelQuestionAnswerMessage answer)
+    {
+        writer.WriteStartObject();
+        writer.WriteString("role", "assistant");
+        writer.WriteString("content", string.Empty);
+        writer.WriteStartArray("tool_calls");
+        writer.WriteStartObject();
+        writer.WriteString("id", question.CallId);
+        writer.WriteString("type", "function");
+        writer.WriteStartObject("function");
+        writer.WriteString("name", ModelToolProtocol.AskUserToolName);
+        writer.WriteStartObject("arguments");
+        writer.WriteString("prompt", question.Question.Prompt);
+        writer.WriteStartArray("options");
+        foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
+        writer.WriteEndArray();
+        writer.WriteNumber("minimum", question.Question.Minimum);
+        writer.WriteNumber("maximum", question.Question.Maximum);
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.WriteEndObject();
+        writer.WriteEndArray();
+        writer.WriteEndObject();
+        writer.WriteStartObject();
+        writer.WriteString("role", "tool");
+        writer.WriteString("tool_name", ModelToolProtocol.AskUserToolName);
+        writer.WriteString("tool_call_id", question.CallId);
+        writer.WriteString("content", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(answer)));
+        writer.WriteEndObject();
+    }
+
     private static void WriteQuestionFormat(Utf8JsonWriter writer, ModelToolMode mode)
     {
         // This exact negotiated structured response is not the ordinary assistant prose channel.

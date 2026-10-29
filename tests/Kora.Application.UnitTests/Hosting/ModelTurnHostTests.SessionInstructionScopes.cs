@@ -24,6 +24,50 @@ public sealed partial class ModelTurnHostTests
     {
         private readonly ModelTurnHostTests tracing = new();
         public void Dispose() => tracing.Dispose();
+
+        [Theory]
+        [InlineData(false)]
+        [InlineData(true)]
+        public async Task LocalRequestProfilePreservesInstructionSourceReviewAndRejectsChangedSourceBeforeRetention(bool sourceChanged)
+        {
+            using var f = new Fixture();
+            f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Current;
+            f.ProfileCatalogue.FieldCatalogue = true;
+            var source = new InstructionSource();
+            var (sources, catalogue, _) = InstructionBroker(f, source);
+            var workspace = Workspace(f);
+            using var scopes = new SessionInstructionScopeBroker(sources, workspace, new ScopeAudit(), f.Time);
+            var target = new SessionWorkspaceEntry(f.Session, null);
+            await scopes.ConfirmAsync(await scopes.ReviewAsync(target, catalogue.Artifacts.Single(),
+                static () => true, static () => true, Token), static () => true, Token);
+            var host = f.ConfiguredProfiles();
+            var conversation = Conversation(f, workspace, scopes, host);
+            var commands = new SessionRequestCommandService(workspace, conversation, f, f.Time);
+            var profile = Profile() with { Reasoning = new("exact-effort"), Context = new("exact-window") };
+            var reviewed = (await commands.ExecuteAsync(LocalProfileCommand(f, "Original guided request", profile),
+                RequestOrigin.LocalUi, static () => true, Token)).RequestReview!;
+            if (sourceChanged)
+            {
+                source.Snapshot = InstructionSnapshot("changed guidance");
+                await commands.Invoking(value => value.ExecuteAsync(LocalProfileConfirm(reviewed), RequestOrigin.LocalUi,
+                    static () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
+                f.RetainCalls.Should().Be(0);
+                f.Adapter.Calls.Should().Be(0);
+            }
+            else
+            {
+                var receipt = (await commands.ExecuteAsync(LocalProfileConfirm(reviewed), RequestOrigin.LocalUi,
+                    static () => true, Token)).RequestSubmission!;
+                receipt.Message.AssistantResponse!.Body.Should().Be("answer");
+                f.Adapter.Profile.Should().Be(profile);
+                using var wire = JsonDocument.Parse(f.Adapter.Wire!);
+                wire.RootElement.GetProperty("Evidence").EnumerateArray().Single().GetProperty("Content")
+                    .GetString().Should().Be(source.Snapshot!.Document.Text);
+                wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+                f.ProfilePreferences.Writes.Should().Be(0);
+            }
+        }
+
         [Theory]
         [InlineData(RequestOrigin.LocalUi, true)]
         [InlineData(RequestOrigin.ActivatedVoice, true)]

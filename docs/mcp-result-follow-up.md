@@ -1,5 +1,10 @@
 # Ask about one MCP observation
 
+An **observation** is the result of a read-only external tool call. This review
+lets you ask about that result without calling the tool again.
+**Answering is unavailable in this build**: MCP account access, the separate
+source-use check and an approved local model are not available.
+
 After a successful reviewed, host-mapped read-only MCP operation, expand
 **Ask a new question about this exact MCP observation** immediately below its
 result in Sessions. This is separate from Reply to an ASSISTANT message: a
@@ -16,8 +21,8 @@ Only a separate **Consent to ONE local-only tool-free answer** permits submissio
 The spent invocation grant is neither reused nor renewed and is not model-use
 consent. Source-use classification, current cached source/account/permission,
 call/privacy/ownership admission and an independently qualified local model
-remain mandatory. The production source-use seam currently reports
-**Unavailable**; deterministic qualified fixtures are not production enablement.
+remain mandatory. The check for permission to use this result with a model currently reports
+**Unavailable**.
 Unknown classification or qualification never falls back to a hosted model.
 
 An admitted turn uses the canonical conversation submission path and retains

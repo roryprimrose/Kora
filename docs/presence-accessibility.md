@@ -10,9 +10,8 @@ Preparing speech is not playback, and speaking does not replace the task state.
 Semantic name changes use polite screen-reader live-region updates. Animation,
 particle movement and speech-volume frames do not repeat announcements.
 
-The standard presenter and the separately selected experimental native presenter
-use the same accessible meanings. This does not enable the experimental renderer
-or change its availability requirements.
+These meanings apply to the standard presence display. An experimental display
+is not enabled by these accessibility controls.
 
 Hidden, minimized, disabled, private, detached or unavailable presence does not
 expose its previous state or announce hidden transitions. An unknown state is
@@ -20,7 +19,6 @@ unavailable, not idle or successful. Accessibility never reads answer text,
 starts Kora speech, changes focus or approves an action. Existing presence
 activation and review requirements are unchanged.
 
-Deterministic software tests cover automation names, semantic updates and
-retirement for both presenters without a real native rendering device. Installed
-screen-reader and physical-device qualification are separate and are not claimed
-by those tests.
+Screen-reader behavior can depend on your Windows and assistive-software setup;
+the presence's accessible name does not promise that every combination has
+been verified.

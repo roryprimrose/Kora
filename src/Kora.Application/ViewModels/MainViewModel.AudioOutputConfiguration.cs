@@ -66,7 +66,7 @@ public sealed partial class MainViewModel
             OnPropertyChanged(nameof(OutputDeviceChoices));
             OnPropertyChanged(nameof(AudioOutputConfigurationStatus));
             OnPropertyChanged(nameof(CanChangeAudioOutputDevice));
-            OutputDeviceAvailabilityMessage = current.Recovery ?? "Your selected speaker is ready for Kora's next spoken response. Check its volume if you cannot hear it.";
+            UpdateOutputDeviceAvailability();
         }
         finally { synchronizingOutput = false; }
         NotifyOutputPolicyChanged();

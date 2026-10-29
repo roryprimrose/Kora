@@ -24,6 +24,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private readonly InstructionRevisionCatalogue? promptRevisions;
     private readonly WindowsOwnedInstructionStore? ownedPrompts;
     private readonly string? profileRoamingRoot;
+    private readonly ArtifactUsePreferences? use;
     private readonly Lock gate = new();
     private readonly List<FileSystemWatcher> watchers = [];
     private Timer? timer;
@@ -41,7 +42,8 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         WindowsOwnedInstructionStore? ownedInstructions = null,
         string? profileRoamingRoot = null,
         InstructionRevisionCatalogue? promptRevisions = null,
-        WindowsOwnedInstructionStore? ownedPrompts = null)
+        WindowsOwnedInstructionStore? ownedPrompts = null,
+        ArtifactUsePreferences? use = null)
     {
         this.catalogue = catalogue;
         this.paths = paths;
@@ -54,6 +56,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         this.profileRoamingRoot = profileRoamingRoot;
         this.promptRevisions = promptRevisions;
         this.ownedPrompts = ownedPrompts;
+        this.use = use;
     }
 
     internal void Start()
@@ -183,16 +186,46 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
 
     private void Reload(object? state) => ReloadNow();
 
+    internal Task<bool> IsCurrentAsync(ArtifactDefinition selected, Func<bool> eligible, CancellationToken token) =>
+        Task.Run(() =>
+        {
+            token.ThrowIfCancellationRequested();
+            lock (gate)
+            {
+                if (disposed || !eligible() || catalogue.IsReloadUnavailable
+                    || !catalogue.IsCurrent(selected.Id, selected.Digest)) { return false; }
+                try
+                {
+                    var disk = Discovery(preferences.Load()).Load();
+                    token.ThrowIfCancellationRequested();
+                    var exact = disk.SingleOrDefault(item =>
+                        item.Kind == selected.Kind && string.Equals(item.UseControlId, selected.UseControlId, StringComparison.Ordinal));
+                    if (exact is null || !string.Equals(exact.Id, selected.Id, StringComparison.Ordinal)
+                        || !string.Equals(exact.Digest, selected.Digest, StringComparison.Ordinal))
+                    { throw new InvalidDataException("The selected definition changed or disappeared. Reload and review its exact revision."); }
+                    return eligible() && !disposed && catalogue.IsCurrent(selected.Id, selected.Digest);
+                }
+                catch (Exception exception) when (exception is IOException or UnauthorizedAccessException
+                    or InvalidDataException or ArgumentException or NotSupportedException)
+                {
+                    ArtifactReloadFailed(logger, exception.GetType().Name);
+                    HoldOwnedInstructions();
+                    catalogue.ReportReloadFailure(exception);
+                    return false;
+                }
+            }
+        }, token);
+
     internal bool ReconcileSavedCopy(OwnedInstructionSnapshot saved)
     {
         lock (gate)
         {
-            if (disposed) { return false; }
+            if (disposed || catalogue.IsReloadUnavailable) { return false; }
             var definition = saved.Document.Definition;
             var settings = preferences.Load();
             var include = settings.UseDefaultDirectories || settings.GetDirectories(definition.Kind).Contains(
                 Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(definition.Kind)), StringComparer.OrdinalIgnoreCase);
-            var retained = catalogue.Candidates.Where(item => item.Kind != definition.Kind
+            var retained = catalogue.SourceCandidates.Where(item => item.Kind != definition.Kind
                 || !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
             ArtifactDefinition[] candidates = include
                 ? [.. retained, definition with { OwnedInstructionRevision = saved.Revision, IsUseEnabled = false }]
@@ -207,6 +240,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private void PublishReconciled(IReadOnlyList<ArtifactDefinition> candidates)
     {
         _ = new ArtifactCatalogue(candidates);
+        use?.Reconcile(candidates);
         void PublishPrompts(IReadOnlyList<ArtifactDefinition> instructions)
         {
             if (promptRevisions is null) { catalogue.Publish(instructions); }
@@ -405,6 +439,9 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         { ArtifactReloadFailed(logger, failure.GetType().Name); }
         try { promptRevisions?.MarkUnavailable(); }
         catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidDataException)
+        { ArtifactReloadFailed(logger, failure.GetType().Name); }
+        try { use?.Reconcile([]); }
+        catch (Exception failure) when (failure is IOException or UnauthorizedAccessException or InvalidDataException or InvalidOperationException)
         { ArtifactReloadFailed(logger, failure.GetType().Name); }
     }
 }

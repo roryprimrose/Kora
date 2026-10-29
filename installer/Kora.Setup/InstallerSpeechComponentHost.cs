@@ -5,6 +5,7 @@ using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Windows.Dependencies;
+using Kora.Windows.Audio;
 using Kora.Windows.Storage;
 using Microsoft.Extensions.Logging;
 
@@ -24,9 +25,10 @@ internal sealed class InstallerSpeechComponentHost : IDisposable, ISecurityAudit
         sink = new WindowsSqliteEvidenceSink(paths);
         evidence = new EvidenceLoggerProvider([sink], this);
         audit = new LoggerSecurityAuditLog(new EvidenceLogger<LoggerSecurityAuditLog>(evidence));
-        Service = new SpeechComponentSetupService(SpeechComponentCatalogue.Production,
-            new WindowsSpeechComponentStore(new WindowsSpeechComponentFiles(paths), acquisition),
-            new UnavailableSpeechComponentRuntime(), this, new EvidenceLogger<SpeechComponentSetupService>(evidence), TimeProvider.System);
+        var files = new WindowsSpeechComponentFiles(paths);
+        Service = new SpeechComponentSetupService(HandsFreeSetupCatalogue.Production,
+            new WindowsSpeechComponentStore(files, acquisition),
+            new HandsFreeSetupRuntime(files), this, new EvidenceLogger<SpeechComponentSetupService>(evidence), TimeProvider.System);
     }
 
     internal SpeechComponentSetupService Service { get; }

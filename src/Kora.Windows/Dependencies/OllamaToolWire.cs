@@ -57,10 +57,16 @@ internal static partial class OllamaToolWire
             var exchangeIndex = 0;
             while (index < request.Messages.Length)
             {
-                if (request.ClarificationAllowed && request.Messages[index] is ModelClarificationQuestion)
+                if (request.ClarificationAllowed && request.Messages[index] is ModelClarificationQuestion question)
                 {
-                    WriteTextMessage(writer, "assistant", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(request.Messages[index++])));
-                    WriteTextMessage(writer, "user", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(request.Messages[index++])));
+                    index++;
+                    var answer = (ModelQuestionAnswerMessage)request.Messages[index++];
+                    if (question.CallId is not null) { WriteQuestionExchange(writer, question, answer); }
+                    else
+                    {
+                        WriteTextMessage(writer, "assistant", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(question)));
+                        WriteTextMessage(writer, "user", StrictUtf8.GetString(ModelToolProtocol.SerializeMessage(answer)));
+                    }
                     continue;
                 }
                 if (exchangeIndex >= exchanges.Count || request.Messages[index++] is not ModelAssistantToolCalls calls)
@@ -87,9 +93,11 @@ internal static partial class OllamaToolWire
             { throw new InvalidDataException("The native conversation contains an unobserved or replayed exchange."); }
             writer.WriteEndArray();
             if (request.ClarificationAllowed) { WriteQuestionFormat(writer, request.Context.ToolMode); }
-            if (request.Context.ToolMode != ModelToolMode.None)
+            if (request.Context.ToolMode != ModelToolMode.None || request.ClarificationAllowed)
             {
                 writer.WriteStartArray("tools");
+                if (request.ClarificationAllowed && !request.Messages.OfType<ModelClarificationQuestion>().Any())
+                { WriteAskUserTool(writer); }
                 foreach (var descriptor in request.Context.Tools) { WriteTool(writer, descriptor); }
                 if (request.Context.McpTool is { } external)
                 {
@@ -214,11 +222,11 @@ internal static partial class OllamaToolWire
         var content = Text(message, "content");
         if (clarificationAllowed && !message.TryGetProperty("tool_calls", out _))
         {
-            return new(ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true),
-                JsonSerializer.SerializeToUtf8Bytes(message));
+            var structured = ModelToolProtocol.ParseAssistant(StrictUtf8.GetBytes(content), clarificationAllowed: true);
+            if (structured is ModelClarificationQuestion { CallId: not null })
+            { throw new InvalidDataException("Only a native ask_user call can establish tool correlation."); }
+            return new(structured, JsonSerializer.SerializeToUtf8Bytes(message));
         }
-        if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)
-        { throw new InvalidDataException("Only an original read-only clarification turn may request tools."); }
         using var stream = new MemoryStream();
         using (var writer = new Utf8JsonWriter(stream))
         {
@@ -241,6 +249,17 @@ internal static partial class OllamaToolWire
                     if (function.TryGetProperty("index", out var position)
                         && (position.ValueKind != JsonValueKind.Number || !position.TryGetInt32(out var ordinal) || ordinal != index))
                     { throw new InvalidDataException("Native calls are out of order."); }
+                    if (clarificationAllowed && string.Equals(Text(function, "name"), ModelToolProtocol.AskUserToolName, StringComparison.Ordinal))
+                    {
+                        if (calls.GetArrayLength() != 1)
+                        { throw new InvalidDataException("An ask_user wait cannot share a batch with another tool call."); }
+                        var questionId = call.TryGetProperty("id", out _)
+                            ? Text(call, "id") : $"ollama_r{round.ToString(CultureInfo.InvariantCulture)}_c0";
+                        return new(ModelToolProtocol.ParseAskUser(StrictUtf8.GetBytes(function.GetProperty("arguments").GetRawText()), questionId),
+                            JsonSerializer.SerializeToUtf8Bytes(message));
+                    }
+                    if (clarificationAllowed && toolMode != ModelToolMode.ReadOnly)
+                    { throw new InvalidDataException("Only an original read-only clarification turn may request observation tools."); }
                     writer.WriteStartObject();
                     writer.WriteString("callId", call.TryGetProperty("id", out _)
                         ? Text(call, "id") : $"ollama_r{round.ToString(CultureInfo.InvariantCulture)}_c{index.ToString(CultureInfo.InvariantCulture)}");

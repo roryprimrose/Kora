@@ -1,5 +1,11 @@
 # Use a shared skill as guidance for one local agent task
 
+**Answer generation is unavailable in this build.** No local model is approved
+for release use. The review controls below do not change that.
+
+This advanced workflow uses a skill's written guidance to help an agent answer
+one task. It does not run the skill as a program or start another agent.
+
 An existing user-owned agent profile in format 3 can reference one exact skill
 from an already registered shared source. Kora runs **one tool-free local agent
 turn**, not the skill's executable artifacts or another agent. An unavailable
@@ -41,8 +47,8 @@ for one unnamed Active conversation), `agent review invocation`,
 `agent skill enable`, `agent confirm invocation`, and `agent stop`.
 Source registration and catalogue inspection retain their native local-input
 requirement: use those native controls before continuing by voice. Native lists
-support explicit selection when names are ambiguous. Source identity,
-revision and digest matching are internal; you need not speak them.
+support explicit selection when names are ambiguous. Kora tracks which source and version you reviewed; you do not need to speak
+internal identifiers or checksums.
 
 ## Supported profile and skill
 

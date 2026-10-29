@@ -283,8 +283,10 @@ independent from output and consent. Protected calls reject voice-originated
 voice/in-call option writes and manual clear/reset; a later UI confirmation
 cannot relabel them. Initiate a new Settings change instead. Status, stop speech,
 disable listening and cancellation remain usable. New call-protection
-downgrades and temporary/speak-once exceptions are unavailable pending exact
-trusted review. See [manual call behavior](responses-and-calls.md#manual-call-mode-and-call-settings).
+downgrades and call-wide temporary exceptions remain unavailable. The separate
+[current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection)
+requires fresh local UI review and separate confirmation; it changes no preference.
+See [manual call behavior](responses-and-calls.md#manual-call-mode-and-call-settings).
 
 Kora stops capture when:
 

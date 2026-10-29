@@ -1275,7 +1275,7 @@ a new UI request. Stop speech, disable listening, cancel and read-only status
 remain usable. Protected calls preserve applicable grants and session action
 levels. **Allow spoken approvals during calls** defaults Off and requires
 fresh native review and explicit downgrade confirmation before enabling.
-Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
+Call-wide temporary overrides remain unavailable. A separate [exact current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection) changes no preference or general protection. This is bounded behavior, not
 full call/provider/native/audio acceptance.
 
 Use [session permission controls](session-permission-levels.md) to review and

@@ -291,8 +291,12 @@ public sealed partial class SpeechConfigurationService(
             error ?? (voice is null ? "The selected provider or voice is unavailable. Choose a ready installed choice or reset; visual responses remain available. Nothing is downloaded or substituted." : null));
     }
 
+    internal Task<string?> StartSummarySpeechAsync(string text, CallCommunicationPolicy policy,
+        Func<bool> hostEligible, Func<Task> start, CancellationToken cancellationToken) =>
+        StartSummarySpeechAsync(text, policy, hostEligible, start, null, cancellationToken);
+
     internal async Task<string?> StartSummarySpeechAsync(string text, CallCommunicationPolicy policy,
-        Func<bool> hostEligible, Func<Task> start, CancellationToken cancellationToken)
+        Func<bool> hostEligible, Func<Task> start, CallSpeechLease? callSpeechLease, CancellationToken cancellationToken)
     {
         Task playback;
         lock (gate)
@@ -310,11 +314,13 @@ public sealed partial class SpeechConfigurationService(
                 SummarySpeechRefused(logger, "over-limit");
                 return $"Speech withheld: the complete result is {measured.Sentences} sentences/{measured.Words} words, exceeding the configured {limits.Sentences}-sentence/{limits.Words}-word caps. No text was shortened; the full result is available visually.";
             }
-            playback = policy.StartSpeech(() =>
+            Task Start()
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 return start();
-            }, hostEligible);
+            }
+            playback = callSpeechLease is null ? policy.StartSpeech(Start, hostEligible)
+                : policy.StartReviewedSpeech(callSpeechLease, text, Start, hostEligible);
         }
         await playback;
         return null;

@@ -136,11 +136,17 @@ Exact source remains available, subject to the original source/privacy lifetime.
 ## Deliberate current-response playback
 
 **Read current response**, `read that aloud` and `read current response` share one exact current ordinary-response action.
-It retains the complete answer, uses normal speech admission and both summary caps, and refuses VisualOnly and all protected calls; no speak-once call exception is delivered ([native controls](../src/Kora/ResponseWindow.axaml), [host action](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
+It retains the complete answer, uses normal speech admission and both summary caps, and refuses VisualOnly and all protected calls. During protection, use the separate [reviewed call exception](#speak-one-current-response-during-call-protection), not this read command ([native controls](../src/Kora/ResponseWindow.axaml), [host action](../src/Kora.Application/ViewModels/MainViewModel.ResponseRead.cs)).
 
 The action has no raw-text input and cannot select conversation USER/HOST rows, raw source bodies, questions or approvals. Successful push-to-talk leaves an existing eligible answer intact so an activated read command can target that same answer.
 Every replacement, including identical text, gets a new identity; close, cancellation, stop and privacy/call/ownership retirement prevent late playback.
 Recovery never replays a retired request ([source and capture lifecycle](../src/Kora.Application/ViewModels/MainViewModel.VoicePrivacy.cs), [deterministic tests](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ResponseRead.cs)).
+
+## Speak one current response during call protection
+
+In the visible response, choose **Review speak once during call**. Inspect the complete **EXACT RESPONSE TO SPEAK** text and destination/output state in Details. Then separately choose **Confirm speak once**, or **Cancel call speech**. The review expires after two minutes, including playback; any source, call, privacy, ownership or output change retires it. **Call speech status** shows whether a current review or owned playback remains ([host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
+
+The [exact typed commands](commands.md#review-one-call-speech-exception) share this operation. Voice cannot initiate or confirm the exception, including through a later native click inside that voice request; status and cancellation remain available. No setting or call protection is disabled. Normal VisualOnly, speech limits, mute, capture, privacy and speech availability still apply. Only this current ordinary response is eligible, not a pending question/approval, arbitrary retained answer or backlog ([single-use authority](../src/Kora.Application/Communication/CallSpeechReview.cs)).
 
 ## Read one retained assistant answer
 
@@ -396,7 +402,9 @@ When manual mode or an enabled Active, Suspected or Unknown observation applies:
 These settings are independent. You can allow listening while forcing visual
 responses, or disable listening during calls. Existing saved output/activation
 choices are retained. New protection downgrades are disabled pending complete
-exact trusted review; temporary and speak-once call exceptions are unavailable.
+exact trusted review; call-wide temporary exceptions remain unavailable. The
+[separate current-response speak-once review](#speak-one-current-response-during-call-protection)
+does not change those preferences.
 Enabling visual protection or disabling call-time activation remains supported.
 The new **In-call feedback override** is independent of both. UI is its default;
 even a legacy suppression-Off preference does not disable that UI selection.

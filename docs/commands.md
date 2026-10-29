@@ -849,8 +849,21 @@ not atomic persistence of the manual flag. A lost audit/receipt or unconfirmed
 retirement reports **not-confirmed** and retains explicit conservative
 evidence-unavailable protection; it never claims rollback, retries, or uses
 unknown evidence to authorize less protection. Startup remains manual-off
-with honest detector-unavailable status. Automatic detection, speak-once,
+with honest detector-unavailable status. Automatic detection, call-wide
 protection relaxation and full R15/native/acoustic acceptance remain absent.
+
+## Review one call speech exception
+
+Use these exact whole commands, optionally prefixed by the current assistant name ([parser](../src/Kora.Application/Voice/CallSpeechCommand.cs)):
+
+| Command | Operation |
+|---|---|
+| `review call speech` | Open the complete exact current ordinary response and destination/output state in native Details; nothing is played. |
+| `confirm call speech` | Separately confirm that same single-use review and attempt only its response under mandatory speech gates. |
+| `cancel call speech` | Retire the review and join its owned playback; no replay. |
+| `call speech status` | Inspect current review/playback status without starting speech. |
+
+Review/confirmation require fresh original local UI input, even during Active/Suspected/Unknown protection; voice cannot be relabelled through a later click. Voice status/cancel remain available. The review expires after two minutes; changed source, call, input, owner/privacy or output retires it. Ordinary VisualOnly, both summary caps, mute, capture and speech availability still win. No saved preference or general protection changes ([complete interaction](responses-and-calls.md#speak-one-current-response-during-call-protection), [host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
 
 ## Read-only host discovery
 

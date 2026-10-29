@@ -59,6 +59,9 @@ A bundled package is not a blanket permission grant.
 Its complete definition and every required script are embedded application resources, not separately deployed or writable skill files.
 User skills may reference an admitted action but cannot change its executable implementation or acquire its special routing privileges.
 
+The separate [native owned observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) supports only explicit ordered calls to the existing six read-only host observations.
+Its saved declaration grants no permission: exact revision/request/Active-target review, separate enablement and independent step approvals remain mandatory. It does not enable these bundled packages or any script runner ([host owner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs)).
+
 ## Built-In Skill Manifest
 
 A built-in skill consists of a Markdown instruction document and its explicit

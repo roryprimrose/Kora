@@ -10,6 +10,34 @@ public sealed partial class MainViewModelTests
     [Theory]
     [InlineData(false)]
     [InlineData(true)]
+    public async Task ObservationWorkflowAuthoringAndReviewCommandsRetainOriginalTypedOrActivatedVoiceAuthority(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        var captured = new List<string>();
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            command.Operation.Should().Be("workflow");
+            authority.IsCurrent().Should().BeTrue();
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured.Add(command.Literal!);
+            return Task.CompletedTask;
+        }, null);
+        foreach (var command in new[] { "create example 1.0.0", "definition: {\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}",
+            "validate", "save", "targets", "request: unchanged original", "review example 1.0.0", "enable", "invoke", "approve-step", "status", "cancel" })
+        {
+            var text = "owned skill workflow " + command;
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + text, 1); }
+            else { await f.RunAsync(text); }
+        }
+        captured.Should().HaveCount(12);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Session.LockCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
     public async Task OwnedSkillAuthoringPreservesOriginalTypedOrCurrentNameVoiceAndLiteralPayload(bool voice)
     {
         var f = await Fixture.CreateInitializedAsync();

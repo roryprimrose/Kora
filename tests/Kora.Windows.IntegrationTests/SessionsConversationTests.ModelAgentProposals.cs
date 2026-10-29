@@ -258,6 +258,7 @@ public sealed partial class SessionsConversationTests
         public event EventHandler? Changed;
         public long Revision { get; private set; }
         public bool IsDisabled(string identity) => Revision > 0;
+        public bool IsRevisionAllowed(string identity, string digest) => !IsDisabled(identity);
         internal void Revoke() { Revision++; Changed?.Invoke(this, EventArgs.Empty); }
     }
 

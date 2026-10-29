@@ -570,13 +570,15 @@ public sealed partial class ExactGrantsViewModelTests
         internal AudioControlTestStore Intents { get; } = new();
         internal Access Access { get; } = new();
         internal bool Eligible { get; set; } = true;
+        internal bool UriEligible { get; set; } = true;
         internal CancellationToken Token => TestContext.Current.CancellationToken;
         internal ExactGrantInspection Preview { get; }
         internal ExactGrantTestStore Store { get; }
         internal HostAuthorizationService Authorization { get; }
         internal ExactGrantControlAdmission Control { get; }
         internal ExactGrantsViewModel State { get; }
-        internal Fixture(ILogger<ExactGrantsViewModel>? logger = null)
+        internal Fixture(ILogger<ExactGrantsViewModel>? logger = null, Kora.Core.Network.IPreapprovedUriConfiguration? uris = null,
+            bool managementView = false, HostId<SessionIdentity>? managementSession = null)
         {
             var request = new HostRequest(new(Guid.NewGuid()), new(Guid.NewGuid()), new(Guid.NewGuid()), RequestOrigin.LocalUi, new(Guid.NewGuid()));
             var grant = new OperationGrant(new(Guid.NewGuid()), new(1),
@@ -586,7 +588,8 @@ public sealed partial class ExactGrantsViewModelTests
             Store = new(Intents, Preview);
             Authorization = new(Store, TimeProvider.System);
             Control = new(Intents, Store, new(Intents), Authorization);
-            State = new(Store, Control, Access, () => Eligible, logger ?? NullLogger<ExactGrantsViewModel>.Instance);
+            State = new(Store, Control, Access, () => Eligible, logger ?? NullLogger<ExactGrantsViewModel>.Instance,
+                new(Store, uris), () => UriEligible, managementView, managementSession);
         }
         internal async Task InspectAsync()
         {

@@ -6,6 +6,7 @@ using AwesomeAssertions;
 using Kora.Application.Configuration;
 using Kora.Application.Hosting;
 using Kora.Application.Skills;
+using Kora.Core.Auditing;
 using Kora.Core.Hosting;
 using Kora.Core.Skills;
 using Kora.NativeUxFixture;
@@ -17,9 +18,11 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task NativeSharedSkillReviewEnableExactTargetAndConfirmationRetainGenuineAnswerAndClearPrivateBuffers(bool references)
+    [InlineData(false, null)]
+    [InlineData(true, null)]
+    [InlineData(true, "declaration")]
+    [InlineData(true, "capture")]
+    public async Task NativeSharedSkillReviewRetainsGenuineAnswerOrJoinsExplicitReferenceStop(bool references, string? stopAt)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -35,7 +38,7 @@ public sealed partial class SessionsConversationTests
             await native.InitializeAsync();
             var reader = new InvocationReader(references);
             var preferences = new LocalSharedSkillPreferences(native);
-            var discovery = new SharedSkillDiscoveryService(preferences, reader, native.SharedAdmission, native.Audit,
+            var discovery = new SharedSkillDiscoveryService(preferences, reader, native.SharedAdmission, composed.Audit,
                 NullLogger<SharedSkillDiscoveryService>.Instance);
             await discovery.LoadSourcesAsync(static () => true, native.Token);
             await discovery.RegisterAsync("native selection", static () => true, native.Token);
@@ -71,18 +74,59 @@ public sealed partial class SessionsConversationTests
             var opened = invocation ?? throw new InvalidOperationException("No reviewed-use window.");
             try
             {
+                var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
+                var stop = buttons.Single(button => Equals(button.Content, "Stop and close reviewed use"));
                 if (references)
                 {
                     reader.ReferenceReads.Should().Be(0);
                     opened.Instructions.Text.Should().Contain("notes.md").And.NotContain(reader.Reference);
+                    if (stopAt is "declaration")
+                    {
+                        stop.IsEnabled.Should().BeTrue();
+                        stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                        await controller.ActiveOperation;
+                        reader.ReferenceReads.Should().Be(0);
+                        adapter.Calls.Should().Be(0);
+                        (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                        return;
+                    }
+                    reader.PauseReferences = stopAt is "capture";
                     opened.ReadReferences.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    if (stopAt is "capture")
+                    {
+                        var reading = controller.ActiveOperation;
+                        try
+                        {
+                            await reader.ReferenceReadEntered.Task.WaitAsync(native.Token);
+                            stop.IsEnabled.Should().BeTrue();
+                            stop.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                            reader.ReferenceReadToken.IsCancellationRequested.Should().BeTrue();
+                            reading.IsCompleted.Should().BeFalse();
+                            reader.ReferenceReadJoined.Should().BeFalse();
+                            opened.IsVisible.Should().BeFalse();
+                            opened.Instructions.Text.Should().BeEmpty();
+                            opened.Confirm.IsEnabled.Should().BeFalse();
+                        }
+                        finally
+                        {
+                            reader.ReleaseReferences.TrySetResult();
+                            await reading;
+                        }
+                        reader.ReferenceReadJoined.Should().BeTrue();
+                        reader.ReferenceReads.Should().Be(1);
+                        adapter.Calls.Should().Be(0);
+                        (await f.Store.ReadConversationPageAsync(f.Request.SessionId, null, 25, f.Token)).Messages.Should().BeEmpty();
+                        composed.Audit.Events.Where(item => string.Equals(item.ActionId, "skills.references.read", StringComparison.Ordinal))
+                            .Select(item => item.Outcome).Should().Equal(
+                                SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+                        return;
+                    }
                     await controller.ActiveOperation;
                     opened.Status.Text.Should().Contain("separately enable");
                     opened.Instructions.Text.Should().Contain(reader.Reference);
                 }
                 opened.Instructions.Text.Should().Contain(reader.Text);
                 adapter.Calls.Should().Be(0);
-                var buttons = ((StackPanel)((ScrollViewer)opened.Content!).Content!).Children.OfType<Button>().ToArray();
                 buttons.Single(button => Equals(button.Content, "Enable exact reviewed revision")).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await controller.ActiveOperation;
                 opened.Status.Text.Should().Contain("enabled");
@@ -111,11 +155,14 @@ public sealed partial class SessionsConversationTests
                 wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(body);
                 wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             }
-            finally { opened.Close(); }
-            opened.Instructions.Text.Should().BeEmpty();
-            opened.Request.Text.Should().BeEmpty();
-            opened.Confirmation.Text.Should().BeEmpty();
-            opened.Status.Text.Should().BeEmpty();
+            finally
+            {
+                opened.Close();
+                opened.Instructions.Text.Should().BeEmpty();
+                opened.Request.Text.Should().BeEmpty();
+                opened.Confirmation.Text.Should().BeEmpty();
+                opened.Status.Text.Should().BeEmpty();
+            }
         });
     }
 
@@ -127,6 +174,11 @@ public sealed partial class SessionsConversationTests
             + "---\nReview user prose concisely.";
         internal string Reference => "# Notes\nExplain the exact original prose.";
         internal int ReferenceReads { get; private set; }
+        internal bool PauseReferences { get; set; }
+        internal TaskCompletionSource ReferenceReadEntered { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource ReleaseReferences { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal CancellationToken ReferenceReadToken { get; private set; }
+        internal bool ReferenceReadJoined { get; private set; }
         private SharedSkillSnapshot Snapshot()
         {
             var snapshot = SharedSkillSnapshot.Parse(Source.Id, "concise-review\\SKILL.md", Encoding.UTF8.GetBytes(Text),
@@ -137,12 +189,16 @@ public sealed partial class SessionsConversationTests
         public ValueTask<SharedSkillCatalogue> DiscoverAsync(SharedSkillSource source, CancellationToken cancellationToken) =>
             ValueTask.FromResult(new SharedSkillCatalogue(Source,
                 [Snapshot()]));
-        public ValueTask<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSource source, SharedSkillSnapshot primary, CancellationToken cancellationToken)
+        public async ValueTask<SharedSkillSnapshot> ReadReferencesAsync(SharedSkillSource source, SharedSkillSnapshot primary, CancellationToken cancellationToken)
         {
             ReferenceReads++;
+            ReferenceReadToken = cancellationToken;
+            ReferenceReadEntered.TrySetResult();
+            if (PauseReferences) { await ReleaseReferences.Task; }
             var snapshot = Snapshot();
-            return ValueTask.FromResult(snapshot.WithReferenceBundle(SharedSkillReferenceBundle.Create(snapshot,
-                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes(Reference) })));
+            ReferenceReadJoined = true;
+            return snapshot.WithReferenceBundle(SharedSkillReferenceBundle.Create(snapshot,
+                new Dictionary<string, byte[]>(StringComparer.Ordinal) { ["notes.md"] = Encoding.UTF8.GetBytes(Reference) }));
         }
     }
 }

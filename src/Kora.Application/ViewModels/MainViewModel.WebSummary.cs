@@ -134,7 +134,7 @@ public sealed partial class MainViewModel
                     + "Network retrieval consent is not source-use consent. No refetch, hosted fallback, tools, source/answer retention or speech. "
                     + $"{LocalContextSessionTarget.FreshSessionDisclosure} Exact session: {webSummaryReview.SessionId:D}. "
                     + "Confirmation must use the same original input channel. "
-                    + "Independent source sensitivity/use admission is also required; narrow credential checks are not comprehensive detection. "
+                    + Kora.Core.Context.LocalSourceRiskPolicy.Disclosure + " Independent source-use admission is also required. "
                     + $"Confirm with the exact native control or '{WebSummaryCommand.ConfirmPrefix}{webSummaryReview.Id:D}'.";
                 NotifyWebSummary();
                 return;
@@ -154,7 +154,7 @@ public sealed partial class MainViewModel
                 if (!Current() || cancellation.IsCancellationRequested) { return; }
                 WebSummaryStatus = result.Reason == ModelTurnReason.LocalEvidenceNotDisclosable
                     ? result.Outcome == ModelTurnOutcome.Unavailable
-                        ? "Local web summary unavailable: source-specific sensitivity/source-use policy is missing or unknown. No answer, retry or fallback is admitted."
+                        ? "Local web summary unavailable: source-use risk admission is incomplete, missing or unknown. No answer, retry or fallback is admitted."
                         : "Local web summary denied by source-specific sensitivity/source-use policy. No answer is disclosed."
                     : result.Outcome == ModelTurnOutcome.Succeeded
                     ? $"Local model summary of exact retrieved snapshot {snapshot.Reference.ItemId.Value:D}, revision {snapshot.Reference.Revision}. Not a live page."

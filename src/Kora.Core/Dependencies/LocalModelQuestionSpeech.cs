@@ -67,8 +67,7 @@ public static class LocalModelQuestionSpeech
                     StringComparison.Ordinal)
                 || string.Equals(normalized, (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture),
                     StringComparison.Ordinal)
-                || NumberPhrases[index].Any(phrase =>
-                    string.Equals(normalized, phrase, StringComparison.Ordinal)))
+                || MatchesNumberPhrase(normalized, index))
             {
                 return index;
             }
@@ -84,6 +83,9 @@ public static class LocalModelQuestionSpeech
         }
         return -1;
     }
+
+    internal static bool MatchesNumberPhrase(string phrase, int index) =>
+        index < NumberPhrases.Length && NumberPhrases[index].Contains(phrase, StringComparer.OrdinalIgnoreCase);
 
     public static string? GetFreeTextAnswer(string transcript, string assistantName)
     {

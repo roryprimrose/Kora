@@ -1,18 +1,13 @@
 # Architecture and Contracts
 
-Status: proposed. Contracts below describe required semantics, not an existing SDK API.
+Status: canonical architecture and ownership contracts. The
+[roadmap](Implementation_Roadmap.md#current-delivery) distinguishes implemented
+consumers from proposed or unqualified capabilities; these contracts are not
+an SDK API.
 
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), and [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
 ## Runtime Ownership Decision
-
-The bounded native inspector has a consumer-focused
-[`ICommittedAuthorityAuditReader`](../src/Kora.Core/Storage/ICommittedAuthorityAuditReader.cs)
-seam on the existing interaction store. Its **AuthorityAudit** source is
-explicitly separate from diagnostic evidence and mirrors; it admits only
-passive committed typed audit observation through host/private-profile access.
-It owns no writer or execution policy. See the
-[source, snapshot and limitation contract](Information_Display.md#delivered-bounded-native-evidence-inspection).
 
 Kora owns persistent work sessions, task lifecycle, context selection, permission evaluation, approvals, and presentation.
 A runtime adapter may own model/tool iteration, but must not bypass those responsibilities.
@@ -21,34 +16,27 @@ The canonical local/hosted provider selection, reviewed handoff, durable user
 memory, and provider-independent knowledge contract is
 [Model Providers, Memory, and Grounded Knowledge](Model_Providers_Memory_And_Knowledge.md).
 
-The [reviewed memory admission foundation](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09)
-places strong identity/scope/lineage, payload limits and eligibility policy in
-Core and the host-owned reviewed state workflow in Application. It reuses
-existing host Activity, ownership/privacy, session metadata and typed audit;
-it creates no parallel provider loop. The [session-only durable increment](Model_Providers_Memory_And_Knowledge.md#delivered-session-only-durable-memory-storage---2026-10-09)
-extends the existing private interaction SQLite lease/audit transaction and
-session retention inventory to schema v7. Application resolves the private
-session boundary; broader profile/project/source authority stays closed.
-Native original-input CRUD/review, retrieval/use visibility, model context and
-hosted disclosure remain unavailable; store registration exposes no UI/tool.
-
 This accommodates agent-oriented SDKs without pretending every provider is a stateless inference API.
 It also introduces integration work: each adapter must demonstrate that its automatic behaviours can be disabled or mediated.
 
-The [provider policy/review increment](Model_Providers_Memory_And_Knowledge.md#delivered-provider-policy-and-exact-handoff-workflow---2026-10-09)
-keeps mode/selection rules in Core and a volatile revisioned session policy plus
-exact HostQuestionService review workflow in Application. The existing
-ModelTurnHost consumes one-provider choices and revalidates policy changes.
-Review is not egress or qualification; native provider settings, durable
-policy/schema integration and production adapters remain unavailable.
+Core owns provider/memory rules, strong identities and eligibility; Application
+owns reviewed workflows and admission; Windows owns private-store and native
+provider mechanisms. Reuse host context, session authority and typed audit,
+not parallel identity, persistence or model loops. Memory/source review and
+provider settings never grant egress or runtime qualification.
+
+Passive [committed-audit inspection](Information_Display.md#delivered-bounded-native-evidence-inspection)
+is separate from diagnostic evidence and mirrors. Its reader seam owns no
+writer or execution authority.
 
 There are two adapter families:
 
 - Agent SDK adapter: delegates iteration to an SDK while enforcing Kora's control points.
 - Inference adapter: uses a Kora-owned loop to turn model responses into mediated tool requests.
 
-Both expose the same task-facing protocol. Inference adapters share one loop implementation rather than duplicating it per provider.
-That loop is built when an inference provider is introduced, not speculatively for Slice A.
+Both expose the same task-facing protocol. Inference adapters use the
+[shared bounded continuation engine](Internal_Model_Tools.md#bounded-provider-neutral-continuation-implementation---2026-10-20)
+rather than duplicating a loop per provider.
 
 ## Commands, Tools, and Skill Interaction
 

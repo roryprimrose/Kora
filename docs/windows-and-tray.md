@@ -1,5 +1,20 @@
 # Windows, tray, and appearance
 
+Use the tray to show Kora, open Sessions or Settings, recover voice access, or
+exit. Closing a window usually leaves the app running.
+
+**Start here:** [tray controls](#tray-icon), [show and choose conversations](#expand-and-collapse-the-interaction-window),
+[unsent messages](#exact-session-conversation-and-composer),
+[find a saved message](#find-a-message-across-conversations),
+[work needing attention](#all-work--attention-overview), or
+[file previews](#native-local-file-inspection).
+
+The expanded conversation and compact conversation share the selected
+session's unsent text. Selecting a conversation does not read it, submit text
+or approve work. **AI answers are unavailable in this build**; submitting an
+accepted session message records your words and Kora's reported outcome,
+not a fabricated model reply.
+
 **Product realignment:** conversation input is moving from saved-draft document management to per-conversation in-memory unsent text. The saved-draft catalogue/comparison and engineering-heavy normal workspace controls below describe current implementations approved for retirement or simplification, not the target workflow.
 Existing saved content remains governed by retention and private recovery. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
 
@@ -248,6 +263,8 @@ These conversation Details grant **no clipboard/export disclosure authority**. C
 Type a query in **Literal Find** (`Ctrl+F`), then choose **Find first** or press Enter. **Next** (`F3`) starts after the match end; **Previous** (`Shift+F3`) returns to the previous match in that same nonoverlapping sequence. Find is case-sensitive with unchanged spaces and **does not wrap**. The count status shows the selected match and complete nonoverlapping count, for example **Match 2 of 5**. At a direction boundary the match hides but its ordinal remains; you can reverse direction using the retained cursor. **0 matches** means a completed search found none, not an unavailable or rejected query.
 
 Queries must wholly fit 256 UTF-16 characters / 512 UTF-8 bytes: nonempty well-formed one-line text without unsafe controls. Nothing is normalized or truncated. Only one inert match with an exact end-exclusive UTF-16 location is focused; the complete displayed text and origin stay unchanged.
+
+With the Find query focused, **Ctrl+A** selects the query so you can type its replacement; it does not select the result or switch the reader projection. Outside Find and native code readers, **Ctrl+A** still selects the continuous result text. Clipboard/paste restrictions are unchanged.
 
 Find counts only the current frozen, bounded in-memory reader projection, never another source read or the complete source/corpus/history. **Exact source** switches to the admitted source and resets Find. In retained conversation Details, **Find separate typed HOST observation** counts only the separate already-displayed HOST chrome, not the original USER body or ASSISTANT answer. No targets or hidden fields are combined. Switching targets resets Find.
 
@@ -707,7 +724,7 @@ Browsing does not resume a Done session or add model context/consent ([catalogue
 
 ## Tray icon
 
-**Settings > Approvals > Exact operation grants...** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance and stale confirmation.
+**Settings > Approvals > Permission grants...** and **Settings > Network > Permission grants...** open the same shared inventory for active Always grants and device-local URI permission rules. **Permission grants...** in a selected session additionally includes only that session's grants. **Show retained history** explicitly includes terminal records and selected-session Once records. Optional grouping is None, Artefact type or Artefact scope (Built-in/Kora/User; missing metadata is Unknown). Grouping affects only the displayed inventory, clears confirmations and never selects a whole group. Exact-ID inspection, history, one-ID revocation and reviewed bounded batch revocation retain their existing authority checks. URI rules use their existing matching/audit policy and cannot join exact batches. This is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#permission-grants) cover each grant kind.
 
 **Help > Evidence & diagnostics** offers an explicit **AuthorityAudit** source for
 committed typed interaction-store audits, separately from diagnostic **Audit**,

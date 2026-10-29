@@ -1,15 +1,12 @@
 # Human Interaction and Persistent Sessions
 
-Status: agreed product direction; bounded durable question/grant/session metadata,
-exact session/task controls and consolidated schema-v9 task/question/queue/provider-policy/required-audit
-authority with bounded ordered interaction history and inventoried configurable
-session retention implemented. The deterministic
-local-version queue remains internal compatibility infrastructure; exact pending cancellation is retained. Cancellation
-of the separate genuine current-run local-version pre-dispatch question wait
-remains gateway-bound. Native exact-session composer, session-local unsent input and
-immutable submitted user messages with truthful unavailable host outcomes are
-delivered below. Bounded admitted local answer execution is implemented below; general effects
-and model-assisted routing remain proposed.
+Status: durable conversation/question/session authority, exact work/lifecycle
+controls, memory-only per-session composers and bounded admitted answering are
+implemented. Reviewed relatedness and context workflows remain subject to
+runtime qualification; general effects and consequential concurrent workers
+remain gated. The fixed local-version queue is internal compatibility
+infrastructure, not a public scheduling product. See the
+[current inventory](Implementation_Roadmap.md#current-delivery).
 
 Related: [Architecture](Architecture.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Security](Security_Data_Flows.md), [User Configuration](User_Configuration.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -144,7 +141,7 @@ The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to
 
 The [native owner](../src/Kora/ReviewedContext/SessionsViewModel.AssistantReply.cs) binds the source to the exact presented row/page, selection, private control revision, new input and existing retained-source revalidation. Source/page/selection/lifecycle changes retire review and block plain-body fallback until explicit Cancel or a fresh exact Reply selection. Per-session unsent text preserves that refusal across switching; privacy clearing and STOP/resource joins remain authoritative. There is no new voice/typed ordinal route, provider enablement, hosted egress, permission, memory promotion or disk draft storage ([behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantReply.cs)).
 
-The saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management have been removed in [#421](https://github.com/roryprimrose/Kora/pull/421).
+Saved-draft catalogue, ordinary Save/Reload/Clear, comparison and rebase management are removed.
 Preserve only necessary read-only recovery of already saved text, historical audit/schema compatibility and existing retention/deletion handling. Question-answer drafts and skill/instruction/prompt editing buffers are separate concepts and remain supported.
 
 ## Exact current-host pending-question focus - 2026-10-21
@@ -262,10 +259,9 @@ Deterministic [Core response tests](../tests/Kora.Core.UnitTests/Conversation/Co
 [integrated retained loop tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.IntegratedExecution.cs),
 [private SQLite tests](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Execution.cs)
 and [native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Execution.cs)
-cover this path. Compiler/analyzer, maintained checks and exact-source raw 100%
-portable line **and** branch proof remain required; authored tests are not
-passing validation. Installed/model/provider/hardware
-E/Q evidence remains unavailable and is not a bounded implementation prerequisite.
+cover this path, not installed/model/provider/hardware E/Q qualification.
+Follow [maintained development checks](../CONTRIBUTING.md#development-checks)
+for affected changes; unrelated qualification is not an implementation prerequisite.
 
 ## Delivered passive exact-conversation lexical search — 2026-10-13
 
@@ -915,11 +911,11 @@ work; a local hash chain is not same-user/admin tamper prevention.
 
 ### Local read-only conversational clarification - 2026-10-26
 
-The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one choice** in Sessions/compact; the model may call the existing observation tools, ask one bounded choice, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+The approved outcome is governed model/tool conversation with equivalent native and admitted activated-voice replies, not a new diagnostic utility. An ambiguous observation request selects **Ask locally with observations and one question** in Sessions/compact; the model may call the existing observation tools, ask one bounded question, consume the exact host-accepted answer, call another admitted observation, and return a genuine retained ASSISTANT answer ([native consumer](../src/Kora/SessionsViewModel.QuestionContinuation.cs), [submission](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
 
-The host owns original request/origin, unique task/session/generation, question identity/revision, SingleChoice schema, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
+The host owns original request/origin, unique task/session/generation, question identity/revision, exact schema and selection bounds, input channels, expiry and live source/privacy/permission checks. Existing native Submit/draft/cancel and exact activated-voice/readback controls remain authoritative; selecting another conversation cannot retarget this wait. No automatic microphone opening or relaxation of OS/provider authentication is added ([question continuation](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs), [native owner](../src/Kora/NativeQuestionHost.Conversation.cs)).
 
-The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. One question has two-to-four unambiguous labels; free text and repeated/mixed responses are refused. Legacy tool-free questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
+The implementation is restricted to local Ollama admission and the original six `ReadOnlyCapabilityCatalog` IDs, or an already constrained subset. The native `ask_user` tool is advertised only in the two explicit clarification paths, once per original turn, separately from observation tool batches. It accepts `prompt`, `options`, `minimum` and `maximum`: no options with bounds 1..1 requests bounded text; two-to-four unambiguous labels with bounds 1..1 requests radio buttons; other valid selection bounds request checkboxes. Text is bounded to 500 characters. The session-owned native question window and exact voice reply share the same validation, including multi-answer selection. Spoken readback includes labels/bounds; spoken lists use comma or "and" separators, with whole-label matching taking precedence. A reply is returned as a correlated `ask_user` tool result, never as a fresh conversation or instruction. Repeated/mixed calls are refused. Legacy structured questions and ordinary read-only tools keep their separate paths and wire versions. Web, MCP, session discovery, hosted questions and effectful/setting operations remain excluded ([protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
 The accepted reply stays typed lower-trust user data. It is not approval, grant, source/context permission, final hosted-send consent or tool-input authority. Existing question/decision retention and content-free audit remain separate from USER, HOST and final ASSISTANT retention; no conversation schema or profile format changes. Unqualified/default profiles remain unavailable ([answer message](../src/Kora.Core/Dependencies/ModelQuestionAnswerMessage.cs), [canonical retained execution](../src/Kora.Application/Hosting/SessionConversationService.Execution.cs)).
 
@@ -1388,7 +1384,7 @@ Only separate confirmation opens/activates the existing single New request path 
 
 The source is authoritatively reread after native opening/activation and immediately before seeding. Source/private/control/generation/lifecycle/selection/search edits, target buffer edits (including same-byte reassignment), cancellation, closing or reentrant opening retire the whole proposal; repeated confirmation and late callbacks cannot revive it. Native owner visibility is observed on the UI thread and published as a thread-safe one-way admission fence for storage continuations: hiding and showing the owner cannot revive a withdrawn proposal. Source revocation or cancellation-token cancellation during synchronous binding handoff cancels and erases the uncompleted seed, preserving newer independent user edits. After a completed explicit handoff the new memory is independent user-confirmed content, not a live source reference or replay grant.
 
-[Portable cases](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.MessageReuse.cs) and [native/private-store cases](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.MessageReuse.cs) are added. Exact-head maintained builds, tests and raw line/branch coverage remain required before merge; authored tests and incomplete local execution are not passing validation. This consumes only the existing original-record reader, private admission, New request composer and inert pane I subset. No runtime/model/provider/egress/wake/profile-original writer is enabled; E/Q, installed accessibility, physical/hardware/acoustic/provider/containment qualification remain separate and unclaimed.
+[Portable cases](../tests/Kora.Application.UnitTests/Hosting/NewRequestComposerTests.MessageReuse.cs) and [native/private-store cases](../tests/Kora.Windows.IntegrationTests/NewRequestControllerTests.MessageReuse.cs) cover the original-record reader, private admission, New request composer and inert-pane path. This adds no runtime/model/provider/egress/wake/profile-original writer authority or E/Q qualification.
 
 ### Proposed relatedness routing
 
@@ -1613,8 +1609,10 @@ retention and never reconstructs the conversation.
 
 ## Implementation Discussion and Gates
 
-Implement coherent checkpoints: session/event persistence and migration/deletion; shared structured interaction/presenter; session UI and deterministic controls; isolated concurrent scheduler; then bounded model routing/history tools.
-These extend Slice A3/A4 rather than claim that the current bootstrap already implements them.
-General scripts, browser isolation, biometrics, and provider concurrency retain their dedicated gates.
-Library selection, enforced resource profiles, retention clock/recovery behavior, and actual SDK isolation require evidence in the [Decision Register](Decision_Register.md).
-Acceptance must exercise pure voice, pure UI, mixed-channel, concurrent-session, restart, expiry/deletion, and hostile-history scenarios in [Acceptance Criteria](Acceptance_Criteria.md).
+The [roadmap](Implementation_Roadmap.md#ordered-outstanding-work) owns remaining
+delivery/dependencies; [decisions](Decision_Register.md) own unresolved choices.
+Do not treat an earlier foundation's missing consumer as a current backlog item.
+General scripts, browser isolation, biometrics and provider concurrency retain
+their dedicated gates. [Acceptance](Acceptance_Criteria.md) must still exercise
+eligible voice/UI/mixed channels, concurrent sessions, restart, expiry/deletion
+and hostile history; implementation receipts do not substitute for that evidence.

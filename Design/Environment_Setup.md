@@ -154,6 +154,52 @@ Internal initialisation must not touch shared skills, source repositories, or ex
 On storage/migration failure, report the affected capability and preserve recoverable data; never silently create a second database elsewhere.
 Schema changes need backup/recovery and downgrade compatibility appropriate to the migration.
 
+## Bundled Contained-Runtime Registration
+
+The bounded native operation is **Settings > Skill packages > Runtime setup
+and readiness**. It inspects only the existing host-selected
+`Program Files\PowerShell\7\pwsh.exe`, not PATH, an artifact/model path, an
+arbitrary picker or the legacy winget/version-probe service. No acquisition
+distribution has been selected for this operation. It never installs,
+downloads, launches, extracts scripts, changes protection or removes runtime
+files.
+
+The [production inspector](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeInstallationInspector.cs)
+hashes the bounded complete local file inventory, checks declared runtime,
+native and resource assets, required self-contained host/engine files and
+framework metadata, rejects reparse paths and unprivileged mutation, and
+obtains current native version/PE/publisher/device observations. Microsoft
+Authenticode uses cached trust only; local companion hashes are not an
+upstream authenticated release manifest, fresh revocation proof or a complete
+external OS-loader closure. Review discloses every file/size/hash, executable,
+source limitations, installed licence/notices, existing storage and zero
+download/native-installation/staging costs.
+
+An original-user native review authorizes exactly one Prepare, Verify or
+Forget-registration operation, bound to current package review, host ownership,
+privacy/call revision, request identity and expiry. The
+[setup owner](../src/Kora.Windows/Skills/RuntimeSetup/WindowsBundledRuntimeSetup.cs)
+retains exclusive ownership across cancellation and actual I/O joins. It uses
+the shared atomic preference store for separate inventory registration and
+pending-journal records, correlated requested/terminal audit, native
+reinspection and exact readback. An interrupted or failed audit/readback
+retains unconfirmed reconciliation state; Verify can reconcile a matching pin,
+but cannot silently rebaseline changed bytes/device. Forget removes Kora's
+records only, even when the shared installation is broken. Malformed saved
+records throw `InvalidDataException` and require restoration or explicit local
+record removal; they are not missing installations or another runtime choice.
+
+Reconstructed owners re-read both records and the native installation.
+**Prepared** means only a matching protected local inventory. Changed,
+other-device, unconfirmed, missing and uninspected states remain distinct.
+The [worker composition](../src/Kora/BundledRuntimeSetup/BundledRuntimeSetupComposition.cs)
+consumes this owner, but setup cannot populate release-owned profile
+admissions. No contained profile is admitted in this release: W1-W4/exact
+installed containment and fixed-effect qualification remain unavailable.
+Execution/grants and separate original-user package/native-effect consent are
+unchanged. Deterministic native-platform fakes and headless UI tests are
+implementation evidence, not installed-runtime or real power trials.
+
 ## Ollama and Existing User Installations
 
 Ollama is optional, not a requirement for users selecting remote processing or
@@ -243,14 +289,19 @@ Provide status/test/correct/reset/delete recovery; protected-call changes requir
 The [approved speech-input design](Speech_Input.md#optional-installation-and-runtime-lifecycle)
 requires future qualified wake/VAD/ASR and optional verifier assets to be
 available through both explicit WiX/Burn install-time preparation and later
-Settings setup. Current installer choices remain PowerShell, Ollama/Qwen and
-Kokoro. The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+Settings setup. Installer choices also include an unchecked hands-free CPU
+data-preparation offer; it does not enable hands-free operation.
+The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
 now implements exact review, consent, verification, removal and retry orchestration,
 with [private atomic data storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs).
-The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
-is empty: D-002 has not supplied an authoritative qualified input backend/model
-offer. Settings and Burn therefore report no optional input offers, not fake
-installation success; no speech profile is enabled.
+The portable catalogue remains platform-neutral; the desktop and Burn compose
+the same [Windows preparation catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+and [runtime owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs).
+It offers the exact PocketSphinx 5.1.1 en-US acoustic data/CMU dictionary and
+Silero 6.2 ONNX, with their notices: **12,222,276 download bytes**, plus a
+64-byte ownership record. Staging budgets allow the old/new footprint.
+The 512 MiB RAM field is an explicitly unmeasured planning budget, not runtime
+qualification; this increment executes no model and uses no GPU.
 
 The [catalogue metadata](../src/Kora.Core/Dependencies/SpeechComponentDefinition.cs)
 pins an exact model and immutable installed runtime-profile identity, source
@@ -258,9 +309,23 @@ bytes/digests, licence, qualification and resource costs. The installed host
 adapter owns exact native/backend/hardware compatibility, all consumers,
 exclusive quiescence and inert functional checks through
 [the runtime seam](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs).
-The production unavailable adapter denies those operations. A release adding
-an offer must supply and qualify that adapter; component setup cannot install
-native code or launch prerequisites.
+The Windows owner verifies the complete native/data/notice inventory using the
+same production binder as capture, without loading code or running inference.
+Its `Verified` functional result is explicitly classified as **inert asset
+binding**, never speech accuracy or capture readiness. The native DLL is a
+hash-pinned application payload with a documented
+[build/dependency closure](../src/Kora.Windows/Audio/Native/README.md);
+component setup cannot install native code or launch prerequisites.
+
+Settings displays **Prepared assets**, **Assets unavailable** or **Unconfirmed**,
+with independent capture unavailability and recovery. Reconstruction rehashes
+the retained data; native binding is NotChecked until explicit Verify.
+Corrupt owned data requires reviewed Remove then Prepare; foreign/unknown data
+is preserved rather than silently overwritten. A bundled-native mismatch fails
+verification and needs application repair, not a model reinstall.
+The profile has no qualified names/playback/acoustic evidence and cannot open
+a microphone, even after successful preparation. Setup is native-only while
+voice is unavailable; no new verbal command is invented.
 
 Readiness remains a cohesive setup observation, not a runtime-profile selection
 contract. An inspection failure returns no storage snapshot and an explicit

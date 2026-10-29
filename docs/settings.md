@@ -1,6 +1,16 @@
 # All settings
 
-**Product realignment:** fixed diagnostic-read queue settings are approved for retirement from ordinary product workflows. Their descriptions below remain current until code removal; useful model/settings interaction and existing safety/retention controls remain in scope. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+Use Settings to choose how Kora looks, listens, speaks and stores information.
+Opening a page or editing a field does not itself approve a download, an action
+or sending information to an AI service.
+
+**Find a setting:** [appearance](#appearance), [speech and audio](#speech-and-audio),
+[response mode](#responses), [calls](#calls), [AI services](#models),
+[approvals](#approvals), [session retention](#per-session-retention-status-and-hold),
+or [setup](#readiness). For named local folders, see [Knowledge sources](knowledge-sources.md).
+
+**AI answers are unavailable in this build.** You can inspect and save supported
+preferences, but a saved choice is not proof that its model or service can run.
 
 Open Settings by:
 
@@ -8,10 +18,7 @@ Open Settings by:
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 
-The Settings window is single-instance. Its title includes the running
-application version as a suffix. Source builds default to version `0.1.0`;
-release builds can override that version during publishing. Changes use the
-same live application state as the presence and response surfaces.
+Only one Settings window opens at a time. Its title includes the running version.
 
 Refresh and Reset actions are in the cog menu at the top right of the relevant
 card or section, rather than taking up space beside the input. Refresh appears
@@ -440,17 +447,17 @@ Those commands cannot grant network permission or perform Check/Open.
 
 ## Models
 
-The **Models** tab controls which model locations Kora may use for free-form
-commands:
+The model-location controls set where Kora is allowed to use AI:
 
 - **Allow local models** is on by default. It is a location permission, not runtime/model qualification.
-  Local reasoning additionally requires independent release qualification, reviewed current runtime admission and an exact available profile; this build accepts no qualified profile.
+  The release must also approve a particular model and you must review access
+  to its running instance. This build approves no local model profile.
   Turning it off cancels an in-flight local request and prevents later
   requests from reaching Ollama.
-- **Allow hosted models** is off by default. The current build has no hosted
-  provider or credentials, so enabling this permission does not send data or
-  provide a cloud fallback. The saved opt-in will gate hosted execution when a
-  provider is implemented and configured.
+- **Allow hosted models** is off by default. Copilot and Claude request
+  workflows exist, but their required account-use approvals are unavailable
+  in this build. Enabling this permission neither signs in nor sends data,
+  and there is no automatic cloud fallback.
 
 These device-local choices are applied immediately and retained across
 restarts. Exact built-in commands remain available when both choices are off.
@@ -458,10 +465,10 @@ Use **which models are enabled**, **enable/disable local models**, or
 **enable/disable hosted models** as typed or activated voice commands to read
 or change the same settings. Model-setting writes are security audited.
 
-The provider-neutral host controls do not qualify Ollama or Copilot or change these existing
-bootstrap settings/readiness paths, add credentials, or select a cloud
-destination. The separate **Settings > Providers** device-local initial-mode preference and exact native handoff review are delivered without qualifying inference.
-Durable cross-session recall and grounded model answering remain gated.
+The separate **Settings > Providers** controls save your preferred service and
+model. They do not install a runtime, enable answers or approve transmission.
+Reviews for a provider switch, memory use or file-based answers retain their
+own availability and consent requirements.
 Enabling a model location is not permission to upload clipboard/file
 previews, persist memory or bypass action approval. There is no automatic
 provider fallback or confidence-based handoff.
@@ -532,15 +539,39 @@ Windows through Kora. Always grants are stored in Kora's device-local
 Preferences folder and remain until revoked. These grants are action-name-only:
 they do not authorize a script, executable, or particular implementation
 version. They govern model-suggested disruptive actions, not direct exact
-built-in phrases (including lock). Any model-suggested action that requires
+built-in phrases. Windows lock/shutdown/restart instead use the separate
+[bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge);
+these named-action grants cannot enable its unavailable runtime. Any model-suggested action that requires
 approval can use any of the three scopes; the model cannot choose the scope
 for you.
 
+## Permission grants
+
+Open **Settings > Approvals > Permission grants...**, or **Settings > Network > Permission grants...**. Both open the same native management window for exact operation grants and device-local URI permission rules, distinct from legacy model-action preferences or Markdown named-action lists. Opening it does not import or promote those preferences.
+
+Settings shows active **Always** grants and device-wide URI rules. Choose **Permission grants...** in a selected session to additionally see that exact session's active grants, never another session's grants. **Show retained history** explicitly includes revoked/consumed records; Once records are available only in the selected-session history view. Changing this option clears the old results and requires Refresh.
+
+Exact page retrieval and HTTPS MCP reviews offer **Once**, **This session** and **Always**. A matching saved grant is reused without another approval question. Always is not tied to the original request or session; This session is. Changed destination, delegated account, schema, arguments or implementation needs matching authority again. Revocation, ownership/privacy, authentication, current source and dispatch checks still apply; a saved grant does not make an unavailable operation available.
+
+**Group permissions by** offers **None** (default), **Artefact type**, or **Artefact scope**. Scope here means **Built-in**, **Kora**, or **User**, not an operation grant's Once/Session/Perpetual lifetime. Grouping rearranges only the loaded exact-grant page and the URI rules shown alongside it, without reading more pages, changing policy or selecting whole groups. Changing grouping clears prior selection, inspection, history and revocation confirmations.
+
+New host-issued records retain target metadata where known. Older or unclassifiable records appear under **Unknown**, without guessing from names or current files. URI patterns have type **URI pattern** and Unknown artefact scope: an external address has no local artefact ownership. Group labels/counts describe this displayed inventory, not global applicability or running work.
+
+### URI permission rules
+
+The shared inventory replaces the separate Network address list. Existing saved patterns, typed/voice commands, validation, audit and matching behaviour are preserved; no saved rule is converted to an exact operation grant. The common management model delegates enforcement and persistence to each grant kind's existing policy.
+
+Enter an absolute HTTP/HTTPS pattern and choose **Add URI rule**, for example `https://*.example.com/*`. Host wildcards must occupy a complete DNS label; credentials and fragments are forbidden. Select exactly one URI row to inspect its canonical pattern, then choose **Remove selected URI rule**. Removing a URI rule does not revoke exact operation grants, stop running work or roll back effects. URI rows cannot join exact-grant revocation batches; mixed selections enable neither batch revocation nor URI removal.
+
+**Clear all URI rules** preserves the former Network control: it clears only device-local address patterns, never exact operation grants or a selected group.
+
+URI rules remain device-local, bounded to 64 patterns / 16 KiB total pattern bytes. Adding/removing requires the same owning unlocked host and no pending question/approval as the former Network controls. URI matching does not enable web access or bypass mandatory consent: local page retrieval still requires its separate exact permission grant. Exact-grant filters and Next do not filter or paginate URI rules. Storage/policy failures remain explicit; missing exact inventory is not presented as a successful partial refresh.
+
 ## Exact operation grants
 
-Open **Settings > Approvals > Exact operation grants...**. This opens a separate native window for retained host-issued exact approval records, distinct from the tab's legacy model-action preferences or Markdown named-action list. It does not import or promote those preferences ([native link](../src/Kora/SettingsWindow.axaml)).
+Within **Permission grants**, exact operation records retain their existing bounded inspection, history and explicit revocation controls ([native window](../src/Kora/ExactGrantsWindow.axaml)).
 
-Optional native **Stored scope** and **Stored status** filters default to **Any**. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page.
+Optional native **Stored scope** defaults to **Any** within the current Settings/session view. **Stored status** is fixed to Active until **Show retained history** is selected, then defaults to Any. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value within that view. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page, and cannot widen the session boundary.
 
 ActionId is exact ordinal/case-sensitive lowercase ASCII (letters/digits/dots/hyphens, 1–128 characters). Origin is an exact nonempty canonical lowercase D GUID. Do not add spaces, uppercase, shortened GUIDs or names: invalid values are explicitly refused, not normalized or replaced with an unfiltered read. Source and skill labels are not authority or inferred ActionIds.
 
@@ -1282,5 +1313,6 @@ Device-local settings are written under:
 
 `%LOCALAPPDATA%\Kora\Preferences`
 
-They do not roam with documentation or user content. Stored skills are not yet
-available.
+They do not roam with documentation or user content. Reusable instructions,
+prompts, skills and agent profiles have separate stores and review workflows;
+they are not preference files. See [Customizations](customizations.md).

@@ -1,6 +1,7 @@
 using Avalonia.Controls;
 using Avalonia.Layout;
 using Avalonia.Media;
+using Avalonia.Automation;
 using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.ViewModels;
@@ -38,6 +39,7 @@ public sealed partial class SettingsWindow
             var status = new TextBlock { Text = "Inspect to check current local data. Installed is not selected or usable.", TextWrapping = TextWrapping.Wrap };
             var actions = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 8 };
             var inspect = new Button { Content = "Inspect" };
+            AutomationProperties.SetName(inspect, component.Name + ": Inspect");
             actions.Children.Add(inspect);
             inspect.Click += async (_, _) => await RunSpeechComponentUiAsync(status, async token =>
             {
@@ -48,6 +50,7 @@ public sealed partial class SettingsWindow
             {
                 if (!viewModel.SpeechComponentOffers.Any(offer => offer.Identity == component.Identity)) { continue; }
                 var button = new Button { Content = operation == SpeechComponentOperation.Prepare ? "Prepare / retry" : operation.ToString() };
+                AutomationProperties.SetName(button, component.Name + ": " + operation);
                 actions.Children.Add(button);
                 button.Click += async (_, _) => await RunSpeechComponentUiAsync(status, async token =>
                 {
@@ -74,6 +77,7 @@ public sealed partial class SettingsWindow
                     approve.Click += (_, _) => review.Close(true);
                     decline.Click += (_, _) => review.Close(false);
                     using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => review.Close(false)));
+                    status.Text = "Review the exact speech assets and approve or decline. Capture remains unchanged.";
                     var consent = await review.ShowDialog<bool>(this);
                     var result = await viewModel.ApplySpeechComponentAsync(plan, consent,
                         new Progress<string>(message => status.Text = message), token);
@@ -121,5 +125,9 @@ public sealed partial class SettingsWindow
         finally { speechComponentCancellation = null; }
     }
 
-    private static string DescribeSpeechComponent(SpeechComponentReadiness state) => state.Description;
+    private static string DescribeSpeechComponent(SpeechComponentReadiness state) =>
+        (state.Storage is not { } storage ? "Unconfirmed. " : !storage.Installed ? "Assets unavailable. "
+            : storage.Verified && state.Runtime.Functional == SpeechComponentFunctionalEvidence.Verified ? "Prepared assets. "
+            : "Unconfirmed assets; review Verify or inspect recovery before retrying. ")
+        + state.Description;
 }

@@ -22,10 +22,10 @@ public sealed partial class ExactGrantsWindow : Window
         if (DataContext is ExactGrantsViewModel state && sender is ListBox list)
         {
             // Clearing the page resets the native list as well; it is not a new user selection.
-            if (state.Busy && state.Records.IsEmpty) { return; }
+            if (state.Busy && state.PermissionRows.IsEmpty) { return; }
             try
             {
-                state.SetBatchSelection(list.SelectedItems?.OfType<Kora.Core.Authorization.ExactGrantInspection>() ?? []);
+                state.SetPermissionSelection(list.SelectedItems?.OfType<PermissionGrantRow>() ?? []);
             }
             catch (Exception exception) when (exception is not OutOfMemoryException)
             {

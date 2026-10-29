@@ -14,7 +14,7 @@ First apply [feature admission](Design/MVP_Scope.md#feature-admission). This tab
 | A reusable outcome and workflow over admitted operations | Versioned skill definition | [Definitions](src/Kora.Definitions/README.md) |
 | Reusable task/response framing with explicit inputs | Prompt with a real bounded consumer | [Definitions](src/Kora.Definitions/README.md) |
 | Scoped guidance shared by tasks or profiles | Instructions; skill-only guidance stays with the skill | [Definitions](src/Kora.Definitions/README.md) |
-| Named guidance, skill/tool subset and runtime constraints | Declarative agent profile, only after host/runtime qualification | [Agent profiles](#agent-profiles) |
+| Named guidance, skill/tool subset and runtime constraints | Compatible declarative agent profile through the bounded host workflow | [Agent profiles](#agent-profiles) |
 
 Content guides interpretation; it never grants execution, approval, settings,
 session or egress authority.
@@ -23,9 +23,10 @@ session or egress authority.
 
 Consult the [roadmap](Design/Implementation_Roadmap.md#current-delivery) for
 delivery and the [canonical catalogue](Design/Internal_Model_Tools.md) for
-model descriptors. C# actions/DI are not automatic model exposure; bundled
-script resources remain inert. Prompts, shared instruction catalogues and agent
-loaders should be added only with actual schemas, content and consumers.
+model descriptors. Current consumers include owned prompts/instructions,
+reviewed declarative skills, local agent profiles and bounded MCP requests.
+C# actions/DI are not automatic model exposure; bundled script resources remain
+inert. Implemented workflows do not qualify their provider, connector or worker.
 
 ## Put Code and Content in the Right Layer
 
@@ -63,16 +64,21 @@ State the approved user outcome and complete interaction first. An intermediate 
 
 ## Agent Profiles
 
-**Proposed, not delivered:** a profile combines bounded guidance, skills,
-admitted tools, typed I/O and runtime/locality/budget constraints. It is not
-a worker, permission system or scheduling lane. Constraints may narrow host
-authority, never expand it.
+A compatible profile can enter the implemented reviewed local-agent workflow.
+The host resolves its exact source, supported references, tool subset and
+bounded runtime constraints before a separately confirmed exact-session run.
+Authoring/saving a profile does not activate or run it. The shipped local-model
+qualification authority accepts no profile, so implementation is not production
+inference availability.
+
+A profile is not a worker, permission system or scheduling lane. Its constraints
+may narrow host authority, never expand it.
 
 [Profile design](Design/Commands_Tools_And_Skills.md#bundled-definitions-and-agent-profiles)
 owns the definition; [runtime ownership](Design/Architecture.md#runtime-ownership-decision)
 and [provider gates](Design/Implementation_Roadmap.md#r02-runtimeprovider-follow-up-gates)
-own admission. Loading content does not authorize delegation, concurrency,
-provider fallback or extra tools.
+own admission. Loading content does not authorize recursive delegation,
+concurrency, provider fallback or extra tools; broader profiles remain gated.
 
 ## Validation and Source Ownership
 

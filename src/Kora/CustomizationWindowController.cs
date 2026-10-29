@@ -473,7 +473,7 @@ internal sealed partial class CustomizationWindowController(
         if (await management.SetDisabled(selected, disabled, async (snapshot, admitted) =>
             await window!.Review(disabled ? "Disable in Kora" : "Allow Kora use", selected.Name + "\n" + selected.Location
                 + (disabled ? "\nExclude from new model context, options, capabilities and invocation; keep files."
-                    : "\nRemove only Kora's exclusion. This does not approve changed content, grant tools, authenticate or start an MCP server.")
+                    : "\nAllow only this reviewed primary definition revision on this machine. Separate instruction, skill, agent and MCP checks still apply; no tools, authentication or connection are approved.")
                 + (snapshot is null ? string.Empty : "\n\n" + string.Join("\n\n", snapshot.Files.Select(file => file.Name + "\n" + file.Text))),
                 admitted, disabled ? "Disable" : "Allow", "Cancel") is "Disable" or "Allow", current, token))
         { ShowDraft(); RenderSources(); }

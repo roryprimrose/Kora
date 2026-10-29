@@ -1,1 +1,2 @@
 src/Kora.Application/Skills/Resources/** -text
+src/Kora.Windows/Audio/Native/pocketsphinx-licence.txt -text

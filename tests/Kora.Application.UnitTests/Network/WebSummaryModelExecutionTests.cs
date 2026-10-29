@@ -285,6 +285,23 @@ public sealed class WebSummaryModelExecutionTests : IDisposable
     }
 
     private static CancellationToken Token => TestContext.Current.CancellationToken;
+
+    [Theory]
+    [InlineData("ordinary private prose", true)]
+    [InlineData("api_key=example", false)]
+    public async Task MaintainedPolicyReachesOnlyIndependentLocalExecutionAndNeverDispatchesDetectedRisk(string text, bool admitted)
+    {
+        using var root = Root();
+        var runner = new Runner();
+        var workflow = Workflow(runner, Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        var review = workflow.Prepare(Snapshot(text), static () => true);
+        var result = await workflow.Confirm(review.Id, static () => true, SecurityAuditInitiator.LocalUser, Token);
+        result.Outcome.Should().Be(admitted ? ModelTurnOutcome.Succeeded : ModelTurnOutcome.Denied);
+        runner.Calls.Should().Be(admitted ? 1 : 0);
+        if (admitted) { runner.Turn!.Ran.Should().BeTrue(); runner.Turn.Disposed.Should().BeTrue(); }
+        else { runner.Turn.Should().BeNull(); result.Response.Should().BeNull(); }
+    }
+
     private static WebSummaryWorkflow Workflow(Runner runner, IWebResultModelUsePolicy? policy = null) =>
         new(new(), new WebSummaryModelExecution(runner, new(), TimeProvider.System, policy ?? new WebSourcePolicy()), new Audit(), TimeProvider.System,
             NullLogger<WebSummaryWorkflow>.Instance);

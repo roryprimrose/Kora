@@ -14,6 +14,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     internal readonly TextBox NameInput = new();
     internal readonly TextBox DescriptionInput = new();
     internal readonly TextBox Guidance = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };
+    internal readonly TextBox Critique = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
     internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
     internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
@@ -21,6 +22,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     private Window? review;
     private readonly Func<bool> eligible;
     internal event Action? DraftChanged;
+    internal event Action? CritiqueChanged;
 
     internal OwnedSkillEditorWindow(Action<string> run, Func<bool> eligible)
     {
@@ -39,6 +41,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             pair.Item2.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { DraftChanged?.Invoke(); } };
         }
         Guidance.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { DraftChanged?.Invoke(); } };
+        Critique.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { CritiqueChanged?.Invoke(); } };
         Tool.SelectionChanged += (_, _) => DraftChanged?.Invoke();
         AutomationProperties.SetName(Tool, "Exact existing host capability");
         fields.Children.Add(new TextBlock { Text = "Host capability declaration (not permission)" });
@@ -49,18 +52,21 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         AutomationProperties.SetName(Guidance, "Literal declarative workflow guidance");
         fields.Children.Add(new TextBlock
         {
-            Text = "Local only. Select no tools or exactly host WebPageGet. No references, scripts, model generation or imports. Saving creates an immutable inactive version; it does not enable, approve web access or invoke anything.",
+            Text = "Local only. Select no tools or exactly host WebPageGet. No references, scripts or imports. Explicit guidance refinement supports instruction-only drafts through one local tools-none proposal. Saving creates an immutable inactive version; it does not enable, approve web access or invoke anything.",
             TextWrapping = TextWrapping.Wrap,
         });
         var buttons = new WrapPanel { Orientation = Orientation.Horizontal };
-        foreach (var action in new[] { "Create", "Validate", "Save", "List", "Reopen", "Use", "Cancel" })
+        foreach (var action in new[] { "Create", "Refine", "Cancel refinement", "Validate", "Save", "List", "Reopen", "Use", "Cancel" })
         {
             var button = new Button { Content = action, Margin = new(3) };
-            button.Click += (_, _) => run(action.ToLowerInvariant());
+            button.Click += (_, _) => run(action.ToLowerInvariant().Replace(' ', '-'));
             buttons.Children.Add(button);
         }
         fields.Children.Add(buttons);
         fields.Children.Add(Saved);
+        fields.Children.Add(new TextBlock { Text = "Original critique for explicit local guidance refinement" });
+        AutomationProperties.SetName(Critique, "Original skill guidance critique");
+        fields.Children.Add(Critique);
         DockPanel.SetDock(fields, Dock.Top);
         panel.Children.Add(fields);
         DockPanel.SetDock(status, Dock.Bottom);
@@ -114,11 +120,16 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         return canSave ? choice : choice == 0 ? 1 : 2;
     }
 
+    internal Task<int> ChooseGuidance(string title, string disclosure, string current, string proposed,
+        string[] choices, Func<bool> currentInput, CancellationToken token) =>
+        ChooseOnUi(title, disclosure, current, proposed, choices, token, currentInput, "Complete current guidance", "Complete proposed guidance");
+
     private async Task<int> ChooseOnUi(string title, string disclosure, string manifest, string instructions,
-        string[] choices, CancellationToken token, Func<bool>? privateEligible = null)
+        string[] choices, CancellationToken token, Func<bool>? privateEligible = null,
+        string firstLabel = "manifest.yaml", string secondLabel = "instructions.md")
     {
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ChooseOnUi(title, disclosure, manifest, instructions, choices, token, privateEligible)); }
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => ChooseOnUi(title, disclosure, manifest, instructions, choices, token, privateEligible, firstLabel, secondLabel)); }
         var current = privateEligible ?? eligible;
         if (!current() || token.IsCancellationRequested) { return -1; }
         var result = new TaskCompletionSource<int>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -138,7 +149,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         DockPanel.SetDock(buttons, Dock.Bottom);
         panel.Children.Add(buttons);
         var files = new StackPanel { Spacing = 8 };
-        foreach (var pair in new[] { ("manifest.yaml", manifest), ("instructions.md", instructions) })
+        foreach (var pair in new[] { (firstLabel, manifest), (secondLabel, instructions) })
         {
             files.Children.Add(new TextBlock { Text = pair.Item1 });
             var source = new TextBox { Text = pair.Item2, IsReadOnly = true, AcceptsReturn = true, TextWrapping = TextWrapping.Wrap };

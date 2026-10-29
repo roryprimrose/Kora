@@ -1,10 +1,11 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: bounded R26 foundations implement **exact-session durable single-file attachment, retained-slot metadata catalogue and exact navigation, local file inspection and
-selected immutable revision, bounded immediate-folder lexical retrieval and explicit volatile preview refresh**, described below. The broader
-folder/multiple-version ingestion, recursive folder, managed knowledge source, persistent/vector
-index, multi-source retrieval, reasoning and hosted transmission design
-remains proposed and unavailable.
+Status: immutable local previews/retrieval, retained single-file session
+attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle)
+are implemented. Reviewed file/folder answer workflows exist, but their
+production source-use policy and runtime qualification remain unavailable.
+Recursive/multiple-version ingestion, persistent/vector indexes, multi-source
+reasoning and hosted grounding remain gated.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -19,8 +20,9 @@ The [folder answer guide](../docs/folder-answers.md) describes the separate ques
 complete bounded excerpt/citation review, local-only answer confirmation and exact
 immutable citation navigation over the existing volatile folder revision. This
 does not register, persist, recursively ingest or automatically refresh a folder.
-The composed sensitive-content/source-use policy and unqualified runtime remain
-unavailable; this implementation does not enable them or claim model-quality/RC
+The composed [shared LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission)
+screens each evidence-bearing file under separate one-shot consent. Unqualified
+runtimes remain unavailable; this does not enable them or claim model-quality/RC
 qualification. No evidence means no model call, and no unsupported or invalid
 response becomes a fabricated answer. Managed named sources remain separate.
 
@@ -419,10 +421,10 @@ Claim references map back to host-held original citation objects, not model-supp
 Native rows and per-claim descriptions retain original source/revision/item/digest and UTF-16/line/column spans; explicit **Show exact answer citation** reuses inert exact-source navigation.
 Citation identity validation is not a claim of semantic truth or answer-quality qualification ([native answer view](../src/Kora/LocalFilePreviewWindow.Answers.cs), [shared navigation](../src/Kora/LocalFilePreviewWindow.Citations.cs)).
 
-**Exact consumed I boundary:** the required sensitive-content/source-use admission service is not composed.
+**Exact consumed I boundary:** the shared source-use risk admission service is composed under the [2026-10-29 product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29).
 [ILocalFileModelUsePolicy](../src/Kora.Core/Context/ILocalFileModelUsePolicy.cs) is distinct from read consent.
-The production [UnavailableLocalFileModelUsePolicy](../src/Kora.Application/Dependencies/UnavailableLocalFileModelUsePolicy.cs) reports unavailable with the explicit `SourceUsePolicyMissing` decision, surfaced as `SourceUseUnavailable`, before shared admission, evidence/envelope construction or dispatch.
-Deterministic fakes exercise admitted and denied paths without asserting that source contents are safe.
+The production [LocalSourceUsePolicy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs) validates exact original citations and screens the whole immutable source, original question and selected excerpts before shared admission, evidence/envelope construction or dispatch. Admission labels content private LocalOnly, not non-sensitive.
+The explicit unavailable fallback still reports `SourceUsePolicyMissing` / `SourceUseUnavailable`; detected risks deny use, and malformed/incomplete screening remains unavailable. Deterministic fakes exercise execution without asserting that source contents are safe.
 Awaited source policy receives the exact immutable revision, unchanged question and selected citations with original host correlation.
 Revocation/cancellation while classification is pending suppresses context construction and execution; a source-policy I/O/state failure records a failed terminal file audit, logs only its failure type and publishes no claims.
 Evidence IDs from another question are rejected even when both questions use the same immutable source revision.
@@ -450,9 +452,8 @@ No experiments or E/Q gates are retired or rerun by this increment.
 The earlier `d5cfa31` disposal-outcome failure is superseded by the peer's two-phase revision and maintained [shared lifecycle checks](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.cs).
 The consumed workflow additionally tests malformed dispatch readback, exact terminal identity, abandonment, queued cancellation, source-validation failures and exception-safe terminal cleanup ([boundary tests](../tests/Kora.Application.UnitTests/Dependencies/LocalContextTurnWorkflowTests.Boundaries.cs)).
 The unchanged [100% portable line/branch gate](../.github/workflows/ci.yml) remains required, alongside the Release build and maintained deterministic native/SQLite consumers; passing those checks is not production source-use qualification.
-Production sensitivity/source-use admission and model qualification remain unavailable. Passing fake/source-identity checks do not qualify semantic answer grounding, an empty-tool transport or real source classification.
-This is a bounded production-path implementation, not a shipped functional file-answer capability: the missing production contract must classify/detect secrets and sensitive content for the exact immutable revision, question and selected excerpts before use.
-Preview consent, narrow credential screening, a fake allow, local-only disclosure and generic durable admission do not fulfill that source-use detection contract. No permissive detector or automatic fallback is composed.
+Production source-use admission now follows the bounded [reviewed LocalOnly risk contract](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission); model qualification remains unavailable. Passing fake/source-identity checks do not qualify semantic answer grounding, an empty-tool transport or comprehensive source classification.
+The explicit product decision replaces the unspecified affirmative-classifier prerequisite only for these existing consumers. Preview consent, narrow credential screening alone, a fake allow, local-only disclosure and generic durable admission remain insufficient. Complete bounded screening, exact bindings and separate original-user source-use consent are required. No permissive fallback or provider enablement is composed.
 
 ## Native admitted-source soft wrapping
 

@@ -4,6 +4,17 @@ Open **Tray > Kora Customizations** immediately below **Sessions**, type `show c
 assistant-name prefix with activated voice, such as `Kora, show skills`.
 The same native window serves all these routes.
 
+**Choose a task:** [browse](#browse-by-type-and-source), [edit or add](#edit-or-add),
+[disable or enable use](#disable-or-enable-kora-use), or open the dedicated
+[instruction](instruction-editor.md), [skill](owned-skill-authoring.md) or
+[agent](agent-profile-authoring.md) editor.
+
+Instructions guide an answer; prompts are reusable requests; skills provide
+reusable task guidance; agents add a role and limits. MCP servers describe
+external tool connections. Reading or saving any of these never runs it.
+Manual editing works without AI; **model-generated proposals and recommendations
+are unavailable in this build**.
+
 ## Browse by type and source
 
 Categories appear in this order: **Instructions**, **Skills**, **Agents**,
@@ -210,6 +221,9 @@ Disabling and re-enabling does not revive an earlier MCP connection, tool or
 invocation review; start a new workflow.
 
 **Enable** reviews the exact current source and removes only Kora's exclusion.
+For file-backed catalogue entries it also records the reviewed primary revision
+on this computer. New or externally changed entries need a fresh review;
+restoring an observed retired version does not restore its previous permission.
 It does not bypass source registration, instruction revision/applicability
 review, skill compatibility, agent runtime qualification, MCP inclusion,
 authentication or other existing admission. Newly edited User sources are not
@@ -218,3 +232,7 @@ still be unavailable; the window displays that distinction.
 
 Use `disable example agent` or `enable example MCP server` to reach the same
 source-qualified review. Files are retained when disabled.
+
+Windows may roam definition content, not these local reviews. See
+[Data storage and roaming profiles](data-storage.md) before editing on multiple
+computers.

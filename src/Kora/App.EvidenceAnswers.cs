@@ -12,7 +12,7 @@ namespace Kora;
 public sealed partial class App
 {
     private static EvidenceAnswerWorkflow CreateEvidenceAnswers() => new(
-        new UnavailableEvidenceAnswerSourceUsePolicy(),
+        Services.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>(),
         new EvidenceAnswerConversation(Services.GetRequiredService<SessionWorkspaceService>(),
             Services.GetRequiredService<SessionConversationService>(),
             Services.GetRequiredService<IModelTurnExecution>()),

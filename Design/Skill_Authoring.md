@@ -1,14 +1,14 @@
 # Voice- and Text-Driven Skill and Instruction Authoring
 
-Status: broader conversational/package authoring remains planned for Slice C.
-A bounded native Kora-owned standalone instruction and literal prompt editor is delivered through
-the common contract; this is not full skill/profile/agent authoring.
+Status: bounded instruction/prompt editing, declarative owned-skill and agent
+authoring, and reviewed Customizations source writes are implemented through
+[Definition Management](Definition_Management.md). Broader conversational/package
+authoring and executable skills remain gated.
 
-The delivered R21 shared-profile slice is **local read-only discovery and exact
-inspection only**, not this authoring workflow. Registering or inspecting a root
-does not save a Kora-specific fork, enable/invoke a revision, expose instructions
-to a model or authorize edits/execution. See
-[the bounded source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection).
+Discovery, source-read consent, editing, enablement and invocation are separate
+operations. Registering or inspecting a root grants none of the later
+authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
+and [reviewed invocation](Skill_Storage.md).
 
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -102,6 +102,15 @@ editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
 Bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) uses this editor's unchanged critique, local-only tool-free proposal, complete comparison and separately confirmed normal Save/readback; changed saved revisions remain disabled ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
+The [owned declarative skill guidance increment](../docs/owned-skill-authoring.md#refine-the-current-instruction-only-guidance)
+supports one local tools-none proposal for a current instruction-only v1/v3
+draft. Exact guidance comparison stages an inert replacement; Validate and the
+existing two-stage native immutable publication remain separate. Manifest bytes,
+input format and required input names are host-owned and unchanged. Saved
+packages stay disabled, with separate existing review/enable/invoke. Original
+channel, source/target, draft, privacy and resource-joining checks remain
+authoritative; an unqualified provider is unavailable, not a fallback. This is
+not fixture generation or the full conversational Builder.
 Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,

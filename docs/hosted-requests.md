@@ -1,5 +1,9 @@
 # Explicit Copilot session requests
 
+**Unavailable in this build:** the required Copilot account-use approval is
+not enabled. These are review controls, not a working sign-in or a cloud
+fallback. Enabling hosted models or signing in to another app cannot enable them.
+
 Use this only when deliberately choosing Copilot for one request. Ordinary
 requests do not gain hosted fallback. Local-only policy remains unchanged.
 Copilot stays unavailable unless the host has a current authorized Copilot

@@ -11,7 +11,8 @@ public sealed class ExactGrantsWindowContractTests
     {
         var source = Read("ExactGrantsWindow.axaml");
         var document = XDocument.Parse(source);
-        foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "Selected", "Inspection", "Reviewed", "Message",
+        foreach (var binding in new[] { "RefreshCommand", "NextCommand", "InspectCommand", "RevokeCommand", "SelectedPermission", "Inspection", "Reviewed", "Message",
+            "Grouping}", "UriPatternInput", "AddUriRuleCommand", "RemoveUriRuleCommand", "ClearUriRulesCommand",
             "PreviewBatchCommand", "RevokeBatchCommand", "BatchInspection", "BatchReviewed",
             "ReadHistoryCommand", "NextHistoryCommand", "HistoryRows", "HistorySummary",
             "HistoryOutcomeFilter}", "HistoryInitiatorFilter}", "HistoryReasonCodeFilter", "ClearHistoryFiltersCommand",
@@ -33,10 +34,10 @@ public sealed class ExactGrantsWindowContractTests
             string.Equals(element.Attribute("Text")?.Value, "{Binding Message}", StringComparison.Ordinal));
         status.Attribute("AutomationProperties.LiveSetting")!.Value.Should().Be("Polite");
         document.Descendants().Single(element =>
-            string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Retained exact operation grants", StringComparison.Ordinal))
+            string.Equals(element.Attribute("AutomationProperties.Name")?.Value, "Permission grants: exact operation grants and URI rules", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");
         document.Descendants().Where(element => string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
-            .Should().HaveCount(10);
+            .Should().HaveCount(13);
         document.Descendants().Single(element =>
             string.Equals(element.Attribute("ItemsSource")?.Value, "{Binding HistoryRows}", StringComparison.Ordinal))
             .Name.LocalName.Should().Be("ScrollableListBox");
@@ -46,7 +47,8 @@ public sealed class ExactGrantsWindowContractTests
             .And.Contain("Any by default").And.NotContain("Watermark=");
         Read("GrantListWindow.axaml").Should().NotContain("RevokeCommand");
         Read("App.ExactGrants.cs").Should().Contain("IExactGrantStore").And.Contain("ExactGrantControlAdmission");
-        Read("SettingsWindow.axaml").Should().Contain("Exact operation grants...");
+        Read("SettingsWindow.axaml").Should().Contain("Permission grants...").And.Contain("InspectNetworkPermissionGrants")
+            .And.NotContain("ItemsSource=\"{Binding PreapprovedUriPatterns}\"");
         Read("App.axaml.cs").Should().Contain("settingsWindow.InspectExactGrants = () => exactGrants?.Open()");
         Read("ExactGrantsWindowController.cs").Should().Contain("Dispatcher.UIThread.Invoke(WindowAdmitted)")
             .And.Contain("WindowAdmitted, logger");

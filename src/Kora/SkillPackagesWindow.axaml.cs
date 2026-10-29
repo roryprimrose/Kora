@@ -18,16 +18,33 @@ public sealed partial class SkillPackagesWindow : Window
     private IReadOnlyList<SkillPackageSnapshot> results = [];
     private bool updatingResults;
     private bool closed;
+    internal event Action<SkillPackageSnapshot?>? PackageChanged;
 
     public SkillPackagesWindow() => throw new InvalidOperationException("Use the host-owned immutable skill inspection route.");
 
     internal SkillPackagesWindow(SkillPackageCatalogue catalogue, NativeDetailRenderer renderer, Action? sharedSources = null,
-        Func<bool>? current = null)
+        Func<bool>? current = null, Action<SkillPackageSnapshot>? execute = null,
+        Action<SkillPackageSnapshot>? executeBound = null, Action<SkillPackageSnapshot>? runtimeSetup = null)
     {
         this.catalogue = catalogue;
         this.renderer = renderer;
         this.current = current ?? (() => false);
         AvaloniaXamlLoader.Load(this);
+        this.FindControl<Button>("ReviewBundledRuntime")!.IsEnabled = runtimeSetup is not null;
+        this.FindControl<Button>("ReviewBundledRuntime")!.Click += (_, _) =>
+        {
+            if (!closed && this.current() && SelectedPackage is { } selected) { runtimeSetup?.Invoke(selected); }
+        };
+        this.FindControl<Button>("ReviewBundledExecution")!.IsEnabled = execute is not null;
+        this.FindControl<Button>("ReviewBundledExecution")!.Click += (_, _) =>
+        {
+            if (!closed && this.current() && SelectedPackage is { } selected) { execute?.Invoke(selected); }
+        };
+        this.FindControl<Button>("ReviewBoundBundledExecution")!.IsEnabled = false;
+        this.FindControl<Button>("ReviewBoundBundledExecution")!.Click += (_, _) =>
+        {
+            if (!closed && this.current() && SelectedPackage is { } selected) { executeBound?.Invoke(selected); }
+        };
         this.FindControl<Button>("SharedSources")!.Click += (_, _) => { if (!closed) { sharedSources?.Invoke(); } };
         this.FindControl<Button>("SharedSources")!.IsEnabled = sharedSources is not null;
         var selector = this.FindControl<ComboBox>("PackageSelector")!;
@@ -88,6 +105,20 @@ public sealed partial class SkillPackagesWindow : Window
         }
     }
 
+    internal void SetControlSessionAvailable(bool available) =>
+        this.FindControl<Button>("ReviewBoundBundledExecution")!.IsEnabled = available;
+
+    internal bool SelectPackage(string id)
+    {
+        if (closed) { return false; }
+        var package = catalogue.Packages.SingleOrDefault(item =>
+            string.Equals(item.Manifest.Id, id, StringComparison.Ordinal));
+        if (package is null) { return false; }
+        SetResults(catalogue.Packages, package);
+        ShowPackage();
+        return ReferenceEquals(SelectedPackage, package);
+    }
+
     private void Search()
     {
         if (closed) { return; }
@@ -136,6 +167,7 @@ public sealed partial class SkillPackagesWindow : Window
 
     private void ClearSelection()
     {
+        PackageChanged?.Invoke(null);
         IdentityFinder.Retire();
         this.FindControl<TextBlock>("PackageIdentity")!.Text = string.Empty;
         var tabs = this.FindControl<TabControl>("SourceTabs")!;
@@ -163,6 +195,7 @@ public sealed partial class SkillPackagesWindow : Window
             + $"Declared resources: {package.DeclaredResourceDigest}\n"
             + $"{SkillPackageSnapshot.UnavailableReason}\n{SkillPackageSnapshot.TransitiveGaps}\n{SkillPackageSnapshot.TransitiveDisclosure}";
         this.FindControl<TabControl>("SourceTabs")!.ItemsSource = CreateSourceTabs(catalogue, package, renderer);
+        PackageChanged?.Invoke(package);
         IdentityFinder.Admit(this.FindControl<TextBlock>("PackageIdentity")!.Text!,
             () => !closed && current() && ReferenceEquals(SelectedPackage, package));
     }

@@ -1,12 +1,19 @@
 # Named device-local knowledge folders
 
-Open **Settings > Knowledge > Manage knowledge sources**. This native management surface works without voice, a model or a network connection.
+Keep a named private copy of a small folder of text documents, then search that
+copy locally. Open **Settings > Knowledge > Manage knowledge sources**.
+Managing and searching these copies needs no voice, AI model or network.
+Adding a folder does not make it automatic AI context.
 
 ## Add a folder
 
 1. Enter a short source name and choose **Choose folder and review metadata**. Use the trusted native picker; conversation text, document instructions and model output cannot select a root.
-2. Review the canonical root, complete immediate-file membership, original bytes and scope. This review has not read content. Confirm **read of this exact reviewed membership** separately.
-3. Inspect each captured file in the selector. Confirm **save of this exact complete device-local snapshot** separately, within two minutes. This retains private Kora copies until explicit removal, independently of session history.
+2. Review the folder location, complete list of immediate files, file sizes and
+   scope. File contents have not been read. Confirm **read of this exact reviewed membership** separately.
+3. Inspect the captured files in the selector. Separately confirm
+   **save of this exact complete device-local snapshot** within two minutes.
+   Kora keeps these copies until you explicitly remove them; deleting a
+   conversation does not remove them.
 
 The same existing folder policy applies: a local fixed drive, UTF-8 `.txt`, `.md` or `.markdown`, no recursion, at most 32 immediate files, 256 KiB per file and 1 MiB combined. Any unsupported item, subdirectory, protected/generated/source-control path, hard link, reparse point, hidden/system item, inaccessible or changing member rejects the entire source. There are no silent exclusions or partial-success snapshots.
 
@@ -16,11 +23,18 @@ Names are unique ignoring case; up to 16 sources are supported. Registration is 
 
 Choose **Reload source inventory**, select exactly one source and choose **Inspect selected exact stored snapshot**. Opening management or selecting a row does not inspect content.
 
-Choose an item to inspect its complete untrusted plain text. Enter a lexical query and choose **Search this exact inspected source locally**. Results use the existing bounded `lexical-lines-v1` policy and exact item/line references. No match, invalid query and truncated result sets are explicit; Kora never substitutes a different source or searches all registered folders.
+Choose an item to read its complete plain text. Enter search words and choose
+**Search this exact inspected source locally**. This searches words and lines,
+not meaning, and reports the file and line for each excerpt. Invalid queries,
+no matches and limited results are labelled. Kora never searches a different
+source or every registered folder instead.
 
 Snapshots are historical admitted revisions, not current filesystem observations. Inspection revalidates original access, physical root and exact metadata membership without rereading original content. Changed or unavailable originals require an explicit new refresh review. Private presentation withdrawal, protected call state or closing the window clears displayed text and retires pending work.
 
-This increment has no model-answer route. Local model/source-use qualification remains unavailable; adding or refreshing cannot bypass it. The separate volatile folder-preview/answer workflows remain independent.
+**AI answers are unavailable here.** Saving or refreshing a source cannot
+enable a model or approve model use of your files. The separate
+[folder-preview answer review](folder-answers.md) has its own unavailable
+source-use checks and local-model requirements.
 
 ## Refresh, disable and remove
 
@@ -30,6 +44,9 @@ This increment has no model-answer route. Local model/source-use qualification r
 
 If storage, journal cleanup or deletion is uncertain, no completion is claimed. Reload the inventory and inspect the state; a **Removing** source remains revoked and can be reviewed for removal again. Unknown files, links, changed ownership, corrupt or missing storage hold admission/cleanup; do not delete arbitrary files or reset the partition to regain access.
 
-Copies live in the `KnowledgeSourcesV1` private durable partition under the host-provided application-data root, not in preference JSON. Content is encrypted for the current Windows profile; publication atomically binds metadata and the complete snapshot. Cleanup uses secure logical database deletion and clears its owned rollback journal before claiming completion. This is not forensic erasure of hardware, external backups or files copied by other software.
+Copies are stored in Kora's private application data, encrypted for the current
+Windows profile, not in preference files. Removal cleans up Kora's stored copy
+and its own recovery journal. This is not a promise of forensic erasure from
+hardware, backups or copies made by other software.
 
 No embeddings, OCR, whole-profile scans, always-on watchers, recursion, hosted egress, automatic refresh or original-file writes are included.

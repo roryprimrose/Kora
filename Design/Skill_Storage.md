@@ -6,10 +6,10 @@ The [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkil
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
-[Definition Management](Definition_Management.md) owns the proposed common
+[Definition Management](Definition_Management.md) owns the common
 source, UI/voice editing, activation, and external-reload contract for skills,
-prompts, instructions, and agent profiles. Its first-class profile editor
-does not expand the delivered R21 read-only boundary below.
+prompts, instructions, and agent profiles. Dedicated reviewed writes do not
+expand source-read consent into generic profile editing or execution authority.
 
 ## Explicit local Markdown references v2
 
@@ -499,6 +499,8 @@ definitions; see [Definition Management](Definition_Management.md).
 
 Kora-specific skill definitions reside in Roaming AppData so Windows/profile management can roam them.
 Kora does not implement cross-device federation or promise that Windows has enabled roaming.
+The [common roaming reconciliation contract](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)
+owns receiving-machine review, incomplete updates and concurrent editing limits.
 Roaming definitions does not roam credentials, approval tokens, enablement, executable scripts, or machine-specific capabilities.
 On another machine, discovered definitions start disabled until local validation, dependency checks, and enablement.
 

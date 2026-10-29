@@ -55,6 +55,8 @@
         </WrapPanel>
       </StackPanel>
       <WrapPanel Grid.Row="3">
+        <Button Content="Permission grants..." Command="{Binding PermissionGrantsCommand}" IsEnabled="{Binding CanRead}"
+                AutomationProperties.Name="Open Always permissions and grants for the exact selected session" />
         <Button x:Name="RefreshSessions" Content="Refresh list" IsEnabled="{Binding CanRead}" />
         <Button x:Name="NextSessions" Content="Next page" IsEnabled="{Binding CanNext}" />
       </WrapPanel>

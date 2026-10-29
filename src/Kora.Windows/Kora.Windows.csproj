@@ -24,6 +24,13 @@
     <InternalsVisibleTo Include="Kora.Windows.IntegrationTests" />
   </ItemGroup>
 
+  <ItemGroup Condition="'$(RuntimeIdentifier)' == '' or '$(RuntimeIdentifier)' == 'win-x64'">
+    <Content Include="Audio\Native\pocketsphinx-win-x64.dll" Link="HandsFreeNative\pocketsphinx-win-x64.dll"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+    <Content Include="Audio\Native\*.txt" Link="HandsFreeNative\%(Filename)%(Extension)"
+             CopyToOutputDirectory="PreserveNewest" CopyToPublishDirectory="PreserveNewest" />
+  </ItemGroup>
+
   <PropertyGroup>
     <TargetFramework>net10.0-windows10.0.19041.0</TargetFramework>
     <ImplicitUsings>enable</ImplicitUsings>

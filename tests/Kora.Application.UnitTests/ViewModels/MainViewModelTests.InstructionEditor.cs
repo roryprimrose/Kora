@@ -10,6 +10,82 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData("missing")]
+    [InlineData("stale")]
+    [InlineData("before-model")]
+    [InlineData("before-answer")]
+    [InlineData("removed-before-model")]
+    [InlineData("current")]
+    public async Task FileBackedInvocationRevalidatesWithoutWatcherDeliveryAndNeverPublishesStaleAnswers(string change)
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode("---\nname: example\ndescription: Test\n---\nBody", false),
+            ArtifactKind.Skill, "user-profile", "example").Definition with { UseControlId = "file.example" };
+        f.ArtifactCatalogue.Publish([definition]);
+        var checks = 0;
+        if (change is not "missing")
+        {
+            f.ViewModel.BindFileArtifactFreshness((candidate, token) =>
+            {
+                candidate.Should().BeSameAs(definition);
+                token.IsCancellationRequested.Should().BeFalse();
+                checks++;
+                if (change is "removed-before-model")
+                {
+                    f.ArtifactCatalogue.Publish([UpdatedLockArtifact()]);
+                    return Task.FromResult(true);
+                }
+                return Task.FromResult(change is "current" || change is "before-model" && checks < 2
+                    || change is "before-answer" && checks < 3);
+            });
+        }
+        await f.RunAsync("/example original request");
+        if (f.ViewModel.ActiveReasoningTask is { } task) { await task; }
+        f.Reasoner.Requests.Should().HaveCount(change is "before-answer" or "current" ? 1 : 0);
+        f.ViewModel.IsModelQuestionPending.Should().BeFalse();
+        f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
+        if (change is "current") { f.ViewModel.ResponseBody.Should().Be("Generated locally; verify important details.\n\nA local answer."); }
+        else { f.ViewModel.ResponseBody.Should().NotContain("A local answer."); }
+        f.ViewModel.BindFileArtifactFreshness(null);
+    }
+
+    [Fact]
+    public async Task CancellationDuringFileFreshnessReadJoinsTheReadAndCannotStartTheModel()
+    {
+        var f = new Fixture();
+        f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
+        await f.ViewModel.InitializeAsync();
+        var definition = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
+            "---\nname: example\ndescription: Test\n---\nBody", false),
+            ArtifactKind.Skill, "user-profile", "example").Definition with { UseControlId = "file.example" };
+        f.ArtifactCatalogue.Publish([definition]);
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var cancelled = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<bool>(TaskCreationOptions.RunContinuationsAsynchronously);
+        var reads = 0;
+        f.ViewModel.BindFileArtifactFreshness(async (_, token) =>
+        {
+            if (++reads == 1) { return true; }
+            using var registration = token.Register(() => cancelled.TrySetResult());
+            entered.SetResult();
+            return await release.Task;
+        });
+        await f.RunAsync("/example original request");
+        var reasoning = f.ViewModel.ActiveReasoningTask!;
+        await entered.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        var stopping = f.ViewModel.CancelCurrentTaskAsync();
+        await cancelled.Task.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
+        reasoning.IsCompleted.Should().BeFalse("the source read still owns its lifetime");
+        release.SetResult(true);
+        await stopping;
+        await reasoning;
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ViewModel.ResponseBody.Should().NotContain("A local answer.");
+    }
+
+    [Theory]
     [InlineData("instructions editor", "List", null)]
     [InlineData("instructions list", "List", null)]
     [InlineData("instructions create example", "Create", "example")]

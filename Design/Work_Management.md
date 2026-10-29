@@ -1,12 +1,10 @@
 # Work Management and Request Queue
 
-Status: proposed full Slice A capability. Bootstrap setup progress and deterministic
-status coexist with delivered exact session/task controls, bounded authoritative
-observation and atomic current-run local-version pre-dispatch wait cancellation
-in consolidated schema v5, retaining schema-v4 ordered history. A fixed
-local-version deterministic queue remains internal compatibility infrastructure as described below. This is not
-proof that contextual model routing, concurrent effect workers or the broader
-management/execution lanes below are shipped.
+Status: authoritative work inspection, exact conversation controls and reviewed
+cancellation/application lifecycle are implemented; resource-allocation seams
+do not qualify production concurrency or model-assisted management. The fixed
+local-version queue remains internal compatibility, not a public scheduler.
+The [roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Architecture](Architecture.md), [Task Lifecycle](Task_Lifecycle.md), [Security and Data Flows](Security_Data_Flows.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -16,11 +14,11 @@ The [approved realignment](MVP_Scope.md#approved-retirement-and-simplification) 
 Preserve its internal lifecycle/authority checks and inspect/cancel existing work safely; do not create further user-facing diagnostics plans, prerequisite/replacement/reordering preparation or capacity-setting variants as substitutes for useful conversation/tool tasks.
 
 Normal work surfaces should answer what is running, waiting, blocked or pending and let users manage admitted work through shared voice/UI operations. Internal IDs/revisions remain host bindings rather than the required ordinary spoken vocabulary.
-Public fixed-read scheduling is removed in [#422](https://github.com/roryprimrose/Kora/pull/422). The retained internal boundary below does not qualify full task execution or authorize expansions.
+Public fixed-read scheduling is removed. The retained internal boundary below does not qualify full task execution or authorize expansions.
 
 ## Passive selected-conversation search - 2026-10-13
 
-The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) reads original retained USER messages and typed HOST observations only. Work/AllWork/task/question summaries remain body-free authoritative projections; old receipt history is not retroactively populated with composer messages.
+The [exact-conversation search](Interaction_And_Sessions.md#delivered-passive-exact-conversation-lexical-search--2026-10-13) reads admitted retained conversation fields under its own role/source contract. Work/AllWork/task/question summaries remain body-free authoritative projections; old receipt history is not retroactively populated with composer messages.
 
 Search, Next, Cancel and Clear issue no control intent, renew no meaningful activity, run no cleanup and change no queue/task/approval/provider/retention authority. Done remains readable without Resume. Query edits and result closure leave memory composer/dirty-draft decisions and current foreground question/voice target independent.
 
@@ -55,7 +53,7 @@ not a prerequisite.
 
 ## Delivered deterministic local-version queue
 
-The public fixed-diagnostics scheduler product has been retired in [#422](https://github.com/roryprimrose/Kora/pull/422). The [workspace command boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs) refuses new diagnostic admission, dispatch, reorder, requeue and pause/resume through those routes, including hand-built commands.
+The [workspace command boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs) refuses new public diagnostic admission, dispatch, reorder, requeue and pause/resume, including hand-built commands.
 
 Existing records retain exact reviewed inspection/cancellation/removal/clear, without replay or deadline rewriting ([grammar](../src/Kora.Core/Commands/SessionCommand.cs), [commands](../docs/commands.md#deterministic-local-version-queue)).
 

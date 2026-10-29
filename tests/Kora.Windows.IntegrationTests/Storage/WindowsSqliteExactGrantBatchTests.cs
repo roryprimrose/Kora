@@ -61,11 +61,11 @@ public sealed class WindowsSqliteExactGrantBatchTests
                 window.Show();
                 await state.RefreshAsync(f.Token);
                 var list = window.GetVisualDescendants().OfType<ListBox>().Single(item =>
-                    string.Equals(AutomationProperties.GetName(item), "Retained exact operation grants", StringComparison.Ordinal));
+                    string.Equals(AutomationProperties.GetName(item), "Permission grants: exact operation grants and URI rules", StringComparison.Ordinal));
                 list.SelectionMode.Should().Be(SelectionMode.Multiple);
-                AutomationProperties.GetName(list).Should().Be("Retained exact operation grants");
-                list.SelectedItems!.Add(state.Records[0]);
-                list.SelectedItems.Add(state.Records[1]);
+                AutomationProperties.GetName(list).Should().Be("Permission grants: exact operation grants and URI rules");
+                list.SelectedItems!.Add(state.PermissionRows[0]);
+                list.SelectedItems.Add(state.PermissionRows[1]);
                 await state.PreviewBatchAsync(f.Token);
                 foreach (var grant in grants) { state.BatchInspection.Should().Contain(grant.Id.Value.ToString("D")); }
                 state.BatchReviewed = true;
@@ -75,8 +75,8 @@ public sealed class WindowsSqliteExactGrantBatchTests
                 state.BatchReviewed.Should().BeFalse();
                 state.BatchInspection.Should().Contain("Select explicit");
                 state.Message.Should().NotContain("unavailable");
-                list.SelectedItems!.Add(state.Records[1]);
-                list.SelectedItems.Add(state.Records[0]);
+                list.SelectedItems!.Add(state.PermissionRows[1]);
+                list.SelectedItems.Add(state.PermissionRows[0]);
                 await state.PreviewBatchAsync(f.Token);
                 state.BatchReviewed = true;
                 await state.RevokeBatchAsync(f.Token);

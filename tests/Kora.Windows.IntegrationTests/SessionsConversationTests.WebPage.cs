@@ -19,10 +19,12 @@ namespace Kora.Windows.IntegrationTests;
 public sealed partial class SessionsConversationTests
 {
     [Theory]
-    [InlineData(false, false)]
-    [InlineData(true, false)]
-    [InlineData(false, true)]
-    public async Task Native_page_approval_reuses_exact_grant_and_retains_answer_in_original_session(bool compact, bool deny)
+    [InlineData(false, false, "once")]
+    [InlineData(true, false, "once")]
+    [InlineData(false, true, "once")]
+    [InlineData(false, false, "session")]
+    [InlineData(true, false, "perpetual")]
+    public async Task Native_page_approval_reuses_exact_grant_and_retains_answer_in_original_session(bool compact, bool deny, string scope)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -55,7 +57,7 @@ public sealed partial class SessionsConversationTests
                             approvals++;
                             state.IsApproval.Should().BeTrue();
                             state.Question.Spec.Text.Should().Contain(address.AbsoluteUri);
-                            state.Question.Spec.Options.Select(option => option.Id).Should().Equal("once");
+                            state.Question.Spec.Options.Select(option => option.Id).Should().Equal("once", "session", "perpetual");
                             var window = new QuestionWindow(state, new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance));
                             try
                             {
@@ -65,7 +67,7 @@ public sealed partial class SessionsConversationTests
                                 if (deny) { await state.CancelAsync(); }
                                 else
                                 {
-                                    state.Edit(new(["once"]));
+                                    state.Edit(new([scope]));
                                     await state.SubmitAsync();
                                 }
                             }
@@ -79,25 +81,37 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 const string body = "get web page https://example.com/";
-                model.ComposerBody = body;
-                owner.FindControl<Button>("SubmitWebPage")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
-                await (workspace?.ConversationOperation ?? compactWindow!.ConversationOperation);
+                var uses = scope is "once" ? 1 : 2;
+                for (var index = 0; index < uses; index++)
+                {
+                    model.ComposerBody = body;
+                    owner.FindControl<Button>("SubmitWebPage")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await (workspace?.ConversationOperation ?? compactWindow!.ConversationOperation);
+                }
                 approvals.Should().Be(1, model.ConversationStatus);
-                var retained = model.ConversationMessages.Should().ContainSingle(model.ConversationStatus).Subject;
+                await model.ReadConversationAsync();
+                model.ConversationMessages.Should().HaveCount(uses, model.ConversationStatus);
+                var retained = model.ConversationMessages[^1];
                 retained.Body.Should().Be(body);
                 retained.Request.SessionId.Should().Be(f.Request.SessionId);
                 retained.Outcome.Should().Be(deny ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded, model.ConversationStatus);
                 (retained.AssistantResponse?.Body).Should().Be(deny ? null : "Genuine local summary of the approved public page.");
-                network.Sends.Should().Be(deny ? 0 : 1);
-                transport.Requests.Should().HaveCount(deny ? 1 : 2);
+                network.Sends.Should().Be(deny ? 0 : uses);
+                transport.Requests.Should().HaveCount(deny ? 1 : uses * 2);
                 (await f.Store.ReadConversationMessageAsync(retained.Request.SessionId, retained.Request.RequestId, f.Token))
                     .Should().Be(retained);
                 var questions = await f.Store.ReadQuestionsAsync(retained.Request.SessionId, f.Token);
                 questions.Should().ContainSingle();
-                questions[0].Proposal!.Request.IsWithinIntent(retained.Request).Should().BeTrue();
+                questions[0].Proposal!.Request.IsWithinIntent(model.ConversationMessages[0].Request).Should().BeTrue();
                 var grants = await f.Store.ReadGrantsAsync(f.Token);
                 if (deny) { grants.Should().BeEmpty(); }
-                else { grants.Should().ContainSingle().Which.Status.Should().Be(Kora.Core.Authorization.OperationGrantStatus.Consumed); }
+                else
+                {
+                    var grant = grants.Should().ContainSingle().Subject;
+                    grant.Status.Should().Be(scope is "once" ? Kora.Core.Authorization.OperationGrantStatus.Consumed
+                        : Kora.Core.Authorization.OperationGrantStatus.Active);
+                    grant.UseCount.Should().Be(uses);
+                }
             }
             finally { presentation.Revoke(); }
         });

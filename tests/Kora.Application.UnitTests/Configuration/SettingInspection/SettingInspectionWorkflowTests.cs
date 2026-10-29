@@ -104,7 +104,7 @@ public sealed class SettingInspectionWorkflowTests
                 case "inspect": f.CanInspect = false; break;
                 case "revision": f.ControlRevision++; break;
                 case "input": f.Eligible = false; break;
-                case "source": f.Store.Text["appearance-theme.txt"] = "Dark"; break;
+                case "source": f.Store.Text["presence-display-enabled.txt"] = "False"; break;
                 case "expiry": f.Time.Now = review.Review.ExpiresAt; break;
                 case "fault": throw new IOException("private question not for logs");
             }
@@ -134,7 +134,10 @@ public sealed class SettingInspectionWorkflowTests
         var releaseJoin = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         if (source)
         {
-            f.Store.Reading = _ => { entered.TrySetResult(); releaseSource.Wait(f.Token); };
+            f.Store.Reading = file =>
+            {
+                if (file is "presence-display-enabled.txt") { entered.TrySetResult(); releaseSource.Wait(f.Token); }
+            };
         }
         else
         {
@@ -191,7 +194,7 @@ public sealed class SettingInspectionWorkflowTests
         var review = await f.Workflow.ReviewAsync("Why?", () => f.Eligible, f.Token);
         f.Join = () =>
         {
-            if (source) { f.Store.Text["appearance-theme.txt"] = "Dark"; }
+            if (source) { f.Store.Text["presence-display-enabled.txt"] = "False"; }
             else { f.Eligible = false; }
             return Task.CompletedTask;
         };
@@ -218,6 +221,34 @@ public sealed class SettingInspectionWorkflowTests
             () => f.Eligible, f.Token)).Should().ThrowAsync<Exception>();
         if (defect is "host" or "question") { f.Store.Reads.Should().BeEmpty(); }
         f.Calls.Should().Be(0);
+        f.Events.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("malformed")]
+    [InlineData("mismatch")]
+    [InlineData("provenance")]
+    [InlineData("unavailable")]
+    [InlineData("unobserved")]
+    public async Task UnconfirmedPresenceCannotReachReviewOrModelAndNeverWrites(string defect)
+    {
+        await using var f = new SettingInspectionFixture();
+        if (defect is not "unobserved") { f.Observe(); }
+        if (defect is "malformed") { f.Store.Text["presence-display-enabled.txt"] = "1"; }
+        if (defect is "mismatch") { f.Store.Text["presence-display-enabled.txt"] = "False"; }
+        if (defect is "provenance") { f.Store.Text["presence-display-enabled.txt"] = "True"; }
+        if (defect is "unavailable")
+        {
+            f.Store.FailName = "presence-display-enabled.txt";
+            f.Store.Failure = new IOException("private");
+        }
+        using var root = HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi),
+            HostActivityLayer.Application, HostOperation.Request);
+        await FluentActions.Awaiting(() => f.Workflow.ReviewAsync("Is presence display enabled?", () => true, f.Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        f.Calls.Should().Be(0);
+        f.Store.Writes.Should().Be(0);
+        f.Playback.Effects.Should().Be(0);
         f.Events.Should().BeEmpty();
     }
 }

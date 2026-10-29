@@ -1,5 +1,10 @@
 # Reviewed session-memory proposals
 
+Use this only for an actual saved model answer that proposes a small fact or
+preference. **This build cannot generate new model answers**; manual
+[memory management](profile-memory.md) remains available.
+The proposal is not saved until you separately accept and admit it.
+
 ## Request and inspect
 
 There is **no automatic learning**. Ask for one memory proposal explicitly, for example: "Propose a short-answer response preference for this session." A qualified model may return one inert object; ordinary answers are never converted ([proposal format](../src/Kora.Core/Memory/ModelProposals/ModelMemoryProposal.cs)).

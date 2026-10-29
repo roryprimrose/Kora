@@ -2,6 +2,8 @@ using AwesomeAssertions;
 using Kora.Application.Voice;
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
+using Kora.Windows.Dependencies;
+using Kora.Windows.IntegrationTests.Dependencies;
 using Microsoft.Extensions.DependencyInjection;
 
 namespace Kora.Windows.IntegrationTests.Audio;
@@ -13,6 +15,7 @@ public sealed class VoiceInputCompositionTests
     {
         var services = new ServiceCollection();
         services.AddLogging();
+        services.AddSingleton<ISpeechComponentFiles>(new InMemorySpeechComponentFiles());
         VoiceInputComposition.Configure(services);
         services.Count(descriptor => descriptor.ServiceType == typeof(WindowsVoiceRecognitionService)).Should().Be(1);
         services.Count(descriptor => descriptor.ServiceType == typeof(HandsFreeVoiceRecognitionService)).Should().Be(1);
@@ -23,6 +26,10 @@ public sealed class VoiceInputCompositionTests
         provider.GetRequiredService<IActivatedVoiceRecognitionService>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<ISpeechInputProfileRuntime>().Should().BeSameAs(lifecycle);
         provider.GetRequiredService<IHandsFreeAudioStage>().Should().BeOfType<WindowsHandsFreeAudioStage>();
+        provider.GetRequiredService<Kora.Core.Dependencies.ISpeechComponentRuntime>()
+            .Should().BeSameAs(provider.GetRequiredService<HandsFreeSetupRuntime>());
+        provider.GetRequiredService<Kora.Core.Dependencies.SpeechComponentCatalogue>()
+            .Should().BeSameAs(HandsFreeSetupCatalogue.Production);
         lifecycle.IsAmbientListeningAvailable.Should().BeFalse();
         await lifecycle.StartHandsFreeAsync(cancellationToken: TestContext.Current.CancellationToken);
         lifecycle.IsListening.Should().BeFalse();

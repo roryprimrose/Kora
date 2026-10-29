@@ -149,7 +149,17 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
             opened.Cancellation.Token.Register(opened.Expiry.Dispose);
             if (afterPlayback)
             {
-                await speak(canonical.Spec.Text, () => Eligible(opened), opened.Cancellation.Token);
+                var readback = canonical.Spec.Options.IsEmpty
+                    || !string.Equals(canonical.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal)
+                    ? canonical.Spec.Text
+                    : canonical.Spec.Text + " " + string.Join(" ", canonical.Spec.Options.Select((option, index) =>
+                        "Option " + (index + 1).ToString(System.Globalization.CultureInfo.InvariantCulture) + ": " + option.Label + "."))
+                        + (canonical.Spec.Kind == QuestionKind.MultipleChoice
+                            ? " Choose " + canonical.Spec.Minimum.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + " to " + canonical.Spec.Maximum.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                + " options. Say option numbers separated by and, or use the checkboxes."
+                            : " Choose one option.");
+                await speak(readback, () => Eligible(opened), opened.Cancellation.Token);
             }
             if (!Eligible(opened))
             {

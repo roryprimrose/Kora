@@ -146,6 +146,7 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            BindBundledRuntimeSetup();
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);
@@ -200,6 +201,13 @@ public sealed partial class App : Avalonia.Application
                 return actions
                     .IsCurrent(candidate, () => eligible()
                         && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
+            });
+            viewModel.BindFileArtifactFreshness((candidate, token) =>
+            {
+                var ownership = Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision;
+                var eligible = viewModel.CaptureInstructionEditorEligibility();
+                return Services.GetRequiredService<ArtifactCatalogueReloadService>().IsCurrentAsync(candidate,
+                    () => eligible() && Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision == ownership, token);
             });
             systemTray = new SystemTrayController(
                 viewModel,
@@ -267,6 +275,8 @@ public sealed partial class App : Avalonia.Application
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
+            sessionsWindow.OpenPermissionGrants = (target, admitted) => exactGrants?.Open(target, admitted);
+            sessionsWindow.SynchronizePermissionGrants = () => exactGrants?.SynchronizeSessionAdmission();
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),
@@ -308,8 +318,10 @@ public sealed partial class App : Avalonia.Application
                         ? questionWindow.RequestClipboardPermissionAsync(null, proposal, generation, current, token)
                         : clipboardWindow.RequestPermissionAsync(questionWindow, proposal, generation, current, token));
             if (Services.GetService<Kora.Application.Dependencies.HostedTransmissionReviewService>() is { } hostedReviews)
-            { copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
-                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>()); }
+            {
+                copilotTransmissionWindow = new CopilotTransmissionWindowController(viewModel, hostedReviews,
+                Services.GetRequiredService<ILogger<CopilotTransmissionWindowController>>());
+            }
             copilotAccountWindow = new CopilotAccountWindowController(viewModel,
                 Services.GetRequiredService<Kora.Windows.Dependencies.CopilotAccountBroker>(),
                 Services.GetRequiredService<Kora.Application.Voice.AudioControlAdmission>(),
@@ -434,6 +446,8 @@ public sealed partial class App : Avalonia.Application
         questionWindow = null;
         evidenceWindow?.Dispose();
         evidenceWindow = null;
+        bundledFixedActions?.Dispose();
+        bundledFixedActions = null;
         skillPackagesWindow?.Dispose();
         sharedSkillInvocation?.Dispose();
         skillPackagesWindow = null;

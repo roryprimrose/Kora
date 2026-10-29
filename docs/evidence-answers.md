@@ -1,5 +1,9 @@
 # Ask about one diagnostic page
 
+**AI analysis is unavailable in this build.** The required check for using
+diagnostic records as model input is unavailable, and no local model is
+approved. You can still [inspect diagnostic records directly](privacy-safety-and-logs.md#read-only-evidence-inspection).
+
 Open **Evidence**, select **Log**, and explicitly **Search / refresh**.
 Expand **Ask about this exact evidence**, enter an original question (at most
 256 characters / 512 UTF-8 bytes), then choose **Review complete page and question**.
@@ -7,14 +11,15 @@ Inspect the complete immutable page, its stable record citations, question and
 local-use disclosure. This step does not request a model or create a conversation.
 
 Separately choose **Confirm one tool-free local answer in a new conversation**.
-Qualified source-use and local-runtime admission are both required. The default
-source-use/sensitivity service is unavailable: confirmation truthfully reports
-Unavailable, with no model request or fabricated answer.
+Separate permission to use this diagnostic page and an available local model
+are both required. Confirmation currently reports **Unavailable** without
+calling a model or inventing an answer.
 
 When independently admitted, one local-only, tool-free request creates a fresh
 **Local context** conversation and retains the original question and validated
-cited final answer. Facts are labeled model claims; inference is separate.
-Citation identity is checked, not semantic truth. Unsupported evidence produces
+cited final answer. Facts are labelled as model claims, separately from interpretation.
+Kora checks references to the selected records, not whether a claim is true.
+Unsupported evidence produces
 an explicit unsupported answer; malformed or foreign citations never become a
 grounded success. Inspect retained results in **Sessions**.
 

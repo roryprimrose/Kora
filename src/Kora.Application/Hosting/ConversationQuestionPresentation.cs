@@ -2,4 +2,4 @@
 
 namespace Kora.Application.Hosting;
 
-public sealed record ConversationQuestionPresentation(HostQuestionRecord Presented, HostInteractionDecision Completed);
+public sealed record ConversationQuestionPresentation(HostQuestionRecord? Presented, HostInteractionDecision Completed);

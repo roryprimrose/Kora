@@ -188,6 +188,24 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
         ((Action)(() => Service(file).Load())).Should().Throw<InvalidDataException>();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Https_target_scope_records_user_or_kora_configuration_ownership(bool kora)
+    {
+        var roaming = Path.Combine(root, "kora");
+        var file = kora ? Path.Combine(roaming, "Mcp", "mcp.json") : Path.Combine(root, "user.json");
+        Directory.CreateDirectory(Path.GetDirectoryName(file)!);
+        File.WriteAllText(file, """{"servers":{"search":{"type":"http","url":"https://example.com/mcp"}}}""");
+        var preferences = new Preferences(new([], [], [], [], kora ? [] : [file], []));
+        var service = new McpServerConfigurationService(new Paths(roaming), preferences, Path.Combine(root, "empty-profile"));
+        var summary = service.Load().Single();
+        preferences.Settings = new([], [], [], [], kora ? [] : [file], [summary.Id]);
+        var account = new McpAccountReference(Guid.NewGuid(), new(1), Guid.NewGuid(), new(new("https://example.com/mcp")));
+        var descriptor = await service.ResolveHttpsAsync(summary.Id, account, TestContext.Current.CancellationToken);
+        descriptor.Scope.Should().Be(kora ? Kora.Core.Customizations.CustomizationScope.Kora : Kora.Core.Customizations.CustomizationScope.User);
+    }
+
     [Fact]
     public async Task Https_resolution_pins_private_source_and_requires_exact_current_inclusion()
     {
@@ -208,6 +226,7 @@ public sealed class McpServerConfigurationServiceTests : IDisposable
         descriptor.ServerId.Should().Be(summary.Id);
         descriptor.ServerName.Should().Be("search");
         descriptor.SourcePath.Should().Be(file);
+        descriptor.Scope.Should().Be(Kora.Core.Customizations.CustomizationScope.User);
         descriptor.SourceRevision.Should().HaveLength(64);
         descriptor.Account.Should().BeSameAs(account);
         descriptor.Endpoint.Should().Be(account.Destination);

@@ -772,6 +772,16 @@ The [headless interaction regressions](../tests/Kora.Windows.IntegrationTests/Na
 exercise actual keyboard/pointer activation, ordering, header relationships and
 retirement; they are not installed screen-reader/Enablement/RC qualification.
 
+The [native table automation peers](../src/Kora/NativeTableControl.Accessibility.cs)
+expose a Table role for discovery, with exact header-associated text cells and
+the existing bounded keyboard route, not spreadsheet grid/edit/value patterns.
+Names, child enumeration and accessibility focus revalidate the same immutable
+document admission; retained peers cannot read or refocus retired/private content.
+Header labels are exposed once through their button, and table readers are not
+live regions. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/NativeTableAccessibilityTests.cs)
+cover native discovery, exact names, admission loss and focus-time retirement.
+This does not enable the separately gated profile or qualify installed AT/DPI.
+
 ### Separately gated display-only Markdown checklists
 
 The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.
@@ -1289,8 +1299,9 @@ is not a delimiter. Initials and known ambiguous abbreviations (`Dr`, `Mr`, `Mrs
 non-whitespace control characters are unsupported, not normalized or guessed. This is conservative plain
 text segmentation, not general linguistic or SSML support.
 
-The Windows producer binds real `SpeakProgress` source character ranges and
-`AudioPosition` to the exact active `Prompt` and output generation. It seals
+The [Windows producer](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs) binds real `SpeakProgress` source character ranges and
+`AudioPosition` to the exact active `Prompt` and a typed host playback/generation token. Its canonical [source progress](../src/Kora.Core/Voice/SpeechSourceProgress.cs) carries no engine-rendered text.
+Both producer and [caption consumer](../src/Kora.Application/Voice/SpeechCaption.cs) resolve the containing sentence through the shared [source map](../src/Kora.Core/Voice/SpeechSentenceMap.cs), not an engine-supplied sentence index. It seals
 before playback, requiring monotone nonnegative positions, complete lexical
 source coverage, UTF-16 boundaries and output-duration bounds. Identical repeated
 native ranges (including normalized numbers) keep their first time; overlapping,
@@ -1336,8 +1347,8 @@ frames cannot restore it. This changes only the former caption typography
 exclusion, not caption enablement, speech, identity, privacy/call gates or pin
 and display lifetimes.
 
-**Current sentence** and word alignment remain open: the actual adapter supplies
-utterance segment 0 only, so estimated boundaries are not advertised as
+**Current sentence implementation** consumes native source-range evidence through the shared caption path; [deterministic native callback fixtures](../tests/Kora.Windows.IntegrationTests/WindowsSpeechSentenceAlignmentTests.cs) cover the consumed seam, not installed-profile qualification.
+Production sentence captions remain unavailable because [no exact voice/rate/output profile is qualified](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs). Word alignment/highlighting remains open; estimated boundaries are not advertised as
 host-admitted playback alignment. Arbitrary coordinates and
 caption/navigation commands outside the [bounded natural grammar](#bounded-natural-speech-caption-commands) remain proposed. Native
 accessibility properties/selection/pin/settings are source-tested, not installed

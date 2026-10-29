@@ -292,13 +292,14 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
-**Current sentence (requires qualified alignment)** is also an explicit native
+**Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
 reached by actual playback, not a timing estimate or rewritten text. This build
 has no qualified Windows voice/rate/output profile for sentence alignment, so
 sentence captions remain **unavailable**; ordinary speech and the complete visual
 answer remain available. Missing or invalid alignment never becomes an utterance
-caption. Saving this choice does not test your device or enable a provider.
+caption. Saving this choice does not test your device or enable a provider
+([native choice](../src/Kora.Application/Configuration/SpeechTextChoice.cs), [production alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
 
 Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
@@ -323,8 +324,9 @@ resets only that option. These device-local options do not enable captions:
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
-Sentence alignment remains unavailable because playback supplies no admitted
-sentence boundaries. Broad natural caption commands and rich browser/HTML/
+Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
+Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
 **Caption screen — until Kora restarts** is available in **Settings > Responses** and the caption. Choose a connected screen and press **Use selected display**; the section's top-right cog offers **Use main screen** to reset to the current main screen.
@@ -1311,7 +1313,7 @@ a new UI request. Stop speech, disable listening, cancel and read-only status
 remain usable. Protected calls preserve applicable grants and session action
 levels. **Allow spoken approvals during calls** defaults Off and requires
 fresh native review and explicit downgrade confirmation before enabling.
-Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
+Call-wide temporary overrides remain unavailable. A separate [exact current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection) changes no preference or general protection. This is bounded behavior, not
 full call/provider/native/audio acceptance.
 
 Use [session permission controls](session-permission-levels.md) to review and

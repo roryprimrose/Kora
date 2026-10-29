@@ -28,4 +28,6 @@ For a new successfully committed ordinary conversation task, Kora may say only *
 
 Choose **Turn completion voice notices Off** at any time. Quiet, capture, prompts, changed input and expired/stale sources suppress without replay. Call changes, listening disable, lock/privacy loss and restart remove the choice; unlock never restores it. Enabling excludes already-current completions. Queued is not delivered; the terminal distinguishes joined completion from cancellation/unconfirmed output ([lifecycle](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs)).
 
+An independently reviewed [speak-once call exception](responses-and-calls.md) applies only to its exact requested response. Completion notices never use or consume that exception and remain suppressed during protected calls.
+
 This remains a bounded selected-session surface, not a general reminder scheduler or a watcher over every conversation. No live audio/provider qualification or new detector enablement is implied ([scope](../Design/Proactive_Interaction.md#run-consented-conversation-completion-speech)).

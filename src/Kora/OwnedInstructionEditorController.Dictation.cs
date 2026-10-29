@@ -15,7 +15,7 @@ internal sealed partial class OwnedInstructionEditorController
     private OwnedInstructionBodyDictation.Binding? CaptureBodyDictation(INotifyPropertyChanged source)
     {
         if (disposed || busy || lifetime?.IsCancellationRequested != false || window is not { } opened
-            || kind != ArtifactKind.Instruction || selectedName is not { } name || baseline is null && !newDraft
+            || profileOriginal is not null || kind != ArtifactKind.Instruction || selectedName is not { } name || baseline is null && !newDraft
             || uncertain || actions.IsSourceUnavailable || opened.Source.IsReadOnly || !opened.Source.IsEnabled
             || !string.Equals(opened.NameInput.Text, name, StringComparison.Ordinal)
             || opened.KindInput.SelectedItem is not ArtifactKind.Instruction
@@ -41,7 +41,7 @@ internal sealed partial class OwnedInstructionEditorController
         var channel = main.CaptureInstructionBodyDictationEligibility();
         var request = HostRequest.Create(RequestOrigin.ActivatedVoice);
         var cancellation = lifetime.Token;
-        bool SourceCurrent() => !disposed && !busy && !uncertain && !actions.IsSourceUnavailable
+        bool SourceCurrent() => !disposed && !busy && !uncertain && profileOriginal is null && !actions.IsSourceUnavailable
             && !cancellation.IsCancellationRequested && ReferenceEquals(window, opened) && ownsHost()
             && ownershipRevision() == ownership && channel() && kind == ArtifactKind.Instruction
             && ReferenceEquals(baseline, original) && string.Equals(selectedName, name, StringComparison.Ordinal)

@@ -435,7 +435,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                         RequireCurrentOutput(generation);
                         synthesisCompletion = completion;
                         activePrompt = prompt;
-                        sentenceAlignment = playbackId is null ? null : new(prompt, generation, text);
+                        sentenceAlignment = playbackId is { } id ? new(prompt, new(id, generation), text) : null;
                         StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
                     }
                     synthesisTask = completion.Task;
@@ -520,6 +520,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             lock (stateLock)
             {
                 stopRequested = true;
+                RetireSentenceAlignment();
                 stoppedGeneration = playbackGeneration;
                 hadOutput = activePrompt is not null || isKokoroSynthesis || playback is not null;
                 completionTask = synthesisCompletion?.Task ?? playbackCompletion?.Task;
@@ -587,6 +588,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         Interlocked.Increment(ref outputGeneration);
         currentPlaybackId = null;
         stopRequested = true;
+        RetireSentenceAlignment();
         return playback;
     }
 
@@ -846,7 +848,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             beginReceipt = beginStopReceipt;
             playbackCompletion = null;
             currentPlaybackId = null;
-            sentenceAlignment = null;
+            RetireSentenceAlignment();
             outputEnvelope?.Clear();
             outputEnvelope = null;
         }
@@ -955,6 +957,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
         {
             player = playback;
             currentPlaybackId = null;
+            RetireSentenceAlignment();
             if (player is not null)
             {
                 player.PlaybackStopped -= OnPlaybackStopped;

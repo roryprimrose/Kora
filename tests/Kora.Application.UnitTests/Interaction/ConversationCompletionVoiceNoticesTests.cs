@@ -17,6 +17,44 @@ namespace Kora.Application.UnitTests.Interaction;
 public sealed class ConversationCompletionVoiceNoticesTests
 {
     [Theory]
+    [InlineData(CallState.Active, false)]
+    [InlineData(CallState.Active, true)]
+    [InlineData(CallState.Suspected, false)]
+    [InlineData(CallState.Suspected, true)]
+    [InlineData(CallState.Unknown, false)]
+    [InlineData(CallState.Unknown, true)]
+    public async Task ConsentedCompletionCannotConsumePendingOrConfirmedRequestedCallSpeech(CallState state, bool confirmed)
+    {
+        await using var f = new Fixture();
+        await f.Enable();
+        f.Automatic.Set(state);
+        var observation = f.Calls.Current;
+        CallSpeechReview review;
+        using (var input = f.Native())
+        {
+            review = new(f.Calls, f.Source.Time, new(Guid.NewGuid(), 1, observation.Revision),
+                "Exact requested response.", f.Output, () => true);
+        }
+        using var ownedReview = review;
+        using var confirmation = f.Native();
+        using var lease = confirmed ? review.Confirm() : null;
+        await f.Deliver(await f.Observe());
+        f.Notices.Enabled.Should().BeTrue();
+        f.Speech.Requests.Should().Be(0);
+        f.Source.Audits.Should().NotContain(item => item.Event.ActionId == "completion-notice.voice");
+        review.Available.Should().Be(!confirmed);
+        using var requested = lease ?? review.Confirm();
+        requested.IsCurrent.Should().BeTrue();
+        var starts = 0;
+        Task Start() { starts++; return Task.CompletedTask; }
+        await f.Calls.StartReviewedSpeech(requested, requested.Text, Start, () => true);
+        await f.Calls.StartReviewedSpeech(requested, requested.Text, Start, () => true);
+        starts.Should().Be(1);
+        f.Calls.Current.Should().Be(observation);
+        f.Calls.Current.SuppressSpeech.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData("existing")]
     [InlineData("capacity")]
     [InlineData("post-check")]

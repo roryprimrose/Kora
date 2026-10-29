@@ -9,6 +9,15 @@ Long results can have [a brief and full Details](#brief-answers-and-full-details
 workflows below describe their reviews and limits; their controls do not enable
 a model. Built-in command responses and local speech still work.
 
+## Ask another question about the same reviewed file snapshot
+
+For an already admitted single-file preview, `answer file` focuses its native question control; it does not read a file or invoke a model.
+**Use this exact snapshot once to answer locally** consumes one explicit request, even if the question is invalid, denied, cancelled or the runtime is unavailable.
+
+After it finishes, choose **Review another question on this exact snapshot** to clear the old answer/citations and review a fresh one-shot local request. Check the source and question, then separately choose **Use this exact snapshot once to answer locally**. Recovery never rereads the file, refreshes the snapshot, reuses a consumed request or automatically retries. Source-use screening and qualified runtime admission still apply each time; these controls do not enable AI answers.
+
+**Cancel file answer and clear claims** or editing a pending question cancels that request and suppresses late claims. The view says that no answer is claimed and keeps fresh review unavailable until actual work has finished. Revocation, source replacement, privacy loss or closing retires the view; select and review a source again rather than using an old control. A successful answer's **Show exact answer citation** still opens only its original immutable source span, not the current file at that path. Nothing in this operation saves the source, question or answer to conversation history.
+
 ## Answer from a retained session attachment
 
 In **Sessions**, select the exact Active conversation and choose **Answer from this session's retained attachment**. The existing native source viewer opens only that session's already retained immutable text/Markdown copy; it never opens a picker or the original live file ([native route](../src/Kora/SessionsViewModel.AttachmentAnswer.cs)).

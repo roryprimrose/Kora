@@ -62,7 +62,10 @@ public sealed partial class QuestionWindow : Window
             choices.Add(option.Id, control);
             panel.Children.Add(control);
         }
-        input.TextChanged += (_, _) => Edit();
+        input.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Edit(); }
+        };
         input.IsVisible = record.Spec.Kind == QuestionKind.Text;
         Required<Button>("ReviewQuestion").Click += async (_, _) => await RunInteractionAsync(state.ReviewAsync);
         Required<Button>("SaveDraft").Click += async (_, _) => await RunInteractionAsync(state.SaveDraftAsync);

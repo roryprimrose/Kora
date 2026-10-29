@@ -17,7 +17,8 @@ internal sealed partial class OwnedInstructionEditorController(
     ProfileInstructionForkWorkflow? profileForks = null,
     Kora.Core.Context.IUserFilePicker? profilePicker = null,
     OwnedInstructionRefinementService? refinement = null,
-    QuestionWindowController? saveQuestions = null) : IDisposable
+    QuestionWindowController? saveQuestions = null,
+    Kora.Application.Voice.ComposerDictationService? dictation = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -35,6 +36,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private bool uncertain;
     private bool newDraft;
     private long sourceRevision;
+    private long caretRevision;
     private long copyInputRevision;
     private long windowOwnershipRevision;
 
@@ -86,13 +88,16 @@ internal sealed partial class OwnedInstructionEditorController(
             else { _ = Run(action); }
         });
         var findOwner = window;
+        bodyDictation = new(window, dictation ?? main.ComposerDictation, CaptureBodyDictation,
+            exception => { EditorFailed(logger, exception.GetType().Name); window?.Report("Body dictation failed: " + exception.GetType().Name + ". Draft retained; nothing saved."); });
+        window.SetBodyDictation(bodyDictation);
         window.BindBufferFind(() => CaptureBufferFind(findOwner));
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.CaretIndexProperty || change.Property == TextBox.SelectionStartProperty
                 || change.Property == TextBox.SelectionEndProperty)
-            { Interlocked.Increment(ref sourceRevision); }
+            { Interlocked.Increment(ref caretRevision); }
             if (change.Property == TextBox.TextProperty || change.Property == TextBox.IsReadOnlyProperty || change.Property == TextBox.IsEnabledProperty)
             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.ClearValidation(); }
         };
@@ -185,6 +190,7 @@ internal sealed partial class OwnedInstructionEditorController(
         opened.RetireMetadataFind();
         try
         {
+            if (bodyDictation is not null) { await bodyDictation.CancelAndRelease(); }
             switch (action)
             {
                 case "Kind":
@@ -393,11 +399,13 @@ internal sealed partial class OwnedInstructionEditorController(
         var name = selectedName;
         var text = opened.Source.Text ?? string.Empty;
         var reviewedSourceRevision = Interlocked.Read(ref sourceRevision);
+        var reviewedCaretRevision = Interlocked.Read(ref caretRevision);
         var reviewedInputRevision = Interlocked.Read(ref copyInputRevision);
         var expiresAt = DateTimeOffset.UtcNow.AddMinutes(2);
         NativeInstructionMutationReview? review = null;
         // Admission/publication callbacks run off the UI thread; never read an Avalonia control there.
         bool CurrentDraft() => eligible() && Interlocked.Read(ref sourceRevision) == reviewedSourceRevision
+            && Interlocked.Read(ref caretRevision) == reviewedCaretRevision
             && Interlocked.Read(ref copyInputRevision) == reviewedInputRevision && DateTimeOffset.UtcNow < expiresAt
             && (review?.IsAnswerCurrent ?? true);
         review = new NativeInstructionMutationReview(opened, Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind)),
@@ -520,6 +528,12 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (!closing && bodyDictation?.IsPending == true)
+        {
+            args.Cancel = true;
+            _ = CloseSafely();
+            return;
+        }
         if (!closing && refinementLifetime is not null)
         {
             args.Cancel = true;
@@ -546,6 +560,16 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task<bool> PrepareClose()
     {
+        try
+        {
+            if (bodyDictation is not null) { await bodyDictation.CancelAndRelease(); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            EditorFailed(logger, exception.GetType().Name);
+            window?.Report("Body dictation release is unconfirmed. Draft retained; closing is blocked. Failure type: " + exception.GetType().Name);
+            return false;
+        }
         if (busy) { window?.Report("Wait for current operation to retire before closing."); return false; }
         if (window is not { } opened || lifetime is null) { return true; }
         if (!Dirty) { return true; }
@@ -563,6 +587,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private void OnPrivacyClosed(object? sender, EventArgs args) { CancelRefinement(); CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
+        bodyDictation?.Dispose(); bodyDictation = null;
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; selectedName = null; originalText = string.Empty; uncertain = false;

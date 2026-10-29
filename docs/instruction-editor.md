@@ -14,7 +14,7 @@ this build** because no local model is approved.
 Use **Settings > Custom content > Owned instructions and prompts...** or type `instructions editor` / `prompts editor`.
 After ordinary push-to-talk admission, `Kora, instructions editor` focuses the same native surface.
 Write and use reviews remain native. One already reviewed existing owned Instruction Save can use the [exact spoken answer](#confirm-one-reviewed-instruction-save-by-voice); other mutations remain native.
-Definition-source body dictation is not part of this operation. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
+One foreground owned Instruction also has an explicit [literal body dictation route](#dictate-literal-instruction-body-text), separate from Save approval; selected prompt input values retain their separate [literal voice route](#prepare-required-native-prompt-inputs).
 Manual editing needs no model, hosted account or network. Explicit [local body refinement](#refine-the-current-owned-instruction-body) uses the separately admitted local-only model route; production qualification remains unavailable ([composition](../src/Kora/Program.cs)).
 
 | Kind/source/channel | What this editor supports |
@@ -26,7 +26,7 @@ Manual editing needs no model, hosted account or network. Explicit [local body r
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
 | Spoken save confirmation | One complete display-reviewed existing canonical owned Instruction, same-source normal Save only; [exact answer](#confirm-one-reviewed-instruction-save-by-voice), not generic assent |
-| Definition-source body dictation | Not supplied by the save operation; native editing remains available |
+| Literal instruction-body dictation | Explicit hold, frozen body caret/range, complete native review, volatile acceptance and separate normal Save; requires existing qualified local capture ([owner](../src/Kora/OwnedInstructionBodyDictation.cs)) |
 
 Use **List**, select an owned ID, then **Inspect**. For a new file enter a lowercase ASCII ID
 (letters, digits and hyphens, at most 64 characters; no paths or device names) and select **Create**.
@@ -55,6 +55,21 @@ A changed source retires stale requests, questions and approvals. Discovery
 never invokes a definition; changed owned instructions and prompts still need
 separate review and enablement before fresh explicit use. Malformed sources
 report a reload failure rather than claiming the catalogue is current.
+
+## Dictate literal instruction body text
+
+Create or Inspect one canonical Kora-owned **Instruction** and place the caret, or an entire selected range, after the frontmatter delimiter. In that foreground editor, focus **Hold to dictate body** and hold Space/Enter or the pointer. This explicit gesture freezes the exact editor, source, body, draft and caret/range before source verification or capture; it does not intercept ordinary command/PTT gestures ([target admission](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
+
+Release the hold to finish. After confirmed microphone release and another exact-source check, expand **Review literal body insertion** to inspect the frozen body, unchanged literal transcript and complete proposed source. **Accept literal body insertion** inserts at the frozen caret or replaces only the selected body range in volatile draft memory. **Cancel body dictation**, Escape or no final text leaves the draft unchanged ([native lifecycle](../src/Kora/OwnedInstructionBodyDictation.cs)).
+
+Then use normal **Save** and independently **Confirm save** for the exact complete source, or explicitly choose the separate [exact spoken Save question](#confirm-one-reviewed-instruction-save-by-voice) after complete display review. Dictation never saves, enables, invokes a model/tool, answers a question or interprets spoken command words ([combined-owner regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.SpokenSave.cs)).
+Original metadata, source encoding/BOM and all text outside the frozen range are retained; normal validation, conflicts and dirty-close decisions still apply ([native operation and save regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Dictation.cs)).
+
+Foreground loss, source/body/caret/range/name/kind changes, input/control/ownership changes, privacy, call/channel/device/name/topology or capture-generation changes retire the target. Native review cannot renew the original voice authority. Rejected or late text is discarded, never redirected to another field, question, session or command. Cancellation retains exclusive capture ownership until native release joins ([shared capture owner](../src/Kora.Application/Voice/ComposerDictationService.cs)).
+
+This uses the existing consented microphone and qualified bounded local literal-ASR route, not a second recognizer, background capture or system-wide dictation. Missing qualification remains explicitly unavailable; this implementation does not enable a production speech profile or qualify microphone/acoustic behavior. Prompts, metadata, skills, agents, profile originals and model-selected destinations are excluded. Review text is volatile, cleared on retirement, and not archived or content-logged ([composition](../src/Kora/App.axaml.cs), [capture admission](../src/Kora.Application/ViewModels/MainViewModel.ComposerDictation.cs)).
+
+Final transcripts retain the existing 4096-character local voice-input bound. The complete strict UTF-8 proposed source, including the original BOM when present, must still fit 65536 bytes; invalid or oversized results are rejected, not truncated ([body admission](../src/Kora/OwnedInstructionEditorController.Dictation.cs), [voice bound](../src/Kora.Core/Voice/VoiceInputLimits.cs)).
 
 ## Refine the current owned instruction body
 

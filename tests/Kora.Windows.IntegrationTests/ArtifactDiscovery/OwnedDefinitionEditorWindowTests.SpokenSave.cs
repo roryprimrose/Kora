@@ -1,5 +1,8 @@
 ﻿using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
 using Avalonia.Interactivity;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -9,6 +12,7 @@ using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Application.Hosting;
 using Kora.Application.Interaction;
+using Kora.Application.Voice;
 using Kora.Core.Artifacts;
 using Kora.Core.Communication;
 using Kora.Core.Diagnostics;
@@ -49,6 +53,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("expiry")]
     [InlineData("risk")]
     [InlineData("ambiguous-target")]
+    [InlineData("dictated-save")]
+    [InlineData("dictation-review-save")]
+    [InlineData("question-excludes-dictation")]
     public async Task CompletePreparedReviewUsesCanonicalQuestionAndSameInstructionWriter(string scenario)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -60,6 +67,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             await f.InitializeAsync(null, callState: call);
             f.Main.BindVoiceOwnershipGate(static () => true);
             await f.Main.SetVoiceConsentAsync(true);
+            var dictation = f.Main.BindComposerDictation(NullLogger<ComposerDictationService>.Instance);
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var store = new WindowsOwnedInstructionStore(f);
             var revisions = new InstructionRevisionCatalogue(f);
@@ -86,7 +94,8 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance), () => true,
                 NullLogger<QuestionWindowController>.Instance, () => ownership);
             using var controller = new OwnedInstructionEditorController(f.Main, actions, new(actions), reload, f,
-                () => true, () => ownership, NullLogger<OwnedInstructionEditorController>.Instance, saveQuestions: questions);
+                () => true, () => ownership, NullLogger<OwnedInstructionEditorController>.Instance,
+                saveQuestions: questions, dictation: dictation);
             OwnedInstructionEditorWindow? editor = null;
             var shown = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var windows = Window.WindowOpenedEvent.AddClassHandler<Window>((window, _) =>
@@ -114,8 +123,41 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (scenario is "risk") { draft += "password=not-for-speech"; }
             if (scenario is "ambiguous-target") { draft = draft.Replace("name: example", "name: Example", StringComparison.Ordinal); }
             owned.Source.Text = draft;
+            Action? lateLiteral = null;
+            if (scenario is "dictated-save" or "dictation-review-save")
+            {
+                owned.Activate();
+                Dispatcher.UIThread.RunJobs();
+                owned.Source.CaretIndex = draft.Length;
+                owned.Source.SelectionStart = owned.Source.SelectionEnd = draft.Length;
+                var hold = owned.GetVisualDescendants().OfType<Button>().Single(button => button.Name is "DictateInstructionBody");
+                hold.Focus().Should().BeTrue();
+                owned.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                await owned.BodyDictation!.Operation;
+                dictation.IsActive.Should().BeTrue();
+                lateLiteral = f.Voice.QueueLiteralTranscript("Save instruction example");
+                lateLiteral();
+                owned.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                await owned.BodyDictation.Operation;
+                dictation.HasReview.Should().BeTrue();
+                owned.Source.Text.Should().Be(draft);
+                (await store.Read("example", f.Token))!.Document.Text.Should().Be(initial);
+                f.Voice.ReplyCalls.Should().Be(0, "literal approval words are only body data");
+                if (scenario is "dictated-save")
+                {
+                    owned.GetVisualDescendants().OfType<Button>().Single(button => button.Name is "AcceptInstructionDictation")
+                        .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await owned.BodyDictation.Operation;
+                    draft += "Save instruction example";
+                    owned.Source.Text.Should().Be(draft);
+                }
+            }
             var saving = Run("instructions save");
             var completeReview = await Next(saving);
+            dictation.IsActive.Should().BeFalse();
+            f.Voice.IsCaptureQuiescent.Should().BeTrue();
+            lateLiteral?.Invoke();
+            owned.Source.Text.Should().Be(draft, "a retired literal capture cannot answer a Save review or change its draft");
             completeReview.GetVisualDescendants().OfType<TextBox>().Select(box => box.Text).Should().Contain(draft);
             f.Voice.ReplyCalls.Should().Be(0);
             Click(completeReview, "Reviewed complete source: exact save question");
@@ -187,6 +229,18 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 question.FindControl<Button>("AnswerByVoice")!.IsEnabled.Should().BeTrue();
                 question.FindControl<Button>("AnswerByVoice")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await f.Voice.ReplyStarted.Task.WaitAsync(f.Token);
+                if (scenario is "question-excludes-dictation")
+                {
+                    var captureStarts = f.Voice.StartCalls;
+                    var hold = owned.GetVisualDescendants().OfType<Button>().Single(button => button.Name is "DictateInstructionBody");
+                    hold.RaiseEvent(new KeyEventArgs { RoutedEvent = Avalonia.Input.InputElement.KeyDownEvent, Key = Key.Space });
+                    var attempt = () => owned.BodyDictation!.Operation;
+                    await attempt.Should().ThrowAsync<InvalidOperationException>()
+                        .WithMessage("Select one supported canonical Kora-owned Instruction draft*");
+                    dictation.IsActive.Should().BeFalse();
+                    f.Voice.StartCalls.Should().Be(captureStarts, "the dedicated question cannot fall back to body capture");
+                    f.Voice.ReplyCalls.Should().Be(1);
+                }
                 switch (scenario)
                 {
                     case "draft": owned.Source.Text += "Changed draft."; break;
@@ -223,11 +277,11 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                     conflict.Title.Should().Be("Instruction conflict");
                     Click(conflict, "Cancel (keep draft)");
                 }
-                else if (scenario is not ("save" or "cancel")) { question.Close(); }
+                else if (scenario is not ("save" or "cancel" or "dictated-save" or "dictation-review-save" or "question-excludes-dictation")) { question.Close(); }
             }
             await saving.WaitAsync(f.Token);
             var current = await store.Read("example", f.Token);
-            var saved = scenario is "save" or "native";
+            var saved = scenario is "save" or "native" or "dictated-save" or "dictation-review-save" or "question-excludes-dictation";
             current!.Document.Text.Should().Be(saved ? draft : expectedText);
             if (saved)
             {

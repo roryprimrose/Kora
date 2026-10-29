@@ -68,6 +68,19 @@ session's identifiers. The original body and original channel survive review
 and confirmation. A later native confirmation cannot convert original voice
 eligibility into native authority. Review confirmation is single-use.
 
+## Ask one clarification explicitly
+
+In private Sessions or compact view, enter your original message and select **Ask Claude with one clarification (separate disclosure reviews)**. This separate operation allows `ask_user` once, with bounded text, radio-button choices or checkboxes ([native control](../src/Kora/SessionsWindow.axaml)).
+Reply in the existing session-owned question window, or use its exact voice reply when microphone/privacy/call admission permits ([question owner](../src/Kora.Application/Hosting/ConversationQuestionContinuation.cs)).
+
+**Answering does not send your answer.** The host rereads the canonical stored reply, then offers a new complete native Count Tokens disclosure and a separate Messages disclosure.
+Each physical POST needs fresh affirmative native consent, even when the answer was spoken. Deny/close/expiry/cancellation or changed authority stops continuation; earlier approvals are not reused ([send reviews](../src/Kora.Application/Dependencies/HostedTransmissionReviewService.cs), [transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+
+The original request is unchanged. No observation tools, files, web, MCP, memory, history, attachments or agents enter this operation. The model may answer immediately instead of asking, but cannot repeat a question or mix it with prose/tool calls ([dedicated submission](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
+Reviews, reply and sends share the two-minute hosted deadline and cumulative 32768-byte input/4096-byte output bounds; actual resources join before release ([bounded loop](../src/Kora.Application/Dependencies/BoundedModelTurnAdapter.cs)).
+
+Ordinary text-only, observation and streaming actions are unchanged. This does not enable Claude, approve an account or support Copilot/Codex questions; the shipped deployment source remains unavailable ([availability](../Design/Runtime_Provider_Feasibility.md#native-claude-messages-profile---2026-10-24)).
+
 ## A separate native disclosure for every POST
 
 Every content-bearing physical POST requires its **own** private native final-byte

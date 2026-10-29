@@ -82,6 +82,9 @@ confirms one already completely display-reviewed existing canonical Kora-owned
 Instruction replacement through the canonical host question service and unchanged
 writer. It does not extend package saves, profile-original writes, creation/copy,
 deletion, conflict overwrite, grants or activation; other mutations remain native.
+The separate [literal owned Instruction body route](../docs/instruction-editor.md#dictate-literal-instruction-body-text)
+stages only reviewed volatile text at a frozen body caret/range. It cannot answer
+the dedicated Save question or replace complete source review and separate Save.
 
 Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
 Compatible instructions discovered in an existing VS Code or VS Code Insiders
@@ -117,7 +120,8 @@ packages stay disabled, with separate existing review/enable/invoke. Original
 channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
-Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
+Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.

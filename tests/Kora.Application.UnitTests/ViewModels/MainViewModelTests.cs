@@ -4609,6 +4609,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
+            .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -8613,7 +8614,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
-            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            bool enableConversationExecution = false)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8654,6 +8656,9 @@ public sealed partial class MainViewModelTests : IDisposable
             ConversationalPreferences.LoadFailure = conversationalReadFailure;
             ConversationalConfiguration = enableConversationalReplies
                 ? new(ConversationalPreferences, OutputAdmission, Audit) : null;
+            ConversationExecutionConfiguration = enableConversationExecution
+                ? new(ConversationExecutionPreferences, OutputAdmission, Audit) : null;
+            ConversationExecutionConfiguration?.Observe();
             ArtifactPreferences.LoadFailure = artifactReadFailure;
             ArtifactDirectoryConfiguration = enableArtifactConfiguration
                 ? new ArtifactDirectoryConfigurationService(ArtifactPreferences, Audit)
@@ -8808,7 +8813,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
-                communicationActivityConfiguration: communicationActivityConfiguration);
+                communicationActivityConfiguration: communicationActivityConfiguration,
+                conversationExecution: ConversationExecutionConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);
@@ -8830,6 +8836,8 @@ public sealed partial class MainViewModelTests : IDisposable
         public BuiltInCommandCatalog Catalog { get; }
         internal Kora.Application.UnitTests.Configuration.ConversationalReplyConfigurationServiceTests.Preferences ConversationalPreferences { get; } = new();
         public ConversationalReplyConfigurationService? ConversationalConfiguration { get; }
+        internal Kora.Application.UnitTests.Configuration.ConversationExecutionConfigurationServiceTests.Preferences ConversationExecutionPreferences { get; } = new();
+        public ConversationExecutionConfigurationService? ConversationExecutionConfiguration { get; }
         public CaptionPreferences CaptionPreferences { get; } = new();
         public FakeProviderPreferences ProviderPreferences { get; } = new();
         internal Kora.Application.UnitTests.Configuration.ProviderProfileConfigurationFixture.ProfilePreferences ProfilePreferences { get; } = new();

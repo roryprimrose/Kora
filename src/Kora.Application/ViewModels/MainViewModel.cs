@@ -284,7 +284,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
-        CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+        CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -439,6 +440,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -4484,6 +4486,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
             return;
         }
+        if (ConversationExecutionCommand.Parse(spokenText, AssistantName) is { } executionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no conversation execution setting was changed.";
+                return;
+            }
+            await ExecuteConversationExecutionCommandAsync(executionCommand, initiator);
+            return;
+        }
         if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
         {
             await ExecuteResponseModeCommandAsync(responseModeCommand, initiator);
@@ -6558,6 +6570,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)

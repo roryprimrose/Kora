@@ -3,13 +3,17 @@ using System.Runtime.CompilerServices;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Conversation;
+using Kora.Core.Configuration;
+using Kora.Application.Configuration;
 
 namespace Kora.Application.Dependencies;
 
 /// <summary>Issues and consumes volatile host capabilities atomically; records alone cannot allocate resources.</summary>
 internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, ISecurityAuditLog audit,
-    IRuntimeCapacityQualification? qualification)
+    IRuntimeCapacityQualification? qualification, ConversationExecutionConfigurationService? configuration = null)
 {
+    private static readonly ConversationExecutionBudget DefaultBudget = new(ConversationExecutionLimit.Default, 0, false);
     private readonly Lock gate = new();
     private readonly List<Lease> leases = [];
     private readonly ConditionalWeakTable<ModelTurn, Lease> issued = new();
@@ -18,6 +22,11 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
     private bool exclusiveQuarantine;
     private TaskCompletionSource changed = NewSignal();
     internal const int MaximumWaiters = 10;
+
+    internal void PreferenceChanged(object? sender, EventArgs args)
+    {
+        lock (gate) { Pulse(); }
+    }
 
     internal bool IsIdle { get { lock (gate) { return leases.Count == 0 && waiting.Count == 0; } } }
     internal bool OwnsSession(HostId<SessionIdentity> session)
@@ -47,6 +56,7 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
     {
         internal required ModelTurn Turn { get; init; }
         internal required RuntimeCapacityEvidence? Evidence { get; init; }
+        internal required ConversationExecutionBudget Budget { get; init; }
         internal bool Joined { get; set; }
         internal bool FailedJoin { get; set; }
         internal bool Joining { get; set; }
@@ -59,6 +69,9 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
         { throw new InvalidOperationException("This turn belongs to another runtime issuer."); }
         if (issued.TryGetValue(turn, out _))
         { throw new InvalidOperationException("This exact turn already consumed its resource capability."); }
+        if (!admitted()) { return null; }
+        var budget = ReadBudget();
+        if (budget is null) { return null; }
         var evidence = Observe(turn);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, evidence?.Revoked ?? CancellationToken.None);
         var queued = false;
@@ -70,16 +83,19 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
             {
                 token.ThrowIfCancellationRequested();
                 if (linked.IsCancellationRequested) { return null; }
+                var currentBudget = ReadBudget();
+                if (currentBudget is null) { return null; }
                 Task? signal = null;
                 Lease? reserved = null;
+                ConversationResourceStatus observation;
                 lock (gate)
                 {
                     if (!admitted() || !Current(turn, evidence) || Quarantined(evidence)) { return null; }
                     if (!queued && OwnsSession(turn.Provenance.Request.SessionId)) { return null; }
                     if ((!queued && waiting.Count == 0 || queued && ReferenceEquals(waiting[0], turn))
-                        && Available(turn, evidence))
+                        && Available(turn, evidence, Math.Min(budget.Limit.Value, currentBudget.Limit.Value)))
                     {
-                        reserved = new Lease { Turn = turn, Evidence = evidence };
+                        reserved = new Lease { Turn = turn, Evidence = evidence, Budget = budget };
                         leases.Add(reserved);
                     }
                     else
@@ -97,7 +113,14 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
                         }
                         signal = changed.Task;
                     }
+                    observation = new(currentBudget.Limit.Value, budget.Limit.Value, evidence is null ? 1 : 2,
+                        leases.Count, waiting.Count, reserved is not null ? ConversationResourceWaitReason.None
+                            : leases.Count >= Math.Min(budget.Limit.Value, currentBudget.Limit.Value)
+                                ? ConversationResourceWaitReason.ConfiguredMaximum
+                                : queued && !ReferenceEquals(waiting[0], turn) ? ConversationResourceWaitReason.EarlierRequest
+                                : ConversationResourceWaitReason.RuntimeResources);
                 }
+                turn.PublishResourceStatus?.Invoke(observation);
                 // Typed audit can enter the authority store, whose commit fence reads this allocator.
                 if (reserved is not null)
                 { return Issue(reserved, admitted); }
@@ -123,6 +146,7 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
         {
             return issued.TryGetValue(lease.Turn, out var actual) && ReferenceEquals(actual, lease)
                 && !lease.FailedJoin && !Quarantined(lease.Evidence)
+                && (lease.Turn.ResourceDispatched || lease.Joined || BudgetAdmits(lease))
                 && Current(lease.Turn, lease.Evidence);
         }
     }
@@ -169,7 +193,7 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
         {
             var requested = Record(lease.Turn, "runtime.resource.acquire", SecurityAuditOutcome.Requested);
             bool current;
-            lock (gate) { current = admitted() && Current(lease.Turn, lease.Evidence) && !Quarantined(lease.Evidence); }
+            lock (gate) { current = admitted() && BudgetAdmits(lease) && Current(lease.Turn, lease.Evidence) && !Quarantined(lease.Evidence); }
             if (!current)
             {
                 audit.Write(requested.WithOutcome(SecurityAuditOutcome.Denied));
@@ -178,7 +202,7 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
             audit.Write(requested.WithOutcome(SecurityAuditOutcome.Succeeded));
             lock (gate)
             {
-                if (admitted() && Current(lease.Turn, lease.Evidence) && !Quarantined(lease.Evidence))
+                if (admitted() && BudgetAdmits(lease) && Current(lease.Turn, lease.Evidence) && !Quarantined(lease.Evidence))
                 {
                     issued.Add(lease.Turn, lease);
                     return lease;
@@ -220,9 +244,17 @@ internal sealed class RuntimeResourceAllocator(Guid owner, TimeProvider time, IS
         exclusiveQuarantine || evidence is null && quarantined.Count != 0
         || evidence is not null && evidence.Resources.Any(item => quarantined.Contains(item.Resource));
 
-    private bool Available(ModelTurn turn, RuntimeCapacityEvidence? evidence)
+    private ConversationExecutionBudget? ReadBudget() => configuration is null ? DefaultBudget : configuration.Capture();
+
+    private bool BudgetAdmits(Lease lease)
     {
-        if (leases.Count >= 2) { return false; }
+        var current = configuration is null ? DefaultBudget : configuration.Current;
+        return current is not null && leases.IndexOf(lease) < Math.Min(lease.Budget.Limit.Value, current.Limit.Value);
+    }
+
+    private bool Available(ModelTurn turn, RuntimeCapacityEvidence? evidence, int maximum)
+    {
+        if (leases.Count >= maximum) { return false; }
         if (leases.Count == 0) { return turn.Registration.Adapter!.IsQuiescent; }
         if (evidence is null || leases.Any(item => item.Evidence is null)) { return false; }
         if (leases.Any(item => ReferenceEquals(item.Turn.Registration.Adapter, turn.Registration.Adapter)

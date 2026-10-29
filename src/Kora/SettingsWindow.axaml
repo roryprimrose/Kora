@@ -782,6 +782,31 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Independent ordinary conversations" Classes="settings-title" />
+                <TextBlock Text="Review a future maximum, then confirm separately. This does not enable provider capacity or start work."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <WrapPanel ItemSpacing="8" LineSpacing="6">
+                  <ComboBox Width="100" ItemsSource="{Binding ConversationExecutionLimits}"
+                            SelectedItem="{Binding SelectedConversationExecutionLimit}" DisplayMemberBinding="{Binding Value}"
+                            IsEnabled="{Binding CanChangeConversationExecution}" AutomationProperties.Name="Desired ordinary conversation execution maximum" />
+                  <controls:SettingActionsButton SettingName="Ordinary conversation execution maximum" IsEnabled="{Binding CanChangeConversationExecution}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshConversationExecutionCommand}" IsEnabled="{Binding CanChangeConversationExecution}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                  <Button Content="Review maximum" Command="{Binding ReviewConversationExecutionCommand}" IsEnabled="{Binding CanChangeConversationExecution}" />
+                  <Button Content="Confirm maximum" Command="{Binding ConfirmConversationExecutionCommand}" IsEnabled="{Binding CanConfirmConversationExecution}" />
+                  <Button Content="Cancel review" Command="{Binding CancelConversationExecutionCommand}" IsEnabled="{Binding CanChangeConversationExecution}" />
+                </WrapPanel>
+                <TextBlock Text="{Binding ConversationExecutionStatus}" Classes="settings-description" TextWrapping="Wrap"
+                           AutomationProperties.Name="{Binding ConversationExecutionStatus}" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />

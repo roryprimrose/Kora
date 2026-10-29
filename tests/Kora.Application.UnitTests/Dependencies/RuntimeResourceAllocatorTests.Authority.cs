@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 
 using Kora.Application.Dependencies;
+using Kora.Application.Configuration;
+using Kora.Core.Configuration;
 using Kora.Application.UnitTests.Agents;
 using Kora.Core.Auditing;
 using Kora.Core.Dependencies;
@@ -20,15 +22,17 @@ public sealed partial class RuntimeResourceAllocatorTests
         var owner = Guid.NewGuid();
         var allocator = new RuntimeResourceAllocator(owner, f.Time, f, source);
         var turn = ResourceTurn(owner, source);
-        var forged = new RuntimeResourceAllocator.Lease { Turn = turn, Evidence = source.Evidence };
+        (await Allocate(allocator, ResourceTurn(owner, source), () => false)).Should().BeNull();
+        var budget = new ConversationExecutionBudget(ConversationExecutionLimit.Default, 0, false);
+        var forged = new RuntimeResourceAllocator.Lease { Turn = turn, Evidence = source.Evidence, Budget = budget };
         allocator.IsCurrent(forged).Should().BeFalse();
         allocator.Invoking(value => value.Join(forged, false)).Should().Throw<InvalidOperationException>();
         await Allocate(allocator, ResourceTurn(Guid.NewGuid(), source)).Invoking(value => value)
             .Should().ThrowAsync<InvalidOperationException>();
         var lease = (await Allocate(allocator, turn))!;
         allocator.IsCurrent(lease).Should().BeTrue();
-        allocator.IsCurrent(new() { Turn = turn, Evidence = source.Evidence }).Should().BeFalse();
-        allocator.Invoking(value => value.Join(new() { Turn = turn, Evidence = source.Evidence }, false))
+        allocator.IsCurrent(new() { Turn = turn, Evidence = source.Evidence, Budget = budget }).Should().BeFalse();
+        allocator.Invoking(value => value.Join(new() { Turn = turn, Evidence = source.Evidence, Budget = budget }, false))
             .Should().Throw<InvalidOperationException>();
         await Allocate(allocator, turn).Invoking(value => value).Should().ThrowAsync<InvalidOperationException>();
         new RuntimeResourceAllocator(owner, f.Time, f, source).IsCurrent(lease).Should().BeFalse();

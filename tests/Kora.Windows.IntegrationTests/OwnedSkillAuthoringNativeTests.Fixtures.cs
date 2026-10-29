@@ -29,9 +29,12 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("v2")]
     [InlineData("unavailable")]
     [InlineData("review-edit")]
+    [InlineData("other-cancel")]
     [InlineData("late-cancel")]
     [InlineData("late-fixture")]
     [InlineData("late-draft")]
+    [InlineData("late-expected-input")]
+    [InlineData("late-critique")]
     [InlineData("late-selection")]
     [InlineData("late-owner")]
     [InlineData("late-privacy")]
@@ -138,6 +141,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 wire.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)ModelToolMode.None);
             }
             adapter.Calls.Should().Be(0, "preparation and validation cannot run inference");
+            if (scenario is "other-cancel")
+            {
+                Choose(owned, "Cancel refinement");
+                disclosure.IsVisible.Should().BeTrue("Cancel refinement must not close a simulated test review");
+                Choose(owned, "Generate initial guidance");
+                disclosure.IsVisible.Should().BeTrue("a busy editor cannot start a second model operation");
+                adapter.Calls.Should().Be(0);
+            }
             if (scenario is "review-edit")
             {
                 owned.Fixture.Text += " ";
@@ -155,6 +166,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     case "late-cancel": Choose(owned, "Cancel test"); break;
                     case "late-fixture": owned.Fixture.Text += " "; break;
                     case "late-draft": owned.Guidance.Text += "EDIT"; break;
+                    case "late-expected-input": owned.ExpectedInput.Text = "Different generation input"; break;
+                    case "late-critique": owned.Critique.Text = "Different refinement critique"; break;
                     case "late-selection":
                         owned.Saved.ItemsSource = new[] { new OwnedDeclarativeSkillSnapshot(document, "d", "m", "i") };
                         owned.Saved.SelectedIndex = 0;

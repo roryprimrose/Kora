@@ -25,6 +25,78 @@ public sealed class LocalArtifactDirectoryPreferencesTests
     }
 
     [Fact]
+    public void Default_locations_are_visible_without_writes_and_removed_defaults_stay_removed_after_restart()
+    {
+        var root = Path.GetFullPath(Path.Combine("preferences", "defaults"));
+        var defaults = ArtifactDirectorySettings.DefaultDirectories(root, Path.Combine(root, "editor"), Path.Combine(root, "user"));
+        var store = new Store();
+        var preferences = new LocalArtifactDirectoryPreferences(store, defaults);
+        preferences.Load().Should().BeSameAs(defaults);
+        store.Writes.Should().Be(0);
+        var configuration = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        foreach (var path in defaults.SkillDirectories)
+        { configuration.Remove(ArtifactSourceKind.Skill, path); }
+        var restarted = new LocalArtifactDirectoryPreferences(store, defaults).Load();
+        restarted.SkillDirectories.Should().BeEmpty();
+        restarted.UseDefaultDirectories.Should().BeFalse();
+        restarted.InstructionDirectories.Should().Equal(defaults.InstructionDirectories);
+        store.Text.Should().Contain("\"Version\":3");
+    }
+
+    [Fact]
+    public void Version_two_additions_are_preserved_and_migrated_only_on_an_explicit_write()
+    {
+        var root = Path.GetFullPath(Path.Combine("preferences", "migration"));
+        var defaults = ArtifactDirectorySettings.DefaultDirectories(root, Path.Combine(root, "editor"), Path.Combine(root, "user"));
+        var additions = Enumerable.Range(0, ArtifactDirectorySettings.MaximumPathsPerKind)
+            .Select(index => Path.Combine(root, "custom-" + index)).ToArray();
+        var store = new Store
+        {
+            Text = System.Text.Json.JsonSerializer.Serialize(new
+            {
+                Version = 2, Skills = additions, Instructions = additions, Prompts = additions, Agents = additions,
+                McpConfigurationFiles = new[] { Path.Combine(root, "mcp.json") }, IncludedMcpServerIds = new[] { new string('a', 64) },
+            }),
+        };
+        var preferences = new LocalArtifactDirectoryPreferences(store, defaults);
+        var migrated = preferences.Load();
+        store.Writes.Should().Be(0);
+        migrated.SkillDirectories.Should().Equal(defaults.SkillDirectories.Concat(additions));
+        migrated.InstructionDirectories.Should().Equal(defaults.InstructionDirectories.Concat(additions));
+        migrated.PromptDirectories.Should().Equal(defaults.PromptDirectories.Concat(additions));
+        migrated.AgentDirectories.Should().Equal(defaults.AgentDirectories.Concat(additions));
+        preferences.Save(migrated);
+        var restarted = new LocalArtifactDirectoryPreferences(store, defaults).Load();
+        restarted.SkillDirectories.Should().Equal(migrated.SkillDirectories);
+        restarted.McpConfigurationFiles.Should().Equal(Path.Combine(root, "mcp.json"));
+        restarted.IncludedMcpServerIds.Should().Equal(new string('a', 64));
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(",\"UseDefaultDirectories\":null")]
+    [InlineData(",\"UseDefaultDirectories\":\"false\"")]
+    [InlineData(",\"UseDefaultDirectories\":false,\"UseDefaultDirectories\":false")]
+    public void Version_three_requires_one_explicit_boolean_default_policy(string policy)
+    {
+        Invalid("{\"Version\":3,\"Skills\":[],\"Instructions\":[],\"Prompts\":[],\"Agents\":[],\"McpConfigurationFiles\":[],\"IncludedMcpServerIds\":[]" + policy + "}");
+    }
+
+    [Fact]
+    public void Complete_lists_roundtrip_at_their_bound_and_reject_overflow()
+    {
+        var root = Path.GetFullPath("preferences");
+        var paths = Enumerable.Range(0, ArtifactDirectorySettings.MaximumConfiguredDirectoriesPerKind)
+            .Select(index => Path.Combine(root, "custom-" + index)).ToArray();
+        var store = new Store();
+        var preferences = new LocalArtifactDirectoryPreferences(store);
+        preferences.Save(new(paths, paths, paths, paths, [], [], false));
+        preferences.Load().AgentDirectories.Should().Equal(paths);
+        store.Text = store.Text!.Replace("\"Skills\":[", "\"Skills\":[\"extra\",", StringComparison.Ordinal);
+        ((Action)(() => preferences.Load())).Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
     public void Settings_roundtrip_normalized_absolute_directories_for_every_artifact_kind()
     {
         var store = new Store();
@@ -61,6 +133,23 @@ public sealed class LocalArtifactDirectoryPreferencesTests
         var preferences = new LocalArtifactDirectoryPreferences(new Store { Text = text });
 
         ((Action)(() => preferences.Load())).Should().Throw<InvalidDataException>();
+    }
+
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("false")]
+    [InlineData("0")]
+    [InlineData("\"invalid\"")]
+    public void Non_object_roots_are_rejected_without_writing_preferences(string text)
+    {
+        var store = new Store { Text = text };
+        var preferences = new LocalArtifactDirectoryPreferences(store);
+
+        ((Action)(() => preferences.Load())).Should().Throw<InvalidDataException>()
+            .WithMessage("The artifact directory preference version is missing.");
+        store.Text.Should().Be(text);
+        store.Writes.Should().Be(0);
     }
 
     [Fact]
@@ -138,6 +227,11 @@ public sealed class LocalArtifactDirectoryPreferencesTests
     private static void Invalid(string text) =>
         ((Action)(() => new LocalArtifactDirectoryPreferences(new Store { Text = text }).Load()))
             .Should().Throw<InvalidDataException>();
+
+    private sealed class Audit : Kora.Core.Auditing.ISecurityAuditLog
+    {
+        public void Write(Kora.Core.Auditing.SecurityAuditEvent auditEvent) { }
+    }
 
     private sealed class Store : IPreferenceStore
     {

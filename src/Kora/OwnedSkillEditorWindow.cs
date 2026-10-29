@@ -16,6 +16,9 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
     internal readonly TextBox Guidance = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MinHeight = 140 };
     internal readonly TextBox Critique = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
     internal readonly TextBox Fixture = new() { AcceptsReturn = true, TextWrapping = TextWrapping.Wrap, MaxHeight = 100 };
+    internal readonly TextBox Purpose = new() { IsReadOnly = true, AcceptsReturn = true, MaxHeight = 80 };
+    internal readonly TextBox ExpectedInput = new() { AcceptsReturn = true, MaxHeight = 80 };
+    internal readonly TextBox ExpectedOutput = new() { AcceptsReturn = true, MaxHeight = 80 };
     internal readonly ComboBox Saved = new() { MinWidth = 400 };
     internal readonly ComboBox Tool = new() { ItemsSource = new[] { "No tools (native v1)", "Host WebPageGet only (native v2)" }, SelectedIndex = 0 };
     internal readonly ComboBox InputFormat = new() { ItemsSource = new[] { "Literal guidance (native v1/v2)", "Required literal guidance inputs (native v3; no tools)" }, SelectedIndex = 0 };
@@ -66,6 +69,17 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
             buttons.Children.Add(button);
         }
         fields.Children.Add(buttons);
+        foreach (var pair in new[] { ("Original new-skill purpose", Purpose), ("Expected input (or explicitly none)", ExpectedInput),
+            ("Expected output", ExpectedOutput) })
+        {
+            fields.Children.Add(new TextBlock { Text = pair.Item1 });
+            AutomationProperties.SetName(pair.Item2, pair.Item1);
+            fields.Children.Add(pair.Item2);
+            pair.Item2.PropertyChanged += (_, args) => { if (args.Property == TextBox.TextProperty) { DraftChanged?.Invoke(); } };
+        }
+        var generate = new Button { Content = "Generate initial guidance", Margin = new(3) };
+        generate.Click += (_, _) => run("generate");
+        fields.Children.Add(generate);
         fields.Children.Add(Saved);
         fields.Children.Add(new TextBlock { Text = "Original critique for explicit local guidance refinement" });
         AutomationProperties.SetName(Critique, "Original skill guidance critique");
@@ -151,6 +165,10 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
                 + "\n--- EPHEMERAL fixture ---\n" + result.Preview.Fixture.Source + "\n--- EXACT LOCAL INPUT ---\n" + result.Preview.Context,
             result.Output, ["Dismiss simulated result"], token, current, "Exact tested source and fixture", "Exact simulated output",
             System.Text.Json.JsonSerializer.Serialize(result.Assertions));
+
+    internal Task<int> ChooseInitial(string title, string disclosure, string manifest, string guidance,
+        string[] choices, Func<bool> currentInput, CancellationToken token) =>
+        ChooseOnUi(title, disclosure, manifest, guidance, choices, token, currentInput);
 
     private async Task<int> ChooseOnUi(string title, string disclosure, string manifest, string instructions,
         string[] choices, CancellationToken token, Func<bool>? privateEligible = null,

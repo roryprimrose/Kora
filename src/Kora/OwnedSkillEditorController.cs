@@ -48,6 +48,7 @@ internal sealed partial class OwnedSkillEditorController(
     private void Retire()
     {
         original?.Retire();
+        generatedBase = null;
         lifetime?.Cancel();
         CancelRefinement();
         CancelFixture();
@@ -92,6 +93,7 @@ internal sealed partial class OwnedSkillEditorController(
                 Interlocked.Increment(ref generation);
                 dirty = true;
                 validated = null;
+                generatedBase = null;
                 CancelRefinement();
                 CancelFixture();
                 invocation?.Retire();
@@ -164,11 +166,23 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Fixture.Text = "";
                     fixtureAuthority = null;
                     source = null;
+                    initialAuthority = null;
+                    generatedBase = null;
+                    opened.Purpose.Text = "";
+                    opened.ExpectedInput.Text = "";
+                    opened.ExpectedOutput.Text = "";
                     CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
                     break;
+                case "generate-request":
+                    if (!await DiscardOrSave()) { return; }
+                    PrepareInitial(opened, command.Literal!, authority);
+                    break;
+                case "expected-input": opened.ExpectedInput.Text = command.Literal; break;
+                case "expected-output": opened.ExpectedOutput.Text = command.Literal; break;
+                case "generate": await ProposeGuidance(opened, authority, GuidanceOperation.Generate, lifetime.Token); break;
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
@@ -177,7 +191,7 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Critique.Text = command.Literal;
                     critiqueAuthority = authority;
                     break;
-                case "refine": await Refine(opened, authority, lifetime.Token); break;
+                case "refine": await ProposeGuidance(opened, authority, GuidanceOperation.Refine, lifetime.Token); break;
                 case "fixture":
                     CancelFixture();
                     opened.Fixture.Text = command.Literal;
@@ -201,6 +215,8 @@ internal sealed partial class OwnedSkillEditorController(
                     };
                     break;
                 case "validate":
+                    if (initialAuthority is not null && pendingRefinement is null)
+                    { throw new InvalidOperationException("Generate and review the complete initial proposal before validation. Nothing saved."); }
                     validated = pendingRefinement is { } proposal
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
@@ -281,6 +297,8 @@ internal sealed partial class OwnedSkillEditorController(
     {
         CancelRefinement();
         source = saved;
+        initialAuthority = null;
+        generatedBase = null;
         opened.IdInput.Text = saved.Document.Id;
         opened.VersionInput.Text = saved.Document.Version;
         opened.NameInput.Text = saved.Document.Name;

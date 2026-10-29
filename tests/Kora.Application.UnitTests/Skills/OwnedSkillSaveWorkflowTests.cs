@@ -152,8 +152,14 @@ public sealed class OwnedSkillSaveWorkflowTests : IDisposable
     [InlineData("owned skill request: unchanged original", "request")]
     [InlineData("owned skill create CON 1.0.0", "Invalid")]
     [InlineData("owned skill run example", "Invalid")]
+    [InlineData("create a skill that", "Invalid")]
+    [InlineData("Nova, create a skill that explains a failure", "generate-request")]
     public void CommandsRemainDedicatedAndClosed(string input, string operation) =>
         OwnedSkillAuthoringCommand.Parse(input, "Nova")!.Operation.Should().Be(operation);
+
+    [Fact]
+    public void OversizeInitialSkillRequestIsRejectedWithoutTruncation() =>
+        OwnedSkillAuthoringCommand.Parse("create a skill that " + new string('x', 66049), "Nova")!.Operation.Should().Be("Invalid");
 
     [Theory]
     [InlineData("owned skill editor", "editor")]

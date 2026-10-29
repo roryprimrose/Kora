@@ -14,7 +14,7 @@ internal sealed partial class OwnedSkillEditorController
     {
         Interlocked.Increment(ref fixtureEpoch);
         fixtureLifetime?.Cancel();
-        window?.RetireReview();
+        if (fixtureLifetime is not null) { window?.RetireReview(); }
     }
 
     private async Task TestFixture(OwnedSkillEditorWindow opened, OwnedSkillAuthoringAuthority request, CancellationToken token)

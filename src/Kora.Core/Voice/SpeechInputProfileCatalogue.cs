@@ -3,6 +3,8 @@
 public static class SpeechInputProfileCatalogue
 {
     public const string WindowsProfileId = "windows-activated-v1";
+    public const string LocalProfilesUnavailable = "Additional exact local wake/activated-ASR/resource profiles are unavailable: "
+        + "no complete compatible profile is admitted for selection. Optional hands-free asset preparation does not qualify capture, names or acoustic behavior.";
     public static IReadOnlyList<SpeechInputProfile> Profiles { get; } = Array.AsReadOnly<SpeechInputProfile>(
         [new(WindowsProfileId, "Windows activated commands", "System.Speech", "Installed English recognizer")]);
 

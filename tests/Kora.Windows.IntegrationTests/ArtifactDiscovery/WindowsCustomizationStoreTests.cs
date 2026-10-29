@@ -1,3 +1,4 @@
+using System.Security.AccessControl;
 using System.Security.Principal;
 using System.Text;
 
@@ -32,7 +33,10 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
         using var identity = WindowsIdentity.GetCurrent();
         RestrictedStorageDirectory.CreateRestrictedDirectory(extra, identity.User!);
         var file = Path.Combine(extra, "helper.agent.md");
-        File.WriteAllText(file, "---\nname: Helper\ndescription: Custom agent\n---\nCustom agent.");
+        WindowsOwnedInstructionStoreTests.WriteOwnedFile(file,
+            Encoding.UTF8.GetBytes("---\nname: Helper\ndescription: Custom agent\n---\nCustom agent."));
+        new FileInfo(file).GetAccessControl(AccessControlSections.Owner).GetOwner(typeof(SecurityIdentifier))
+            .Should().Be(identity.User);
         var preferences = new DirectoryPreferences(new([], [], [], [extra], [], [], false));
         var store = new WindowsCustomizationStore(paths, Path.Combine(root, "editor-profile"),
             Path.Combine(root, "user-profile"), preferences);

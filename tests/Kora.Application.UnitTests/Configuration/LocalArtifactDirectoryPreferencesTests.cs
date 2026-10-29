@@ -135,6 +135,23 @@ public sealed class LocalArtifactDirectoryPreferencesTests
         ((Action)(() => preferences.Load())).Should().Throw<InvalidDataException>();
     }
 
+    [Theory]
+    [InlineData("[]")]
+    [InlineData("null")]
+    [InlineData("false")]
+    [InlineData("0")]
+    [InlineData("\"invalid\"")]
+    public void Non_object_roots_are_rejected_without_writing_preferences(string text)
+    {
+        var store = new Store { Text = text };
+        var preferences = new LocalArtifactDirectoryPreferences(store);
+
+        ((Action)(() => preferences.Load())).Should().Throw<InvalidDataException>()
+            .WithMessage("The artifact directory preference version is missing.");
+        store.Text.Should().Be(text);
+        store.Writes.Should().Be(0);
+    }
+
     [Fact]
     public void Relative_and_duplicate_directories_are_rejected_before_write()
     {

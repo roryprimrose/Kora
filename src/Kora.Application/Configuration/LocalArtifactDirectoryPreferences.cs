@@ -183,8 +183,7 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
 
     private static void RequireProperties(JsonElement element, params string[] expected)
     {
-        if (element.ValueKind != JsonValueKind.Object
-            || !element.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)
+        if (!element.EnumerateObject().Select(property => property.Name).Order(StringComparer.Ordinal)
                 .SequenceEqual(expected.Order(StringComparer.Ordinal), StringComparer.Ordinal))
         {
             throw new InvalidDataException("The preference contains missing, duplicate or unknown properties.");

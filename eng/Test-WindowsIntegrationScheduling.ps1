@@ -62,7 +62,8 @@ $classes = [ordered]@{
     'Storage.WindowsSqliteExactGrantFilterTests' = 'storage-heavy'
     'Storage.WindowsSqliteEvidenceQueryTests' = 'storage-other'
     'Storage.FutureStorageTests' = 'storage-other'
-    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-definitions'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-platform'
+    'ArtifactDiscovery.OwnedDefinitionEditorWindowTestsExtra' = 'ui-definitions'
     'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
     'EvidenceLiteralFindTests' = 'ui-platform'
     'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
@@ -79,6 +80,18 @@ $classes = [ordered]@{
     'SpeechCaptionDisplayTestsExtra' = 'ui-platform'
     'SessionsConversationTests' = 'ui-definitions'
     'SessionsConversationTestsExtra' = 'ui-platform'
+    'SettingsSectionNavigationTests' = 'ui-definitions'
+    'SettingsResetMenuTests' = 'ui-definitions'
+    'SettingsSpecialistNavigationTests' = 'ui-definitions'
+    'SettingsSectionNavigationTestsExtra' = 'ui-platform'
+    'SettingsResetMenuTestsExtra' = 'ui-platform'
+    'SettingsSpecialistNavigationTestsExtra' = 'ui-platform'
+    'SessionRoutingTests' = 'ui-definitions'
+    'PendingQuestionNavigationTests' = 'ui-definitions'
+    'AllWorkWaitingQuestionNavigationTests' = 'ui-definitions'
+    'SessionRoutingTestsExtra' = 'ui-platform'
+    'PendingQuestionNavigationTestsExtra' = 'ui-platform'
+    'AllWorkWaitingQuestionNavigationTestsExtra' = 'ui-platform'
     'NativeQuestionTests' = 'ui-platform'
     'FuturePlatformTests' = 'ui-platform'
 }
@@ -182,6 +195,78 @@ Assert (($predictedJobSeconds.Values | Measure-Object -Maximum).Maximum -lt
     ($originalJobSeconds.Values | Measure-Object -Maximum).Maximum) 'Reduce the exact-run critical path without moving its timeout to another shard.'
 Assert (($predictedCases.Values | Measure-Object -Sum).Sum -eq 6284) 'The measured rebalance must preserve every recorded case.'
 Assert ($predictedCases['ui-definitions'] -eq 1335 -and $predictedCases['ui-platform'] -eq 3479) 'Move all 115 Find cases exactly once.'
+
+# Run 40815883491 cancelled platform at the whole-job cap with 2,516 passed cases
+# and no failed assertions; definitions completed in 885s. This partial-run fixture
+# checks measured work redistribution, not completion or hosted timing guarantees.
+$settingsClasses = [ordered]@{
+    'SettingsSectionNavigationTests' = @{ Cases = 14; Seconds = 175.465 }
+    'SettingsResetMenuTests' = @{ Cases = 49; Seconds = 118.958 }
+    'SettingsSpecialistNavigationTests' = @{ Cases = 7; Seconds = 90.980 }
+}
+$observedPlatformSeconds = 1818.0
+$observedDefinitionsSeconds = 885.0
+$settingsSeconds = 0.0
+$settingsCases = 0
+Assert ($observedPlatformSeconds -gt $deadlineSeconds) 'Reproduce the observed whole-job breach, not a test assertion failure.'
+foreach ($class in $settingsClasses.Keys) {
+    $target = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.Test")
+    Assert ($target.Count -eq 1 -and $target[0].Name -ceq 'ui-definitions') "Move the entire measured $class class to synchronous definitions."
+    $settingsSeconds += $settingsClasses[$class].Seconds
+    $settingsCases += $settingsClasses[$class].Cases
+}
+Assert ($settingsCases -eq 70) 'Preserve every measured settings case.'
+$redistributedPlatformSeconds = $observedPlatformSeconds - $settingsSeconds
+$redistributedDefinitionsSeconds = $observedDefinitionsSeconds + $settingsSeconds
+Assert ($redistributedPlatformSeconds -lt $deadlineSeconds) 'The retained platform work must fit without extending the job cap.'
+Assert ($redistributedDefinitionsSeconds -lt $deadlineSeconds) 'Do not transfer the measured budget breach to definitions.'
+Assert ([Math]::Max($redistributedPlatformSeconds, $redistributedDefinitionsSeconds) -lt
+    $observedPlatformSeconds) 'Reduce the measured critical path.'
+
+# Run 40836599680 retained only 1,400 of 1,421 definitions cases before cancellation.
+# Project only recorded work; the remaining cases still require new-head execution.
+$editorCases = 288
+$editorSeconds = 381.4
+$cancelledDefinitionsSeconds = 1819.0
+$completedPlatformSeconds = 1114.0
+Assert ($cancelledDefinitionsSeconds -gt $deadlineSeconds) 'Reproduce the exact definitions whole-job cancellation.'
+$editorDestination = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test')
+Assert ($editorDestination.Count -eq 1 -and $editorDestination[0].Name -ceq 'ui-platform') 'Move the complete measured editor class to synchronous platform.'
+$projectedDefinitionsSeconds = $cancelledDefinitionsSeconds - $editorSeconds
+$projectedPlatformSeconds = $completedPlatformSeconds + $editorSeconds
+Assert ($projectedDefinitionsSeconds -lt 0.85 * $deadlineSeconds) 'Leave headroom for unfinished definitions work without extending the cap.'
+Assert ($projectedPlatformSeconds -lt 0.85 * $deadlineSeconds) 'Do not transfer the measured budget breach to platform.'
+Assert ([Math]::Max($projectedDefinitionsSeconds, $projectedPlatformSeconds) -lt
+    $cancelledDefinitionsSeconds) 'Reduce the recorded critical path.'
+Assert ((1400 - $editorCases) -eq 1112 -and (3454 + $editorCases) -eq 3742) 'Move all 288 recorded editor cases exactly once.'
+Assert (((1400 - $editorCases) + (3454 + $editorCases)) -eq (1400 + 3454)) 'Preserve every recorded case despite partial definitions evidence.'
+
+# Run 40840133406 cancelled definitions at 1,815s with only partial results.
+# Charge complete measured jobs; serial UI durations only redistribute recorded work.
+$editorDestination = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.ArtifactDiscovery.OwnedDefinitionEditorWindowTests.Test')
+Assert ($editorDestination.Count -eq 1 -and $editorDestination[0].Name -ceq 'ui-platform') 'Keep the complete editor class on synchronous platform.'
+$navigationClasses = [ordered]@{
+    'SessionRoutingTests' = @{ Cases = 35; Seconds = 75.08 }
+    'PendingQuestionNavigationTests' = @{ Cases = 18; Seconds = 74.11 }
+    'AllWorkWaitingQuestionNavigationTests' = @{ Cases = 55; Seconds = 71.86 }
+}
+$navigationSeconds = 0.0
+$navigationCases = 0
+foreach ($class in $navigationClasses.Keys) {
+    $target = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.Test")
+    Assert ($target.Count -eq 1 -and $target[0].Name -ceq 'ui-definitions') "Move the entire measured $class class to synchronous definitions."
+    $navigationSeconds += $navigationClasses[$class].Seconds
+    $navigationCases += $navigationClasses[$class].Cases
+    $source = Get-Content -Raw -LiteralPath (Join-Path $root "tests\Kora.Windows.IntegrationTests\$class.cs")
+    Assert ($source.Contains('[Collection(nameof(HeadlessUiTestGroup))]', [StringComparison]::Ordinal)) 'Redistributed UI durations must belong to the serial dispatcher collection.'
+}
+$candidateDefinitionsSeconds = 1815.0 - 376.0 + $navigationSeconds
+$candidatePlatformSeconds = 1405.0 + 376.0 - $navigationSeconds
+Assert (1815.0 -gt $deadlineSeconds) 'Reproduce the candidate definitions whole-job cancellation.'
+Assert ($candidateDefinitionsSeconds -lt $deadlineSeconds - 120) 'Retain two minutes of measured definitions headroom for unfinished work.'
+Assert ($candidatePlatformSeconds -lt $deadlineSeconds - 120) 'Do not transfer the measured budget breach to platform.'
+Assert ($navigationCases -eq 108) 'Move all recorded navigation cases intact.'
+Assert ((1412 - 288 + $navigationCases) + (3475 + 288 - $navigationCases) -eq 4887) 'Preserve every recorded candidate case despite partial definitions evidence.'
 
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)

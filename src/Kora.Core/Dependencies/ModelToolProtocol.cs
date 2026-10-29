@@ -37,11 +37,15 @@ public static partial class ModelToolProtocol
             { throw new InvalidDataException("The provider tuple does not belong to the host selection."); }
         }
         var history = messages.Take(MaximumCalls * 2 + 3).ToImmutableArray();
-        if (clarificationAllowed && !AllowsClarification(context.ToolMode, provenance.Selection.Provider))
-        { throw new InvalidDataException("Clarification requires a local tool-free or original read-only turn."); }
+        if (clarificationAllowed && !AllowsClarification(context.ToolMode, provenance.Selection.Provider)
+            || context.ToolMode == ModelToolMode.HostedClarification
+                && (!clarificationAllowed || profile is null
+                    || history.OfType<ModelClarificationQuestion>().Any(question => question.CallId is null)))
+        { throw new InvalidDataException("Clarification requires its explicit local or hosted operation and exact question history."); }
         if (context.ToolMode == ModelToolMode.None && !clarificationAllowed && !history.IsEmpty)
         { throw new InvalidDataException("A tool-free turn cannot contain any tool history."); }
-        if (clarificationAllowed && context.ToolMode == ModelToolMode.None) { ValidateQuestionHistory(history); }
+        if (clarificationAllowed && context.ToolMode is ModelToolMode.None or ModelToolMode.HostedClarification)
+        { ValidateQuestionHistory(history); }
         else { ValidateHistory(history, clarificationAllowed); }
         var expectedRound = history.Count(message => message is ModelAssistantMessage) + 1;
         if (round != expectedRound || round > (context.WebPages?.MaximumRounds ?? context.Constraints?.MaximumRounds ?? MaximumRounds)

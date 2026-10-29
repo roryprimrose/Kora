@@ -49,6 +49,11 @@ internal sealed partial class LocalFilePreviewWindow
         answerCitations = rows;
         AutomationProperties.SetName(rows, "Exact source citations from this successful local file answer");
         bool Current() => isCurrent() && ReferenceEquals(answerSelection, selection);
+        var disclosure = new NamedTextBlock { TextWrapping = TextWrapping.Wrap };
+        var busy = false;
+        var consumed = false;
+        var interrupted = false;
+        var review = new Button { Content = "Review another question on this exact snapshot", IsEnabled = false };
         var navigate = new Button { Content = "Show exact answer citation", IsEnabled = false };
         navigate.Command = new AsyncCommand(() => NavigateCitation(selection.Resolve, rows, Current,
             _ => Task.FromResult<IReadOnlyList<LocalFileRevision>>([source]), _ => { }),
@@ -68,18 +73,31 @@ internal sealed partial class LocalFilePreviewWindow
         }
         question.PropertyChanged += (_, args) =>
         {
-            if (args.Property == TextBox.TextProperty) { Invalidate(); }
+            if (args.Property != TextBox.TextProperty) { return; }
+            Invalidate();
+            if (busy && Current())
+            {
+                interrupted = true;
+                text.Text = "Question changed. No answer claimed. Waiting for current work to finish before a fresh review.";
+            }
         };
         var submit = new Button { Content = "Use this exact snapshot once to answer locally" };
         AutomationProperties.SetName(submit, "Explicit one-question local model source-use request, separate from preview consent");
         submit.Command = new AsyncCommand(async () =>
         {
+            if (busy || consumed || !Current()) { return; }
+            consumed = true;
+            busy = true;
+            interrupted = false;
             submit.IsEnabled = false;
+            review.IsEnabled = false;
             Invalidate();
-            var result = await selection.Run(question.Text ?? string.Empty,
-                (text, current, token) => answer(text, reviewedTarget, current, token), Current);
-            if (result is null || !Current()) { return; }
-            text.Text = $"Outcome: {result.Outcome}; model reason: {result.ModelReason?.ToString() ?? "(none)"}.\n"
+            try
+            {
+                var result = await selection.Run(question.Text ?? string.Empty,
+                    (text, current, token) => answer(text, reviewedTarget, current, token), Current);
+                if (result is null || !Current()) { return; }
+                text.Text = $"Outcome: {result.Outcome}; model reason: {result.ModelReason?.ToString() ?? "(none)"}.\n"
                 + $"Source-use decision: {result.SourceUseDecision?.ToString() ?? "(no refusal decision)"}.\n"
                 + $"Execution: {result.ExecutionReason?.ToString() ?? "(not started)"}; durable task: {result.ExecutionState?.ToString() ?? "(none)"}.\n"
                 + $"Matching chunks: {result.MatchingChunks}; lexical selection truncated: {result.RetrievalTruncated}.\n"
@@ -97,31 +115,66 @@ internal sealed partial class LocalFilePreviewWindow
                             + string.Join("\n", claim.Citations.Select(DescribeCitation)))),
                     _ => "No answer claimed. Check source admission, question limits and qualified local runtime, or cancel.",
                 });
-            rows.ItemsSource = result.Outcome == LocalFileAnswerOutcome.Succeeded
-                ? result.Claims.SelectMany(claim => claim.Citations).Distinct().ToArray() : null;
-            text.Text += "\nThis snapshot's one-shot request is consumed. No automatic retry or new session selection.";
+                rows.ItemsSource = result.Outcome == LocalFileAnswerOutcome.Succeeded
+                    ? result.Claims.SelectMany(claim => claim.Citations).Distinct().ToArray() : null;
+                text.Text += "\nThis one-shot request is consumed. Review another question explicitly; no automatic retry or new session selection.";
+            }
+            finally
+            {
+                busy = false;
+                if (Current())
+                {
+                    review.IsEnabled = true;
+                    if (interrupted)
+                    {
+                        text.Text = "No answer claimed. Prior answer work has finished; review another question explicitly.";
+                    }
+                }
+            }
         }, exception =>
         {
             if (!Current()) { return; }
             Invalidate();
             reportFailure("Local file answer unavailable; no answer claimed. Failure type: " + exception.GetType().Name);
         });
-        var cancel = new Button { Content = "Cancel file answer and clear claims" };
-        cancel.Click += (_, _) => Invalidate();
-        var panel = new StackPanel { Spacing = 4 };
-        panel.Children.Add(new NamedTextBlock
+        review.Click += (_, _) =>
         {
-            Text = "ONE current immutable file only: " + DescribeItem(source) + "\n"
+            if (busy || !consumed || !Current()) { return; }
+            Invalidate();
+            reviewedTarget = LocalContextSessionTarget.ReviewedFresh(sourceInput, HostRequest.Create(RequestOrigin.LocalUi));
+            UpdateDisclosure();
+            if (!Current()) { return; }
+            consumed = false;
+            interrupted = false;
+            review.IsEnabled = false;
+            submit.IsEnabled = true;
+            text.Text = "Fresh review ready for this same immutable snapshot. Check the source and question, then explicitly request local use. "
+                + "Nothing has been read again or sent to a model.";
+        };
+        var cancel = new Button { Content = "Cancel file answer and clear claims" };
+        cancel.Click += (_, _) =>
+        {
+            Invalidate();
+            if (!Current()) { return; }
+            interrupted = busy;
+            text.Text = busy
+                ? "Cancellation requested. No answer claimed. Waiting for current work to finish before a fresh review."
+                : "File answer cleared. No answer claimed.";
+        };
+        var panel = new StackPanel { Spacing = 4 };
+        void UpdateDisclosure() =>
+            disclosure.Text = "ONE current immutable file only: " + DescribeItem(source) + "\n"
                 + LocalContextSessionTarget.FreshSessionDisclosure + "\n"
                 + $"Reviewed session: {reviewedTarget.Request.SessionId.Value:D}; one-shot task: {reviewedTarget.Request.TaskId.Value:D}.\n"
                 + "Separate explicit request: send bounded exact excerpts and this question only to an admitted LOCAL model. "
                 + LocalSourceRiskPolicy.Disclosure + " Source-use policy and qualified runtime must independently admit use. "
-                + "No hosted fallback, retention, fresh read, folder expansion, tools or speech. Unavailable gates stay closed.",
-            TextWrapping = TextWrapping.Wrap,
-        });
+                + "No hosted fallback, retention, fresh read, folder expansion, tools or speech. Unavailable gates stay closed.";
+        UpdateDisclosure();
+        panel.Children.Add(disclosure);
         panel.Children.Add(question);
         panel.Children.Add(submit);
         panel.Children.Add(cancel);
+        panel.Children.Add(review);
         panel.Children.Add(new ScrollViewer { Content = text, MaxHeight = 120 });
         panel.Children.Add(rows);
         panel.Children.Add(navigate);

@@ -1,8 +1,10 @@
 using AwesomeAssertions;
 
+using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Hosting;
 using Kora.Application.Interaction;
 using Kora.Application.UnitTests.Interaction;
+using Kora.Core.Auditing;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -149,6 +151,8 @@ public sealed partial class MainViewModelTests
     [InlineData("input-race")]
     [InlineData("owner")]
     [InlineData("call-cycle")]
+    [InlineData("settings-undo")]
+    [InlineData("settings-undo-off")]
     public async Task ActualMainHostDeliversOnlyConsentedCurrentGapAndNeverOpensAWindow(string change)
     {
         var f = await Fixture.CreateInitializedAsync();
@@ -177,7 +181,7 @@ public sealed partial class MainViewModelTests
         var snapshot = await source.Observe(broker);
         var before = f.TextToSpeech.SpeakCalls;
         f.WindowActions.Clear();
-        if (change is "off") { f.ViewModel.RetireCompletionNotices(); }
+        if (change is "off" or "settings-undo-off") { f.ViewModel.RetireCompletionNotices(); }
         if (change is "no-target") { f.ViewModel.PublishForegroundConversationTarget(null); }
         if (change is "owner") { f.ViewModel.BindVoiceOwnershipGate(() => false); }
         if (change is "call-cycle")
@@ -191,7 +195,7 @@ public sealed partial class MainViewModelTests
         }
         if (change is "input-race") { f.TextToSpeech.BeforeSpeak = () => f.ViewModel.CommandText = "new unsent input"; }
         await f.ViewModel.DeliverCompletionNoticesAsync(snapshot, () => change is not "no-native", source.Token);
-        if (change is "success")
+        if (change is "success" or "settings-undo")
         {
             f.TextToSpeech.SpeakCalls.Should().Be(before + 1);
             f.TextToSpeech.SpokenText.Should().Be(ConversationCompletionVoiceNotices.Statement);
@@ -200,8 +204,29 @@ public sealed partial class MainViewModelTests
         else if (change is not "input-race") { f.TextToSpeech.SpeakCalls.Should().Be(before); }
         else { f.ViewModel.CompletionNoticeStatus.Should().NotContain("outcome: Completed"); }
         f.WindowActions.Should().BeEmpty();
+        if (change is "settings-undo" or "settings-undo-off")
+        {
+            f.ViewModel.ThemeMode = Kora.Core.Configuration.ApplicationThemeMode.Dark;
+            await f.ViewModel.AppearanceUpdate;
+            Task Undo(RegisteredSettingSuggestionOperation operation) =>
+                HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () => f.ViewModel.ExecuteSettingsUndoAsync(operation,
+                    SecurityAuditInitiator.LocalUser, source.Token, static () => true));
+            await Undo(RegisteredSettingSuggestionOperation.Review);
+            f.ViewModel.CanConfirmSettingsUndo.Should().BeTrue();
+            await Undo(RegisteredSettingSuggestionOperation.Confirm);
+            f.ViewModel.SettingsUndoDescription.Should().Contain("undone by a new audited write");
+            f.TextToSpeech.SpeakCalls.Should().Be(before + (change is "settings-undo" ? 1 : 0));
+        }
         await f.ViewModel.DeliverCompletionNoticesAsync(snapshot, () => true, source.Token);
         f.TextToSpeech.SpeakCalls.Should().BeLessThanOrEqualTo(before + 1);
+        if (change is "settings-undo-off")
+        {
+            f.TextToSpeech.SpeakCalls.Should().Be(before);
+            f.ViewModel.CompletionNoticeStatus.Should().Contain("Off");
+        }
         await f.ViewModel.DisposeAsync();
+        f.ViewModel.CompletionNoticeStatus.Should().Contain("Off");
+        f.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
+        f.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
     }
 }

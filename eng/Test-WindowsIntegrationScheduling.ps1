@@ -64,7 +64,7 @@ $classes = [ordered]@{
     'Storage.FutureStorageTests' = 'storage-other'
     'ArtifactDiscovery.OwnedDefinitionEditorWindowTests' = 'ui-definitions'
     'ArtifactDiscovery.FutureDefinitionTests' = 'ui-definitions'
-    'EvidenceLiteralFindTests' = 'ui-definitions'
+    'EvidenceLiteralFindTests' = 'ui-platform'
     'BoundedSurfaceAccessibilityTests' = 'ui-definitions'
     'NativeUx.NativeUxFixtureContractTests' = 'native-ux'
     'NativeUx.FutureNativeUxTests' = 'native-ux'
@@ -145,6 +145,43 @@ foreach ($name in $expected) {
     Assert ($wholeJobSeconds -lt $deadlineSeconds) "Measured $name workload plus complete conservative overhead exceeds the unchanged deadline: $wholeJobSeconds seconds."
 }
 Assert (($testSeconds.Values | Measure-Object -Maximum).Maximum -lt 1536) 'Rebalancing must reduce the measured critical path, not just move the deadline failure.'
+
+# Run 40781657098: all 6,284 cases passed, but definitions' complete job was cancelled
+# at 1,804s. Keep each shard's measured setup, storage-only checks and teardown cost.
+# These are retained-run predictions, not execution or timing guarantees for a new head.
+$measuredJobs = [ordered]@{
+    'storage-heavy' = @{ Cases = 475; Setup = 231.0; Test = 201.0; Post = 5.0 }
+    'storage-other' = @{ Cases = 897; Setup = 582.0; Test = 156.0; Post = 6.0 }
+    'ui-definitions' = @{ Cases = 1450; Setup = 264.0; Test = 1534.0; Post = 6.0 }
+    'native-ux' = @{ Cases = 98; Setup = 241.0; Test = 344.0; Post = 6.0 }
+    'ui-platform' = @{ Cases = 3364; Setup = 233.0; Test = 1190.0; Post = 5.0 }
+}
+$findCases = 115
+$findSeconds = 132.769
+$originalJobSeconds = @{}
+$predictedJobSeconds = @{}
+$predictedCases = @{}
+foreach ($name in $expected) {
+    $measurement = $measuredJobs[$name]
+    $originalJobSeconds[$name] = $measurement.Setup + $measurement.Test + $measurement.Post
+    $predictedJobSeconds[$name] = $originalJobSeconds[$name]
+    $predictedCases[$name] = $measurement.Cases
+}
+Assert ($originalJobSeconds['ui-definitions'] -eq 1804 -and $originalJobSeconds['ui-definitions'] -gt $deadlineSeconds) 'The exact-run fixture must reproduce the cancelled whole job, not just its successful test step.'
+Assert ($originalJobSeconds['ui-platform'] -eq 1428) 'The destination budget must include its complete measured job.'
+$findDestination = @(Get-MatchingShard 'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.Test')
+Assert ($findDestination.Count -eq 1 -and $findDestination[0].Name -ceq 'ui-platform') 'Move the complete measured Find class to the synchronous platform shard.'
+$predictedJobSeconds['ui-definitions'] -= $findSeconds
+$predictedJobSeconds[$findDestination[0].Name] += $findSeconds
+$predictedCases['ui-definitions'] -= $findCases
+$predictedCases[$findDestination[0].Name] += $findCases
+foreach ($name in $expected) {
+    Assert ($predictedJobSeconds[$name] -lt $deadlineSeconds) "Run 40781657098 predicted $name whole job exceeds the unchanged deadline: $($predictedJobSeconds[$name]) seconds."
+}
+Assert (($predictedJobSeconds.Values | Measure-Object -Maximum).Maximum -lt
+    ($originalJobSeconds.Values | Measure-Object -Maximum).Maximum) 'Reduce the exact-run critical path without moving its timeout to another shard.'
+Assert (($predictedCases.Values | Measure-Object -Sum).Sum -eq 6284) 'The measured rebalance must preserve every recorded case.'
+Assert ($predictedCases['ui-definitions'] -eq 1335 -and $predictedCases['ui-platform'] -eq 3479) 'Move all 115 Find cases exactly once.'
 
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)

@@ -131,6 +131,7 @@ public sealed class NamedAgentResolverTests
         public event EventHandler? Changed;
         public long Revision { get; private set; }
         public bool IsDisabled(string identity) => false;
+        public bool IsRevisionAllowed(string identity, string digest) => true;
         internal void Revoke() { Revision++; Changed?.Invoke(this, EventArgs.Empty); }
     }
 }

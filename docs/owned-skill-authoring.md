@@ -39,6 +39,53 @@ or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
 
+## Refine the current instruction-only guidance
+
+The bounded refinement operation supports the current Kora-owned **declarative,
+instruction-only draft**: native v1 literal guidance or native v3 required
+literal inputs. Tool-declaring v2 skills, shared originals, scripts, fixtures and
+package generation are not supported. This does not complete the entire Builder.
+
+1. Create a draft and supply its metadata and complete guidance as above. If you
+   reopened an immutable version, first enter a **new version** in the native
+   editor. The saved source is still checked; refinement never replaces it.
+2. Enter the original critique in the native field, or use
+   `owned skill critique: Make the steps clearer without changing the inputs.`
+   Typed/current-name activated voice preserves the literal critique and its
+   original channel eligibility.
+3. Choose **Refine**, or `owned skill refine`. Explicitly confirm **Generate
+   local guidance proposal** after reviewing the local disclosure.
+4. Review the **complete current guidance** and **complete proposed guidance**.
+   **Reject proposal** keeps the draft and critique unchanged. **Use proposal
+   for next Save** stages only that exact replacement in memory; it does not
+   edit the draft, validate it, save it, enable it or invoke a skill.
+5. Choose **Validate**, then **Save**. Both existing complete two-file reviews
+   remain mandatory, including the **separate native publication confirmation**.
+   The manifest bytes, format, ID/version, metadata and v3 required input names
+   stay unchanged. Publication creates a new immutable **disabled** package.
+6. Use the separate saved-revision review, enablement and invocation below.
+   Proposal approval and publication are not consent to use the skill.
+
+Only the unchanged critique and complete current guidance go to the existing
+admitted **local tools-none** model route. No history, memory, attachments,
+reference execution, scripts, nested agents, hosted/bootstrap fallback or model
+installation is added. An unqualified provider remains visibly unavailable.
+Guidance and model output are inert untrusted content, never publication,
+permission or tool authority. Structural validation does not establish semantic
+harmlessness. The complete serialized input must fit **32768 bytes** and the
+exact two-file package must fit **64 KiB**; nothing is truncated or stripped.
+Native v1 input-looking text stays literal. Native v3 input names cannot be added,
+removed or renamed by a proposal.
+
+Draft/critique edits, cancellation, expiry (two minutes), changed/missing
+reopened source, occupied target version, original channel loss, privacy or
+ownership loss invalidate review. `owned skill cancel-refinement` or **Cancel
+refinement** cancels only refinement, retaining the draft and critique. Late
+output cannot become a review or Save; the host retains the actual model/resource
+ownership until it joins. Rejection, cancellation, unavailable and malformed
+output never autosave. Ordinary manual authoring and dirty-draft recovery keep
+their existing separate authority.
+
 ## Review and invoke one saved revision
 
 For an exact readable-name request spanning owned and registered shared instruction-only skills, use the [named invocation operation](commands.md#invoke-an-instruction-only-skill-by-readable-name).

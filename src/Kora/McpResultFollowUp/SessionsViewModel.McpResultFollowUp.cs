@@ -62,7 +62,8 @@ internal sealed partial class SessionsViewModel
         var presentation = await (mcpPresenter ?? throw new InvalidOperationException("The native MCP presenter was retired."))
             (proposal, generation, review, admitted, token);
         if (review.Stage == McpReviewStage.Invocation && review.IsBoundTo(proposal) && admitted()
-            && presentation.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Approved)
+            && presentation.Completed.Outcome is Kora.Core.Interaction.HostInteractionOutcome.Approved
+                or Kora.Core.Interaction.HostInteractionOutcome.Consumed)
         {
             mcpCompletedProposal = proposal;
             mcpCompletedMapping = review;

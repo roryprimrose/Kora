@@ -210,6 +210,9 @@ Disabling and re-enabling does not revive an earlier MCP connection, tool or
 invocation review; start a new workflow.
 
 **Enable** reviews the exact current source and removes only Kora's exclusion.
+For file-backed catalogue entries it also records the reviewed primary revision
+on this computer. New or externally changed entries need a fresh review;
+restoring an observed retired version does not restore its previous permission.
 It does not bypass source registration, instruction revision/applicability
 review, skill compatibility, agent runtime qualification, MCP inclusion,
 authentication or other existing admission. Newly edited User sources are not
@@ -218,3 +221,7 @@ still be unavailable; the window displays that distinction.
 
 Use `disable example agent` or `enable example MCP server` to reach the same
 source-qualified review. Files are retained when disabled.
+
+Windows may roam definition content, not these local reviews. See
+[Data storage and roaming profiles](data-storage.md) before editing on multiple
+computers.

@@ -318,6 +318,7 @@ internal static class Program
             var disk = new WindowsDiskArtifactDiscovery(paths, additionalDirectories,
                 provider.GetRequiredService<WindowsOwnedInstructionStore>(), ownedPrompts:
                 provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)).Load();
+            provider.GetRequiredService<ArtifactUsePreferences>().Reconcile(disk);
             var reconciled = provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>()
                 .Reconcile([.. embedded.Artifacts, .. disk]);
             return new ArtifactCatalogue(provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt)
@@ -333,7 +334,8 @@ internal static class Program
             provider.GetRequiredService<Kora.Application.Definitions.InstructionRevisionCatalogue>(),
             provider.GetRequiredService<WindowsOwnedInstructionStore>(), promptRevisions:
             provider.GetRequiredKeyedService<Kora.Application.Definitions.InstructionRevisionCatalogue>(ArtifactKind.Prompt),
-            ownedPrompts: provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt)));
+            ownedPrompts: provider.GetRequiredKeyedService<WindowsOwnedInstructionStore>(ArtifactKind.Prompt),
+            use: provider.GetRequiredService<ArtifactUsePreferences>()));
         services.AddSingleton<WindowsOwnedInstructionStore>();
         services.AddKeyedSingleton<WindowsOwnedInstructionStore>(ArtifactKind.Prompt, (provider, _) => new(paths, ArtifactKind.Prompt));
         services.AddSingleton<IOwnedInstructionStore>(provider => provider.GetRequiredService<WindowsOwnedInstructionStore>());
@@ -403,6 +405,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriPreferences>(provider =>
             new LocalPreapprovedUriPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<PreapprovedUriConfigurationService>();
+        services.AddSingleton<Kora.Application.Interaction.PermissionGrantManagementService>();
         services.AddSingleton<Kora.Core.Network.IPreapprovedUriConfiguration>(provider =>
             provider.GetRequiredService<PreapprovedUriConfigurationService>());
         services.AddSingleton<Kora.Tools.Network.PreapprovedUriList>();

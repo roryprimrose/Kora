@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text.Json;
 using Kora.Application.Mcp;
 using Kora.Core.Mcp;
+using Kora.Core.Customizations;
 
 namespace Kora.Application.Configuration;
 
@@ -49,7 +50,11 @@ public sealed partial class McpServerConfigurationService
                 || usePolicy?.IsDisabled(Kora.Core.Artifacts.ArtifactUseIdentity.Mcp(serverId)) == true
                 || UseControlRevision != useRevision)
             { throw new InvalidOperationException("The selected MCP source or inclusion changed during resolution."); }
-            return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)), endpoint, account, useRevision);
+            var scope = string.Equals(Path.GetFullPath(path),
+                Path.GetFullPath(Path.Combine(paths.RoamingRoot, "Mcp", "mcp.json")), StringComparison.OrdinalIgnoreCase)
+                ? CustomizationScope.Kora : CustomizationScope.User;
+            return new(serverId, selected.Name, path, Convert.ToHexStringLower(SHA256.HashData(bytes)),
+                endpoint, account, useRevision, scope);
         }
         throw new InvalidOperationException("The selected MCP source is no longer configured.");
     }

@@ -289,14 +289,19 @@ Provide status/test/correct/reset/delete recovery; protected-call changes requir
 The [approved speech-input design](Speech_Input.md#optional-installation-and-runtime-lifecycle)
 requires future qualified wake/VAD/ASR and optional verifier assets to be
 available through both explicit WiX/Burn install-time preparation and later
-Settings setup. Current installer choices remain PowerShell, Ollama/Qwen and
-Kokoro. The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
+Settings setup. Installer choices also include an unchecked hands-free CPU
+data-preparation offer; it does not enable hands-free operation.
+The bounded [shared component service](../src/Kora.Application/Dependencies/SpeechComponentSetupService.cs)
 now implements exact review, consent, verification, removal and retry orchestration,
 with [private atomic data storage](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore.cs).
-The [production catalogue](../src/Kora.Core/Dependencies/SpeechComponentCatalogue.cs)
-is empty: D-002 has not supplied an authoritative qualified input backend/model
-offer. Settings and Burn therefore report no optional input offers, not fake
-installation success; no speech profile is enabled.
+The portable catalogue remains platform-neutral; the desktop and Burn compose
+the same [Windows preparation catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+and [runtime owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs).
+It offers the exact PocketSphinx 5.1.1 en-US acoustic data/CMU dictionary and
+Silero 6.2 ONNX, with their notices: **12,222,276 download bytes**, plus a
+64-byte ownership record. Staging budgets allow the old/new footprint.
+The 512 MiB RAM field is an explicitly unmeasured planning budget, not runtime
+qualification; this increment executes no model and uses no GPU.
 
 The [catalogue metadata](../src/Kora.Core/Dependencies/SpeechComponentDefinition.cs)
 pins an exact model and immutable installed runtime-profile identity, source
@@ -304,9 +309,23 @@ bytes/digests, licence, qualification and resource costs. The installed host
 adapter owns exact native/backend/hardware compatibility, all consumers,
 exclusive quiescence and inert functional checks through
 [the runtime seam](../src/Kora.Core/Dependencies/ISpeechComponentRuntime.cs).
-The production unavailable adapter denies those operations. A release adding
-an offer must supply and qualify that adapter; component setup cannot install
-native code or launch prerequisites.
+The Windows owner verifies the complete native/data/notice inventory using the
+same production binder as capture, without loading code or running inference.
+Its `Verified` functional result is explicitly classified as **inert asset
+binding**, never speech accuracy or capture readiness. The native DLL is a
+hash-pinned application payload with a documented
+[build/dependency closure](../src/Kora.Windows/Audio/Native/README.md);
+component setup cannot install native code or launch prerequisites.
+
+Settings displays **Prepared assets**, **Assets unavailable** or **Unconfirmed**,
+with independent capture unavailability and recovery. Reconstruction rehashes
+the retained data; native binding is NotChecked until explicit Verify.
+Corrupt owned data requires reviewed Remove then Prepare; foreign/unknown data
+is preserved rather than silently overwritten. A bundled-native mismatch fails
+verification and needs application repair, not a model reinstall.
+The profile has no qualified names/playback/acoustic evidence and cannot open
+a microphone, even after successful preparation. Setup is native-only while
+voice is unavailable; no new verbal command is invented.
 
 Readiness remains a cohesive setup observation, not a runtime-profile selection
 contract. An inspection failure returns no storage snapshot and an explicit

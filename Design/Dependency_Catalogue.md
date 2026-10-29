@@ -134,6 +134,32 @@ recorded, but installed executable/weight integrity, native notices and
 distribution clearance remain open. Public metadata does not qualify an
 installed runtime or close D-003/D-007.
 
+## Hands-Free Preparation Offer, Not Capture Qualification
+
+The [Windows catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+is the single executable authority for exact source URLs, size/SHA-256 and
+notice identities. It pins PocketSphinx 5.1.1 official commit
+`511126b492dcb267cf30d49d631946d7b61a9530` en-US acoustic files and dictionary,
+Silero 6.2 official commit `be95df9152c0d7618fa1edfeb296fc3dae32376f`
+`silero_vad.onnx`, and separate CMU/Alpha Cephei/Silero notices. The CMU
+dictionary notice is pinned at `74790861f652b15e4ac49015a90074ad62a27690`;
+the engine licence is not substituted for acoustic or dictionary notices.
+
+The 13-file data offer downloads **12,222,276 bytes** into the interactive user's
+private speech-component store. It excludes general language models and
+native executable acquisition. The source-built Windows x64 CPU
+[bundled library](../src/Kora.Windows/Audio/Native/README.md) is 668,672 bytes
+and imports only KERNEL32. No Python wheel or third-party native package is used.
+The shared Settings/Burn service performs exact review, explicit consent,
+verified atomic publication, reconstruction, verification and reviewed removal.
+Decline/offline/missing assets never cause automatic acquisition.
+
+Only the inert **asset binder** is verified by preparation. Configured-name,
+playback and acoustic capture qualification remains absent, and the production
+stage is unavailable. The 512 MiB RAM budget is a disclosed planning estimate,
+not measured enablement evidence. No native/model inference, microphone
+recording, learning or profile selection is performed by this operation.
+
 ## Experimental Speech Candidates, Not Production Installs
 
 The [R02 speech inventory](../experiments/r02-speech-proof/candidates.json)

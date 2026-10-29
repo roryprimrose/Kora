@@ -174,21 +174,26 @@ its compact view can use the existing native question window for **one**
 structured clarification during that exact model turn. Ordinary **Submit exact
 message** keeps its existing final-answer/read-only-tool behavior; it does not
 automatically acquire question continuation. The clarification route is a
-tool-free local request: it does not silently include
+local request with only `ask_user`: it does not silently include
 history, memory, attachments or instructions. Models and profiles that are not
 qualified remain explicitly unavailable; this implementation does not enable
 either local inference or hosted egress.
 
-For an ambiguous observation request, use **Ask locally with observations and one choice** instead. For example, ask "Which version or readiness information applies here?", choose the model's **Version**, **Readiness** or **Runtime** option, and receive the answer from the actual admitted host observations. The model may observe first, ask once, then observe again before answering ([submission policy](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
+For an ambiguous observation request, use **Ask locally with observations and one question** instead. For example, ask "Which version or readiness information applies here?", answer the model's question, and receive the answer from the actual admitted host observations. The model may observe first, ask once, then observe again before answering ([submission policy](../src/Kora.Application/Hosting/SessionConversationService.Questions.cs)).
 
-This separate local path admits only the six existing read-only observation tools and one two-to-four-option **SingleChoice** question. It does not accept a free-text question, web/MCP calls, effectful actions, settings writes or hosted providers. The original tool-free clarification button and ordinary read-only Submit remain separate ([bounded protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs), [native controls](../src/Kora/SessionsWindow.axaml)).
+This separate local path admits only the six existing read-only observation tools and `ask_user` once. Web/MCP calls, effectful actions, settings writes and hosted providers remain excluded. The clarification-only button and ordinary read-only Submit remain separate ([bounded protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs), [native controls](../src/Kora/SessionsWindow.axaml)).
 
-The model must issue a supported structured question, not prose that looks
-like a question or approval. The original tool-free path supports either two to four
-single-choice labels or free text bounded to 500 characters; the observation path supports only the single-choice shape. Other shapes,
-including multi-select proposals, are refused rather than converted to yes/no
-or a different answer shape. The ordinary host question controls keep their
-existing declared multi-select rules for other workflows.
+The model calls the actual `ask_user` tool, not prose that looks like a question
+or approval. Both local clarification paths support:
+
+- **Single answer:** two to four labels shown as radio buttons.
+- **Multiple answers:** two to four labels shown as checkboxes, with explicit
+  minimum and maximum selections.
+- **Text input:** an input field bounded to 500 characters.
+
+The session-owned question window opens from either Sessions view. Its input is
+separate from the unsent conversation composer. One call asks one question, not
+a multi-field form. Legacy structured questions remain supported.
 
 Review the question, then explicitly **Submit answer**, or use **Answer by
 voice** / **Hear then answer** when the one exact foreground question and
@@ -197,6 +202,12 @@ does not submit it. The host retains the original request channel and the
 actual reply channel; voice input is never relabelled as native typed input.
 Clarification cannot approve an action, grant tool permission or collect a
 credential.
+
+Spoken readback includes the option labels and selection bounds. For multiple
+answers, say **option 1 and option 2** or the exact labels separated by **and**.
+Duplicates, ambiguous or incomplete lists and out-of-bounds selections are
+refused; the question remains available through its native controls. Questions
+allowing zero selections also accept **none**.
 
 The original turn's fixed 15-second deadline is not renewed by opening,
 reviewing or drafting an answer. Only a fresh submitted answer for the same

@@ -106,7 +106,7 @@ public static partial class ModelToolProtocol
         return stream.ToArray();
     }
 
-    private static bool ValidCallId(string id) =>
+    internal static bool ValidCallId(string id) =>
         id.Length is >= 1 and <= 64 && id.Any(character => char.IsAsciiLetterOrDigit(character) && character != '0')
         && id.All(character => char.IsAsciiLetterOrDigit(character) || character is '_' or '-');
 
@@ -140,6 +140,12 @@ public static partial class ModelToolProtocol
             writer.WriteStartArray("options");
             foreach (var label in question.Question.Options) { writer.WriteStringValue(label); }
             writer.WriteEndArray();
+            if (question.CallId is not null || question.Question.Minimum != 1 || question.Question.Maximum != 1)
+            {
+                writer.WriteNumber("minimum", question.Question.Minimum);
+                writer.WriteNumber("maximum", question.Question.Maximum);
+            }
+            if (question.CallId is { } callId) { writer.WriteString("callId", callId); }
         }
         else if (message is ModelQuestionAnswerMessage answer)
         {
@@ -166,19 +172,23 @@ public static partial class ModelToolProtocol
     private static void ValidateHistory(ImmutableArray<ModelToolMessage> messages, bool clarificationAllowed)
     {
         var ids = new HashSet<string>(StringComparer.Ordinal);
+        var callCount = 0;
         var questionSeen = false;
         var index = 0;
         while (index < messages.Length)
         {
             if (clarificationAllowed && !questionSeen && messages[index] is ModelClarificationQuestion)
             {
+                if (((ModelClarificationQuestion)messages[index]).CallId is { } questionId && !ids.Add(questionId))
+                { throw new InvalidDataException("Question tool correlation cannot reuse another call."); }
                 ValidateReadOnlyQuestion(messages, ref index);
                 questionSeen = true;
                 continue;
             }
             if (messages[index++] is not ModelAssistantToolCalls assistant
-                || assistant.Calls.Length > MaximumCalls - ids.Count)
+                || assistant.Calls.Length > MaximumCalls - callCount)
             { throw new InvalidDataException("History must contain only complete serial tool exchanges."); }
+            callCount += assistant.Calls.Length;
             foreach (var call in assistant.Calls)
             {
                 if (!ids.Add(call.CallId) || index >= messages.Length

@@ -4,27 +4,39 @@
         xmlns:auth="using:Kora.Core.Authorization"
         xmlns:controls="using:Kora.Controls"
         x:Class="Kora.ExactGrantsWindow" x:DataType="vm:ExactGrantsViewModel"
-        Title="Exact operation grants" Width="1050" Height="780" MinWidth="650" MinHeight="480">
+        Title="Permission grants" Width="1050" Height="900" MinWidth="650" MinHeight="480">
   <Window.KeyBindings>
     <KeyBinding Gesture="Escape" Command="{Binding ClearHistoryFiltersCommand}" />
   </Window.KeyBindings>
   <Grid Margin="20" RowDefinitions="Auto,Auto,*,Auto,Auto" RowSpacing="12">
     <StackPanel Spacing="8">
-      <TextBlock Text="Exact operation grants — retained host-issued metadata, not legacy named-action preferences"
-                 AutomationProperties.Name="Exact operation grants" FontSize="18" TextWrapping="Wrap" />
+      <TextBlock Text="Permission grants — exact operations and URI rules, not legacy named-action preferences"
+                 AutomationProperties.Name="Permission grants" FontSize="18" TextWrapping="Wrap" />
       <TextBlock Text="Stored Active is not a current allow decision. Applicability and running-work status are unknown. Revocation denies subsequent consumes; it does not stop or roll back already-running effects."
                  AutomationProperties.Name="Exact grant scope and evidence limitations" TextWrapping="Wrap" />
+      <TextBlock Text="{Binding PermissionContext}" TextWrapping="Wrap" AutomationProperties.Name="Permission inventory session boundary" />
+      <CheckBox Content="Show retained history (including consumed and revoked grants)" IsChecked="{Binding ShowRetainedHistory}"
+                AutomationProperties.Name="Explicit retained grant history mode; does not include unrelated sessions" />
     </StackPanel>
     <StackPanel Grid.Row="1" Spacing="8">
       <WrapPanel>
+        <TextBlock Text="Group permissions by" VerticalAlignment="Center" Margin="0,0,12,0" />
+        <ComboBox x:Name="PermissionGrouping" ItemsSource="{Binding GroupingChoices}" SelectedItem="{Binding Grouping}"
+                  IsEnabled="{Binding CanGroup}" MinWidth="180"
+                  AutomationProperties.Name="Group this loaded permission inventory by None, artefact type or artefact scope; no read or group selection" />
+      </WrapPanel>
+      <TextBlock Text="{Binding GroupingDisclosure}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Permission grouping, scope, unknown metadata and independent policy limitations" />
+      <WrapPanel>
         <StackPanel Margin="0,0,12,0">
-          <TextBlock Text="Stored scope" />
+          <TextBlock Text="Exact grant lifetime" />
           <ComboBox ItemsSource="{Binding ScopeFilters}" SelectedItem="{Binding ScopeFilter}"
                     AutomationProperties.Name="Exact stored grant scope filter, Any by default" MinWidth="120" />
         </StackPanel>
         <StackPanel Margin="0,0,12,0">
           <TextBlock Text="Stored status (not applicability)" />
           <ComboBox ItemsSource="{Binding StatusFilters}" SelectedItem="{Binding StatusFilter}"
+                    IsEnabled="{Binding CanFilterStoredStatus}"
                     AutomationProperties.Name="Exact stored grant status filter, Any by default" MinWidth="180" />
         </StackPanel>
         <StackPanel Margin="0,0,12,0">
@@ -43,26 +55,25 @@
       <controls:NamedTextBlock Text="{Binding InventorySummary}" TextWrapping="Wrap"
                               AutomationProperties.Name="Exact inventory query scan bounds, omitted rows and continuation" />
       <WrapPanel>
-      <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh exact grant inventory" />
+      <Button Content="Refresh inventory" Command="{Binding RefreshCommand}" AutomationProperties.Name="Refresh permission inventory: exact page and device URI rules" />
       <Button Content="Next bounded page" Command="{Binding NextCommand}" AutomationProperties.Name="Read next bounded exact grant page" />
       <Button Content="Inspect selected exact ID" Command="{Binding InspectCommand}" AutomationProperties.Name="Inspect current selected exact grant ID" />
       <Button Content="Preview exact selected batch" Command="{Binding PreviewBatchCommand}" AutomationProperties.Name="Preview every explicitly selected exact grant" />
       </WrapPanel>
     </StackPanel>
     <Grid Grid.Row="2" ColumnDefinitions="350,*" ColumnSpacing="12">
-      <controls:ScrollableListBox ItemsSource="{Binding Records}" SelectedItem="{Binding Selected}"
+      <controls:ScrollableListBox x:Name="PermissionInventory" ItemsSource="{Binding PermissionRows}" SelectedItem="{Binding SelectedPermission}"
                                  SelectionMode="Multiple" SelectionChanged="OnSelectionChanged"
-                                 AutomationProperties.Name="Retained exact operation grants">
+                                 AutomationProperties.Name="Permission grants: exact operation grants and URI rules">
         <ListBox.ItemTemplate>
-          <DataTemplate x:DataType="auth:ExactGrantInspection">
+          <DataTemplate x:DataType="vm:PermissionGrantRow">
             <StackPanel Margin="4">
-              <TextBlock Text="{Binding Grant.Id.Value}" TextWrapping="Wrap" />
-              <TextBlock Text="{Binding Grant.ApprovedProposal.Binding.ActionId}" />
-              <StackPanel Orientation="Horizontal" Spacing="8">
-                <TextBlock Text="{Binding Grant.Scope}" />
-                <TextBlock Text="{Binding Grant.Status}" />
-                <TextBlock Text="{Binding Grant.Revision.Value, StringFormat='revision {0}'}" />
-              </StackPanel>
+              <TextBlock Text="{Binding GroupHeading}" IsVisible="{Binding HasGroupHeading}" FontWeight="SemiBold" Margin="0,8,0,4" />
+              <TextBlock Text="{Binding Grant.Name}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Grant.Summary}" />
+              <TextBlock Text="{Binding Grant.Detail}" TextWrapping="Wrap" />
+              <TextBlock Text="{Binding Grant.ArtifactType, StringFormat='Type: {0}'}" />
+              <TextBlock Text="{Binding Grant.ArtifactScope, StringFormat='Artefact scope: {0}'}" />
             </StackPanel>
           </DataTemplate>
         </ListBox.ItemTemplate>
@@ -196,6 +207,18 @@
       </Grid>
     </Grid>
     <StackPanel Grid.Row="3" Spacing="8">
+      <TextBlock Text="{Binding UriInspection}" TextWrapping="Wrap"
+                 AutomationProperties.Name="Selected exact URI permission pattern and enforcement limitations" />
+      <WrapPanel>
+        <TextBox x:Name="UriPermissionPattern" Text="{Binding UriPatternInput}" PlaceholderText="https://*.example.com/*" MinWidth="300"
+                 AutomationProperties.Name="New device-local URI permission pattern; typing grants nothing" />
+        <Button x:Name="AddUriPermission" Content="Add URI rule" Command="{Binding AddUriRuleCommand}"
+                AutomationProperties.Name="Add this URI permission rule using existing address preapproval policy" />
+        <Button x:Name="RemoveUriPermission" Content="Remove selected URI rule" Command="{Binding RemoveUriRuleCommand}"
+                AutomationProperties.Name="Remove only the selected exact canonical URI permission rule, not exact operation grants" />
+        <Button Content="Clear all URI rules" Command="{Binding ClearUriRulesCommand}"
+                AutomationProperties.Name="Clear only device-local URI permission rules, never exact operation grants or selected groups" />
+      </WrapPanel>
       <CheckBox Content="I reviewed the exact displayed ID and revision. Revoke only this active record."
                 IsChecked="{Binding Reviewed}" AutomationProperties.Name="Explicit confirmation of the displayed exact approval ID and revision" />
       <Button Content="Confirm: revoke this exact inspected ID/revision" Command="{Binding RevokeCommand}" AutomationProperties.Name="Confirm revocation of only this exact inspected ID and revision" />

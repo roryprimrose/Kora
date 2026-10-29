@@ -277,6 +277,7 @@ public sealed partial class ModelTurnHostTests
         public event EventHandler? Changed;
         public long Revision { get; private set; }
         public bool IsDisabled(string identity) => identity.EndsWith('3');
+        public bool IsRevisionAllowed(string identity, string digest) => !IsDisabled(identity);
         internal void Revoke() { Revision++; Changed?.Invoke(this, EventArgs.Empty); }
     }
 

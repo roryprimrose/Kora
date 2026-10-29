@@ -100,6 +100,12 @@ test-runner scheduling. Speech receipt-pinning fixtures inject changes after
 terminal publication and outside the submission's host scope, not at a
 particular count of internal metadata reads.
 
+Stop All notification-failure fixtures inject once at the first accepted
+cancellation notification and retain the observer through joined terminal
+completion. Later Cancelling publications are not additional injected failures;
+every accepted request still requires its physical join and terminal receipt,
+while the operation truthfully retains its partial/unconfirmed outcome.
+
 Native streaming fixtures await the exact terminal presentation notification
 separately from the submission operation. Terminal storage/readback and resource
 joins can finish before the UI dispatcher applies its queued status; retain
@@ -150,9 +156,10 @@ before submitting a new request and releases its held stop in `finally`.
 Native cancellation and clarification fixtures separately await exact-task
 terminal UI publication after the real operation/resource join.
 
-The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs Evidence Find and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
+The [runner's UI filters](eng/Run-WindowsIntegrationTests.ps1) retain the existing shard names: `ui-definitions` also runs conversation and bounded accessibility tests; `native-ux` also runs dispatcher responsiveness, reader scale, and speech caption tests. `ui-platform` runs Evidence Find and the remainder, with exclusions derived from the same prefix lists to avoid gaps or overlaps.
 
 Rebalance whole classes using per-shard TRX durations, not test counts. Keep the [headless UI collection](tests/Kora.Windows.IntegrationTests/HeadlessUiTestGroup.cs) serial within each process; moving classes between isolated shard processes must not relax its process-wide dispatcher protection. Update the [scheduling contracts](eng/Test-WindowsIntegrationScheduling.ps1) when changing assignments.
+Validate complete retained five-shard TRX evidence with `.\eng\Test-WindowsIntegrationScheduling.ps1 -RetainedResultsDirectory <results-root>`; this checks every recorded case against the current partition, not revised-source hosted timing.
 
 Documentation-only changes need local link/heading, exact example and availability
 checks. Changes to the embedded user guide also run its focused tests. They do

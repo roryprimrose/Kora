@@ -212,23 +212,28 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
-    [InlineData(false, false, false, false)]
-    [InlineData(true, false, false, false)]
-    [InlineData(false, true, false, false)]
-    [InlineData(false, false, true, false)]
-    [InlineData(false, false, false, true)]
-    [InlineData(false, false, true, true)]
-    [InlineData(false, true, false, true)]
-    [InlineData(false, true, true, true)]
+    [InlineData(false, false, false, false, false)]
+    [InlineData(true, false, false, false, false)]
+    [InlineData(false, true, false, false, false)]
+    [InlineData(false, false, true, false, false)]
+    [InlineData(false, false, false, true, false)]
+    [InlineData(false, false, true, true, false)]
+    [InlineData(false, true, false, true, false)]
+    [InlineData(false, true, true, true, false)]
+    [InlineData(true, false, false, true, false)]
+    [InlineData(true, false, true, true, false)]
+    [InlineData(false, false, false, true, true)]
+    [InlineData(false, false, true, true, true)]
+    [InlineData(false, false, false, false, true)]
     public async Task ExactNativeClarificationUsesExistingQuestionWindowAndRetainsGenuineAnswerOrExplicitFailure(
-        bool text, bool cancel, bool compact, bool readOnly)
+        bool text, bool cancel, bool compact, bool readOnly, bool multiple)
     {
         await HeadlessSession.RunAsync(async () =>
         {
             using var f = new InteractionStorageFixture();
             await f.InitializeAsync();
             await WindowsSqliteConversationTests.FinishInitial(f);
-            await using var transport = new QuestionTransport(text, readOnly);
+            await using var transport = new QuestionTransport(text, readOnly, multiple);
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var composed = new Composition(f, adapter: adapter);
             using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance);
@@ -264,9 +269,9 @@ public sealed partial class SessionsConversationTests
                         state.Question.Proposal.Should().BeNull();
                         state.Question.Key.Request.Should().Be(request);
                         state.IsApproval.Should().BeFalse();
-                        spec.Kind.Should().Be(text ? QuestionKind.Text : QuestionKind.SingleChoice);
+                        spec.Kind.Should().Be(text ? QuestionKind.Text : multiple ? QuestionKind.MultipleChoice : QuestionKind.SingleChoice);
                         spec.Minimum.Should().Be(1);
-                        spec.Maximum.Should().Be(1);
+                        spec.Maximum.Should().Be(multiple ? 2 : 1);
                         await state.ReviewAsync();
                         presentationState = state.Status + " editable=" + state.IsEditable + " busy=" + state.HasPendingOperation;
                         if (cancel)
@@ -275,7 +280,14 @@ public sealed partial class SessionsConversationTests
                             presentationState += " cancel=" + state.Status;
                             return;
                         }
-                        state.Edit(text ? new([], "Fresh exact user answer") : new(["option-1"]));
+                        if (multiple)
+                        {
+                            var checkboxes = window.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<CheckBox>().ToArray();
+                            checkboxes.Should().HaveCount(2);
+                            foreach (var checkbox in checkboxes) { checkbox.IsChecked = true; }
+                        }
+                        else if (text) { window.FindControl<TextBox>("AnswerInput")!.Text = "Fresh exact user answer"; }
+                        else { state.Edit(new(["option-1"])); }
                         await state.SaveDraftAsync();
                         presentationState += " draft=" + state.Status + " revision=" + state.Key.Revision.Value;
                         state.Completion.IsCompleted.Should().BeFalse("a draft is never a submitted clarification");
@@ -303,6 +315,7 @@ public sealed partial class SessionsConversationTests
                 {
                     var answer = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
                     answer.Answer.Text.Should().Be(text ? "Fresh exact user answer" : null);
+                    answer.Answer.Choices.Should().Equal(text ? [] : multiple ? ["option-0", "option-1"] : ["option-1"]);
                     answer.Channel.Should().Be(RequestOrigin.LocalUi);
                     if (readOnly) { transport.Requests[^1].Messages.OfType<ModelToolResultMessage>().Should().HaveCount(2); }
                 }
@@ -318,7 +331,7 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    private sealed class QuestionTransport(bool text, bool readOnly = false) : IModelToolTransport
+    private sealed class QuestionTransport(bool text, bool readOnly = false, bool multiple = false) : IModelToolTransport
     {
         internal List<ModelToolRequest> Requests { get; } = [];
 
@@ -334,7 +347,7 @@ public sealed partial class SessionsConversationTests
             else { request.Context.Tools.Should().BeEmpty(); }
             Requests.Add(request);
             ModelAssistantMessage message = Requests.Count == (readOnly ? 2 : 1)
-                ? new ModelClarificationQuestion(new("Which format?", text ? [] : ["Compact", "Detailed"]))
+                ? new ModelClarificationQuestion(new("Which format?", text ? [] : ["Compact", "Detailed"], Maximum: multiple ? 2 : 1), "ask_format")
                 : readOnly && Requests.Count is 1 or 3
                 ? ModelToolProtocol.ParseAssistant(System.Text.Encoding.UTF8.GetBytes(
                     $$$"""{"kind":"toolCalls","calls":[{"callId":"version_{{{Requests.Count}}}","capabilityId":"application.get_version","input":{}}]}"""))

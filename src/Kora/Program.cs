@@ -415,7 +415,9 @@ internal static class Program
         services.AddSingleton<Kora.Core.Network.IWebPageTransport, Kora.Windows.Network.WindowsWebPageTransport>();
         services.AddSingleton<Kora.Tools.Network.WebPageGet>();
         services.AddSingleton<Kora.Tools.Network.WebResultSummarize>();
-        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy, Kora.Application.Network.UnavailableWebResultModelUsePolicy>();
+        services.AddSingleton(Kora.Application.Context.LocalSourceUsePolicy.Instance);
+        services.AddSingleton<Kora.Core.Network.IWebResultModelUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>());
         services.AddSingleton<Kora.Application.Network.IWebSummaryModelExecution, Kora.Application.Network.WebSummaryModelExecution>();
         services.AddSingleton<Kora.Application.Network.WebSummaryWorkflow>();
         ExternalBrowserComposition.Configure(services);
@@ -706,7 +708,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Files.LocalFileSearch>();
         services.AddSingleton<Kora.Tools.Files.LocalFileAnswer>();
         services.AddSingleton<Kora.Tools.Files.FolderAnswers.LocalFolderAnswer>();
-        services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy, UnavailableLocalFileModelUsePolicy>();
+        services.AddSingleton<Kora.Core.Context.ILocalFileModelUsePolicy>(provider =>
+            provider.GetRequiredService<Kora.Application.Context.LocalSourceUsePolicy>());
         services.AddSingleton<Kora.Tools.Files.LocalFileRefresh>();
         services.AddSingleton<Kora.Core.Context.ILocalFileRetrieval, Kora.Core.Context.LocalFileLexicalRetrieval>();
         services.AddSingleton<MainViewModel>();

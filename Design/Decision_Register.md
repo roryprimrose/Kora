@@ -16,6 +16,29 @@ The named owner is a role until an individual is assigned.
 A decision is not complete because an implementation was started; its evidence and affected documents must be updated together.
 An Accepted direction status records the agreed behavior, not completed contracts, tested enforcement, or release readiness. Remaining schema/integration/proof work stays open until its acceptance evidence passes.
 
+## Automatic reviewed local source-use admission - 2026-10-29
+
+The product owner explicitly approved: "Approve this bounded automatic LocalOnly
+risk-admission policy and deliver it end to end". This independent decision
+applies only to the existing single-file, volatile-folder, retained-attachment,
+web-result, diagnostic-page and MCP-observation grounded-answer consumers.
+
+The host may admit their exact reviewed content as **private LocalOnly** under
+the [versioned risk-admission contract](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission).
+Complete bounded credential/secret screening is best-effort assistance, not
+proof of non-sensitivity or a general affirmative classifier. Ordinary sensitive
+personal/business content may be processed locally; arbitrary secrets may be
+missed. Detected risks have no override. Incomplete screening, invalid inputs
+and unknown/stale authority fail closed.
+
+This explicitly replaces these consumers' unspecified affirmative-classifier
+prerequisite, not their source-use policy, independent one-shot consent, exact
+source/question/payload binding or live source/channel/privacy checks. No user
+classification attestation, accepting default, source recapture, new utility,
+provider enablement or hosted fallback is introduced. Existing retention,
+no-tools execution and physical resource joins remain unchanged.
+The clipboard permission-only exception remains separate and unchanged.
+
 ## Product scope realignment - 2026-10-21
 
 The product owner approved the [core outcomes, feature-admission rules, retirement scope and delivery order](MVP_Scope.md#product-admission-and-realignment). That section is the authoritative disposition; this register does not duplicate its inventory.

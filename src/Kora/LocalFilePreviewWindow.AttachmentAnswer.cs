@@ -62,7 +62,7 @@ internal sealed partial class LocalFilePreviewWindow
             status.Text = "Review all excerpts above. Separate consent sends only this question and these excerpts to one admitted LOCAL, tool-free model turn. "
                 + "The question and verified answer/references are retained in this exact conversation under its existing retention/Keep policy. "
                 + "Stored-copy consent did not authorize this disclosure. No original file is reopened. No hosted fallback or tools. "
-                + "Unqualified runtime and sensitive-source policy remain unavailable.";
+                + Kora.Core.Context.LocalSourceRiskPolicy.Disclosure + " Unqualified runtimes remain unavailable.";
             confirm.IsEnabled = true;
         }, exception =>
         {

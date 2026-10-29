@@ -1,4 +1,6 @@
 using System.Globalization;
+using Kora.Core.Context;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp.ResultFollowUp;
@@ -23,7 +25,11 @@ internal sealed class McpResultFollowUpReview : IDisposable
         Decision = decision;
         CreatedAt = createdAt;
         ExpiresAt = expiresAt;
-        var envelope = CreateEnvelope(new(new(Guid.NewGuid()), observation.Request.SessionId, new(Guid.NewGuid()), origin), createdAt);
+        ConversationText.Validate(question, submission: true);
+        var contextBytes = decision.Kind == McpResultSourceUseKind.QualifiedLocalOnly
+            ? CreateEnvelope(new(new(Guid.NewGuid()), observation.Request.SessionId, new(Guid.NewGuid()), origin), createdAt)
+                .Serialize().Length.ToString(CultureInfo.InvariantCulture)
+            : "(not constructed: source use is denied or unavailable)";
         text = "ONE local-only tool-free answer. Separate fresh model-use consent is required; the spent MCP call grant grants nothing here.\n"
             + "Conversation: " + (observation.Target.Metadata?.Name.Value ?? "Unnamed conversation")
             + " (the exact currently selected Active conversation)\n"
@@ -35,7 +41,8 @@ internal sealed class McpResultFollowUpReview : IDisposable
             + "\nCOMPLETE UNCHANGED TEXT\n" + observation.Result.Text
             + "\nCOMPLETE UNCHANGED STRUCTURED JSON\n" + (observation.Result.StructuredJson ?? "(none)")
             + "\nUNCHANGED NEW QUESTION\n" + question
-            + "\nComplete serialized context: " + envelope.Serialize().Length.ToString(CultureInfo.InvariantCulture) + " / 32768 UTF-8 bytes."
+            + "\nComplete serialized context: " + contextBytes + " / 32768 UTF-8 bytes."
+            + "\n" + LocalSourceRiskPolicy.Disclosure
             + "\nRetain only this new question and genuine final answer or HOST terminal in this conversation. "
             + "No extra raw source copy, hosted transfer, tool, server refresh, memory write or export. "
             + "Cancellation cannot retract bytes already processed or roll back retained data.";

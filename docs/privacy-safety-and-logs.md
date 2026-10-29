@@ -305,6 +305,25 @@ Folders, knowledge registration/persistence, UNC/removable drives, persistent/
 vector indexing, reasoning, hosted egress and content execution remain
 unavailable.
 
+## Reviewed local source-use risk admission
+
+Existing file/folder/retained-attachment, web-result, diagnostic-page and
+MCP-observation answers share one maintained local-use risk policy. Review and
+separate one-shot consent remain required; source selection is not permission.
+The policy screens the whole exact admitted source, original question and model
+payload without rereading sources. Detected credential-like structures are
+refused without an override. Malformed, incomplete or unknown screening and
+stale permission/privacy/source state fail closed.
+
+Admitted content remains **private and local-only**, not proven non-sensitive.
+Checks are best-effort and can miss arbitrary secrets; ordinary sensitive
+personal/business content may be processed locally. No text is silently
+redacted. There is no hosted fallback, new capture permission or additional
+content in logs/audit. Existing source/conversation retention stays independent.
+Unqualified local models remain unavailable; passing tests does not enable them.
+This policy does not change the separate clipboard permission rules below.
+See the [source-use contract](../Design/Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission).
+
 ## Clipboard snapshots
 
 An exact [clipboard preview request](commands.md#explicit-local-clipboard-preview)

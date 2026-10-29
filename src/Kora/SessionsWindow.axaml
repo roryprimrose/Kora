@@ -165,6 +165,8 @@
             IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
           <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
+          <Button x:Name="SubmitClaudeWithClarification" Content="Ask Claude with one clarification (separate disclosure reviews)"
+            IsEnabled="{Binding CanSubmitConversationWithClarification}" AutomationProperties.HelpText="Explicit question-only Claude operation. Answer one bounded question in the session-owned window or by eligible voice. Answering does not transmit: every token-count and Messages POST needs fresh native consent. No observation tools, sources or automatic retry." />
           <Button x:Name="SubmitClaudeObservations" Content="Submit with reviewed Claude observation subset"
             IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Explicit host-owned read-only observations only. Each physical POST needs new native consent. Unqualified Claude stays unavailable." />
           <Button x:Name="SubmitClaudeAnswerStream" Content="Stream explicitly with Claude (text only, separately qualified)"
@@ -303,7 +305,29 @@
           </ComboBox>
           <Button x:Name="ReviewProviderContext" Content="Review context only" IsEnabled="{Binding CanReviewProviderContextField}" />
         </WrapPanel>
-        <TextBlock Text="Complete-profile recovery: explicitly choose all three values. This replaces all dependent overrides, not app preferences." TextWrapping="Wrap" />
+        <TextBlock Text="This request only - LOCAL: choose all three advertised values for the unchanged composer input. Review, then confirm separately. No preference write, model download, qualification, hosted fallback or automatic retry. Subsequent requests inherit normally." TextWrapping="Wrap" />
+        <WrapPanel>
+          <ComboBox ItemsSource="{Binding LocalRequestModels}" SelectedItem="{Binding LocalRequestModel, Mode=TwoWay}" Width="200"
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: advertised local model; no implicit selection">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding LocalRequestReasonings}" SelectedItem="{Binding LocalRequestReasoning, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model reasoning">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <ComboBox ItemsSource="{Binding LocalRequestContexts}" SelectedItem="{Binding LocalRequestContext, Mode=TwoWay}" Width="150"
+              IsEnabled="{Binding CanCompose}" AutomationProperties.Name="This request only: exact local model context; envelope ceilings unchanged">
+            <ComboBox.ItemTemplate><DataTemplate><TextBlock Text="{Binding Label}" /></DataTemplate></ComboBox.ItemTemplate>
+          </ComboBox>
+          <Button x:Name="ReviewLocalRequestProfile" Content="Review this request only" IsEnabled="{Binding CanReviewLocalRequestProfile}" />
+        </WrapPanel>
+        <TextBox Text="{Binding LocalRequestProfileText}" IsReadOnly="True" AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="260"
+            AutomationProperties.Name="This request only review: complete exact destination, local tuple, original input and expiry" />
+        <WrapPanel>
+          <Button x:Name="ConfirmLocalRequestProfile" Content="Confirm this request only once" IsEnabled="{Binding CanConfirmLocalRequestProfile}" />
+          <Button x:Name="CancelLocalRequestProfile" Content="Cancel this request-only review (no submission)" />
+        </WrapPanel>
+        <TextBlock Text="Durable complete-profile recovery: explicitly choose all three values below. This replaces all dependent SESSION overrides, not app preferences; it does not submit a request." TextWrapping="Wrap" />
         <WrapPanel>
           <ComboBox ItemsSource="{Binding ProviderModels}" SelectedItem="{Binding ProviderModel, Mode=TwoWay}" Width="200"
               IsEnabled="{Binding CanSelectProviderModel}" AutomationProperties.Name="Exact current advertised model; empty means unavailable, never fake choices">

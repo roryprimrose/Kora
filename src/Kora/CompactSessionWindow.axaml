@@ -95,6 +95,9 @@
         <Button x:Name="SubmitConversationWithClarification" Content="Submit with one clarification"
           IsEnabled="{Binding CanSubmitConversationWithClarification}"
           AutomationProperties.HelpText="Local request with ask_user only: one question with radio buttons, checkboxes or bounded text, answered here through the session-owned question window or by voice. Unqualified providers remain unavailable." />
+        <Button x:Name="SubmitClaudeWithClarification" Content="Ask Claude with one clarification (separate disclosure reviews)"
+          IsEnabled="{Binding CanSubmitConversationWithClarification}"
+          AutomationProperties.HelpText="Explicit question-only Claude operation. Answer in the session-owned window or by eligible voice. Each token-count and Messages POST requires separate native consent; answering never approves transmission. No sources, observation tools or retry." />
         <Button x:Name="SubmitReadOnlyWithClarification" Content="Ask locally with observations and one question"
           IsEnabled="{Binding CanSubmitConversationWithClarification}"
           AutomationProperties.HelpText="Uses six read-only observation tools and ask_user once, with radio buttons, checkboxes or bounded text. Answer in the session-owned question window or by voice. A reply is not approval or permission. Unqualified local providers remain unavailable." />

@@ -79,6 +79,9 @@ continuation, hosted disclosure or runtime qualification is implied.
 
 ### Bounded provider-neutral continuation implementation - 2026-10-20
 
+The separately approved [explicit hosted clarification](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) reuses the question/answer protocol only in host-selected `HostedClarification` mode with Claude.
+It advertises `ask_user` alone, not the observation catalogue or a generic hosted tool. Both answer-bearing physical POSTs need fresh native consent; ordinary hosted text and local schema/mode behavior remain unchanged ([guard](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs), [translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs)).
+
 The additive [read-only clarification protocol](../src/Kora.Core/Dependencies/ModelToolProtocol.Questions.cs) uses request schema 3 only for an explicitly admitted local read-only question turn. Schema 1 read-only-only and schema 2 tool-free question requests retain their formats. Complete serial tool-result history may contain one exact SingleChoice question/host answer pair; the answer is user data, not a tool call or authority. The [native transport](../src/Kora.Windows/Dependencies/OllamaToolWire.cs) preserves chronological assistant/tool/assistant/user history and rejects mixed content/tool responses. See the [complete interaction](Interaction_And_Sessions.md#local-read-only-conversational-clarification---2026-10-26).
 
 [ModelToolProtocol](../src/Kora.Core/Dependencies/ModelToolProtocol.cs) owns the

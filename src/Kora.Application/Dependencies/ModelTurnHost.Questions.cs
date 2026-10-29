@@ -8,6 +8,9 @@ public sealed partial class ModelTurnHost
     {
         if (turn.QuestionContinuation is not { } questions)
         {
+            if (turn.Context.ToolMode == ModelToolMode.HostedClarification)
+            { return Task.FromResult(new ModelProviderReply(ModelTurnOutcome.Denied, turn.Provenance.Selection,
+                Reason: ModelTurnReason.InvalidProviderResponse)); }
             if (turn.PublishAnswer is { } publish && turn.Context.ToolMode == ModelToolMode.None
                 && (turn.Provenance.Selection.Provider == ModelProviderIdentity.Ollama
                     || turn.Registration.Adapter is ClaudeModelTurnAdapter { StreamsAnswer: true })

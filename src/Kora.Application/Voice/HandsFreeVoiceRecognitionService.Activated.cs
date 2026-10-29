@@ -59,8 +59,14 @@ public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoice
         EnsureNotDisposed();
         await StopAsync(cancellationToken);
         EnsureNotDisposed();
-        Interlocked.Exchange(ref ambientGeneration, 0);
-        await activated.BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
+        Task opening;
+        lock (gate)
+        {
+            if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns activated capture."); }
+            Interlocked.Exchange(ref ambientGeneration, 0);
+            opening = activated.BeginPushToTalkAsync(microphone, phrases, assistantName, cancellationToken);
+        }
+        await opening;
     }
 
     public async Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
@@ -69,7 +75,13 @@ public sealed partial class HandsFreeVoiceRecognitionService : IProvisionalVoice
         EnsureNotDisposed();
         await StopAsync(cancellationToken);
         EnsureNotDisposed();
-        Interlocked.Exchange(ref ambientGeneration, 0);
-        await activated.BeginReplyAsync(microphone, phrases, isAdmitted, cancellationToken);
+        Task opening;
+        lock (gate)
+        {
+            if (profileSwitchActive || profileRetirementFailed) { throw new InvalidOperationException("Speech-input switching or unconfirmed retirement owns reply capture."); }
+            Interlocked.Exchange(ref ambientGeneration, 0);
+            opening = activated.BeginReplyAsync(microphone, phrases, isAdmitted, cancellationToken);
+        }
+        await opening;
     }
 }

@@ -68,6 +68,9 @@ internal sealed partial class SessionsWindow : Window
         DiscardComposer.Click += async (_, _) => await (ConversationOperation = model.DiscardComposerBufferAsync());
         SubmitConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitConversationAsync());
         SubmitLocalAnswer.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalAnswerAsync());
+        ReviewLocalRequestProfile.Click += async (_, _) => await (ConversationOperation = model.ReviewLocalRequestProfileAsync());
+        BindLocalRequestProfileDecision(ConfirmLocalRequestProfile, true, model);
+        BindLocalRequestProfileDecision(CancelLocalRequestProfile, false, model);
         SubmitCopilotConversation.Click += async (_, _) => await (ConversationOperation = model.SubmitCopilotConversationAsync());
         SubmitLocalFirst.Click += async (_, _) => await (ConversationOperation = model.SubmitLocalFirstAsync());
         BindClaudeConversation(model);

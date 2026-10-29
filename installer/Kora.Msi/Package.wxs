@@ -17,6 +17,7 @@
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="REBOOT" Value="ReallySuppress" />
     <Property Id="KORA_START_AT_LOGIN" Value="0" Secure="yes" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="both" />
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="KoraRoot" Name="Kora">
         <Directory Id="INSTALLFOLDER" Name="$(ProductVersion)" />

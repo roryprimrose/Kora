@@ -16,6 +16,35 @@ Auxiliary session views without an original-request review panel retain their ex
 
 Sessions and compact presenters also retain the separate [exact-answer reply review](reviewed-context.md). Choosing Reply on the retained answer does not submit the foreground request again or consume unsent input. Hiding and reopening that reply presenter invalidates its review rather than sending the follow-up as plain input.
 
+## Choose a local profile for this request only
+
+In **Sessions**, select an existing Active conversation and enter the original
+message. Under **Selected-session provider overrides**, use **Refresh**, then
+the **This request only - LOCAL** controls to choose every advertised model,
+reasoning and context value. These controls are separate from durable session
+override controls.
+
+Choose **Review this request only**, inspect the complete destination, profile
+and unchanged input, then **Confirm this request only once**. **Cancel** sends
+nothing and changes no preferences. Input, destination, source, profile or
+authority changes require a fresh review. Subsequent requests inherit ordinary
+session/app settings.
+
+The equivalent exact typed command is:
+
+```text
+session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>
+```
+
+For activated voice, prefix it with the current assistant name. Confirm separately
+with `session request confirm`, or discard with `session request cancel`.
+The original channel and exact body are preserved. Existing instruction-scope
+review still applies; this grants no history, memory, tools or hosted transfer.
+
+Production local profiles remain unavailable without their exact independent
+qualification. Empty advertised choices mean unavailable, not a default model.
+There is no installation, download, automatic switch, hosted fallback or retry.
+
 ## Untargeted requests
 
 An ordinary untargeted local request, typed globally or activated with the current

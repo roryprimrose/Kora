@@ -262,17 +262,17 @@ public sealed partial class SessionsConversationTests
             Kora.Core.Mcp.IMcpConnectionBroker? mcpBroker = null,
             Kora.Application.Mcp.McpReadOnlyPolicy? mcpEffects = null,
             PlaybackVolumeConfigurationService? volume = null, bool localFirst = false,
-            HandoffCatalogue? localFirstCatalogue = null)
+            HandoffCatalogue? localFirstCatalogue = null, IProviderCapabilityCatalogue? localRequestCatalogue = null)
         {
             var workspace = WindowsSqliteSessionWorkspaceTests.Service(f, Access);
             Workspace = workspace;
             admission = new(f.Store, f.Store, new(f.Tasks));
             var mode = new ProviderModeConfigurationService(new LocalModelProviderModePreferences(f.Paths), admission, Audit);
             mode.Observe();
-            var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Paths),
-                localFirst ? localFirstCatalogue ?? new HandoffCatalogue(f) : copilot is null
-                    ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f),
-                admission, Audit, f.Time);
+            var profilePreferences = new LocalProviderProfilePreferences(f.Paths);
+            var catalogue = localRequestCatalogue ?? (localFirst ? localFirstCatalogue ?? new HandoffCatalogue(f) : copilot is null
+                    ? new UnavailableProviderCapabilityCatalogue(new Installed(), f.Time) : new CopilotCatalogue(f));
+            var profiles = new ProviderProfileConfigurationService(profilePreferences, catalogue, admission, Audit, f.Time);
             var dependencies = new DependencyBootstrapper([], NullLogger<DependencyBootstrapper>.Instance);
             var boundary = new HostBoundary();
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
@@ -310,7 +310,9 @@ public sealed partial class SessionsConversationTests
                 : new(f.Store, Access, boundary, registry, Audit, NullLogger<ModelTurnHost>.Instance, f.Time,
                     [new(ModelProviderSelection.OllamaCandidate,
                         ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
-                        f.Time.Now.AddMinutes(5), adapter)], mode);
+                        f.Time.Now.AddMinutes(5), adapter)], mode,
+                        localRequestCatalogue is null ? null : profiles,
+                        localRequestCatalogue is null ? null : f.Store);
             var conversationWorkspace = conversationReader is null ? workspace
                 : new SessionWorkspaceService(conversationReader, new(f.Tasks), Access, NullLogger<SessionWorkspaceService>.Instance);
             var conversation = new SessionConversationService(f.Store, f.Store, conversationWorkspace, Access, turns, f.Time,
@@ -351,7 +353,9 @@ public sealed partial class SessionsConversationTests
                         speechPolicy ?? throw new InvalidOperationException("Test volume call policy is required."),
                         f.Time, message, eligible, validate, token),
                 confirmPlaybackVolumeSuggestion: volume is null ? null : (review, token) => review.ConfirmAsync(token),
-                localHandoff: LocalHandoff);
+                localHandoff: LocalHandoff, providers: localRequestCatalogue is null ? null
+                    : new(workspace, f.Store, profilePreferences, catalogue, f.Time,
+                        NullLogger<SessionProviderProfileConfigurationService>.Instance, profiles));
         }
         internal HostedTransmissionReviewService Reviews { get; }
         public async ValueTask DisposeAsync()

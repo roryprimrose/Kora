@@ -606,6 +606,10 @@ jobs:
           dotnet restore .\installer\Kora.Bundle\Kora.Bundle.wixproj --locked-mode
           if ($LASTEXITCODE -ne 0) { exit $LASTEXITCODE }
 
+      - name: Test installer metadata contracts without installing
+        shell: pwsh
+        run: .\eng\Test-InstallerMetadataContracts.ps1
+
       - name: Build MSI and Burn bundle without installing
         id: package
         shell: pwsh

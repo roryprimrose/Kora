@@ -754,7 +754,7 @@ inspection do not install the MSI.
 Launch published binaries, not a build command.
 After either installation option, Kora's setup offers start-at-logon registration with explicit consent and an accessible disable option.
 The [WiX/Burn installer](../installer/README.md#start-at-login) presents that
-choice before Install/Repair, defaulting on for an absent entry and reflecting
+choice before Install/Repair, defaulting off for an absent entry and reflecting
 matching registry configuration. Registration matches the explicitly chosen
 installation scope (HKCU/current user or HKLM/all users), is owned by a native
 MSI component, and is recorded in the installation transaction. Windows-disabled
@@ -766,6 +766,12 @@ The application runs as the interactive user, without elevation or a pre-logon m
 Enforce a single desktop instance and avoid duplicate startup registrations.
 Use [Instance Coordination](Instance_Coordination.md) across installed/developer builds: same-build launch reveals the owner; different-build launch requires approved quiescent handoff and an explicit return offer after exit.
 No handoff installs code or bypasses the current maintenance restrictions.
+
+The [shared app-side Settings/typed/activated-voice operation](User_Configuration.md#delivered-reviewed-windows-logon-startup) reviews, separately confirms, saves/resets and reads back this same current-user entry, never a second startup registration. It is unavailable for machine-wide, foreign, disabled or unknown state.
+The [Windows implementation](../src/Kora.Windows/Startup/WindowsLogonStartupNative.cs) revalidates current-user MSI install location/version and exact EXE/DLL fingerprints before committing a quoted command without arguments or shell fallback.
+
+The [MSI authors install-location metadata](../installer/Kora.Msi/Package.wxs) for that identity check; older installations without it need an explicit installer repair.
+Registration is not app readiness, protected deployment or permission to listen, and an uncertain preference/audit receipt remains held for manual inspection ([startup owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)). Installed upgrade/stable-launcher acceptance remains separate; no installed logon trial is claimed.
 
 Startup opens the shell/tray and automatically attempts listening when the
 host has saved ongoing voice consent and fresh ownership, interactive-session,

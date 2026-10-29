@@ -669,13 +669,68 @@ The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplan
 The [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) retains the source-current predicate and asynchronous permission validator on its single-use execution capability, including tool callbacks. Source/authority changes across asynchronous reads cannot silently substitute another snapshot or reusable model consent.
 These implementation checks do not qualify local answering quality, physical/native operation, containment, offline or hardware performance and do not close A0/A2; those E/Q gates do not block this fail-closed implementation ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+### Reviewed LocalOnly source-use risk admission
+
+The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
+authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
+for the existing file/folder/retained-attachment, web-result, diagnostic-page
+and MCP-observation grounded-answer routes. It replaces only their unspecified
+affirmative-classifier prerequisite. It is not derived from the clipboard
+permission exception, does not change clipboard behavior and grants no capture,
+account, tool, provider or egress authority.
+
+[`private-local-source-use-v1`](../src/Kora.Core/Context/LocalSourceRiskPolicy.cs)
+admits explicitly reviewed content only as **private LocalOnly**, never
+non-sensitive or secret-free. Existing exact immutable source/revision, original
+question, selected excerpts/complete payload, one-shot consent and live
+source/account/channel/privacy/call/ownership admission remain mandatory.
+Each evidence-bearing folder file is evaluated independently. Policy evaluation
+does no I/O, persistence, model inference, source renewal or silent redaction.
+Only the existing consumers construct context after admission; their complete
+serialized 32-KiB envelope limit, citation binding and no-tools policy remain.
+
+The maintained detector reuses conversation structural checks without changing
+conversation screening. It additionally refuses credential-like assignments,
+authorization fields, private-key blocks, credential-bearing URIs and recognized
+provider/access-key structures. Recognized placeholders in these additional
+structures are also refused; there is no Save anyway or override.
+Complete JSON candidates (object, array or quoted string) are parsed at depth 32 and decoded property names/string
+values are screened too, including duplicates, rather than trusting escaped
+spelling. Malformed JSON candidates, invalid Unicode or exceeded scan bounds is
+Unavailable, not a clean result. Every part is checked with strict UTF-8:
+at most 16 parts, 256 KiB per part and 512 KiB combined, above existing consumed
+source/question/excerpt limits. Nothing is shortened to obtain admission.
+Cancellation is checked between parts, through JSON traversal and before
+returning admission; a screening exception cannot produce an allow decision.
+
+This is finite best-effort assistance, not comprehensive DLP, decoding of every
+embedded format, or proof that arbitrary secrets are absent. Ordinary sensitive
+personal/business content may be processed locally. The native/typed review
+discloses that residual risk before confirmation; no user classification
+attestation is requested. Detected risks deny the operation with no context or
+provider dispatch; missing/unknown policy and stale authority remain closed.
+Questions, content, excerpts and detected candidates never enter diagnostics or
+audit payloads. Existing content-free requested/terminal audit and independent
+conversation/source retention are unchanged.
+
+The [production adapters](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
+share the same singleton and detector, not per-sink classifiers. File citations
+are resolved against the exact original revision before screening. Web includes
+the whole immutable normalized observation and observed addresses; diagnostics
+include the whole immutable page and original question; MCP includes original
+question, complete Text/StructuredJson and transmitted provenance, with source
+and question channels checked independently. MCP policy revision is rechecked
+without reconnecting or renewing its spent grant.
+Unqualified runtimes remain unavailable. Deterministic fake-provider success
+proves this implementation, not runtime enablement, answer truth or RC readiness.
+
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
 
 The [web-summary workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs) requires one-use source/local-model confirmation over one exact current snapshot. Fetch/view/search grants no inference permission; URLs confer no context or retrieval authority ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs), [summary](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs)).
 
 The [action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and provenance as LocalOnly untrusted evidence. Its [credential checks](../src/Kora.Core/Conversation/ConversationText.cs) are narrow reject-only heuristics, not sensitivity classification. Page content grants no approvals, actions, tools or network authority.
 
-The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific sensitivity/use admission before context construction. Its production [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) blocks before durable/model admission; no general detector or permissive default is claimed.
+The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific risk/use admission before context construction. Its production [shared implementation](../src/Kora.Application/Context/LocalSourceUsePolicy.cs) follows the reviewed LocalOnly contract above; missing or unknown policy still blocks before durable/model admission. No general classifier or secret-free guarantee is claimed.
 
 Policy decisions are rechecked through the shared execution fence and before late disclosure; denial/unknown state permanently closes that use. Deterministic admitted/denied fakes do not establish production detection readiness ([bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs), [tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
 

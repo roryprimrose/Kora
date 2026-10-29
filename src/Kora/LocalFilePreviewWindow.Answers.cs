@@ -86,7 +86,9 @@ internal sealed partial class LocalFilePreviewWindow
                 + (result.Outcome switch
                 {
                     LocalFileAnswerOutcome.SourceUseUnavailable =>
-                        "Unavailable: the required sensitive-content/source-use admission service is not composed. Preview consent is not model-use consent.",
+                        "Unavailable: source-use risk screening is incomplete, unknown or not composed. No context or model request is admitted.",
+                    LocalFileAnswerOutcome.Denied when result.SourceUseDecision == LocalFileModelUseDecision.Denied =>
+                        "Denied: credential-like risk or invalid exact source evidence. No override or model request is admitted.",
                     LocalFileAnswerOutcome.NoEvidence => "No admitted lexical excerpt supports this question. No model was invoked.",
                     LocalFileAnswerOutcome.Unsupported => "The admitted model response reports no supported answer in the selected evidence.",
                     LocalFileAnswerOutcome.ContextLimit => "Complete serialized context exceeds the host budget. Nothing was silently dropped.",
@@ -113,7 +115,7 @@ internal sealed partial class LocalFilePreviewWindow
                 + LocalContextSessionTarget.FreshSessionDisclosure + "\n"
                 + $"Reviewed session: {reviewedTarget.Request.SessionId.Value:D}; one-shot task: {reviewedTarget.Request.TaskId.Value:D}.\n"
                 + "Separate explicit request: send bounded exact excerpts and this question only to an admitted LOCAL model. "
-                + "Source-use/sensitive-content policy and qualified runtime must independently admit use. "
+                + LocalSourceRiskPolicy.Disclosure + " Source-use policy and qualified runtime must independently admit use. "
                 + "No hosted fallback, retention, fresh read, folder expansion, tools or speech. Unavailable gates stay closed.",
             TextWrapping = TextWrapping.Wrap,
         });

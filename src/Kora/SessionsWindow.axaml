@@ -165,6 +165,8 @@
             IsEnabled="{Binding CanSubmitLocalFirst}" ToolTip.Tip="Requires Local first mode. Only a genuine local Unavailable result and confirmed exact resource join can offer review. Separate final-byte disclosure approval is always required." />
           <Button x:Name="SubmitClaudeConversation" Content="Submit explicitly with Claude (separate disclosure reviews)"
             IsEnabled="{Binding CanSubmitConversation}" ToolTip.Tip="Requires independent Claude approval and an exact current account/profile. Each token-count and Messages POST needs native consent. Never falls back." />
+          <Button x:Name="SubmitClaudeWithClarification" Content="Ask Claude with one clarification (separate disclosure reviews)"
+            IsEnabled="{Binding CanSubmitConversationWithClarification}" AutomationProperties.HelpText="Explicit question-only Claude operation. Answer one bounded question in the session-owned window or by eligible voice. Answering does not transmit: every token-count and Messages POST needs fresh native consent. No observation tools, sources or automatic retry." />
           <Button x:Name="SubmitClaudeObservations" Content="Submit with reviewed Claude observation subset"
             IsEnabled="{Binding CanSubmitConversation}" AutomationProperties.HelpText="Explicit host-owned read-only observations only. Each physical POST needs new native consent. Unqualified Claude stays unavailable." />
           <Button x:Name="SubmitClaudeAnswerStream" Content="Stream explicitly with Claude (text only, separately qualified)"

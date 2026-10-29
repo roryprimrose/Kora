@@ -20,4 +20,7 @@ public enum ModelToolMode
 
     /// <summary>Only the frozen reviewed customization metadata selection in the original local turn.</summary>
     CustomizationDiscovery,
+
+    /// <summary>One explicitly selected hosted question and canonical answer, without observation tools or sources.</summary>
+    HostedClarification,
 }

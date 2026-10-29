@@ -194,6 +194,10 @@ The separately selected [Claude observation transport](../src/Kora.Windows/Depen
 The default text operation remains tool-free. Each round separately reviews Count Tokens and Messages; provider names, call IDs, unknown fields and native blocks confer no host authority.
 Strict client-tool-only proposal messages, exact schemas, cumulative physical byte accounting and same-account/catalogue lifetime are deterministic implementation boundaries, not account/provider qualification ([wire translation](../src/Kora.Windows/Dependencies/ClaudeObservationWire.cs), [portable schemas](../src/Kora.Core/Tools/ReadOnlyCapabilitySchema.cs)).
 
+The separately approved [hosted clarification operation](Interaction_And_Sessions.md#explicit-hosted-conversational-clarification---2026-10-29) uses the same account-bound native transport and independent physical-send review, but only in host-selected `HostedClarification` mode.
+One isolated `ask_user` response may resume with the canonical stored user answer; observation tools and source evidence are absent ([transport](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Tools.cs)).
+Deterministic host/native tests are implementation evidence, not provider/account or deployment qualification ([regressions](../tests/Kora.Windows.IntegrationTests/HostedClaudeSessionRequestTests.Questions.cs)).
+
 #### Native text-stream implementation, not enablement
 
 The explicit native text-only stream is separately admitted by exact deployment model/reasoning/context/token-ceiling evidence, in addition to the current credential/workspace lease. An existing buffered profile, unknown stream evidence or the shipped unavailable approval source cannot enable it ([evidence](../src/Kora.Windows/Dependencies/ClaudeDeploymentApproval.cs), [runtime](../src/Kora.Windows/Dependencies/ClaudeMessagesRuntime.Streaming.cs)).

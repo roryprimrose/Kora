@@ -28,7 +28,7 @@ public sealed partial class ModelTurnHost
         var authorization = hostedReviews.PrepareClaudeTurn(context, profile, streamAnswer);
         Volatile.Write(ref authorization.Used, 1);
         var admission = await AdmitConfiguredProfileAsync(ModelTurnChoice.Hosted, context, null, token, authorization).ConfigureAwait(false);
-        if (streamAnswer && admission.Turn is { } turn)
+        if ((streamAnswer || context.ToolMode == ModelToolMode.HostedClarification) && admission.Turn is { } turn)
         { turn.ValidateAnswerCommit = ct => RevalidateContinuationAsync(turn, ct); }
         return admission;
     }

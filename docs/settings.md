@@ -101,6 +101,18 @@ confirmation that records have been removed.
 
 ## Preference Changes and Recovery
 
+### Undo the last registered settings change
+
+At the top of Settings, choose **Undo the last settings change**. Inspect the exact current and previous preference, saved/default source and shared device-local scope. Separately choose **Confirm settings undo**, or **Cancel settings undo** to write nothing. Review lasts 60 seconds ([shared undo workflow](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Confirm settings undo** and **Cancel settings undo** are disabled and skipped by Tab navigation until a current review can be confirmed ([native controls](../src/Kora/SettingsWindow.axaml), [keyboard regression](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs)).
+
+There is only one candidate from this run: the last confirmed registered appearance/presence, summary-cap, Kora-volume or ordinary response-mode change. Restoring a default removes the saved override; summary limits restore the exact previous pair. Undo is unavailable after restart or privacy/lifecycle closure, and cannot overwrite externally changed or unconfirmed preferences. A successful undo is a new audited save, consumes that candidate and offers no redo ([registered settings](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [undo validation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+For summary caps, Kora volume and ordinary response mode, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Appearance requires a new native Settings review. Voice requests blocked by call policy cannot become permitted by clicking Confirm later ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
 Settings uses plain-language labels and short status summaries. For example,
 **Logging** describes diagnostic and security record storage without naming the
 database, and **Providers** shows AI service and model choices rather than raw
@@ -280,13 +292,14 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
-**Current sentence (requires qualified alignment)** is also an explicit native
+**Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
 reached by actual playback, not a timing estimate or rewritten text. This build
 has no qualified Windows voice/rate/output profile for sentence alignment, so
 sentence captions remain **unavailable**; ordinary speech and the complete visual
 answer remain available. Missing or invalid alignment never becomes an utterance
-caption. Saving this choice does not test your device or enable a provider.
+caption. Saving this choice does not test your device or enable a provider
+([native choice](../src/Kora.Application/Configuration/SpeechTextChoice.cs), [production alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
 
 Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
@@ -311,8 +324,9 @@ resets only that option. These device-local options do not enable captions:
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
-Sentence alignment remains unavailable because playback supplies no admitted
-sentence boundaries. Broad natural caption commands and rich browser/HTML/
+Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
+Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
 **Caption screen — until Kora restarts** is available in **Settings > Responses** and the caption. Choose a connected screen and press **Use selected display**; the section's top-right cog offers **Use main screen** to reset to the current main screen.
@@ -1299,7 +1313,7 @@ a new UI request. Stop speech, disable listening, cancel and read-only status
 remain usable. Protected calls preserve applicable grants and session action
 levels. **Allow spoken approvals during calls** defaults Off and requires
 fresh native review and explicit downgrade confirmation before enabling.
-Temporary overrides and speak-once exceptions remain unavailable. This is bounded manual behavior, not
+Call-wide temporary overrides remain unavailable. A separate [exact current-response speak-once review](responses-and-calls.md#speak-one-current-response-during-call-protection) changes no preference or general protection. This is bounded behavior, not
 full call/provider/native/audio acceptance.
 
 Use [session permission controls](session-permission-levels.md) to review and

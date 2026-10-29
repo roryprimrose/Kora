@@ -6,6 +6,9 @@ public interface IResponseOutputPreferences
 
     void SaveDefaultMode(ResponseOutputMode mode);
 
+    /// <summary>Removes the saved default-mode override.</summary>
+    void ResetDefaultMode();
+
     ResponseOutputMode? ReadBackDefaultMode();
 
     void BeginDefaultModeWrite();

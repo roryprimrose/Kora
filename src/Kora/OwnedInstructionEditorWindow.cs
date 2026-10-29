@@ -57,7 +57,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
 
     internal OwnedInstructionEditorWindow(Action<string> run)
     {
-        Title = "Kora-owned instruction and prompt editor";
+        Title = "Kora instruction and prompt editor";
         Width = 960;
         Height = 720;
         var controls = new WrapPanel { Orientation = Orientation.Horizontal };
@@ -70,7 +70,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -137,11 +137,12 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         panel.Children.Add(metadataFindControls);
         var disclosure = new TextBlock
         {
-            Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
+            Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Open registered profile original selects only the exact personal native v1 instruction already registered/read-consented in Customizations; this editor cannot register a source. Bundled definitions are read-only. "
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
-                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model. Hold to dictate body instead inserts reviewed literal text at a frozen body caret/range, without a model; both require a separate normal Save. No prompt/metadata dictation, scripts, profile writes, rename or restore. "
+                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
+                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),

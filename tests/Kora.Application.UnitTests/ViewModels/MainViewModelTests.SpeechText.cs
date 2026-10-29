@@ -43,20 +43,22 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task DisplayRecoveryRetiresObservedPinnedSourceWithoutPreferenceRepairOrReplay(bool disposed)
+    [InlineData(false, SpeechTextMode.CurrentUtterance)]
+    [InlineData(true, SpeechTextMode.CurrentUtterance)]
+    [InlineData(false, SpeechTextMode.CurrentSentence)]
+    [InlineData(true, SpeechTextMode.CurrentSentence)]
+    public async Task DisplayRecoveryRetiresObservedPinnedSourceWithoutPreferenceRepairOrReplay(bool disposed, SpeechTextMode mode)
     {
         var fixture = new Fixture(enableSpeechText: true);
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeTrue();
-        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        await fixture.RunAsync($"set display.speech-text to {mode}");
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
         await fixture.TextToSpeech.SpeakStarted.Task;
-        fixture.TextToSpeech.PlaybackFrame = new(true, 0.5, fixture.TextToSpeech.CaptionPlaybackId, 4);
+        fixture.TextToSpeech.PlaybackFrame = CaptionFrame(fixture, mode, 4);
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         await fixture.ViewModel.ToggleSpeechCaptionPinCommand.ExecuteAsync();
         fixture.ViewModel.IsSpeechCaptionPinned.Should().BeTrue();
@@ -69,7 +71,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakGate.SetResult();
         await response;
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
-        fixture.CaptionPreferences.Mode.Should().Be(SpeechTextMode.CurrentUtterance);
+        fixture.CaptionPreferences.Mode.Should().Be(mode);
         if (disposed) { fixture.ViewModel.Dispose(); }
         else { fixture.Session.IsUnlocked = false; }
         fixture.ViewModel.CanChooseSpeechCaptionDisplay.Should().BeFalse();
@@ -347,18 +349,20 @@ public sealed partial class MainViewModelTests
         fixture.Voice.StartedPhrases.Should().Contain("set display.speech-text-placement to TopLeft");
     }
 
-    [Fact]
-    public async Task Normal_completion_keeps_a_pinned_caption_but_stop_and_source_changes_still_retire_it()
+    [Theory]
+    [InlineData(SpeechTextMode.CurrentUtterance)]
+    [InlineData(SpeechTextMode.CurrentSentence)]
+    public async Task Normal_completion_keeps_a_pinned_caption_but_stop_and_source_changes_still_retire_it(SpeechTextMode mode)
     {
         var fixture = new Fixture(enableSpeechText: true);
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        await fixture.RunAsync($"set display.speech-text to {mode}");
         fixture.TextToSpeech.ClearSpokenResponse();
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
         await fixture.TextToSpeech.SpeakStarted.Task;
-        fixture.TextToSpeech.PlaybackFrame = new(true, 0.5, fixture.TextToSpeech.CaptionPlaybackId, 4);
+        fixture.TextToSpeech.PlaybackFrame = CaptionFrame(fixture, mode, 4);
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         await fixture.ViewModel.ToggleSpeechCaptionPinCommand.ExecuteAsync();
         fixture.ViewModel.IsSpeechCaptionPinned.Should().BeTrue();
@@ -453,7 +457,27 @@ public sealed partial class MainViewModelTests
     [InlineData("native-presentation")]
     [InlineData("native-presentation-locked")]
     [InlineData("native-presentation-no-subscriber")]
-    public async Task Caption_is_retired_on_every_applicable_transition_and_never_restored(string transition)
+    [InlineData("stop", SpeechTextMode.CurrentSentence)]
+    [InlineData("cancel", SpeechTextMode.CurrentSentence)]
+    [InlineData("ownership", SpeechTextMode.CurrentSentence)]
+    [InlineData("call", SpeechTextMode.CurrentSentence)]
+    [InlineData("lock", SpeechTextMode.CurrentSentence)]
+    [InlineData("disconnected", SpeechTextMode.CurrentSentence)]
+    [InlineData("privacy", SpeechTextMode.CurrentSentence)]
+    [InlineData("topology", SpeechTextMode.CurrentSentence)]
+    [InlineData("segment", SpeechTextMode.CurrentSentence)]
+    [InlineData("dispose", SpeechTextMode.CurrentSentence)]
+    [InlineData("source", SpeechTextMode.CurrentSentence)]
+    [InlineData("configuration", SpeechTextMode.CurrentSentence)]
+    [InlineData("configuration-failure", SpeechTextMode.CurrentSentence)]
+    [InlineData("feedback", SpeechTextMode.CurrentSentence)]
+    [InlineData("stale", SpeechTextMode.CurrentSentence)]
+    [InlineData("failure", SpeechTextMode.CurrentSentence)]
+    [InlineData("native-presentation", SpeechTextMode.CurrentSentence)]
+    [InlineData("native-presentation-locked", SpeechTextMode.CurrentSentence)]
+    [InlineData("native-presentation-no-subscriber", SpeechTextMode.CurrentSentence)]
+    public async Task Caption_is_retired_on_every_applicable_transition_and_never_restored(string transition,
+        SpeechTextMode mode = SpeechTextMode.CurrentUtterance)
     {
         var log = new CaptionPresentationLogger();
         var fixture = new Fixture(enableSpeechText: true, logger: log,
@@ -461,7 +485,7 @@ public sealed partial class MainViewModelTests
             subscribeToWindowActions: transition is not "native-presentation-no-subscriber");
         await using var admission = fixture.OutputAdmission;
         await fixture.ViewModel.InitializeAsync();
-        await fixture.RunAsync("set display.speech-text to CurrentUtterance");
+        await fixture.RunAsync($"set display.speech-text to {mode}");
         fixture.ViewModel.ReaderTextScalePercent = 200;
         await fixture.ViewModel.AppearanceUpdate;
         fixture.ViewModel.EnsureReaderTypographyAvailable();
@@ -469,7 +493,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         var response = fixture.RunAsync("show your window");
         await fixture.TextToSpeech.SpeakStarted.Task;
-        var frame = new SpeechPlaybackFrame(true, 0.5, fixture.TextToSpeech.CaptionPlaybackId, 8);
+        var frame = CaptionFrame(fixture, mode, 8);
         fixture.TextToSpeech.PlaybackFrame = frame;
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().NotBeNull();
@@ -535,5 +559,22 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await response;
         log.Messages.Should().NotContain(message => message.Contains(fixture.TextToSpeech.SpokenText!, StringComparison.Ordinal));
+    }
+
+    private static SpeechPlaybackFrame CaptionFrame(Fixture fixture, SpeechTextMode mode, long generation)
+    {
+        var id = fixture.TextToSpeech.CaptionPlaybackId!.Value;
+        var frame = new SpeechPlaybackFrame(true, 0.5, id, generation);
+        if (mode == SpeechTextMode.CurrentSentence)
+        {
+            var first = SpeechSentenceMap.Create(fixture.TextToSpeech.SpokenText!)!.Sentences[0];
+            frame = frame with
+            {
+                SentenceAlignmentAvailable = true,
+                Sentence = new(new(new(id, generation), first.Start, first.Length, TimeSpan.Zero),
+                    TimeSpan.Zero, TimeSpan.FromSeconds(9)),
+            };
+        }
+        return frame;
     }
 }

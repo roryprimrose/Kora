@@ -125,7 +125,25 @@ public sealed partial class OwnedDefinitionEditorWindowTests
 
     private static async Task<Window> AwaitProfileReview(Task<Window> review, OwnedInstructionEditorWindow editor, CancellationToken token)
     {
-        try { return await review.WaitAsync(TimeSpan.FromSeconds(15), token); }
+        try
+        {
+            var view = await review.WaitAsync(TimeSpan.FromSeconds(15), token);
+            if (!view.IsVisible)
+            {
+                var shown = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                void Visible(object? sender, Avalonia.AvaloniaPropertyChangedEventArgs args)
+                {
+                    if (args.Property == Window.IsVisibleProperty && view.IsVisible) { shown.TrySetResult(); }
+                }
+                view.PropertyChanged += Visible;
+                try
+                {
+                    if (!view.IsVisible) { await shown.Task.WaitAsync(TimeSpan.FromSeconds(15), token); }
+                }
+                finally { view.PropertyChanged -= Visible; }
+            }
+            return view;
+        }
         catch (TimeoutException exception)
         {
             throw new InvalidOperationException("Expected profile review did not open. Native status: "

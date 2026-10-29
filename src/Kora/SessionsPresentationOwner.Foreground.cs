@@ -14,8 +14,16 @@ internal sealed partial class SessionsPresentationOwner
     private readonly MainViewModel? requestCommands;
     private ForegroundConversationTarget? foregroundTarget;
     private Window? foregroundSurface;
+    private long foregroundSourceRevision;
 
     internal bool HasUniqueForegroundWindow => UniqueForegroundSurface(conversationRequired: false) is not null;
+    internal Func<bool> CaptureForegroundSourceEligibility()
+    {
+        var source = UniqueForegroundSurface(conversationRequired: true);
+        var revision = Interlocked.Read(ref foregroundSourceRevision);
+        // Deferred source validation reads event-observed currency, never Avalonia properties off-dispatcher.
+        return () => source is not null && !revoked && revision == Interlocked.Read(ref foregroundSourceRevision);
+    }
 
     private Window? UniqueForegroundSurface(bool conversationRequired)
     {
@@ -38,6 +46,7 @@ internal sealed partial class SessionsPresentationOwner
 
     private void ForgetForegroundSurface(Window surface)
     {
+        Interlocked.Increment(ref foregroundSourceRevision);
         surface.PropertyChanged -= OnForegroundSurfaceChanged;
         if (surface is ResponseWindow response) { response.SessionView.PropertyChanged -= OnForegroundSurfaceChanged; }
         RequestPanel(surface)?.Bind(null);
@@ -51,7 +60,7 @@ internal sealed partial class SessionsPresentationOwner
     private void OnForegroundSurfaceChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
     {
         if (args.Property == Window.IsActiveProperty || args.Property == Visual.IsVisibleProperty)
-        { UpdateForegroundTarget(); }
+        { Interlocked.Increment(ref foregroundSourceRevision); UpdateForegroundTarget(); }
     }
 
     private void OnForegroundModelChanged(object? sender, PropertyChangedEventArgs args) => UpdateForegroundTarget();

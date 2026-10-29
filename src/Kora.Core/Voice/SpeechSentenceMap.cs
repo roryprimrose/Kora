@@ -85,10 +85,23 @@ public sealed class SpeechSentenceMap
         return source.Substring(sentence.Start, sentence.Length);
     }
 
+    public SentenceRange? Resolve(SpeechSourceProgress progress)
+    {
+        var start = progress.CharacterPosition;
+        var count = progress.CharacterCount;
+        if (start < 0 || count <= 0 || start > source.Length - count
+            || !IsCharacterBoundary(start) || !IsCharacterBoundary(start + count))
+        {
+            return null;
+        }
+        return Sentences.FirstOrDefault(range => start >= range.Start
+            && start + count <= range.Start + range.Length);
+    }
+
     public bool Matches(SpeechSentencePosition position) =>
-        position.Index >= 0 && position.Index < Sentences.Count
-        && Sentences[position.Index] == new SentenceRange(position.Index, position.Start, position.Length)
-        && position.AudioStart >= TimeSpan.Zero && position.AudioStart <= position.PlaybackPosition
-        && position.PlaybackPosition <= position.AudioDuration && position.AudioStart < position.AudioDuration;
+        position.Source is { } progress && progress.Playback.Id != Guid.Empty && progress.Playback.Generation >= 0
+        && Resolve(progress) is not null
+        && progress.AudioPosition >= TimeSpan.Zero && progress.AudioPosition <= position.PlaybackPosition
+        && position.PlaybackPosition <= position.AudioDuration && progress.AudioPosition < position.AudioDuration;
     public sealed record SentenceRange(int Index, int Start, int Length);
 }

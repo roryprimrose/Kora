@@ -45,8 +45,8 @@ public sealed partial class SessionConversationService(
         workspace.SearchConversationAsync(session, query, cursor, limit, token, role, terminal, range, correlation);
 
     public Task<AdmittedDetailContent> ReadDetailAsync(SessionWorkspaceEntry target, ConversationMessage expected,
-        Func<bool> admitted, CancellationToken token, bool assistant = false) =>
-        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant);
+        Func<bool> admitted, CancellationToken token, bool assistant = false, Guid? observationId = null) =>
+        workspace.ReadConversationDetailAsync(target, expected, admitted, token, assistant, observationId);
 
     public Task<ConversationMessage> ReadSpeechSummarySuggestionAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token) =>
@@ -241,6 +241,8 @@ public sealed partial class SessionConversationService(
                         {
                         BindQuestionContinuation(admission.Turn, questionPresenter, Live);
                         bindWebPage?.Invoke(admission.Turn, Live);
+                        admission.Turn.RetainLocalObservations = createContext is null && prepareContext is null
+                            && !copilot && !claude;
                         using var deferred = pending is null ? null : HostActivity.BeginRoot(request,
                             HostActivityLayer.Application, HostOperation.Request,
                             [pending.Cause]);

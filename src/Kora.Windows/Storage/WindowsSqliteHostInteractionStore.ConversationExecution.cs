@@ -58,7 +58,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
     {
         if (!Enum.IsDefined(result.Outcome) || !Enum.IsDefined(result.Reason)
             || result.Provenance is null || result.Provenance.Request != request
-            || result.Outcome != ModelTurnOutcome.Succeeded && result.Response is not null)
+            || result.Outcome != ModelTurnOutcome.Succeeded && (result.Response is not null || result.Observations is not null))
         { throw new InvalidDataException("The admitted execution terminal result is invalid."); }
         return RunHostMutationAsync(request, "conversation.answer", (connection, transaction, intent, audit) =>
         {
@@ -76,6 +76,7 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
                 AssistantResponse = result.Outcome == ModelTurnOutcome.Succeeded
                     ? ConversationResponse.FromResult(result, previous.Execution!) : null,
+                Observations = result.Observations,
             };
             message.Validate();
             var completed = intent.Next(message.ExpectedTaskState);

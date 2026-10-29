@@ -212,7 +212,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 var previousIds = exchanges.SelectMany(exchange => exchange.Calls.Calls).Select(call => call.CallId)
                     .ToHashSet(StringComparer.Ordinal);
-                if (calls.Calls.Length > ModelToolProtocol.MaximumCalls - previousIds.Count
+                var previousCalls = previousIds.Count;
+                if (issuedQuestion?.CallId is { } questionId) { previousIds.Add(questionId); }
+                if (calls.Calls.Length > ModelToolProtocol.MaximumCalls - previousCalls
                     || calls.Calls.Any(call => previousIds.Contains(call.CallId)))
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 exchanges.Add(new(calls, parsed.NativeMessage));
@@ -220,7 +222,9 @@ public sealed partial class WindowsOllamaToolTransport : IModelToolTransport, IM
             else if (parsed.Message is ModelClarificationQuestion question)
             {
                 if (!request.ClarificationAllowed || issuedQuestion is not null
-                    || request.Context.ToolMode == ModelToolMode.ReadOnly && question.Question.Options.Count == 0)
+                    || question.CallId is { } questionId && exchanges.Any(exchange =>
+                        exchange.Calls.Calls.Any(call => string.Equals(call.CallId, questionId, StringComparison.Ordinal)))
+                    || request.Context.ToolMode == ModelToolMode.ReadOnly && question.CallId is null && question.Question.Options.Count == 0)
                 { return Finish(request, ModelTurnOutcome.Denied); }
                 issuedQuestion = question;
                 issuedQuestionIndex = request.Messages.Length;

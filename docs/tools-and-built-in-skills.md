@@ -5,11 +5,18 @@ Use [Commands](commands.md) for exact phrases and parameters,
 workflows. This page explains capability boundaries rather than duplicating
 those references.
 
-**No script-backed built-in skill executor ships in the current release.**
-Exact commands run host-owned C# actions. A verified local model can answer,
-ask a clarification question or propose an existing action/grant change; this
-does not grant a general execution or browsing capability. Selecting artifact instructions does
-not execute their scripts or grant permission.
+**The fixed bundled script executor is implemented but unavailable until its installed contained profile is qualified.**
+See the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Exact commands run Kora's built-in actions. The reviewed AI workflows described
+below require an approved model; **this build has none available**. Opening
+their windows, installing Ollama or selecting instructions cannot enable
+answers, execute scripts or grant permission.
+
+An **instruction** guides an answer; a **skill** is reusable task guidance; an
+**agent profile** adds a role and limits. A **tool** is an operation Kora can
+perform under its own permissions. These are not interchangeable approvals.
+For available editors, see [instructions](instruction-editor.md),
+[skills](owned-skill-authoring.md) and [agents](agent-profile-authoring.md).
 
 ### Retrieve and summarize one public page locally
 
@@ -211,7 +218,7 @@ explicit use of the saved revision. Profile originals and other kinds remain rea
 
 **Current bounded:** [reviewed instruction-only shared skill invocation](commands.md#reviewed-instruction-only-shared-skill-invocation) separately enables one exact compatible single-file revision for a volatile local-only, zero-tool request in one existing Active conversation. Registration/inspection alone grants no invocation authority ([workflow](../src/Kora.Application/Skills/SharedSkillInvocationWorkflow.cs)).
 
-**Current bounded:** the separate [reviewed one-tool shared skill invocation](commands.md#reviewed-one-tool-shared-skill-invocation) supports one declarative revision and one or two distinct explicit page destinations, each requiring its own host-authorized WebPageGet call. Source-read consent, local model-context enablement and once-only action approval stay separate. Results remain in the original local session; unqualified local profiles remain unavailable. No bundled page skill or script execution is added.
+**Current bounded:** the separate [reviewed one-tool shared skill invocation](commands.md#reviewed-one-tool-shared-skill-invocation) supports one declarative revision and one or two distinct explicit page destinations, each requiring its own host-authorized WebPageGet call. Source-read consent, local model-context enablement and exact action permission stay separate; matching This session/Always action grants can be reused. Results remain in the original local session; unqualified local profiles remain unavailable. No bundled page skill or script execution is added.
 
 ### Two-source comparison skill example
 
@@ -276,37 +283,60 @@ See [maintenance commands](commands.md#exact-cached-release-maintenance).
 
 ## 13. Built-in skills
 
-The three bundled packages are inspectable and their instructions selectable,
-but every script action remains unavailable. Future review binds original
-entry/helper bytes, individual digests, the combined script-set hash and
-definition digest; a package name or model choice is not approval.
+The three bundled packages are inspectable and their instructions selectable, but every script action remains unavailable until its installed contained profile is qualified.
+The [fixed execution implementation](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) binds complete original multi-file packages, separate grants, current source authority and joined resources; a package name or model choice is not approval.
+Review includes the manifest, entry script, every shared helper and combined script-set hash; changing any declared source invalidates the exact binding.
+
+### Prepare an existing bundled runtime
+
+Open **Settings > Skill packages**, select a bundled package, then choose
+**Runtime setup and readiness**. **Inspect installed runtime** reads only the
+host-selected protected Program Files PowerShell installation; it never
+searches PATH or runs PowerShell. Review its complete local file inventory,
+licences/notices, source limitations, byte counts and local-record effects
+before approving **Prepare**.
+
+**Prepared** means the reviewed local inventory was re-read successfully,
+not that scripts can run. This release has no admitted contained execution
+profile: execution and grants stay unavailable, with no native fallback.
+No runtime download or installation occurs; a missing/unsupported/protection
+failure is reported rather than silently choosing another executable.
+
+Reopen and inspect to read back the saved registration and current native
+files. **Verify** reconciles an interrupted matching registration; changed
+files/device require a new explicit **Prepare** review, not automatic
+replacement. **Forget registration only** removes Kora's local records and
+never uninstalls or changes shared PowerShell files. Invalid saved records
+must be restored or explicitly removed from Kora's local Preferences folder;
+no default runtime is inferred. Cancel/close clears private review and waits
+for owned I/O to finish; interrupted writes can remain unconfirmed. Runtime
+preparation never approves a package, grants an action or confirms a computer
+power effect.
 
 ### Lock the machine
 
-**Current:** an exact lock command calls Windows directly without the planned
-script-bound approval gate. Model-suggested lock requires its existing
-action-specific approval/grant. See [exact lock behavior](commands.md#lock-windows).
+**Current:** voluntary direct lock uses the same package gate as other fixed actions and reports unavailable while its runtime is unqualified. There is no legacy native-lock fallback. Model suggestions open inspection only. See [exact lock behavior](commands.md#lock-windows).
 
-**Planned:** shared content-bound admission for direct/UI/model routes, a durable
-control-session binding and an observed lock receipt. It targets the current
+**Implemented, not enabled:** shared content-bound admission, a durable
+control-session binding and a truthful request-accepted receipt. It targets the current
 Windows session only, not another user, remote computer, unlock or timer.
 
 ### Shut down the computer
 
-**Current:** a visible non-executing proposal only.
+**Current:** source inspection and explicit unavailability under the [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system shutdown request is sent.**
 
-**Planned:** exact script/grant review, active-work handling, fresh confirmation
+**Implemented, not enabled:** exact script/grant review, active-work handling, fresh confirmation
 within 30 seconds and a 30-second host countdown with pre-effect revalidation.
 An OS-accepted request may no longer be cancellable; Kora cannot save other
 applications' documents or promise completed shutdown.
 
 ### Restart the computer
 
-**Current:** a visible non-executing proposal only.
+**Current:** source inspection and explicit unavailability under the same [fixed execution gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 **No operating-system restart request is sent.**
 
-**Planned:** the same power safeguards with a distinct restart task/grant.
+**Implemented, not enabled:** the same power safeguards with a distinct restart task/grant.
 This is not **restart Kora** and does not promise interrupted work will resume.
 
 ### Read-only integration skill
@@ -324,8 +354,9 @@ and fixed read-only work. See [Sessions](windows-and-tray.md).
 Only retained approved records are history; bootstrap response bodies and
 hidden model reasoning are not automatically captured.
 
-**Planned:** full conversation execution, generic shared questions/routing and
-model history reasoning. Selection never approves, resumes or retargets work.
+Separate [reviewed context](reviewed-context.md) and [request destination](session-routing.md)
+workflows exist, but do not enable an unavailable model. General shared-question
+or automatic-history behavior is not implied. Selection never approves, resumes or retargets work.
 Perpetual operation grants remain independent of session retention.
 
 ## 15. Deferred context, knowledge, and general execution
@@ -335,7 +366,11 @@ one retained text/Markdown attachment per Session, exact replacement/removal,
 metadata catalogue and citation-to-source navigation.
 See [file inspection](windows-and-tray.md#native-local-file-inspection).
 
-**Unavailable:** managed knowledge sources, grounded model file answering,
-screen/OCR/image capture, vector indexes, arbitrary shell/application launch,
+**Also available without AI:** [named knowledge folders](knowledge-sources.md),
+with explicit reviewed local copies, search, refresh, disable and removal.
+They do not become automatic model context.
+
+**Unavailable:** grounded model file answering, screen/OCR/image capture,
+meaning-based indexes, arbitrary shell/application launch,
 source self-modification, elevation and general desktop automation.
 Local inspection and PowerShell installation do not enable these capabilities.

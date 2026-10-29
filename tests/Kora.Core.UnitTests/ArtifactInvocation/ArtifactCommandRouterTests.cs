@@ -216,7 +216,7 @@ public sealed class ArtifactCommandRouterTests
         var failure = new InvalidDataException("invalid candidate");
         catalogue.ReportReloadFailure(failure);
 
-        changes.Should().Be(0);
+        changes.Should().Be(1);
         reported.Should().BeSameAs(failure);
         ((Action)(() => catalogue.ReportReloadFailure(null!))).Should().Throw<ArgumentNullException>();
         ((Action)(() => catalogue.IsCurrent("", original.Digest))).Should().Throw<ArgumentException>();
@@ -230,6 +230,33 @@ public sealed class ArtifactCommandRouterTests
             Definition("replacement", "replacement"),
             Definition("second", "second"),
         ]);
+    }
+
+    [Fact]
+    public void ReloadFailureWithholdsEveryFileKindIncludingCapturedFlagsAndRecoveryNotifiesWithoutChangingBytes()
+    {
+        var bundled = Definition("bundled", "bundled");
+        var files = Enum.GetValues<ArtifactKind>().Select(kind =>
+            new ArtifactDefinition("disk." + kind.ToString().ToLowerInvariant(), kind, kind.ToString(), "Test",
+                kind.ToString().ToLowerInvariant(), [kind.ToString()], "user-profile", "1", new string('b', 64), "Body")
+            { UseControlId = "file." + kind.ToString().ToLowerInvariant(), PreservesCapturedUse = true }).ToArray();
+        using var catalogue = new ArtifactCatalogue([bundled, .. files]);
+        var observed = catalogue.Candidates;
+        var changes = 0;
+        catalogue.Changed += (_, _) => changes++;
+        catalogue.ReportReloadFailure(new IOException("Incomplete incoming files"));
+        catalogue.Artifacts.Should().Equal(bundled);
+        catalogue.Candidates.Should().HaveCount(5);
+        foreach (var file in files)
+        {
+            catalogue.IsCurrent(file.Id, file.Digest).Should().BeFalse();
+            catalogue.IsCapturedRevisionCurrent(file.Id, file.Digest).Should().BeFalse();
+            new ArtifactCommandRouter(catalogue).Match("/" + file.CommandName, "Kora").Invocation.Should().BeNull();
+        }
+        catalogue.Publish(observed);
+        catalogue.IsReloadUnavailable.Should().BeFalse();
+        catalogue.Artifacts.Should().HaveCount(5);
+        changes.Should().Be(2);
     }
 
     [Fact]

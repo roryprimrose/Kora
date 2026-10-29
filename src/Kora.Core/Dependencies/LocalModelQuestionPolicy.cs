@@ -22,6 +22,10 @@ public static class LocalModelQuestionPolicy
         ConversationText.Validate(question.Prompt, submission: true);
         if (question.Prompt.Length > 500 || question.Options is null || question.Options.Count is 1 or > 4)
         { throw new InvalidDataException("Only bounded text or two-to-four-choice clarifications are supported."); }
+        if (question.Minimum < 0 || question.Maximum < 1 || question.Maximum < question.Minimum
+            || (question.Options.Count == 0 ? question.Minimum != 1 || question.Maximum != 1
+                : question.Maximum > question.Options.Count))
+        { throw new InvalidDataException("Clarification selection bounds do not match the declared options."); }
         if (question.Options.Count == 0)
         {
             return new(question.Prompt, QuestionKind.Text, [], maximumTextLength: LocalModelQuestion.MaximumFreeTextLength,
@@ -36,8 +40,10 @@ public static class LocalModelQuestionPolicy
         }
         if (!LocalModelQuestionSpeech.AreOptionsUnambiguous(question.Options))
         { throw new InvalidDataException("Clarification option labels must be unambiguous."); }
-        return new(question.Prompt, QuestionKind.SingleChoice,
+        return new(question.Prompt, question.Minimum == 1 && question.Maximum == 1
+                ? QuestionKind.SingleChoice : QuestionKind.MultipleChoice,
             question.Options.Select((label, index) => new QuestionOption("option-" + index.ToString(System.Globalization.CultureInfo.InvariantCulture), label)),
+            minimum: question.Minimum, maximum: question.Maximum,
             purpose: Purpose, sourceId: SourceId);
     }
 }

@@ -1,5 +1,9 @@
 # Independent local agent runs
 
+**Execution is unavailable in this build:** no local model is approved, and
+overlapping local execution is also unavailable by default. Opening two run
+panels does not start two agents.
+
 Open **Independent agents** by typing `independent agents`, or say the same
 command with the current assistant name. This operation uses at most two
 independent runs in **different existing Active conversations**. It does not

@@ -80,6 +80,7 @@ public sealed partial class SettingsWindow : Window
         BindAction("EditOwnedInstructions", editOwnedInstructions);
         BindAction("InspectSkillPackages", inspectSkillPackages);
         BindAction("InspectExactGrants", inspectExactGrants);
+        BindAction("InspectNetworkPermissionGrants", inspectExactGrants);
         BindAsync("ReviewLocalVersion", reviewLocalVersion);
         BindAsync("ReturnToVersionQuestion", returnToVersionQuestion);
 

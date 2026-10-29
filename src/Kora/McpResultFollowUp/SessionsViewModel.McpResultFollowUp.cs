@@ -25,7 +25,7 @@ internal sealed partial class SessionsViewModel
     private bool retiringMcpFollowUp;
     private string mcpFollowUpQuestion = string.Empty;
     private string mcpFollowUpOutcome = string.Empty;
-    internal IMcpResultSourceUse McpResultSourceUse { get; set; } = UnavailableMcpResultSourceUse.Instance;
+    internal IMcpResultSourceUse McpResultSourceUse { get; set; } = Kora.Application.Context.LocalSourceUsePolicy.Instance;
     internal Task McpFollowUpRetirement { get; private set; } = Task.CompletedTask;
 
     private bool McpObservationCurrent => mcpObservation is { } source && !closed && access.CanInspect && access.CanControl
@@ -62,7 +62,8 @@ internal sealed partial class SessionsViewModel
         var presentation = await (mcpPresenter ?? throw new InvalidOperationException("The native MCP presenter was retired."))
             (proposal, generation, review, admitted, token);
         if (review.Stage == McpReviewStage.Invocation && review.IsBoundTo(proposal) && admitted()
-            && presentation.Completed.Outcome == Kora.Core.Interaction.HostInteractionOutcome.Approved)
+            && presentation.Completed.Outcome is Kora.Core.Interaction.HostInteractionOutcome.Approved
+                or Kora.Core.Interaction.HostInteractionOutcome.Consumed)
         {
             mcpCompletedProposal = proposal;
             mcpCompletedMapping = review;

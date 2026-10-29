@@ -128,7 +128,8 @@ public sealed class LocalFileAnswerWindowTests
     }
 
     [Theory]
-    [InlineData(LocalFileAnswerOutcome.SourceUseUnavailable, "source-use admission service")]
+    [InlineData(LocalFileAnswerOutcome.SourceUseUnavailable, "source-use risk screening is incomplete, unknown or not composed")]
+    [InlineData(LocalFileAnswerOutcome.Denied, "credential-like risk or invalid exact source evidence")]
     [InlineData(LocalFileAnswerOutcome.NoEvidence, "No model was invoked")]
     [InlineData(LocalFileAnswerOutcome.Unsupported, "no supported answer")]
     [InlineData(LocalFileAnswerOutcome.ContextLimit, "Nothing was silently dropped")]
@@ -141,10 +142,13 @@ public sealed class LocalFileAnswerWindowTests
             window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => true, () => Task.CompletedTask,
                 (_, _, _, _) => Task.FromResult(LocalFileAnswerResult.Empty(outcome) with
                 { SourceUseDecision = outcome == LocalFileAnswerOutcome.SourceUseUnavailable
-                    ? LocalFileModelUseDecision.SourceUsePolicyMissing : null }));
+                    ? LocalFileModelUseDecision.SourceUsePolicyMissing
+                    : outcome == LocalFileAnswerOutcome.Denied ? LocalFileModelUseDecision.Denied : null }));
             window.Show();
             try
             {
+                window.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text)
+                    .Should().Contain(text => text != null && text.Contains(LocalSourceRiskPolicy.Disclosure, StringComparison.Ordinal));
                 Question(window).Text = "alpha";
                 await Press(window, "Use this exact snapshot once to answer locally");
                 Status(window).Text.Should().Contain(disclosure);

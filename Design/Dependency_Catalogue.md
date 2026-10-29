@@ -38,7 +38,7 @@ that complete policy.
 | .NET runtime | R02 win-x64 output declares `Microsoft.NETCore.App` and `Microsoft.WindowsDesktop.App` 10.0.0. Require a supported patched .NET 10 x64 **Desktop Runtime**, not just the base runtime or an SDK. See the [launch baseline](Distribution_And_Updates.md#launch-prerequisite-baseline). |
 | Native VC++ runtime | Published ONNX DLL imports include `VCRUNTIME140.dll`, `VCRUNTIME140_1.dll`, `MSVCP140.dll` and `MSVCP140_1.dll`. The WiX/Burn POC pins VC++ v14 x64 Redistributable 14.51.36247.0 as its candidate delivery prerequisite; production qualification, actual loader closure and runtime-only Windows trials remain open. Declining Ollama/Kokoro is not evidence that these launch dependencies disappear. |
 | Bundled libraries | [Central versions](../Directory.Packages.props) include KokoroSharp 0.8.4, MisakiSharp 2.2.0, ONNX Runtime 1.30.0, NAudio 3.1.0, System.Speech 10.0.12, Microsoft.Data.Sqlite 10.0.12 and Markdig 1.4.0, alongside Avalonia/logging libraries. These are build inputs, not optional user installations. Microsoft.Data.Sqlite transitively supplies SQLitePCLRaw.bundle_e_sqlite3 and matching native assets; this existing pairing is the approved standard-SQLite route, with no new encrypted codec or package upgrade. Inventory the complete restored/published closure and licences per release. |
-| Storage and OS facilities | App-owned built-in SQLite is not a server, optional download or ambient library. [R04](Archive/Implementation_Roadmap_2026-10-11.md#r04-approved-standard-sqlite-continuation---2026-10-06) now implements an actual standard-SQLite task store under verified private supplied-profile permissions. It remains uncomposed into transcript dispatch/evidence; schema/evidence/lifecycle completion is partial. Database encryption, DPAPI keys and rekey/native-codec admission are superseded by owner-approved [D-009](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06). Copies outside that boundary are readable; credentials remain OS protected. Packaged native loading/protection is separate R17 evidence, not inferred from scratch tests. |
+| Storage and OS facilities | Bundled standard SQLite serves composed task/question/grant/audit/conversation stores under verified private supplied-profile permissions; it is not a server, optional download or ambient library. [D-009](Decision_Register.md#approved-profile-secured-sqlite-baseline---2026-10-06) supersedes mandatory database encryption/key/rekey/codec admission. Copies outside the private boundary are readable; credentials remain OS protected. [Storage lifecycle](Deferred_Validation.md#storage-admission-follow-up) and packaged native loading/protection retain their separate qualification gates. |
 | Source build and packaging | Managed-source installation needs the selected .NET SDK and Git/build tooling; binary users do not. NSIS/SCons acquisition/build code remains retired. Maintained [source delivery](../eng/Invoke-SourceBootstrap.ps1) and [native/runtime inspection](../eng/Inspect-Publish.ps1) now supersede the distribution-only source/native proof executables; their [historical receipts](../experiments/r02-distribution-proof/README.md) retain their original source/profile, not routine Kora launch or new release evidence. The [WiX 7.0.0 MSI/custom Burn installer](../installer/README.md) uses the pinned SDK, Avalonia and self-contained bootstrapper runtime with explicit prerequisite chains. Licence/notice controls run during packaging; external-asset and installed closure qualification remain separate R17 work. Use Linux for portable build/cross-publish and Windows for WiX packaging, not another application OS. |
 
 R04's subsequent actual-package evaluation resolved acquisition and passed
@@ -66,6 +66,21 @@ notice and exact-file payload checks pass; installed loading remains separate.
 The OS probes currently require Windows 10 build 19041 or later for speech.
 That check is not an accepted Windows support matrix or hardware floor; D-007
 still requires actual supported-version, device and packaged-host evidence.
+
+## Bundled Worker Preparation Boundary
+
+The [native contained-runtime registration operation](Environment_Setup.md#bundled-contained-runtime-registration)
+now prepares/verifies a device-local pin of an **already installed,
+independently protected** PowerShell 7.4-or-later x64 family installation at the
+single host-selected Program Files location. It measures the exact local
+inventory, declared assets, protection, native metadata and installed notices;
+it does not choose upstream distribution bytes or authenticate companion files
+as an upstream release. No new runtime acquisition offer, package manager,
+native installation, PATH fallback, profile enablement or removal ownership is
+introduced. The existing generic PowerShell setup/probe below remains separate.
+Protected bundled deployment and external native/OS closure qualification are
+still release-owned. Local registration preparation is not W1-W4 or execution
+readiness.
 
 ## Implemented User-Optional Dependencies
 
@@ -118,6 +133,32 @@ Ollama source MIT and manifest-linked model Apache-2.0 licence evidence is
 recorded, but installed executable/weight integrity, native notices and
 distribution clearance remain open. Public metadata does not qualify an
 installed runtime or close D-003/D-007.
+
+## Hands-Free Preparation Offer, Not Capture Qualification
+
+The [Windows catalogue](../src/Kora.Windows/Audio/HandsFreeSetupCatalogue.cs)
+is the single executable authority for exact source URLs, size/SHA-256 and
+notice identities. It pins PocketSphinx 5.1.1 official commit
+`511126b492dcb267cf30d49d631946d7b61a9530` en-US acoustic files and dictionary,
+Silero 6.2 official commit `be95df9152c0d7618fa1edfeb296fc3dae32376f`
+`silero_vad.onnx`, and separate CMU/Alpha Cephei/Silero notices. The CMU
+dictionary notice is pinned at `74790861f652b15e4ac49015a90074ad62a27690`;
+the engine licence is not substituted for acoustic or dictionary notices.
+
+The 13-file data offer downloads **12,222,276 bytes** into the interactive user's
+private speech-component store. It excludes general language models and
+native executable acquisition. The source-built Windows x64 CPU
+[bundled library](../src/Kora.Windows/Audio/Native/README.md) is 668,672 bytes
+and imports only KERNEL32. No Python wheel or third-party native package is used.
+The shared Settings/Burn service performs exact review, explicit consent,
+verified atomic publication, reconstruction, verification and reviewed removal.
+Decline/offline/missing assets never cause automatic acquisition.
+
+Only the inert **asset binder** is verified by preparation. Configured-name,
+playback and acoustic capture qualification remains absent, and the production
+stage is unavailable. The 512 MiB RAM budget is a disclosed planning estimate,
+not measured enablement evidence. No native/model inference, microphone
+recording, learning or profile selection is performed by this operation.
 
 ## Experimental Speech Candidates, Not Production Installs
 

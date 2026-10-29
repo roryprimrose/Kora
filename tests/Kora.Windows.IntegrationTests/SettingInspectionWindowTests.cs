@@ -114,6 +114,7 @@ public sealed class SettingInspectionWindowTests
                 await ((AsyncCommand)Button(window, "Inspect confirmed settings and review").Command!).ExecuteAsync();
                 presenter.ReviewText.Should().Contain("125").And.Contain("confirmed saved")
                     .And.Contain("confirmed absent").And.Contain(question.Text)
+                    .And.Contain("appearance.presence-display = true boolean (confirmed absent; live default)")
                     .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
                 window.GetVisualDescendants().OfType<TextBlock>().Single(control => string.Equals(
                     AutomationProperties.GetName(control), "Complete confirmed source provenance question and local target", StringComparison.Ordinal))

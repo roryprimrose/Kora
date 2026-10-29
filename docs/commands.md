@@ -1,6 +1,22 @@
 # Voice and typed commands
 
-**Product realignment:** standalone utility commands and fixed diagnostic-queue product surfaces are approved for retirement. This guide continues to describe current implementation until each code removal lands; retirement is not permission to bypass existing checks. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+Type a command without the assistant name. For voice, hold **Push to talk** and
+use your configured name, for example **Kora, open settings**. Phrases below are
+exact: a similar sentence may not match.
+
+The global command box runs commands; a session's message composer submits
+conversation text. Words inside a message do not become commands.
+**AI answers are unavailable in this build**, even after model setup.
+Review and editor commands may open useful controls without enabling the
+model-dependent operation.
+
+**Find a task:** [open a window](#open-existing-workspace-surfaces),
+[conversation input](#unsent-conversation-input-and-legacy-recovery),
+[settings](#settings-and-guidance-tasks), [voice and devices](voice-and-audio.md),
+[files](#explicit-local-file-preview), [clipboard](#explicit-local-clipboard-preview),
+[web pages](#retrieve-an-explicit-web-page), or [reusable guidance](#run-skills-and-artifacts).
+Full identifiers are needed only where the exact command syntax asks for them;
+use native lists or readable-name routes elsewhere.
 
 ## Manage customizations
 
@@ -1674,10 +1690,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock my screen**
 - **lock this workstation**
 
-Locking is a real local action. Kora closes microphone capture before asking
-Windows to lock. This exact built-in command currently calls a C# handler
-without a confirmation prompt. A model-suggested lock requires approval
-unless that named action already has a session or always grant.
+Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
+Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
 
 ## Protected power-proposal tasks
 
@@ -1714,8 +1729,8 @@ unless that named action already has a session or always grant.
 - **is a restart pending**
 - **show pending power action**
 
-Shutdown and Windows restart are proposals in the current release. Kora shows
-the recognized request but does not send a power operation to Windows.
+Shutdown and Windows restart open the [exact bundled source review](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) and report unavailable until the contained runtime is independently qualified. No power operation is sent to Windows.
+The implemented boundary requires a package grant, separate original-channel confirmation, a visible cancellable 30-second countdown, physical resource joins and current one-use authority. Named model-action preferences cannot replace these decisions.
 
 ## Grant-management tasks
 
@@ -1793,11 +1808,17 @@ continue to work.
 - **block hosted models**
 - **disable cloud models**
 
-Hosted execution is disabled by default. The current build has no hosted
-provider or credentials; enabling hosted models records permission but does
-not send a request or provide a cloud fallback.
+Hosted execution is disabled by default. Copilot and Claude workflows exist,
+but their required account-use approvals are unavailable in this build.
+Enabling hosted models records permission; it neither signs in nor sends a
+request, and it does not provide a cloud fallback.
 
 ## When a command does not match
+
+**Current availability:** this build has no approved local model profile and
+uses an unavailable reasoner for unmatched commands. The following explains
+the answer/approval workflow, not an enabled AI feature. Use **help** for commands
+that work without a model; see [Models](settings.md#models) for availability.
 
 When local model execution is enabled and the selected local model is ready,
 Kora sends only the current unmatched
@@ -2128,7 +2149,7 @@ Kora, tool skill close
 
 Omit the second-address command for existing one-source use; **tool skill clear second address** removes it. Use **tool skill next targets** for the next metadata page. Typed/current-name activated voice share the exact route; changing input, either URL, target or channel requires fresh review and enablement. Registration and source discovery remain native-only ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs), [input revocation](../src/Kora/SharedSkillInvocationController.cs)).
 
-The host admits one call per explicit destination, at most two calls and three serial model rounds. Each call needs its own current exact-destination once-only approval. Review and approve or cancel each page operation separately in the native approval window; a skill or model cannot approve it. Both actual inert page observations are required before a two-source comparison can succeed in the original conversation ([finite scope](../src/Kora.Core/Network/LocalWebPageScope.cs), [canonical action reuse](../src/Kora.Application/Network/LocalWebPageWorkflow.cs)).
+The host admits one call per explicit destination, at most two calls and three serial model rounds. Each call needs a current exact-destination permission grant. A matching This session/Always grant is reused; otherwise review and approve Once, This session or Always, or cancel in the native approval window. A skill or model cannot approve it. Both actual inert page observations are required before a two-source comparison can succeed in the original conversation ([finite scope](../src/Kora.Core/Network/LocalWebPageScope.cs), [canonical action reuse](../src/Kora.Application/Network/LocalWebPageWorkflow.cs)).
 
 The preview shows inclusive cumulative input/output UTF-8 byte limits, the per-page inert result limit and the 15-second turn deadline. There are no extra destinations, third calls or hidden retries. Missing/failed sources produce no comparison answer; expired or revoked terminal authority can leave the exact retained request unconfirmed for inspection. **Stop and close reviewed use** cancels and joins actual owned work; cancellation requested is not immediate resource completion ([retained consumer](../src/Kora.Application/Hosting/SessionConversationService.ToolSkills.cs), [lifecycle](../src/Kora/SharedSkillInvocationController.cs)).
 

@@ -140,7 +140,7 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
-    [InlineData(ModelTurnOutcome.Unavailable, "source-specific sensitivity/source-use policy is missing or unknown")]
+    [InlineData(ModelTurnOutcome.Unavailable, "source-use risk admission is incomplete, missing or unknown")]
     [InlineData(ModelTurnOutcome.Denied, "denied by source-specific sensitivity/source-use policy")]
     public async Task WebSummaryPresentsSourcePolicyClosureWithoutAnswerOrRefetch(ModelTurnOutcome outcome, string status)
     {
@@ -150,6 +150,7 @@ public sealed partial class MainViewModelTests
             webSummary: new(new(), execution, new ViewModelWebAudit(), TimeProvider.System, NullLogger<WebSummaryWorkflow>.Instance));
         await fixture.RunAsync("get web page https://example.com/");
         await fixture.RunAsync(WebSummaryCommand.RequestPhrase);
+        fixture.ViewModel.WebSummaryStatus.Should().Contain(Kora.Core.Context.LocalSourceRiskPolicy.Disclosure);
         await fixture.ViewModel.ConfirmWebSummaryAsync(fixture.ViewModel.WebSummaryConfirmations.Single().Id);
         fixture.ViewModel.WebSummaryStatus.Should().Contain(status);
         fixture.ViewModel.WebSummaryText.Should().BeEmpty();

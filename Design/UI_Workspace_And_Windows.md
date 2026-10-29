@@ -1,12 +1,11 @@
 # Session Workspace and Coordinated Window Design
 
-Status: agreed window structure; bounded native-text-v1 document details
-implemented, with a bounded durable native question/review window; coordinated
-authoritative per-session work and bounded ordered history delivered as below.
-The native exact-session composer/submitted-user-message foundation is delivered
-below; full generated conversations and general concurrent execution remain proposed.
-The integrated session content pane is approved direction, not delivered behavior;
-existing bounded Details windows remain in use until migrated.
+Status: adaptive session/conversation workspace, integrated passive text/Markdown
+Details, exact-session composer/history and bounded question/review surfaces
+are implemented. General result routing, consequential concurrent workers,
+rich browser/diagram profiles and installed accessibility remain gated. See
+the [current inventory](Implementation_Roadmap.md#current-delivery) and local
+delivery boundaries below.
 
 Related: [Interaction and Sessions](Interaction_And_Sessions.md), [Work Management](Work_Management.md), [Information Display](Information_Display.md), [Shared Questions and Recovery](Interaction_Fallback.md), [User Configuration](User_Configuration.md), [Internal Model Tools](Internal_Model_Tools.md).
 

@@ -222,13 +222,13 @@ Installed/native acceptance is not established. The
 [evidence contract](Information_Display.md#delivered-bounded-native-evidence-inspection)
 documents metadata actually committed and unavailable graph/history fields.
 
-Status: proposed full security contract. The current bootstrap implements host-validated
-model proposals and once/session/always model-action approvals, not the
-complete grant taxonomy or script/executable execution gate below. Controls
-must be demonstrated before the associated capability is enabled.
-R05 additionally has tested, uncomposed core/application question and exact
-authorization services; their durable adapter and production integration are
-not delivered. See [the foundation boundary](#r05-authorization-foundation).
+Status: canonical security contract, not a claim that every described capability
+is enabled. Durable question/exact-authorization services and native grant/
+session-policy controls are composed; general script/executable workers and
+the complete grant taxonomy remain gated. Controls must be demonstrated before
+their associated capability is enabled. See the
+[authorization boundary](#r05-authorization-foundation) and
+[current delivery inventory](Implementation_Roadmap.md#current-delivery).
 
 Related: [Architecture](Architecture.md), [Extensibility](Extensibility.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -361,8 +361,23 @@ microphone. Native logs/dumps are disabled; model/VAD state, pre-roll and
 command PCM are volatile. A default-deny live host gate rechecks admission and
 known playback before/after native work. Retirement rejects queued audio and
 finals permanently, and ownership remains held through actual native joins.
-No exact payload/name/playback profile is admitted yet: this implementation
-does not enable ambient capture or qualify device playback exclusion.
+The exact native/data preparation package is admitted separately from capture:
+its profile has no qualified names or playback/acoustic evidence, so it cannot
+enable ambient capture or qualify device playback exclusion.
+
+The [shared preparation owner](../src/Kora.Windows/Audio/HandsFreeSetupRuntime.cs)
+uses the existing reviewed speech-component store and private per-user paths.
+Only explicit preparation downloads the compiled catalogue's exact public
+source data/notices; it sends no audio, configured name, transcripts or identity.
+The native library is bundled application code, not downloaded model data.
+Inert verification hashes the complete inventory and holds read-only handles
+through readback and mutation retirement; no library/model is loaded or run.
+Capture and preparation share exclusive ownership. Cancellation does not
+release it until ignoring acquisition/verification work joins; host retirement
+rejects new work and waits for the current owner rather than releasing early.
+Malformed/foreign saved ownership and changed bytes fail explicitly, preserve
+unknown data, and require fresh inspection/review. Prepared data grants no
+microphone, inference, session, name or playback authority.
 
 Mute, lock, sign-out, suspend, and app exit close microphone capture and clear buffered audio.
 Microphone enumeration is not recording consent; first-run and failure recovery use native mouse-selectable questions under [Interaction Fallback](Interaction_Fallback.md).
@@ -669,13 +684,68 @@ The [clipboard admission bridge](../src/Kora.Application/Context/ClipboardExplan
 The [model host](../src/Kora.Application/Dependencies/ModelTurnHost.cs) retains the source-current predicate and asynchronous permission validator on its single-use execution capability, including tool callbacks. Source/authority changes across asynchronous reads cannot silently substitute another snapshot or reusable model consent.
 These implementation checks do not qualify local answering quality, physical/native operation, containment, offline or hardware performance and do not close A0/A2; those E/Q gates do not block this fail-closed implementation ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
+### Reviewed LocalOnly source-use risk admission
+
+The [2026-10-29 explicit product decision](Decision_Register.md#automatic-reviewed-local-source-use-admission---2026-10-29)
+authorizes one shared [host policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
+for the existing file/folder/retained-attachment, web-result, diagnostic-page
+and MCP-observation grounded-answer routes. It replaces only their unspecified
+affirmative-classifier prerequisite. It is not derived from the clipboard
+permission exception, does not change clipboard behavior and grants no capture,
+account, tool, provider or egress authority.
+
+[`private-local-source-use-v1`](../src/Kora.Core/Context/LocalSourceRiskPolicy.cs)
+admits explicitly reviewed content only as **private LocalOnly**, never
+non-sensitive or secret-free. Existing exact immutable source/revision, original
+question, selected excerpts/complete payload, one-shot consent and live
+source/account/channel/privacy/call/ownership admission remain mandatory.
+Each evidence-bearing folder file is evaluated independently. Policy evaluation
+does no I/O, persistence, model inference, source renewal or silent redaction.
+Only the existing consumers construct context after admission; their complete
+serialized 32-KiB envelope limit, citation binding and no-tools policy remain.
+
+The maintained detector reuses conversation structural checks without changing
+conversation screening. It additionally refuses credential-like assignments,
+authorization fields, private-key blocks, credential-bearing URIs and recognized
+provider/access-key structures. Recognized placeholders in these additional
+structures are also refused; there is no Save anyway or override.
+Complete JSON candidates (object, array or quoted string) are parsed at depth 32 and decoded property names/string
+values are screened too, including duplicates, rather than trusting escaped
+spelling. Malformed JSON candidates, invalid Unicode or exceeded scan bounds is
+Unavailable, not a clean result. Every part is checked with strict UTF-8:
+at most 16 parts, 256 KiB per part and 512 KiB combined, above existing consumed
+source/question/excerpt limits. Nothing is shortened to obtain admission.
+Cancellation is checked between parts, through JSON traversal and before
+returning admission; a screening exception cannot produce an allow decision.
+
+This is finite best-effort assistance, not comprehensive DLP, decoding of every
+embedded format, or proof that arbitrary secrets are absent. Ordinary sensitive
+personal/business content may be processed locally. The native/typed review
+discloses that residual risk before confirmation; no user classification
+attestation is requested. Detected risks deny the operation with no context or
+provider dispatch; missing/unknown policy and stale authority remain closed.
+Questions, content, excerpts and detected candidates never enter diagnostics or
+audit payloads. Existing content-free requested/terminal audit and independent
+conversation/source retention are unchanged.
+
+The [production adapters](../src/Kora.Application/Context/LocalSourceUsePolicy.cs)
+share the same singleton and detector, not per-sink classifiers. File citations
+are resolved against the exact original revision before screening. Web includes
+the whole immutable normalized observation and observed addresses; diagnostics
+include the whole immutable page and original question; MCP includes original
+question, complete Text/StructuredJson and transmitted provenance, with source
+and question channels checked independently. MCP policy revision is rechecked
+without reconnecting or renewing its spent grant.
+Unqualified runtimes remain unavailable. Deterministic fake-provider success
+proves this implementation, not runtime enablement, answer truth or RC readiness.
+
 Rich content is untrusted presentation data under [Information Display](Information_Display.md).
 
 The [web-summary workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs) requires one-use source/local-model confirmation over one exact current snapshot. Fetch/view/search grants no inference permission; URLs confer no context or retrieval authority ([fetch](../src/Kora.Application/ViewModels/MainViewModel.WebPages.cs), [summary](../src/Kora.Application/ViewModels/MainViewModel.WebSummary.cs)).
 
 The [action](../src/Kora.Tools/Network/WebResultSummarize.cs) preserves complete normalized text and provenance as LocalOnly untrusted evidence. Its [credential checks](../src/Kora.Core/Conversation/ConversationText.cs) are narrow reject-only heuristics, not sensitivity classification. Page content grants no approvals, actions, tools or network authority.
 
-The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific sensitivity/use admission before context construction. Its production [unavailable implementation](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) blocks before durable/model admission; no general detector or permissive default is claimed.
+The independent [web-source policy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) must affirm source-specific risk/use admission before context construction. Its production [shared implementation](../src/Kora.Application/Context/LocalSourceUsePolicy.cs) follows the reviewed LocalOnly contract above; missing or unknown policy still blocks before durable/model admission. No general classifier or secret-free guarantee is claimed.
 
 Policy decisions are rechecked through the shared execution fence and before late disclosure; denial/unknown state permanently closes that use. Deterministic admitted/denied fakes do not establish production detection readiness ([bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs), [tests](../tests/Kora.Application.UnitTests/Network/WebSummaryModelExecutionTests.cs)).
 
@@ -685,13 +755,12 @@ The volatile source request is lineage only. The [Core runner](../src/Kora.Core/
 
 The envelope disables tools, the shared host denies tool callbacks, and no adapter registration or bootstrap fallback is enabled. Review expiry, replacement, private/owner/call closure and cancellation suppress stale presentation ([host](../src/Kora.Application/Dependencies/ModelTurnHost.cs), [workflow](../src/Kora.Application/Network/WebSummaryWorkflow.cs)).
 
-The delivered `native-text-v1` viewer is passive native text/Markdown, entered
-only through the explicit Documentation **Open details** action for a host
-admitted immutable embedded page. Host reference/revision/digest, origin,
-sensitivity and title are separate chrome, not parsed content. Existing host
-session/request/task IDs are required by the finalized-response contract, but
-general response/durable-history admission is not composed; process-local page
-identity confers no session, question or grant authority.
+The delivered `native-text-v1` viewer is passive native text/Markdown. Embedded
+documentation and [integrated session Details](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
+use distinct host-admitted immutable sources. Host reference/revision/digest,
+origin, sensitivity and title are separate chrome, not parsed content.
+Durable conversation/request identity comes from its source owner; a
+process-local page identity confers no session, question or grant authority.
 The shared parser/presenter enforces 256 KiB UTF-8, 512 blocks, 4,096 nodes and
 32-level nesting bounds; unsupported or structural-limit content has labelled
 exact-source fallback. Raw HTML, scripts, forms, images, diagrams and links
@@ -845,6 +914,10 @@ The implemented bounded [call approval-channel policy](Call_Aware_Speech.md#spok
 
 The delivered [native exact-grant management subset](User_Configuration.md#delivered-native-exact-operation-grants--2026-10-10) is separate from named model-action preferences. Passive bounded reads are not applicability or effect receipts. One explicit native confirmation admits a fresh original-user control request/session; stored approval/request/trace or model text cannot supply that intent. Independent Perpetual records remain inspectable and exactly revocable after origin-session retirement.
 
+The shared **Permission grants** management inventory presents exact operation records and existing device-local URI preapproval rules through typed grant-kind records. This is management convergence, not an authority/storage migration: URI pattern matching, original-user configuration writes, audit, persistence and consumer-specific mandatory consent remain unchanged. URI rows cannot join exact revocation batches; mixed selections admit neither exact batch revocation nor URI removal. Native URI edits retain the former owning-unlocked-host/no-pending-question-or-approval admission and affect subsequent matches only.
+
+Optional None/Artefact type/Artefact scope grouping is a cached projection of the current bounded exact page plus at most 64 URI rules / 16 KiB pattern bytes, not a global scan or group-selection action. Regrouping retires selection/history/revocation confirmations without I/O or authority changes. Built-in/Kora/User describes target artefact provenance, not grant lifetime. Optional validated host-recorded target metadata is omitted when absent, preserving historical serialization/audit commitments and legacy matching equality. Missing metadata and external URI artefact ownership remain Unknown; no current source/file inference supplies missing authority. Metadata participates in persisted provenance but never substitutes for any existing exact binding field.
+
 The native exact inventory filters observe only stored scope/status, ordinal canonical ActionId and exact originating-session GUID. Core owns validation and a versioned typed filter digest; invalid/undefined/oversized/noncanonical values are refused, never reinterpreted as Any. Defaults preserve the unfiltered record bytes/order and grant/audit serialization; no schema/index change occurs.
 
 Under the initialized shared private read lease/read-only connection, each page advances at most 50 candidates and validates at most 51 including deferred lookahead, returning at most 50 matches / 64 KiB serialized metadata. Candidate row/partition/duplicate/size/audit validation precedes filtering. Scan/omission/advanced-through/Next counts disclose empty matches without pretending exhaustion.
@@ -907,6 +980,16 @@ mutation remains denied after a UI confirmation. Calls restrict spoken approval
 by default without withdrawing applicable Session/Perpetual authority or forcing
 Once; fresh native UI approval remains independently gated. Changed known effects cannot
 reuse a grant for a different effect.
+
+Exact local-page and HTTPS MCP workflows reuse matching explicit Session/Perpetual
+grants through the same authoritative consume/admission/dispatch path, without
+fabricating a new question. Fresh consent offers Once/This session/Always;
+automatic session permission modes cannot supply this external disclosure
+consent. Page bindings retain the exact destination but not an original request
+identity. MCP bindings retain stage/tool, source revision, delegated account,
+schema and exact arguments. Connection consent still requires local UI when
+fresh consent is needed. Runtime authentication, source/currentness, privacy,
+revocation and mandatory gates remain independent of saved consent.
 
 The [storage contract](../src/Kora.Core/Storage/IHostInteractionStore.cs)
 serializes lifecycle/content/policy/revoke/use changes and atomically commits
@@ -1372,8 +1455,11 @@ dependency. Do not claim that the rejected strict candidates now pass.
 
 This decision does not weaken OS denial of protected Kora resources, privacy,
 ownership, an applicable network-denied profile, fixed action/parameter
-approval, protected host-runtime resolution or Unknown receipts. No broker,
-production worker or general user-script capability is selected/enabled.
+approval, protected host-runtime resolution or Unknown receipts. This proof
+selected no broker or production worker and enabled no general user-script
+capability. The later
+[D-013 script-preserving bridge decision](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+permits bounded implementation, not runtime enablement or native substitution.
 W1/W3/W4 and real fixed-control acceptance remain open independently.
 
 ### Windows Containment Continuation Gates
@@ -1404,9 +1490,16 @@ run in parallel. These are R02 follow-up gates, not implemented capabilities.
    actions under their required gates. If it cannot, bring an explicit design
    decision: a narrowly typed trusted native-adapter/broker boundary with its
    own authority/implementation/receipt proof, or continued unavailability.
-   Such a broker is not selected by this proof, may not expose a shell/elevation/
-   installation API, and cannot silently replace the existing bundled-script
-   contract. Do not weaken the worker to ambient execution to make an action run.
+   The proof selected no such broker. The later
+   [D-013 amendment](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+   selects only the [script-preserving bridge](Built_In_Skills.md#script-preserving-host-bridge)
+   for the existing immutable fixed packages: actual reviewed PowerShell still
+   executes, and the host independently authorizes any exact requested effect.
+   It may not expose a shell/elevation/installation API or broaden script/source
+   authority. Do not weaken the worker to ambient execution to make an action run.
+   Implement the selected boundary with deterministic platform seams under
+   the I/E/Q policy; these historical qualification trials do not block
+   bounded fail-closed implementation or establish runtime readiness.
 3. **Prove protected deployment and effective resource identities.** Use the
    [deployment identity and alias gates](#protected-deployment-identity-and-validation)
    under actual non-elevated application and prospective worker tokens.
@@ -1467,6 +1560,15 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 | Kora-owned definitions/revisions | Skills, prompts, instructions, and agent profiles persist in their kind-specific roaming data stores until explicitly removed; not cleared with conversation history; no credentials or grants in content |
 | Shared profile definition snapshots | Admitted immutable in-memory revisions, refreshed/revalidated under the common source lifecycle; no silent content cache persistence. Inspection, refresh, and unregister leave originals untouched; only separately confirmed dedicated editor mutations change supported originals |
 | Approved export | User-selected location with an explicit content preview |
+
+Windows-managed definition roaming moves content, not local authority.
+The [definition reconciliation owner](Definition_Management.md#windows-managed-roaming-and-local-revision-admission)
+requires local exact-revision review for file-backed catalogue use and withholds
+file-backed entries on uncertain reload. Receiving files cannot renew grants,
+consent, tasks, session/memory scope or provider readiness. Model LocalOnly mode
+does not disable independent OS/profile propagation; external copies and backups
+retain their own privacy/deletion implications. See the simple
+[storage guide](../docs/data-storage.md).
 
 Persistent permitted session history is required, with first-use storage/retention disclosure and explicit deletion controls; it is separate from content-free diagnostics.
 Retention preferences are described in [User Configuration](User_Configuration.md); they cannot enable raw audio/secret storage, remove perpetual grants, restore consumed dispatch tokens or ended session grants, or silently delete affected sessions when changed.

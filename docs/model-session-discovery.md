@@ -1,22 +1,22 @@
 # Reviewed model session discovery
 
-Kora has a bounded implementation for sharing **reviewed Active-session metadata**
-with one explicitly requested local model turn. It does not read conversation
-messages or choose a conversation for you.
+This page explains a restricted tool for sharing **reviewed Active conversation
+names and identifiers** with one local AI request. It does not share conversation
+messages or choose a destination for you. To find a conversation yourself,
+use [the session list](windows-and-tray.md#search-the-session-list).
 
 ## Availability
 
-This is an implementation boundary, not an enabled provider profile or a new
-desktop command. Production model tool-loop qualification is still required;
-unknown or unqualified runtime readiness remains unavailable. The ordinary
-six-tool read-only catalogue and tool-free requests do not gain session access.
-No management/routing inference is enabled by this operation.
+**This is unavailable in this build, not a desktop command to try.** No local
+model is approved for release use. Ordinary model requests and other
+read-only tools do not gain access to session names through this feature.
+It does not enable session management or automatic destination selection.
 
 ## Exact review and result
 
-The host operation requires original local UI or activated-voice input attached
-to an Active session and a live, nonterminal task. An invocation, retained answer,
-model suggestion or tool response cannot supply that authority.
+The operation requires your original on-screen or activated-voice request in
+an Active session with ongoing work. A saved answer, model suggestion or tool
+reply cannot grant that permission.
 
 1. The host reads one bounded Active-session metadata source page.
 2. Before any model send, the trusted review presenter shows the original request,
@@ -30,34 +30,21 @@ model suggestion or tool response cannot supply that authority.
    Names and IDs are lower-trust data; they cannot grant authority or instruct
    Kora to navigate, route or act.
 
-The default review has at most six records. The host may request fewer when
-necessary to fit the complete byte budget. Source metadata order is canonical
-session ID order, not relevance. A result contains only `sessionId`, an optional
-`name`, `totalRecords`, and an optional `nextOffset` within that review. An empty
-review yields an empty result, not a fabricated match.
-
-For example, after a review containing exactly this one session, input
-`{"offset":0,"count":1}` returns this complete capability envelope:
-
-```json
-{"outcome":"Succeeded","reason":"reviewed-active-metadata-lower-trust","sessions":{"records":[{"sessionId":"10000000-0000-0000-0000-000000000001","name":"Project planning"}],"totalRecords":1}}
-```
-
-Inputs are bounded to 1,024 UTF-8 bytes. Each complete capability result is
-bounded to 4,096 UTF-8 bytes, including JSON escaping and framing. The existing
-turn-wide cumulative byte/call/deadline bounds still apply and may prevent a
-large page from being continued. No partial name, silent omission, truncation,
-retry or alternate-provider fallback repairs an oversized result.
+The default review contains at most six records, possibly fewer to fit the
+size limit. They are ordered by identifier, not relevance. Only the reviewed
+names, identifiers, record count and within-review continuation are available;
+an empty review never becomes a guessed match. Additional sessions need a
+new review. Complete tool inputs are limited to 1,024 UTF-8 bytes and results
+to 4,096, alongside the request's overall time and size limits. Oversized
+results are refused, not silently shortened or sent through another provider.
 
 ## Freshness, privacy and exclusions
 
-The host rechecks original task/session, private desktop ownership, control
-revision, source generation and exact name revision before disclosure and model
-continuation. Rename/lifecycle/retirement notifications invalidate the review;
-metadata is reread through the same workspace service. These are mutable
-observations, not a historical or cross-process atomic inventory. Lifecycle
-changes, cancellation, a completed caller or revoked privacy suppress late
-results. A cancelled transport retains its host slot until actual termination.
+Renaming a conversation, changing its state, cancelling or losing private
+access invalidates the review. Kora checks again before sharing and before
+continuing an answer. These are current observations, not proof of a complete
+inventory. Cancelled work still holds its resources until it actually stops;
+late results cannot revive permission.
 
 This operation does not read transcripts, summaries, artifacts, due dates,
 activity, task status, grants, credentials or other session content. It does not
@@ -66,4 +53,5 @@ grant, invoke another tool, authorize hosted disclosure or enable a provider.
 Audit records contain host-correlated operation outcomes, not session names or
 request/response content.
 
-Related: [Sessions](../Design/Interaction_And_Sessions.md), [internal model tools](../Design/Internal_Model_Tools.md#reviewed-active-session-discovery---2026-10-26).
+Related: [request destinations](session-routing.md) and
+[reviewed conversation context](reviewed-context.md).

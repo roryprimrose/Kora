@@ -4,7 +4,9 @@ Ask for a suggested change to an existing supported Kora preference in an
 Active conversation. An admitted model's answer is **inert text**, never a
 command, approval or write receipt.
 
-The supported subset is closed:
+Only the following settings support this workflow. The exact option IDs are
+shown because the suggested command must use them; ordinary Settings controls
+do not require you to remember these names.
 
 | Setting | Suggested value | Review channel |
 | --- | --- | --- |
@@ -100,7 +102,7 @@ is not success or rollback.** Inspect Settings and audit receipts, explicitly
 repair unavailable/unconfirmed state where required, then start a fresh review.
 There is no automatic retry, rollback or successful-write fallback.
 
-Unqualified/unavailable models remain unavailable. This workflow neither
-installs nor enables a provider and makes no hardware, acoustic or installed
-accessibility qualification claim. See [Settings](settings.md) for direct
-controls and option-specific recovery.
+Unqualified/unavailable models remain unavailable. **This build cannot generate
+new model answers**; it approves no local model and hosted account-use approval
+is unavailable. Review cannot install or enable one. Use [Settings](settings.md)
+for direct controls and recovery without AI.

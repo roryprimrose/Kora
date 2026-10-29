@@ -3024,6 +3024,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var closeDispatched = false;
         try
         {
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
             var conversationCurrent = await PrepareConversationShutdown();
             if (conversationCurrent is null) { return; }
@@ -3033,26 +3034,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (customizationShutdown is not null && !await customizationShutdown()) { return; }
             if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
             if (!await JoinSubmittedWorkShutdown(submitted)) { return; }
-            await ClosePromptPreparation();
-            await CloseAgentRun();
-            await CloseNamedSkillUse();
-            await CloseSharedSkillUse();
-            await CloseInstructionUse();
+            await CloseVoluntaryOperationsAsync();
             if (!RequireConversationShutdownCurrent(conversationCurrent)) { return; }
             ApplicationLog.Information(logger, "Kora exit was requested");
             hostExitRequested = true;
             lifecycleAdmissionClosed = true;
-            speechPreparation?.Request(null);
-            if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
-#pragma warning disable VSTHRD003 // Join the owned appearance workflow while the desktop dispatcher is still running.
-            await AppearanceUpdate;
-            await PreferenceUpdate;
-            await preferencePersistence;
-            await ApprovalPreparation;
-            await AuditPersistence;
-            await consentPersistence;
-            await outputCatalog.WaitForQuiescenceAsync();
-#pragma warning restore VSTHRD003
+            await JoinVoluntaryPreparationAsync();
             RetireWebResultDetails();
             await StopWebPageRetrievalAsync();
             await StopWebSummary();
@@ -3068,10 +3055,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 ApplicationLog.Error(logger, exception, "Stopping audio during application exit");
             }
-            await clipboardPreview.WaitForQuiescenceAsync();
-            if (clipboardExplanation is not null) { await clipboardExplanation.WaitForQuiescenceAsync(); }
-            if (filePreview is not null) { await filePreview.WaitForQuiescenceAsync(); }
-            if (sessionFiles is not null) { await sessionFiles.WaitForQuiescence(); }
+            await JoinVolatileContextAsync();
             if (!RequireConversationShutdownCurrent(() => conversationCurrent() && submitted.IsCurrent)) { return; }
             closeDispatched = true;
             WindowActionRequested?.Invoke(this, WindowAction.Close);
@@ -4864,10 +4848,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             var promptEligibility = artifactMatch.Invocation.Artifact.PromptTemplate is null ? null : CapturePromptSelection();
-            if (artifactMatch.Invocation.Artifact.OwnedInstructionName is not null
-                && (ownedInstructionFreshness is null || !await ownedInstructionFreshness(artifactMatch.Invocation.Artifact, CancellationToken.None)))
+            if (!await IsArtifactSourceCurrent(artifactMatch.Invocation.Artifact, CancellationToken.None))
             {
-                ShowInformation("Owned definition revision is stale or unavailable.", "Reload and review the exact owned instruction or prompt before starting a new request.");
+                ShowInformation("Definition revision is stale or unavailable.", "Reload and review the exact definition on this machine before starting a new request.");
                 return;
             }
             if (artifactMatch.Invocation.Artifact.PromptTemplate is not null)
@@ -5060,9 +5043,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         task.Id, "local.reasoning", StringComparison.Ordinal))
                     .Select(task => new LocalModelTask(
                         task.Name, task.State, task.ProgressPercentage)).ToArray());
+            if (artifact is not null && !await IsFileArtifactSourceCurrent(artifact, cancellation.Token))
+            {
+                await cancellation.CancelAsync();
+                cancellation.Token.ThrowIfCancellationRequested();
+            }
             var decision = await localModelReasoner.ReasonAsync(request, context, artifact, cancellation.Token);
             cancellation.Token.ThrowIfCancellationRequested();
-            if (artifact is not null && !artifactCatalogue.IsCapturedRevisionCurrent(artifact.Id, artifact.Digest))
+            if (artifact is not null && (!artifactCatalogue.IsCapturedRevisionCurrent(artifact.Id, artifact.Digest)
+                || !await IsFileArtifactSourceCurrent(artifact, cancellation.Token)))
             {
                 await cancellation.CancelAsync();
                 cancellation.Token.ThrowIfCancellationRequested();
@@ -5439,14 +5428,23 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ApplicationLog.Information(logger, "Denied model-action approval outside the eligible host generation");
             return;
         }
-        if (pendingModelActionArtifact is { } pendingArtifact
-            && (!artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
-                || scope != ModelApprovalScope.Once))
+        if (pendingModelActionArtifact is { } pendingArtifact)
         {
-            await ClearPendingModelActionAsync("artifact-revision-ineligible");
-            ShowInformation("Fresh single-use approval is required.",
-                "Artifact-based action proposals cannot create reusable grants, and changed artifact revisions require a new request.");
-            return;
+            var originalReview = pendingModelActionReview;
+            var current = artifactCatalogue.IsCurrent(pendingArtifact.Id, pendingArtifact.Digest)
+                && await IsFileArtifactSourceCurrent(pendingArtifact, CancellationToken.None);
+            if (!ReferenceEquals(pendingModelActionReview, originalReview))
+            {
+                ReportModelActionReviewUnavailable();
+                return;
+            }
+            if (!current || scope != ModelApprovalScope.Once)
+            {
+                await ClearPendingModelActionAsync("artifact-revision-ineligible");
+                ShowInformation("Fresh single-use approval is required.",
+                    "Artifact-based action proposals cannot create reusable grants, and changed artifact revisions require a new request.");
+                return;
+            }
         }
         var action = ValidateModelActionApproval(
             scope, pendingModelAction, IsBusy, IsLocalModelSetupActive, IsPowerShellSetupActive);
@@ -5499,7 +5497,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ReportModelActionReviewUnavailable();
                 return;
             }
+            var approvedArtifact = pendingModelActionArtifact;
             await ClearPendingModelActionAsync($"approved-{scope.ToString().ToLowerInvariant()}");
+            if (approvedArtifact is not null && !await IsFileArtifactSourceCurrent(approvedArtifact, CancellationToken.None))
+            {
+                ShowInformation("Definition changed before execution.",
+                    "The action was not dispatched. Reload and review the exact definition, then start a fresh request.");
+                return;
+            }
             if (disposed || !IsHostInputEligible
                 || !reviewTarget.Eligible()
                 || preparation != Interlocked.Read(ref approvalPreparationRevision)) { return; }
@@ -5525,7 +5530,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 GrantDocumentChanged?.Invoke(this, GetGrantDocument());
             }
-            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, callRevision);
+            await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, callRevision,
+                sourceCurrent: approvedArtifact is null ? null
+                    : () => artifactCatalogue.IsCurrent(approvedArtifact.Id, approvedArtifact.Digest));
             if (ShouldSpeakResponse(action))
             {
                 await SpeakCurrentResponseAsync();
@@ -6063,10 +6070,22 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 await DisableListeningAsync(initiator);
                 break;
             case BuiltInAction.LockMachine:
+                if (bundledAction is not null)
+                {
+                    await InvokeBundledAction(bundledAction, Kora.Core.Skills.FixedSessionAction.Lock, initiator, observedCallRevision, sourceCurrent);
+                    break;
+                }
                 await LockCurrentSessionAsync(initiator, observedCallRevision);
                 break;
             case BuiltInAction.ProposeShutdown:
             case BuiltInAction.ProposeRestart:
+                if (bundledAction is not null)
+                {
+                    await InvokeBundledAction(bundledAction, command.Action == BuiltInAction.ProposeShutdown
+                        ? Kora.Core.Skills.FixedSessionAction.Shutdown : Kora.Core.Skills.FixedSessionAction.Restart,
+                        initiator, observedCallRevision, sourceCurrent);
+                    break;
+                }
                 var preparing = CreatePowerProposalAsync(command.Action, initiator);
                 ApprovalPreparation = ApprovalPreparation.IsCompleted ? preparing : Task.WhenAll(ApprovalPreparation, preparing);
                 if (!await preparing) { break; }
@@ -6078,12 +6097,24 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     "This bootstrap proves voice routing without executing disruptive power actions. No OS power request was sent.");
                 break;
             case BuiltInAction.CancelPowerAction:
+                if (bundledActionShutdown is not null)
+                {
+                    await bundledActionShutdown();
+                    ShowInformation("Bundled operation retired.", bundledActionStatus?.Invoke()
+                        ?? "No new native request can use the retired invocation. An already accepted Windows request cannot be undone.");
+                    break;
+                }
                 var hadPendingAction = await CancelPendingPowerAuditAsync("user-cancelled");
                 ShowInformation(
                     hadPendingAction ? "Power proposal cancelled." : $"No {AssistantName} power action is pending.",
                     "No operating-system action was sent.");
                 break;
             case BuiltInAction.ShowPowerStatus:
+                if (bundledActionStatus is not null)
+                {
+                    ShowInformation("Bundled operation status.", bundledActionStatus());
+                    break;
+                }
                 ShowInformation(
                     pendingPowerAction switch
                     {
@@ -6145,6 +6176,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         voluntaryShutdownRunning = true;
         try
         {
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
             if (ownedSkillAuthoringShutdown is not null && !await ownedSkillAuthoringShutdown()) { return; }
             var restartDispatched = false;
             var privacyRevision = privacyObservation.Current.TopologyRevision;
@@ -6190,11 +6222,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "submitted-work-release-unconfirmed");
                     return;
                 }
-                await ClosePromptPreparation();
-                await CloseAgentRun();
-                await CloseNamedSkillUse();
-                await CloseSharedSkillUse();
-                await CloseInstructionUse();
+                await CloseVoluntaryOperationsAsync();
                 await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
                     && isModelActionDispatchActive);
 #pragma warning disable VSTHRD003 // Join owned appearance writes before requesting process replacement.

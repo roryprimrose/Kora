@@ -11,7 +11,7 @@ namespace Kora;
 internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
-    OwnedSkillInvocationController? invocation = null) : IAsyncDisposable
+    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -48,6 +48,7 @@ internal sealed partial class OwnedSkillEditorController(
     {
         original?.Retire();
         lifetime?.Cancel();
+        CancelRefinement();
         invocation?.Retire();
         window?.RetireReview();
     }
@@ -57,6 +58,14 @@ internal sealed partial class OwnedSkillEditorController(
 
     private async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
+        if (command.Operation is "cancel-refinement")
+        {
+            CancelRefinement();
+#pragma warning disable VSTHRD003 // Keep the owned model operation until its actual resources terminate.
+            await work;
+#pragma warning restore VSTHRD003
+            return;
+        }
         if (command.Operation is "cancel")
         {
             Retire();
@@ -80,8 +89,15 @@ internal sealed partial class OwnedSkillEditorController(
                 Interlocked.Increment(ref generation);
                 dirty = true;
                 validated = null;
+                CancelRefinement();
                 invocation?.Retire();
                 window?.RetireReview();
+            };
+            window.CritiqueChanged += () =>
+            {
+                CancelRefinement();
+                var captured = main.CaptureInstructionRefinementEligibility();
+                critiqueAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
             };
             window.Closing += OnClosing;
             window.Show();
@@ -105,6 +121,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     private void Start(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
+        if (command.Operation is "cancel-refinement") { CancelRefinement(); return; }
         if (command.Operation is "cancel") { Retire(); return; }
         if (busy) { window?.Report("Wait for owned skill I/O to terminate; the draft remains owned."); return; }
         work = Run(command, authority);
@@ -129,6 +146,9 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Guidance.Text = "";
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
+                    opened.Critique.Text = "";
+                    source = null;
+                    CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
@@ -136,6 +156,12 @@ internal sealed partial class OwnedSkillEditorController(
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
+                case "critique":
+                    CancelRefinement();
+                    opened.Critique.Text = command.Literal;
+                    critiqueAuthority = authority;
+                    break;
+                case "refine": await Refine(opened, authority, lifetime.Token); break;
                 case "inputs":
                     opened.InputFormat.SelectedIndex = command.Literal switch
                     {
@@ -153,8 +179,11 @@ internal sealed partial class OwnedSkillEditorController(
                     };
                     break;
                 case "validate":
-                    validated = opened.Document();
-                    opened.Report("Valid native TWO-file package. No publication, enablement, tool permission or invocation.");
+                    validated = pendingRefinement is { } proposal
+                        ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
+                        : opened.Document();
+                    opened.Report("Valid native TWO-file package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
+                        + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(); break;
                 case "list":
@@ -217,7 +246,9 @@ internal sealed partial class OwnedSkillEditorController(
         var document = validated ?? throw new InvalidOperationException("Validate this exact draft before Save.");
         var exact = Interlocked.Read(ref generation);
         bool Current() => Eligible() && exact == Interlocked.Read(ref generation) && ReferenceEquals(validated, document);
-        var saved = await workflow.Save(document, original, Current, opened, lifetime.Token);
+        var saved = pendingRefinement is { } proposal
+            ? await refinement!.Save(proposal, opened, Current, lifetime.Token)
+            : await workflow.Save(document, original, Current, opened, lifetime.Token);
         if (saved is null || !Current()) { return false; }
         ShowSaved(opened, saved);
         opened.Report("Both exact files durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
@@ -226,6 +257,8 @@ internal sealed partial class OwnedSkillEditorController(
 
     private void ShowSaved(OwnedSkillEditorWindow opened, OwnedDeclarativeSkillSnapshot saved)
     {
+        CancelRefinement();
+        source = saved;
         opened.IdInput.Text = saved.Document.Id;
         opened.VersionInput.Text = saved.Document.Version;
         opened.NameInput.Text = saved.Document.Name;
@@ -233,6 +266,7 @@ internal sealed partial class OwnedSkillEditorController(
         opened.Guidance.Text = saved.Document.Guidance;
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
         opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
+        opened.Critique.Text = "";
         validated = null;
         dirty = false;
         uncertain = false;

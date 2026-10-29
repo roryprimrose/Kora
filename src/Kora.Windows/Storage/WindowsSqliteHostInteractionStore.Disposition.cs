@@ -124,12 +124,8 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 database.ClearCommittedJournal();
                 database.RequireEmptyArtifactInventory();
                 using (var connection = Open(created: false, CancellationToken.None))
-                using (var cleanup = connection.CreateCommand())
                 {
-                    // secure_delete cannot retroactively clear cells freed by earlier question/history revisions.
-                    // Open keeps SQLite's transient rebuild in memory; no backup or export is created.
-                    cleanup.CommandText = "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0; VACUUM;";
-                    cleanup.ExecuteNonQuery();
+                    RebuildRetiredContent(connection);
                 }
                 database.ClearCommittedJournal();
                 database.RequireEmptyArtifactInventory();
@@ -141,6 +137,16 @@ public sealed partial class WindowsSqliteHostInteractionStore
                 + "Inspect durable authority and storage recovery before any fresh review; do not infer rollback or retry automatically.", exception);
         }
         return receipt;
+    }
+
+    private static void RebuildRetiredContent(SqliteConnection connection)
+    {
+        // secure_delete cannot retroactively clear earlier free space. Open keeps the rebuild in memory.
+        // Revocation has committed; caller cancellation cannot imply rollback or interrupt copy acceptance.
+        RestrictedSqliteDatabase.ResetProgressBudget(connection, CancellationToken.None);
+        using var cleanup = connection.CreateCommand();
+        cleanup.CommandText = "PRAGMA secure_delete=ON; PRAGMA journal_size_limit=0; VACUUM;";
+        cleanup.ExecuteNonQuery();
     }
 
     private static SessionDispositionPreview DescribeDisposition(SqliteConnection connection,

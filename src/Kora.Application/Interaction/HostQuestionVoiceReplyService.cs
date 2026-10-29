@@ -374,6 +374,7 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
     private async Task DeliverAsync(Turn current, string transcript)
     {
         using var activity = BeginQuestionActivity(current.Question.Key.Request, HostOperation.Request, current);
+        var outcome = HostOperationOutcome.Completed;
         try
         {
             await dispatcher.InvokeAsync(async () =>
@@ -393,9 +394,15 @@ public sealed partial class HostQuestionVoiceReplyService : IAsyncDisposable
                 await capture.StopAsync();
                 var decision = await questions.SubmitReplyAsync(current.Question.Key, current.Question.SessionGeneration,
                     answer, () => Eligible(current), current.Cancellation.Token);
+                if (decision.Outcome != HostInteractionOutcome.Answered)
+                {
+                    outcome = HostOperationOutcome.Failed;
+                    Retire(current, "Reply was not accepted for this exact question. Microphone closed; review native question status before trying again.");
+                    return;
+                }
                 if (Eligible(current)) { current.Accepted(decision); }
             });
-            activity.Complete(HostOperationOutcome.Completed);
+            activity.Complete(outcome);
             Retire(current, capture.IsAmbientListeningAvailable
                 ? "Reply turn ended. Fresh policy may restore wake-only listening; no answer or audio is replayed."
                 : "Reply turn ended. Microphone closed; ordinary explicit push-to-talk readiness only.");

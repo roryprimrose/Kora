@@ -9,7 +9,7 @@ public sealed partial class ModelTurnHost
 {
     private async Task<ModelTurnAdmission> AdmitConfiguredProfileAsync(ModelTurnChoice choice, ModelContextEnvelope context,
         ModelHandoffReview? review, CancellationToken token, HostedTurnAuthorization? hostedAuthorization = null,
-        VerifiedHandoffAdmission? handoff = null)
+        VerifiedHandoffAdmission? handoff = null, Kora.Core.Providers.ProviderProfileTuple? localRequest = null)
     {
         var current = HostActivity.Current;
         if (current is null || current.Activity!.IsStopped || current.Outcome != HostOperationOutcome.Unknown)
@@ -45,7 +45,7 @@ public sealed partial class ModelTurnHost
                 return new(unavailable);
             }
             var resolved = await providerProfileConfiguration!.ResolveTurnAsync(Live, sessionProfile.Desired, token,
-                handoff?.Target.Profile.Service).ConfigureAwait(false);
+                handoff?.Target.Profile.Service, localRequest).ConfigureAwait(false);
             ModelTurnAdmission admission;
             if (resolved.Selection is null)
             { admission = new(Finish(ModelTurnOutcome.Unavailable, ModelTurnReason.UnregisteredModel)); }

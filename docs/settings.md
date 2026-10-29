@@ -250,6 +250,12 @@ These are **Sessions** controls, not global preferences:
 | Attach / inspect / replace / remove retained attachment | One immutable UTF-8 text/Markdown file per session, 256 KiB including BOM, sixteen retained profile files, no eviction |
 
 Keep stops automatic archive/delete only, not execution or egress checks.
+When ordinary inactivity deletion becomes due, completion includes rebuilding
+owned SQLite content previously freed by older revisions and clearing its
+committed journal. A storage/copy-verification failure after revocation leaves
+deletion incomplete, not rolled back; the existing maintenance path retries
+cleanup without replaying work. This does not erase exports, provider copies,
+independent audit/diagnostics or unowned data, and is not forensic erasure.
 Unknown/removed/purged state refuses; stale or uncertain commits need fresh
 inspection/review. Original files are never modified. Attachment replacement
 has a new source identity; uncertified committed copies remain held.

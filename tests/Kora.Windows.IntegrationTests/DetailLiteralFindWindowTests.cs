@@ -22,6 +22,66 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class DetailLiteralFindWindowTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public Task SelectAllInFindEditsOnlyTheQueryWithoutChangingTheAdmittedProjection(bool exactSource) => HeadlessSession.RunAsync(() =>
+    {
+        var content = Content();
+        var state = new DetailViewerState(content);
+        var result = new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance).Render(content.Source, content.Kind);
+        state.CompleteRender(state.Generation, result.SemanticText, result.Status, result.IsFallback);
+        var writes = 0;
+        var window = new DetailWindow(state, result, (_, _, _) => { writes++; return Task.CompletedTask; });
+        window.Show();
+        try
+        {
+            Required<CheckBox>(window, "SourceToggle").IsChecked = exactSource;
+            var query = Required<TextBox>(window, "SearchInput");
+            var reader = Required<TextBox>(window, "ContentReader");
+            query.Text = "alpha";
+            Click(window, "FirstMatch");
+            query.Focus().Should().BeTrue();
+            query.CaretIndex = query.Text.Length;
+            query.RaiseEvent(new KeyEventArgs
+            {
+                RoutedEvent = InputElement.KeyDownEvent, Key = Key.A, KeyModifiers = KeyModifiers.Control,
+            });
+
+            query.IsFocused.Should().BeTrue("Select all belongs to the focused Find query, not the result body");
+            query.SelectedText.Should().Be("alpha");
+            Required<CheckBox>(window, "ReadingTextToggle").IsChecked.Should().NotBeTrue();
+            state.IsSource.Should().Be(exactSource);
+            state.Content.Should().BeSameAs(content);
+            state.MatchStart.Should().Be(6);
+            state.MatchCount.Should().Be(2);
+            query.Copy();
+            query.RaiseEvent(new KeyEventArgs
+            {
+                RoutedEvent = InputElement.KeyDownEvent, Key = Key.V, KeyModifiers = KeyModifiers.Control,
+            });
+            query.Text.Should().Be("alpha", "query selection grants no clipboard read or write authority");
+            writes.Should().Be(0);
+
+            query.SelectedText = "USER";
+            state.SearchQuery.Should().Be("USER");
+            state.MatchCount.Should().BeNull("editing retires the previous search without running another");
+            reader.Text.Should().Be(content.Source);
+            query.RaiseEvent(new KeyEventArgs { RoutedEvent = InputElement.KeyDownEvent, Key = Key.Enter });
+            state.MatchStart.Should().Be(content.Source.IndexOf("USER", StringComparison.Ordinal));
+
+            reader.RaiseEvent(new KeyEventArgs
+            {
+                RoutedEvent = InputElement.KeyDownEvent, Key = Key.A, KeyModifiers = KeyModifiers.Control,
+            });
+            reader.IsFocused.Should().BeTrue();
+            reader.SelectedText.Should().Be(content.Source);
+            query.Text.Should().Be("USER");
+            writes.Should().Be(0);
+        }
+        finally { window.ClearAndClose(); }
+    });
+
+    [Theory]
     [InlineData(75)]
     [InlineData(100)]
     [InlineData(200)]
@@ -211,6 +271,7 @@ public sealed class DetailLiteralFindWindowTests
     [InlineData("source")]
     [InlineData("replacement")]
     [InlineData("close")]
+    [InlineData("query-select-all")]
     public Task RevocationOrClosureClearsQuerySpanHostAndCannotPublishOnOldControls(string reason) => HeadlessSession.RunAsync(() =>
     {
         var content = Content();
@@ -227,7 +288,14 @@ public sealed class DetailLiteralFindWindowTests
         {
             if (string.Equals(reason, "replacement", StringComparison.Ordinal)) { current = Content(); }
             else { allowed = false; }
-            Click(window, "NextMatch");
+            if (string.Equals(reason, "query-select-all", StringComparison.Ordinal))
+            {
+                Required<TextBox>(window, "SearchInput").RaiseEvent(new KeyEventArgs
+                {
+                    RoutedEvent = InputElement.KeyDownEvent, Key = Key.A, KeyModifiers = KeyModifiers.Control,
+                });
+            }
+            else { Click(window, "NextMatch"); }
         }
         window.IsVisible.Should().BeFalse();
         state.Content.Should().BeNull();

@@ -258,7 +258,8 @@ checks are not installed logon/repair/uninstall/upgrade acceptance. The POC
 still needs supported upgrade and stable-launcher qualification.
 
 Installed current-user Kora also exposes the [reviewed shared startup operation](../Design/User_Configuration.md#delivered-reviewed-windows-logon-startup). It reuses this single HKCU value, not a second registration.
-MSI uses `ARPINSTALLLOCATION` as its costed installation-directory identifier, publishing location metadata without custom actions ([package](Kora.Msi/Package.wxs), [costing checks](../eng/Test-Installer.ps1)).
+MSI uses the costed `INSTALLFOLDER` directory; `ARPINSTALLLOCATION` is a reserved MSI property, not a directory identifier. One immediate type-51 setter publishes `[INSTALLFOLDER]` as that property after `CostFinalize` in both sequences ([package](Kora.Msi/Package.wxs), [metadata guard](../eng/Assert-InstallerMetadata.ps1)).
+The [raw-table contracts](../eng/Test-InstallerMetadataContracts.ps1) reject reserved-directory reuse, extra/executable/script/deferred actions, altered property/target and missing/conditional/misordered setters. The [costing checks](../eng/Test-Installer.ps1) verify exact installed location and quoted startup command in both scopes, without installation.
 The app requires current-user Windows Installer identity, matching running EXE/DLL fingerprints and unchanged entry ownership before write ([Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupNative.cs)).
 
 Older installs without that metadata, machine-wide registrations and Windows-disabled/foreign entries remain unavailable to the app. The app never edits Windows StartupApproved metadata, elevates, launches a process or registers a scheduled task.
@@ -553,7 +554,7 @@ It is packaged unchanged with an explicit neutral (`0`) language fallback,
 retaining its independent component key path and version-based repair rules.
 The MSI project acknowledges only binder warning 1101 about that authored
 fallback; package inspection verifies the resulting language. No ICE check
-is suppressed. Startup registration uses the quoted, costed `ARPINSTALLLOCATION`
+is suppressed. Startup registration uses the quoted, costed `INSTALLFOLDER`
 path, avoiding a cross-component file reference while retaining its separate
 conditional/transitive scope-matched component and consent rules.
 

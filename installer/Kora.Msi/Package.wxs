@@ -17,34 +17,35 @@
     <Property Id="ARPNOMODIFY" Value="1" />
     <Property Id="REBOOT" Value="ReallySuppress" />
     <Property Id="KORA_START_AT_LOGIN" Value="0" Secure="yes" />
+    <SetProperty Id="ARPINSTALLLOCATION" Value="[INSTALLFOLDER]" After="CostFinalize" Sequence="both" />
     <StandardDirectory Id="ProgramFiles64Folder">
       <Directory Id="KoraRoot" Name="Kora">
-        <Directory Id="ARPINSTALLLOCATION" Name="$(ProductVersion)" />
+        <Directory Id="INSTALLFOLDER" Name="$(ProductVersion)" />
       </Directory>
     </StandardDirectory>
     <StandardDirectory Id="ProgramMenuFolder">
       <Directory Id="KoraStartMenu" Name="Kora" />
     </StandardDirectory>
     <Feature Id="KoraApplication" Title="Kora" Level="1">
-      <Component Id="KoraStartupComponent" Directory="ARPINSTALLLOCATION"
+      <Component Id="KoraStartupComponent" Directory="INSTALLFOLDER"
                  Guid="B6FBBAD7-AC0F-475A-953D-2E588331FEA9"
                  Condition="KORA_START_AT_LOGIN = 1" Transitive="yes">
         <RegistryValue Root="HKMU" Key="SOFTWARE\Microsoft\Windows\CurrentVersion\Run"
-                       Name="Kora" Type="string" Value="&quot;[ARPINSTALLLOCATION]Kora.exe&quot;" KeyPath="yes" />
+                       Name="Kora" Type="string" Value="&quot;[INSTALLFOLDER]Kora.exe&quot;" KeyPath="yes" />
       </Component>
-      <Files Include="$(ApplicationPayload)\**" Directory="ARPINSTALLLOCATION">
+      <Files Include="$(ApplicationPayload)\**" Directory="INSTALLFOLDER">
         <Exclude Files="$(ApplicationPayload)\Kora.exe" />
         <Exclude Files="$(ApplicationPayload)\e_sqlite3.dll" />
         <Exclude Files="$(ApplicationPayload)\payload-manifest.json" />
       </Files>
-      <Component Id="KoraBootstrapSqliteComponent" Directory="ARPINSTALLLOCATION">
+      <Component Id="KoraBootstrapSqliteComponent" Directory="INSTALLFOLDER">
         <File Id="KoraBootstrapSqlite" Source="$(ApplicationPayload)\e_sqlite3.dll"
               KeyPath="yes" DefaultLanguage="0" />
       </Component>
-      <Component Id="KoraExecutableComponent" Directory="ARPINSTALLLOCATION">
+      <Component Id="KoraExecutableComponent" Directory="INSTALLFOLDER">
         <File Id="KoraExecutable" Source="$(ApplicationPayload)\Kora.exe" KeyPath="yes">
           <Shortcut Id="KoraShortcut" Name="Kora" Directory="KoraStartMenu"
-                    Advertise="yes" WorkingDirectory="ARPINSTALLLOCATION" Icon="KoraIcon.exe" />
+                    Advertise="yes" WorkingDirectory="INSTALLFOLDER" Icon="KoraIcon.exe" />
         </File>
         <RemoveFolder Id="RemoveStartMenuFolder" Directory="KoraStartMenu" On="uninstall" />
       </Component>

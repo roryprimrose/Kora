@@ -110,7 +110,7 @@ if ($package.SelectSingleNode('/w:Wix/w:Package', $namespaces).Version -cne $Pro
 if ($package.SelectSingleNode('/w:Wix/w:Package', $namespaces).Scope -cne 'perUserOrMachine') {
     throw 'MSI must support both installation contexts and default to per-user.'
 }
-if (-not $package.SelectSingleNode("//w:StandardDirectory[@Id='ProgramFiles64Folder']/w:Directory[@Name='Kora']/w:Directory[@Id='ARPINSTALLLOCATION']", $namespaces)) {
+if (-not $package.SelectSingleNode("//w:StandardDirectory[@Id='ProgramFiles64Folder']/w:Directory[@Name='Kora']/w:Directory[@Id='INSTALLFOLDER']", $namespaces)) {
     throw 'MSI must use the context-redirected x64 Programs directory for user/machine installs.'
 }
 if (-not $package.SelectSingleNode("//w:Shortcut[@Id='KoraShortcut' and @Advertise='yes' and @Directory='KoraStartMenu']", $namespaces) -or
@@ -122,19 +122,17 @@ if ($package.SelectSingleNode("//w:Shortcut[@Id='KoraShortcut']", $namespaces).I
     $null -eq $package.SelectSingleNode("//w:Icon[@Id='KoraIcon.exe']", $namespaces)) {
     throw 'MSI shortcut and product icons must use an icon-table name matching the executable extension.'
 }
-if ($package.SelectSingleNode("//w:Directory[@Id='ARPINSTALLLOCATION']", $namespaces).Name -cne $ProductVersion) {
+if ($package.SelectSingleNode("//w:Directory[@Id='INSTALLFOLDER']", $namespaces).Name -cne $ProductVersion) {
     throw 'MSI version directory differs from the selected product version.'
 }
-if ($package.SelectNodes('//w:CustomAction', $namespaces).Count -ne 0) {
-    throw 'MSI must not launch Kora with the installer token or contain custom actions.'
-}
+& (Join-Path $PSScriptRoot 'Assert-InstallerMetadata.ps1') -MsiPath $msi
 $startupComponent = $package.SelectSingleNode("//w:Component[@Id='KoraStartupComponent']", $namespaces)
 $startupRegistry = $startupComponent.SelectSingleNode('w:RegistryValue', $namespaces)
 if ($startupComponent.Condition -cne 'KORA_START_AT_LOGIN = 1' -or $startupComponent.Transitive -cne 'yes' -or
     [Guid]::Parse($startupComponent.Guid) -ne [Guid]::Parse('B6FBBAD7-AC0F-475A-953D-2E588331FEA9') -or
     $startupRegistry.Root -cne 'HKMU' -or
     $startupRegistry.Key -cne 'SOFTWARE\Microsoft\Windows\CurrentVersion\Run' -or
-    $startupRegistry.Name -cne 'Kora' -or $startupRegistry.Value -cne '"[ARPINSTALLLOCATION]Kora.exe"' -or
+    $startupRegistry.Name -cne 'Kora' -or $startupRegistry.Value -cne '"[INSTALLFOLDER]Kora.exe"' -or
     $startupRegistry.Type -cne 'string' -or $startupRegistry.KeyPath -cne 'yes') {
     throw 'Startup must be a conditional, scope-matched, MSI-owned quoted installed-executable value.'
 }
@@ -222,7 +220,8 @@ foreach ($perUser in @('1', '')) {
             $costSession['ALLUSERS'] = '2'
             $costSession['MSIINSTALLPERUSER'] = $perUser
             $costSession['KORA_START_AT_LOGIN'] = $choice
-            foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize')) {
+            # The raw table guard above admits only this immediate type-51 metadata setter.
+            foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize', 'SetARPINSTALLLOCATION')) {
                 $costSession.DoAction($action)
             }
             $state = $costSession.Components['KoraStartupComponent'].RequestState
@@ -235,7 +234,7 @@ foreach ($perUser in @('1', '')) {
             $installLocation = $costSession['ARPINSTALLLOCATION']
             if ([string]::IsNullOrWhiteSpace($installLocation) -or
                 [IO.Path]::Combine($installLocation, 'Kora.exe') -cne $executable) {
-                throw 'Costing must publish the exact installed directory as ARPINSTALLLOCATION without a custom action.'
+                throw 'Costing and the metadata setter must publish the exact installed directory as ARPINSTALLLOCATION.'
             }
             if ($command -cne "`"$executable`"" -or
                 -not $command.EndsWith("\Kora\$ProductVersion\Kora.exe`"", [StringComparison]::Ordinal)) {
@@ -251,7 +250,7 @@ $actualFiles = @($package.SelectNodes('//w:File', $namespaces) | ForEach-Object 
     $parent = $_.ParentNode
     while ($null -ne $parent -and $parent.LocalName -ne 'Package') {
         if ($parent.LocalName -eq 'Directory') {
-            if ($parent.Id -eq 'ARPINSTALLLOCATION') { break }
+            if ($parent.Id -eq 'INSTALLFOLDER') { break }
             $segments.Insert(0, $parent.Name)
         }
         $parent = $parent.ParentNode

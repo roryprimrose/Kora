@@ -638,8 +638,9 @@ now supplies that host-owned loop over a provider-neutral portable transport.
 Its default discovery mode consumes the existing six read-only capabilities through the admitted
 host callback. A separate explicit `LocalWebPage` mode exposes only
 `network.get_web_page`, classified as bounded network read rather than discovery.
-The original user supplies one exact destination and approves its host-resolved
-once-only proposal in the native grant workflow. The existing `WebPageGet`
+The original user supplies one exact destination; the native grant workflow
+reuses matching explicit Session/Perpetual authority or offers Once/This session/Always
+for its host-resolved exact proposal. The existing `WebPageGet`
 action performs retrieval; another redirect destination requires a fresh request.
 An inert, local-only, provenance-bearing result (2 KiB including framing) resumes
 the same admitted local turn and original retained conversation task. Hosted

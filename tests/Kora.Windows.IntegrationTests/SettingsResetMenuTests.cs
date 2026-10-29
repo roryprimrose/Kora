@@ -11,8 +11,13 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application.Infrastructure;
 using Kora.Controls;
+using Kora.Core.Diagnostics;
+using Kora.Core.Hosting;
 using Kora.NativeUxFixture;
+
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Windows.IntegrationTests;
 
@@ -33,7 +38,6 @@ public sealed class SettingsResetMenuTests
         { "RefreshAuditRetentionCommand", "Security record storage", "CanChangeAuditRetentionNative", "Refresh security record settings" },
         { "GetManualCallStatusCommand", "Manual call mode", null, "Show last known call status" },
         { "RefreshInCallFeedbackCommand", "Responses during calls", "CanInspectInCallFeedbackNative", "Inspect in-call feedback preference only" },
-        { "RefreshPreapprovedUrisCommand", "Preapproved addresses", null, "Refresh preapproved addresses" },
         { "RefreshArtifactDirectoriesCommand", "Custom content sources", "CanChangeArtifactDirectories", "Refresh custom content sources" },
         { "RefreshProviderModeCommand", "AI service preferences", "CanChangeProviderMode", "Refresh service mode" },
         { "RefreshProviderProfileCommand", "Default service and model", "CanChangeProviderProfile", "Refresh services and models" },
@@ -155,7 +159,7 @@ public sealed class SettingsResetMenuTests
         bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(32);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(35);
+            .Should().Be(34);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -197,7 +201,7 @@ public sealed class SettingsResetMenuTests
     [InlineData("Logging", 2, 2, 2)]
     [InlineData("Calls", 2, 2, 2)]
     [InlineData("Providers", 2, 3, 2)]
-    [InlineData("Network", 1, 0, 1)]
+    [InlineData("Network", 0, 0, 0)]
     [InlineData("Custom content", 1, 0, 1)]
     [InlineData("Readiness", 1, 0, 1)]
     public async Task Every_tab_has_top_right_cogs_with_live_named_reset_commands(
@@ -272,6 +276,61 @@ public sealed class SettingsResetMenuTests
                 refreshes.Should().Be(expectedRefreshes);
             }
             finally { window.Close(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Network_uses_shared_permission_grants_navigation_without_an_inline_uri_editor(bool destinationAvailable)
+    {
+        var network = LoadSettings().Descendants().Single(element =>
+            element.Name.LocalName is "TabItem" && element.Attribute("Header")?.Value is "Network");
+        network.Descendants().Where(element =>
+            element.Name.LocalName is "TextBox" or "ListBox" or "ScrollableListBox").Should().BeEmpty();
+        network.Descendants().SelectMany(element => element.Attributes()).Should().NotContain(attribute =>
+            attribute.Value.Contains("PreapprovedUri", StringComparison.Ordinal));
+
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var opens = 0;
+            using var controller = new SettingsWindowController(fixture.Main, NullLogger<SettingsWindowController>.Instance)
+            {
+                InspectExactGrants = destinationAvailable ? () =>
+                {
+                    HostActivity.RequireCurrent().Request.Origin.Should().Be(RequestOrigin.LocalUi);
+                    opens++;
+                } : null,
+            };
+            SettingsWindow? window = null;
+            using var observe = Window.WindowOpenedEvent.AddClassHandler<SettingsWindow>((view, _) => window = view);
+            fixture.Main.ShowSettings();
+            opens.Should().Be(0);
+            var settings = window ?? throw new InvalidOperationException("The Settings window did not open.");
+            var tabs = settings.FindControl<TabControl>("SettingsTabs")!;
+            tabs.SelectedItem = tabs.Items.OfType<TabItem>().Single(tab => tab.Header is "Network");
+            settings.UpdateLayout();
+            var button = settings.FindControl<Button>("InspectNetworkPermissionGrants")!;
+            button.IsEffectivelyVisible.Should().BeTrue();
+            button.Content.Should().Be("Permission grants...");
+            ControlAutomationPeer.CreatePeerForElement(button)!.GetName().Should().Be(
+                "Open shared permission grants to inspect and manage URI rules and exact operation grants");
+            button.IsEnabled.Should().Be(destinationAvailable);
+            if (!destinationAvailable)
+            {
+                button.Command.Should().BeNull();
+                return;
+            }
+
+            await ((AsyncCommand)button.Command!).ExecuteAsync();
+            opens.Should().Be(1);
+            fixture.Main.IsVoiceEnabled.Should().BeFalse();
+            settings.Hide();
+            Func<Task> hiddenNavigation = () => ((AsyncCommand)button.Command!).ExecuteAsync();
+            await hiddenNavigation.Should().ThrowAsync<InvalidOperationException>();
+            opens.Should().Be(1);
         });
     }
 

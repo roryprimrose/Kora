@@ -126,7 +126,7 @@ function Exact-Text {
     param([string] $Name)
     (Get-NamedElement $script:grantWindow $Name -Prefix).Current.Name
 }
-function Exact-List { Get-NamedElement $script:grantWindow 'Retained exact operation grants' }
+function Exact-List { Get-NamedElement $script:grantWindow 'Permission grants: exact operation grants and URI rules' }
 function Exact-Items {
     $list = Exact-List
     Assert-OwnedElement $list
@@ -178,12 +178,12 @@ function Discover-ExactPage {
 }
 function Wait-ExactReady {
     $null = Wait-Native {
-        (Get-NamedElement $script:grantWindow 'Refresh exact grant inventory').Current.IsEnabled -and
+        (Get-NamedElement $script:grantWindow 'Refresh permission inventory: exact page and device URI rules').Current.IsEnabled -and
             @(Exact-Items).Count -gt 0
     } 'bounded exact grant page completed'
 }
 function Refresh-Exact {
-    Invoke-Named $script:grantWindow 'Refresh exact grant inventory'
+    Invoke-Named $script:grantWindow 'Refresh permission inventory: exact page and device URI rules'
     $null = Wait-Native {
         (Exact-Text 'Current exact grant inspection').Contains('Select one exact retained ID', [StringComparison]::Ordinal)
     } 'refresh discarded exact review'
@@ -316,7 +316,7 @@ try {
     $target = (Exact-Role $before 'target').Inspection.Grant.Id.Value
     $used = (Exact-Role $before 'used').Inspection.Grant.Id.Value
     $lifecycle = (Exact-Role $before 'lifecycle').Inspection.Grant.Id.Value
-    $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Exact operation grants'
+    $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Permission grants'
     Wait-ExactReady
     Trial $acceptance[0] {
         Refresh-Exact
@@ -391,10 +391,10 @@ try {
         Select-Exact $target
         Review-Exact
         Invoke-Named $script:launcher 'Close synthetic privacy/ownership gate'
-        $null = Wait-Native { @(Get-OwnedWindows | Where-Object { $_.Current.Name -ceq 'Exact operation grants' }).Count -eq 0 } 'privacy retires exact private window'
+        $null = Wait-Native { @(Get-OwnedWindows | Where-Object { $_.Current.Name -ceq 'Permission grants' }).Count -eq 0 } 'privacy retires exact private window'
         Invoke-Named $script:launcher 'Reopen synthetic gate (no audio recovery)'
         $null = Wait-Native { (Get-NamedElement $script:launcher 'Exact grants (scratch host-issued records only)').Current.IsEnabled } 'fresh synthetic privacy admission'
-        $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Exact operation grants'
+        $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Permission grants'
         Wait-ExactReady
         Check-Native (!(Get-NamedElement $script:grantWindow 'Confirm revocation of only this exact inspected ID and revision').Current.IsEnabled) 'A reopened window cannot inherit reviewed authority.'
         @{ realOsTransition = $false; previousWindowRetired = $true; staleReviewNotReplayed = $true }
@@ -415,7 +415,7 @@ try {
     }
     Trial $acceptance[7] {
         Close-OwnedWindow $script:grantWindow
-        $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Exact operation grants'
+        $script:grantWindow = Open-Window 'Exact grants (scratch host-issued records only)' 'Permission grants'
         Wait-ExactReady
         Select-Exact $target
         $after = Read-ExactFixture

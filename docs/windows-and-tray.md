@@ -722,7 +722,7 @@ Browsing does not resume a Done session or add model context/consent ([catalogue
 
 ## Tray icon
 
-**Settings > Approvals > Exact operation grants...** opens a distinct native retained-metadata inventory, exact-ID inspection, one-ID revocation and separately reviewed atomic revocation of an explicitly selected bounded batch. It is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#exact-operation-grants) cover bounds, safe provenance and stale confirmation.
+**Settings > Approvals > Permission grants...** and **Settings > Network > Permission grants...** open the same shared inventory for active Always grants and device-local URI permission rules. **Permission grants...** in a selected session additionally includes only that session's grants. **Show retained history** explicitly includes terminal records and selected-session Once records. Optional grouping is None, Artefact type or Artefact scope (Built-in/Kora/User; missing metadata is Unknown). Grouping affects only the displayed inventory, clears confirmations and never selects a whole group. Exact-ID inspection, history, one-ID revocation and reviewed bounded batch revocation retain their existing authority checks. URI rules use their existing matching/audit policy and cannot join exact batches. This is not the legacy Approvals list and creates no execution authority. [Instructions and limits](settings.md#permission-grants) cover each grant kind.
 
 **Help > Evidence & diagnostics** offers an explicit **AuthorityAudit** source for
 committed typed interaction-store audits, separately from diagnostic **Audit**,

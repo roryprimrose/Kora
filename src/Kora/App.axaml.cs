@@ -146,6 +146,7 @@ public sealed partial class App : Avalonia.Application
                 new NativeDetailRenderer(Services.GetRequiredService<ILogger<NativeDetailRenderer>>()),
                 Services.GetRequiredService<Kora.Application.Skills.SharedSkillDiscoveryService>(),
                 Services.GetRequiredService<ILogger<SharedSkillSourcesWindowController>>());
+            BindBundledRuntimeSetup();
             viewModel.BindSkillReviewNavigation(skillPackagesWindow,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision);
             BindSharedSkillInvocation(viewModel, skillPackagesWindow);
@@ -267,6 +268,8 @@ public sealed partial class App : Avalonia.Application
             sessionsWindow.ConversationQuestions = questionWindow;
             sessionsWindow.OpenNewRequest = newRequestWindow.Open;
             sessionsWindow.OpenRetainedAttachments = attachmentCatalogue.Open;
+            sessionsWindow.OpenPermissionGrants = (target, admitted) => exactGrants?.Open(target, admitted);
+            sessionsWindow.SynchronizePermissionGrants = () => exactGrants?.SynchronizeSessionAdmission();
             sessionsWindow.ReviewOriginalMessageReuse = newRequestWindow.ReviewOriginalReuseAsync;
             allWorkWindow = new AllWorkWindowController(viewModel,
                 Services.GetRequiredService<SessionWorkspaceService>(),

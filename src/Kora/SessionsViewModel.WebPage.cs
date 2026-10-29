@@ -13,7 +13,7 @@ internal sealed partial class SessionsViewModel
         if (command?.Address is not { } address || command.Error is not null)
         {
             conversationStatus = "For a local summary, enter get web page <absolute HTTP or HTTPS address>. "
-                + "The destination still requires a separate exact once-only approval. Nothing was submitted.";
+                + "The destination requires an exact permission grant; a matching saved grant is reused. Nothing was submitted.";
             NotifyConversation();
             return Task.CompletedTask;
         }

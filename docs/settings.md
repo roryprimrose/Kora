@@ -539,11 +539,33 @@ these named-action grants cannot enable its unavailable runtime. Any model-sugge
 approval can use any of the three scopes; the model cannot choose the scope
 for you.
 
+## Permission grants
+
+Open **Settings > Approvals > Permission grants...**, or **Settings > Network > Permission grants...**. Both open the same native management window for exact operation grants and device-local URI permission rules, distinct from legacy model-action preferences or Markdown named-action lists. Opening it does not import or promote those preferences.
+
+Settings shows active **Always** grants and device-wide URI rules. Choose **Permission grants...** in a selected session to additionally see that exact session's active grants, never another session's grants. **Show retained history** explicitly includes revoked/consumed records; Once records are available only in the selected-session history view. Changing this option clears the old results and requires Refresh.
+
+Exact page retrieval and HTTPS MCP reviews offer **Once**, **This session** and **Always**. A matching saved grant is reused without another approval question. Always is not tied to the original request or session; This session is. Changed destination, delegated account, schema, arguments or implementation needs matching authority again. Revocation, ownership/privacy, authentication, current source and dispatch checks still apply; a saved grant does not make an unavailable operation available.
+
+**Group permissions by** offers **None** (default), **Artefact type**, or **Artefact scope**. Scope here means **Built-in**, **Kora**, or **User**, not an operation grant's Once/Session/Perpetual lifetime. Grouping rearranges only the loaded exact-grant page and the URI rules shown alongside it, without reading more pages, changing policy or selecting whole groups. Changing grouping clears prior selection, inspection, history and revocation confirmations.
+
+New host-issued records retain target metadata where known. Older or unclassifiable records appear under **Unknown**, without guessing from names or current files. URI patterns have type **URI pattern** and Unknown artefact scope: an external address has no local artefact ownership. Group labels/counts describe this displayed inventory, not global applicability or running work.
+
+### URI permission rules
+
+The shared inventory replaces the separate Network address list. Existing saved patterns, typed/voice commands, validation, audit and matching behaviour are preserved; no saved rule is converted to an exact operation grant. The common management model delegates enforcement and persistence to each grant kind's existing policy.
+
+Enter an absolute HTTP/HTTPS pattern and choose **Add URI rule**, for example `https://*.example.com/*`. Host wildcards must occupy a complete DNS label; credentials and fragments are forbidden. Select exactly one URI row to inspect its canonical pattern, then choose **Remove selected URI rule**. Removing a URI rule does not revoke exact operation grants, stop running work or roll back effects. URI rows cannot join exact-grant revocation batches; mixed selections enable neither batch revocation nor URI removal.
+
+**Clear all URI rules** preserves the former Network control: it clears only device-local address patterns, never exact operation grants or a selected group.
+
+URI rules remain device-local, bounded to 64 patterns / 16 KiB total pattern bytes. Adding/removing requires the same owning unlocked host and no pending question/approval as the former Network controls. URI matching does not enable web access or bypass mandatory consent: local page retrieval still requires its separate exact permission grant. Exact-grant filters and Next do not filter or paginate URI rules. Storage/policy failures remain explicit; missing exact inventory is not presented as a successful partial refresh.
+
 ## Exact operation grants
 
-Open **Settings > Approvals > Exact operation grants...**. This opens a separate native window for retained host-issued exact approval records, distinct from the tab's legacy model-action preferences or Markdown named-action list. It does not import or promote those preferences ([native link](../src/Kora/SettingsWindow.axaml)).
+Within **Permission grants**, exact operation records retain their existing bounded inspection, history and explicit revocation controls ([native window](../src/Kora/ExactGrantsWindow.axaml)).
 
-Optional native **Stored scope** and **Stored status** filters default to **Any**. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page.
+Optional native **Stored scope** defaults to **Any** within the current Settings/session view. **Stored status** is fixed to Active until **Show retained history** is selected, then defaults to Any. Empty **Canonical ActionId** and **Original session GUID** mean any recorded value within that view. **Clear filters** explicitly restores these defaults; Refresh is still required. All specified predicates must match; they search successive bounded storage pages, not merely the displayed page, and cannot widen the session boundary.
 
 ActionId is exact ordinal/case-sensitive lowercase ASCII (letters/digits/dots/hyphens, 1–128 characters). Origin is an exact nonempty canonical lowercase D GUID. Do not add spaces, uppercase, shortened GUIDs or names: invalid values are explicitly refused, not normalized or replaced with an unfiltered read. Source and skill labels are not authority or inferred ActionIds.
 

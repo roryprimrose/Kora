@@ -17,6 +17,29 @@ The [optional conversational reply setting](settings.md#conversational-voice-rep
 is a different feature: only an eligible clarification can offer a short reply
 capture after Kora finishes speaking. It never approves work.
 
+## Prepare hands-free assets
+
+On Windows x64, **Settings > Speech & audio > Optional speech-input components**
+offers **Hands-free CPU assets (capture remains unavailable)**.
+Choose **Inspect** to check existing data without downloading or running a model.
+Choose **Prepare / retry** to review the exact PocketSphinx/Silero sources,
+licences, download/storage sizes, resource budget and private per-user scope.
+Only **Approve Prepare** starts acquisition. Decline leaves existing input
+choices unchanged. The installer offers the same optional preparation, unchecked.
+
+**Prepared assets** means verified files, not permission or readiness to listen.
+No microphone, inference, learning, speech profile or output setting is enabled.
+Configured-name, playback and acoustic qualification is still missing.
+The RAM value is an unmeasured planning budget, not a measured runtime claim.
+
+After restarting, **Inspect** checks retained bytes; **Verify** explicitly checks
+the complete native/data binding without executing it. For corrupt Kora-owned
+data, review **Remove**, then prepare again. Unknown/shared data is preserved.
+A native-library mismatch needs application repair, not another model download.
+**Cancel speech data operation** requests cancellation; wait for its exact
+outcome, inspect, then review a fresh retry. Cancellation may leave prepared data
+or pending removal; it does not claim rollback or enable listening.
+
 ## Exact-session speech interruption
 
 While reading one retained answer, typed `stop speaking` addresses only the

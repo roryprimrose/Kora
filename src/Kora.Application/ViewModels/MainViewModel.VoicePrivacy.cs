@@ -484,6 +484,7 @@ public sealed partial class MainViewModel
             await Task.WhenAll(captureClosure, outputClosure, presentation);
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {

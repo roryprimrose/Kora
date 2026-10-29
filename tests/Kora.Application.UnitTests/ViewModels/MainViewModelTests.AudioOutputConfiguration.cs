@@ -209,7 +209,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture(enableOutputConfiguration: true);
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock this workstation please");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -219,6 +219,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("reset speech.output-device");
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.ResponseBody.Should().Be(preview);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -521,7 +522,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         Task? question = null;
         fixture.TextToSpeech.BeforeOutputEnumeration = () => question = fixture.RunAsync("lock this workstation please");
@@ -530,8 +531,9 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().NotBe("Output preference not confirmed.");
-        fixture.ViewModel.ResponseBody.Should().Contain("Lock");
+        fixture.ViewModel.ResponseBody.Should().Contain("Allow Kora to use configured hosted model providers.");
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -542,7 +544,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("list output settings");
         fixture.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -558,6 +560,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.ResponseTitle.Should().NotBe("Output preference denied.");
         fixture.AudioPreferences.SavedOutputDeviceId.Should().BeNull();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 }

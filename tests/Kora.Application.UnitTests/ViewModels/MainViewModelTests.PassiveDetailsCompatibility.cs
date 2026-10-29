@@ -9,7 +9,7 @@ public sealed partial class MainViewModelTests
 {
     [Theory]
     [InlineData(BuiltInAction.ShowPowerStatus)]
-    [InlineData(BuiltInAction.LockMachine)]
+    [InlineData(BuiltInAction.EnableHostedModels)]
     public async Task Host_exit_waits_for_inflight_response_or_approval_prompt_not_viewer_closure(
         BuiltInAction action)
     {

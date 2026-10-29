@@ -43,6 +43,7 @@ internal sealed partial class SessionsViewModel
                 return;
             }
             RestoreUnsent();
+            CancelLocalRequestProfile();
             RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
@@ -334,6 +335,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        CancelLocalRequestProfile();
         ClearFailedRetry();
         ClearMixedContext();
         ClearAnswerRead();
@@ -359,6 +361,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyLocalRequestProfile();
         NotifyFailedRetry();
         RestoreUnsent();
         NotifyAssistantReply();

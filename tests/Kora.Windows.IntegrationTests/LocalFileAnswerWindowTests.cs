@@ -121,7 +121,11 @@ public sealed class LocalFileAnswerWindowTests
                 gate().Should().BeFalse();
                 release.SetResult();
                 await run;
-                status.Text.Should().BeNull();
+                if (string.Equals(change, "question", StringComparison.Ordinal))
+                {
+                    status.Text.Should().Contain("No answer claimed").And.Contain("work has finished");
+                }
+                else { status.Text.Should().BeNull(); }
             }
             finally { window.ClearAndClose(); }
         });
@@ -161,6 +165,161 @@ public sealed class LocalFileAnswerWindowTests
             finally { window.ClearAndClose(); }
         });
     }
+
+    [Theory]
+    [InlineData(LocalFileAnswerOutcome.Succeeded)]
+    [InlineData(LocalFileAnswerOutcome.Denied)]
+    [InlineData(LocalFileAnswerOutcome.Unavailable)]
+    public async Task AnotherQuestionRequiresFreshExplicitReviewWithoutRecaptureOrReusingConsumedTarget(LocalFileAnswerOutcome outcome)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var source = Source();
+            var citation = new LocalFileLexicalRetrieval().Search(source, source.Reference, "alpha",
+                DateTimeOffset.UnixEpoch, CancellationToken.None).Citations.Single();
+            var targets = new List<LocalContextSessionTarget>();
+            var gates = new List<Func<bool>>();
+            var window = new LocalFilePreviewWindow(message => throw new InvalidOperationException(message));
+            window.ShowRevision(source, (_, _, _) => throw new NotSupportedException("No search during recovery"),
+                () => true, () => throw new NotSupportedException("No recapture during recovery"),
+                (_, target, current, _) =>
+                {
+                    targets.Add(target);
+                    gates.Add(current);
+                    return Task.FromResult(new LocalFileAnswerResult(outcome,
+                        outcome == LocalFileAnswerOutcome.Succeeded ? [new("Old claim", [citation])] : [], 1));
+                });
+            window.Show();
+            try
+            {
+                Question(window).Text = "alpha";
+                await Press(window, "Use this exact snapshot once to answer locally");
+                var recovery = FindButton(window, "Review another question on this exact snapshot");
+                recovery.IsEnabled.Should().BeTrue();
+                if (outcome == LocalFileAnswerOutcome.Succeeded)
+                {
+                    AnswerRows(window).SelectedItem = citation;
+                    await Press(window, "Show exact answer citation");
+                }
+                Click(recovery);
+                targets.Should().ContainSingle();
+                gates[0]().Should().BeFalse();
+                Status(window).Text.Should().Contain("Fresh review").And.NotContain("Old claim");
+                window.GetVisualDescendants().OfType<NamedTextBlock>().Single(block =>
+                    string.Equals(AutomationProperties.GetName(block), "Untrusted local file plain text content", StringComparison.Ordinal))
+                    .Text.Should().Be(source.Text);
+                AnswerRows(window).ItemsSource.Should().BeNull();
+                window.GetVisualDescendants().OfType<NamedTextBlock>().Select(block => AutomationProperties.GetName(block))
+                    .Should().NotContain(name => name != null && name.StartsWith("Exact cited original source span", StringComparison.Ordinal));
+                FindButton(window, "Use this exact snapshot once to answer locally").IsEnabled.Should().BeTrue();
+                recovery.IsEnabled.Should().BeFalse();
+                await Press(window, "Use this exact snapshot once to answer locally");
+                targets.Should().HaveCount(2);
+                targets[1].Request.SessionId.Should().NotBe(targets[0].Request.SessionId);
+                targets[1].Request.TaskId.Should().NotBe(targets[0].Request.TaskId);
+                targets[1].SourceRequest.Should().BeSameAs(targets[0].SourceRequest);
+                window.GetVisualDescendants().OfType<NamedTextBlock>().Should().Contain(block =>
+                    block.Text != null && block.Text.Contains(targets[1].Request.SessionId.Value.ToString("D"), StringComparison.Ordinal)
+                    && block.Text.Contains(targets[1].Request.TaskId.Value.ToString("D"), StringComparison.Ordinal));
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task CancelOrQuestionEditKeepsRecoveryClosedUntilActualAnswerWorkJoins(bool edit)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+            CancellationToken actualToken = default;
+            var calls = 0;
+            var window = new LocalFilePreviewWindow(message => throw new InvalidOperationException(message));
+            window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => true,
+                () => throw new NotSupportedException(), async (_, _, _, token) =>
+                {
+                    calls++;
+                    actualToken = token;
+                    await release.Task;
+                    return new(LocalFileAnswerOutcome.Succeeded, [new("Forbidden late claim", [])], 1);
+                });
+            window.Show();
+            try
+            {
+                Question(window).Text = "alpha";
+                var work = Press(window, "Use this exact snapshot once to answer locally");
+                if (edit) { Question(window).Text = "changed question"; }
+                else { Click(FindButton(window, "Cancel file answer and clear claims")); }
+                actualToken.IsCancellationRequested.Should().BeTrue();
+                work.IsCompleted.Should().BeFalse();
+                Status(window).Text.Should().Contain("Waiting").And.Contain("No answer claimed");
+                var recovery = FindButton(window, "Review another question on this exact snapshot");
+                recovery.IsEnabled.Should().BeFalse();
+                Click(recovery);
+                await Press(window, "Use this exact snapshot once to answer locally");
+                calls.Should().Be(1);
+                release.SetResult();
+                await work;
+                Status(window).Text.Should().NotContain("Forbidden late claim").And.NotContain("Waiting");
+                AnswerRows(window).ItemsSource.Should().BeNull();
+                recovery.IsEnabled.Should().BeTrue();
+                Click(recovery);
+                calls.Should().Be(1);
+                await Press(window, "Use this exact snapshot once to answer locally");
+                calls.Should().Be(2);
+            }
+            finally { release.TrySetResult(); window.ClearAndClose(); }
+        });
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RetiredOrReplacedSourceCannotUseOldRecoveryOrSubmitControls(bool replace)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var current = true;
+            var calls = 0;
+            var window = new LocalFilePreviewWindow(message => throw new InvalidOperationException(message));
+            Task<LocalFileAnswerResult> Answer(string question, LocalContextSessionTarget target, Func<bool> gate, CancellationToken token)
+            {
+                calls++;
+                return Task.FromResult(LocalFileAnswerResult.Empty(LocalFileAnswerOutcome.Unavailable));
+            }
+            window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => current,
+                () => throw new NotSupportedException(), Answer);
+            window.Show();
+            try
+            {
+                Question(window).Text = "alpha";
+                await Press(window, "Use this exact snapshot once to answer locally");
+                var recovery = FindButton(window, "Review another question on this exact snapshot");
+                var submit = FindButton(window, "Use this exact snapshot once to answer locally");
+                if (replace)
+                {
+                    window.ShowRevision(Source(), (_, _, _) => throw new NotSupportedException(), () => true,
+                        () => throw new NotSupportedException(), Answer);
+                }
+                else { current = false; }
+                window.UpdateLayout();
+                Click(recovery);
+                await ((AsyncCommand)submit.Command!).ExecuteAsync();
+                calls.Should().Be(1);
+                if (replace) { Status(window).Text.Should().BeNull(); }
+            }
+            finally { window.ClearAndClose(); }
+        });
+    }
+
+    private static Button FindButton(Window window, string caption) => window.GetVisualDescendants().OfType<Button>().Single(button =>
+        string.Equals(button.Content as string, caption, StringComparison.Ordinal));
+    private static void Click(Button button) =>
+        button.RaiseEvent(new Avalonia.Interactivity.RoutedEventArgs(Button.ClickEvent));
+    private static ListBox AnswerRows(Window window) => window.GetVisualDescendants().OfType<ListBox>().Single(list =>
+        AutomationProperties.GetName(list)?.StartsWith("Exact source citations", StringComparison.Ordinal) == true);
 
     private static LocalFileRevision Source()
     {

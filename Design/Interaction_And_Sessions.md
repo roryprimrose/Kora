@@ -1011,6 +1011,11 @@ There is no command, tool, composer or session-routing fallback; the existing
 privacy-reducing Stop-listening route remains before schema parsing, even for
 an assistant named Stop or a matching option label. Proposal/approval questions
 are refused; approval readback specificity and grants are unchanged.
+Host-refused replies show an explicit **Reply was not accepted** recovery status,
+not ordinary turn completion; the acceptance callback is reserved for an Answered
+receipt and the reply trace ends Failed. Recovery directs the user to review native
+question status before retry, without retargeting or automatic replay ([reply delivery](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs),
+[native recovery regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Voice.cs)).
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained

@@ -195,6 +195,10 @@ internal sealed partial class SessionsViewModel
 
     public void ClearProviderReview()
     {
+        CancelLocalRequestProfile();
+        localRequestModel = null;
+        localRequestReasoning = null;
+        localRequestContext = null;
         providerReviewRevision++;
         if (providerProposal is { } proposal) { providers?.Retire(proposal); }
         if (providerDraft is { } draft) { providers?.Discard(draft); }
@@ -219,6 +223,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyProviderReview()
     {
+        NotifyLocalRequestProfile();
         OnPropertyChanged(nameof(ProviderStatus));
         OnPropertyChanged(nameof(CanInspectProviders));
         OnPropertyChanged(nameof(ProviderCopySources));

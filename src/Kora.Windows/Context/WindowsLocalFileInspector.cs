@@ -5,13 +5,14 @@ using System.Security.Cryptography;
 using Kora.Core.Context;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
+using Kora.Core.KnowledgeSources;
 using Kora.Windows.Storage;
 
 using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Context;
 
-public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths paths) : ILocalFileInspector
+public sealed partial class WindowsLocalFileInspector(IApplicationDataPaths paths) : ILocalFileInspector, IKnowledgeSourceInspector
 {
     private readonly string[] protectedRoots =
     [

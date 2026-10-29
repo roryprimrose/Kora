@@ -34,14 +34,7 @@ public sealed partial class McpServerConfigurationService
             var root = document.RootElement;
             var servers = root.TryGetProperty("servers", out var value) ? value : root.GetProperty("mcpServers");
             var definition = servers.GetProperty(selected.Name);
-            if (definition.EnumerateObject().Any(property => property.Name is not ("url" or "type"))
-                || !definition.TryGetProperty("url", out var url)
-                || url.ValueKind != JsonValueKind.String
-                || definition.TryGetProperty("type", out var type)
-                    && (type.ValueKind != JsonValueKind.String
-                        || !string.Equals(type.GetString(), "http", StringComparison.Ordinal)))
-            { throw new InvalidDataException("The HTTPS MCP profile accepts only a URL and optional http type; inline credentials and launch configuration are forbidden."); }
-            var endpoint = new McpEndpoint(new(url.GetString()!, UriKind.Absolute));
+            var endpoint = McpDefinitionDocument.ValidateHttpsServer(System.Text.Encoding.UTF8.GetBytes(definition.GetRawText()));
             if (endpoint != account.Destination)
             { throw new InvalidOperationException("The explicitly selected delegated account belongs to a different destination."); }
             token.ThrowIfCancellationRequested();

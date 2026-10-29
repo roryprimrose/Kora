@@ -255,6 +255,39 @@ Commands route to the same native workflow; source content is not recursively
 interpreted as a command. A command opening an editor is not completion of an
 edit or an approval.
 
+### Bounded Kora-owned HTTPS MCP entry editing
+
+The [existing management window](../src/Kora/CustomizationWindowController.Mcp.cs) owns the complete setup operation:
+explicitly Add one named Kora entry or select its source-qualified ID/name, consent to the private selected-source read,
+edit native URL/optional HTTP-type fields, validate, review the complete original/proposed entry and replacement diff,
+separately confirm Save, then verify exact atomic-file readback and disabled catalogue status.
+Original typed and current-name activated commands enter that same native workflow; they never approve Save.
+
+The writable destination is exclusively host-selected `IApplicationDataPaths.RoamingRoot\Mcp\mcp.json`.
+New files use `{"servers":{}}`; existing `servers` or `mcpServers` JSON/JSONC is writable only when that collection is the sole root property.
+The selected entry accepts only `url` and optional `"type":"http"` under the [first HTTPS endpoint validation](../src/Kora.Core/Customizations/McpDefinitionDocument.cs).
+No stdio, commands, arguments, environment, headers, credentials, account references or authentication editing is admitted.
+Unknown root fields and unsupported/sensitive selected-entry fields remain undisclosed and cannot be dropped or downgraded.
+
+The [scoped native publication path](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Mcp.cs) reuses the existing source writer.
+It preserves unrelated bytes, root collection spelling, comments, BOM and compatible source/security metadata without reserializing the whole file.
+Missing managed directories/files require explicit creation consent; parent binding, exact case, ownership, reparse/hard-link/stream exclusions,
+source stability, complete identity/base bytes and security are revalidated.
+Final native comparison is optimistic, not compare-and-swap: an external same-name replacement can still race the atomic rename.
+Exact complete-file identity/bytes must pass readback before success.
+
+Before publication, the [audited management service](../src/Kora.Application/Definitions/CustomizationManagementService.cs)
+disables the source identity, retires previous use authority and independently removes MCP inclusion.
+Save does not register/reinclude customization roots or alter other source paths. Cancellation before final consent writes nothing.
+Unconfirmed publication remains excluded, retains the draft and requires explicit inspection and a fresh review;
+it never promises rollback or automatically replays a transaction. User/profile/additional files remain metadata-only here.
+Authentication/account/connector qualification and separate reviewed inclusion/discovery/use remain unavailable or governed by their existing routes, not enabled by setup.
+
+Raw endpoints stay inside explicit native own-source fields/reviews, never model authoring, metadata tools, diagnostics or audit.
+The [complete native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Mcp.cs)
+and [fixture writer regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+use isolated fixture roots, not workstation user configuration.
+
 ### Foreground editor voice targeting
 
 **Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected

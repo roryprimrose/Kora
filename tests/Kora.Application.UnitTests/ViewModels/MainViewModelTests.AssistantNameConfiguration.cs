@@ -31,17 +31,18 @@ public sealed partial class MainViewModelTests
         store.Session.Should().Be(before);
         await fixture.ViewModel.CancelModelQuestionAsync();
         await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.LockMachine, ModelApprovalScope.Always));
+            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
         await fixture.RunAsync("change your name to Nova");
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         await fixture.ViewModel.RejectPendingGrantChangeAsync();
         fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.RunAsync("please lock");
         await fixture.ViewModel.ActiveReasoningTask!;
         await fixture.RunAsync("reset your name");
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         await fixture.ViewModel.RejectModelActionCommand.ExecuteAsync();
         fixture.ViewModel.LocalModelsEnabled = false;

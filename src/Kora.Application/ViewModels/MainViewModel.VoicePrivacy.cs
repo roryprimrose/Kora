@@ -487,6 +487,7 @@ public sealed partial class MainViewModel
             if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {

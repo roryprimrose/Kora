@@ -35,5 +35,13 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("inputs: required-literal")
             .And.Contain("stay literal")
             .And.Contain("separately saved");
+        guide.Markdown.Should().Contain("owned skill critique:")
+            .And.Contain("owned skill refine")
+            .And.Contain("owned skill cancel-refinement")
+            .And.Contain("complete current guidance")
+            .And.Contain("complete proposed guidance")
+            .And.Contain("does not complete the entire Builder")
+            .And.Contain("input names cannot be added")
+            .And.Contain("until it joins");
     }
 }

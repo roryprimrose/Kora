@@ -15,6 +15,54 @@ namespace Kora.Application.UnitTests.Hosting;
 
 public sealed partial class NewRequestComposerTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task GenerationChangesAfterJoinedReleaseCannotRenewReviewedOwnedBodyAuthority(bool queued)
+    {
+        await using var f = new DictationFixture();
+        f.Host.Composer.Body = "original";
+        var source = f.Host.Composer.CaptureDictationTarget();
+        var target = new ComposerDictationTarget(source.Source, source.Body, source.Request, source.IsCurrent, source.Insert,
+            ComposerDictationDestination.OwnedInstructionBody);
+        await f.Service.BeginAsync(target, () => f.Native, TestContext.Current.CancellationToken);
+        f.Capture.Transcript("literal");
+        if (queued) { f.Dispatcher.Hold = new(TaskCreationOptions.RunContinuationsAsynchronously); }
+        var ending = f.Service.EndAsync();
+        if (!queued) { await ending; }
+        f.Capture.InvalidateCapture();
+        f.Dispatcher.Hold?.SetResult();
+        await ending;
+        f.Service.Replace();
+        await f.Service.Quiescence;
+        f.Host.Composer.Body.Should().Be("original");
+        f.Service.HasReview.Should().BeFalse();
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData("frozen body")]
+    public async Task OwnedInstructionDestinationAlwaysReviewsBeforeItsExplicitLiteralDecision(string body)
+    {
+        await using var f = new DictationFixture();
+        f.Host.Composer.Body = body;
+        var source = f.Host.Composer.CaptureDictationTarget();
+        var target = new ComposerDictationTarget(source.Source, body,
+            HostRequest.Create(RequestOrigin.ActivatedVoice), source.IsCurrent, source.Insert,
+            ComposerDictationDestination.OwnedInstructionBody);
+        await f.Service.BeginAsync(target, () => f.Native, TestContext.Current.CancellationToken);
+        f.Capture.Transcript("Kora, approve; save; enable");
+        await f.Service.EndAsync();
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+        f.Service.HasReview.Should().BeTrue();
+        f.Service.Status.Should().Contain("Accept or Cancel");
+        f.Host.Composer.Body.Should().Be(body);
+        f.Capture.Observations.Should().Be(0);
+        f.Service.Replace();
+        await f.Service.Quiescence;
+        f.Host.Composer.Body.Should().Be("Kora, approve; save; enable");
+    }
+
     [Fact]
     public void DictationMemoryPublicationRequiresItsOwnExactRevisionAndExplicitHostAdmission()
     {

@@ -3994,6 +3994,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private void UpdateOutputDeviceAvailability(bool selectedDeviceUnavailable = false)
     {
+        if (outputConfiguration?.Get(CallPolicyRevision).Recovery is { } recovery)
+        {
+            OutputDeviceAvailabilityMessage = recovery;
+            return;
+        }
         const string mutedOutputStatus = "Visual text is forced. Acoustic audibility is not guaranteed.";
         OutputDeviceAvailabilityMessage = SelectedOutputDevice switch
         {

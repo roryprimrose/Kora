@@ -82,7 +82,7 @@ public sealed partial class SessionConversationService(
         Func<CancellationToken, Task> validateSource, IEnumerable<ActivityLink>? links,
         RequestOrigin origin, CancellationToken token, Action<ModelTurnProvenance>? onAdmitted = null,
         Func<ModelTurnResult, ModelTurnResult>? resolveResponse = null, PendingConversation? pending = null,
-        bool joinCancelledResources = false)
+        bool joinCancelledResources = false, LocalRequestProfileReview? localRequestProfile = null)
     {
         ArgumentNullException.ThrowIfNull(createContext);
         ArgumentNullException.ThrowIfNull(validateSource);
@@ -96,7 +96,8 @@ public sealed partial class SessionConversationService(
             return context;
         }
         return SubmitCoreAsync(target, body, admitted, validateSource, links, origin, Create, ModelTurnChoice.Local,
-            token, onAdmitted, resolveResponse, pending: pending, joinCancelledResources: joinCancelledResources);
+            token, onAdmitted, resolveResponse, pending: pending, joinCancelledResources: joinCancelledResources,
+            localRequestProfile: localRequestProfile);
     }
 
     private async Task<ConversationSubmissionReceipt> SubmitCoreAsync(SessionWorkspaceEntry target, string body,
@@ -111,7 +112,7 @@ public sealed partial class SessionConversationService(
         Func<HostRequest, Func<bool>, CancellationToken, Task<ModelContextEnvelope>>? prepareContext = null,
         bool claude = false, bool claudeStreamAnswer = false, PendingConversation? pending = null,
         LocalUnavailableContinuation? localHandoff = null, bool joinCancelledResources = false,
-        bool ordinaryActiveDeadline = false)
+        bool ordinaryActiveDeadline = false, LocalRequestProfileReview? localRequestProfile = null)
     {
         RequireOriginalSource(origin);
         using var lifecycle = EnterLifecycleSubmission(target, body, admitted);
@@ -143,6 +144,7 @@ public sealed partial class SessionConversationService(
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
+        localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
         var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now,
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
@@ -184,7 +186,11 @@ public sealed partial class SessionConversationService(
                             context.RequireCompleteInputLimit();
                         }
 
-                        admission = claude
+                        admission = localRequestProfile is not null
+                            ? turns is ModelTurnHost localHost
+                                ? await localHost.AdmitLocalRequestProfileAsync(localRequestProfile, context, token).ConfigureAwait(false)
+                                : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))
+                            : claude
                             ? turns is ModelTurnHost claudeHost
                                 ? await claudeHost.AdmitClaudeAsync(context, token, claudeStreamAnswer).ConfigureAwait(false)
                                 : new ModelTurnAdmission(new(ModelTurnOutcome.Unavailable, ModelTurnReason.GenerationNotEnabled))

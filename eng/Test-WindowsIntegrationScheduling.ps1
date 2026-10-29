@@ -79,6 +79,12 @@ $classes = [ordered]@{
     'SpeechCaptionDisplayTestsExtra' = 'ui-platform'
     'SessionsConversationTests' = 'ui-definitions'
     'SessionsConversationTestsExtra' = 'ui-platform'
+    'SettingsSectionNavigationTests' = 'ui-definitions'
+    'SettingsResetMenuTests' = 'ui-definitions'
+    'SettingsSpecialistNavigationTests' = 'ui-definitions'
+    'SettingsSectionNavigationTestsExtra' = 'ui-platform'
+    'SettingsResetMenuTestsExtra' = 'ui-platform'
+    'SettingsSpecialistNavigationTestsExtra' = 'ui-platform'
     'NativeQuestionTests' = 'ui-platform'
     'FuturePlatformTests' = 'ui-platform'
 }
@@ -182,6 +188,33 @@ Assert (($predictedJobSeconds.Values | Measure-Object -Maximum).Maximum -lt
     ($originalJobSeconds.Values | Measure-Object -Maximum).Maximum) 'Reduce the exact-run critical path without moving its timeout to another shard.'
 Assert (($predictedCases.Values | Measure-Object -Sum).Sum -eq 6284) 'The measured rebalance must preserve every recorded case.'
 Assert ($predictedCases['ui-definitions'] -eq 1335 -and $predictedCases['ui-platform'] -eq 3479) 'Move all 115 Find cases exactly once.'
+
+# Run 40815883491 cancelled platform at the whole-job cap with 2,516 passed cases
+# and no failed assertions; definitions completed in 885s. This partial-run fixture
+# checks measured work redistribution, not completion or hosted timing guarantees.
+$settingsClasses = [ordered]@{
+    'SettingsSectionNavigationTests' = @{ Cases = 14; Seconds = 175.465 }
+    'SettingsResetMenuTests' = @{ Cases = 49; Seconds = 118.958 }
+    'SettingsSpecialistNavigationTests' = @{ Cases = 7; Seconds = 90.980 }
+}
+$observedPlatformSeconds = 1818.0
+$observedDefinitionsSeconds = 885.0
+$settingsSeconds = 0.0
+$settingsCases = 0
+Assert ($observedPlatformSeconds -gt $deadlineSeconds) 'Reproduce the observed whole-job breach, not a test assertion failure.'
+foreach ($class in $settingsClasses.Keys) {
+    $target = @(Get-MatchingShard "Kora.Windows.IntegrationTests.$class.Test")
+    Assert ($target.Count -eq 1 -and $target[0].Name -ceq 'ui-definitions') "Move the entire measured $class class to synchronous definitions."
+    $settingsSeconds += $settingsClasses[$class].Seconds
+    $settingsCases += $settingsClasses[$class].Cases
+}
+Assert ($settingsCases -eq 70) 'Preserve every measured settings case.'
+$redistributedPlatformSeconds = $observedPlatformSeconds - $settingsSeconds
+$redistributedDefinitionsSeconds = $observedDefinitionsSeconds + $settingsSeconds
+Assert ($redistributedPlatformSeconds -lt $deadlineSeconds) 'The retained platform work must fit without extending the job cap.'
+Assert ($redistributedDefinitionsSeconds -lt $deadlineSeconds) 'Do not transfer the measured budget breach to definitions.'
+Assert ([Math]::Max($redistributedPlatformSeconds, $redistributedDefinitionsSeconds) -lt
+    $observedPlatformSeconds) 'Reduce the measured critical path.'
 
 if ($PSBoundParameters.ContainsKey('RetainedResultsDirectory')) {
     $reports = @(Get-ChildItem -LiteralPath $RetainedResultsDirectory -Filter '*.trx' -Recurse -File)

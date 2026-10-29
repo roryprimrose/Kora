@@ -195,6 +195,50 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Fact]
+    public async Task RequestOnlyLocalProfilePreservesNextOrdinaryDispatchBudgetAndInheritedProfile()
+    {
+        using var f = new Fixture();
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        settings.Preferences.Save(new(1));
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfileCatalogue.FieldCatalogue = true;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var preferences = f.ProfilePreferences.Value.Serialize();
+        var policy = f.SessionOverrides.Serialize();
+        var host = f.ConfiguredProfiles();
+        await using var service = DeadlineConversation(f, host, settings);
+        var captures = new List<HostRequest>();
+        settings.Store.Before = (operation, name) =>
+        {
+            if (operation is "read" && name.Contains("minutes", StringComparison.Ordinal)
+                && Kora.Core.Diagnostics.HostActivity.Current?.Request is { } request)
+            {
+                f.Task!.Task.State.Should().Be(HostTaskState.DispatchRecorded);
+                captures.Add(request);
+            }
+        };
+        var commands = LocalProfileCommands(f, service);
+        var chosen = Profile() with { Reasoning = new("exact-effort"), Context = new("exact-window") };
+        var review = (await commands.ExecuteAsync(LocalProfileCommand(f, "request-only profile", chosen),
+            RequestOrigin.LocalUi, static () => true, Token)).RequestReview!;
+        var explicitRequest = (await commands.ExecuteAsync(LocalProfileConfirm(review),
+            RequestOrigin.LocalUi, static () => true, Token)).RequestSubmission!;
+        explicitRequest.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        f.Adapter.Profile.Should().Be(chosen);
+        captures.Should().BeEmpty("the reviewed request-only route retains its existing fixed limit");
+
+        var ordinary = await service.SubmitLocalAnswerAsync(new(f.Session, null), "next ordinary request",
+            static () => true, Token);
+        ordinary.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        captures.Should().ContainSingle().Which.Should().Be(ordinary.Message.Request);
+        f.Adapter.Profile.Should().Be(Profile());
+        f.Adapter.Calls.Should().Be(2);
+        f.ProfilePreferences.Value.Serialize().Should().Be(preferences);
+        f.ProfilePreferences.Writes.Should().Be(0);
+        f.SessionOverrides.Serialize().Should().Be(policy);
+    }
+
+    [Fact]
     public async Task ExpiryAfterRuntimeSuccessButBeforeTerminalRetentionCannotPublishSuccess()
     {
         using var f = new Fixture();

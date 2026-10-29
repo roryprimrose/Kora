@@ -371,6 +371,15 @@ late append/publication is denied. Removing authority alone is not acceptance:
 a separate final inventory receipt is required and interrupted acceptance
 retries storage cleanup without execution.
 
+Inactivity deletion uses the same in-memory SQLite rebuild as explicit
+disposition, including space freed by earlier revisions or schemas, before
+committing final `Purged` acceptance. Copy inventory is rechecked at that
+commit fence. A rebuild, inventory or final acceptance failure after revocation
+is explicitly incomplete, not rollback or a successful deletion count;
+maintenance can retry storage cleanup without executing retained work.
+Post-revocation caller cancellation does not interrupt this finite acceptance.
+Unrelated live content and the independent audit chain are preserved.
+
 Unrecognised ownership, malformed envelopes, uncertain key publication,
 uninventoried storage/backup entries or hot/nonempty journals fail closed.
 No managed-backup publisher/ownership format is delivered; arbitrary copies

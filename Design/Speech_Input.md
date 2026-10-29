@@ -336,6 +336,12 @@ cancellation and safety controls, including contention with local reasoning.
 Hardware suggestions require explicit acceptance; they cannot weaken selected
 protection or silently change an admitted turn.
 
+The bounded [native/typed/activated review](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs) now completes an explicit switch or recovery for the existing Windows activated tuple only. Review displays saved/desired/effective state, the immutable proposed tuple and required local capabilities; confirmation retains the admitted original request/channel through the [joined cutover](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs).
+
+Cancellation or stale review does not replace saved intent. A pre-write retirement failure keeps the prior desired selection while withholding effective capture; uncertain persistence explicitly withholds saved-state confirmation. The [shared lifecycle](../src/Kora.Application/Voice/HandsFreeVoiceRecognitionService.Profiles.cs) excludes wake, PTT and reply capture throughout the exclusive cutover lease.
+
+Additional exact local wake/ASR/resource choices remain [unavailable](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs). Optional hands-free asset preparation is not a selectable qualified profile. Unsupported legacy resource/residency intent is retained for inspection; only explicit review and confirmation of the compatible Windows tuple replaces it. No model download, automatic listening enablement, hosted audio, biometric enrollment or qualification claim is added.
+
 ## Optional Installation and Runtime Lifecycle
 
 Additional wake, VAD, ASR and optional verifier model assets must support both

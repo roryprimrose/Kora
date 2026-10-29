@@ -6,12 +6,15 @@ using Kora.Core.Voice;
 
 namespace Kora.Application.Configuration;
 
-public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, SpeechInputSelection? Selection = null, string? Error = null)
+public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, SpeechInputSelection? Selection = null, string? Error = null,
+    bool? ReviewDecision = null)
 {
     public const string Syntax = "get speech.input | set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime. "
-        + "Resource preferences Cpu/Gpu and residency KeepLoaded may be saved but are explicitly unavailable for the current adapter. No download, capture, wake-name activation or fallback.";
+        + "Review, then confirm speech.input or cancel speech.input. "
+        + "Only the compatible WindowsManaged / CaptureLifetime tuple can be confirmed. Existing unavailable desired preferences are retained until an explicit compatible switch. No download, capture, wake-name activation or fallback.";
     public static IReadOnlyList<string> FixedPhrases { get; } =
-        ["get speech.input", "status speech.input", "set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime"];
+        ["get speech.input", "status speech.input", "set speech.input to windows-activated-v1 WindowsManaged CaptureLifetime",
+            "confirm speech.input", "cancel speech.input"];
 
     public static SpeechInputCommand? Parse(string input, string assistantName)
     {
@@ -23,13 +26,18 @@ public sealed record SpeechInputCommand(AppearanceCommandOperation Operation, Sp
             text = text[name.Length..].TrimStart(' ', ',', '\t');
         }
         if (!TargetsProfile("get speech.input") && !TargetsProfile("status speech.input")
-            && !TargetsProfile("set speech.input")) { return null; }
+            && !TargetsProfile("set speech.input") && !TargetsProfile("confirm speech.input")
+            && !TargetsProfile("cancel speech.input")) { return null; }
         bool TargetsProfile(string prefix) => text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
             && (text.Length == prefix.Length || char.IsWhiteSpace(text[prefix.Length]));
         if (Encoding.UTF8.GetByteCount(input) > SessionCommand.MaximumInputBytes || input.Any(char.IsControl))
         { return new(AppearanceCommandOperation.Clarify, Error: Syntax); }
         if (text.Equals("get speech.input", StringComparison.OrdinalIgnoreCase)
             || text.Equals("status speech.input", StringComparison.OrdinalIgnoreCase)) { return new(AppearanceCommandOperation.Get); }
+        if (text.Equals("confirm speech.input", StringComparison.OrdinalIgnoreCase))
+        { return new(AppearanceCommandOperation.Set, ReviewDecision: true); }
+        if (text.Equals("cancel speech.input", StringComparison.OrdinalIgnoreCase))
+        { return new(AppearanceCommandOperation.Set, ReviewDecision: false); }
         const string prefix = "set speech.input to ";
         if (text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase))
         {

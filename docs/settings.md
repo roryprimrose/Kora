@@ -246,6 +246,12 @@ These are **Sessions** controls, not global preferences:
 | Attach / inspect / replace / remove retained attachment | One immutable UTF-8 text/Markdown file per session, 256 KiB including BOM, sixteen retained profile files, no eviction |
 
 Keep stops automatic archive/delete only, not execution or egress checks.
+When ordinary inactivity deletion becomes due, completion includes rebuilding
+owned SQLite content previously freed by older revisions and clearing its
+committed journal. A storage/copy-verification failure after revocation leaves
+deletion incomplete, not rolled back; the existing maintenance path retries
+cleanup without replaying work. This does not erase exports, provider copies,
+independent audit/diagnostics or unowned data, and is not forensic erasure.
 Unknown/removed/purged state refuses; stale or uncertain commits need fresh
 inspection/review. Original files are never modified. Attachment replacement
 has a new source identity; uncertified committed copies remain held.
@@ -880,6 +886,10 @@ production wake name**. Reset does not change session/task/grant/approval/
 instance IDs or stored session names. The executable remains `Kora.exe`;
 namespaces and application data paths remain fixed. No wake detector, custom
 profile, learning/enrollment, assets, download or OS/global setting is added.
+
+### Speech input profile
+
+**Review speech input switch** displays the current saved/desired/effective tuple, proposed compatible Windows activated tuple and required local capabilities. **Confirm speech input switch** completes the joined switch; **Cancel speech input switch** leaves intent unchanged. No additional qualified local wake/ASR/resource profile is offered ([complete interaction](voice-and-audio.md#speech-input-profile-preference)).
 
 ### Microphone
 

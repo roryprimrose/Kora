@@ -1,6 +1,8 @@
 using System.Collections.Concurrent;
 using System.Diagnostics;
 using AwesomeAssertions;
+using Kora.Core.Auditing;
+using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -250,6 +252,62 @@ public sealed partial class HostQuestionVoiceReplyServiceTests
         f.Capture.Fail();
         f.Host.Store.Snapshot.Grants.Should().BeEmpty();
         f.SpeechCalls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("content")]
+    [InlineData("generation")]
+    [InlineData("privacy")]
+    public async Task Refused_reply_reports_recovery_without_acceptance_or_retargeting_and_requires_fresh_capture(string refusal)
+    {
+        await using var f = new QuestionReplyFixture();
+        var question = await f.Host.QuestionAsync(refusal is "content"
+            ? LocalModelQuestionPolicy.CreateSpec(new("Describe format", []))
+            : InteractionFixture.Choice());
+        await f.OpenAsync(question);
+        var generation = f.Capture.Generation;
+        var policy = f.Host.Store.Snapshot.Policy;
+        if (refusal is "generation")
+        {
+            f.Host.Store.Change(snapshot => snapshot with { Session = snapshot.Session with { Generation = new(2) } });
+        }
+        if (refusal is "privacy")
+        {
+            f.Host.Store.Change(snapshot => snapshot with { Policy = policy with { IsUnlocked = false } });
+        }
+        var stopped = new ConcurrentQueue<Activity>();
+        using var listener = new ActivityListener
+        {
+            ShouldListenTo = source => source.Name.StartsWith("Kora.", StringComparison.Ordinal),
+            Sample = (ref ActivityCreationOptions<ActivityContext> _) => ActivitySamplingResult.AllData,
+            ActivityStopped = stopped.Enqueue,
+        };
+        ActivitySource.AddActivityListener(listener);
+        f.Capture.Transcript(refusal is "content" ? "format\u0001" : "First");
+        await f.Replies.Quiescence;
+
+        f.Accepted.Should().BeNull();
+        f.Replies.Status.Should().Contain("not accepted").And.Contain("native question status");
+        f.Replies.IsActive.Should().BeFalse();
+        f.Capture.IsCaptureQuiescent.Should().BeTrue();
+        f.Host.Store.Snapshot.Questions.Should().ContainSingle().Which.Should().Be(question);
+        f.Host.Store.Snapshot.Grants.Should().BeEmpty();
+        f.Host.Store.Commits[^1].Audit.Outcome.Should().Be(SecurityAuditOutcome.Denied);
+        stopped.Should().ContainSingle(activity => string.Equals(activity.OperationName, "session.request", StringComparison.Ordinal))
+            .Which.Status.Should().Be(ActivityStatusCode.Error);
+
+        f.Host.Store.Change(snapshot => snapshot with { Policy = policy });
+        var fresh = await f.Host.QuestionAsync();
+        fresh.Key.QuestionId.Should().NotBe(question.Key.QuestionId);
+        fresh.SessionGeneration.Should().Be(f.Host.Store.Snapshot.Session.Generation);
+        await f.OpenAsync(fresh);
+        f.Capture.Transcript("Second", generation);
+        f.Accepted.Should().BeNull();
+        f.Capture.Transcript("First");
+        await f.Replies.Quiescence;
+        f.Accepted!.Question!.Key.Should().Be(fresh.Key.Next());
+        f.Accepted.Question.AnswerChannel.Should().Be(RequestOrigin.ActivatedVoice);
+        f.Host.Store.Snapshot.Questions.Single(item => item.Key == question.Key).Should().Be(question);
     }
 
     [Fact]

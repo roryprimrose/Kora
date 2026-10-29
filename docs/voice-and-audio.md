@@ -243,6 +243,12 @@ single-utterance recognizer: one-second trailing silence and a maximum of
 Timeout leaves the native question answerable. No button release, assistant-name
 prefix, wake listener or during-speech barge-in is used.
 
+If **Reply was not accepted** appears, the microphone is closed and that reply
+did not complete the question. Review the native question status before trying
+again; an expired or changed question needs a fresh interaction. A still-current
+question remains usable through native controls. Nothing is automatically
+retried or sent to another question ([native recovery regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Voice.cs)).
+
 Only the exact question schema accepts a reply: a complete option label,
 one-based option number / `option N`, or a permitted bounded text answer.
 Yes/No are accepted only when that schema permits them; the local-version

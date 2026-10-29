@@ -277,6 +277,8 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        completionNotices?.Retire();
+        PropertyChanged -= CompletionNoticeHostChanged;
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
@@ -477,6 +479,7 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
+            if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
         }
@@ -515,6 +518,8 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        Interlocked.Exchange(ref explicitVoiceActivationRevision, -1);
+        completionNotices?.Retire();
         if (disposed) { RetireHandsFreeVoiceBinding(); }
         RetireSessionCommandReviews();
         long revision;

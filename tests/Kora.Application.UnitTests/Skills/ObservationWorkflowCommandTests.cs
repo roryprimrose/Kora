@@ -5,6 +5,18 @@ namespace Kora.Application.UnitTests.Skills;
 
 public sealed class ObservationWorkflowCommandTests
 {
+    [Fact]
+    public void GenerationAndObservationFixedPhrasesRemainSeparateAdmittedRoutes()
+    {
+        OwnedSkillAuthoringCommand.FixedPhrases.Should().Contain("owned skill generate")
+            .And.Contain("owned skill workflow invoke");
+        OwnedSkillAuthoringCommand.Parse("owned skill generate", "Nova")!.Operation.Should().Be("generate");
+        OwnedSkillAuthoringCommand.Parse("owned skill workflow invoke", "Nova")!.Operation.Should().Be("workflow");
+        var literal = OwnedSkillAuthoringCommand.Parse("create a skill that owned skill workflow invoke", "Nova")!;
+        literal.Operation.Should().Be("generate-request");
+        literal.Literal.Should().Be("owned skill workflow invoke");
+    }
+
     [Theory]
     [InlineData("editor", "editor")]
     [InlineData("CREATE example 1.0.0", "create")]

@@ -9,8 +9,12 @@ namespace Kora.Application.UnitTests.Configuration;
 
 internal class AudioControlTestStore : ISessionWorkspaceStore, IAudioControlSessionStore, IMaintenanceControlSessionStore,
     IDiagnosticRetentionSessionStore, IAuditRetentionSessionStore, ISharedSkillSessionStore, IInstructionControlSessionStore,
-    IManualCallControlStore, IHostTaskStore
+    IManualCallControlStore, IHostTaskStore, ILogonStartupSessionStore
 {
+    public ValueTask<WorkSessionAuthorization> CreateLogonStartupSession(HostRequest request, Func<bool> admitted, CancellationToken token) =>
+        CreateAudioControlSessionAsync(request, admitted, token);
+    public ValueTask<T> WithLogonStartupSession<T>(HostRequest request, HostRevision generation, Func<T> operation, CancellationToken token) =>
+        WithAudioControlSessionAsync(request, generation, operation, token);
     public ValueTask<WorkSessionAuthorization> CreateInstructionSession(HostRequest request,
         Func<bool> admitted, CancellationToken token) => CreateAudioControlSessionAsync(request, admitted, token);
     public ValueTask<T> WithInstructionSession<T>(HostRequest request, HostRevision generation, Func<T> operation,

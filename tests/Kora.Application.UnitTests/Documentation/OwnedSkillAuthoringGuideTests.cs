@@ -50,5 +50,12 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("15-second total budget")
             .And.Contain("history is neither read nor written")
             .And.Contain("no automatic pagination");
+        guide.Markdown.Should().Contain("create a skill that explains a deployment failure")
+            .And.Contain("owned skill expected-input:")
+            .And.Contain("owned skill expected-output:")
+            .And.Contain("owned skill generate")
+            .And.Contain("complete generated manifest and guidance")
+            .And.Contain("no-overwrite")
+            .And.Contain("unqualified");
     }
 }

@@ -143,17 +143,21 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
             { throw new OperationCanceledException("Dictation capture generation changed."); }
             await capture.StopAsync();
             if (!capture.IsCaptureQuiescent) { throw new InvalidOperationException("Native capture release is unconfirmed."); }
+            lock (gate) { current.ReleasedGeneration = capture.CaptureGeneration; }
             await dispatcher.InvokeAsync(() =>
             {
                 if (!Eligible(current)) { throw new OperationCanceledException("Dictation target retired before publication."); }
                 if (current.Literal is null) { Retire("No literal text was heard. Original memory preserved; microphone closed."); }
-                else if (current.Original.Length == 0) { Apply(current, current.Literal); }
+                else if (current.Original.Length == 0 && current.Target.Destination != ComposerDictationDestination.OwnedInstructionBody)
+                { Apply(current, current.Literal); }
                 else
                 {
                     lock (gate)
                     {
                         current.Review = true;
-                        status = "Microphone released. Review complete original and literal text, then explicitly Append, Replace or Cancel. Nothing has been inserted.";
+                        status = current.Target.Destination == ComposerDictationDestination.OwnedInstructionBody
+                            ? "Microphone released. Review the frozen body/range and literal insertion, then explicitly Accept or Cancel. Nothing has been inserted or saved."
+                            : "Microphone released. Review complete original and literal text, then explicitly Append, Replace or Cancel. Nothing has been inserted.";
                     }
                     Publish();
                 }
@@ -194,6 +198,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
 
     private bool HostEligible(Turn current) =>
         !closed && !current.Cancellation.IsCancellationRequested && capture.IsLiteralDictationAvailable
+        && (current.ReleasedGeneration is not { } released || capture.CaptureGeneration == released)
         && current.NativeArm() && observe() == current.Admission;
 
     private bool Eligible(Turn current)
@@ -296,8 +301,9 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
     {
         lock (gate)
         {
-            if (turn is not { Generation: >= 0 } current || current.Releasing || current.Review
-                || capture.CaptureGeneration == current.Generation) { return; }
+            if (turn is not { Generation: >= 0 } current
+                || current.Releasing && current.ReleasedGeneration is null
+                || capture.CaptureGeneration == (current.ReleasedGeneration ?? current.Generation)) { return; }
         }
         Retire("Dictation capture generation retired. Preview cleared; late results discarded.");
     }
@@ -365,6 +371,7 @@ public sealed partial class ComposerDictationService : IAsyncDisposable
         public TaskCompletionSource Opened { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public TaskCompletionSource Ended { get; set; } = Finished();
         public long Generation { get; set; } = -1;
+        public long? ReleasedGeneration { get; set; }
         public string? Literal { get; set; }
         public bool Releasing { get; set; }
         public bool Review { get; set; }

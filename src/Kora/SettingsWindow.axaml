@@ -526,7 +526,7 @@
               <StackPanel Spacing="8">
                 <TextBlock Text="Speech input profile" Classes="settings-title" />
                 <TextBlock Text="{Binding SpeechInputStatus}" Classes="settings-description" TextWrapping="Wrap" />
-                <TextBlock Text="Only the existing Windows activated recognizer can be selected. Additional exact local wake/ASR/resource profiles are unavailable; optional hands-free preparation is not capture qualification. Review the saved, desired and effective selection before confirming. Selection never opens the microphone, downloads assets, enables listening or changes consent. Start push-to-talk explicitly after switching."
+                <TextBlock Text="Only the existing Windows activated recognizer can be selected. Additional local speech profiles are not yet available; preparing hands-free files does not enable speech capture. Review the saved, desired and effective selection before confirming. Selection never opens the microphone, downloads assets, enables listening or changes consent. Start push-to-talk explicitly after switching."
                            Classes="settings-description" TextWrapping="Wrap" />
                 <ComboBox ItemsSource="{Binding SpeechInputProfiles}" SelectedItem="{Binding SelectedSpeechInputProfile}"
                           DisplayMemberBinding="{Binding Name}" IsEnabled="{Binding CanChangeSpeechInputNative}"

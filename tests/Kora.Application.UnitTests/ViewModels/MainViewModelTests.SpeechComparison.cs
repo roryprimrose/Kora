@@ -2,11 +2,16 @@ using AwesomeAssertions;
 
 using Kora.Application.Presentation;
 using Kora.Application.Configuration;
+using Kora.Application.Configuration.RegisteredSettings;
+using Kora.Application.Hosting;
 using Kora.Application.UnitTests.Voice;
 using Kora.Application.Voice;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Platform;
+using Kora.Core.Auditing;
+using Kora.Core.Configuration;
+using Kora.Core.Voice;
 
 namespace Kora.Application.UnitTests.ViewModels;
 
@@ -117,6 +122,154 @@ public sealed partial class MainViewModelTests
         else { await f.ViewModel.CancelSpeechComparisonCommand.ExecuteAsync(); }
         f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
         await f.ViewModel.DisposeAsync();
+    }
+
+    [Theory]
+    [InlineData("appearance", false, false)]
+    [InlineData("appearance", false, true)]
+    [InlineData("appearance", true, false)]
+    [InlineData("appearance", true, true)]
+    [InlineData("speech", false, false)]
+    [InlineData("speech", false, true)]
+    [InlineData("speech", true, false)]
+    [InlineData("speech", true, true)]
+    [InlineData("volume", false, false)]
+    [InlineData("volume", false, true)]
+    [InlineData("volume", true, false)]
+    [InlineData("volume", true, true)]
+    [InlineData("response", false, false)]
+    [InlineData("response", false, true)]
+    [InlineData("response", true, false)]
+    [InlineData("response", true, true)]
+    public async Task SpeechComparisonSettingsMutationAndUndoRetireResultsWithoutListeningOrReplay(string setting, bool undo, bool running)
+    {
+        var runtime = new SpeechSetupComparisonTests.Runtime();
+        await using var comparison = new SpeechSetupComparison(runtime, runtime);
+        var f = new Fixture(speechSetupComparison: comparison, enablePlaybackVolume: true, enableResponseModeConfiguration: true);
+        await using var admission = f.OutputAdmission;
+        await using var model = f.ViewModel;
+        f.VoiceConsent.Consent = true;
+        f.Voice.Microphones = [new("mic", "Headset")];
+        f.Voice.DefaultMicrophoneId = "mic";
+        await model.InitializeAsync();
+        if (model.IsVoiceEnabled) { await model.ToggleListeningCommand.ExecuteAsync(); }
+        await model.RefreshResponseModeCommand.ExecuteAsync();
+        model.BindSpeechInputNativeLifetime(static () => true);
+        Task NativeUndo(RegisteredSettingSuggestionOperation operation) => HostRequestRunner.RunAsync(RequestOrigin.LocalUi,
+            () => model.ExecuteSettingsUndoAsync(operation, SecurityAuditInitiator.LocalUser,
+                TestContext.Current.CancellationToken, static () => true));
+        async Task Mutate()
+        {
+            switch (setting)
+            {
+                case "appearance":
+                    model.ThemeMode = ApplicationThemeMode.Dark;
+                    await model.AppearanceUpdate;
+                    break;
+                case "speech": model.SelectedSummaryWords = 40; break;
+                case "volume":
+                    model.SelectedPlaybackVolume = 30;
+                    await model.SavePlaybackVolumeCommand.ExecuteAsync();
+                    break;
+                default:
+                    model.SelectedResponseModeChoice = model.ResponseModeChoices.Single(choice => choice.Mode == ResponseOutputMode.VisualOnly);
+                    await model.SaveResponseModeCommand.ExecuteAsync();
+                    break;
+            }
+        }
+        if (undo)
+        {
+            await Mutate();
+            await NativeUndo(RegisteredSettingSuggestionOperation.Review);
+        }
+        await model.ReviewSpeechComparisonCommand.ExecuteAsync();
+        await model.TestSpeechComparisonCommand.ExecuteAsync();
+        model.SpeechComparisonResults.Should().NotBeEmpty();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken captureToken = default;
+        var work = Task.CompletedTask;
+        if (running)
+        {
+            runtime.Capture = (_, _, token) => { captureToken = token; entered.TrySetResult(); return release.Task; };
+            await model.ReviewSpeechComparisonCommand.ExecuteAsync();
+            work = model.TestSpeechComparisonCommand.ExecuteAsync();
+            await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        }
+        var starts = f.Voice.StartCalls;
+        f.TextToSpeech.ClearSpokenResponse();
+        var cancelled = false;
+        var joinedEarly = false;
+        try
+        {
+            if (undo) { await NativeUndo(RegisteredSettingSuggestionOperation.Confirm); }
+            else { await Mutate(); }
+            cancelled = captureToken.IsCancellationRequested;
+            joinedEarly = work.IsCompleted;
+        }
+        finally
+        {
+            release.TrySetResult(new("Late inert result", TimeSpan.FromMilliseconds(10)));
+            await work;
+        }
+        if (running)
+        {
+            cancelled.Should().BeTrue();
+            joinedEarly.Should().BeFalse();
+        }
+        model.SpeechComparisonResults.Should().BeEmpty();
+        model.CanTestSpeechComparison.Should().BeFalse();
+        if (string.Equals(setting, "appearance", StringComparison.Ordinal))
+        { f.AppearancePreferences.Mode.Should().Be(undo ? null : ApplicationThemeMode.Dark); }
+        else if (string.Equals(setting, "speech", StringComparison.Ordinal))
+        { f.Preferences.SummaryLimits.Should().Be(undo ? null : new SpokenSummaryLimits(3, 40)); }
+        else if (string.Equals(setting, "volume", StringComparison.Ordinal))
+        { f.VolumePreferences.Value.Should().Be(undo ? null : new PlaybackVolume(30)); }
+        else { f.OutputPreferences.Mode.Should().Be(undo ? null : ResponseOutputMode.VisualOnly); }
+        f.Voice.StartCalls.Should().Be(starts);
+        model.IsVoiceEnabled.Should().BeFalse();
+        model.HasVoiceConsent.Should().BeTrue();
+        f.TextToSpeech.SpokenText.Should().BeNull();
+        f.Reasoner.Requests.Should().BeEmpty();
+        runtime.ProfileGeneration.Should().Be(new SpeechInputGeneration(0, SpeechInputSelection.Default));
+    }
+
+    [Fact]
+    public async Task SpeechComparisonHostDisposalClearsTextAndJoinsCaptureWhileDisposingUndo()
+    {
+        var runtime = new SpeechSetupComparisonTests.Runtime();
+        await using var comparison = new SpeechSetupComparison(runtime, runtime);
+        var f = new Fixture(speechSetupComparison: comparison);
+        await using var admission = f.OutputAdmission;
+        f.VoiceConsent.Consent = true;
+        f.Voice.Microphones = [new("mic", "Headset")];
+        f.Voice.DefaultMicrophoneId = "mic";
+        await f.ViewModel.InitializeAsync();
+        f.ViewModel.BindSpeechInputNativeLifetime(static () => true);
+        f.ViewModel.ThemeMode = ApplicationThemeMode.Dark;
+        await f.ViewModel.AppearanceUpdate;
+        f.ViewModel.CanReviewSettingsUndo.Should().BeTrue();
+        await f.ViewModel.ReviewSpeechComparisonCommand.ExecuteAsync();
+        var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource<SpeechComparisonObservation>(TaskCreationOptions.RunContinuationsAsynchronously);
+        CancellationToken captureToken = default;
+        runtime.Capture = (_, _, token) => { captureToken = token; entered.TrySetResult(); return release.Task; };
+        var work = f.ViewModel.TestSpeechComparisonCommand.ExecuteAsync();
+        await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+        var disposal = f.ViewModel.DisposeAsync().AsTask();
+        captureToken.IsCancellationRequested.Should().BeTrue();
+        disposal.IsCompleted.Should().BeFalse();
+        f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
+        f.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
+        f.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
+        runtime.Disposals.Should().Be(0);
+        release.SetResult(new("Late inert result", TimeSpan.FromMilliseconds(10)));
+        await Task.WhenAll(work, disposal);
+        runtime.Captures.Should().Be(1);
+        runtime.Disposals.Should().Be(1);
+        f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
+        f.Voice.StartCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Theory]

@@ -36,6 +36,11 @@ public sealed partial class MainViewModel
         {
             comparison.Changed += OnSpeechComparisonChanged;
             PropertyChanged += RevalidateSpeechComparison;
+            appearanceConfiguration.Changed += OnSpeechComparisonSettingsChanged;
+            speechConfiguration.Changed += OnSpeechComparisonSettingsChanged;
+            audioPlaybackSettings.Changed += OnSpeechComparisonAudioSettingsChanged;
+            if (responseModeConfiguration is not null)
+            { responseModeConfiguration.Changed += OnSpeechComparisonSettingsChanged; }
         }
         ReviewSpeechComparisonCommand = createCommand(() => ExecuteSpeechComparison(
             new("compare speech input"), SecurityAuditInitiator.LocalUser));
@@ -56,6 +61,10 @@ public sealed partial class MainViewModel
     });
 
     private void RevalidateSpeechComparison(object? sender, PropertyChangedEventArgs args) => speechComparison!.Revalidate();
+
+    private void OnSpeechComparisonSettingsChanged(object? sender, EventArgs args) => speechComparison!.Clear();
+
+    private void OnSpeechComparisonAudioSettingsChanged(object? sender, AudioPlaybackSetting setting) => speechComparison!.Clear();
 
     private async Task ExecuteSpeechComparison(SpeechComparisonCommand command, SecurityAuditInitiator initiator)
     {

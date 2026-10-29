@@ -110,6 +110,7 @@ public sealed partial class MainViewModel
         {
             InvalidateUnavailableOutput();
         }
+        settingsUndo.Clear();
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
             uiDispatcher.Post(() =>
@@ -282,8 +283,15 @@ public sealed partial class MainViewModel
         {
             speechComparison.Changed -= OnSpeechComparisonChanged;
             PropertyChanged -= RevalidateSpeechComparison;
+            appearanceConfiguration.Changed -= OnSpeechComparisonSettingsChanged;
+            speechConfiguration.Changed -= OnSpeechComparisonSettingsChanged;
+            audioPlaybackSettings.Changed -= OnSpeechComparisonAudioSettingsChanged;
+            if (responseModeConfiguration is not null)
+            { responseModeConfiguration.Changed -= OnSpeechComparisonSettingsChanged; }
             speechComparison.Clear();
         }
+        settingsUndo.Changed -= OnSettingsUndoChanged;
+        settingsUndo.Dispose();
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
@@ -439,6 +447,7 @@ public sealed partial class MainViewModel
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
+        settingsUndo.Clear();
         privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
     }
 

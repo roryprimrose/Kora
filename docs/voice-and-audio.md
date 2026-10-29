@@ -92,6 +92,8 @@ The result shows expected and final text, case-insensitive exact correctness or 
 
 Equivalent exact typed or already activated commands are `compare speech input`, `test speech comparison` and `cancel speech comparison`, with the current assistant-name prefix for activated voice. The first opens the same native review; the second explicitly confirms microphone use. During a comparison all other voice capture is excluded, so use native or typed cancellation, not a calibration phrase ([entry parser](../src/Kora.Application/Configuration/SpeechComparisonCommand.cs)).
 
+Shared appearance, speech, playback and response settings changes, including confirmed settings undo, discard the comparison and cancel active captures without reopening listening or replaying results. Capture ownership remains held until cleanup joins ([settings invalidation](../src/Kora.Application/ViewModels/MainViewModel.SpeechComparison.cs)).
+
 **Currently unavailable:** no production profile is qualified for this inert comparison operation. The review truthfully shows zero offers and does not open the microphone, download/install anything, select a fallback or change readiness. Installed Windows recognition and profile switching alone do not enable comparison. Fake-driven tests demonstrate implementation only ([capability gate](../src/Kora.Windows/Audio/IActivatedCaptureFactory.cs), [qualification contract](../Design/Speech_Input.md#comparison-and-qualification)).
 
 ## Microphone selection

@@ -28,4 +28,5 @@ public sealed class SpeechProposal
     public long CallRevision { get; }
     public RequestOrigin Origin { get; }
     public SecurityAuditInitiator Initiator { get; }
+    internal bool RestoreSummaryDefault { get; init; }
 }

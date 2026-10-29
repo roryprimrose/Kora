@@ -83,6 +83,22 @@ The next launch through the supported installed Start Menu shortcut uses the cho
 
 Locked/unknown privacy or ownership, an active/unknown call, pending decisions or changed intent hold presentation without deferred replay. This setting does not enable listening, AI services, network access or permissions. Saved intent is not startup readiness, and no installed logon or hardware qualification is claimed ([scope](../Design/User_Configuration.md#delivered-normal-manual-startup-presentation)).
 
+## Future ordinary task deadline
+
+In **Settings > Sessions**, use **Refresh** in the **Future ordinary task deadline** cog menu, choose **1-60 whole minutes**, then **Save**. **Reset to 5 minutes** restores the default.
+The status shows the confirmed saved/default value; editing the field alone changes nothing ([shared controls](../src/Kora.Application/ViewModels/MainViewModel.OrdinaryTurnDeadline.cs)).
+
+Typed or activated voice can use `get work.active-deadline-minutes`, `status work.active-deadline-minutes`, `set work.active-deadline-minutes to 10`, or `reset work.active-deadline-minutes`.
+These routes use the same host admission, preference readback and required audit ([configuration owner](../src/Kora.Application/Configuration/OrdinaryTurnDeadlineConfigurationService.cs)).
+
+This preference applies only when an ordinary conversation turn dispatches, including its admitted read-only tools.
+Pending work has no active budget; running turns do not change when you save a new default.
+Clarification/approval turns and specialized source workflows keep their existing fixed limits ([scope](../Design/User_Configuration.md#delivered-future-ordinary-conversation-deadline)).
+
+**Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
+A longer preference cannot renew that authorization or enable an unavailable provider.
+Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
+
 ## Conversational voice replies
 
 In **Settings > Speech & audio**, choose **Enable conversational replies** to opt in, or **Turn off** to return to the default. This saves a shared device-local On/Off preference; it does not grant listening permission or make an unavailable microphone or recognizer ready ([settings workflow](../src/Kora.Application/ViewModels/MainViewModel.ConversationalReplies.cs)).

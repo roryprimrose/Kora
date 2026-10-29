@@ -85,6 +85,7 @@ public sealed class ModelTurn
     internal ModelProviderPolicy? Policy { get; set; }
     internal ModelTurnResult? TerminalResult { get; set; }
     internal Kora.Core.Conversation.SubmittedAnswerContext? SubmittedContext { get; set; }
+    internal OrdinaryTurnActiveBudget? OrdinaryActiveBudget { get; set; }
     internal LocalUnavailableObservation? LocalUnavailable { get; set; }
     internal RuntimeResourceAllocator.Lease? ResourceLease { get; set; }
     internal bool ResourceDispatched { get; set; }

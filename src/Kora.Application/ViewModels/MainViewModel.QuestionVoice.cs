@@ -50,6 +50,12 @@ public sealed partial class MainViewModel
             ? admission with { ActivationName = AssistantName }
             : null;
 
+    public Func<bool>? CaptureInstructionSaveVoiceEligibility()
+    {
+        var admission = ObserveQuestionVoiceAdmission();
+        return admission is null ? null : () => ObserveQuestionVoiceAdmission() == admission;
+    }
+
     private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission() =>
         !IsBusy ? ObserveAdmittedVoiceCaptureReadiness() : null;
 

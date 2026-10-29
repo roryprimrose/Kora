@@ -76,6 +76,25 @@
 
             <TextBlock Text="{Binding AppearanceSettingStatus}" Classes="muted" TextWrapping="Wrap" />
             <inspection:SettingInspectionControl x:Name="SettingInspection" />
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Start Kora at Windows user logon" Classes="settings-title" />
+                <TextBlock Text="Off unless explicitly approved. Current-user installed MSI only; machine-wide or unknown entries are not changed. Startup opens the ordinary tray/minimal shell with all fresh consent, privacy and audio gates."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding LogonStartupStatus}" TextWrapping="Wrap" />
+                <WrapPanel IsEnabled="{Binding CanControlLogonStartupNative}">
+                  <Button Name="InspectLogonStartup" Content="Inspect" Command="{Binding InspectLogonStartupCommand}" Margin="0,0,8,8" />
+                  <Button Name="EnableLogonStartup" Content="Review enable" Command="{Binding EnableLogonStartupCommand}" Margin="0,0,8,8" />
+                  <Button Name="DisableLogonStartup" Content="Review disable" Command="{Binding DisableLogonStartupCommand}" Margin="0,0,8,8" />
+                  <Button Name="ResetLogonStartup" Content="Review reset to Off" Command="{Binding ResetLogonStartupCommand}" Margin="0,0,8,8" />
+                </WrapPanel>
+                <TextBlock Text="{Binding LogonStartupReviewText}" TextWrapping="Wrap" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Name="ConfirmLogonStartup" Content="Confirm startup change" Command="{Binding ConfirmLogonStartupCommand}" IsEnabled="{Binding CanControlLogonStartupNative}" />
+                  <Button Name="CancelLogonStartup" Content="Cancel startup review" Command="{Binding CancelLogonStartupCommand}" />
+                </StackPanel>
+              </StackPanel>
+            </Border>
 
             <StackPanel Spacing="5" Margin="0,8,0,0">
               <TextBlock Text="Appearance" FontSize="18" FontWeight="SemiBold" />

@@ -97,7 +97,15 @@ public sealed class SessionRequestCommandService(
                     || command.RequestForegroundTarget && target != foregroundTarget!.Entry)
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
-                    command.RequestProvider) { ClaudeTools = command.RequestClaudeTools };
+                    command.RequestProvider) { ClaudeTools = command.RequestClaudeTools, LocalRequestProfile = command.RequestLocalProfile };
+                LocalRequestProfileReview? localProfile = null;
+                if (command.RequestLocalProfile is { } profile)
+                {
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
+                        || command.RequestForegroundTarget || !command.RequestClaudeTools.IsEmpty)
+                    { throw new InvalidOperationException("Request-only local selection cannot combine with another provider or retry route."); }
+                    localProfile = await conversation.ReviewLocalRequestProfileAsync(target, body, origin, profile, Live, token).ConfigureAwait(false);
+                }
                 ModelTurnHost.RetryProviderReview? retryProvider = null;
                 if (command.RequestFailedMessage is { } failed)
                 {
@@ -114,10 +122,12 @@ public sealed class SessionRequestCommandService(
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider);
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
-                return new("review", "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
+                return new("review", localProfile is not null
+                    ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
+                    : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
             }
             if (previous is null || previous.Review.Id != command.RequestReviewId
@@ -145,6 +155,7 @@ public sealed class SessionRequestCommandService(
                 var actual = await workspace.ReadExactMetadataAsync(session, cancellation).ConfigureAwait(false);
                 if (actual != previous.Review.Target || !OriginalLive())
                 { throw new InvalidOperationException("The reviewed session generation, metadata or original admission changed."); }
+                if (previous.LocalProfile is { } local) { await local.ValidateAsync(cancellation).ConfigureAwait(false); }
                 if (previous.Review.FailedSource is { } failed)
                 {
                     if (await workspace.ReadFailedRetrySourceAsync(actual, failed.Message, OriginalLive, cancellation).ConfigureAwait(false) != failed)
@@ -159,7 +170,10 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.RetryProvider is { } provider
+                receipt = previous.LocalProfile is { } local
+                    ? await conversation.SubmitLocalRequestProfileAsync(local, OriginalLive, Revalidate,
+                        [previous.Cause], token).ConfigureAwait(false)
+                    : previous.RetryProvider is { } provider
                     ? await conversation.SubmitFailedRetryAsync(previous.Review, provider, OriginalLive, Revalidate,
                         [previous.Cause], () => { lock (gate) { accepted = true; } }, token).ConfigureAwait(false)
                     : previous.Foreground
@@ -233,5 +247,5 @@ public sealed class SessionRequestCommandService(
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
-        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider);
+        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile);
 }

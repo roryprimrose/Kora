@@ -249,7 +249,7 @@ The [provider-neutral host consumer](../src/Kora.Application/Dependencies/ModelT
 Admitted turns capture immutable profiles and the original live issuing request, not a completed child activity. App edits do not reroute/cancel/retry them; account/catalogue/installation loss before dispatch fails closed without substitution.
 
 This does not reroute the existing buffered local bootstrap reasoner. No real provider-neutral adapter is composed; qualification and final-request egress gates stay closed, including with resolved fake hosted tuples.
-Durable exact-session inheritance/overrides are delivered below. Generic unscoped model directives and explicit one-turn changes remain deferred, never app-scope aliases.
+Durable exact-session inheritance/overrides and explicit local request-only tuples are delivered below. Generic unscoped model directives and hosted one-turn changes remain deferred, never app-scope aliases.
 
 - [Domain/persistence tests](../tests/Kora.Core.UnitTests/Providers/ProviderProfilePreferencesTests.cs) and [audit/failure/tuple matrix](../tests/Kora.Application.UnitTests/Configuration/ProviderProfileConfigurationServiceTests.cs) exercise exact state.
 - [Actual UI routing](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.ProviderProfiles.cs) and [subsequent-turn consumer tests](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ProviderProfiles.cs) exercise admission and immutable capture.
@@ -290,7 +290,17 @@ Production catalogues still advertise **no models**; model-dependent native save
 
 [Single-field workflow tests](../tests/Kora.Application.UnitTests/Configuration/SessionProviderFieldConfigurationTests.cs) and actual native/private composition and typed/current-name activated routes retain the same schema, writer, audit/readback, preview bound and subsequent-turn consumer. Retained experiments are unchanged; these deterministic assertions do not establish RT1/RT2/PV1, offline CPU/inference, containment, hardware, installation or accessibility qualification.
 
-The following broader natural-language/one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
+The following broader natural-language/hosted one-turn examples remain proposed, not interpreted commands. In particular, “Use Claude and summarize” does not execute a combined directive or silently change the app profile.
+
+#### Delivered local request-only profile
+
+**Sessions > Selected-session provider overrides > This request only - LOCAL** refreshes the existing bounded local catalogue, then requires explicit model/reasoning/context choices for the unchanged composer input. **Review this request only** discloses the exact Active destination, complete tuple, original channel, input and expiry; separate confirmation executes the request through the ordinary local conversation/instruction-scope owner. Cancel submits and writes nothing.
+
+Exact typed/current-name activated `session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>` uses the same original-user request review and separate `session request confirm`/`cancel`. The body is not rewritten or relabelled; native confirmation of voice input preserves its original admission.
+
+The host issues a reference-owned single-use ephemeral capability bound to the exact input, destination generation, session policy, local tuple, source/control and app observation. Confirmation freshly observes metadata, policy, account/catalogue/installation and preferences before retention. Normal host qualification, resource admission, pre-dispatch source validation, joined cancellation, genuine answer retention and truthful terminal receipts remain authoritative. No preference store or session policy is written; subsequent requests use ordinary inheritance.
+
+Unavailable production catalogues advertise no choices and no qualified adapter is enabled. This does not acquire models, qualify/enable a runtime, switch implicitly, add hosted fallback, broaden context/history, or introduce a global override system. Existing instruction-scope review is preserved.
 
 #### Exact sparse session-provider copy implementation - 2026-10-19
 

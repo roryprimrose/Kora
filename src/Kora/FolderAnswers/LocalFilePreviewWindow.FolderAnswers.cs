@@ -89,7 +89,8 @@ internal sealed partial class LocalFilePreviewWindow
                         + LocalContextSessionTarget.FreshSessionDisclosure + "\n"
                         + $"Reviewed session: {reviewed.Target.Request.SessionId.Value:D}; task: {reviewed.Target.Request.TaskId.Value:D}.\n"
                         + "Confirm separately to send only this question and these excerpts to the admitted local model. "
-                        + "Source-use/sensitivity policy and runtime must independently allow use. No hosted fallback, tools, speech, persistence or fresh reads.";
+                        + LocalSourceRiskPolicy.Disclosure
+                        + " Source-use policy and runtime must independently allow use. No hosted fallback, tools, speech, persistence or fresh reads.";
                 rows.ItemsSource = reviewed?.Search.Citations;
                 confirm.IsEnabled = reviewed is not null;
             }
@@ -129,7 +130,9 @@ internal sealed partial class LocalFilePreviewWindow
                             + string.Join("\n\n", result.Claims.Select((claim, index) => $"{index + 1}. {claim.Text}\n"
                                 + string.Join("\n", claim.Citations.Select(DescribeCitation)))),
                         LocalFileAnswerOutcome.Unsupported => "The local model reports no supported answer in the reviewed evidence.",
-                        LocalFileAnswerOutcome.SourceUseUnavailable => "Required source-use/sensitive-content policy is unavailable. Preview consent is not model-use consent.",
+                        LocalFileAnswerOutcome.SourceUseUnavailable => "Required source-use risk admission is unavailable. Preview consent is not model-use consent.",
+                        LocalFileAnswerOutcome.Denied when result.SourceUseDecision == LocalFileModelUseDecision.Denied =>
+                            "Denied: credential-like risk or invalid exact source evidence. No override or model request is admitted.",
                         LocalFileAnswerOutcome.ContextLimit => "The complete serialized context exceeds the host limit. Nothing was silently dropped.",
                         _ => "No answer claimed. Review again only after checking source admission, question and local runtime.",
                     })

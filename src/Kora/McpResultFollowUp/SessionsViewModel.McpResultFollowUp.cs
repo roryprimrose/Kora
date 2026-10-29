@@ -25,7 +25,7 @@ internal sealed partial class SessionsViewModel
     private bool retiringMcpFollowUp;
     private string mcpFollowUpQuestion = string.Empty;
     private string mcpFollowUpOutcome = string.Empty;
-    internal IMcpResultSourceUse McpResultSourceUse { get; set; } = UnavailableMcpResultSourceUse.Instance;
+    internal IMcpResultSourceUse McpResultSourceUse { get; set; } = Kora.Application.Context.LocalSourceUsePolicy.Instance;
     internal Task McpFollowUpRetirement { get; private set; } = Task.CompletedTask;
 
     private bool McpObservationCurrent => mcpObservation is { } source && !closed && access.CanInspect && access.CanControl

@@ -2,7 +2,7 @@ using Kora.Core.Context;
 
 namespace Kora.Application.Dependencies;
 
-/// <summary>No maintained sensitive-content/source-use admission service is currently composed.</summary>
+/// <summary>Fail-closed fallback for a host without a maintained source-use policy.</summary>
 public sealed class UnavailableLocalFileModelUsePolicy : ILocalFileModelUsePolicy
 {
     public Task<LocalFileModelUseDecision> AdmitAsync(LocalFileRevision source, string question,

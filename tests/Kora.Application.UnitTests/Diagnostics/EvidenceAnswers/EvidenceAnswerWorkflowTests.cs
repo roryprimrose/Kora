@@ -28,6 +28,23 @@ public sealed class EvidenceAnswerWorkflowTests : IDisposable
     private static CancellationToken Token => TestContext.Current.CancellationToken;
 
     [Theory]
+    [InlineData("ordinary private body", "What private record?", EvidenceAnswerOutcome.Succeeded)]
+    [InlineData("api_key=example", "What private record?", EvidenceAnswerOutcome.Denied)]
+    [InlineData("ordinary private body", "{private", EvidenceAnswerOutcome.Unavailable)]
+    public async Task MaintainedRiskPolicyAdmitsOnlyCompleteLocalUseAndDetectedRiskCreatesNothing(
+        string body, string question, EvidenceAnswerOutcome expected)
+    {
+        var fixture = new Fixture(Kora.Application.Context.LocalSourceUsePolicy.Instance, body, question);
+        using var root = fixture.Root();
+        var result = await fixture.Run();
+        result.Outcome.Should().Be(expected);
+        fixture.Calls.Should().Be(expected == EvidenceAnswerOutcome.Succeeded ? 1 : 0);
+        fixture.Joins.Should().Be(fixture.Calls);
+        if (expected != EvidenceAnswerOutcome.Succeeded) { result.Receipt.Should().BeNull(); }
+        fixture.Logger.Messages.Should().NotContain(text => text.Contains(body, StringComparison.Ordinal));
+    }
+
+    [Theory]
     [InlineData(ModelTurnOutcome.Succeeded, false, EvidenceAnswerOutcome.Succeeded)]
     [InlineData(ModelTurnOutcome.Succeeded, true, EvidenceAnswerOutcome.Unsupported)]
     [InlineData(ModelTurnOutcome.Unavailable, false, EvidenceAnswerOutcome.Unavailable)]
@@ -220,16 +237,17 @@ public sealed class EvidenceAnswerWorkflowTests : IDisposable
     private sealed class Fixture : IEvidenceAnswerSourceUsePolicy, IEvidenceAnswerConversation,
         ISessionWorkspaceAccess, ISecurityAuditLog
     {
-        internal Fixture()
+        internal Fixture(IEvidenceAnswerSourceUsePolicy? policy = null, string body = "private diagnostic body",
+            string question = "What private record?")
         {
             var record = new EvidenceRecord(new(EvidenceSource.Log, new(Guid.NewGuid())),
                 Time.Now, Time.Now.AddHours(1), EvidenceSegmentStatus.Present, null, null, null, null,
-                "Information", "Example", 1, "private diagnostic body", new Dictionary<string, EvidenceValue>(StringComparer.Ordinal),
+                "Information", "Example", 1, body, new Dictionary<string, EvidenceValue>(StringComparer.Ordinal),
                 null, null, []);
             Review = new(Encoding.UTF8.GetString(DurableEvidenceQuery.Serialize(
                 new(EvidencePageStatus.Available, [record], null, [], EvidencePage.StorageDisclosure))),
-                "What private record?", HostRequest.Create(RequestOrigin.LocalUi), Time.Now);
-            Workflow = new(this, this, this, this, Time, Logger);
+                question, HostRequest.Create(RequestOrigin.LocalUi), Time.Now);
+            Workflow = new(policy ?? this, this, this, this, Time, Logger);
         }
         internal Clock Time { get; } = new();
         internal RecordingLogger Logger { get; } = new();

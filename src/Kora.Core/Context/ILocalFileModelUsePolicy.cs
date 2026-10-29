@@ -1,6 +1,6 @@
 namespace Kora.Core.Context;
 
-/// <summary>Source-use admission, including sensitive-content policy, distinct from local preview consent.</summary>
+/// <summary>Private LocalOnly source-risk admission, distinct from preview consent and non-sensitivity claims.</summary>
 public interface ILocalFileModelUsePolicy
 {
     /// <summary>Checks the exact selected immutable source, question and excerpts before context construction.</summary>

@@ -3,7 +3,7 @@ using Kora.Core.Presentation;
 
 namespace Kora.Application.Network;
 
-/// <summary>No production web-source sensitivity/source-use service is currently composed.</summary>
+/// <summary>Fail-closed fallback for a host without a maintained web source-use policy.</summary>
 public sealed class UnavailableWebResultModelUsePolicy : IWebResultModelUsePolicy
 {
     public Task<WebResultModelUseDecision> AdmitAsync(WebResultSnapshot snapshot, CancellationToken token)

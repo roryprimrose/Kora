@@ -125,9 +125,7 @@ if ($package.SelectSingleNode("//w:Shortcut[@Id='KoraShortcut']", $namespaces).I
 if ($package.SelectSingleNode("//w:Directory[@Id='INSTALLFOLDER']", $namespaces).Name -cne $ProductVersion) {
     throw 'MSI version directory differs from the selected product version.'
 }
-if ($package.SelectNodes('//w:CustomAction', $namespaces).Count -ne 0) {
-    throw 'MSI must not launch Kora with the installer token or contain custom actions.'
-}
+& (Join-Path $PSScriptRoot 'Assert-InstallerMetadata.ps1') -MsiPath $msi
 $startupComponent = $package.SelectSingleNode("//w:Component[@Id='KoraStartupComponent']", $namespaces)
 $startupRegistry = $startupComponent.SelectSingleNode('w:RegistryValue', $namespaces)
 if ($startupComponent.Condition -cne 'KORA_START_AT_LOGIN = 1' -or $startupComponent.Transitive -cne 'yes' -or
@@ -222,7 +220,8 @@ foreach ($perUser in @('1', '')) {
             $costSession['ALLUSERS'] = '2'
             $costSession['MSIINSTALLPERUSER'] = $perUser
             $costSession['KORA_START_AT_LOGIN'] = $choice
-            foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize')) {
+            # The raw table guard above admits only this immediate type-51 metadata setter.
+            foreach ($action in @('AppSearch', 'CostInitialize', 'FileCost', 'CostFinalize', 'SetARPINSTALLLOCATION')) {
                 $costSession.DoAction($action)
             }
             $state = $costSession.Components['KoraStartupComponent'].RequestState
@@ -232,6 +231,11 @@ foreach ($perUser in @('1', '')) {
             }
             $command = $costSession.Format($startupRegistry.Value)
             $executable = $costSession.Format('[#KoraExecutable]')
+            $installLocation = $costSession['ARPINSTALLLOCATION']
+            if ([string]::IsNullOrWhiteSpace($installLocation) -or
+                [IO.Path]::Combine($installLocation, 'Kora.exe') -cne $executable) {
+                throw 'Costing and the metadata setter must publish the exact installed directory as ARPINSTALLLOCATION.'
+            }
             if ($command -cne "`"$executable`"" -or
                 -not $command.EndsWith("\Kora\$ProductVersion\Kora.exe`"", [StringComparison]::Ordinal)) {
                 throw 'Startup command did not resolve to the exact quoted installed application in the selected scope.'

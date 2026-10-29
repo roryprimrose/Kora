@@ -225,7 +225,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.Activate();
                 window.UpdateLayout();
                 var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
-                actions.Should().HaveCount(14);
+                actions.Should().HaveCount(15);
                 foreach (var action in actions)
                 {
                     action.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();

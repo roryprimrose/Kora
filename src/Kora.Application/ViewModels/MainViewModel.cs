@@ -284,7 +284,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechInputConfigurationService? speechInputConfiguration = null,
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
-        CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+        CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        LogonStartupConfigurationService? logonStartupConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
         this.commandRouter = commandRouter;
@@ -442,6 +443,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
         ResetResponseTimeoutCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ResponseTimeout));
@@ -4171,6 +4173,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         if (SettingsSectionCommand.Parse(eventArgs.Transcript, AssistantName) is not null
+            || LogonStartupCommand.Parse(eventArgs.Transcript, AssistantName) is not null
             || manualInput.CataloguePreparation is not null
             || EvidenceTraceCommand.Parse(eventArgs.Transcript, AssistantName) is not null)
         {
@@ -4212,6 +4215,19 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget = null,
         ForegroundConversationTarget? foregroundTarget = null)
     {
+        if (LogonStartupCommand.Parse(spokenText, AssistantName) is { } startupOperation)
+        {
+            if (!isAssistantNameAvailable || initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                CancelLogonStartupReview();
+                Transcript = "Start at logon requires original typed input or the current assistant-name voice prefix.";
+                return;
+            }
+            await ExecuteLogonStartup(startupOperation, initiator, manualInput);
+            return;
+        }
+        CancelLogonStartupReview();
         var reviewInput = manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision);
         if (TryActivateModelActionReview(spokenText, initiator, reviewInput)) { return; }
         if (ModelApprovalSpeech.TryMatch(spokenText, AssistantName, false, out _)
@@ -6516,6 +6532,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         OnPropertyChanged(nameof(CanChangeWindowsSpeechRateNative));
         OnPropertyChanged(nameof(CanChangeSpeechInputNative));
         OnPropertyChanged(nameof(CanChangeConversationalReplies));
+        OnPropertyChanged(nameof(CanControlLogonStartup));
+        OnPropertyChanged(nameof(CanControlLogonStartupNative));
         OnPropertyChanged(nameof(WindowsSpeechRateStatus));
         OnPropertyChanged(nameof(PlaybackVolumeStatus));
         OnPropertyChanged(nameof(CanChangeDiagnosticRetention));
@@ -6595,6 +6613,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
+            .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(ClipboardPreview is { } snapshot

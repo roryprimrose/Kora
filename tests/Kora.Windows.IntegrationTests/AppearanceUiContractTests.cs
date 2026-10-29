@@ -69,6 +69,7 @@ public sealed class AppearanceUiContractTests
             .Select(element => element.Attribute("Text")?.Value);
 
         headings.Should().Equal(
+            "Start Kora at Windows user logon",
             "Appearance",
             "Application theme",
             "Reading text size",

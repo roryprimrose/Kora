@@ -308,6 +308,7 @@ public sealed partial class MainViewModel
             speechPreparation.Request(null);
         }
         questionVoiceReplies?.CloseAdmission();
+        CancelLogonStartupReview();
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;

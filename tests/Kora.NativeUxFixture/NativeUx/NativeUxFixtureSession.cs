@@ -152,7 +152,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Application.Network.WebSummaryWorkflow? webSummary = null,
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
-        Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null)
+        Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
+        SpeechSetupComparison? speechSetupComparison = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -219,7 +220,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
-            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup);
+            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, speechSetupComparison: speechSetupComparison);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

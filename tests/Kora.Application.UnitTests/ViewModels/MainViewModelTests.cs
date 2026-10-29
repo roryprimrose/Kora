@@ -4586,6 +4586,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(PlaybackVolumeCommand.FixedPhrases)
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
+            .Concat(SpeechComparisonCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
@@ -8613,7 +8614,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
-            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            Kora.Application.Voice.SpeechSetupComparison? speechSetupComparison = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8808,7 +8810,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
-                communicationActivityConfiguration: communicationActivityConfiguration);
+                communicationActivityConfiguration: communicationActivityConfiguration,
+                speechSetupComparison: speechSetupComparison);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

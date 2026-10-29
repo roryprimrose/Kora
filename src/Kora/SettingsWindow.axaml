@@ -548,6 +548,25 @@
             </Border>
 
             <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <TextBlock Text="Local speech setup comparison" Classes="settings-title" />
+                <TextBlock Text="{Binding SpeechComparisonDisclosure}" Classes="settings-description" TextWrapping="Wrap" />
+                <TextBox Text="{Binding SpeechComparisonPhrase}" MaxLength="256"
+                         AutomationProperties.Name="Inert expected comparison phrase" />
+                <Button Content="Start / review local comparison" Command="{Binding ReviewSpeechComparisonCommand}" />
+                <TextBlock Text="{Binding SpeechComparisonProfiles}" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding SpeechComparisonStatus}" TextWrapping="Wrap"
+                           AutomationProperties.Name="{Binding SpeechComparisonStatus}" />
+                <StackPanel Orientation="Horizontal" Spacing="8">
+                  <Button Content="Test with microphone" Command="{Binding TestSpeechComparisonCommand}"
+                          IsEnabled="{Binding CanTestSpeechComparison}" />
+                  <Button Content="Cancel and discard" Command="{Binding CancelSpeechComparisonCommand}" />
+                </StackPanel>
+                <TextBlock Text="{Binding SpeechComparisonResults}" TextWrapping="Wrap" />
+              </StackPanel>
+            </Border>
+
+            <Border Classes="settings-card">
               <Grid ColumnDefinitions="*,300" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech downloads" Classes="settings-title" />

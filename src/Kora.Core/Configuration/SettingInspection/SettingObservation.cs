@@ -17,6 +17,10 @@ public sealed record SettingObservation
             case RegisteredSetting.ReaderTextScale:
                 AppearanceOptionRegistry.Validate(AppearanceOption.ReaderTextScale, new AppearanceValue.Number(value));
                 break;
+            case RegisteredSetting.PresenceDisplay:
+                if (value is not (0 or 1)) { throw new ArgumentOutOfRangeException(nameof(value)); }
+                AppearanceOptionRegistry.Validate(AppearanceOption.PresenceDisplay, new AppearanceValue.Toggle(value == 1));
+                break;
             case RegisteredSetting.SummaryWords:
                 new SpokenSummaryLimits(1, value).Validate();
                 break;
@@ -47,6 +51,7 @@ public sealed record SettingObservation
     {
         RegisteredSetting.Theme => ((ApplicationThemeMode)Value).ToString(),
         RegisteredSetting.ResponseMode => ((ResponseOutputMode)Value).ToString(),
+        RegisteredSetting.PresenceDisplay => Value == 1 ? "true" : "false",
         _ => Value.ToString(CultureInfo.InvariantCulture),
     }) + " " + RegisteredSettingRegistry.Get(Setting).Units
         + (IsSaved ? " (confirmed saved; matches live service)" : " (confirmed absent; live default)");

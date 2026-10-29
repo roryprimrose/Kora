@@ -1,5 +1,14 @@
 # Kora-owned instruction and prompt editor
 
+An **instruction** is reusable guidance for an answer; a **prompt** is a reusable
+request. You can edit either without AI. Saving is separate from enabling or
+using it, and every write needs the displayed native confirmation.
+
+Start with [open and select](#open-and-select), [edit and save](#edit-review-and-save),
+[required prompt inputs](#prepare-required-native-prompt-inputs), or
+[resolve a conflict](#resolve-a-conflict). **Local refinement is unavailable in
+this build** because no local model is approved.
+
 ## Open and select
 
 Use **Settings > Custom content > Owned instructions and prompts...** or type `instructions editor` / `prompts editor`.
@@ -7,12 +16,12 @@ After ordinary push-to-talk admission, `Kora, instructions editor` focuses the s
 All write and use reviews remain native; definition-source body dictation and voice-only confirmation are unavailable. Selected prompt input values have the separate [literal voice route](#prepare-required-native-prompt-inputs).
 Manual editing needs no model, hosted account or network. Explicit [local body refinement](#refine-the-current-owned-instruction-body) uses the separately admitted local-only model route; production qualification remains unavailable ([composition](../src/Kora/Program.cs)).
 
-| Kind/source/channel | This increment |
+| Kind/source/channel | What this editor supports |
 |---|---|
 | Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Personal profile instructions | Explicit native exact-file selection, bounded read consent and separately reviewed disabled native v1 Kora copy; no original writer ([workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
-| Skills and agents | Existing bounded readers only; authoring is a separate follow-on |
+| Skills and agents | Use the separate [skill editor](owned-skill-authoring.md) or [agent profile editor](agent-profile-authoring.md); this editor does not write them |
 | Bundled resources | Immutable; no overwrite, extraction-to-execution or inherited writer authority |
 | Typed/activated controls | Focus the same native actions and exact reviews; mutation targets the open owned ID |
 | Voice-only confirmation/body dictation | Unavailable; native text editing and exact native reviews remain the recovery path |

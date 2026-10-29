@@ -59,6 +59,7 @@ internal sealed partial class EvidenceViewModel
             + "\n\nConfirm ONE tool-free LocalOnly request in a NEW Local context conversation. "
             + "The question and validated final answer are retained under conversation retention. "
             + "Diagnostic sources keep their independent expiry; no source lifetime is renewed. "
+            + Kora.Core.Context.LocalSourceRiskPolicy.Disclosure + " "
             + "No remote fallback, extra reads, tools, actions, replay or voice disclosure."
         : string.Empty;
     public IReadOnlyList<string> AnswerCitations => answerReview?.Records.Keys.Order(StringComparer.Ordinal).ToArray() ?? [];
@@ -101,7 +102,7 @@ internal sealed partial class EvidenceViewModel
             answerAdmitted = Current;
             answerReview = review;
             answerStatus = "Review needed: inspect the COMPLETE page and question below, then separately confirm once. "
-                + "Source-use classification and a qualified local runtime must independently admit use; unavailable stays closed.";
+                + "The shared source-use risk policy and a qualified local runtime must independently admit use; unavailable stays closed.";
         }
         catch (Exception exception) when (exception is InvalidDataException or InvalidOperationException
             or JsonException or EncoderFallbackException)

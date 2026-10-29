@@ -23,6 +23,7 @@ public sealed class SettingInspectionReview
         RegisteredSetting.SummarySentences,
         RegisteredSetting.PlaybackVolume,
         RegisteredSetting.ResponseMode,
+        RegisteredSetting.PresenceDisplay,
     ];
     private int consumed;
 

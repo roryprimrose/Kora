@@ -127,12 +127,12 @@ public sealed partial class InstructionEditorTests
         var fresh = await f.Actions.ObserveInventory(["example"], f.Eligible, CancellationToken.None);
         fresh.Rows[0].ObservedUseEnabled.Should().BeTrue();
         f.Actions.IsInventoryCurrent(fresh).Should().BeTrue();
-        changed.Should().Be(1);
+        changed.Should().Be(3, "failure, use change and successful recovery each invalidate observations");
         f.Actions.InventoryChanged -= OnChanged;
         f.Actions.InventoryReloadFailed -= OnFailed;
         f.Catalogue.Update(items => items.Select(item => item with { IsUseEnabled = false }).ToArray());
         f.Catalogue.ReportReloadFailure(new IOException("Unavailable"));
-        changed.Should().Be(1);
+        changed.Should().Be(3);
         failed.Should().Be(1);
     }
 }

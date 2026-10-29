@@ -1,13 +1,9 @@
 # Out-of-the-Box Skills and Session Policy
 
-Status: bounded R11 embedded package catalogue and immutable native source review
-delivered; no skill runner. The current bootstrap retains exact direct
-Windows-API lock and model-suggested action-name lock approval unchanged.
-Lock/shutdown/restart manifests, Markdown, fixtures, entry scripts and one shared
-helper are embedded in `Kora.Definitions`. All package actions are explicitly
-unavailable for invocation. The tray's **Skill packages (inspection only)**
-entry opens every declared file in read-only native tabs.
-See [future execution design](../docs/skill-and-task-execution-design.md).
+Status: immutable package inspection and the [script-preserving fixed-action implementation](../src/Kora/BundledFixedActionController.cs) exist.
+All bundled execution remains unavailable because the [production worker](../src/Kora.Windows/Skills/WindowsBundledScriptWorker.cs) has no qualified installed profile.
+Direct lock/shutdown/restart requests use that same host gate, not a legacy native-lock fallback; model suggestions open inspection only and require a subsequent original-user execution gesture.
+The [source inspector](../src/Kora/SkillPackagesWindow.axaml.cs) retains every original manifest, instruction, fixture, entry and shared-helper tab. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 The structural migration preserves all 13 resource IDs/bytes and package
 digest golden vectors. `Kora.Definitions.Skills` owns the explicit embedded
@@ -182,6 +178,16 @@ If an engine requires a loose script file, choose a compatible execution impleme
 Read-only display/exported text is never a source for subsequent execution.
 Runtime engine binaries remain separately protected application prerequisites, not model-selectable executables.
 
+The [contained-runtime setup operation](Environment_Setup.md#bundled-contained-runtime-registration)
+can inspect and explicitly prepare/verify/forget Kora's local registration of
+an existing independently protected installation. It pins the complete local
+inventory/device/host implementation and reconciles a separate pending journal;
+it never extracts these resources, downloads or removes runtime files, creates
+a grant or supplies qualification. The production worker consumes that owner
+and remains unavailable while the release-owned contained profile set is empty.
+An executable signature or prepared file inventory cannot stand in for exact
+native dependency/containment admission.
+
 For multiple scripts, the worker receives the verified set as separate
 script blocks with stable logical identities, not one concatenated PowerShell
 source string. A candidate in-memory runspace implementation initialises
@@ -213,7 +219,30 @@ blocks, and rejects ACL/no-child policies as exact dependency mechanisms.
 It does not establish complete helper/runtime admission, network denial,
 installed protection or actual Windows control effects. Follow
 [the continuation gates](Security_Data_Flows.md#windows-containment-continuation-gates)
-before R11 admission; no native broker is selected.
+before runtime admission. Those trials selected no native substitution; the
+[later D-013 amendment](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge)
+selects only the script-preserving host bridge below.
+
+### Script-Preserving Host Bridge
+
+The [owner's D-013 selection](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge) permits a narrow authenticated request/receipt bridge for the existing immutable bundled lock/shutdown/restart packages.
+The reviewed PowerShell entry point and every declared helper still execute in the contained worker from separate verified in-memory snapshots. Do not silently substitute native execution for those scripts.
+
+The host, not script text or an action-name string, binds the exact known package, complete declared resource/definition/script-set identities, required runtime and dependencies to a closed fixed effect.
+A shared helper is embedded once but reviewed and grant-bound as part of each dependent package. Helper initialization order is definition-bound, never inferred from hash order, and loading definitions conveys no effect authority.
+
+Treat every worker message as untrusted. Bind the authenticated worker and request/receipt to the original host-resolved session, task, invocation and current exact package approval.
+Independently validate the requested fixed effect, original intent, current mandatory confirmation/authentication, grant, privacy/channel and ownership. Revalidate after awaited work and immediately before the effect; stale, repeated, changed, malformed or uncorrelated messages authorize nothing.
+
+Before any power effect, reuse the existing application work review/barriers and physical joins; application Exit/Restart/StopAll confirmation is not computer-power consent. The executing worker must not be made to wait on its own inclusion in the work being joined. No cancellation-request, worker exit, output string or script success alone proves quiescence or a physical Windows outcome.
+
+Required audit must be durable before an irreversible call. Report request acceptance separately from observed completion, failure and unconfirmed outcomes, including audit failure after a possible effect. Do not retry or describe rollback without evidence. Source content, raw parameters and transport credentials do not belong in audit/diagnostic sinks.
+
+This boundary is not a generic `run script` or shell capability. Kora-owned/user skills and agents may propose only separately admitted actions through the [common host gate](Commands_Tools_And_Skills.md#app---model---app-interaction); source enablement or an agent grant does not approve each effect.
+Model-generated scripts remain proposals, with general executable imports deferred to [R27](Implementation_Roadmap.md#optional-and-deferred-work). A shared packaging/approval model does not itself admit every executable source or profile.
+
+This section specifies approved implementation, not delivered runtime availability. Preserve disabled/unavailable qualification defaults, no extraction/ambient fallback, existing privilege boundaries and separate installed/native qualification under [D-013](Decision_Register.md#2026-10-28-accepted-script-preserving-host-bridge).
+The owner's later P1 selection permits temporary activation of only the already-assigned shutdown privilege for the exact approved host operation, with prior state restored afterward; no account-right grant, elevation, security-policy change or worker privilege is authorized. Any broader broker authority still needs an explicit decision before implementation.
 
 ### Best-Effort Transitive Dependency Tracking
 
@@ -444,8 +473,8 @@ version-bound implementation, with once/session/always duration choices;
 no separate named spoken confirmation is required as for shutdown/restart.
 Session is offered only under the durable binding rule below; priority dispatch
 does not waive identity, persistence, grant, or call-policy checks.
-Today direct exact lock is still ungated, while model-suggested lock is
-approval-gated. Do not present the current discrepancy as the intended policy.
+The [composed host](../src/Kora/ApplicationLifecycle/App.ApplicationLifecycle.cs) now routes voluntary direct and model-selected lock through the same bounded owner; an unqualified runtime reports unavailable without a native fallback.
+Required privacy retirement after any Windows lock remains separate from voluntary execution grants.
 Ambiguous or quoted/retrieved mentions of locking are not an invocation.
 The skill cannot select another user/session, unlock Windows, obtain credentials, elevate, or lock repeatedly on a timer.
 

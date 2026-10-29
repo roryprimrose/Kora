@@ -192,7 +192,8 @@ public sealed partial class SessionsConversationTests
     {
         internal bool Qualified { get; set; } = true;
         internal long Revision { get; set; } = 1;
-        public McpResultSourceUseDecision Check(McpResultObservation observation, RequestOrigin questionOrigin) =>
+        public McpResultSourceUseDecision Check(McpResultObservation observation, string question, RequestOrigin questionOrigin,
+            CancellationToken token) =>
             new(Qualified ? McpResultSourceUseKind.QualifiedLocalOnly : McpResultSourceUseKind.Unavailable, Revision);
     }
 

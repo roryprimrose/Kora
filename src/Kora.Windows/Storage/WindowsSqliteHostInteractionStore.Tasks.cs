@@ -126,6 +126,9 @@ public sealed partial class WindowsSqliteHostInteractionStore
         var wait = ReadWait(connection, task.Request.TaskId);
         if (wait is null && ObserveLocalContextTask(connection, task, session) is { } context)
         { return context; }
+        if (wait is null && ObserveOriginalControlTask(connection, task, session,
+            BundledControlAdmissionAction, BundledControlSource) is { } bundled)
+        { return bundled; }
         if (wait is null && ObserveConversationTask(connection, task, session) is { } conversation)
         { return conversation; }
         var question = wait is null ? null : ReadQuestions(connection, task.Request.SessionId)

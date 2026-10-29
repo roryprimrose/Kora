@@ -5,6 +5,7 @@ using Avalonia.Threading;
 using Kora.Application.Interaction;
 using Kora.Application.ViewModels;
 using Kora.Core.Storage;
+using Kora.Core.Hosting;
 
 using Microsoft.Extensions.Logging;
 
@@ -18,12 +19,16 @@ internal sealed class ExactGrantsWindowController : IDisposable
     private readonly ISessionWorkspaceAccess access;
     private readonly Func<bool> ownsDesktop;
     private readonly ILogger<ExactGrantsViewModel> logger;
+    private readonly PermissionGrantManagementService permissions;
     private ExactGrantsWindow? window;
     private ExactGrantsViewModel? state;
     private bool disposed;
+    private HostId<SessionIdentity>? session;
+    private Func<bool> sessionAdmission = () => true;
 
     internal ExactGrantsWindowController(MainViewModel main, IExactGrantStore store, ExactGrantControlAdmission control,
-        ISessionWorkspaceAccess access, Func<bool> ownsDesktop, ILogger<ExactGrantsViewModel> logger)
+        ISessionWorkspaceAccess access, Func<bool> ownsDesktop, ILogger<ExactGrantsViewModel> logger,
+        PermissionGrantManagementService permissions)
     {
         this.main = main;
         this.store = store;
@@ -31,6 +36,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
         this.access = access;
         this.ownsDesktop = ownsDesktop;
         this.logger = logger;
+        this.permissions = permissions;
         main.PrivacyClosureRequested += OnPrivacyClosure;
         main.PropertyChanged += OnMainChanged;
     }
@@ -38,7 +44,7 @@ internal sealed class ExactGrantsWindowController : IDisposable
     private bool Admitted()
     {
         if (!Dispatcher.UIThread.CheckAccess()) { return Dispatcher.UIThread.Invoke(Admitted); }
-        return !disposed && ownsDesktop() && main.CanRevealPrivatePresentation;
+        return !disposed && ownsDesktop() && main.CanRevealPrivatePresentation && sessionAdmission();
     }
 
     private bool WindowAdmitted()
@@ -47,8 +53,17 @@ internal sealed class ExactGrantsWindowController : IDisposable
         return window is { IsVisible: true } && Admitted();
     }
 
-    internal void Open()
+    internal void Open(HostId<SessionIdentity>? target = null, Func<bool>? admitted = null)
     {
+        var eligible = admitted ?? (() => true);
+        if (!eligible())
+        {
+            main.ReportHostInteractionFailure("Permission grants navigation retired with its original session selection.");
+            return;
+        }
+        if (window is not null && session != target) { Close(); }
+        session = target;
+        sessionAdmission = eligible;
         if (!Admitted() || !access.CanInspect)
         {
             main.ReportHostInteractionFailure("Exact operation grants unavailable under current ownership/privacy. No record or effect was read.");
@@ -56,7 +71,8 @@ internal sealed class ExactGrantsWindowController : IDisposable
         }
         if (window is null)
         {
-            state = new(store, control, access, WindowAdmitted, logger);
+            state = new(store, control, access, WindowAdmitted, logger, permissions, () => main.CanChangePreapprovedUris,
+                managementView: true, managementSession: target);
             window = new(state);
             window.Closed += OnClosed;
             window.Show();
@@ -69,6 +85,10 @@ internal sealed class ExactGrantsWindowController : IDisposable
     {
         if (!Admitted()) { Close(); }
         else { state?.SynchronizeAuthority(); }
+    }
+    internal void SynchronizeSessionAdmission()
+    {
+        if (session is not null && !Admitted()) { Close(); }
     }
     private void OnPrivacyClosure(object? sender, EventArgs args) => Close();
     private void OnClosed(object? sender, EventArgs args)

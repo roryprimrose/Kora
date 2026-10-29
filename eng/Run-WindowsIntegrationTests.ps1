@@ -25,9 +25,10 @@ $resultsRoot = [System.IO.Path]::GetFullPath((Join-Path $repositoryRoot $Results
 
 # Run 40468340968 exhausted ui-platform's whole-job budget. Move its 544s conversation class
 # to the 477s synchronous definitions shard, retaining whole classes and the serial UI dispatcher.
+# Run 40781657098 then exhausted definitions at 1,804s; leave its 133s Find class on
+# synchronous ui-platform for predicted whole jobs of 1,671s and 1,561s respectively.
 $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.ArtifactDiscovery.'
-    'Kora.Windows.IntegrationTests.EvidenceLiteralFindTests.'
     'Kora.Windows.IntegrationTests.BoundedSurfaceAccessibilityTests.'
     'Kora.Windows.IntegrationTests.SessionsConversationTests.'
 )

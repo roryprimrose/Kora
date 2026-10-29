@@ -8,7 +8,7 @@ using Kora.Windows.IntegrationTests.Audio;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class OwnedSkillAuthoringNativeTests
+public sealed partial class OwnedSkillAuthoringNativeTests
 {
     [WindowsFact]
     public async Task NativeReviewsShowBothCompleteExactFilesAndRequireDistinctConfirmation()

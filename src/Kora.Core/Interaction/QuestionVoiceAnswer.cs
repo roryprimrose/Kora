@@ -1,5 +1,7 @@
 using System.Globalization;
+
 using Kora.Core.Configuration;
+using Kora.Core.Dependencies;
 
 namespace Kora.Core.Interaction;
 
@@ -30,7 +32,21 @@ public static class QuestionVoiceAnswer
             && spoken.Length > name.Length && (char.IsWhiteSpace(spoken[name.Length]) || spoken[name.Length] == ','))
         {
             var start = name.Length + (spoken[name.Length] == ',' ? 1 : 0);
-            matches = MatchingOptions(spec, spoken[start..].Trim());
+            spoken = spoken[start..].Trim();
+            matches = MatchingOptions(spec, spoken);
+        }
+        if (matches.Length == 0 && spec.Kind == QuestionKind.MultipleChoice)
+        {
+            if (spec.Minimum == 0 && (string.Equals(spoken, "none", StringComparison.OrdinalIgnoreCase)
+                || string.Equals(spoken, "no options", StringComparison.OrdinalIgnoreCase)))
+            { return new([]); }
+            var parts = spoken.Replace(" and ", ",", StringComparison.OrdinalIgnoreCase)
+                .Split(',', StringSplitOptions.TrimEntries);
+            if (parts.Length < 2 || parts.Length > spec.Maximum) { return null; }
+            var selected = parts.Select(part => MatchingOptions(spec, part)).ToArray();
+            if (selected.Any(options => options.Length != 1)) { return null; }
+            var multiple = new QuestionAnswer(selected.Select(options => options[0].Id));
+            return spec.Accepts(multiple, submitting: true) ? multiple : null;
         }
         if (matches.Length != 1) { return null; }
         var answer = new QuestionAnswer([matches[0].Id]);
@@ -40,7 +56,9 @@ public static class QuestionVoiceAnswer
     private static QuestionOption[] MatchingOptions(QuestionSpec spec, string spoken) =>
         spec.Options.Where((option, index) =>
             string.Equals(spoken, option.Label, StringComparison.OrdinalIgnoreCase)
-            || string.Equals(spoken, (index + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
-            || string.Equals(spoken, "option " + (index + 1).ToString(CultureInfo.InvariantCulture),
-                StringComparison.OrdinalIgnoreCase)).ToArray();
+            || !string.Equals(spec.Purpose, "computer-power", StringComparison.Ordinal)
+                && (string.Equals(spoken, (index + 1).ToString(CultureInfo.InvariantCulture), StringComparison.Ordinal)
+                    || string.Equals(spoken, "option " + (index + 1).ToString(CultureInfo.InvariantCulture),
+                        StringComparison.OrdinalIgnoreCase)
+                    || LocalModelQuestionSpeech.MatchesNumberPhrase(spoken, index))).ToArray();
 }

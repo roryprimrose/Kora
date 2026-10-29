@@ -4,6 +4,10 @@ Device-profile memory is optional, explicit local application data for later
 conversations on the same Windows profile. It is not model learning, automatic
 recall, a provider memory feature or a settings file.
 
+You can create, inspect, edit and forget memories without AI. **Using them for
+an AI answer is unavailable in this build**. Saving a memory does not make
+Kora recall it automatically or enable a model.
+
 ## Create, review and admit
 
 1. Open **Sessions > Memories** and select an **Active** conversation.

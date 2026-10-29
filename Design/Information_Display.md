@@ -1,17 +1,15 @@
 # Information Display and Rich Content
 
-Status: accepted design direction; bounded native-text-v1 passive viewer
-implemented for explicitly opened embedded guide pages. General model/result
-routing, full conversation/artifact resolution and isolated HTML remain gated.
-The guide, bootstrap grant document and passive viewer share the bounded
-native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
-general artifact or permission-management experience described below.
-The bounded native shared-question slice additionally reuses this passive
-plain-text renderer for complete immutable host-record review, separate from
-native answer/approval controls.
+Status: passive native-text/Markdown readers and bounded provisional-answer
+presentation are implemented. The guide, grant review and immutable
+host-record readers share the bounded Markdig/Avalonia pipeline; authoritative
+answer/approval controls remain separate.
 The [integrated session content pane](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
-is approved placement direction, not delivered behavior; existing bounded Details
-windows remain in use until migrated.
+implements retained conversation/activity, ordinary current-response and fixed
+session log/audit Details in the primary window. Standalone documentation and
+specialized previews remain. General result routing, full artifact resolution,
+Mermaid, isolated HTML and installed accessibility remain gated; see the
+[delivery inventory](Implementation_Roadmap.md#current-delivery).
 
 The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
 Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).
@@ -71,6 +69,8 @@ The existing Detail window now exposes **Find first / Next / Previous / Cancel F
 Counts are volatile presentation state over only the exact currently admitted bounded reader text, or only the separate typed HOST observation when explicitly selected. They do not claim complete source, corpus or historical coverage and never combine USER, ASSISTANT, HOST, hidden metadata, source and rendered projections. A completed zero-match search exposes **0 matches**; edited, cancelled, invalid, unavailable or retired searches expose no count/ordinal. All native Details origins share this state contract and their existing Find admission; no unavailable profile is enabled. The count is computed on an explicit Find action, never a property read or idle refresh, and requires no new source read.
 
 Query edits, projection/target changes, render/load completion, Cancel and Clear retire the cursor, count and ordinal; Cancel retains the query, Clear releases it. Close, disposal, source/revision replacement or failed private/source admission release all viewer text and fence publication/focus, including reentrant retirement. Focus failure also retires the result rather than claiming success. Find is synchronous bounded in-memory work with no additional reader, task, timer or cancellation resource. Native Ctrl+F/Enter/F3/Shift+F3 and Escape preserve query/match/close focus behavior; the inert match follows existing reader text scale. A separate native accessible count status exposes the displayed count/ordinal without duplicating it in the match or outcome names, and is not a live region announcing each keystroke.
+
+Ctrl+A in the focused Find query selects only that query for replacement, without switching the admitted reader projection or moving focus to the result. Outside the query and native code readers, Ctrl+A retains its continuous-content selection behavior. Source/private retirement still clears the viewer before either selection route; query selection grants no clipboard authority.
 
 Find adds no admission/open route, clipboard/export, persistence/schema, logging/query telemetry, provider/egress, meaningful activity or execution authority. Existing independently admitted copy controls are unchanged; retained conversation copy stays blocked. Portable and headless tests are implementation evidence, not installed/accessibility/hardware or full qualification.
 
@@ -136,9 +136,9 @@ The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) co
 
 The [shared workflow](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs) owns source-free durable receipts and quiescence. The [web action](../src/Kora.Tools/Network/WebResultSummarize.cs) owns credential screening and complete-envelope construction, not sensitivity approval. The local-only envelope disables tools; shared source-current checks fence dispatch and late return.
 
-[IWebResultModelUsePolicy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) supplies a separate affirmative source-specific sensitivity/use decision over the complete exact snapshot. Retrieval consent, user confirmation, LocalOnly classification and narrow credential heuristics cannot replace it. Unknown or denied decisions prevent context/provider dispatch.
+[IWebResultModelUsePolicy](../src/Kora.Core/Network/IWebResultModelUsePolicy.cs) supplies a separate affirmative source-specific risk/use decision over the complete exact snapshot under the [reviewed LocalOnly contract](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission). Retrieval consent, user confirmation, LocalOnly labeling and narrow credential heuristics alone cannot replace it. Unknown or denied decisions prevent context/provider dispatch.
 
-No production web-source sensitivity/use service is delivered. The composed [unavailable policy](../src/Kora.Application/Network/UnavailableWebResultModelUsePolicy.cs) returns Unavailable before durable admission or envelope construction, including for ordinary prose without recognized credentials. This is an incomplete production source-policy requirement, independent of model qualification.
+The composed [shared source-use policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs) screens the complete source and observed addresses, admitting only private LocalOnly use under the explicit 2026-10-29 decision, not a non-sensitivity claim. Detected risks deny use; malformed/unknown screening remains unavailable before durable admission or envelope construction. Runtime qualification remains independent and unavailable.
 
 The [web bridge](../src/Kora.Application/Network/WebSummaryModelExecution.cs) rechecks policy after asynchronous admission, through the shared execution validator and before late presentation. A denied/unknown observation permanently closes that use; later allowance cannot revive it. No retry, fallback, source rewrite or secret-free claim is introduced.
 
@@ -654,9 +654,10 @@ There is no retrieval, ranking, file read, remote fallback, historical replay or
 authority inferred from correlation fields. Empty, partial, omitted, expired,
 unqualified and over-budget pages fail closed; source expiry is never renewed.
 
-Affirmative sensitivity/source-use policy and local-runtime qualification remain
-independent prerequisites. The default source-use service is explicitly
-unavailable. Qualified execution reuses the canonical reviewed-context
+The [shared LocalOnly source-use risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission)
+and local-runtime qualification remain independent prerequisites. The composed
+policy screens the entire page and original question; unqualified runtimes
+remain unavailable. Qualified execution reuses the canonical reviewed-context
 conversation service for fresh host-created destination admission, original
 question retention, response validation before final retention and exact durable
 readback. The receipt-only local-context runner is not used as answer persistence.

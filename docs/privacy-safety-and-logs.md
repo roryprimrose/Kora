@@ -1,5 +1,31 @@
 # Privacy, safety, and logs
 
+## Privacy at a glance
+
+- Voice needs both Kora's consent setting and Windows microphone access.
+  Push-to-talk is not continuous ambient recording.
+- Viewing a file, clipboard snapshot or conversation does not select it as
+  **context** (extra information supplied with a question).
+- Saving a model preference, reusable instruction or approval does not grant
+  access to your accounts or permission to send information elsewhere.
+- Definition files may roam, but enablement, review, consent and permissions
+  remain machine-local. Changed revisions remain disabled and unreviewed
+  until reviewed and enabled on this computer.
+- Local AI is not enabled in this build; hosted Copilot and Claude account-use
+  approvals are also unavailable. There is no automatic cloud fallback.
+- Diagnostics and security records exclude raw audio, transcripts, request and
+  answer text, and secrets. Saved conversation messages are a separate kind of
+  record with different retention.
+- Stopping cannot undo completed effects or retract information already sent.
+  If a result is **Unknown** or **Unconfirmed**, inspect it before starting again.
+
+Jump to [microphone consent](#microphone-consent), [files](#local-file-inspection),
+[clipboard](#clipboard-snapshots), [approvals](#local-model-actions),
+[diagnostics](#logs), or [security records](#committed-authority-audit-inspection).
+
+For a simple overview of local and roaming data, see
+[Data storage and roaming profiles](data-storage.md).
+
 ## Reviewed session memory controls
 
 Kora has a provider-independent reviewed memory domain and a bounded session-only private durable store.
@@ -279,6 +305,25 @@ Folders, knowledge registration/persistence, UNC/removable drives, persistent/
 vector indexing, reasoning, hosted egress and content execution remain
 unavailable.
 
+## Reviewed local source-use risk admission
+
+Existing file/folder/retained-attachment, web-result, diagnostic-page and
+MCP-observation answers share one maintained local-use risk policy. Review and
+separate one-shot consent remain required; source selection is not permission.
+The policy screens the whole exact admitted source, original question and model
+payload without rereading sources. Detected credential-like structures are
+refused without an override. Malformed, incomplete or unknown screening and
+stale permission/privacy/source state fail closed.
+
+Admitted content remains **private and local-only**, not proven non-sensitive.
+Checks are best-effort and can miss arbitrary secrets; ordinary sensitive
+personal/business content may be processed locally. No text is silently
+redacted. There is no hosted fallback, new capture permission or additional
+content in logs/audit. Existing source/conversation retention stays independent.
+Unqualified local models remain unavailable; passing tests does not enable them.
+This policy does not change the separate clipboard permission rules below.
+See the [source-use contract](../Design/Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission).
+
 ## Clipboard snapshots
 
 An exact [clipboard preview request](commands.md#explicit-local-clipboard-preview)
@@ -329,7 +374,12 @@ Real clipboard/native accessibility/latency acceptance remains outstanding.
 
 ## Local-model actions
 
-After model setup is approved and inference verified, Kora sends the current
+**Unavailable in this build:** setup alone does not enable AI. The release
+approves no local model profile, and unmatched commands use an unavailable
+reasoner. The workflow below describes what its model-action review allows;
+it is not a claim that installing Ollama enables it. See [Models](settings.md#models).
+
+For an independently enabled model-action workflow, Kora sends the current
 unmatched request, the built-in action names/descriptions, and a limited
 snapshot of dependency readiness, task state/progress, listening state, and
 pending power-proposal status to the pinned Ollama model on `127.0.0.1`. It
@@ -348,19 +398,24 @@ performs the action through the same built-in handler used by typed and voice
 commands. Arbitrary model-generated commands or API calls are never executed.
 Choosing a clarification option does not approve an action or change a grant.
 
-Suggestions to hide or exit Kora, restart it, cancel a task, lock Windows,
-or prepare a power proposal require explicit approval unless that exact action
+Suggestions to hide or exit Kora, restart it or cancel a task
+require explicit approval unless that exact action
 has a current session or persistent grant. All approval scopes (once, this
 session, and always) are offered for every action that requests approval,
-including Windows lock. A session grant ends on exit, restart, or when Kora
+where applicable. A session grant ends on exit, restart, or when Kora
 locks Windows; an always grant persists locally until revoked in **Settings >
 Approvals**. Grants are keyed to named built-in actions, not arbitrary
 commands, file paths, implementation versions, or model-generated code.
 Rejecting, dismissing, or making a new request discards the pending
 suggestion. This confirmation gate applies to *model-suggested* disruptive
-actions only: direct exact built-in voice and typed commands, including lock,
+actions only: direct exact built-in voice and typed commands
 currently dispatch to C# without model-action approval. They remain
 deterministic and take precedence over the model.
+
+Windows lock/shutdown/restart use a separate
+[exact bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Their runtime is unavailable in this build. Model suggestions open source
+inspection only; named-action grants cannot authorize their execution.
 
 Protected manual calls or enabled Active/Suspected/Unknown observations
 temporarily ignore Session/Always reuse without revoking or consuming those
@@ -498,12 +553,11 @@ VoiceOnly preference cannot hide:
 
 ## Power and session actions
 
-**Lock the machine** is a real local Windows action. Kora releases microphone
-capture before locking.
-
-Shutdown and computer restart commands are non-destructive proposals in the
-current release. They are recognized, displayed, auditable, inspectable, and
-cancellable, but no operating-system power request is sent.
+Windows lock, shutdown and computer restart commands open the bundled source
+review and report unavailable because their execution runtime is not approved
+for use. There is no direct native-lock fallback and no operating-system power
+request is sent. Installing PowerShell or saving an approval cannot enable
+execution. See the [fixed action safeguards](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
 
 ## Logs
 
@@ -862,4 +916,6 @@ Preferences are stored under:
 
 `%LOCALAPPDATA%\Kora\Preferences`
 
-They are device-local and do not roam with documentation or future skills.
+They are device-local and do not roam with definition files. Roaming an
+instruction, prompt, skill or agent never transfers its local review or
+enablement, consent, permissions or approval authority.

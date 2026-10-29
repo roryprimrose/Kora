@@ -189,11 +189,11 @@ internal sealed class InteractionStorageFixture : IDisposable
         RequestOrigin origin = RequestOrigin.LocalUi) =>
         new(new(Guid.NewGuid()), session ?? new(Guid.NewGuid()), new(Guid.NewGuid()), origin, new(Guid.NewGuid()));
 
-    internal static ExactOperationBinding Binding(int changed = -1, string source = "builtin")
+    internal static ExactOperationBinding Binding(int changed = -1, string source = "builtin", PermissionGrantTarget? target = null)
     {
         var digests = Enumerable.Range(0, 9).Select(i => new string(i == changed ? 'b' : 'a', 64)).ToArray();
         return new("bounded.read", source, "inspect", digests[0], digests[1], digests[2], digests[3],
-            digests[4], digests[5], digests[6], digests[7], digests[8], new(1));
+            digests[4], digests[5], digests[6], digests[7], digests[8], new(1), target);
     }
 
     internal sealed class Clock : TimeProvider

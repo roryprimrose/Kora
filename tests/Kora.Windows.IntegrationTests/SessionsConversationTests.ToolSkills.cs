@@ -209,7 +209,8 @@ public sealed partial class SessionsConversationTests
                                 $"invocation: {opened.Status.Text}; question: {approval.FindControl<TextBlock>("QuestionStatus")!.Text}");
                         }
                         finally { exactReview.PropertyChanged -= Reviewed; }
-                        approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>().Single().IsChecked = true;
+                        approval.FindControl<StackPanel>("ChoicePanel")!.Children.OfType<RadioButton>()
+                            .Single(choice => Equals(choice.Content, "Once")).IsChecked = true;
                         var submit = approval.FindControl<Button>("SubmitAnswer")!;
                         await RequireEnabled(submit);
                         submit.IsEnabled.Should().BeTrue();

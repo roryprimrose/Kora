@@ -89,7 +89,7 @@ and low-priority PRs. Raise or lower labels deliberately when priorities change.
 
 Instructions help clients cooperate with the queue; they are not its execution
 or permission boundary. GitHub continues reconciling when a Copilot session ends.
-The repository instructions and roadmap coordinator follow this mode-aware
+The repository instructions and PR clients follow this mode-aware
 protocol:
 
 1. Successfully read the live repository variables before remote integration.
@@ -113,8 +113,7 @@ protocol:
    publication and protected Auto-merge together; do not add a routine second
    permission question after authorized ready-PR publication.
 3. When disabled, retain ordinary protected PR CI and the owning workflow's
-   integration procedure. The roadmap coordinator retains its single remote
-   lane in this mode. Do not dispatch redundant manual CI.
+   integration procedure. Do not dispatch redundant manual CI.
 4. When enabled and merging is authorized, verify the current owned remote
    head and request protected squash Auto-merge. For example:
 
@@ -150,32 +149,12 @@ bodies and receipts under the owning workspace's ignored `.scratch`, following
 [repository scratch policy](../../.github/copilot-instructions.md#agent-scratch-and-session-files);
 host-managed storage is outside this repository policy's control.
 
-For coordinated agents, follow the [routine continuation rule](../../.github/agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input):
-publish the handoff through the registered [shared file mailbox](../../.github/agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol)
-and release execution without asking the user whether to stop, wait or check
-again. Atomic event publication/readback replaces routine native messages;
-status alone is not notification. Retain source/PR ownership and the recorded
-administrative inbox continuation or budgeted wake for admitted repair.
-Pending hosted admission is not a user decision.
-
-The coordinator, unlike a released feature worker, keeps [bounded scheduling ticks](../../.github/agents/roadmap-coordinator.agent.md#continuous-scheduling)
-running while its host supports continuation. Before each refill pass, an
-asynchronous assessment consults repository-wide open and recently landed PRs,
-including work outside the coordinator, to avoid duplicate feature delivery.
-Concrete conflicts route to the same admitted PR owner; unknown mergeability
-does not authorize mutation. Parent questions never block this loop.
-Multiple orchestration sessions join the same [repository dataset](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-ownership-and-recovery),
-located under the registered coordinator workspace's ignored `.scratch` and
-carried in launch/recovery handoffs, with one fenced scheduling leader and
-observing standbys. Retain that workspace while referenced; do not silently
-migrate a live legacy dataset. A successor adopts all nonclosed runs, owners,
-capacity, pending dispatches and PRs; expired coordinator leadership does not
-prove child or remote work stopped. [Transport retention/cleanup](../../.github/agents/roadmap-coordinator.agent.md#shared-dataset-retention-and-cleanup)
-uses checkpointed, reference-aware bounded plans, not deletion when a chat ends
-or a PR merges. New chats/runs do not reset capacity or authority.
-These are agent instructions, not an installed scheduler or queue-controller
-change: filesystem writes do not wake idle sessions, unavailable continuation
-must be disclosed, and repair/merge authority is not expanded.
+For handoff or resume, retain the verified publisher, source/PR ownership,
+publication authority, current remote head, enrollment readback and validation
+results as described in the [PR skill](../../.github/skills/kora-github-pr/SKILL.md#handoff-repair-and-uncertainty).
+Recheck live state before repair. Pending hosted admission does not require
+another publication decision, grant broader authority or prove that an agent
+will continue monitoring.
 
 App installation, secrets, environments, expected-source protection, mode
 changes and durable state repair require separate administrator authorization.

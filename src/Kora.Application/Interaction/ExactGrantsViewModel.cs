@@ -41,13 +41,26 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
     private long batchControlRevision;
 
     public ExactGrantsViewModel(IExactGrantStore store, ExactGrantControlAdmission control,
-        ISessionWorkspaceAccess access, Func<bool> nativeAdmission, ILogger<ExactGrantsViewModel> logger)
+        ISessionWorkspaceAccess access, Func<bool> nativeAdmission, ILogger<ExactGrantsViewModel> logger,
+        PermissionGrantManagementService? permissions = null, Func<bool>? uriAdmission = null,
+        bool managementView = false, HostId<SessionIdentity>? managementSession = null)
     {
         this.store = store;
         this.control = control;
         this.access = access;
         this.nativeAdmission = nativeAdmission;
         this.logger = logger;
+        this.permissions = permissions ?? new(store);
+        this.uriAdmission = uriAdmission ?? (() => false);
+        this.managementView = managementView;
+        this.managementSession = managementSession;
+        if (managementView) { statusFilter = "Active"; }
+        AddUriRuleCommand = new(() => AddUriRuleAsync(), ReportFailure,
+            () => CanChangeUriRules && !string.IsNullOrWhiteSpace(UriPatternInput));
+        RemoveUriRuleCommand = new(() => RemoveUriRuleAsync(), ReportFailure,
+            () => CanRemoveUriRule);
+        ClearUriRulesCommand = new(() => ClearUriRulesAsync(), ReportFailure,
+            () => CanChangeUriRules && permissionRecords.Any(record => record is UriPermissionGrant));
         RefreshCommand = new(() => RefreshAsync(), ReportFailure, () => !Busy && !disposed);
         NextCommand = new(() => NextAsync(), ReportFailure, () => !Busy && next is not null && !disposed);
         InspectCommand = new(() => InspectAsync(), ReportFailure, () => !Busy && Selected is not null && !disposed);
@@ -159,7 +172,15 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         }
         finally { EndOperation(); }
     }
-    public ImmutableArray<ExactGrantInspection> Records { get => records; private set => SetProperty(ref records, value); }
+    public ImmutableArray<ExactGrantInspection> Records
+    {
+        get => records;
+        private set
+        {
+            SetProperty(ref records, value);
+            SetPermissionRecords(value.Select(item => (PermissionGrantRecord)new ExactOperationPermissionGrant(item)).ToImmutableArray());
+        }
+    }
     public string Message { get => message; private set => SetProperty(ref message, value); }
     public bool Busy { get => busy; private set { SetProperty(ref busy, value); NotifyCommands(); } }
     public bool Reviewed { get => reviewed; set { SetProperty(ref reviewed, value); NotifyCommands(); } }
@@ -189,7 +210,10 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
 
     private async Task ReadPageAsync(ExactGrantCursor? cursor, CancellationToken token)
     {
-        var query = ExactGrantQuery.FromInput(ScopeFilter, StatusFilter, ActionIdFilter, OriginatingSessionFilter);
+        var parsed = ExactGrantQuery.FromInput(ScopeFilter, StatusFilter, ActionIdFilter, OriginatingSessionFilter);
+        var query = new ExactGrantQuery(parsed.Scope, managementView && !ShowRetainedHistory
+            ? OperationGrantStatus.Active : parsed.Status, parsed.ActionId, parsed.OriginatingSession,
+            managementView, managementSession, includeOnceHistory: managementView && ShowRetainedHistory);
         using var linked = Begin(token);
         var revision = access.ControlRevision;
         batchSelection = [];
@@ -204,9 +228,11 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         next = null;
         try
         {
-            var page = await store.ReadExactGrantPageAsync(query, cursor, linked.Token);
+            var inventory = await permissions.ReadAsync(query, cursor, linked.Token);
             RequireCurrent(revision, version, controlRequired: false, linked.Token);
+            var page = inventory.ExactPage;
             Records = page.Records;
+            SetPermissionRecords(inventory.Grants);
             next = page.Next;
             DescribeInventory(page);
             Message = page.Next is null ? "Current bounded page. No more records in this snapshot."
@@ -354,6 +380,7 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         NextHistoryCommand.NotifyCanExecuteChanged();
         ClearFiltersCommand.NotifyCanExecuteChanged();
         ClearHistoryFiltersCommand.NotifyCanExecuteChanged();
+        NotifyPermissionCommands();
         OnPropertyChanged(nameof(CanRevoke));
         OnPropertyChanged(nameof(CanRevokeBatch));
     }
@@ -401,6 +428,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
         OnPropertyChanged(nameof(HistoryRequestId));
         OnPropertyChanged(nameof(HistoryTaskId));
         Records = [];
+        uriPatternInput = string.Empty;
+        OnPropertyChanged(nameof(UriPatternInput));
         Reviewed = false;
         Message = "Closed. No late private output is admitted.";
         OnPropertyChanged(nameof(Selected));
@@ -417,6 +446,8 @@ public sealed partial class ExactGrantsViewModel : ObservableObject, IDisposable
             .AppendLine("Approval ID: " + grant.Id.Value.ToString("D") + "; revision: " + grant.Revision.Value.ToString(CultureInfo.InvariantCulture))
             .AppendLine("Stored status: " + grant.Status + "; scope: " + grant.Scope)
             .AppendLine("Capability/action: " + binding.ActionId + "; source: " + binding.SourcePartition + "; skill: " + binding.SkillId)
+            .AppendLine("Target artefact type: " + (binding.Target?.Kind.ToString() ?? "Unknown")
+                + "; artefact scope: " + (binding.Target?.Scope?.ToString() ?? "Unknown") + " (not grant lifetime)")
             .AppendLine("Stored effect classification: " + proposal.Effect + " (not an effect receipt)")
             .AppendLine("Original session: " + proposal.Request.SessionId.Value.ToString("D") + "; approved generation: " + grant.SessionGeneration.Value.ToString(CultureInfo.InvariantCulture))
             .AppendLine("Origin session observation: " + (item.OriginSession is null ? "unavailable"

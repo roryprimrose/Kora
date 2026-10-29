@@ -15,13 +15,16 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
-    [InlineData(RequestOrigin.LocalUi)]
-    [InlineData(RequestOrigin.ActivatedVoice)]
-    public async Task AttachmentAnswerRunsOneLocalToolFreeTurnAndRetainsVerifiedReferencesInExactConversation(RequestOrigin origin)
+    [InlineData(RequestOrigin.LocalUi, false)]
+    [InlineData(RequestOrigin.ActivatedVoice, false)]
+    [InlineData(RequestOrigin.LocalUi, true)]
+    [InlineData(RequestOrigin.ActivatedVoice, true)]
+    public async Task AttachmentAnswerRunsOneLocalToolFreeTurnAndRetainsVerifiedReferencesInExactConversation(
+        RequestOrigin origin, bool maintained)
     {
         using var f = new Fixture(origin);
         f.SetAttachment("alpha exact marker");
-        var workflow = f.AttachmentWorkflow(new(), new());
+        var workflow = f.AttachmentWorkflow(new(), new(), maintained: maintained);
         var host = f.QualifiedAttachmentHost();
         var service = f.AttachmentConversationService(workflow, host);
         var target = new SessionWorkspaceEntry(f.Session, null);
@@ -506,9 +509,9 @@ public sealed partial class ModelTurnHostTests
                     new(@"C:\Synthetic\retained.md", "retained-identity", bytes.Length, Time.Now)), bytes, Time.Now));
         }
         internal SessionAttachmentAnswerWorkflow AttachmentWorkflow(AttachmentPolicy policy, AttachmentAudit audit,
-            bool enabledLogger = false) =>
+            bool enabledLogger = false, bool maintained = false) =>
             new(new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance), this,
-                new LocalFileLexicalRetrieval(), policy, Time, audit,
+                new LocalFileLexicalRetrieval(), maintained ? Kora.Application.Context.LocalSourceUsePolicy.Instance : policy, Time, audit,
                 enabledLogger ? this : NullLogger<SessionAttachmentAnswerWorkflow>.Instance);
         public ValueTask<SessionFileAttachment?> ReadAttachment(HostId<SessionIdentity> session, CancellationToken token) =>
             AttachmentFault is "malformed" ? throw new InvalidDataException("Malformed retained attachment")

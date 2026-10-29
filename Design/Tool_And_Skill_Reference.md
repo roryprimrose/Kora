@@ -110,7 +110,7 @@ History and file mirrors are not live grant or audit authority.
 [source storage](Skill_Storage.md) and [authoring](Skill_Authoring.md) own
 discovery, source-qualified revisions and exact save/enablement boundaries.
 Registration, instruction selection and inspection do not execute scripts.
-The proposed [definition management contract](Definition_Management.md) owns
+The [definition management contract](Definition_Management.md) owns
 direct editing of supported personal profile originals and Kora-owned files,
 optional forks, UI/voice parity, and consistent external reload across skills,
 prompts, instructions, and agent profiles. The
@@ -118,12 +118,11 @@ prompts, instructions, and agent profiles. The
 owns common `definitions.*` actions and their skill-specific projections;
 this reference does not duplicate their schemas or delivery status.
 
-Current host-only `instructions` / `prompts` editor controls and their native
-exact Save/Delete, Reload/Overwrite/Cancel and separate use review are documented
-in [the native command guide](../docs/commands.md#edit-an-owned-instruction-or-literal-prompt-without-a-model).
-These are not model `definitions.*` tool registrations. The shared closed
-writer supports Kora-owned instructions and literal saved prompts only;
-profile/skill/agent writers, parameters and execution remain unavailable.
+Current host-only editor controls are documented in
+[the command guide](../docs/commands.md#edit-an-owned-instruction-or-literal-prompt-without-a-model)
+and [Customizations](../docs/customizations.md). Dedicated supported-kind/source
+writers retain their own review and save boundaries; they are not model
+`definitions.*` registrations or generic filesystem/execution authority.
 
 ## 9. Content Presentation and Viewing
 
@@ -156,16 +155,14 @@ All bundled script invocations remain unavailable.
 
 `kora.session.lock` requests `session.lock`; proposed tool `computer.lock`.
 The [standalone work-session binding](Built_In_Skills.md#standalone-lock-work-session-binding)
-and [lock workflow](Built_In_Skills.md) own future admission. Current direct
-exact lock is native and ungated; model-suggested lock needs its existing
-action-specific approval/grant.
+and [lock workflow](Built_In_Skills.md) own admission. The [composed fixed owner](../src/Kora/BundledFixedActionController.cs) routes direct requests through exact package admission and reports unavailable while its runtime is unqualified; model suggestions open inspection only.
 
 ### Shut Down the Computer
 
 `kora.computer.shutdown` / `computer.shutdown`; model operation is proposal-only
 `computer.propose_shutdown`. [Power safety](Built_In_Skills.md) owns exact grants,
 fresh confirmation, single-use proposal expiry, countdown and pre-effect
-revalidation. Current commands display a non-executing proposal only.
+revalidation. Current commands open [source review](../src/Kora/SkillPackagesWindowController.cs) and report execution unavailable; no installed contained profile is qualified.
 
 ### Restart the Computer
 

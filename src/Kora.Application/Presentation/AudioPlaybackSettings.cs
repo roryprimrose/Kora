@@ -47,6 +47,7 @@ public sealed class AudioPlaybackSettings : IDisposable
     public event EventHandler<AudioPlaybackSetting>? Changed;
 
     public PlaybackVolumeState? VolumeState => volume?.Get();
+    internal PlaybackVolumeConfigurationService? VolumeConfiguration => volume;
     public WindowsSpeechRateState? RateState => rate?.Get();
     public bool IsVolumeControlActive { get; private set; }
     public bool IsRateControlActive { get; private set; }

@@ -162,6 +162,27 @@ public sealed class ArtifactDirectoryConfigurationServiceTests
         audit.Events[^1].ReasonCode.Should().Be("invalid-data");
     }
 
+    [Fact]
+    public void Readback_cannot_silently_restore_implicit_default_directories()
+    {
+        var preferences = new PolicyMismatchPreferences();
+        var audit = new Audit();
+        var service = new ArtifactDirectoryConfigurationService(preferences, audit);
+        var directory = Path.GetFullPath("configured-directory");
+        ((Action)(() => service.Add(ArtifactSourceKind.Skill, directory)))
+            .Should().Throw<InvalidDataException>();
+        audit.Events.Select(item => item.Outcome).Should().Equal(SecurityAuditOutcome.Requested, SecurityAuditOutcome.Failed);
+    }
+
+    private sealed class PolicyMismatchPreferences : IArtifactDirectoryPreferences
+    {
+        private ArtifactDirectorySettings settings = new([], [], [], [], [], [], false);
+        public ArtifactDirectorySettings Load() => settings;
+        public void Save(ArtifactDirectorySettings value) => settings = new(value.SkillDirectories,
+            value.InstructionDirectories, value.PromptDirectories, value.AgentDirectories,
+            value.McpConfigurationFiles, value.IncludedMcpServerIds);
+    }
+
     public static TheoryData<Exception, string> SaveFailures => new()
     {
         { new IOException("write failed"), "io-error" },

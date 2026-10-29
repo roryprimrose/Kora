@@ -352,7 +352,8 @@ public sealed partial class ResponseWindow : Window
             || string.Equals(
                 eventArgs.PropertyName,
                 nameof(MainViewModel.IsCurrentResponseReadActive),
-                StringComparison.Ordinal))
+                StringComparison.Ordinal)
+            || string.Equals(eventArgs.PropertyName, nameof(MainViewModel.CanConfirmCallSpeech), StringComparison.Ordinal))
         {
             RestartResponseTimeout();
         }
@@ -368,6 +369,7 @@ public sealed partial class ResponseWindow : Window
         }
         if (!viewModel.IsResponseAlwaysVisible && !viewModel.IsResponseInteractionPending
             && !viewModel.HasResponseActions && !viewModel.IsCurrentResponseReadActive
+            && !viewModel.CanConfirmCallSpeech
             && viewModel.State != AssistantState.Failure)
         {
             if (!responseInactivity.TryExpire())
@@ -445,6 +447,7 @@ public sealed partial class ResponseWindow : Window
         if (!IsVisible || IsExpanded || viewModel.IsResponseAlwaysVisible
             || viewModel.IsResponseInteractionPending
             || viewModel.HasResponseActions || viewModel.IsCurrentResponseReadActive
+            || viewModel.CanConfirmCallSpeech
             || viewModel.State == AssistantState.Failure)
         {
             return;

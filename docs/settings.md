@@ -73,6 +73,20 @@ Clarification/approval turns and specialized source workflows keep their existin
 A longer preference cannot renew that authorization or enable an unavailable provider.
 Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
 
+## Start Kora at Windows logon
+
+In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).
+**Cancel startup review** changes nothing. Reset removes the owned registration and saved intent ([shared workflow](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Typed commands use `check start at logon`, `enable start at logon`, `disable start at logon`, or `reset start at logon`; then separately `confirm start at logon change` or `cancel start at logon review`.
+For voice, use your current assistant name, for example **"Kora, enable start at logon"**, then **"Kora, confirm start at logon change"**. Reviews expire after 60 seconds; changed input, host state or installation requires a fresh review ([command grammar](../src/Kora.Application/Configuration/LogonStartupCommand.cs), [review owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
+
+This is opt-in and current-user installed Kora only. A developer checkout, older install without location metadata, machine-wide entry, foreign command or Windows-disabled startup remains **unavailable**. Use the owning installer or Windows Startup apps as indicated; Kora does not overwrite unknown entries.
+A failed/unconfirmed result can mean a write persisted: inspect registration, saved intent and audit before manual recovery, not an automatic retry ([Windows boundary](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs)).
+
+Nothing launches during confirmation. Next logon uses the ordinary tray/minimal-shell launch and fresh host, storage, consent, privacy and audio checks. Startup registration does not enable listening or grant model/network permission.
+Optional details-at-startup customization is not delivered ([startup contract](../Design/Distribution_And_Updates.md#running-and-logon-startup)).
+
 ## Conversational voice replies
 
 In **Settings > Speech & audio**, choose **Enable conversational replies** to opt in, or **Turn off** to return to the default. This saves a shared device-local On/Off preference; it does not grant listening permission or make an unavailable microphone or recognizer ready ([settings workflow](../src/Kora.Application/ViewModels/MainViewModel.ConversationalReplies.cs)).
@@ -892,6 +906,10 @@ production wake name**. Reset does not change session/task/grant/approval/
 instance IDs or stored session names. The executable remains `Kora.exe`;
 namespaces and application data paths remain fixed. No wake detector, custom
 profile, learning/enrollment, assets, download or OS/global setting is added.
+
+### Speech input profile
+
+**Review speech input switch** displays the current saved/desired/effective tuple, proposed compatible Windows activated tuple and required local capabilities. **Confirm speech input switch** completes the joined switch; **Cancel speech input switch** leaves intent unchanged. No additional qualified local wake/ASR/resource profile is offered ([complete interaction](voice-and-audio.md#speech-input-profile-preference)).
 
 ### Microphone
 

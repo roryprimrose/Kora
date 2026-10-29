@@ -157,11 +157,13 @@ public sealed class SettingsResetMenuTests
             .Where(attribute => attribute.Name.LocalName is "Command" or "ResetCommand"
                 && attribute.Value.StartsWith("{Binding Reset", StringComparison.Ordinal))
             .ToArray();
-        bindings.Should().HaveCount(33);
-        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(33);
+        bindings.Should().HaveCount(34);
+        bindings.Select(attribute => attribute.Value).Distinct(StringComparer.Ordinal).Should().HaveCount(34);
+        bindings.Select(attribute => attribute.Value).Should().Contain(
+            ["{Binding ResetOrdinaryDeadlineCommand}", "{Binding ResetLogonStartupCommand}"]);
         elements.Count(element =>
             string.Equals(element.Name.LocalName, nameof(SettingActionsButton), StringComparison.Ordinal))
-            .Should().Be(35);
+            .Should().Be(36);
         foreach (var binding in bindings)
         {
             var element = binding.Parent!;
@@ -196,7 +198,7 @@ public sealed class SettingsResetMenuTests
     }
 
     [Theory]
-    [InlineData("Appearance", 14, 14, 0)]
+    [InlineData("Appearance", 15, 15, 0)]
     [InlineData("Speech & audio", 8, 7, 5)]
     [InlineData("Responses", 3, 4, 2)]
     [InlineData("Sessions", 2, 2, 2)]

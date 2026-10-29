@@ -19,7 +19,8 @@ public sealed class InstallerStartupTests
     {
         var status = InstallerStartupStatus.Inspect(command, [], Expected);
         status.State.Should().Be(expected);
-        status.DefaultEnabled.Should().Be(expected is InstallerStartupState.NotRegistered or InstallerStartupState.Enabled);
+        status.DefaultEnabled.Should().Be(expected is InstallerStartupState.Enabled);
+        status.CanConfigure.Should().Be(expected is InstallerStartupState.NotRegistered or InstallerStartupState.Enabled);
     }
 
     [Theory]
@@ -69,7 +70,7 @@ public sealed class InstallerStartupTests
         var user = new InstallerStartupStatus(InstallerStartupState.NotRegistered, "Absent user registration");
         var machine = new InstallerStartupStatus(InstallerStartupState.DisabledByWindows, "Disabled machine registration");
         var result = new InstallerPreflightResult(missing, missing, missing, user, machine);
-        result.StartupFor(InstallScope.CurrentUser).DefaultEnabled.Should().BeTrue();
+        result.StartupFor(InstallScope.CurrentUser).DefaultEnabled.Should().BeFalse();
         result.StartupFor(InstallScope.AllUsers).DefaultEnabled.Should().BeFalse();
         result.ValidateSelection(new OptionalComponents(), InstallScope.AllUsers, startAtLogin: false);
         var enableDisabled = () => result.ValidateSelection(new OptionalComponents(), InstallScope.AllUsers, startAtLogin: true);

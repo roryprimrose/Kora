@@ -10,6 +10,41 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Fact]
+    public async Task DeadlineAndLogonStartupControlsKeepIndependentPreferencesAndSeparateStartupConfirmation()
+    {
+        await using var settings = new OrdinaryDeadlineConfigurationFixture();
+        await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
+        var f = new Fixture(ordinaryDeadlineConfiguration: settings.Service, logonStartupConfiguration: startup.Service);
+        using var model = f.ViewModel;
+        f.VoiceConsent.Consent = false;
+        await model.InitializeAsync();
+        model.BindOrdinaryDeadlineNativeLifetime(static () => true);
+        model.BindLogonStartupNativeLifetime(static () => true);
+        await model.RefreshOrdinaryDeadlineCommand.ExecuteAsync();
+        model.SelectedOrdinaryDeadlineMinutes = 1;
+        await model.SaveOrdinaryDeadlineCommand.ExecuteAsync();
+        settings.Service.Capture().Minutes.Should().Be(1);
+        startup.Preferences.Writes.Should().Be(0);
+        startup.Registration.Writes.Should().Be(0);
+
+        await model.EnableLogonStartupCommand.ExecuteAsync();
+        model.LogonStartupReviewText.Should().Contain("No change yet");
+        startup.Registration.Writes.Should().Be(0);
+        await model.ConfirmLogonStartupCommand.ExecuteAsync();
+        startup.Preferences.Value.Should().BeTrue();
+        startup.Registration.Writes.Should().Be(1);
+        settings.Service.Capture().Minutes.Should().Be(1);
+
+        await f.RunAsync("reset work.active-deadline-minutes");
+        settings.Preferences.Load().Should().BeNull();
+        startup.Preferences.Value.Should().BeTrue();
+        startup.Registration.Writes.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.Voice.StartedMicrophone.Should().BeNull();
+        model.HasVoiceConsent.Should().BeFalse();
+    }
+
+    [Fact]
     public async Task NativeDeadlineRefreshSaveReadbackResetCompletesOperationWithoutModelOrQueueSetting()
     {
         await using var settings = new OrdinaryDeadlineConfigurationFixture();

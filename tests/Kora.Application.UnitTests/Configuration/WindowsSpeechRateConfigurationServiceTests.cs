@@ -527,6 +527,7 @@ public sealed class WindowsSpeechRateConfigurationServiceTests : IDisposable
         public SpeechSelection? LoadSelection() => Failure is { } failure ? throw failure : Saved ? new(Provider, null) : null;
         public SpokenSummaryLimits? LoadSummaryLimits() => null;
         public void SaveSummaryLimits(SpokenSummaryLimits limits) => throw new NotSupportedException();
+        public void ResetSummaryLimits() => throw new NotSupportedException();
         public void SaveSelection(SpeechSelection selection) => throw new NotSupportedException();
         public string? LoadProviderId() => Provider;
         public void SaveProviderId(string providerId) => throw new NotSupportedException();

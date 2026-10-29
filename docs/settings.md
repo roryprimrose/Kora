@@ -57,6 +57,20 @@ read-only Preview and cog reset actions retain their admission checks. Queue
 changes still require a fresh Refresh from the cog menu before each Save or
 Reset. Settings that already save a selection immediately retain that behavior.
 
+## Start Kora at Windows logon
+
+In **Settings > Appearance > Start Kora at Windows user logon**, choose **Inspect** to see last confirmed saved intent and the observed registration. Choose **Review enable**, **Review disable**, or **Reset setting** in the startup cog menu, read the complete review, then separately choose **Confirm startup change** ([native controls](../src/Kora/SettingsWindow.axaml)).
+**Cancel startup review** changes nothing. Reset removes the owned registration and saved intent ([shared workflow](../src/Kora.Application/ViewModels/MainViewModel.LogonStartup.cs)).
+
+Typed commands use `check start at logon`, `enable start at logon`, `disable start at logon`, or `reset start at logon`; then separately `confirm start at logon change` or `cancel start at logon review`.
+For voice, use your current assistant name, for example **"Kora, enable start at logon"**, then **"Kora, confirm start at logon change"**. Reviews expire after 60 seconds; changed input, host state or installation requires a fresh review ([command grammar](../src/Kora.Application/Configuration/LogonStartupCommand.cs), [review owner](../src/Kora.Application/Configuration/LogonStartupConfigurationService.cs)).
+
+This is opt-in and current-user installed Kora only. A developer checkout, older install without location metadata, machine-wide entry, foreign command or Windows-disabled startup remains **unavailable**. Use the owning installer or Windows Startup apps as indicated; Kora does not overwrite unknown entries.
+A failed/unconfirmed result can mean a write persisted: inspect registration, saved intent and audit before manual recovery, not an automatic retry ([Windows boundary](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs)).
+
+Nothing launches during confirmation. Next logon uses the ordinary tray/minimal-shell launch and fresh host, storage, consent, privacy and audio checks. Startup registration does not enable listening or grant model/network permission.
+Optional details-at-startup customization is not delivered ([startup contract](../Design/Distribution_And_Updates.md#running-and-logon-startup)).
+
 ## Conversational voice replies
 
 In **Settings > Speech & audio**, choose **Enable conversational replies** to opt in, or **Turn off** to return to the default. This saves a shared device-local On/Off preference; it does not grant listening permission or make an unavailable microphone or recognizer ready ([settings workflow](../src/Kora.Application/ViewModels/MainViewModel.ConversationalReplies.cs)).
@@ -86,6 +100,18 @@ session records are not automatically deleted. A storage limit is not
 confirmation that records have been removed.
 
 ## Preference Changes and Recovery
+
+### Undo the last registered settings change
+
+At the top of Settings, choose **Undo the last settings change**. Inspect the exact current and previous preference, saved/default source and shared device-local scope. Separately choose **Confirm settings undo**, or **Cancel settings undo** to write nothing. Review lasts 60 seconds ([shared undo workflow](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Confirm settings undo** and **Cancel settings undo** are disabled and skipped by Tab navigation until a current review can be confirmed ([native controls](../src/Kora/SettingsWindow.axaml), [keyboard regression](../tests/Kora.Windows.IntegrationTests/BoundedSurfaceAccessibilityTests.cs)).
+
+There is only one candidate from this run: the last confirmed registered appearance/presence, summary-cap, Kora-volume or ordinary response-mode change. Restoring a default removes the saved override; summary limits restore the exact previous pair. Undo is unavailable after restart or privacy/lifecycle closure, and cannot overwrite externally changed or unconfirmed preferences. A successful undo is a new audited save, consumes that candidate and offers no redo ([registered settings](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs), [undo validation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+For summary caps, Kora volume and ordinary response mode, type **undo the last settings change**, then separately **confirm settings undo** or **cancel settings undo**. Activated voice uses the current name, for example **"Kora, undo the last settings change"**. Appearance requires a new native Settings review. Voice requests blocked by call policy cannot become permitted by clicking Confirm later ([command route](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only future eligible output changes. Undo does not replay speech, call an AI, restore microphone consent, listening, permissions or grants, change providers/devices/retention/security, or reverse external actions. If a save is unconfirmed, inspect the saved preference and audit before explicit recovery; Kora does not guess whether to retry or roll back ([scope and recovery](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
 
 Settings uses plain-language labels and short status summaries. For example,
 **Logging** describes diagnostic and security record storage without naming the
@@ -266,13 +292,14 @@ Exact typed or current-name activated commands are `list speech text settings`,
 and `reset display.speech-text`. These only inspect/save the device-local
 preference; they never speak, replay or open the microphone.
 
-**Current sentence (requires qualified alignment)** is also an explicit native
+**Current sentence (unavailable in this build)** is also an explicit native
 choice in Speech and audio settings. It requests the exact source sentence
 reached by actual playback, not a timing estimate or rewritten text. This build
 has no qualified Windows voice/rate/output profile for sentence alignment, so
 sentence captions remain **unavailable**; ordinary speech and the complete visual
 answer remain available. Missing or invalid alignment never becomes an utterance
-caption. Saving this choice does not test your device or enable a provider.
+caption. Saving this choice does not test your device or enable a provider
+([native choice](../src/Kora.Application/Configuration/SpeechTextChoice.cs), [production alignment gate](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs)).
 
 Captions clear immediately on interruption, replacement, lock,
 ownership/privacy/call change or unconfirmed configuration. Corrupt or pending
@@ -297,8 +324,9 @@ resets only that option. These device-local options do not enable captions:
 Each has exact `get/status <id>`, `set <id> to <value>` and `reset <id>`.
 `list speech text settings` discovers the persisted options; exact pin status
 shows its run-only scope. Invalid saved options are rejected, not defaulted.
-Sentence alignment remains unavailable because playback supplies no admitted
-sentence boundaries. Broad natural caption commands and rich browser/HTML/
+Sentence alignment has a [native callback implementation](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs), but no qualified production Windows profile. Kokoro and legacy providers do not attest alignment; there is no timing, utterance or rewritten-text fallback.
+Recover ordinary utterance captions by explicitly selecting **Show spoken words** for future playback; changing modes never replays retired text ([shared consumer](../src/Kora.Application/ViewModels/MainViewModel.SpeechText.cs)).
+Broad natural caption commands and rich browser/HTML/
 diagram rendering remain unimplemented.
 
 **Caption screen — until Kora restarts** is available in **Settings > Responses** and the caption. Choose a connected screen and press **Use selected display**; the section's top-right cog offers **Use main screen** to reset to the current main screen.
@@ -876,6 +904,10 @@ production wake name**. Reset does not change session/task/grant/approval/
 instance IDs or stored session names. The executable remains `Kora.exe`;
 namespaces and application data paths remain fixed. No wake detector, custom
 profile, learning/enrollment, assets, download or OS/global setting is added.
+
+### Speech input profile
+
+**Review speech input switch** displays the current saved/desired/effective tuple, proposed compatible Windows activated tuple and required local capabilities. **Confirm speech input switch** completes the joined switch; **Cancel speech input switch** leaves intent unchanged. No additional qualified local wake/ASR/resource profile is offered ([complete interaction](voice-and-audio.md#speech-input-profile-preference)).
 
 ### Microphone
 

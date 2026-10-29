@@ -24,5 +24,8 @@ public sealed class ClaudeRequestGuideTests
             .And.Contain("128 events").And.Contain("JSON depth 24").And.Contain("Bounds are inclusive")
             .And.Contain("buffered approval does not admit streaming").And.Contain("failed disposal quarantines")
             .And.Contain("two-minute deadline").And.Contain("No implicit selection, retry or buffered fallback");
+        guide.Should().Contain("Ask Claude with one clarification").And.Contain("**Answering does not send your answer.**")
+            .And.Contain("canonical stored reply").And.Contain("Each physical POST needs fresh affirmative native consent")
+            .And.Contain("Copilot/Codex questions");
     }
 }

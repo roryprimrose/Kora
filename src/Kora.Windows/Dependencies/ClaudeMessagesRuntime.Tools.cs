@@ -16,7 +16,8 @@ public sealed partial class ClaudeMessagesRuntime
         {
             if (disposed || quarantined || profile.Service != ProviderService.Claude
                 || !ReferenceEquals(context.Request, provenance.Request)
-                || context.ToolMode != ModelToolMode.ReadOnly || !ClaudeObservationTools.Supports(context)
+                || context.ToolMode is not (ModelToolMode.ReadOnly or ModelToolMode.HostedClarification)
+                || !ClaudeObservationTools.Supports(context)
                 || context.CreatedAt > time.GetUtcNow() || context.ExpiresAt <= time.GetUtcNow()
                 || !await current(token).ConfigureAwait(false))
             { return null; }
@@ -83,13 +84,14 @@ public sealed partial class ClaudeMessagesRuntime
             try
             {
                 if (disposed || !ReferenceEquals(request.Provenance, provenance) || request.Profile != profile
-                    || request.Round != nextRound++ || request.ClarificationAllowed
+                    || request.Round != nextRound++
+                    || request.ClarificationAllowed != (context.ToolMode == ModelToolMode.HostedClarification)
                     || !request.Context.Wire.AsSpan().SequenceEqual(context.Serialize())
                     || !await Live(token).ConfigureAwait(false))
                 { return new(ModelTurnOutcome.DeniedEgress, provenance); }
                 // Revalidate complete serial history before translating any provider-native bytes.
                 _ = ModelToolProtocol.CreateRequest(provenance, profile, request.Context, request.Messages,
-                    request.Round, request.Budget);
+                    request.Round, request.Budget, request.ClarificationAllowed);
                 var countBody = ClaudeObservationWire.Serialize(request, null);
                 var messageBody = ClaudeObservationWire.Serialize(request, outputLimit);
                 var chargedInput = Math.Max(ModelToolProtocol.SerializeRequest(request).Length,
@@ -110,7 +112,8 @@ public sealed partial class ClaudeMessagesRuntime
                     "/v1/messages", messageBody), account, admit, Live, token,
                     request.Budget.OutputUtf8Bytes - counted.Length).ConfigureAwait(false);
                 if (response is null) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
-                var assistant = ClaudeObservationWire.Parse(response, profile, outputLimit, inputLimit, request.Context.Tools);
+                var assistant = ClaudeObservationWire.Parse(response, profile, outputLimit, inputLimit, request.Context.Tools,
+                    request.ClarificationAllowed && request.Messages.IsEmpty);
                 token.ThrowIfCancellationRequested();
                 if (!await Live(token).ConfigureAwait(false)) { return new(ModelTurnOutcome.DeniedEgress, provenance); }
                 var chargedOutput = Math.Max(ModelToolProtocol.SerializeMessage(assistant).Length,
@@ -137,10 +140,17 @@ public sealed partial class ClaudeMessagesRuntime
         private async Task CloseAsync()
         {
             disposed = true;
-            await cancellation.CancelAsync().ConfigureAwait(false);
+            Exception? stopFailure = null;
+            try { await cancellation.CancelAsync().ConfigureAwait(false); }
+            catch (Exception exception) { owner.quarantined = true; stopFailure = exception; }
             await exchange.WaitAsync().ConfigureAwait(false);
-            try { http.Dispose(); cancellation.Dispose(); }
-            finally { exchange.Release(); exchange.Dispose(); owner.operation.Release(); }
+            try
+            {
+                http.Dispose();
+                if (stopFailure is not null) { System.Runtime.ExceptionServices.ExceptionDispatchInfo.Capture(stopFailure).Throw(); }
+            }
+            catch { owner.quarantined = true; throw; }
+            finally { cancellation.Dispose(); exchange.Release(); exchange.Dispose(); owner.operation.Release(); }
         }
     }
 }

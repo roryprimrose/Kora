@@ -6,6 +6,9 @@ public interface ITextToSpeechPreferences
 
     void SaveSummaryLimits(Kora.Core.Configuration.SpokenSummaryLimits limits);
 
+    /// <summary>Removes the saved summary pair, restoring both default caps.</summary>
+    void ResetSummaryLimits();
+
     Kora.Core.Configuration.SpeechSelection? LoadSelection();
 
     void SaveSelection(Kora.Core.Configuration.SpeechSelection selection);

@@ -1,4 +1,4 @@
-using Kora.Application.Configuration;
+﻿using Kora.Application.Configuration;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Customizations;
@@ -9,6 +9,7 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
     ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit,
     ArtifactDirectoryConfigurationService? mcpConfiguration = null)
 {
+    public InstructionOriginalRegistration? RegisteredInstruction => store.RegisteredInstruction;
     public bool IsInstructionRegistered(CustomizationSource source) => store.IsInstructionRegistered(source);
     public void RetireInstructionRegistration(CustomizationSource source) => store.WithdrawInstruction(source);
 
@@ -169,8 +170,10 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             {
                 var live = await store.Read(source, admitted).ConfigureAwait(false);
                 Require(current, admitted);
-                if (live.Source != source || !string.Equals(live.Revision, original.Revision, StringComparison.Ordinal))
-                { throw new InvalidOperationException("The unchanged original was replaced or changed. Compare before saving; the draft is retained."); }
+                if (live.Source != source)
+                { throw new InvalidOperationException("The unchanged original no longer matches the selected source. Reopen it explicitly; the draft is retained."); }
+                if (!string.Equals(live.Revision, original.Revision, StringComparison.Ordinal))
+                { throw new InstructionOriginalConflictException(); }
                 return live;
             }
             var entry = new SecurityAuditEvent(request.RequestId.Value, SecurityAuditCategory.ResourceWrite,

@@ -2,6 +2,7 @@ using System.Security.Cryptography;
 using System.Text;
 
 using Kora.Core.Artifacts;
+using Kora.Core.Configuration;
 using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
 
@@ -9,9 +10,11 @@ namespace Kora.Windows.Artifacts;
 
 public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICustomizationMetadataStore
 {
+    private static readonly string[] EditorNames = ["Code", "Code - Insiders"];
     private readonly IApplicationDataPaths paths;
     private readonly string profileRoaming;
     private readonly string profile;
+    private readonly IArtifactDirectoryPreferences? directoryPreferences;
     private readonly Lock gate = new();
     private readonly Dictionary<string, Target> targets = new(StringComparer.Ordinal);
     internal Action<string>? AfterComponentPublished { get; set; }
@@ -21,16 +24,18 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
         internal string? McpCreationRevision { get; init; }
     }
 
-    public WindowsCustomizationStore(IApplicationDataPaths paths)
+    public WindowsCustomizationStore(IApplicationDataPaths paths, IArtifactDirectoryPreferences? directoryPreferences = null)
         : this(paths, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
-            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), directoryPreferences)
     { }
 
-    internal WindowsCustomizationStore(IApplicationDataPaths paths, string profileRoaming, string profile)
+    internal WindowsCustomizationStore(IApplicationDataPaths paths, string profileRoaming, string profile,
+        IArtifactDirectoryPreferences? directoryPreferences = null)
     {
         this.paths = paths;
         this.profileRoaming = profileRoaming;
         this.profile = profile;
+        this.directoryPreferences = directoryPreferences;
     }
 
     public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) => ListCore(false, token);
@@ -107,7 +112,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
                 { throw new InvalidDataException("Built-in definitions cannot be written."); }
                 if (scope == CustomizationScope.User && kind == CustomizationKind.Instruction)
                 { throw new InvalidOperationException("This increment edits one existing registered original only. Create a Kora instruction or select an existing personal original instead."); }
-                var root = Roots().First(root => root.Kind == kind && root.Scope == scope);
+                var root = Roots().FirstOrDefault(root => root.Kind == kind && root.Scope == scope)
+                    ?? throw new InvalidOperationException("No directory is configured for this content kind and scope. Add a location in Settings before creating it.");
                 var file = kind == CustomizationKind.Skill ? Path.Combine(root.Path, name, "SKILL.md")
                     : Path.Combine(root.Path, kind == CustomizationKind.McpServer ? "mcp.json" : name + Suffix(kind));
                 var target = MakeTarget(root, file, name);
@@ -162,6 +168,10 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
     {
         if (!targets.TryGetValue(source.Id, out var target) || target.Source != source || source.IsReadOnly)
         { throw new InvalidOperationException("Select one exact current writable source from this host's inventory."); }
+        var directory = source.Kind == CustomizationKind.Skill ? Path.GetDirectoryName(target.Directory) : target.Directory;
+        if (!Roots().Any(root => root.Kind == source.Kind && root.Scope == source.Scope
+            && string.Equals(root.Path, directory, StringComparison.OrdinalIgnoreCase)))
+        { throw new InvalidOperationException("This source directory is no longer configured. Choose a current source."); }
         return target;
     }
 
@@ -184,6 +194,39 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
     }
 
     private IEnumerable<Root> Roots()
+    {
+        if (directoryPreferences is null) { return DefaultRoots(); }
+        var settings = directoryPreferences.Load().WithDefaults(
+            ArtifactDirectorySettings.DefaultDirectories(paths.RoamingRoot, profileRoaming, profile));
+        return ConfiguredRoots(settings);
+    }
+
+    private IEnumerable<Root> ConfiguredRoots(ArtifactDirectorySettings settings)
+    {
+        foreach (var kind in new[] { CustomizationKind.Skill, CustomizationKind.Instruction,
+            CustomizationKind.Agent, CustomizationKind.Prompt })
+        {
+            var koraPath = Path.Combine(paths.RoamingRoot, kind == CustomizationKind.Agent ? "Agents" : kind + "s");
+            foreach (var path in settings.GetDirectories(CustomizationLayout.ArtifactKind(kind)))
+            {
+                if (kind != CustomizationKind.Skill && EditorNames.Any(editor =>
+                    string.Equals(path, Path.Combine(profileRoaming, editor, "User", "profiles"), StringComparison.OrdinalIgnoreCase)))
+                {
+                    foreach (var directory in ProfileDirectories(path))
+                    { yield return new(Path.Combine(directory, "prompts"), kind, CustomizationScope.User); }
+                }
+                else
+                {
+                    yield return new(path, kind, string.Equals(path, koraPath, StringComparison.OrdinalIgnoreCase)
+                        ? CustomizationScope.Kora : CustomizationScope.User);
+                }
+            }
+        }
+        foreach (var root in DefaultRoots().Where(root => root.Kind == CustomizationKind.McpServer))
+        { yield return root; }
+    }
+
+    private IEnumerable<Root> DefaultRoots()
     {
         foreach (var scope in new[] { CustomizationScope.Kora, CustomizationScope.User })
         {
@@ -212,17 +255,22 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
 
     private IEnumerable<string> EditorRoots()
     {
-        foreach (var editor in new[] { "Code", "Code - Insiders" })
+        foreach (var editor in EditorNames)
         {
             var root = Path.Combine(profileRoaming, editor, "User");
             yield return root;
             var profiles = Path.Combine(root, "profiles");
-            if (!Directory.Exists(profiles)) { continue; }
-            using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(profiles, false, CancellationToken.None);
-            var directories = Directory.EnumerateDirectories(profiles).Take(17).ToArray();
-            if (directories.Length > 16) { throw new InvalidDataException("The editor profile inventory exceeds 16 profiles."); }
-            foreach (var directory in directories) { yield return directory; }
+            foreach (var directory in ProfileDirectories(profiles)) { yield return directory; }
         }
+    }
+
+    private static IEnumerable<string> ProfileDirectories(string profiles)
+    {
+        if (!Directory.Exists(profiles)) { yield break; }
+        using var pinned = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(profiles, false, CancellationToken.None);
+        var directories = Directory.EnumerateDirectories(profiles).Take(17).ToArray();
+        if (directories.Length > 16) { throw new InvalidDataException("The editor profile inventory exceeds 16 profiles."); }
+        foreach (var directory in directories) { yield return directory; }
     }
 
     private sealed record DiskFile(string Name, byte[] Bytes, string Identity);

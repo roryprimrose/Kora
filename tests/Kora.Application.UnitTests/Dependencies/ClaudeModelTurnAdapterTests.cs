@@ -98,10 +98,10 @@ public sealed partial class ClaudeModelTurnAdapterTests : IDisposable
         internal ModelTurnProvenance Provenance { get; }
         internal HostedTransmissionReviewService Reviews { get; }
         internal List<SecurityAuditEvent> Audits { get; } = [];
-        internal Fixture(bool observations = false)
+        internal Fixture(bool observations = false, ModelToolMode? mode = null)
         {
             Context = new(Request, "policy", "original body", [], Time.Now, Time.Now.AddMinutes(1),
-                observations ? ModelToolMode.ReadOnly : ModelToolMode.None,
+                mode ?? (observations ? ModelToolMode.ReadOnly : ModelToolMode.None),
                 observations ? ClaudeObservationTools.Constrain([Kora.Core.Tools.ReadOnlyCapabilityCatalog.Version]) : null);
             Provenance = new(new(Guid.NewGuid()), Request, new(ModelProviderIdentity.Claude, new(Guid.NewGuid()), new(1)));
             Reviews = new(this, Time);

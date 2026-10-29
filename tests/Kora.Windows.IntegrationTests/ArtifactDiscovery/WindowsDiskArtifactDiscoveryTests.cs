@@ -15,6 +15,34 @@ public sealed class WindowsDiskArtifactDiscoveryTests : IDisposable
         Guid.NewGuid().ToString("N"));
 
     [Fact]
+    public void Configured_directories_replace_defaults_and_preserve_known_source_rules_and_watch_depths()
+    {
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var profile = Path.Combine(root, "editor");
+        var user = Path.Combine(root, "user");
+        var defaults = ArtifactDirectorySettings.DefaultDirectories(paths.RoamingRoot, profile, user);
+        var personalSkills = defaults.SkillDirectories[1];
+        Directory.CreateDirectory(Path.Combine(personalSkills, "personal"));
+        File.WriteAllText(Path.Combine(personalSkills, "personal", "SKILL.md"), "---\nname: personal\ndescription: Personal skill\n---\nPersonal skill.");
+        var agents = Path.Combine(root, "custom-agents");
+        Directory.CreateDirectory(agents);
+        File.WriteAllText(Path.Combine(agents, "helper.agent.md"), "---\nname: Helper\ndescription: Custom agent\n---\nCustom agent.");
+        var discovery = new WindowsDiskArtifactDiscovery(paths,
+            new([personalSkills], [], [], [agents], [], [], false), profile, userProfileRoot: user);
+        discovery.Load().Select(item => item.CommandName).Should().BeEquivalentTo("personal", "helper");
+        discovery.WatchRoots.Select(item => item.Path).Should().BeEquivalentTo(personalSkills, agents);
+        discovery.WatchRoots.Single(item => string.Equals(item.Path, personalSkills, StringComparison.Ordinal)).MaximumDepth.Should().Be(3);
+        discovery.Load().Single(item => item.Kind == ArtifactKind.Skill).Source.Should().Be("copilot-profile");
+        var selected = discovery.Load().Single(item => item.Kind == ArtifactKind.Agent);
+        var removed = new WindowsDiskArtifactDiscovery(paths, new([], [], [], [], [], [], false), profile, userProfileRoot: user);
+        removed.RootPaths.Should().BeEmpty();
+        removed.Load().Should().BeEmpty();
+        ((Action)(() => removed.ResolveAgentPath(selected, TestContext.Current.CancellationToken)))
+            .Should().Throw<InvalidOperationException>();
+        File.Exists(Path.Combine(agents, "helper.agent.md")).Should().BeTrue();
+    }
+
+    [Fact]
     public void Supported_profile_discovery_admits_dotted_directories_but_not_deeper_or_unrelated_sources()
     {
         var profile = Path.Combine(root, "profile");

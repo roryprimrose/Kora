@@ -156,6 +156,56 @@ public sealed class BoundedSurfaceAccessibilityTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task AppearanceTabCycleIncludesOnlyEligibleUndoActions(bool reverse)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath());
+            await fixture.InitializeAsync();
+            var window = new SettingsWindow(fixture.Main);
+            try
+            {
+                window.Show();
+                window.Activate();
+                window.UpdateLayout();
+                var tab = (TabItem)window.FindControl<TabControl>("SettingsTabs")!.SelectedItem!;
+                var first = ((Control)tab.Content!).GetVisualDescendants().OfType<ComboBox>().First();
+                var baseline = ReadCycle(window, first, reverse);
+                var review = window.FindControl<Button>("ReviewSettingsUndo")!;
+                var confirm = window.FindControl<Button>("ConfirmSettingsUndo")!;
+                var cancel = window.FindControl<Button>("CancelSettingsUndo")!;
+                baseline.Should().NotContain(review).And.NotContain(confirm).And.NotContain(cancel);
+
+                void AssertCycle(params Button[] actions)
+                {
+                    Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                    window.UpdateLayout();
+                    ReadCycle(window, first, reverse).Should().BeEquivalentTo(baseline.Concat(actions));
+                }
+
+                fixture.Main.ThemeMode = ApplicationThemeMode.Dark;
+                await fixture.Main.AppearanceUpdate;
+                AssertCycle(review);
+
+                await ((AsyncCommand)review.Command!).ExecuteAsync();
+                AssertCycle(review, confirm, cancel);
+
+                await ((AsyncCommand)cancel.Command!).ExecuteAsync();
+                AssertCycle(review);
+
+                await ((AsyncCommand)review.Command!).ExecuteAsync();
+                await ((AsyncCommand)confirm.Command!).ExecuteAsync();
+                AssertCycle();
+                fixture.Main.CanReviewSettingsUndo.Should().BeFalse();
+                fixture.Main.CanConfirmSettingsUndo.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+    }
+
+    [Theory]
     [InlineData(Key.Space, PhysicalKey.Space, " ")]
     [InlineData(Key.Enter, PhysicalKey.Enter, null)]
     public async Task AppearanceResetMenuOpensWithKeyboardAndResetsOnlyItsField(
@@ -175,7 +225,7 @@ public sealed class BoundedSurfaceAccessibilityTests
                 window.Activate();
                 window.UpdateLayout();
                 var actions = window.GetVisualDescendants().OfType<SettingActionsButton>().ToArray();
-                actions.Should().HaveCount(14);
+                actions.Should().HaveCount(15);
                 foreach (var action in actions)
                 {
                     action.Content.Should().BeOfType<Avalonia.Controls.Shapes.Path>();

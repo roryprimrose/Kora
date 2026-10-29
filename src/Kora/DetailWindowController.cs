@@ -16,6 +16,7 @@ namespace Kora;
 
 public sealed partial class DetailWindowController : IDisposable
 {
+    private static readonly System.Text.Json.JsonSerializerOptions ObservationDisplayOptions = new() { WriteIndented = true };
     private readonly MainViewModel? viewModel;
     private readonly IUserDocumentationProvider documentation;
     private readonly Func<bool> canAccess;
@@ -50,7 +51,7 @@ public sealed partial class DetailWindowController : IDisposable
                 && response.Content.IsSameSnapshot(content) && response.Admitted())
         && (content.Origin != DetailContentOrigin.RetrievedWebResult
             || ReferenceEquals(webResultSource(content.Reference), content))
-        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant)
+        && (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
             || conversationSources.TryGetValue(content.Reference, out var source)
                 && source.Content.IsSameSnapshot(content) && source.Admitted());
 
@@ -119,7 +120,7 @@ public sealed partial class DetailWindowController : IDisposable
     internal async Task<string> OpenConversationDetailAsync(AdmittedDetailContent content, Window? owner,
         Func<bool> admitted, Func<CancellationToken, Task<AdmittedDetailContent>> resolve, CancellationToken token)
     {
-        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant) || content.ConversationMessage is null)
+        if (content.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation) || content.ConversationMessage is null)
         { throw new InvalidDataException("Only an exact retained original conversation record may enter this detail route."); }
         if (disposed) { throw new InvalidOperationException("The conversation detail owner is disposed."); }
         using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(token, conversationLifetime.Token);
@@ -289,7 +290,7 @@ public sealed partial class DetailWindowController : IDisposable
         try
         {
             state = registry.Open(content, CanAccess(content),
-                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.FinalizedResponse
+                content.Origin is DetailContentOrigin.RetrievedWebResult or DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.FinalizedResponse
                     ? () => CanAccess(content) : null,
                 () => !disposed && CanAccess(content),
                 content.Origin == DetailContentOrigin.RetainedAssistant ? token => ValidateFinalSourceAsync(content, token) : null);
@@ -310,7 +311,7 @@ public sealed partial class DetailWindowController : IDisposable
         // Each additive profile remains unavailable until its own qualification.
         var result = content.Kind == DetailContentKind.StaticHtml
             ? staticHtmlRenderer.Render(content)
-            : renderer.Render(content.Source, content.Kind, content.Reference, SelectNativeFormat(content));
+            : renderer.Render(ReaderSource(content), content.Kind, content.Reference, SelectNativeFormat(content));
         if (!state.CompleteRender(generation, result.SemanticText, result.Status, result.IsFallback) || !CanAccess(content))
         {
             registry.Close(content.Reference);
@@ -323,7 +324,7 @@ public sealed partial class DetailWindowController : IDisposable
             Task Copy(bool confirmed, int? selectionStart, int selectionLength) =>
                 CopyAsync(reference, generation, confirmed, selectionStart, selectionLength);
             view = owner is ResponseWindow primary && viewModel is not null
-                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
+                && content.Origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation or DetailContentOrigin.SessionHistory or DetailContentOrigin.FinalizedResponse
                 ? new SessionDetailView(primary.SessionView, state, result, Copy, viewModel)
                 : createView(state, result, Copy);
         }
@@ -347,6 +348,13 @@ public sealed partial class DetailWindowController : IDisposable
         };
         windows.Add(reference, (state, view));
         return deferPublication ? result.Status : PublishContent(content, owner, (state, view), result.Status, activateOnly: false, acknowledge);
+    }
+
+    private static string ReaderSource(AdmittedDetailContent content)
+    {
+        if (content.Origin != DetailContentOrigin.RetainedLocalObservation) { return content.Source; }
+        using var document = System.Text.Json.JsonDocument.Parse(content.Source);
+        return System.Text.Json.JsonSerializer.Serialize(document.RootElement, ObservationDisplayOptions);
     }
 
     private NativeDetailFormat SelectNativeFormat(AdmittedDetailContent content) =>

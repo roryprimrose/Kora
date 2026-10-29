@@ -5,6 +5,7 @@
     xmlns:controls="using:Kora.Controls">
   <UserControl.Resources>
     <local:BriefAnswerConverter x:Key="BriefAnswer" />
+    <local:ObservationChoicesConverter x:Key="ObservationChoices" />
     <DataTemplate x:Key="TimelineMessage">
       <Border Padding="12" Margin="0,0,0,10" Background="{DynamicResource KoraSurfaceAltBrush}" CornerRadius="8">
         <StackPanel Spacing="8">
@@ -24,6 +25,14 @@
             <Button Name="OpenAssistantConversationDetail" Content="Open full detailed answer"
                 IsEnabled="{Binding $parent[UserControl].DataContext.CanOpenConversationDetails}"
                 HorizontalAlignment="Left" />
+            <ItemsControl ItemsSource="{Binding Converter={StaticResource ObservationChoices}}">
+              <ItemsControl.ItemTemplate>
+                <DataTemplate>
+                  <Button Name="OpenObservedResult" Content="{Binding Label}" HorizontalAlignment="Left"
+                      AutomationProperties.Name="{Binding Label}" />
+                </DataTemplate>
+              </ItemsControl.ItemTemplate>
+            </ItemsControl>
           </StackPanel>
           <TextBlock Text="{Binding Outcome, TargetNullValue='Pending / inspect work', StringFormat='Action outcome: {0}'}"
               TextWrapping="Wrap" Classes="muted" />

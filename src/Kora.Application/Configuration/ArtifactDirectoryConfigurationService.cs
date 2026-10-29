@@ -56,7 +56,7 @@ public sealed class ArtifactDirectoryConfigurationService(
                 settings.PromptDirectories,
                 settings.AgentDirectories,
                 settings.McpConfigurationFiles,
-                next));
+                next, settings.UseDefaultDirectories));
         }
     }
 
@@ -133,10 +133,11 @@ public sealed class ArtifactDirectoryConfigurationService(
         kind == ArtifactSourceKind.Prompt ? paths : current.PromptDirectories,
         kind == ArtifactSourceKind.Agent ? paths : current.AgentDirectories,
         kind == ArtifactSourceKind.McpServerConfiguration ? paths : current.McpConfigurationFiles,
-        current.IncludedMcpServerIds);
+        current.IncludedMcpServerIds, current.UseDefaultDirectories);
 
     private static bool Equivalent(ArtifactDirectorySettings left, ArtifactDirectorySettings right) =>
-        Enum.GetValues<ArtifactSourceKind>().All(kind =>
+        left.UseDefaultDirectories == right.UseDefaultDirectories
+        && Enum.GetValues<ArtifactSourceKind>().All(kind =>
             left.GetPaths(kind).SequenceEqual(right.GetPaths(kind), StringComparer.OrdinalIgnoreCase))
         && left.IncludedMcpServerIds.SequenceEqual(right.IncludedMcpServerIds, StringComparer.Ordinal);
 }

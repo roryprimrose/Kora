@@ -119,6 +119,9 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
             {
                 result = Finish(ModelTurnOutcome.Denied, reason, provenance);
             }
+            else if (context!.ToolMode == ModelToolMode.HostedClarification
+                && selection.Provider != ModelProviderIdentity.Claude)
+            { result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.InvalidPolicy, provenance); }
             else if (!Eligible(revision))
             {
                 result = Finish(ModelTurnOutcome.Denied, ModelTurnReason.HostAdmissionClosed, provenance);

@@ -15,4 +15,5 @@ internal sealed partial class SessionsViewModel
     public Task SubmitClaudeConversationAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true);
     public Task SubmitClaudeAnswerStreamAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true, claudeStreamAnswer: true);
     public Task SubmitClaudeObservationsAsync() => SubmitConversationCoreAsync(allowQuestion: false, claude: true, claudeObservations: true);
+    public Task SubmitClaudeWithClarificationAsync() => SubmitConversationCoreAsync(allowQuestion: true, claude: true);
 }

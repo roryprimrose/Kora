@@ -295,7 +295,10 @@ internal static class Program
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
-            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
+            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>(),
+                ArtifactDirectorySettings.DefaultDirectories(paths.RoamingRoot,
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());

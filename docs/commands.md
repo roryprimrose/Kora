@@ -1941,10 +1941,9 @@ requests.
 
 **Where disk artifacts are loaded from**
 
-Kora loads compatible files from its own roaming `Skills`,
-`Instructions`, `Prompts`, and `Agents` folders and the existing VS Code or VS
-Code Insiders customization locations. In **Settings > Artifacts**, you can
-maintain up to sixteen additional absolute directories for each artifact kind.
+In **Settings > Artifacts**, choose the content type to see and edit its complete discovery directory list. Add an absolute folder path, or select a location and use **Remove selected** to stop discovering that location without deleting its files ([Settings controls](../src/Kora/SettingsWindow.axaml#L1327)).
+The initial list includes Kora's roaming `Skills`, `Instructions`, `Prompts` and `Agents` folders, personal `.copilot/skills` and `.agents/skills`, and the supported VS Code and VS Code Insiders prompt/profile locations. Editor profile roots retain their bounded two-level search; other added instruction, prompt and agent folders are not recursive ([default locations](../src/Kora.Core/Configuration/ArtifactDirectorySettings.cs), [discovery](../src/Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs)).
+The complete list is bounded to 32 directories per kind, including defaults; MCP retains its separate 16-file limit. Existing saved additions are combined with defaults without writing until you change a setting. Removed defaults remain removed after restart, including an empty list. Embedded definitions are not directory entries and remain available ([preferences](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).
 These settings are separate from the read-only shared skill source
 registrations below; registering a shared source does not add it to the model
 artifact catalogue.
@@ -1954,7 +1953,7 @@ Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
 directories use the same bounded UTF-8, YAML frontmatter, traversal, naming,
 digest, and catalogue-conflict rules. Skills marked `user-invocable: false` do
 not appear. Conflicting command names, IDs, or spoken names fail closed instead
-of choosing one source silently. Kora watches default and configured locations
+of choosing one source silently. Kora watches configured locations
 and automatically publishes a complete valid replacement catalogue after
 changes. Invalid or partially written content reports reload failure; retained
 historical catalogue data does not keep managed owned instructions/prompts usable.
@@ -1964,6 +1963,8 @@ Managed prompts are literal saved user-request content, not system guidance.
 No restart is needed. Loading an agent
 artifact applies its declarative instructions; it does not start an autonomous
 agent runtime.
+
+Removing a directory immediately retires disk catalogue entries while the remaining sources reload. If that reload fails, removed content is not kept available through the historical catalogue. Saving a Kora-owned copy does not re-add a removed discovery location. Re-add a removed directory before recovering any interrupted definition transaction there ([reload handling](../src/Kora/ArtifactCatalogueReloadService.cs), [transaction recovery admission](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Transactions.cs)).
 
 If a selected artifact changes while local reasoning, a clarification, or an
 action approval is pending, Kora retires that interaction. Start a new request

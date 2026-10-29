@@ -6,11 +6,9 @@ editing command or tool action.
 
 ## Availability
 
-The bounded `native-markdown-strikethrough-v4` profile is implemented for the
-immutable Details viewer. It is independently unavailable by default pending
-exact-profile enablement evidence. An explicitly opened finalized Markdown
-answer requests this host-selected profile and currently shows labelled exact
-source fallback instead of claiming a qualified styled preview.
+Styled strikethrough is **unavailable by default** in Details. Opening a final
+Markdown answer currently shows labelled original source instead of a styled
+preview. For example, `~~old wording~~` remains readable source text.
 
 Documents, models, skills and extensions cannot enable the profile or install
 renderers. Existing plain text, table and checklist profiles remain separate;
@@ -54,5 +52,5 @@ sent to a provider, fetched, executed or copied by rendering.
 Code blocks in the same view retire their readers and pending highlighting
 alongside the strikethrough wording.
 
-This is bounded deterministic implementation, not installed accessibility,
-device, provider or release qualification.
+Reading or styling the text does not enable an AI model or promise that every
+assistive-software setup has been verified.

@@ -9,12 +9,13 @@ prioritizes governed AI interaction and session conversations rather than a
 native utility suite. It distinguishes current implementation from approved
 retirement work and constrains future feature selection.
 
-**Development status:** the runnable bootstrap has bounded commands, local
-inference and native inspection/workspace features. It is not the complete
-design or a qualified release. Script-backed skills, general application
-launching, production wake and a generic model tool/result loop remain
-unavailable. See the [current roadmap](Design/Implementation_Roadmap.md) for
-delivered scope and remaining work.
+**Development status:** built-in commands, push-to-talk, local speech, settings
+and conversation views are available. Model-backed answers, hosted requests and
+reviewed tool-result workflows have implementations, but no approved runtime
+profiles are enabled in this build. Installing a model does not enable them.
+Script-backed skills, general application launching and hands-free wake remain
+unavailable. This is not a qualified release; see the
+[feature overview](features.md) and [current roadmap](Design/Implementation_Roadmap.md).
 
 ## Start here
 
@@ -35,10 +36,17 @@ Developer builds require Git, PowerShell 7 and the .NET 10 SDK pinned in
 [global.json](global.json). On Windows:
 
 ```powershell
-dotnet restore .\Kora.slnx --locked-mode
-dotnet tool restore
-dotnet run --project .\src\Kora\Kora.csproj
+.\run.ps1
 ```
+
+The [debug launcher](run.ps1) pulls the current branch with `git pull --ff-only`,
+restores locked app dependencies and local .NET tools, builds in **Debug**, and
+runs Kora without rebuilding. It works from any working directory and stops at
+the first failed step. The branch must have an upstream; resolve local changes
+or divergent history yourself before retrying.
+
+To run without pulling, use the manual commands in
+[Contributing](CONTRIBUTING.md#run-a-debug-build).
 
 Windows 10 build 19041 or later is required; Windows 11 is recommended.
 Voice input needs an English Windows speech-recognition language and a
@@ -46,9 +54,9 @@ microphone. Spoken output needs an installed Windows voice or the separately
 downloaded local Kokoro provider.
 
 Typed exact commands and visual responses work without speech hardware,
-a model, a cloud account or a network connection. Unmatched requests need a
-verified local Ollama model. Setup and voice capture require separate consent;
-follow [first launch](docs/getting-started.md#first-launch).
+a model, a cloud account or a network connection. Unmatched requests require an
+approved model profile, which is currently unavailable. Setup and voice capture
+require separate consent; follow [first launch](docs/getting-started.md#first-launch).
 
 Precompiled framework-dependent binaries do not require Git or an SDK.
 The [distribution contract](Design/Distribution_And_Updates.md) describes

@@ -6,10 +6,10 @@ The [reviewed one-tool workflow](../src/Kora.Application/Skills/ReviewedToolSkil
 
 Related: [Extensibility](Extensibility.md), [Skill Authoring](Skill_Authoring.md), [Bundled Skills](Built_In_Skills.md), [Security and Data Flows](Security_Data_Flows.md).
 
-[Definition Management](Definition_Management.md) owns the proposed common
+[Definition Management](Definition_Management.md) owns the common
 source, UI/voice editing, activation, and external-reload contract for skills,
-prompts, instructions, and agent profiles. Its first-class profile editor
-does not expand the delivered R21 read-only boundary below.
+prompts, instructions, and agent profiles. Dedicated reviewed writes do not
+expand source-read consent into generic profile editing or execution authority.
 
 ## Explicit local Markdown references v2
 

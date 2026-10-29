@@ -1,10 +1,11 @@
 # File and Folder Ingestion and Grounded Reasoning
 
-Status: bounded R26 foundations implement **exact-session durable single-file attachment, retained-slot metadata catalogue and exact navigation, local file inspection and
-selected immutable revision, bounded immediate-folder lexical retrieval and explicit volatile preview refresh**, described below. The broader
-folder/multiple-version ingestion, recursive folder, managed knowledge source, persistent/vector
-index, multi-source retrieval, reasoning and hosted transmission design
-remains proposed and unavailable.
+Status: immutable local previews/retrieval, retained single-file session
+attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle)
+are implemented. Reviewed file/folder answer workflows exist, but their
+production source-use policy and runtime qualification remain unavailable.
+Recursive/multiple-version ingestion, persistent/vector indexes, multi-source
+reasoning and hosted grounding remain gated.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),

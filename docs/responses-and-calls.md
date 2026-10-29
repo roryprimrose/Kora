@@ -1,5 +1,14 @@
 # Responses and manual call mode
 
+Choose [text, speech or both](#response-modes), learn to
+[stop speech](#interrupting-spoken-responses), or set
+[manual call protection](#manual-call-mode-and-call-settings).
+Long results can have [a brief and full Details](#brief-answers-and-full-details).
+
+**AI answers are unavailable in this build.** Model-dependent reading and answer
+workflows below describe their reviews and limits; their controls do not enable
+a model. Built-in command responses and local speech still work.
+
 ## Answer from a retained session attachment
 
 In **Sessions**, select the exact Active conversation and choose **Answer from this session's retained attachment**. The existing native source viewer opens only that session's already retained immutable text/Markdown copy; it never opens a picker or the original live file ([native route](../src/Kora/SessionsViewModel.AttachmentAnswer.cs)).

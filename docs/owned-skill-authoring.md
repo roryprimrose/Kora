@@ -1,8 +1,15 @@
 # Create and use a declarative skill
 
-Kora-owned skill authoring creates a new immutable native package. It does not
-enable, select, advertise or invoke the saved skill. Shared-profile discovery,
-reference consent and reviewed shared-skill invocation are separate operations ([authoring workflow](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
+A skill is reusable task guidance. This editor saves a new immutable version
+that cannot be overwritten. It does not enable, select, advertise or invoke
+the saved skill. You can create and inspect skills
+without AI. **Using one for an answer is unavailable in this build**, because
+no local model is approved.
+
+Start with [create and save](#complete-operation), then
+[review a saved version for use](#review-and-invoke-one-saved-revision).
+The [file format](#native-v1-format) is needed only if you inspect the saved
+files; the native editor prepares them for you.
 
 ## Complete operation
 

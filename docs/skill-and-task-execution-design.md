@@ -8,9 +8,11 @@ Voluntary lock/shutdown/restart use that gate without a legacy native fallback. 
 [current skills](tools-and-built-in-skills.md#13-built-in-skills) and
 [approval settings](settings.md#approvals).
 
-This page distinguishes implemented-but-unqualified behavior from future general execution. The linked design documents
-own schemas, algorithms, limits and qualification rather than duplicating them
-in the user guide.
+This is background reading, not a setup checklist or instructions for enabling
+scripts. For features you can use now, follow [Tools and built-in skills](tools-and-built-in-skills.md).
+The shared Markdown-reference review described below already exists; it is
+separate from script execution and still needs an available local model.
+The linked design documents own technical contracts and qualification.
 
 ## Built-in commands and the trusted host
 
@@ -21,8 +23,8 @@ over those operations. Selecting/enabling a skill is not an execution grant.
 The trusted C# host owns identity, routing, validation, review, approval, audit,
 hashing, cancellation and process/resource supervision. Essential stop/cancel/
 exit controls remain available without PowerShell or inference.
-Exact commands, UI requests and model proposals must use the same execution
-gate when that capability is delivered.
+Fixed lock/shutdown/restart requests use the same execution gate; model
+suggestions open source inspection only and never grant execution.
 
 See [interaction and implementation rules](../Design/Commands_Tools_And_Skills.md)
 and [canonical tools](../Design/Internal_Model_Tools.md).
@@ -44,7 +46,9 @@ Model-generated scripts remain proposals, not executable authority. General exec
 
 ## App -> model -> app interaction
 
-The future loop is:
+Some bounded read-only model/tool workflows already exist, subject to model
+availability. The fixed script workflow follows the same separation; general
+user-program execution remains deferred:
 
 ```text
 User request -> admitted capabilities/context -> model proposal
@@ -114,11 +118,12 @@ See [source storage](../Design/Skill_Storage.md),
 
 ### Combined script identity
 
-The canonical [script-set encoding](../Design/Built_In_Skills.md#deterministic-script-set-hash)
-uses ordinal logical names, domain separation, length framing and exact original
-bytes. Do not trim, normalize line endings/BOMs or hash re-encoded text.
-The separate definition digest covers manifest, instructions and fixtures.
-A shared-helper change affects every dependent grant, not unrelated packages.
+Fixed script approval binds the complete exact script set, including
+helpers, and the definition that describes it. A checksum identifies those
+bytes; it does not prove that the program is safe. Changing a shared helper
+invalidates every approval depending on it, not unrelated packages.
+The [technical encoding](../Design/Built_In_Skills.md#deterministic-script-set-hash)
+is contributor reference, not something users must calculate.
 
 ### Future folder-based dependency discovery
 
@@ -147,8 +152,8 @@ affected authorization; restoring old bytes cannot restore it. Retain the old
 record/reason and obtain a new exact approval. Missing or unverifiable resources
 remain blocked. History is not live grant authority.
 
-Standalone application rollback is an unresolved deferred R27 decision, not
-permission to rebind a changed binary. A name/path/publisher/interpreter alone
+Restoring an older standalone application is not an approved way to reuse a
+permission after its executable changes. A name/path/publisher/interpreter alone
 never approves arbitrary arguments, privileges, working directories or network.
 
 See [grant scope and inheritance](../Design/Security_Data_Flows.md#grant-types-and-inheritance)
@@ -167,35 +172,27 @@ tracking do not prove what code/children/network paths will run. Enforce the
 qualified OS/resource boundary separately. Cancellation/process exit is not
 rollback or effect certainty; Unknown never authorizes automatic write retry.
 
-The proposed [session permission levels](../Design/Session_Permission_Levels.md)
-use exact grants first, then the selected review level without creating grants
-or bypassing mandatory controls. Proposed
-[spoken-call approvals](../Design/Call_Aware_Speech.md#spoken-approvals-during-calls)
-default off while retaining grants/levels. Current call grant suppression remains
-until qualified migration.
+The existing [session permission levels](session-permission-levels.md) use exact
+grants first, then the selected review level without creating grants or bypassing
+mandatory controls. **Model review** still asks you because its reviewer is
+unavailable. Spoken-call approvals default Off and cannot replace native-only
+transmission consent. Neither setting enables a script runner.
 
 ### Windows worker feasibility and next steps
 
-Historical AppContainer/Job Object and dependency trials qualify only their
-recorded scope. Same-user PowerShell plus a Job Object is not restricted
-execution; network timeouts are Unknown, not attributable denial.
-
-Follow [containment gates](../Design/Security_Data_Flows.md#windows-containment-continuation-gates)
-and [W1-W4 sequencing](../Design/Implementation_Roadmap.md#r02-windows-containment-follow-up).
-No experiment or acknowledgement enables the production runner.
+Installing PowerShell does not isolate a script from your files, accounts or
+network. The future runner needs its own verified Windows security boundary.
+A timeout cannot prove that a network request was blocked. See
+[containment requirements](../Design/Security_Data_Flows.md#windows-containment-continuation-gates)
+for contributor details; no experiment enables production script execution.
 
 ## Required verification before enabling execution
 
-[Acceptance Criteria](../Design/Acceptance_Criteria.md) owns mandatory fixtures
-and measurable gates. They include:
+Execution must remain unavailable until Kora can verify the exact reviewed
+operation, detect changed resources, enforce permissions and privacy, supervise
+its Windows security boundary, and report actual completion or uncertainty.
+User consent alone cannot replace these safeguards. Cancellation is not rollback.
 
-- exact route convergence and denial of unknown/invented operations;
-- changed/missing/unreadable resources and verification-to-launch swaps;
-- independent script-set/definition vectors and original published resource bytes;
-- grant scope, permanent observed-change revocation and independent Perpetual retention;
-- rejection/dismissal, stale review, cancellation/late output and required-audit failures;
-- actual containment, identity/egress, native effect receipts and resource quiescence.
-
-Deterministic tests do not substitute for required native/provider/installed
-observations. Use the [live validation register](../Design/Deferred_Validation.md)
-for remaining approved-trial prerequisites and preserved historical evidence.
+The [acceptance criteria](../Design/Acceptance_Criteria.md) and
+[validation register](../Design/Deferred_Validation.md) contain contributor
+requirements, not additional steps an ordinary user can take to enable scripts.

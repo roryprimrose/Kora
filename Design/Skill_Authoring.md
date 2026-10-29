@@ -1,14 +1,14 @@
 # Voice- and Text-Driven Skill and Instruction Authoring
 
-Status: broader conversational/package authoring remains planned for Slice C.
-A bounded native Kora-owned standalone instruction and literal prompt editor is delivered through
-the common contract; this is not full skill/profile/agent authoring.
+Status: bounded instruction/prompt editing, declarative owned-skill and agent
+authoring, and reviewed Customizations source writes are implemented through
+[Definition Management](Definition_Management.md). Broader conversational/package
+authoring and executable skills remain gated.
 
-The delivered R21 shared-profile slice is **local read-only discovery and exact
-inspection only**, not this authoring workflow. Registering or inspecting a root
-does not save a Kora-specific fork, enable/invoke a revision, expose instructions
-to a model or authorize edits/execution. See
-[the bounded source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection).
+Discovery, source-read consent, editing, enablement and invocation are separate
+operations. Registering or inspecting a root grants none of the later
+authorities; see the [source contract](Skill_Storage.md#delivered-bounded-r21-native-inspection)
+and [reviewed invocation](Skill_Storage.md).
 
 Related: [Extensibility](Extensibility.md), [Security and Data Flows](Security_Data_Flows.md), [Task Lifecycle](Task_Lifecycle.md), [Acceptance Criteria](Acceptance_Criteria.md).
 

@@ -1,6 +1,16 @@
 # All settings
 
-**Product realignment:** fixed diagnostic-read queue settings are approved for retirement from ordinary product workflows. Their descriptions below remain current until code removal; useful model/settings interaction and existing safety/retention controls remain in scope. See the [approved scope](../Design/MVP_Scope.md#approved-retirement-and-simplification).
+Use Settings to choose how Kora looks, listens, speaks and stores information.
+Opening a page or editing a field does not itself approve a download, an action
+or sending information to an AI service.
+
+**Find a setting:** [appearance](#appearance), [speech and audio](#speech-and-audio),
+[response mode](#responses), [calls](#calls), [AI services](#models),
+[approvals](#approvals), [session retention](#per-session-retention-status-and-hold),
+or [setup](#readiness). For named local folders, see [Knowledge sources](knowledge-sources.md).
+
+**AI answers are unavailable in this build.** You can inspect and save supported
+preferences, but a saved choice is not proof that its model or service can run.
 
 Open Settings by:
 
@@ -8,10 +18,7 @@ Open Settings by:
 - saying **"Kora, open settings"**; or
 - entering **open settings** as a typed command.
 
-The Settings window is single-instance. Its title includes the running
-application version as a suffix. Source builds default to version `0.1.0`;
-release builds can override that version during publishing. Changes use the
-same live application state as the presence and response surfaces.
+Only one Settings window opens at a time. Its title includes the running version.
 
 Refresh and Reset actions are in the cog menu at the top right of the relevant
 card or section, rather than taking up space beside the input. Refresh appears
@@ -434,17 +441,17 @@ Those commands cannot grant network permission or perform Check/Open.
 
 ## Models
 
-The **Models** tab controls which model locations Kora may use for free-form
-commands:
+The model-location controls set where Kora is allowed to use AI:
 
 - **Allow local models** is on by default. It is a location permission, not runtime/model qualification.
-  Local reasoning additionally requires independent release qualification, reviewed current runtime admission and an exact available profile; this build accepts no qualified profile.
+  The release must also approve a particular model and you must review access
+  to its running instance. This build approves no local model profile.
   Turning it off cancels an in-flight local request and prevents later
   requests from reaching Ollama.
-- **Allow hosted models** is off by default. The current build has no hosted
-  provider or credentials, so enabling this permission does not send data or
-  provide a cloud fallback. The saved opt-in will gate hosted execution when a
-  provider is implemented and configured.
+- **Allow hosted models** is off by default. Copilot and Claude request
+  workflows exist, but their required account-use approvals are unavailable
+  in this build. Enabling this permission neither signs in nor sends data,
+  and there is no automatic cloud fallback.
 
 These device-local choices are applied immediately and retained across
 restarts. Exact built-in commands remain available when both choices are off.
@@ -452,10 +459,10 @@ Use **which models are enabled**, **enable/disable local models**, or
 **enable/disable hosted models** as typed or activated voice commands to read
 or change the same settings. Model-setting writes are security audited.
 
-The provider-neutral host controls do not qualify Ollama or Copilot or change these existing
-bootstrap settings/readiness paths, add credentials, or select a cloud
-destination. The separate **Settings > Providers** device-local initial-mode preference and exact native handoff review are delivered without qualifying inference.
-Durable cross-session recall and grounded model answering remain gated.
+The separate **Settings > Providers** controls save your preferred service and
+model. They do not install a runtime, enable answers or approve transmission.
+Reviews for a provider switch, memory use or file-based answers retain their
+own availability and consent requirements.
 Enabling a model location is not permission to upload clipboard/file
 previews, persist memory or bypass action approval. There is no automatic
 provider fallback or confidence-based handoff.
@@ -526,7 +533,9 @@ Windows through Kora. Always grants are stored in Kora's device-local
 Preferences folder and remain until revoked. These grants are action-name-only:
 they do not authorize a script, executable, or particular implementation
 version. They govern model-suggested disruptive actions, not direct exact
-built-in phrases (including lock). Any model-suggested action that requires
+built-in phrases. Windows lock/shutdown/restart instead use the separate
+[bundled package gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge);
+these named-action grants cannot enable its unavailable runtime. Any model-suggested action that requires
 approval can use any of the three scopes; the model cannot choose the scope
 for you.
 
@@ -1298,5 +1307,6 @@ Device-local settings are written under:
 
 `%LOCALAPPDATA%\Kora\Preferences`
 
-They do not roam with documentation or user content. Stored skills are not yet
-available.
+They do not roam with documentation or user content. Reusable instructions,
+prompts, skills and agent profiles have separate stores and review workflows;
+they are not preference files. See [Customizations](customizations.md).

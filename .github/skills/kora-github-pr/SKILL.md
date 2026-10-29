@@ -25,14 +25,14 @@ Before writes, resolve:
 
 - Any expected GitHub principal already recorded by the caller or an authorized handoff; otherwise discover the authenticated repository CLI principal during preflight and record it without a confirmation question. Do not derive it from the Copilot profile, commit author or repository owner, or hardcode a contributor login.
 - Exact repository, owner/worktree/branch, intended base, committed source head and approved file/feature scope.
-- Publication authority and any explicit draft, PR-only/no-merge or local-only restriction. Under the [Kora delivery default](../../copilot-instructions.md#pull-requests-and-merge-admission), authorized ready-PR delivery includes protected squash Auto-merge. Local implementation alone grants no remote authority; an admitted end-to-end child needs no repeated publication/merge question.
+- Publication authority and any explicit draft, PR-only/no-merge or local-only restriction. Under the [Kora delivery default](../../copilot-instructions.md#pull-requests-and-merge-admission), authorized ready-PR delivery includes protected squash Auto-merge. Local implementation alone grants no remote authority.
 - Actual pre-publication checks, failures and pending hosted checks under [contributor validation](../../../CONTRIBUTING.md#development-checks).
 
 Keep one PR owner and one PR per feature or explicitly agreed shared prerequisite. Do not relabel a combined feature, absorb another owner's changes or transfer its proof to a different source head.
 
 ## Preflight: Verify Before Mutating
 
-Pin every command to the actual owning directory/branch and use absolute project/script paths or Git `-C`. Never operate in an inherited coordinator checkout.
+Pin every command to the actual owning directory/branch and use absolute project/script paths or Git `-C`. Never operate in another owner's checkout.
 
 1. Verify `git status`, branch, exact committed head and `origin`. Match the approved repository and base; no default-branch push.
 2. Read the actual API principal with `gh api --hostname github.com user --jq .login` and check the exit code and nonempty result. Compare with any recorded expected principal; otherwise record this discovered identity. Successful discovery is not a reason to ask the user to confirm the same account.
@@ -124,24 +124,24 @@ Record current candidate-head App checks and ticket when available, not merely m
 
 ## Handoff, Repair and Uncertainty
 
-For a coordinator job, immediately publish `pr-enrolled-ci-wait` to the registered shared outbox after actual PR/enrollment readback and all local finite consequential commands have terminated/joined. Follow the agent's [publication milestone protocol](../../agents/roadmap-coordinator.agent.md#publication-milestone-protocol) and [mailbox protocol](../../agents/roadmap-coordinator.agent.md#shared-file-mailbox-protocol); do not wait for final merge or parent ACK, or send a redundant native message.
+Return a compact handoff with the verified principal, repository, owning worktree,
+branch/current remote head, PR URL, Auto-merge method/`enabledAt` or explicit
+authority exception, current candidate state, validation results and remaining
+failures. Link detailed evidence rather than copying CLI logs.
 
-The agent owns event fields, once-only release/refill, atomic file delivery/readback, retained-owner continuation and authority exceptions; do not duplicate that protocol here. Explicitly retained legacy native runs preserve their recorded transport until a safe transition.
-
-Apply the agent's [routine continuation rule](../../agents/roadmap-coordinator.agent.md#routine-continuation-without-user-input): finish the authorized handoff and release execution without a stop/wait/check-again user prompt. Retain the verified administrative inbox continuation or record the need for a budgeted wake. Supported re-entry retains existing authority and repair admission; pending hosted checks do not authorize child CI polling or imply continuous monitoring. The coordinator keeps its separate bounded scheduling loop running.
-
-Return one compact durable handoff with principal, repository, exact launch-mapped owner/branch/current remote head, actual PR URL, Auto method/`enabledAt` or explicit authority exception, current candidate state, evidence pointers, failures and command termination. Persist deep CLI evidence in the owner's receipt; status alone is not an event, but verified atomic mailbox publication is delivery without native messaging.
-
-Retain the same source owner/worktree and PR for approved review/CI repair. Preserve App updates, changed-input validation and required checks. Hosted CI wait does not consume execution allocation.
-
-On supported resume, report concrete source-bound failure for repair admission; an actual scoped fix and normal same-PR push return the agent's distinct repair handoff.
+Retain the same source owner/worktree and PR for approved review/CI repair.
+Preserve App updates and rerun checks affected by the repair. Pending hosted
+checks are not merge proof or a promise of continuous background monitoring.
+On resume, revalidate the recorded authority and current branch/PR state before
+writing.
 
 ## Scratch Usage
 
 Keep agent-created PR bodies, receipts, checkpoints and intermediate files under `<owning-workspace>\.scratch\kora-github-pr\<session-or-run-id>`. Resolve the absolute path, verify `.scratch/` is ignored and create the directory with native filesystem operations; no shared NetAAA helper, installation or out-of-workspace artifact directory is required.
 
-For coordinated work, put durable receipts in the exact registered workspace dataset/run roots supplied at launch, not each worktree's relative `.scratch`. Follow the agent's [ownership/recovery](../../agents/roadmap-coordinator.agent.md#shared-dataset-ownership-and-recovery) and [retention/cleanup](../../agents/roadmap-coordinator.agent.md#shared-dataset-retention-and-cleanup) rules.
-Retain that workspace while referenced; a coordinator takeover grants no new publication/merge authority.
+For delegated work that shares files, use the owning workspace's absolute
+scratch root supplied at launch. Retain referenced evidence and active owners'
+files; a handoff grants no new publication/merge authority.
 
 Follow [repository scratch policy](../../copilot-instructions.md#agent-scratch-and-session-files). Do not choose host session storage, the user profile, system temp or common Git metadata for these files. Do not relocate host/tool-managed output, silently migrate a live dataset or weaken host access approvals.
 Obtain consent if the existing ignore policy actually needs changing, not merely because an ignored scratch directory needs creating.

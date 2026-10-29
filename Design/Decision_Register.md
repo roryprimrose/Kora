@@ -1,6 +1,8 @@
 # Architecture and Delivery Decision Register
 
-Status: active proposed-design register.
+Status: accepted decisions and unresolved choices. Dated implementation/proof
+notes are evidence for their exact scope, not current availability; the
+[roadmap](Implementation_Roadmap.md#current-delivery) owns delivery status.
 
 Related: [MVP Scope](MVP_Scope.md), [Architecture](Architecture.md), [Acceptance Criteria](Acceptance_Criteria.md).
 
@@ -52,11 +54,11 @@ context, not an unconditional destination for general voice: relatedness routing
 valid in both modes, while explicit session composer/named input wins. This supersedes
 the discussion's intermediate selection-as-voice-lock proposal.
 
-The owner separately approved a bounded first delivery of the adaptive UI and
-deterministic show/ordinal selection, leaving the missing automatic matching service
-and model-visible list context explicitly unavailable. See the
-[delivered boundary](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
-and [routing contract](Interaction_And_Sessions.md#proposed-relatedness-routing).
+The initial bounded UI approval did not require automatic matching or
+model-visible list context. The
+[workspace boundary](UI_Workspace_And_Windows.md#adaptive-primary-interaction-window---2026-10-25)
+and [routing contract](Interaction_And_Sessions.md#proposed-relatedness-routing)
+record the subsequent reviewed implementation and remaining runtime gates.
 Question/approval authority, privacy, retention and provider qualification are unchanged.
 
 ## Integrated session content pane - 2026-10-25
@@ -122,20 +124,20 @@ the host must validate applicable permission before execution, never execute a p
 
 | ID | Decision | Owner | Due before | Status | Required evidence |
 |---|---|---|---|---|---|
-| D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's implementation | Open, independently release-blocking per adapter; historical Copilot source-built RT1 and separately approved released-profile RT1 regressions pass; bounded RT2 passes but all-path gate Blocked; hook-only rejected; Claude/Codex proof not yet recorded | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |
-| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Slice A1 implementation | sherpa-onnx/Silero development direction approved 2026-10-24; exact model/native/VAD bytes, alignment and enablement open | [Speech-input direction and admission evidence](Speech_Input.md#approved-development-direction-and-remaining-admission-evidence); redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests; apply I/E/Q, not a monolithic implementation block |
+| D-001 | Hosted adapter/control-point viability for Copilot, Claude, and Codex | Runtime engineering lead | Each adapter's enablement | Open per adapter; maintained Copilot/Claude boundaries exist but remain unavailable; historical Copilot RT1 and bounded RT2 do not close all-path admission or qualify new bytes; hook-only rejected; Codex remains proposed | Apply the [hosted-service proof](Architecture.md#hosted-service-integration-proof) independently to exact adapter/runtime versions and account classes. Preserve both Copilot artifact pins and [RT2 handoff](../experiments/r02-runtime-lifecycle-proof/EVIDENCE.md#handoffs). Copilot evidence cannot qualify Claude/Codex. Prove final request/tool/context control, storage/diagnostic/endpoints, cancellation, isolation, and exact model/reasoning/context catalogue mapping; qualify applicable lifecycle paths and approved execution PV1 before production admission. |
+| D-002 | Local wake detector, endpointing, and playback rejection | Speech engineering lead | Offered speech-profile enablement | sherpa-onnx/Silero development direction approved 2026-10-24; exact model/native/VAD bytes, alignment and enablement open | [Speech-input direction and admission evidence](Speech_Input.md#approved-development-direction-and-remaining-admission-evidence); redistribution/licence review, packaged Windows assets, recall/false activation, CPU/memory, immediate-command preservation, self-activation tests; apply I/E/Q, not a monolithic implementation block |
 | D-003 | Local inference baseline | Runtime engineering lead | Slice A2 acceptance | Open, release-blocking; R02 identity/licence metadata and unavailable-path evidence recorded; candidate unqualified | [R02 local-inference outcomes and plan](Local_Inference.md): pinned candidate, distribution review, agreed budgets, actual CPU-floor quality/performance/context/cancellation and network-blocked successful answering; owner-reviewed selection |
-| D-004 | Management inference provider envelope | Runtime engineering lead | Slice A3 implementation | Open, release-blocking for production model-assisted management; released-profile .NET MG1 envelope passes, historical witnesses unchanged | Carry MG1 bytes/deadline/admission/no-retry/Unknown quarantine to R13 using R04 host contracts. Applicable RT2 and management PV1 still require approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost evidence. Byte limits do not bound billed reasoning; deterministic fallback is independent. |
+| D-004 | Management inference provider envelope | Runtime engineering lead | Model-assisted management enablement | Open, release-blocking for production model-assisted management; released-profile .NET MG1 envelope passes, historical witnesses unchanged | Carry MG1 bytes/deadline/admission/no-retry/Unknown quarantine to R13 using R04 host contracts. Applicable RT2 and management PV1 still require approved account/tier/terms, actual concurrency, quota/rate limit and defensible billed-cost evidence. Byte limits do not bound billed reasoning; deterministic fallback is independent. |
 | D-005 | Unsigned Windows package and notify-only maintenance | Release engineering lead | First production-accepted binary candidate | WiX MSI/custom Burn binary packaging, POC release automation, managed-source build-only tooling and immutable source-tool packaging/channel resolution implemented; source activation/installed/protection acceptance open, production release-blocking; historical NSIS receipts retained | Approved unsigned beta/stable POC publication is not D-005 closure. Static acquisition binds complete tool bytes to canonical exact-source Git identity; production excludes drafts/prereleases, preview explicitly admits published prereleases, and neither executes downloaded code. CI gates, per-release native/redistribution review, lifecycle/logon/upgrades and actual runtime/identity/protection trials remain required; follow R02-D01 through R17-D03 below. No install-capable updater; future signed-metadata trust is separately gated. |
 | D-006 | Optional frequent-speaker learning and verifier | Security and speech leads | Before advertising learned-speaker/owner-aware capability | Accepted optional direction; bounded local personalization/resource choices approved 2026-10-22; engine/privacy proof open | Separate consent, local protected per-SID/device learning, measured recognition benefit, bounded updates/resources, predominant-speaker/drift/playback quality, reset/delete and privacy evidence; separately enrolled verifier FAR/FRR/anti-spoof proof and protected OS workflow |
 | D-007 | Supported Windows/reference hardware matrix | Product and test leads | Slice A1 acceptance; inference qualification before A2 | Open, release-blocking; R02 development inventory is not floor qualification | Windows versions, named reference CPU/RAM, microphones/headsets, accessibility baseline, test machine ownership and reproducible environment; [R02-L1/L3](Implementation_Roadmap.md#r02-local-inference-continuation) supported CPU-only inference-floor evidence |
 | D-008 | Approval/grant implementation and audit model | Security engineering lead | Before general side-effecting execution | Accepted scopes/lifetimes and [session-level direction](Session_Permission_Levels.md); enforcement open, release-blocking | Exact use, independent perpetual retention; levels/reviewer/consent; call migration; atomic audit/lifecycle; all-route and race proof |
 | D-009 | Durable session/evidence storage, lifecycle and deletion | Storage and security leads | Revised Slice A3 implementation | Owner-approved standard SQLite/private profile baseline; encryption/key/rekey prerequisites superseded; bounded actual task store delivered, composed evidence/schema/lifecycle acceptance partial | Supplied LocalApplicationData and effective ACLs, pinned standard SQLite, versioned schemas, ordered durable events, W3C/call-time correlation, independent log/audit/span/link persistence and retention, explicit recovery/gaps, copy disclosure, lifecycle/deletion and no replay; D-008 audit authority remains separate |
 | D-010 | Concurrent sessions and resource coordination | Runtime engineering lead | Revised Slice A3 implementation | Accepted bounded concurrency; Node and scoped .NET RT1 conversation topology measured, production isolation/budget proof open | Approved provider concurrency budgets, proposed two-slot baseline, one task per session, canonical shared/exclusive resource leases, outside-change revalidation, fair scheduling, cancellation/unknown-effect races; loopback conversations are not execution-slot proof |
-| D-011 | Shared interaction, session routing/history and evidence tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; protocol/integration proof open, release-blocking | Voice/UI/mixed structured questions and exact grants, compact interaction/list-plus-conversation workspace/separate detail surfaces, minimal Active-session routing context, per-session Logs/Audit/All Evidence across traces, trace-tree/link navigation, bounded cited search/reasoning and gap status, provenance/egress, foreground voice versus addressed UI races |
+| D-011 | Shared interaction, session routing/history and evidence tools | Product and application leads | Revised Slice A3/A4 implementation | Accepted UX direction; bounded workspace/routing/Details implemented, broader protocol/integration qualification open | Voice/UI/mixed structured questions and exact grants, compact/list-plus-conversation workspace with integrated passive Details and separate authoritative reviews, minimal Active-session routing context, per-session Logs/Audit/All Evidence across traces, trace-tree/link navigation, bounded cited search/reasoning and gap status, provenance/egress, foreground voice versus addressed UI races |
 | D-012 | Windows-session trust model and accepted voice boundary | Product and security leads | Design acceptance; enforcement before associated capability release | Accepted direction; implementation evidence outstanding | Enabled verbal input trusts the active unlocked profile, not speaker identity; no compulsory biometrics/PTT/UI for ordinary voice; scoped grants, call origin/reuse gates, intent/content separation, containment and truthful recovery tests |
 | D-013 | Windows worker and protected-deployment containment | Security and Windows engineering leads | R11 execution admission; R17 protected-deployment acceptance | Best-effort transitive tracking/review direction accepted 2026-10-06; technical admission open, release-blocking; strict ACL/no-child profiles rejected | Exact manifest-listed script review/grants, honest transitive gaps/user responsibility, attributable OS network denial, effective app/worker identities and protected-root/runtime ACLs, aliases/TOCTOU, fixed-control feasibility, truthful receipts and descendant/crash shutdown |
-| D-014 | Local/hosted provider modes, hosted compute profiles, user memory, and grounded knowledge | Product, runtime, storage, and security leads | Provider selection UX before R08 exposure; durable memory before cross-session recall; knowledge policy before R26 reasoning | Accepted direction; Copilot/Claude/Codex hosted-profile UX and inheritance direction accepted; bounded R04-R08 host controls and reviewed memory domain/application admission delivered; durable memory/native visibility, adapters, catalogues, modes and provider/index/media proof open | Implement [the provider, memory, and knowledge contract](Model_Providers_Memory_And_Knowledge.md): explicit Local only/Local first/Hosted preferred modes, independently qualified Copilot/Claude/Codex adapters, provider-advertised service/model/reasoning/context choices, app defaults with sparse session overrides, session-default unscoped mutations, explicit one-turn/app scopes and immutable per-turn resolution, one provider per turn, reviewed handoff not based solely on model confidence, Kora-owned inspectable/deletable memory, provider-independent local retrieval, exact hosted excerpt egress, validated citations, hostile-content isolation and index lifecycle/deletion. The [host-only increment](Model_Providers_Memory_And_Knowledge.md#delivered-r04-r08-host-controls---2026-10-09) enables no adapter/product mode. The [memory admission increment](Model_Providers_Memory_And_Knowledge.md#delivered-reviewed-memory-admission---2026-10-09) enables no durable store, UI, retrieval ranking, context attachment or hosted disclosure. |
+| D-014 | Local/hosted provider modes, hosted compute profiles, user memory, and grounded knowledge | Product, runtime, storage, and security leads | Provider selection UX before R08 exposure; durable memory before cross-session recall; knowledge policy before R26 reasoning | Accepted direction; bounded host/adapters, native session memory, provider configuration and reviewed-context workflows implemented; production qualification, automatic recall, index/media and hosted grounding remain open | Follow [the provider, memory, and knowledge contract](Model_Providers_Memory_And_Knowledge.md): explicit Local only/Local first/Hosted preferred modes, independently qualified Copilot/Claude/Codex adapters, service/model/reasoning/context catalogue choices, app defaults with sparse session overrides, session-default unscoped mutations, explicit one-turn/app scopes and immutable per-turn resolution, one provider per turn, reviewed handoff not based solely on confidence, inspectable/deletable memory, provider-independent retrieval, exact hosted excerpt egress, validated citations, hostile-content isolation and index lifecycle/deletion. Configuration, memory storage and source review do not qualify a provider or authorize disclosure. |
 
 The [Internal Model Tool Catalogue](Internal_Model_Tools.md) is the exposure inventory for D-001/D-008/D-011.
 Registry/schema/lane coverage, unavailable-tool exclusion, and host-only boundaries are release evidence, not implied by an SDK's native tool support.
@@ -408,23 +410,18 @@ and script review remain separate from the exact task execution grant.
 
 ### Session Permission-Level Direction - 2026-10-10
 
-[Session Permission Levels](Session_Permission_Levels.md) owns the agreed proposed behavior: grant-first Review all / Model review / Approve all for every admitted action route. New sessions default Review all; selected levels persist for the same Active session across restart and reset on Done/resume. Safe and Approve-all admissions create no grants; explicit approval retains Once/Session/Always.
+[Session Permission Levels](Session_Permission_Levels.md) owns grant-first Review all / Model review / Approve all. Exact-session policy/native controls are implemented; each executing route retains independent admission. New sessions default Review all; selected levels persist for the same Active session across restart and reset on Done/resume. Safe and Approve-all admissions create no grants; explicit approval retains Once/Session/Always.
 
-Use a tools-disabled reviewer, failing visibly to user approval on concern/uncertainty/error. Combine exact action/disclosure review without weakening consent/authentication/containment/audit. Calls keep grants and levels effective but disable spoken approval by default through proposed `calls.allowSpokenApprovals`; this supersedes future grant-ignore, not current implementation.
+Use a tools-disabled reviewer, failing visibly to user approval on concern/uncertainty/error; no production reviewer is qualified, so Model review requires user approval. Combine exact action/disclosure review without weakening consent/authentication/containment/audit. Calls keep grants and levels effective, with spoken approval default Off under the implemented call-channel policy.
 
-D-008 remains open for schema, isolated-reviewer, all-route dispatch, call migration, lifecycle/race and audit qualification under the [acceptance gate](Acceptance_Criteria.md#session-permission-level-gate). This is design acceptance, not execution enablement.
+D-008 remains open for qualified reviewer, all-route execution and complete lifecycle/race/audit evidence under the [acceptance gate](Acceptance_Criteria.md#session-permission-level-gate). Bounded implementation is not general execution enablement.
 
-**2026-10-06 bounded R05 foundation:** portable typed questions and exact
-operation proposals, revision/scope checks, atomic Once use, explicit
-remove/edit and permanent observed-content revocation now have concrete
-core/application services and tests. Original caller origin and protected-call
-reusable-grant rules remain enforced; legacy action-name preferences are not
-authority for these bindings. See [R05 delivery/pending gates](Archive/Implementation_Roadmap_2026-10-11.md#r05-bounded-authorizationquestion-foundation).
-The adapter is an explicit atomic storage/audit contract with a test-only
-implementation. Production durable approval storage, native trusted input/
-review, actual dispatch composition and the verified R04 handoff remain
-pending. D-008 stays open; D-009's standard SQLite baseline and D-013's
-exact-declared/best-effort-transitive and containment requirements are unchanged.
+The [historical R05 foundation](Archive/Implementation_Roadmap_2026-10-11.md#r05-bounded-authorizationquestion-foundation)
+records the original portable services, not today's composition.
+[Security](Security_Data_Flows.md#r05-authorization-foundation) owns current
+durable exact authorization, revocation and native review boundaries. Legacy
+action-name preferences are not authority for exact-operation bindings.
+D-009 storage and D-013 declared-content/containment obligations remain separate.
 
 ## D-009 Session Persistence and Retention
 
@@ -651,7 +648,8 @@ No production manifests, native binaries or redistribution notices were
 changed. Choosing an owned official-release SQLCipher Community build or
 a reviewed patched/reduced SQLite3MC build requires an explicit owner
 decision about candidate, build provenance, licences and servicing; neither
-is silently selected. Production persistence remains unavailable.
+is silently selected. These encrypted candidates remain unadmitted; the
+approved standard-SQLite baseline above owns production persistence.
 
 Prove atomic intent/decision/event recording, readable recovery with interrupted/unknown work, key protection, source-revocation handling, and full permitted history without raw audio/secrets.
 Both archive and deletion durations are configurable; the same meaningful-activity clock controls them and passive browsing does not refresh it.
@@ -665,7 +663,7 @@ An isolated UI chat or an SDK-created session is not evidence of independent saf
 
 ## D-011 Shared Interaction and Model Tools
 
-The accepted [window structure](UI_Workspace_And_Windows.md) is compact latest interaction, a Sessions workspace with list beside full conversation/history, and separate immutable detail/script viewing.
+The accepted [window structure](UI_Workspace_And_Windows.md) is compact latest interaction, an expanded list-plus-conversation workspace with integrated passive Details, and specialized supporting previews. Authoritative questions/approvals remain separate.
 The detail design reuses passive Markdown/static-HTML/source presenters and
 host-owned provenance chrome. Session, skill, settings and permission
 management remain purpose-built native workspaces; rendered content cannot own

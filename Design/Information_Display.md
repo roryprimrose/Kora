@@ -1,17 +1,15 @@
 # Information Display and Rich Content
 
-Status: accepted design direction; bounded native-text-v1 passive viewer
-implemented for explicitly opened embedded guide pages. General model/result
-routing, full conversation/artifact resolution and isolated HTML remain gated.
-The guide, bootstrap grant document and passive viewer share the bounded
-native Markdig/Avalonia pipeline. This is a partial R14 delivery, not the
-general artifact or permission-management experience described below.
-The bounded native shared-question slice additionally reuses this passive
-plain-text renderer for complete immutable host-record review, separate from
-native answer/approval controls.
+Status: passive native-text/Markdown readers and bounded provisional-answer
+presentation are implemented. The guide, grant review and immutable
+host-record readers share the bounded Markdig/Avalonia pipeline; authoritative
+answer/approval controls remain separate.
 The [integrated session content pane](UI_Workspace_And_Windows.md#integrated-session-content-pane---2026-10-25)
-is approved placement direction, not delivered behavior; existing bounded Details
-windows remain in use until migrated.
+implements retained conversation/activity, ordinary current-response and fixed
+session log/audit Details in the primary window. Standalone documentation and
+specialized previews remain. General result routing, full artifact resolution,
+Mermaid, isolated HTML and installed accessibility remain gated; see the
+[delivery inventory](Implementation_Roadmap.md#current-delivery).
 
 The separate [exact Settings-section navigation contract](User_Configuration.md#exact-existing-settings-section-navigation) selects an existing named native tab in the singleton Settings surface only.
 Responses-tab navigation is not a retained-body, retired-response, model or private-content disclosure route ([native selection](../src/Kora/SettingsWindow.axaml.cs), [admission](../src/Kora.Application/ViewModels/MainViewModel.SettingsSectionNavigation.cs)).

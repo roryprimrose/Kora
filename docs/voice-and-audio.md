@@ -1,13 +1,21 @@
 # Voice, microphone, and speakers
 
+To try voice: choose a [microphone](#microphone-selection), review
+[voice consent](#voice-consent-and-explicit-push-to-talk), then hold **Push to talk**,
+say **Kora, help** (using your configured name) and release.
+Typing remains available without voice consent.
+
+For output, choose a [speech provider](#speech-providers), a
+[voice](#speech-voice-selection) and a [speaker](#audio-output-selection).
+Use Preview to test speech; it does not open the microphone.
+
 ## Hands-free availability
 
-Configured-name hands-free activation remains **unavailable**. The new host
-lifecycle and deterministic audio-boundary tests do not install or qualify a
-wake detector. Saying the assistant name does not open an ordinary command turn
-in the current released adapter. Use push-to-talk, typed input or native controls;
-PTT is a fallback, not delivery of the primary hands-free interaction.
-See [speech-input implementation and enablement](../Design/Speech_Input.md#current-implementation-boundary).
+Hands-free activation is **unavailable**. Saying the assistant name alone does
+not start listening. Use push-to-talk, typed input or the on-screen controls.
+The [optional conversational reply setting](settings.md#conversational-voice-replies)
+is a different feature: only an eligible clarification can offer a short reply
+capture after Kora finishes speaking. It never approves work.
 
 ## Prepare hands-free assets
 
@@ -40,12 +48,9 @@ available on that selected answer. Cancellation does not cancel model work,
 modify the retained answer or queue a replay. Completion is reported only after
 owned playback releases; an unconfirmed release remains a recovery failure.
 
-Explicit push-to-talk interruption additionally requires a separately qualified
-speech-input profile. The shipped Windows adapter does **not** claim this
-qualification: PTT during retained-answer playback reports unavailable without
-opening capture or stopping unrelated output. Deterministic host tests exercise
-activation -> original session/playback -> recognized `stop speaking` -> resource
-join -> interrupted status, not acoustic or installed-runtime qualification.
+Push-to-talk interruption of retained-answer playback is **unavailable in the
+shipped Windows profile**. It does not open capture or stop unrelated output.
+Use typed `stop speaking` or the displayed **Cancel reading** control instead.
 
 A future qualified profile must preserve the activation-time foreground
 conversation and exact playback. Focus changes, replacement output, retired
@@ -502,28 +507,15 @@ synchronization context. Output invalidation never stops WASAPI while holding
 the completion-state lock, so Exit and privacy closure remain responsive even
 while speech is playing.
 
-Deterministic policy/race tests are not real Windows acceptance trials.
-External lock/disconnect/suspend, microphone-permission/device changes,
-cross-build takeover/return and capture-release timings require reference
-Windows trials. Those disruptive trials were not authorized for this R03
-session. The release requirement remains **at most 500 ms from the observed
-lock event in every reference trial**, recording OS notification delay
-separately. This implementation does not establish that measured target or
-production wake quality. Overall roadmap/decision status is left to integration
-review.
-
-The [shared deferred-validation register](../Design/Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
-contains R03's individually approved interactive trial plan alongside the R02
-proofs. These unperformed trials remain acceptance/release blockers, not a claim
-of failure or success. The scoped implementation can merge after normal checks
-and reviews without declaring those gates passed or authorizing a live trial.
+Locking Windows, losing microphone permission or changing devices can stop
+capture and clear private presentation. If Kora cannot confirm release of audio
+resources, voice stays disabled and requires the displayed recovery action.
+Do not treat a device reappearing as permission to resume listening.
 
 ### R03 validation evidence
 
-Maintained deterministic/native-seam checks and bounded physical PTT/handoff
-trials cover only their recorded scope. They do not qualify production wake,
-the complete A01-A07 matrix, acoustic playback rejection or installed profiles.
-Failed and successful historical attempts remain in the
-[R03 receipts](../Design/Archive/Deferred_Validation_2026-10-11.md#r03-windows-ownership-and-audio-privacy).
-Use the [live validation register](../Design/Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
-for remaining evidence and approval prerequisites.
+For contributors investigating device-specific behavior, the
+[validation register](../Design/Deferred_Validation.md#r03-windows-ownership-and-audio-privacy)
+and [historical records](../Design/Archive/Deferred_Validation_2026-10-11.md#r03-windows-ownership-and-audio-privacy)
+describe what was and was not checked. They do not make hands-free activation,
+literal dictation or an unavailable speech profile usable.

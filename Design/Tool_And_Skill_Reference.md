@@ -110,7 +110,7 @@ History and file mirrors are not live grant or audit authority.
 [source storage](Skill_Storage.md) and [authoring](Skill_Authoring.md) own
 discovery, source-qualified revisions and exact save/enablement boundaries.
 Registration, instruction selection and inspection do not execute scripts.
-The proposed [definition management contract](Definition_Management.md) owns
+The [definition management contract](Definition_Management.md) owns
 direct editing of supported personal profile originals and Kora-owned files,
 optional forks, UI/voice parity, and consistent external reload across skills,
 prompts, instructions, and agent profiles. The
@@ -118,12 +118,11 @@ prompts, instructions, and agent profiles. The
 owns common `definitions.*` actions and their skill-specific projections;
 this reference does not duplicate their schemas or delivery status.
 
-Current host-only `instructions` / `prompts` editor controls and their native
-exact Save/Delete, Reload/Overwrite/Cancel and separate use review are documented
-in [the native command guide](../docs/commands.md#edit-an-owned-instruction-or-literal-prompt-without-a-model).
-These are not model `definitions.*` tool registrations. The shared closed
-writer supports Kora-owned instructions and literal saved prompts only;
-profile/skill/agent writers, parameters and execution remain unavailable.
+Current host-only editor controls are documented in
+[the command guide](../docs/commands.md#edit-an-owned-instruction-or-literal-prompt-without-a-model)
+and [Customizations](../docs/customizations.md). Dedicated supported-kind/source
+writers retain their own review and save boundaries; they are not model
+`definitions.*` registrations or generic filesystem/execution authority.
 
 ## 9. Content Presentation and Viewing
 

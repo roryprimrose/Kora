@@ -274,6 +274,10 @@ jobs:
         shell: pwsh
         run: ./eng/Test-PortableTestScheduling.ps1
 
+      - name: Test debug launcher
+        shell: pwsh
+        run: ./eng/Test-Run.ps1
+
       - name: Enforce dependency and portable API boundaries
         shell: pwsh
         run: ./eng/Test-Architecture.ps1
@@ -511,6 +515,11 @@ jobs:
         if: matrix.shard == 'storage-other'
         shell: pwsh
         run: .\eng\Test-SourceBootstrap.ps1 -OutputDirectory (Join-Path $env:RUNNER_TEMP 'kora-source-bootstrap-contracts')
+
+      - name: Test Windows debug launcher
+        if: matrix.shard == 'storage-other'
+        shell: pwsh
+        run: .\eng\Test-Run.ps1
 
       - name: Upload source bootstrap fixture results
         if: always() && matrix.shard == 'storage-other'

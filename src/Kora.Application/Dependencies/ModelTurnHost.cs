@@ -223,15 +223,19 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         using var activity = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Runtime);
         Tag(turn.Provenance);
         var requested = StartAudit(turn.Provenance);
-        using var deadline = new CancellationTokenSource(turn.Context.Constraints is { } constraints
-            ? TimeSpan.FromMilliseconds(constraints.DeadlineMilliseconds)
-            : turn.Registration.Adapter is CopilotModelTurnAdapter or ClaudeModelTurnAdapter ? HostedTurnAuthorization.MaximumDuration : Deadline, time);
+        var remaining = turn.OrdinaryActiveBudget?.Remaining ?? RuntimeDeadline(turn);
+        using var deadline = new CancellationTokenSource(remaining > TimeSpan.Zero ? remaining : TimeSpan.Zero, time);
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(cancellationToken, deadline.Token, lifetime.Token,
             turn.ResourceLease?.Evidence?.Revoked ?? CancellationToken.None);
         ModelTurnResult result;
         try
         {
+            if (turn.OrdinaryActiveBudget?.Expired == true) { await deadline.CancelAsync().ConfigureAwait(false); }
             result = await ExecuteAsync(turn, linked.Token).ConfigureAwait(false);
+            if (result.Outcome == ModelTurnOutcome.Succeeded && deadline.IsCancellationRequested
+                || turn.OrdinaryActiveBudget?.Expired == true
+                    && (result.Outcome == ModelTurnOutcome.Succeeded || result.Reason == ModelTurnReason.DeadlineExceeded))
+            { result = Finish(ModelTurnOutcome.TimedOut, ModelTurnReason.DeadlineExceeded, turn.Provenance); }
         }
         catch (OperationCanceledException) when (linked.IsCancellationRequested)
         {
@@ -408,6 +412,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         if (turn.Policy is { } policy && !IsCurrentPolicy(policy)) { return ModelTurnReason.PolicyChanged; }
         var reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
+        if (turn.OrdinaryActiveBudget?.Expired == true) { return ModelTurnReason.DeadlineExceeded; }
         if (!Eligible(turn.ControlRevision) || !ConsumerAdmissionCurrent(turn)) { return ModelTurnReason.HostAdmissionClosed; }
         var session = await workspace.ReadMetadataAsync(turn.Provenance.Request.SessionId, token).ConfigureAwait(false);
         var task = await workspace.ReadTaskAsync(turn.Provenance.Request.SessionId, turn.Provenance.Request.TaskId,
@@ -424,6 +429,7 @@ public sealed partial class ModelTurnHost : IAsyncDisposable, IModelTurnAdmissio
         }
         reason = ContextReason(turn.Context, turn.Provenance.Request);
         if (reason != ModelTurnReason.None) { return reason; }
+        if (turn.OrdinaryActiveBudget?.Expired == true) { return ModelTurnReason.DeadlineExceeded; }
         if (turn.Issuer.Activity!.IsStopped || turn.Issuer.Outcome != HostOperationOutcome.Unknown)
         {
             return ModelTurnReason.HostContextRequired;

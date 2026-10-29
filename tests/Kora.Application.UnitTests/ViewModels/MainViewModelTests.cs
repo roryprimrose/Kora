@@ -4587,6 +4587,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
@@ -8613,7 +8614,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
-            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8808,7 +8810,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
-                communicationActivityConfiguration: communicationActivityConfiguration);
+                communicationActivityConfiguration: communicationActivityConfiguration,
+                ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

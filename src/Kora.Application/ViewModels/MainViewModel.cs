@@ -4237,7 +4237,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportModelActionReviewUnavailable();
             return;
         }
-        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target is
+                (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult)
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
         {
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");

@@ -9,6 +9,7 @@ namespace Kora.Core.Conversation;
 public sealed record ConversationMessage(HostRequest Request, HostRevision Generation, long Sequence,
     long Revision, DateTimeOffset SubmittedAt, string Body, ModelTurnOutcome? Outcome, ModelTurnReason? Reason)
 {
+    public const int MaximumStorageUtf8Bytes = 32768;
     public int Version { get; init; } = 1;
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ModelTurnProvenance? Execution { get; init; }
@@ -18,6 +19,8 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
     public ConversationResponse? AssistantResponse { get; init; }
     [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
     public ConversationHandoffLineage? Handoff { get; init; }
+    [JsonIgnore(Condition = JsonIgnoreCondition.WhenWritingNull)]
+    public RetainedLocalObservations? Observations { get; init; }
     [JsonIgnore]
     public bool HasAssistantResponse => AssistantResponse is not null;
     [JsonIgnore]
@@ -54,8 +57,17 @@ public sealed record ConversationMessage(HostRequest Request, HostRevision Gener
         Execution?.Turn.Validate();
         Handoff?.Validate(Request);
         AssistantResponse?.Validate();
+        if (Observations is not null)
+        {
+            if (Version != 2 || Outcome != ModelTurnOutcome.Succeeded
+                || Execution!.Selection.Provider != ModelProviderIdentity.Ollama)
+            { throw new InvalidDataException("Only a successful original local answer may retain host observations."); }
+            Observations.Validate();
+        }
         if (AssistantResponse is { } answer && answer.Provenance != Execution)
         { throw new InvalidDataException("Assistant response does not belong to the retained original execution."); }
         ConversationText.Validate(Body, submission: true);
+        if (System.Text.Json.JsonSerializer.SerializeToUtf8Bytes(this).Length > MaximumStorageUtf8Bytes)
+        { throw new InvalidDataException("The complete conversation cell exceeds 32768 UTF-8 bytes; nothing was retained partially."); }
     }
 }

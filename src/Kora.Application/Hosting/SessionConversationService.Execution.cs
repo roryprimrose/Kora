@@ -135,9 +135,20 @@ public sealed partial class SessionConversationService
             ConversationResponse? answer = null;
             if (result.Outcome == ModelTurnOutcome.Succeeded)
             {
-                try { answer = ConversationResponse.FromResult(result, turn.Provenance); }
+                try
+                {
+                    answer = ConversationResponse.FromResult(result, turn.Provenance);
+                    (dispatched.Message with
+                    {
+                        Revision = 3, Outcome = result.Outcome, Reason = result.Reason,
+                        AssistantResponse = answer, Observations = result.Observations,
+                    }).Validate();
+                }
                 catch (Exception exception) when (exception is InvalidDataException or ConversationCredentialException)
-                { result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance); }
+                {
+                    answer = null;
+                    result = new(ModelTurnOutcome.Unknown, ModelTurnReason.InvalidProviderResponse, turn.Provenance);
+                }
             }
             if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
             token.ThrowIfCancellationRequested();
@@ -159,7 +170,8 @@ public sealed partial class SessionConversationService
             var completed = handoff?.Source
                 ?? await conversations.CompleteConversationExecutionAsync(request, result, RetainCurrent, token).ConfigureAwait(false);
             if (completed.Message.Outcome != result.Outcome || completed.Message.Reason != result.Reason
-                || completed.Message.AssistantResponse != answer || completed.Message.Execution != turn.Provenance
+                || completed.Message.AssistantResponse != answer || completed.Message.Observations != result.Observations
+                || completed.Message.Execution != turn.Provenance
                 || completed.Message.Generation != target.Authority.Generation || completed.Message.Sequence != retained.Message.Sequence
                 || completed.Message.Revision != 3 || completed.Task.Revision.Value != 3)
             { throw new IOException("Assistant completion is unconfirmed; inspect the exact original request without retry."); }

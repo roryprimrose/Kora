@@ -108,9 +108,23 @@ clarifications keep their original earlier expiry. Host-control/privacy/protecte
 epoch changes retire prior sources, without call-end replay or activity renewal.
 Existing fatigue, quiet, exact source revalidation, suppression, retirement and
 deferral bounds apply unchanged. Existing source enum values and stored receipts
-remain compatible. No ambient observation, question answering, approval, dispatch,
-focus/selection change or unsolicited speech is added. See the
+remain compatible. Observation, Review, Dismiss and Defer add no ambient observation,
+question answering, approval, dispatch, focus/selection change or unsolicited speech. See the
 [conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
+
+After reviewing one exact ordinary conversation question notice, the deliberate native
+**Answer exact question** gesture activates only its existing canonical presenter.
+The host revalidates the held event revision, question/session/generation, audited source,
+original expiry, current run, original input and native lifetime before focus.
+It does not create a question, restore a closed presenter or start listening
+([native owner](../src/Kora/QuestionWindowController.Conversation.cs),
+[durable validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).
+
+Answer/Cancel remains in the existing Questions service; only its actual canonical accepted
+answer can continue the original task. Independent source/egress approvals remain independent.
+Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
+the waiting conversation does not block bounded work/notice refresh
+([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 
 ## Native content-free loaded-event filters
 

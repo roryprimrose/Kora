@@ -35,7 +35,8 @@ internal sealed partial class SessionsViewModel
             + SessionWorkSnapshot.RecentQueueRecords.ToString(CultureInfo.InvariantCulture)
             + ". Use exact history/task status for other retained records. Eligibility is observed, never permission."
         : "Live work unavailable/not yet read; never interpreted as an empty queue. Refresh selected work.";
-    public bool CanRefreshWork => CanRead && selected is not null;
+    public bool CanRefreshWork => !changingConversationNotice
+        && (CanRead || conversationBusy && !closed && access.CanInspect) && selected is not null;
     public bool CanInspectWork => CanRead && selectedWork is not null;
     public bool CanCancelWork => CanCancelQueueEntry || CanCancelTask;
     public bool CanRemoveQueueEntry => CanCancelQueueEntry;
@@ -65,7 +66,7 @@ internal sealed partial class SessionsViewModel
         var epoch = selectionEpoch;
         var observedAdmission = access.ControlRevision;
         var snapshot = await service.ReadWorkAsync(target.Authority.SessionId, lifetime.Token);
-        if (concurrent && (busy || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
+        if (concurrent && (busy && !conversationBusy || selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)) { return; }
         if (selectionEpoch != epoch || selected?.Authority.SessionId != target.Authority.SessionId)
         {
             throw new OperationCanceledException("The selected session changed during observation.");

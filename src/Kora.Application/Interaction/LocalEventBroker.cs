@@ -35,6 +35,12 @@ public sealed partial class LocalEventBroker(
         IsAvailable && access.CanControl && snapshot.AdmissionRevision == access.ControlRevision
         && snapshot.NoticeRevision == Volatile.Read(ref noticeRevision) && snapshot.RoutineQuiet == routineQuiet;
 
+    /// <summary>Checks only the held delivery binding; fresh authoritative source validation remains mandatory.</summary>
+    public bool IsHeld(LocalEvent target) =>
+        IsAvailable && access.CanControl && access.ControlRevision == heldAdmission
+        && selected == target.SessionId && heldLifetime()
+        && held.Any(item => item.Revision == target.Revision && item.SameSource(target));
+
     public async Task<LocalEventSnapshot> ObserveAsync(HostId<SessionIdentity> session,
         Func<bool> nativeLifetime, CancellationToken cancellationToken)
     {

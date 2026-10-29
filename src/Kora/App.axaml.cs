@@ -165,6 +165,7 @@ public sealed partial class App : Avalonia.Application
                 Services.GetRequiredKeyedService<Kora.Application.Definitions.InstructionSaveWorkflow>(Kora.Core.Artifacts.ArtifactKind.Prompt),
                 Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionForkWorkflow>(),
                 refinement: Services.GetRequiredService<Kora.Application.Definitions.OwnedInstructionRefinementService>(),
+                profileOriginals: Services.GetRequiredService<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>(),
                 dictation: viewModel.BindComposerDictation(Services.GetRequiredService<ILogger<Kora.Application.Voice.ComposerDictationService>>()));
             instructionEditor.Bind();
             customizations = new(viewModel,

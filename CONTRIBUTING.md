@@ -117,6 +117,9 @@ changing test/product or 30-minute Windows job timeouts. Run
 `.\eng\Test-WindowsIntegrationScheduling.ps1` for deterministic selection,
 partition and aggregate-gate checks.
 
+The [shard runner](eng/Run-WindowsIntegrationTests.ps1) keeps the complete settings section navigation, reset-menu and specialist navigation classes on synchronous `ui-definitions`, separate from the buffered native-UX profile.
+The [scheduling regression](eng/Test-WindowsIntegrationScheduling.ps1) checks exact class boundaries and measured redistribution after the [platform job's deadline breach](https://github.com/roryprimrose/Kora/actions/runs/40815883491/job/123256871731); retained partial timings are not a full-shard pass or a hosted timing guarantee.
+
 Cancellation-ignoring playback fixtures wait for the fake speech stop to complete
 before releasing playback. An incomplete command task alone does not establish
 that cancellation was accepted or that the owned resource has joined.

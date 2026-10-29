@@ -1371,6 +1371,19 @@ Visual-only does not close the microphone. Output-device changes never change gl
 Voice-only still preserves required visual approval/error/fallback surfaces; it cannot suppress safety information.
 When speech output is missing, temporarily unavailable, or fails during playback, the response text and window are forced visible regardless of the effective response mode.
 Task and queue response-mode overrides expire with their execution scope; an explicitly chosen session mode is persisted with that session until reset/deletion. The device default changes only explicitly.
+
+### Delivered one-task response output
+
+The [native one-task review](../src/Kora/SessionsViewModel.TaskResponseOutput.cs) applies to a new ordinary request in the exact selected Active conversation. Choose Inherit, VisualOnly, Hybrid or VoiceOnly; review the complete unchanged input, destination, original channel and configured output, then separately confirm submission once. Cancel, editing input/choice, replacing the review or private closure retires its controls without submission.
+
+The [shared request review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs) also accepts `session request output <session-id> <generation> <metadata-revision> <Inherit|VisualOnly|Hybrid|VoiceOnly> -- <original body>`, followed by the existing separate confirm/cancel commands. Activated voice keeps the original channel and protected-call preference gate; a later native click cannot relabel it.
+
+The [host-owned output binding](../src/Kora.Application/Hosting/SessionConversationService.TaskResponseOutput.cs) captures the choice once for the newly issued request/task, not provider payloads or model context. Only an exact confirmed retained terminal result reaches output. Queueing never extends original context/review/authority expiry; cancellation, stale identity and unconfirmed retention cannot replay an answer.
+
+Inherit captures the existing ordinary task/queue/device resolution at review; it does not invent a persisted session-mode consumer or decide session-persistent output timing. The [shared output consumer](../src/Kora.Application/ViewModels/MainViewModel.TaskResponseOutput.cs) reports declared/configured/effective output, revalidates mandatory host/privacy/call/output gates, and retires the transient choice when output joins. Required errors, questions, approvals and complete output-loss fallback remain visual; speech uses the existing caps. Later tasks and saved preferences are unchanged.
+
+These controls do not qualify or enable a model/runtime, change model sources/egress/permissions/retention, create listening consent, change the microphone, replay old output or cancel other work ([qualification boundary](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy), [behavioral evidence](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)).
+
 Specific microphone and output selections are device-local Kora overrides. A
 saved override wins on later starts while that stable endpoint exists. Missing
 saved or current explicit endpoints are not replaced silently; the user must

@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
@@ -44,6 +44,10 @@ public sealed partial class SessionConversationService
         internal ActivityLink Cause;
         internal Action? OnAccepted { get; } = accepted;
         internal Task Worker = Task.CompletedTask;
+        internal TaskResponseOutputReview? Output;
+        internal DateTimeOffset OutputCreatedAt;
+        internal DateTimeOffset OutputExpiresAt;
+        internal long OutputControlRevision;
     }
 
     private readonly Dictionary<HostId<SessionIdentity>, ConversationLane> conversationLanes = [];
@@ -61,15 +65,15 @@ public sealed partial class SessionConversationService
     public Task<ConversationQueuedSubmission> SubmitQueuedAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi, bool localAnswer = false,
-        Action? accepted = null) =>
-        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token);
+        Action? accepted = null, TaskResponseOutputReview? taskOutput = null) =>
+        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token, taskOutput);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "The host-owned worker signals acceptance off the UI context; all continuations are asynchronous.")]
     private async Task<ConversationQueuedSubmission> SubmitQueuedCoreAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
-        CancellationToken token)
+        CancellationToken token, TaskResponseOutputReview? taskOutput = null)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -95,7 +99,7 @@ public sealed partial class SessionConversationService
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
-                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry);
+                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry) { Output = taskOutput };
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,
@@ -111,9 +115,9 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryQueuedAndJoinAsync(SessionWorkspaceEntry target,
         string body, Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, CancellationToken token, bool localAnswer = false,
-        Action? accepted = null)
+        Action? accepted = null, TaskResponseOutputReview? taskOutput = null)
     {
-        var submitted = await SubmitQueuedAsync(target, body, admitted, token, validateSource, links, origin, localAnswer, accepted).ConfigureAwait(false);
+        var submitted = await SubmitQueuedAsync(target, body, admitted, token, validateSource, links, origin, localAnswer, accepted, taskOutput).ConfigureAwait(false);
         if (submitted.Position > 0) { return submitted.Receipt; }
         try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
         catch (OperationCanceledException exception) when (token.IsCancellationRequested)
@@ -130,6 +134,7 @@ public sealed partial class SessionConversationService
         {
             var receipt = await SubmitOrdinaryWithScopeAsync(pending.Target, body, admitted,
                 validateSource, links, origin, localAnswer, pending, linked.Token).ConfigureAwait(false);
+            await PresentTaskResponseOutputAsync(pending, receipt, admitted, validateSource, linked.Token).ConfigureAwait(false);
             completion = new(receipt, null);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)

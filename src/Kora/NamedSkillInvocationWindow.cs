@@ -53,6 +53,12 @@ internal sealed class NamedSkillInvocationWindow : Window
         panel.Children.Add(Targets);
         panel.Children.Add(new TextBlock { Text = "Original user task (retained unchanged; never parsed as a command)" });
         panel.Children.Add(Request);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "For selected owned v3 guidance, Review asks private questions for missing literal inputs only. "
+                + "Answers are data, never Enable or Use approval. Existing fields remain available for manual entry.",
+            TextWrapping = TextWrapping.Wrap,
+        });
         Add("Review exact invocation", "Prepare");
         panel.Children.Add(Confirmation);
         panel.Children.Add(Confirm);

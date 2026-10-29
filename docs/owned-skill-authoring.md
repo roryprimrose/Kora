@@ -225,6 +225,21 @@ placeholders, defaults, expressions and dynamic file bindings are rejected.
 Substitution is single-pass: `${input:other}` inside a supplied value stays
 literal and is never expanded again.
 
+After selecting the exact reviewed owned source, an Active target and the unchanged original task, choose **Preview complete local invocation** (direct ID/version) or **Review exact invocation** (readable-name selection).
+Missing required values open one host-owned private text question at a time; supplied nonblank fields are preserved ([collection owner](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs)).
+
+Type into that exact question's answer control and Submit for an original typed/native request. For an original activated-voice request, choose **Answer by voice** or **Hear then answer** on that exact question.
+Voice requires the existing ongoing microphone consent, enabled listening, qualified local ASR and current device/privacy/call readiness; unavailable voice stays unavailable.
+No ambient capture or automatic rearming is added ([native question owner](../src/Kora/NativeQuestionHost.SkillInputs.cs), [existing voice admission](../src/Kora.Application/ViewModels/MainViewModel.QuestionVoice.cs)).
+
+Answers are data only: they cannot Save, Enable, choose source/target or approve Use. Each answer is bound to the exact original channel, control intent/session generation, reviewed source bytes and identities, declared field, question revision, expiry and current private ownership.
+Wrong, foreign, changed or late answers refuse the collection without command/session fallback. Cancel/close/expiry or editing fields during questions discards partial collection; existing manual entry remains available through a fresh review.
+See the [volatile question policy](../src/Kora.Application/Skills/OwnedSkillInputQuestions.cs) and [native orchestration](../src/Kora/OwnedSkillInvocationController.InputQuestions.cs).
+
+The complete bindings and single-pass expansion then appear in the existing preview, with the original task/source/target. **Confirm exact invocation once** remains a separate native confirmation.
+No provider, tool, skill enablement, source write or conversation content is produced by answering questions. Questions and partial answers are not archived; only content-free control/audit evidence is retained.
+The final Use still returns the canonical local answer or its truthful unavailable terminal ([canonical consumer](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
 Preview shows the exact original manifest and guidance, input bindings and
 expanded guidance, alongside the unchanged original task, current policy,
 original channel and exact destination conversation. It uses the same canonical

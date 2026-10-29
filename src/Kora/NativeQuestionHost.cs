@@ -40,7 +40,7 @@ internal sealed partial class NativeQuestionHost : IDisposable
         this.time = time;
         this.logger = logger;
         var gated = new NativeInteractionStore(store, () => !disposed && canInteract()
-            && (currentAdmission?.Invoke() ?? true));
+            && (currentAdmission?.Invoke() ?? true), () => skillInputQuestions);
         questions = new(gated, time);
         authorization = new(gated, time);
         reviews = new(gated, time);

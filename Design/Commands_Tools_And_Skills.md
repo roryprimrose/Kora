@@ -28,6 +28,10 @@ narratives here.
 
 ## Delivered Artifact Invocation
 
+For explicitly selected reviewed owned v3 guidance, missing required literal values are collected through [source-bound private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) before the existing complete invocation preview.
+Original-channel replies are data only; source selection, target selection, enablement and final native confirmation remain separate.
+Both direct ID/version and readable-name consumers use the same canonical binding/expansion and local execution path ([complete user operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)). No tool parameters, parser aliases, provider fallback or new runtime are introduced.
+
 The bounded [owned-package operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) is explicitly selected by exact saved ID/version, not automatically registered as an artifact. Native v2 declares only host WebPageGet; save stays disabled, source review/enablement and exact target/request/URL confirmation precede independent per-action approval. The [common reviewed consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) binds source-specific storage admission without changing instruction-only purposes or shared-root read consent.
 
 The separate [reviewed declarative WebPageGet workflow](Skill_Storage.md#reviewed-declarative-one-tool-invocation) now supports one or two explicit finite destinations, at most one independently approved call per destination and one genuine retained answer or truthful terminal. The host owns scope, cumulative budgets, current source/session/action authority and joined cancellation; [comparison guidance](../docs/tools-and-built-in-skills.md#two-source-comparison-skill-example) remains skill prose. This does not widen ordinary artifact invocation, MCP or hosted disclosure.

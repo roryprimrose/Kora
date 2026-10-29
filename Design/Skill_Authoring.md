@@ -52,6 +52,10 @@ expansion through the same canonical local workflow. Old v1/v2 guidance bytes
 remain literal; tool parameters and shared/agent guidance-reference policy are
 not extended.
 
+Missing v3 invocation values now use [host-owned private questions](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.InputQuestions.cs) after exact source, Active target and original-task selection.
+Original typed/native or eligible activated-voice replies supply only literal data through the shared question presenter, not Save/Enable/Use approval.
+The existing complete binding/expansion preview and separate native Use remain authoritative; [user steps and refusal boundaries](../docs/owned-skill-authoring.md#required-literal-guidance-inputs) describe the bounded operation. This changes neither authoring nor the v3 format.
+
 1. Capture the voice request and admit an authoring task through normal work management.
 2. Clarify the skill's purpose, inputs, expected output, tool dependencies, and success conditions.
 3. Generate a staged manifest, instructions, and example fixtures in memory.

@@ -42,6 +42,13 @@ internal sealed class OwnedSkillInvocationWindow : Window
         panel.Children.Add(new TextBlock { Text = "Original request, retained unchanged in the selected conversation" });
         AutomationProperties.SetName(Request, "Unchanged original request");
         panel.Children.Add(Request);
+        panel.Children.Add(new TextBlock
+        {
+            Text = "For owned v3 guidance, Preview asks one private question per missing required literal input. "
+                + "Answers only fill data. Review the complete expansion before the separate exact invocation confirmation. "
+                + "Existing values are preserved; changing any field during questions retires the collection.",
+            TextWrapping = TextWrapping.Wrap,
+        });
         if (toolMode)
         {
             panel.Children.Add(new TextBlock { Text = "One explicit public HTTP or HTTPS URL; never model-selected" });

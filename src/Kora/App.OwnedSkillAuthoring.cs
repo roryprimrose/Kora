@@ -40,7 +40,7 @@ public sealed partial class App
                 Services.GetRequiredService<TimeProvider>()),
             useWorkflow, Services.GetRequiredService<SharedSkillInvocationWorkflow>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>());
+            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>(), questionWindow);
         namedSkillInvocation.Bind();
         ownedSkillEditor = new(main, workflow, admission,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,

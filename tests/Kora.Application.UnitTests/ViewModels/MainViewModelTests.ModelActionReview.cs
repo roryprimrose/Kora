@@ -291,7 +291,7 @@ public sealed partial class MainViewModelTests
             command.Action.Should().Be("Choice");
             command.Choice.Should().Be(1);
             origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
-            eligible().Should().BeTrue();
+            eligible.IsCurrent().Should().BeTrue();
             calls++;
             return Task.CompletedTask;
         };

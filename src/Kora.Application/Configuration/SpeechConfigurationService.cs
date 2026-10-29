@@ -194,6 +194,7 @@ public sealed partial class SpeechConfigurationService(
                 descriptor.AuditAction, SecurityAuditOutcome.Requested,
                 origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : proposal.Initiator,
                 "preferences.device-local");
+            UndoChanged?.Invoke(null);
             auditLog.Write(audit);
             SpeechApplyResult Reject(string reason, string recovery)
             {
@@ -221,10 +222,14 @@ public sealed partial class SpeechConfigurationService(
                         {
                             var limits = proposal.SummaryLimits
                                 ?? throw new InvalidOperationException("The proposal has no summary limits.");
-                            candidate = current with { SummaryLimits = limits, AreSummaryLimitsSaved = true, SummaryLimitsRecovery = null };
-                            if (current.SummaryLimits != limits || !current.AreSummaryLimitsSaved)
+                            limits.Validate();
+                            candidate = current with { SummaryLimits = limits, AreSummaryLimitsSaved = !proposal.RestoreSummaryDefault, SummaryLimitsRecovery = null };
+                            if (current.SummaryLimits != limits || current.AreSummaryLimitsSaved == proposal.RestoreSummaryDefault)
                             {
-                                preferences.SaveSummaryLimits(limits);
+                                if (proposal.RestoreSummaryDefault) { preferences.ResetSummaryLimits(); }
+                                else { preferences.SaveSummaryLimits(limits); }
+                                if (preferences.LoadSummaryLimits() != (proposal.RestoreSummaryDefault ? null : limits))
+                                { throw new InvalidDataException("Summary pair readback does not match the exact preference."); }
                             }
                         }
                         else
@@ -258,10 +263,11 @@ public sealed partial class SpeechConfigurationService(
                 activity.Complete(HostOperationOutcome.Cancelled);
                 throw;
             }
-            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException)
+            catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidOperationException or InvalidDataException)
             {
                 auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Failed,
-                    exception is IOException ? "io-error" : exception is UnauthorizedAccessException ? "access-denied" : "catalogue-unavailable"));
+                    exception is InvalidDataException ? "invalid-data" : exception is IOException ? "io-error"
+                        : exception is UnauthorizedAccessException ? "access-denied" : "catalogue-unavailable"));
                 activity.Complete(HostOperationOutcome.Failed);
                 SaveFailed(logger, descriptor.Id, exception);
                 return new(false, current, exception.Message);
@@ -274,6 +280,7 @@ public sealed partial class SpeechConfigurationService(
                 state = candidate with { Revision = checked(current.Revision + 1) };
                 Publish();
             }
+            if (descriptor.IsSummaryLimit) { RecordSummaryUndo(proposal.Option, current); }
             return new(true, Get());
         }
     }

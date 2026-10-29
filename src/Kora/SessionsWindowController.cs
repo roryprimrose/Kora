@@ -22,7 +22,8 @@ internal sealed partial class SessionsWindowController(
     Kora.Application.Configuration.SessionProviderProfileConfigurationService? providers = null,
     SessionConversationService? conversation = null, ScopedInstructionUseBroker? instructionUse = null,
     SessionInstructionScopeCommandService? scopeCommands = null, SessionInstructionScopeBroker? scopeBroker = null,
-    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null) : IDisposable, ISessionDispositionReviewPresenter,
+    Kora.Application.Dependencies.VerifiedLocalHandoffOperation? localHandoff = null,
+    SessionRetentionApplyService? retentionApply = null) : IDisposable, ISessionDispositionReviewPresenter,
     ISessionQueueCancellationReviewPresenter
 {
     private SessionsWindow? window;
@@ -420,7 +421,7 @@ internal sealed partial class SessionsWindowController(
             answerReads: new SessionAnswerReadWorkflow(service, main),
             reviewPlaybackVolumeSuggestion: main.ReviewPlaybackVolumeSuggestionAsync,
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
-            localHandoff: localHandoff);
+            localHandoff: localHandoff, retentionApply: retentionApply);
         model.BindDictation(main.ComposerDictation);
         model.PropertyChanged += OnPermissionSourceChanged;
         model.InspectPermissionGrants = (target, admitted) =>

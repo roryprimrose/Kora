@@ -147,6 +147,9 @@ internal sealed partial class SessionsWindow : Window
         OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);
         ConfirmRetention.Click += async (_, _) => await model.ConfirmRetentionAsync();
         CancelRetentionReview.Click += (_, _) => model.CancelRetentionReview();
+        ReviewRetentionApply.Click += async (_, _) => await model.ReviewRetentionApplyAsync();
+        ConfirmRetentionApply.Click += async (_, _) => await model.ConfirmRetentionApplyAsync();
+        CancelRetentionApply.Click += (_, _) => model.CancelRetentionApplication();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();

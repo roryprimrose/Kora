@@ -245,9 +245,9 @@ public sealed partial class HostedClaudeSessionRequestTests
             var timer = new ObservationTimer(callback, state, dueTime);
             timers.Add(timer); return timer;
         }
-        internal void FireDeadline()
+        internal void FireDeadline(TimeSpan? due = null)
         {
-            var timer = timers.Single(item => item.Due == ModelToolProtocol.Deadline && !item.Disposed);
+            var timer = timers.Single(item => item.Due == (due ?? ModelToolProtocol.Deadline) && !item.Disposed);
             timer.Fire();
         }
         private sealed class ObservationTimer(TimerCallback callback, object? state, TimeSpan due) : ITimer

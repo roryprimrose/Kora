@@ -396,6 +396,12 @@ internal static class Program
         services.AddSingleton<IManualCallControlStore>(interactions);
         services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupRegistration, Kora.Windows.Startup.WindowsLogonStartupRegistration>();
+        services.AddSingleton<ILogonStartupPreferences>(provider =>
+            new LocalLogonStartupPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<LogonStartupAdmission>();
+        services.AddSingleton<LogonStartupConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();

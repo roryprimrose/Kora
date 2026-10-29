@@ -24,6 +24,10 @@ public sealed class SpeechInputUiContractTests
             controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding " + command + "}", StringComparison.Ordinal))
                 .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanChangeSpeechInputNative}");
         }
+        controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding ConfirmSpeechInputCommand}", StringComparison.Ordinal))
+            .Attribute("IsEnabled")!.Value.Should().Be("{Binding CanConfirmSpeechInputReview}");
+        controls.Single(control => string.Equals(control.Attribute("Command")?.Value, "{Binding CancelSpeechInputCommand}", StringComparison.Ordinal))
+            .Attribute("IsEnabled")!.Value.Should().Be("{Binding HasSpeechInputReview}");
         var program = File.ReadAllText(Path.Combine(root, "src", "Kora", "Program.cs"));
         program.Should().Contain("VoiceInputComposition.Configure(services)").And.Contain("services.AddSingleton<SpeechInputConfigurationService>()");
         var lifetime = File.ReadAllText(Path.Combine(root, "src", "Kora", "SettingsWindowController.cs"));

@@ -4628,6 +4628,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)
+            .Concat(LogonStartupCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -8632,7 +8633,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Func<IQuestionVoiceRecognitionService, IActivatedVoiceRecognitionService>? voiceDecorator = null,
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
-            CommunicationActivityConfigurationService? communicationActivityConfiguration = null)
+            CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            LogonStartupConfigurationService? logonStartupConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8827,7 +8829,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechInputConfiguration: InputConfiguration,
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
-                communicationActivityConfiguration: communicationActivityConfiguration);
+                communicationActivityConfiguration: communicationActivityConfiguration,
+                logonStartupConfiguration: logonStartupConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

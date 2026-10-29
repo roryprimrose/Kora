@@ -248,6 +248,18 @@ Invalid or oversized drafts remain editable with the same limits and rejection
 policy. Reviewed bodies, comparisons, ASSISTANT answers, questions, approvals
 and source Details are unaffected.
 
+### Open an original observed tool result
+
+After **Read conversation**, a successful local answer that actually used a permitted host observation shows **Open observed result** links. Each names its tool, message and result position ([links](../src/Kora/SessionInteractionView.axaml)).
+Choose the exact link to inspect its original JSON in Details, including after restart; it is an observation from the displayed original time, not a fresh status query ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+
+With the expanded conversation page in the foreground, type `open observed result application.get_version message 1 result 1`, using the actual presented name, or say it with your current assistant-name prefix ([command](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs)).
+A tool name matching several results asks you to choose the full message/result name or a native link; it never chooses the newest result or intercepts generic Yes ([choice handling](../src/Kora/SessionsViewModel.Observations.cs)).
+
+Opening does not rerun a tool, contact a model/network, resume Done, extend retention or grant speech, clipboard, export or model-context use ([privacy and restart tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Observations.cs)).
+Source/private loss clears the reader; deleted results are unavailable, not reconstructed ([reader regression](../tests/Kora.Windows.IntegrationTests/DetailWindowControllerTests.Observations.cs)).
+Only the six built-in local observation tools are supported; hosted, MCP, file, web and customization results are excluded, and unqualified real runtimes remain unavailable ([capture](../src/Kora.Application/Dependencies/ModelTurn.cs)).
+
 ### Exact retained original message Details
 
 After **Read exact conversation** or explicit conversation Search, choose **Details - exact original USER / separate HOST** on one row. The shared row uses the same action in Sessions and compact projections; selecting a session or opening either window does not read/open Details automatically ([shared action](../src/Kora/ConversationPresentation.axaml)).

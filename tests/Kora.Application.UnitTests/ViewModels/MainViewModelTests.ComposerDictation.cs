@@ -15,6 +15,43 @@ namespace Kora.Application.UnitTests.ViewModels;
 
 public sealed partial class MainViewModelTests
 {
+    [Theory]
+    [InlineData("name")]
+    [InlineData("input")]
+    [InlineData("privacy")]
+    [InlineData("call")]
+    [InlineData("voice-binding")]
+    [InlineData("control-binding")]
+    public async Task OwnedBodyDictationFreezesVoiceAdmissionAndCannotRenewItThroughNativeReview(string boundary)
+    {
+        var f = CreateVoicePrivacyFixture();
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        await f.ViewModel.InitializeAsync();
+        var current = f.ViewModel.CaptureInstructionBodyDictationEligibility();
+        current().Should().BeTrue();
+        switch (boundary)
+        {
+            case "name": await f.ViewModel.SetAssistantNameAsync("Nova"); break;
+            case "input": await f.RunAsync("help"); break;
+            case "privacy": PublishVoiceSession(f, WindowsSessionState.Locked); break;
+            case "call": f.CallState.SetState(CallState.Active); break;
+            case "voice-binding": f.ViewModel.BindVoiceOwnershipGate(static () => true); break;
+            case "control-binding": f.ViewModel.BindCallOwnershipGate(static () => true); break;
+        }
+        current().Should().BeFalse();
+        f.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task OwnedBodyDictationDoesNotTurnMissingVoiceConsentIntoNativeAuthority()
+    {
+        var f = CreateVoicePrivacyFixture(consent: false);
+        f.ViewModel.BindVoiceOwnershipGate(static () => true);
+        await f.ViewModel.InitializeAsync();
+        f.ViewModel.CaptureInstructionBodyDictationEligibility()().Should().BeFalse();
+        f.ViewModel.Dispose();
+    }
+
     private static NewRequestComposer DictationComposer(Fixture fixture)
     {
         var store = new SessionCommandStore(fixture);

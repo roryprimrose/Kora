@@ -1627,6 +1627,15 @@ receives already admitted content and
 cannot resolve arbitrary paths, query grants, dispatch tools, or select a
 weaker profile.
 
+Retained ordinary local host observations use the distinct `RetainedLocalObservation` origin, plain-text native rendering and exact owning conversation/item/revision admission ([typed admission](../src/Kora.Core/Presentation/AdmittedDetailContent.cs)).
+The pane names the tool and original observation time, not current truth; duplicate titles cannot replace an exact host item ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+Copy and final-document interaction authority remain unavailable ([reader policy](../src/Kora.Application/Presentation/DetailViewerState.cs)).
+
+The existing conversation rows expose one deliberate named link per permitted observation ([native links](../src/Kora/SessionInteractionView.axaml)).
+Typed or current-name activated `open observed result <presented name>` selects only foreground host-presented choices ([foreground owner](../src/Kora/SessionsWindowController.cs)).
+An ambiguous tool title requires the full message/result name or a native choice ([exact choice](../src/Kora/SessionsViewModel.Observations.cs)).
+Generic Yes is not an observation command ([command policy](../src/Kora.Core/Commands/WorkspaceSurfaceCommand.cs)).
+
 Admission and rendering use the layer's versioned activity sources with stable
 operation names and truthful terminal status. Safe tags can include host-owned
 session/task/item/revision IDs, origin/profile, renderer kind, bounded content

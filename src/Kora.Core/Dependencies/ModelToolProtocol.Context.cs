@@ -47,6 +47,9 @@ public static partial class ModelToolProtocol
         { throw new InvalidDataException("The complete host context or catalogue does not match the admitted protocol."); }
         var evidence = ModelContextEnvelope.ValidateContent(provenance.Request, content.SystemPolicy,
             content.UserRequest, content.Evidence);
+        if (content.ToolMode == ModelToolMode.HostedClarification
+            && (provenance.Selection.Provider != ModelProviderIdentity.Claude || !evidence.IsEmpty))
+        { throw new InvalidDataException("Hosted clarification requires its explicit Claude operation without source evidence."); }
         return new(provenance, content.SystemPolicy, content.UserRequest, evidence, content.ToolMode,
             ImmutableArray.CreateRange(wire.ToArray()), content.Constraints, content.McpTool, content.WebPages);
     }
@@ -54,7 +57,7 @@ public static partial class ModelToolProtocol
     public static IReadOnlyList<CapabilityDescriptor> GetTools(ModelToolMode mode) => mode switch
     {
         ModelToolMode.ReadOnly => ReadOnlyCapabilityCatalog.Descriptors,
-        ModelToolMode.None => [],
+        ModelToolMode.None or ModelToolMode.HostedClarification => [],
         ModelToolMode.LocalWebPage => Network.LocalWebPageTool.Descriptors,
         ModelToolMode.McpReadOnly => [],
         ModelToolMode.SessionDiscovery => SessionDiscoveryTool.Descriptors,

@@ -10,6 +10,8 @@ using Kora.Core.Commands;
 using Kora.Application.Presentation;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
+using Kora.Core.Auditing;
+using Kora.Application.Configuration.RegisteredSettings;
 
 using Microsoft.Extensions.DependencyInjection;
 
@@ -27,6 +29,8 @@ public sealed partial class SettingsWindow : Window
     private bool isLocalModelReviewOpen;
     private bool isPowerShellReviewOpen;
     private readonly MainViewModel model;
+    private int undoLifetime;
+    private int undoVisible;
 
     public SettingsWindow()
         : this(App.Services.GetRequiredService<MainViewModel>())
@@ -55,9 +59,19 @@ public sealed partial class SettingsWindow : Window
         DataContext = viewModel;
         PropertyChanged += (_, args) =>
         {
-            if (args.Property == IsVisibleProperty && !IsVisible) { model.CancelSpokenApprovalReview(); }
+            if (args.Property == IsVisibleProperty) { Volatile.Write(ref undoVisible, IsVisible ? 1 : 0); }
+            if (args.Property == IsVisibleProperty && !IsVisible)
+            {
+                Interlocked.Increment(ref undoLifetime);
+                model.CancelSpokenApprovalReview();
+            }
         };
-        Closed += (_, _) => model.CancelSpokenApprovalReview();
+        Closed += (_, _) =>
+        {
+            Volatile.Write(ref undoVisible, 0);
+            Interlocked.Increment(ref undoLifetime);
+            model.CancelSpokenApprovalReview();
+        };
         BindSpeechComponents(viewModel);
         if (captionDisplay is not null)
         {
@@ -68,6 +82,21 @@ public sealed partial class SettingsWindow : Window
         recovery.IsEnabled = chooseMicrophone is not null;
         recovery.Click += (_, _) => chooseMicrophone?.Invoke();
         BindKnowledgeSources();
+        BindUndo("ReviewSettingsUndo", RegisteredSettingSuggestionOperation.Review);
+        BindUndo("ConfirmSettingsUndo", RegisteredSettingSuggestionOperation.Confirm);
+        BindUndo("CancelSettingsUndo", RegisteredSettingSuggestionOperation.Cancel);
+    }
+
+    private void BindUndo(string name, RegisteredSettingSuggestionOperation operation)
+    {
+        this.FindControl<Button>(name)!.Command = new AsyncCommand(() =>
+        {
+            var lifetime = Volatile.Read(ref undoLifetime);
+            return HostRequestRunner.RunAsync(RequestOrigin.LocalUi, () => model.ExecuteSettingsUndoAsync(operation,
+                SecurityAuditInitiator.LocalUser, CancellationToken.None,
+                () => Volatile.Read(ref undoVisible) != 0 && Volatile.Read(ref undoLifetime) == lifetime
+                    && model.CanRevealPrivatePresentation));
+        }, exception => model.ReportHostInteractionFailure("Settings undo failed. No completion claimed. Failure type: " + exception.GetType().Name));
     }
 
     public void ShowReadiness() => settingsTabs.SelectedItem = readinessTab;

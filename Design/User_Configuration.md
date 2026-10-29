@@ -1042,6 +1042,10 @@ Get/status report desired, saved/default/unavailable source, effective route,
 live System default, metadata/call revisions, choices, mute and recovery.
 Duplicate friendly names remain distinct. Missing pins remain saved/unavailable;
 System follows the live multimedia default and reset removes only Kora's override.
+Native speaker availability uses that same observed recovery state after general,
+topology and Settings refresh: a removed saved endpoint is never described as
+ready for playback merely because its preference is retained. Refreshing a
+returned endpoint or explicitly saving another choice never replays a response.
 
 The existing atomic preference store/paths and original-channel call-policy lock
 enclose persistence and typed audit. Protected/unknown calls deny voice-originated

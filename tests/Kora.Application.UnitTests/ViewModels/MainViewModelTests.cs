@@ -9651,6 +9651,14 @@ public sealed partial class MainViewModelTests : IDisposable
 
     private sealed class FakeTextToSpeechService(List<string> events) : ITextToSpeechService, IPlaybackVolumeControl, IWindowsSpeechRateControl
     {
+        public async Task SpeakAdmittedAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+            SpeechStartAdmission admission, CancellationToken cancellationToken = default)
+        {
+            Task? playback = null;
+            await admission(() => playback = SpeakAsync(text, voice, outputDevice, cancellationToken), cancellationToken);
+            if (playback is not null) { await playback; }
+        }
+
         public Guid? CaptionPlaybackId { get; private set; }
         public Task SpeakAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
             Guid playbackId, CancellationToken cancellationToken = default)

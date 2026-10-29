@@ -3476,6 +3476,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
                 return;
             }
+            if (explicitListeningRecovery && originalOrigin == RequestOrigin.LocalUi)
+            { Interlocked.Exchange(ref explicitVoiceActivationRevision, revision); }
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             SetListeningPauseReason(null);

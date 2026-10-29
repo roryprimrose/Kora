@@ -25,4 +25,5 @@ public sealed class AppearanceProposal
     public SecurityAuditInitiator Initiator { get; }
     internal RequestOrigin? OriginalOrigin { get; }
     internal Func<bool>? RemainsEligible { get; }
+    internal bool RestoreDefault { get; init; }
 }

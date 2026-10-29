@@ -14,13 +14,19 @@ namespace Kora.Application.UnitTests.Definitions;
 public sealed partial class InstructionEditorTests
 {
     [Theory]
-    [InlineData("existing")]
-    [InlineData("new")]
-    [InlineData("revision")]
-    [InlineData("source")]
-    [InlineData("destination")]
-    [InlineData("withdrawal")]
-    public async Task Editor_clarification_rechecks_original_source_without_writes(string state)
+    [InlineData("existing", false)]
+    [InlineData("new", false)]
+    [InlineData("revision", false)]
+    [InlineData("source", false)]
+    [InlineData("destination", false)]
+    [InlineData("withdrawal", false)]
+    [InlineData("existing", true)]
+    [InlineData("new", true)]
+    [InlineData("revision", true)]
+    [InlineData("source", true)]
+    [InlineData("destination", true)]
+    [InlineData("withdrawal", true)]
+    public async Task Editor_clarification_rechecks_original_source_without_writes(string state, bool consumerCallback)
     {
         await using var f = new Fixture();
         var files = new CustomizationFiles();
@@ -32,8 +38,10 @@ public sealed partial class InstructionEditorTests
         if (state is "source") { files.Current = new(source with { Id = "file.other" }, expected.Revision, expected.Files); }
         if (state is "destination") { source = source with { Name = "different" }; }
         if (state is "withdrawal") { files.AfterRead = () => f.Open = false; }
-        var operation = () => service.RequireUnchangedSource(source, state is "new" or "destination" ? null : expected,
-            f.Eligible, TestContext.Current.CancellationToken);
+        var baseline = state is "new" or "destination" ? null : expected;
+        var callback = service.CaptureAuthoringSourceValidation(source, baseline, f.Eligible);
+        var operation = () => consumerCallback ? callback(TestContext.Current.CancellationToken)
+            : service.RequireUnchangedSource(source, baseline, f.Eligible, TestContext.Current.CancellationToken);
         if (state is "existing" or "new") { await operation(); }
         else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
         files.Writes.Should().Be(0);

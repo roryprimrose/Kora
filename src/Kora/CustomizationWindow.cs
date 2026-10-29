@@ -36,6 +36,11 @@ internal sealed class CustomizationWindow : Window
         VerticalAlignment = VerticalAlignment.Stretch,
     };
     internal readonly TextBox Request = new() { PlaceholderText = "Describe or discuss a change with Kora...", AcceptsReturn = true, MinHeight = 64, MaxHeight = 120 };
+    internal readonly TextBox RequiredPromptInputs = new()
+    {
+        PlaceholderText = "Required literal names, e.g. topic,audience; empty means none",
+        IsVisible = false,
+    };
     internal readonly TextBlock Status = new() { TextWrapping = TextWrapping.Wrap };
     internal readonly TextBlock Details = new() { TextWrapping = TextWrapping.Wrap };
     internal readonly TextBlock VoiceContext = new() { TextWrapping = TextWrapping.Wrap };
@@ -94,9 +99,11 @@ internal sealed class CustomizationWindow : Window
         header.Children.Add(components);
         DockPanel.SetDock(header, Dock.Top); detail.Children.Add(header);
         var bottom = new StackPanel { Spacing = 8, Margin = new(0, 8, 0, 0) };
+        bottom.Children.Add(RequiredPromptInputs);
         bottom.Children.Add(Request);
         var authoring = new WrapPanel();
         AddButton(authoring, "Ask Kora (review local disclosure)", "Refine", run);
+        AddButton(authoring, "Cancel prompt authoring", "Cancel prompt authoring", run);
         bottom.Children.Add(authoring); bottom.Children.Add(Status);
         DockPanel.SetDock(bottom, Dock.Bottom); detail.Children.Add(bottom);
         detail.Children.Add(Editor);
@@ -108,6 +115,7 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(Files, "Selected artifact components");
         AutomationProperties.SetName(Editor, "Selected artifact source; untrusted definition content");
         AutomationProperties.SetName(Request, "Definition authoring request");
+        AutomationProperties.SetName(RequiredPromptInputs, "Host-declared required prompt literals, comma-separated in first-use order, at most eight; no defaults or expressions");
         AutomationProperties.SetName(NewName, "New artifact ID");
         AutomationProperties.SetName(Destination, "New artifact destination");
         AutomationProperties.SetName(Status, "Customization operation status and recovery");
@@ -147,6 +155,11 @@ internal sealed class CustomizationWindow : Window
         actions["Rename file"].IsEnabled = components && !string.Equals(Files.SelectedItem as string, source?.PrimaryFile, StringComparison.Ordinal);
         actions["Remove file"].IsEnabled = actions["Rename file"].IsEnabled;
         actions["Refine"].IsEnabled = writable && !recovery;
+        var prompt = source?.Kind == CustomizationKind.Prompt;
+        RequiredPromptInputs.IsVisible = prompt;
+        RequiredPromptInputs.IsEnabled = prompt && writable && !recovery && source?.Scope == CustomizationScope.Kora;
+        actions["Cancel prompt authoring"].IsVisible = prompt;
+        if (prompt && source?.Scope != CustomizationScope.Kora) { actions["Refine"].IsEnabled = false; }
         FileName.IsEnabled = components;
         Request.IsEnabled = writable && !recovery;
     }
@@ -279,7 +292,7 @@ internal sealed class CustomizationWindow : Window
     internal void ClearPrivateText()
     {
         CancelReview();
-        Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty;
+        Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty; RequiredPromptInputs.Text = string.Empty;
         FileName.Text = string.Empty; Search.Text = string.Empty;
         Details.Text = string.Empty; Status.Text = string.Empty; VoiceContext.Text = string.Empty;
         Files.ItemsSource = null; catalogue.Children.Clear(); SelectedSource = null;

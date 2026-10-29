@@ -744,6 +744,12 @@ or count as user activity/approval.
 
 ### Bounded owned instruction and prompt editor
 
+**Conversational Kora prompt template authoring** now uses the existing **Customizations > Prompts** source editor and local disclosure/proposal review, not the instruction-body refinement or owned-skill generation operation. The original user describes a repeatable USER request and separately declares zero to eight required native literal names. New drafts are native v2; supported existing v1/v2 metadata, attribution, original source and BOM are preserved ([host contract](../src/Kora.Application/Definitions/PromptTemplateAuthoring.cs)).
+
+The complete source, unchanged description, destination and host declaration precede independent local-only tool-free disclosure consent. Only a complete body proposal or explicit unsupported-capability refusal is admitted; the existing parser checks exact declared names/first occurrence, malformed placeholders and source bounds. Model output cannot choose metadata, files, destinations, defaults, tools or instruction authority ([local consumer](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+Complete proposed source/literal review and **Use proposed draft** adopt only volatile text. The existing independently confirmed exact writer saves disabled; reopen, exclusion removal, owned exact-template use review, explicit literal binding, complete expanded USER preview and exact-session submission remain separate. Cancellation, source/draft/critique/declaration/input/catalogue/provider/private/channel/call/ownership changes and expiry retire proposals and suppress late output while joining owned model work. No prompt-profile-original generation, recursive expansion, implicit use or runtime qualification is added ([native owner](../src/Kora/CustomizationWindowController.cs), [user operation](../docs/customizations.md#author-one-reusable-prompt-request), [native evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
+
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
 and writer. Activated controls focus the same native editor; voice-only approval

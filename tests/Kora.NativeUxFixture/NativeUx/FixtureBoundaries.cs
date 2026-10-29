@@ -60,6 +60,8 @@ internal static class FixtureBoundaries
         internal int ReplyCalls { get; private set; }
         internal TaskCompletionSource ReplyStarted { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         internal TaskCompletionSource Started { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
+        internal TaskCompletionSource? PendingLiteralOpen { get; set; }
+        internal TaskCompletionSource? PendingLiteralStop { get; set; }
         public event EventHandler<VoiceTranscriptEventArgs>? TranscriptRecognized;
         public event EventHandler<VoiceRecognitionFailureEventArgs>? RecognitionFailed { add { } remove { } }
         public event EventHandler<VoiceCaptureStateChangedEventArgs>? CaptureStateChanged;
@@ -69,6 +71,7 @@ internal static class FixtureBoundaries
         public long Generation { get; private set; }
         public long CaptureGeneration => Generation;
         public bool IsAmbientListeningAvailable => false;
+        public bool IsLiteralDictationAvailable => syntheticCapture;
         public bool IsCaptureQuiescent => !IsListening;
         public void InvalidateCapture()
         {
@@ -80,7 +83,7 @@ internal static class FixtureBoundaries
         public MicrophoneDevice? GetDefaultMicrophone() => syntheticCapture ? SyntheticMicrophone : null;
         public Task StartAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
             CancellationToken cancellationToken = default) => throw new InvalidOperationException("Fixture cannot capture audio.");
-        public Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
+        public async Task BeginPushToTalkAsync(MicrophoneDevice microphone, IEnumerable<string> phrases, string? assistantName = null,
             CancellationToken cancellationToken = default)
         {
             if (!syntheticCapture) { throw new InvalidOperationException("Fixture cannot capture audio."); }
@@ -88,7 +91,7 @@ internal static class FixtureBoundaries
             if (microphone != SyntheticMicrophone && microphone != SystemAudioDevices.Microphone)
             { throw new InvalidOperationException("Only the synthetic fixture endpoint or its system-default alias is admitted."); }
             Generation++; StartCalls++; IsListening = true; Started.TrySetResult();
-            return Task.CompletedTask;
+            if (PendingLiteralOpen is { } pending) { await pending.Task; }
         }
         public Task BeginReplyAsync(MicrophoneDevice microphone, IEnumerable<string> phrases,
             Func<bool> isAdmitted, CancellationToken cancellationToken)
@@ -98,7 +101,11 @@ internal static class FixtureBoundaries
             ReplyCalls++; ReplyStarted.TrySetResult();
             return opened;
         }
-        public Task StopAsync(CancellationToken cancellationToken = default) { IsListening = false; return Task.CompletedTask; }
+        public async Task StopAsync(CancellationToken cancellationToken = default)
+        {
+            if (PendingLiteralStop is { } pending) { await pending.Task; }
+            IsListening = false;
+        }
         public Task EndCaptureAsync(CancellationToken cancellationToken = default) => EndPushToTalkAsync(cancellationToken);
         public Task EndPushToTalkAsync(CancellationToken cancellationToken = default)
         {
@@ -109,6 +116,12 @@ internal static class FixtureBoundaries
         {
             if (!syntheticCapture) { throw new InvalidOperationException("Synthetic capture was not enabled."); }
             TranscriptRecognized?.Invoke(this, new(text, 1, Generation));
+        }
+        internal Action QueueLiteralTranscript(string text)
+        {
+            var handler = TranscriptRecognized;
+            var generation = Generation;
+            return () => handler?.Invoke(this, new(text, 1, generation));
         }
         public ValueTask DisposeAsync() => ValueTask.CompletedTask;
     }

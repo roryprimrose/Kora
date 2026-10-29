@@ -29,7 +29,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
     {
         var current = ValidatePreparation(context, profile, ProviderService.Claude);
         if (!ClaudeObservationTools.Supports(context) || streamAnswer && context.ToolMode != ModelToolMode.None)
-        { throw new InvalidOperationException("Claude requires an explicit tool-free request or bounded original observation subset, without evidence."); }
+        { throw new InvalidOperationException("Claude requires an explicit text, observation or dedicated clarification operation, without evidence; streaming is text-only."); }
         return new(this, current, context, profile, streamAnswer);
     }
 
@@ -39,6 +39,7 @@ public sealed class HostedTransmissionReviewService(ISecurityAuditLog audit, Tim
         ArgumentNullException.ThrowIfNull(profile);
         var current = HostActivity.RequireCurrent();
         if (!Live(current, context) || profile.Service != service || profile.CatalogueRevision.Value <= 0
+            || context.ToolMode == ModelToolMode.HostedClarification && service != ProviderService.Claude
             || context.Evidence.Any(item => item.Disclosure != ModelEvidenceDisclosure.HostedEligible))
         {
             throw new InvalidOperationException("An original-user request with an exact Copilot profile and hosted-eligible context is required.");

@@ -12,31 +12,35 @@ namespace Kora.Core.UnitTests.Configuration.SettingInspection;
 public sealed class SettingInspectionTests
 {
     private static DateTimeOffset Now => DateTimeOffset.UnixEpoch;
-    private static SettingObservation[] Values(bool saved = false) =>
+    private static SettingObservation[] Values(bool saved = false, int presence = 1) =>
     [
         new(RegisteredSetting.Theme, 0, saved, 0), new(RegisteredSetting.ReaderTextScale, 100, saved, 3),
         new(RegisteredSetting.SummaryWords, 80, saved, 7), new(RegisteredSetting.SummarySentences, 3, saved, 7),
         new(RegisteredSetting.PlaybackVolume, 100, saved, 11), new(RegisteredSetting.ResponseMode, 0, saved, 19),
+        new(RegisteredSetting.PresenceDisplay, presence, saved, 3),
     ];
 
     [Theory]
-    [InlineData(false, RequestOrigin.LocalUi)]
-    [InlineData(true, RequestOrigin.ActivatedVoice)]
-    public void CompleteClosedSourceOriginalChannelAndFreshLocalTargetAreBoundExactly(bool saved, RequestOrigin origin)
+    [InlineData(false, 0, RequestOrigin.LocalUi)]
+    [InlineData(false, 1, RequestOrigin.LocalUi)]
+    [InlineData(true, 0, RequestOrigin.ActivatedVoice)]
+    [InlineData(true, 1, RequestOrigin.ActivatedVoice)]
+    public void CompleteClosedSourceOriginalChannelAndFreshLocalTargetAreBoundExactly(bool saved, int presence, RequestOrigin origin)
     {
-        var values = Values(saved);
+        var values = Values(saved, presence);
         var review = new SettingInspectionReview(values, "What are my reading and speech settings?",
             HostRequest.Create(origin), Now);
         values[0] = new(RegisteredSetting.Theme, 2, !saved, 100);
         review.Observations[0].Value.Should().Be(0);
-        review.Observations.Should().HaveCount(6);
+        review.Observations.Should().HaveCount(7);
         review.Observations.Select(item => item.Setting).Should().Equal(
             RegisteredSetting.Theme, RegisteredSetting.ReaderTextScale,
             RegisteredSetting.SummaryWords, RegisteredSetting.SummarySentences,
-            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode);
+            RegisteredSetting.PlaybackVolume, RegisteredSetting.ResponseMode, RegisteredSetting.PresenceDisplay);
         review.Source.Should().Contain("System").And.Contain("100").And.Contain("Hybrid")
             .And.Contain(saved ? "confirmed saved" : "confirmed absent");
-        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only six closed scalar rows can enter the source");
+        review.Source.Should().Contain($"appearance.presence-display = {(presence == 1 ? "true" : "false")} boolean");
+        Encoding.UTF8.GetByteCount(review.Source).Should().BeLessThan(4096, "only seven closed scalar rows can enter the source");
         review.Text.Should().Contain(review.Source).And.Contain(review.Question)
             .And.Contain(SettingInspectionReview.Policy).And.Contain("NEW Local context conversation");
         review.Original.SessionId.Should().NotBe(review.Destination.SessionId);
@@ -67,6 +71,10 @@ public sealed class SettingInspectionTests
     [InlineData(RegisteredSetting.SummarySentences, 0)]
     [InlineData(RegisteredSetting.PlaybackVolume, 101)]
     [InlineData(RegisteredSetting.ResponseMode, 3)]
+    [InlineData(RegisteredSetting.PresenceDisplay, -1)]
+    [InlineData(RegisteredSetting.PresenceDisplay, 2)]
+    [InlineData(RegisteredSetting.PresenceDisplay, int.MinValue)]
+    [InlineData(RegisteredSetting.PresenceDisplay, int.MaxValue)]
     [InlineData((RegisteredSetting)99, 0)]
     public void ClassificationRejectsAnythingOutsideClosedValidatedScalars(RegisteredSetting setting, int value) =>
         FluentActions.Invoking(() => new SettingObservation(setting, value, false, 1)).Should().Throw<ArgumentOutOfRangeException>();
@@ -76,7 +84,11 @@ public sealed class SettingInspectionTests
     {
         FluentActions.Invoking(() => new SettingObservation(RegisteredSetting.Theme, 0, false, -1))
             .Should().Throw<ArgumentOutOfRangeException>();
-        foreach (var values in new[] { Values().Skip(1), Values().Append(Values()[0]) })
+        FluentActions.Invoking(() => new SettingObservation(RegisteredSetting.PresenceDisplay, 1, false, -1))
+            .Should().Throw<ArgumentOutOfRangeException>();
+        var complete = Values();
+        foreach (var values in complete.Select(missing => complete.Where(item => item.Setting != missing.Setting))
+            .Append(complete.Append(complete[0])).Append(complete.Skip(1).Append(complete[1])))
         {
             FluentActions.Invoking(() => new SettingInspectionReview(values, "Why?", HostRequest.Create(RequestOrigin.LocalUi), Now))
                 .Should().Throw<InvalidDataException>();

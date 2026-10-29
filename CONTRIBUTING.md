@@ -96,6 +96,12 @@ The separate `compare_native_evidence=true` input runs [17 representative headle
 
 Normal CI selects buffered evidence only for those 17 cases in the native-UX shard; other shards and unconfigured local runs retain synchronous delivery ([workflow](.github/workflows/ci.yml), [profile defaults](tests/Kora.Windows.IntegrationTests/NativeFixtureEvidenceMode.cs)). To reproduce the enabled profile locally, set `KORA_TEST_NATIVE_EVIDENCE_MODE=buffered` before running the native-UX shard.
 
+Stop All notification-failure fixtures inject once at the first accepted
+cancellation notification and retain the observer through joined terminal
+completion. Later Cancelling publications are not additional injected failures;
+every accepted request still requires its physical join and terminal receipt,
+while the operation truthfully retains its partial/unconfirmed outcome.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

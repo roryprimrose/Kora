@@ -19,6 +19,49 @@ public sealed partial class ModelTurnHostTests
     [InlineData(false, RequestOrigin.ActivatedVoice)]
     [InlineData(true, RequestOrigin.LocalUi)]
     [InlineData(true, RequestOrigin.ActivatedVoice)]
+    public async Task AskUserResumesOriginalReadOnlyTurnWithExactTextOrMultipleAnswers(bool text, RequestOrigin channel)
+    {
+        using var f = new Fixture(channel);
+        f.ProfileCatalogue.Status = ProviderCatalogueStatus.Current;
+        f.ProfilePreferences.Value = new(ProviderService.Local, [Profile()]);
+        var wire = text
+            ? """{"kind":"question","prompt":"Describe details","options":[],"minimum":1,"maximum":1,"callId":"ask_1"}"""
+            : """{"kind":"question","prompt":"Choose details","options":["Version","Runtime"],"minimum":1,"maximum":2,"callId":"ask_1"}""";
+        var transport = new ToolTransport(wire, VersionCall, FinalAnswer);
+        await using var loop = CreateLoop(f, transport);
+        var host = f.ConfiguredProfiles(adapter: loop);
+        var reads = 0;
+        f.OnVersion = () => reads++;
+        var receipt = await QuestionService(f, host).SubmitReadOnlyWithClarificationAsync(new(f.Session, null),
+            "Original ask_user request", static () => true, async (request, _, spec, expiry, _, token) =>
+            {
+                f.Questions.Change(snapshot => snapshot with { Intent = f.Task!.Task, Session = f.Session });
+                spec.Kind.Should().Be(text ? QuestionKind.Text : QuestionKind.MultipleChoice);
+                var questions = new HostQuestionService(f.Questions, f.Time);
+                var initial = (await questions.CreateAsync(request, spec, expiry, token)).Question!;
+                var submitted = await questions.SubmitAsync(initial.Key, text ? new([], "Original details")
+                    : new(["option-0", "option-1"]), channel, token);
+                return new(initial, submitted);
+            }, Token, origin: channel);
+        receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+        receipt.Message.AssistantResponse!.Body.Should().Be("The observed version is 1.0.");
+        reads.Should().Be(1);
+        transport.Requests.Should().HaveCount(3);
+        var answer = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
+        answer.Answer.Text.Should().Be(text ? "Original details" : null);
+        answer.Answer.Choices.Should().Equal(text ? [] : ["option-0", "option-1"]);
+        answer.Question.CallId.Should().Be("ask_1");
+        answer.Channel.Should().Be(channel);
+        f.Questions.Snapshot.Grants.Should().BeEmpty();
+        f.Questions.Commits.Should().Contain(commit => commit.Audit.ActionId == "question.continue");
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(false, RequestOrigin.LocalUi)]
+    [InlineData(false, RequestOrigin.ActivatedVoice)]
+    [InlineData(true, RequestOrigin.LocalUi)]
+    [InlineData(true, RequestOrigin.ActivatedVoice)]
     public async Task ReadOnlyClarificationResumesOriginalRetainedTaskAndExecutesCanonicalToolsBeforeActualAnswer(
         bool toolFirst, RequestOrigin channel)
     {

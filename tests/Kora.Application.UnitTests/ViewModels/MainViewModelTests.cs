@@ -192,6 +192,25 @@ public sealed partial class MainViewModelTests : IDisposable
         fixture.ViewModel.ResponseBody.Should().Be("No addresses are preapproved.");
     }
 
+    [Theory]
+    [InlineData(ArtifactSourceKind.Skill)]
+    [InlineData(ArtifactSourceKind.Instruction)]
+    [InlineData(ArtifactSourceKind.Agent)]
+    public async Task Artifact_source_controls_display_and_remove_seeded_profile_defaults(ArtifactSourceKind kind)
+    {
+        var fixture = new Fixture(enableArtifactConfiguration: true);
+        var root = Path.GetFullPath("artifact-settings");
+        var defaults = ArtifactDirectorySettings.DefaultDirectories(root, Path.Combine(root, "roaming"), Path.Combine(root, "user"));
+        fixture.ArtifactPreferences.Settings = defaults;
+        fixture.ViewModel.SelectedArtifactDirectoryKind = kind;
+        await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
+        fixture.ViewModel.AdditionalArtifactDirectories.Should().Equal(defaults.GetPaths(kind));
+        fixture.ViewModel.SelectedArtifactDirectory = defaults.GetPaths(kind)[0];
+        await fixture.ViewModel.RemoveArtifactDirectoryCommand.ExecuteAsync();
+        fixture.ViewModel.AdditionalArtifactDirectories.Should().Equal(defaults.GetPaths(kind).Skip(1));
+        fixture.ArtifactPreferences.Settings.UseDefaultDirectories.Should().BeFalse();
+    }
+
     [Fact]
     public async Task Artifact_source_controls_add_refresh_and_remove_each_selected_source()
     {
@@ -200,7 +219,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.CanChangeArtifactDirectories.Should().BeTrue();
         fixture.ViewModel.ArtifactDirectoryKinds.Should().Contain(ArtifactSourceKind.McpServerConfiguration);
-        fixture.ViewModel.ArtifactDirectoryStatus.Should().Be("No additional skill directories are configured.");
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().Be("No skill directories are configured.");
         fixture.ViewModel.ArtifactDirectoryInput = " ";
         fixture.ViewModel.AddArtifactDirectoryCommand.CanExecute(null).Should().BeFalse();
         fixture.ViewModel.ArtifactDirectoryInput = directory;
@@ -210,7 +229,7 @@ public sealed partial class MainViewModelTests : IDisposable
 
         fixture.ViewModel.AdditionalArtifactDirectories.Should().Equal(directory);
         fixture.ViewModel.ArtifactDirectoryInput.Should().BeEmpty();
-        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("1 additional skill");
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("1 skill");
         fixture.ViewModel.SelectedArtifactDirectory = directory;
         fixture.ViewModel.SelectedArtifactDirectory = directory;
         fixture.ViewModel.RemoveArtifactDirectoryCommand.CanExecute(null).Should().BeTrue();
@@ -229,7 +248,7 @@ public sealed partial class MainViewModelTests : IDisposable
             [],
             []);
         await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
-        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("2 additional skill directories");
+        fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith("2 skill directories");
     }
 
     [Fact]
@@ -247,7 +266,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.IsMcpConfigurationSelected.Should().BeTrue();
             fixture.ViewModel.ArtifactPathKind.Should().Be("file");
             fixture.ViewModel.ArtifactDirectoryStatus.Should().Be(
-                "No additional mcpserverconfiguration files are configured.");
+                "No mcpserverconfiguration files are configured.");
             fixture.ViewModel.ArtifactDirectoryInput = file;
 
             await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
@@ -280,7 +299,7 @@ public sealed partial class MainViewModelTests : IDisposable
             fixture.ViewModel.ArtifactDirectoryInput = secondFile;
             await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
             fixture.ViewModel.ArtifactDirectoryStatus.Should().StartWith(
-                "2 additional mcpserverconfiguration files");
+                "2 mcpserverconfiguration files");
             fixture.ViewModel.SelectedArtifactDirectory = file;
             fixture.ArtifactPreferences.Settings = ArtifactDirectorySettings.Empty;
             fixture.McpServerConfiguration.NotifyChanged();
@@ -303,12 +322,12 @@ public sealed partial class MainViewModelTests : IDisposable
         await fixture.ViewModel.AddArtifactDirectoryCommand.ExecuteAsync();
 
         fixture.ViewModel.State.Should().Be(AssistantState.Failure);
-        fixture.ViewModel.ResponseTitle.Should().Be("Additional artifact and MCP sources were not changed.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact and MCP sources were not changed.");
 
         fixture.ArtifactPreferences.SaveFailure = null;
         fixture.ArtifactPreferences.LoadFailure = new InvalidDataException("read failed");
         await fixture.ViewModel.RefreshArtifactDirectoriesCommand.ExecuteAsync();
-        fixture.ViewModel.ResponseTitle.Should().Be("Additional artifact and MCP sources are unavailable.");
+        fixture.ViewModel.ResponseTitle.Should().Be("Artifact and MCP sources are unavailable.");
 
         fixture.ArtifactCatalogue.ReportReloadFailure(new InvalidDataException("invalid candidate"));
         fixture.ViewModel.ResponseTitle.Should().Be("Artifact changes could not be loaded.");
@@ -320,7 +339,7 @@ public sealed partial class MainViewModelTests : IDisposable
         var unavailable = new Fixture();
         unavailable.ViewModel.CanChangeArtifactDirectories.Should().BeFalse();
         unavailable.ViewModel.ArtifactDirectoryStatus.Should()
-            .Be("Additional artifact directory configuration is unavailable.");
+            .Be("Artifact directory configuration is unavailable.");
         unavailable.ViewModel.SelectedArtifactDirectoryKind = ArtifactSourceKind.McpServerConfiguration;
         unavailable.ViewModel.AdditionalArtifactDirectories.Should().BeEmpty();
 

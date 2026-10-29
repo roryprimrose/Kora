@@ -1318,7 +1318,7 @@
                 </controls:SettingActionsButton>
               </Grid>
               <TextBlock
-                  Text="Add folders with prompts, instructions, skills or agent profiles, or a configuration file for external tools (MCP). Kora checks each source before making it available."
+                  Text="Choose the folders Kora searches for prompts, instructions, skills and agent profiles. The list starts with supported Kora and user profile locations. Add a folder or remove a selected location to stop discovering its content. Removing a location does not delete its files. External tools (MCP) use separate configuration files."
                   Classes="muted"
                   FontSize="13"
                   TextWrapping="Wrap" />

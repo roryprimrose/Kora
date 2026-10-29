@@ -12,40 +12,52 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
     private const string FileName = "artifact-directories.json";
     private const int MaximumPreferenceBytes = 64 * 1024;
     private readonly IPreferenceStore store;
+    private readonly ArtifactDirectorySettings? defaults;
 
     public LocalArtifactDirectoryPreferences(IApplicationDataPaths paths)
         : this(new LocalPreferenceStore(paths))
     {
     }
 
-    internal LocalArtifactDirectoryPreferences(IPreferenceStore store) => this.store = store;
+    internal LocalArtifactDirectoryPreferences(IPreferenceStore store, ArtifactDirectorySettings? defaults = null)
+    {
+        this.store = store;
+        this.defaults = defaults;
+    }
 
     public ArtifactDirectorySettings Load()
     {
         var text = store.ReadText(FileName, MaximumPreferenceBytes);
         if (text is null)
         {
-            return ArtifactDirectorySettings.Empty;
+            return defaults ?? ArtifactDirectorySettings.Empty;
         }
 
         try
         {
             using var document = JsonDocument.Parse(text, new JsonDocumentOptions { MaxDepth = 4 });
             var root = document.RootElement;
-            RequireProperties(root, "Version", "Skills", "Instructions", "Prompts", "Agents",
-                "McpConfigurationFiles", "IncludedMcpServerIds");
-            if (root.GetProperty("Version").GetInt32() != 2)
+            if (root.ValueKind != JsonValueKind.Object || !root.TryGetProperty("Version", out var versionElement))
+            { throw new InvalidDataException("The artifact directory preference version is missing."); }
+            var version = versionElement.GetInt32();
+            if (version is not (2 or 3))
             {
                 throw new InvalidDataException("The artifact directory preference version is unavailable.");
             }
-
-            return new(
-                ReadDirectories(root, "Skills"),
-                ReadDirectories(root, "Instructions"),
-                ReadDirectories(root, "Prompts"),
-                ReadDirectories(root, "Agents"),
+            string[] properties = ["Version", "Skills", "Instructions", "Prompts", "Agents",
+                "McpConfigurationFiles", "IncludedMcpServerIds"];
+            RequireProperties(root, version == 2 ? properties : [.. properties, "UseDefaultDirectories"]);
+            var useDefaults = version == 2 || root.GetProperty("UseDefaultDirectories").GetBoolean();
+            var limit = useDefaults ? ArtifactDirectorySettings.MaximumPathsPerKind
+                : ArtifactDirectorySettings.MaximumConfiguredDirectoriesPerKind;
+            var settings = new ArtifactDirectorySettings(
+                ReadDirectories(root, "Skills", limit),
+                ReadDirectories(root, "Instructions", limit),
+                ReadDirectories(root, "Prompts", limit),
+                ReadDirectories(root, "Agents", limit),
                 ReadFiles(root, "McpConfigurationFiles"),
-                ReadIdentifiers(root, "IncludedMcpServerIds"));
+                ReadIdentifiers(root, "IncludedMcpServerIds"), useDefaults);
+            return defaults is null ? settings : settings.WithDefaults(defaults);
         }
         catch (Exception exception) when (exception is JsonException
             or InvalidOperationException
@@ -67,10 +79,11 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
             Normalize(settings.PromptDirectories),
             Normalize(settings.AgentDirectories),
             NormalizeFiles(settings.McpConfigurationFiles),
-            settings.IncludedMcpServerIds);
+            settings.IncludedMcpServerIds, settings.UseDefaultDirectories);
         var text = JsonSerializer.Serialize(new
         {
-            Version = 2,
+            Version = 3,
+            normalized.UseDefaultDirectories,
             Skills = normalized.SkillDirectories,
             Instructions = normalized.InstructionDirectories,
             Prompts = normalized.PromptDirectories,
@@ -105,11 +118,11 @@ public sealed class LocalArtifactDirectoryPreferences : IArtifactDirectoryPrefer
         return Path.GetFullPath(file);
     }
 
-    private static string[] ReadDirectories(JsonElement root, string propertyName)
+    private static string[] ReadDirectories(JsonElement root, string propertyName, int maximumPaths)
     {
         var value = root.GetProperty(propertyName);
         if (value.ValueKind != JsonValueKind.Array
-            || value.GetArrayLength() > ArtifactDirectorySettings.MaximumPathsPerKind)
+            || value.GetArrayLength() > maximumPaths)
         {
             throw new InvalidDataException($"The {propertyName} artifact directories are not a bounded array.");
         }

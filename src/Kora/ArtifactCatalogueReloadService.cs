@@ -27,6 +27,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
     private readonly Lock gate = new();
     private readonly List<FileSystemWatcher> watchers = [];
     private Timer? timer;
+    private ArtifactDirectorySettings? watchedSettings;
     private bool disposed;
 
     internal ArtifactCatalogueReloadService(
@@ -83,6 +84,13 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
             }
             try
             {
+                var current = preferences.Load();
+                if (watchedSettings is { } previous && Enum.GetValues<ArtifactKind>().Any(kind =>
+                    previous.GetDirectories(kind).Except(current.GetDirectories(kind), StringComparer.OrdinalIgnoreCase).Any()))
+                {
+                    // A removed source must not remain invocable if the replacement reload fails.
+                    PublishReconciled(EmbeddedArtifactCatalogue.Load().Artifacts);
+                }
                 ConfigureWatchers();
                 ScheduleReload();
             }
@@ -93,7 +101,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
                 or NotSupportedException)
             {
                 ArtifactWatcherFailed(logger, exception.GetType().Name);
-                HoldOwnedInstructions();
+                PublishReconciled(EmbeddedArtifactCatalogue.Load().Artifacts);
                 catalogue.ReportReloadFailure(exception);
             }
         }
@@ -181,9 +189,14 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         {
             if (disposed) { return false; }
             var definition = saved.Document.Definition;
-            ArtifactDefinition[] candidates = [.. catalogue.Candidates.Where(item =>
-                item.Kind != definition.Kind || !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal)),
-                definition with { OwnedInstructionRevision = saved.Revision, IsUseEnabled = false }];
+            var settings = preferences.Load();
+            var include = settings.UseDefaultDirectories || settings.GetDirectories(definition.Kind).Contains(
+                Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(definition.Kind)), StringComparer.OrdinalIgnoreCase);
+            var retained = catalogue.Candidates.Where(item => item.Kind != definition.Kind
+                || !string.Equals(item.OwnedInstructionName, saved.Name, StringComparison.Ordinal));
+            ArtifactDefinition[] candidates = include
+                ? [.. retained, definition with { OwnedInstructionRevision = saved.Revision, IsUseEnabled = false }]
+                : retained.ToArray();
             // Verified native readback enters the same revision pipeline without discovering profile originals
             // or re-reading a newer source in place of the frozen editor base.
             PublishReconciled(candidates);
@@ -213,6 +226,7 @@ internal sealed partial class ArtifactCatalogueReloadService : IDisposable
         watchers.Clear();
 
         var settings = preferences.Load();
+        watchedSettings = settings;
         var discovery = Discovery(settings);
         var targets = discovery.WatchRoots
             .Select(root => new WatchTarget(

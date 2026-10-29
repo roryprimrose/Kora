@@ -4,6 +4,7 @@ using System.Text;
 using AwesomeAssertions;
 
 using Kora.Core.Customizations;
+using Kora.Core.Configuration;
 using Kora.Core.Dependencies;
 using Kora.Windows.Artifacts;
 using Kora.Windows.Storage;
@@ -15,6 +16,36 @@ public sealed partial class WindowsCustomizationStoreTests : IDisposable
     private readonly string root = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..",
         ".net-test-artifacts", "customizations", Guid.NewGuid().ToString("N")));
     private WindowsCustomizationStore Create() => new(new Paths(root), Path.Combine(root, "editor-profile"), Path.Combine(root, "user-profile"));
+    private sealed class DirectoryPreferences(ArtifactDirectorySettings settings) : IArtifactDirectoryPreferences
+    {
+        private ArtifactDirectorySettings current = settings;
+        public ArtifactDirectorySettings Load() => current;
+        public void Save(ArtifactDirectorySettings value) => current = value;
+    }
+
+    [Fact]
+    public async Task Configured_sources_are_shared_by_native_and_metadata_inventory_and_removed_sources_cannot_be_read()
+    {
+        var paths = new Paths(root);
+        var extra = Path.Combine(root, "custom-agents");
+        Directory.CreateDirectory(root);
+        using var identity = WindowsIdentity.GetCurrent();
+        RestrictedStorageDirectory.CreateRestrictedDirectory(extra, identity.User!);
+        var file = Path.Combine(extra, "helper.agent.md");
+        File.WriteAllText(file, "---\nname: Helper\ndescription: Custom agent\n---\nCustom agent.");
+        var preferences = new DirectoryPreferences(new([], [], [], [extra], [], [], false));
+        var store = new WindowsCustomizationStore(paths, Path.Combine(root, "editor-profile"),
+            Path.Combine(root, "user-profile"), preferences);
+        var source = (await store.List(TestContext.Current.CancellationToken)).Should().ContainSingle().Subject;
+        source.Scope.Should().Be(CustomizationScope.User);
+        (await store.ListMetadataSources(TestContext.Current.CancellationToken)).Should().Equal(source);
+        (await store.ReadMetadata(source, TestContext.Current.CancellationToken)).Name.Should().Be("Helper");
+        preferences.Save(new([], [], [], [], [], [], false));
+        (await store.List(TestContext.Current.CancellationToken)).Should().BeEmpty();
+        await ((Func<Task>)(() => store.ReadMetadata(source, TestContext.Current.CancellationToken)))
+            .Should().ThrowAsync<InvalidOperationException>();
+        File.Exists(file).Should().BeTrue();
+    }
     private sealed record Paths(string Root) : IApplicationDataPaths
     {
         public string LocalRoot => Path.Combine(Root, "local");

@@ -67,12 +67,12 @@ At composition, the embedded catalogue is combined with bounded compatible
 disk definitions. Kora-owned roaming `Skills`, `Instructions`, `Prompts`, and
 `Agents` folders and recognized VS Code and VS Code Insiders customization
 locations are read without whole-profile scanning or reparse traversal.
-Settings can register up to sixteen additional absolute directories for each
-artifact kind. Additional directories use the same patterns and processing
+Settings exposes the complete editable discovery list, initially populated with Kora, personal `.copilot/skills` and `.agents/skills`, and recognized editor locations. Removing a location disables its discovery without deleting files; an empty list stays empty after restart. Version-two additions migrate in memory to defaults plus additions, with version-three persistence only on an explicit write ([preferences](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).
+Each complete list is bounded to 32 absolute directories, preserving room for all 16 legacy additions alongside defaults; MCP remains bounded to 16 files. Additional directories use the same patterns and processing
 pipeline as default roots. Strict UTF-8, byte/file/depth bounds,
 frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
 uniqueness are validated. Invalid or conflicting discovery fails closed.
-Kora watches default and configured roots, debounces disk notifications, builds
+Kora watches configured roots, debounces disk notifications, builds
 a complete candidate catalogue, and atomically publishes it only after every
 definition and cross-artifact uniqueness rule passes. Invalid intermediate or
 saved content leaves the last known-valid catalogue active and surfaces a

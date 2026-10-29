@@ -17,7 +17,8 @@ internal sealed partial class OwnedInstructionEditorController(
     ProfileInstructionForkWorkflow? profileForks = null,
     Kora.Core.Context.IUserFilePicker? profilePicker = null,
     OwnedInstructionRefinementService? refinement = null,
-    ProfileInstructionEditorWorkflow? profileOriginals = null) : IDisposable
+    ProfileInstructionEditorWorkflow? profileOriginals = null,
+    Kora.Application.Voice.ComposerDictationService? dictation = null) : IDisposable
 {
     private ArtifactKind kind = ArtifactKind.Instruction;
     private OwnedInstructionEditorActions Actions => kind == ArtifactKind.Instruction ? actions
@@ -94,6 +95,9 @@ internal sealed partial class OwnedInstructionEditorController(
             else { activeOperation = Run(action); }
         });
         var findOwner = window;
+        bodyDictation = new(window, dictation ?? main.ComposerDictation, CaptureBodyDictation,
+            exception => { EditorFailed(logger, exception.GetType().Name); window?.Report("Body dictation failed: " + exception.GetType().Name + ". Draft retained; nothing saved."); });
+        window.SetBodyDictation(bodyDictation);
         window.BindBufferFind(() => CaptureBufferFind(findOwner));
         window.BindGoToLine(CaptureGoToLine);
         window.Source.PropertyChanged += (_, change) =>
@@ -190,6 +194,7 @@ internal sealed partial class OwnedInstructionEditorController(
         opened.RetireMetadataFind();
         try
         {
+            if (bodyDictation is not null) { await bodyDictation.CancelAndRelease(); }
             switch (action)
             {
                 case "Kind":
@@ -316,7 +321,8 @@ internal sealed partial class OwnedInstructionEditorController(
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "
                     : "Unavailable: ")
                 + (exception is InvalidDataException or InvalidOperationException ? exception.Message : exception.GetType().Name)
-                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite. Profile originals are never modified."); }
+                + ". No success or rollback claimed. Draft retained. For a copy, inspect the destination explicitly or choose another new ID; no overwrite."
+                + (profileOriginal is not null ? " Explicitly Reload/reconcile the registered original before further writes." : " Profile originals are never modified by owned operations.")); }
         }
         finally { busy = false; }
     }
@@ -528,6 +534,12 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private void OnClosing(object? sender, WindowClosingEventArgs args)
     {
+        if (!closing && bodyDictation?.IsPending == true)
+        {
+            args.Cancel = true;
+            _ = CloseSafely();
+            return;
+        }
         if (!closing && refinementLifetime is not null)
         {
             args.Cancel = true;
@@ -554,6 +566,16 @@ internal sealed partial class OwnedInstructionEditorController(
 
     private async Task<bool> PrepareClose()
     {
+        try
+        {
+            if (bodyDictation is not null) { await bodyDictation.CancelAndRelease(); }
+        }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            EditorFailed(logger, exception.GetType().Name);
+            window?.Report("Body dictation release is unconfirmed. Draft retained; closing is blocked. Failure type: " + exception.GetType().Name);
+            return false;
+        }
         if (busy) { window?.Report("Wait for current operation to retire before closing."); return false; }
         if (window is not { } opened || lifetime is null) { return true; }
         if (!Dirty) { return true; }
@@ -571,6 +593,7 @@ internal sealed partial class OwnedInstructionEditorController(
     private void OnPrivacyClosed(object? sender, EventArgs args) { CancelRefinement(); CancelProfileCopy(); lifetime?.Cancel(); window?.ClearPrivateText(); closing = true; window?.Close(); closing = false; }
     private void Clear()
     {
+        bodyDictation?.Dispose(); bodyDictation = null;
         lifetime?.Cancel(); lifetime?.Dispose(); lifetime = null;
         inventory = null; inventoryPage = null; inventoryEligibility = null; inventoryChoiceWithdrawn = false;
         window?.ClearPrivateText(); window = null; baseline = null; profileOriginal = null; selectedName = null; originalText = string.Empty; uncertain = false;

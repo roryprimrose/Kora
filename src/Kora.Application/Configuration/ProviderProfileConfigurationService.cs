@@ -302,7 +302,7 @@ public sealed class ProviderProfileConfigurationService(
     // The turn consumer observes again; settings snapshots are never dispatch or account authority.
     internal async Task<(ProviderProfileTuple? Tuple, ModelProviderSelection? Selection, Func<bool> Current)> ResolveTurnAsync(
         Func<bool> eligible, SessionProviderOverrides overrides, CancellationToken token,
-        ProviderService? reviewedService = null)
+        ProviderService? reviewedService = null, ProviderProfileTuple? localRequest = null)
     {
         if (!eligible()) { throw new InvalidOperationException("Provider profile host admission is closed."); }
         var current = await catalogue.ObserveAsync(token).ConfigureAwait(false);
@@ -312,9 +312,11 @@ public sealed class ProviderProfileConfigurationService(
             if (applying || !eligible() || token.IsCancellationRequested) { throw new InvalidOperationException("Provider profile admission changed during observation."); }
             var value = Read();
             var resolved = value ?? new ProviderProfilePreferences(Initial(current.Installation), []);
-            var service = reviewedService ?? overrides.EffectiveService(resolved);
-            var tuple = reviewedService is null || overrides.EffectiveService(resolved) == service
-                ? overrides.ResolveDesired(resolved) : resolved.For(service);
+            if (localRequest is not null && localRequest.Service != ProviderService.Local)
+            { throw new InvalidOperationException("Request-only selection is local only."); }
+            var service = localRequest?.Service ?? reviewedService ?? overrides.EffectiveService(resolved);
+            var tuple = localRequest ?? (reviewedService is null || overrides.EffectiveService(resolved) == service
+                ? overrides.ResolveDesired(resolved) : resolved.For(service));
             var model = service == ProviderService.Unset
                 || service == ProviderService.Local && current.Installation != LocalProviderInstallation.Installed
                 ? null : ProviderProfileRules.Resolve(tuple, current.For(service), time.GetUtcNow());

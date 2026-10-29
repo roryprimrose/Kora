@@ -295,7 +295,10 @@ internal static class Program
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
-            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
+            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>(),
+                ArtifactDirectorySettings.DefaultDirectories(paths.RoamingRoot,
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
@@ -394,6 +397,12 @@ internal static class Program
         services.AddSingleton<IManualCallControlStore>(interactions);
         services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupRegistration, Kora.Windows.Startup.WindowsLogonStartupRegistration>();
+        services.AddSingleton<ILogonStartupPreferences>(provider =>
+            new LocalLogonStartupPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<LogonStartupAdmission>();
+        services.AddSingleton<LogonStartupConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();

@@ -168,6 +168,8 @@ public sealed class SettingsWindowController : IDisposable, ISettingsSectionNavi
         // Storage-thread admission must never read Avalonia properties, and older bindings must not revive on reopen.
         var revision = Interlocked.Increment(ref nativeVisibilityRevision);
         Volatile.Write(ref nativeVisible, visible && !disposed ? 1 : 0);
+        viewModel.BindLogonStartupNativeLifetime(() =>
+            Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindDiagnosticRetentionNativeLifetime(() =>
             Volatile.Read(ref nativeVisible) == 1 && Volatile.Read(ref nativeVisibilityRevision) == revision);
         viewModel.BindAuditRetentionNativeLifetime(() =>

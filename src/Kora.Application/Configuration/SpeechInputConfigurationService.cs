@@ -63,7 +63,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
 
     public async Task<bool> SelectAsync(SpeechInputSelection selection, long expectedRevision, long callRevision,
         RequestOrigin originalOrigin, SecurityAuditInitiator initiator, CallCommunicationPolicy policy,
-        Func<bool> eligible, CancellationToken cancellationToken)
+        Func<bool> eligible, CancellationToken cancellationToken,
+        Func<SpeechInputProfileReview, CancellationToken, Task<bool>>? review = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         selection.Validate();
@@ -82,6 +83,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
         SecurityAuditEvent? operationAudit = null;
         Func<HostActivity>? auditContinuation = null;
         var auditTerminal = false;
+        var writeStarted = false;
+        var retirementAttempted = false;
         void CompletePendingAudit(SecurityAuditOutcome outcome, string reason)
         {
             if (operationAudit is null || auditTerminal || auditContinuation is null) { return; }
@@ -93,7 +96,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
         try
         {
             SpeechInputSelection? previous;
-            long nextGeneration;
+            SpeechInputGeneration previousGeneration;
+            SpeechInputConfigurationState reviewedState;
             lock (gate)
             {
                 if (expectedRevision != state.Revision || !eligible())
@@ -101,8 +105,10 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                     throw new InvalidOperationException("Speech-input selection is stale or host admission changed.");
                 }
                 previous = state.Saved;
-                nextGeneration = checked(runtime.ProfileGeneration.Number + 1);
+                previousGeneration = runtime.ProfileGeneration;
+                reviewedState = Get();
             }
+            var nextGeneration = new SpeechInputGeneration(checked(previousGeneration.Number + 1), selection);
             if (await Task.Run(preferences.Load, cancellationToken).ConfigureAwait(false) != previous)
             {
                 throw new InvalidDataException("Saved speech-input preference changed; restart/repair before selecting again.");
@@ -118,18 +124,44 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                 auditLog.Write(operationAudit);
                 try
                 {
+                    if (review is not null && policy.CheckMutation(request.Origin, callRevision, eligible) is not null)
+                    {
+                        return nextGeneration;
+                    }
+                    if (review is not null)
+                    {
+                        if (SpeechInputProfileCatalogue.UnavailableReason(selection) is { } unavailable)
+                        {
+                            throw new InvalidOperationException(unavailable);
+                        }
+                        if (!await review(new(reviewedState, nextGeneration, request.Origin), token).ConfigureAwait(false))
+                        {
+                            throw new OperationCanceledException("Speech-input review was cancelled; no preference changed.");
+                        }
+                        token.ThrowIfCancellationRequested();
+                        lock (gate)
+                        {
+                            if (state.Revision != expectedRevision || runtime.ProfileGeneration != previousGeneration
+                                || policy.CheckMutation(request.Origin, callRevision, eligible) is not null
+                                || preferences.Load() != previous)
+                            {
+                                throw new InvalidOperationException("The reviewed speech-input selection or host admission changed. Inspect and review again.");
+                            }
+                        }
+                    }
+                    retirementAttempted = true;
                     retirement = await runtime.RetireProfileAsync(token).ConfigureAwait(false);
-                    return new SpeechInputGeneration(nextGeneration, selection);
+                    return nextGeneration;
                 }
                 catch (OperationCanceledException)
                 {
-                    auditLog.Write(operationAudit.WithOutcome(SecurityAuditOutcome.Cancelled, "capture-retirement-cancelled"));
+                    auditLog.Write(operationAudit.WithOutcome(SecurityAuditOutcome.Cancelled, "profile-selection-cancelled"));
                     auditTerminal = true;
                     throw;
                 }
                 catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
                 {
-                    auditLog.Write(operationAudit.WithOutcome(SecurityAuditOutcome.Failed, "capture-retirement-unconfirmed"));
+                    auditLog.Write(operationAudit.WithOutcome(SecurityAuditOutcome.Failed, "profile-selection-unconfirmed"));
                     auditTerminal = true;
                     throw;
                 }
@@ -140,7 +172,7 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                     var audit = operationAudit ?? throw new InvalidOperationException("The speech-input request audit is missing.");
                     var denied = policy.CommitVoiceSetting(request.Origin, callRevision,
                         () => ReferenceEquals(HostActivity.RequireCurrent().Request, request)
-                            && !disposed && eligible() && !cancellationToken.IsCancellationRequested && state.Revision == expectedRevision,
+                            && retirement is not null && !disposed && eligible() && !cancellationToken.IsCancellationRequested && state.Revision == expectedRevision,
                         () =>
                         {
                             using var storage = HostActivity.BeginChild(HostActivityLayer.Application, HostOperation.Storage);
@@ -150,6 +182,11 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
                                 {
                                     throw new InvalidDataException("Saved speech-input state changed before replacement.");
                                 }
+                                if (runtime.ProfileGeneration != previousGeneration)
+                                {
+                                    throw new InvalidOperationException("The reviewed speech-input runtime generation changed before persistence.");
+                                }
+                                writeStarted = true;
                                 preferences.BeginWrite();
                                 preferences.Save(selection);
                                 if (preferences.ReadBack() != selection)
@@ -184,7 +221,7 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
             lock (gate)
             {
                 if (disposed || !eligible() || cancellationToken.IsCancellationRequested || policy.CheckMutation(originalOrigin, callRevision, eligible) is not null
-                    || state.Revision != expectedRevision || preferences.ReadBack() != selection)
+                    || state.Revision != expectedRevision || runtime.ProfileGeneration != previousGeneration || preferences.ReadBack() != selection)
                 {
                     throw new InvalidOperationException("Speech-input write completed but cutover admission is unconfirmed. No new capture is enabled.");
                 }
@@ -215,8 +252,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
         catch (OperationCanceledException)
         {
             retirement?.HoldUnavailable();
-            if (retirement is not null || !runtime.IsProfileAvailable)
-            { HoldUnavailable("Speech-input switching was cancelled. Capture remains stopped; inspect saved state before retry."); }
+            if (retirementAttempted)
+            { HoldUnavailable("Speech-input switching was cancelled. Capture remains stopped; inspect saved state before retry.", writeStarted); }
             SelectionCancelled();
             CompletePendingAudit(SecurityAuditOutcome.Cancelled, "input-cancelled-before-write");
             throw;
@@ -224,8 +261,8 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
         catch (Exception exception) when (exception is IOException or InvalidDataException or UnauthorizedAccessException or InvalidOperationException)
         {
             retirement?.HoldUnavailable();
-            if (retirement is not null || !runtime.IsProfileAvailable)
-            { HoldUnavailable("Speech-input change failed or its evidence is unconfirmed. No new capture is enabled. Inspect saved state and audit; typed/native input remains available."); }
+            if (retirementAttempted)
+            { HoldUnavailable("Speech-input change failed or its evidence is unconfirmed. No new capture is enabled. Inspect saved state and audit; typed/native input remains available.", writeStarted); }
             SelectionFailed(exception);
             CompletePendingAudit(SecurityAuditOutcome.Failed, "input-or-evidence-unavailable");
             throw;
@@ -240,9 +277,9 @@ public sealed partial class SpeechInputConfigurationService : IAsyncDisposable
         }
     }
 
-    private void HoldUnavailable(string reason)
+    private void HoldUnavailable(string reason, bool writeStarted)
     {
-        lock (gate) { state = state with { Saved = null, Desired = null, SavedStateKnown = false,
+        lock (gate) { state = state with { Saved = writeStarted ? null : state.Saved, SavedStateKnown = !writeStarted && state.SavedStateKnown,
             Effective = null, Revision = checked(state.Revision + 1), UnavailableReason = reason }; }
     }
 

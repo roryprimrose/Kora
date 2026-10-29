@@ -172,14 +172,17 @@ public sealed partial class ModelTurnHostTests
             Func<CancellationToken, ValueTask<bool>> current, CancellationToken token)
         {
             Calls++; Context = context;
-            return Task.FromResult<IModelToolTransport?>(observations ? new ReviewedClaudeTransport(profile, admit) : null);
+            return Task.FromResult<IModelToolTransport?>(observations
+                ? new ReviewedClaudeTransport(profile, admit, context.ToolMode == ModelToolMode.HostedClarification) : null);
         }
     }
 
     private sealed class ReviewedClaudeTransport(ProviderProfileTuple profile,
-        Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit) : IModelToolTransport
+        Func<ClaudeTransmission, CancellationToken, ValueTask<bool>> admit, bool question = false) : IModelToolTransport
     {
-        private readonly ToolTransport inner = new(VersionCall, FinalAnswer);
+        private readonly ToolTransport inner = new(question
+            ? """{"kind":"question","prompt":"Which format?","options":["Compact","Detailed"],"minimum":1,"maximum":1,"callId":"question_1"}"""
+            : VersionCall, FinalAnswer);
         public async Task<ModelToolTransportReply> CompleteAsync(ModelToolRequest request, CancellationToken cancellationToken)
         {
             foreach (var path in new[] { "count_tokens", "" })

@@ -43,6 +43,7 @@ internal sealed partial class SessionsViewModel
                 return;
             }
             RestoreUnsent();
+            CancelLocalRequestProfile();
             RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
@@ -206,6 +207,8 @@ internal sealed partial class SessionsViewModel
                     () => live() && Interlocked.Read(ref claudeObservationRevision) == observationRevision, lifetime.Token)
                 : claudeStreamAnswer
                     ? await conversation!.SubmitClaudeAnswerStreamAsync(target, body, live, lifetime.Token)
+                    : allowQuestion
+                    ? await conversation!.SubmitClaudeWithClarificationAsync(target, body, live, presenter!, lifetime.Token)
                     : await conversation!.SubmitClaudeAsync(target, body, live, lifetime.Token)
             : copilot
             ? await conversation!.SubmitCopilotAsync(target, body, live, lifetime.Token)
@@ -334,6 +337,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversation(bool preserveUnsent = true)
     {
+        CancelLocalRequestProfile();
         ClearFailedRetry();
         ClearMixedContext();
         ClearAnswerRead();
@@ -359,6 +363,7 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyConversation()
     {
+        NotifyLocalRequestProfile();
         NotifyFailedRetry();
         RestoreUnsent();
         NotifyAssistantReply();

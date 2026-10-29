@@ -1,6 +1,9 @@
 ﻿using System.Security.Principal;
 
 using Avalonia.Controls;
+using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Threading;
 using Avalonia.VisualTree;
 
 using AwesomeAssertions;
@@ -38,14 +41,22 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("missing", "Code", false)]
     [InlineData("uncertain", "Code", false)]
     [InlineData("reload-failure", "Code", false)]
+    [InlineData("dictation", "Code", false)]
     public Task RegisteredOriginalUsesSameEditorSeparateExactSaveConflictRecoveryAndNoNewAuthority(string state, string editorName, bool namedProfile) =>
         HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
-            using var f = new NativeUxFixtureSession(parent);
+            using var f = new NativeUxFixtureSession(parent, syntheticVoice: state is "dictation");
             var calls = new ProfileOriginalCallState();
             await f.InitializeAsync(null, callState: calls);
+            if (state is "dictation")
+            {
+                f.Main.BindVoiceOwnershipGate(static () => true);
+                await f.Main.SetVoiceConsentAsync(true);
+            }
+            var dictation = state is "dictation"
+                ? f.Main.BindComposerDictation(NullLogger<Kora.Application.Voice.ComposerDictationService>.Instance) : null;
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new HostTaskCoordinator(f.Tasks));
             var profile = Path.Combine(f.LocalRoot, "selected-profile");
             var user = Path.Combine(profile, editorName, "User");
@@ -79,7 +90,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             long ownerRevision = 1;
             using var controller = new OwnedInstructionEditorController(f.Main, actions, new(actions), reload, f,
                 () => ownsHost, () => ownerRevision, NullLogger<OwnedInstructionEditorController>.Instance,
-                profileOriginals: profileWorkflow);
+                profileOriginals: profileWorkflow, dictation: dictation);
             OwnedInstructionEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
@@ -118,6 +129,27 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             editor.Source.IsReadOnly.Should().BeFalse();
             editor.ReviewUse.IsEnabled.Should().BeFalse();
             File.ReadAllBytes(sourcePath).Should().Equal(bytes);
+            if (state is "dictation")
+            {
+                editor.Activate();
+                Dispatcher.UIThread.RunJobs();
+                editor.Source.CaretIndex = text.Length;
+                editor.Source.SelectionStart = text.Length;
+                editor.Source.SelectionEnd = text.Length;
+                var hold = editor.GetVisualDescendants().OfType<Button>().Single(button => button.Name is "DictateInstructionBody");
+                hold.Focus().Should().BeTrue();
+                editor.KeyPress(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                var attempt = () => editor.BodyDictation!.Operation;
+                await attempt.Should().ThrowAsync<InvalidOperationException>();
+                editor.KeyRelease(Key.Space, RawInputModifiers.None, PhysicalKey.Space, " ");
+                f.Voice.StartCalls.Should().Be(0);
+                editor.Source.Text.Should().Be(text);
+                File.ReadAllBytes(sourcePath).Should().Equal(bytes);
+                originals.RegisteredInstruction.Should().NotBeNull();
+                Directory.EnumerateFiles(Path.Combine(f.RoamingRoot, "Instructions"), "*", SearchOption.AllDirectories)
+                    .Should().BeEmpty();
+                return;
+            }
             var draft = text.Replace("Exact original.", "Exact edited draft.", StringComparison.Ordinal);
             editor.Source.Text = draft;
             next = new(TaskCreationOptions.RunContinuationsAsynchronously);

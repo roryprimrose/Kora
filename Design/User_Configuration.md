@@ -1045,6 +1045,10 @@ Get/status report desired, saved/default/unavailable source, effective route,
 live System default, metadata/call revisions, choices, mute and recovery.
 Duplicate friendly names remain distinct. Missing pins remain saved/unavailable;
 System follows the live multimedia default and reset removes only Kora's override.
+Native speaker availability uses that same observed recovery state after general,
+topology and Settings refresh: a removed saved endpoint is never described as
+ready for playback merely because its preference is retained. Refreshing a
+returned endpoint or explicitly saving another choice never replays a response.
 
 The existing atomic preference store/paths and original-channel call-policy lock
 enclose persistence and typed audit. Protected/unknown calls deny voice-originated
@@ -1287,6 +1291,10 @@ registered by this design.
 | Speech resource profile (planned) | Measured Low resource, Balanced, Accuracy focused or Custom choices; supported CPU/GPU and explicit keep-loaded/idle-unload policy; no silent protection changes | "Show the speech accuracy and resource trade-offs" |
 | Learn my voice (`voice.learnFrequentSpeaker`) | Off until separate explained consent; local Windows-profile/device-scoped adaptation from new activated commands only; non-authorizing; status/test/correct/reset/delete workflows | "Learn my voice to improve recognition" |
 | Owner-aware private speech | Optional; On for an explicitly enrolled supported verifier, not baseline voice or learning; while enabled, private content is visual-only for `Uncertain`, `NotOwner`, or `Unavailable`, without silently switching protection Off | "Only read private information when you recognise my voice" |
+
+The [delivered speech-input review](../docs/voice-and-audio.md#speech-input-profile-preference) is narrower than the planned local-provider/resource rows: native controls and exact typed/activated commands review, confirm or cancel the existing compatible Windows activated tuple. The [host workflow](../src/Kora.Application/Configuration/SpeechInputConfigurationService.cs) joins runtime retirement before persistence/publication and preserves prior desired intent on cancellation.
+
+No additional qualified local wake/ASR/resource tuple is offered. Existing unsupported desired preferences remain unavailable until an explicit compatible recovery is confirmed; review does not qualify prepared assets or automatically enable listening ([catalogue](../src/Kora.Core/Voice/SpeechInputProfileCatalogue.cs), [native host](../src/Kora.Application/ViewModels/MainViewModel.SpeechInput.cs)).
 
 The default assistant name is "Kora"; [Assistant and Activation Name](Activation_Name.md)
 defines the implemented display/command identity, its device-local persistence,

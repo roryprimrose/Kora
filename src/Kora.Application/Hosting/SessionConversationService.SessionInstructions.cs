@@ -19,10 +19,10 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryWithScopeAsync(
         SessionWorkspaceEntry target, string body, Func<bool> admitted,
         Func<CancellationToken, Task>? beforeRetain, IEnumerable<ActivityLink>? links, RequestOrigin origin,
-        bool localAnswer, PendingConversation pending, CancellationToken token)
+        bool localAnswer, PendingConversation? pending, CancellationToken token, LocalRequestProfileReview? localRequestProfile = null)
     {
         RequireOriginalSource(origin);
-        var retry = pending.Retry;
+        var retry = pending?.Retry;
         if (retry is not null && retry.Source.Provider.Provider != ModelProviderIdentity.Ollama)
         {
             var provider = retry.Source.Provider.Provider;
@@ -41,7 +41,8 @@ public sealed partial class SessionConversationService
                 new(request, Policy, body, [], now, now.AddSeconds(15), ModelToolMode.None);
             return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
                 localAnswer ? Create : null, localAnswer ? ModelTurnChoice.Local : ModelTurnChoice.Default, token,
-                pending: pending).ConfigureAwait(false);
+                pending: pending, joinCancelledResources: localRequestProfile is not null,
+                localRequestProfile: localRequestProfile).ConfigureAwait(false);
         }
         List<ActivityLink> causes = links?.ToList() ?? [];
         if (HostActivity.Current?.Activity is { } parent) { causes.Add(new(parent.Context)); }
@@ -51,7 +52,8 @@ public sealed partial class SessionConversationService
         {
             if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
             var receipt = await SubmitInstructionAsync(review,
-                () => admitted() && sessionInstructionScopes!.IsRequestAdmitted(review), pending, token).ConfigureAwait(false);
+                () => admitted() && sessionInstructionScopes!.IsRequestAdmitted(review), pending, token,
+                localRequestProfile, localRequestProfile is null ? null : beforeRetain).ConfigureAwait(false);
             activity.Complete(receipt.Message.Outcome switch
             {
                 ModelTurnOutcome.Succeeded => HostOperationOutcome.Completed,

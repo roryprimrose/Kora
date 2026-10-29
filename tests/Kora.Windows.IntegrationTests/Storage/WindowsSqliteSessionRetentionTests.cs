@@ -17,6 +17,193 @@ namespace Kora.Windows.IntegrationTests.Storage;
 public sealed class WindowsSqliteSessionRetentionTests
 {
     [WindowsFact]
+    public async Task Deletion_clears_previously_freed_content_before_acceptance_and_preserves_independent_records()
+    {
+        const string sentinel = "RETIRED_NAME_CONTENT_37B61";
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        var perpetual = await fixture.GrantAsync("perpetual");
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var target = fixture.Request.SessionId;
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        var workspace = WindowsSqliteSessionWorkspaceTests.Service(fixture, new());
+        var clock = await fixture.Store.ReadRetentionAsync(target, fixture.Token);
+        fixture.Time.Now = clock.DeleteDue.AddHours(-1);
+        var independent = await workspace.CreateAsync(new("Keep independent conversation"), RequestOrigin.LocalUi, fixture.Token);
+        await workspace.RenameAsync(target, new(1), 0, new("Current name"), RequestOrigin.LocalUi, fixture.Token);
+        await workspace.ChangeLifecycleAsync(independent.Authority.SessionId, independent.Authority.Generation,
+            false, RequestOrigin.LocalUi, fixture.Token);
+        var independentMetadata = await fixture.Store.ReadMetadataAsync(independent.Authority.SessionId, fixture.Token);
+        var independentHistory = await fixture.Store.ReadHistoryAsync(independent.Authority.SessionId, null, 50, fixture.Token);
+        // Model free pages left by an older schema without changing any live authority or its audit.
+        using (var connection = fixture.OpenRaw())
+        using (var staging = connection.CreateCommand())
+        {
+            staging.CommandText = """
+                PRAGMA secure_delete=OFF;
+                CREATE TABLE retired_session_content(body TEXT);
+                INSERT INTO retired_session_content VALUES($body);
+                DROP TABLE retired_session_content;
+                """;
+            staging.Parameters.AddWithValue("$body", string.Concat(Enumerable.Repeat(sentinel, 1024)));
+            staging.ExecuteNonQuery();
+        }
+        Encoding.UTF8.GetString(File.ReadAllBytes(fixture.DatabasePath)).Contains(sentinel, StringComparison.Ordinal).Should().BeTrue(
+            "older session content can remain in freed SQLite pages before retention");
+        var auditCount = fixture.Count("security_audit_events");
+        fixture.Time.Now = clock.DeleteDue;
+        var revoked = new List<HostId<SessionIdentity>>();
+        var commits = 0;
+        long? pagesBeforeAcceptance = null;
+        checkpoint.Commit = (connection, transaction) =>
+        {
+            if (++commits != 2) { return; }
+            using var read = connection.CreateCommand();
+            read.Transaction = transaction;
+            read.CommandText = "PRAGMA freelist_count;";
+            pagesBeforeAcceptance = (long)read.ExecuteScalar()!;
+        };
+
+        (await RetainAsync(fixture, revoke: (id, _) =>
+        {
+            revoked.Add(id);
+            return ValueTask.CompletedTask;
+        })).Should().Be(new SessionRetentionBatch(0, 1, 0, false));
+
+        commits.Should().Be(2);
+        checkpoint.Commit = null;
+        revoked.Should().Equal(target);
+        foreach (var path in new[] { fixture.DatabasePath, fixture.DatabasePath + "-journal" })
+        {
+            Encoding.UTF8.GetString(File.ReadAllBytes(path)).Contains(sentinel, StringComparison.Ordinal).Should().BeFalse(
+                "deletion acceptance must include previously freed owned content");
+        }
+        pagesBeforeAcceptance.Should().Be(0, "owned-copy cleanup must finish before the final acceptance commit");
+        new FileInfo(fixture.DatabasePath + "-journal").Length.Should().Be(0);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Should().Be(clock with { Purged = true });
+        (await fixture.Store.ReadMetadataAsync(independent.Authority.SessionId, fixture.Token)).Should().Be(independentMetadata);
+        (await fixture.Store.ReadHistoryAsync(independent.Authority.SessionId, null, 50, fixture.Token)).Should().BeEquivalentTo(independentHistory);
+        (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().ContainSingle().Which.Should().Be(perpetual);
+        fixture.Count("security_audit_events").Should().Be(auditCount + 1);
+        using (var connection = fixture.OpenRaw())
+        using (var read = connection.CreateCommand())
+        {
+            read.CommandText = "SELECT envelope FROM security_audit_events ORDER BY sequence DESC LIMIT 1;";
+            ((string)read.ExecuteScalar()!).Should().Contain("session.retention.delete").And.Contain(target.Value.ToString("D"))
+                .And.NotContain(sentinel).And.NotContain("Current name");
+        }
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        var committedAudits = fixture.Count("security_audit_events");
+        (await RetainAsync(fixture)).Should().Be(new SessionRetentionBatch(0, 0, 0, false));
+        fixture.Count("security_audit_events").Should().Be(committedAudits);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeTrue();
+    }
+
+    [Theory]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task Uninventoried_copy_after_revocation_holds_acceptance_and_retry_never_replays_work(int injectionCommit)
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var target = fixture.Request.SessionId;
+        fixture.Time.Now = (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).DeleteDue;
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        var directory = new RestrictedStorageDirectory(fixture.Paths, includeKeys: false, partitionName: HostInteractionSchema.Partition);
+        var copy = Path.Combine(directory.Artifacts, "unconfirmed-retention-copy");
+        var commits = 0;
+        checkpoint.Commit = (_, _) =>
+        {
+            if (++commits != injectionCommit) { return; }
+            using var artifact = directory.CreateNewFile(copy);
+            artifact.WriteByte(1);
+            artifact.Flush(flushToDisk: true);
+        };
+        var auditCount = fixture.Count("security_audit_events");
+
+        var removal = () => RetainAsync(fixture);
+        await removal.Should().ThrowAsync<IOException>().WithMessage("*committed*unconfirmed*");
+
+        checkpoint.Commit = null;
+        File.Exists(copy).Should().BeTrue();
+        fixture.Count("security_audit_events").Should().Be(auditCount + 1);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeFalse();
+        (await fixture.Store.ReadHistoryAsync(target, null, 25, fixture.Token)).Disposed.Should().BeTrue();
+        (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();
+        File.Delete(copy);
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        (await RetainAsync(fixture)).Deleted.Should().Be(1);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeTrue();
+        (await fixture.Tasks.ReadIncompleteAsync(10, fixture.Token)).Should().BeEmpty();
+    }
+
+    [WindowsFact]
+    public async Task Rebuild_failure_leaves_durable_revocation_but_not_deletion_acceptance()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var target = fixture.Request.SessionId;
+        fixture.Time.Now = (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).DeleteDue;
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        checkpoint.Commit = (connection, transaction) =>
+        {
+            using var settings = connection.CreateCommand();
+            settings.Transaction = transaction;
+            settings.CommandText = "PRAGMA query_only=ON;";
+            settings.ExecuteNonQuery();
+        };
+        var auditCount = fixture.Count("security_audit_events");
+
+        var removal = () => RetainAsync(fixture);
+        await removal.Should().ThrowAsync<IOException>().WithMessage("*committed*unconfirmed*");
+
+        fixture.Count("security_audit_events").Should().Be(auditCount + 1);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeFalse();
+        (await fixture.Store.ReadHistoryAsync(target, null, 25, fixture.Token)).Disposed.Should().BeTrue();
+        checkpoint.Commit = null;
+        fixture.Reopen();
+        await fixture.Store.InitializeAsync(fixture.Token);
+        (await RetainAsync(fixture)).Deleted.Should().Be(1);
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeTrue();
+    }
+
+    [WindowsFact]
+    public async Task Cancellation_at_final_acceptance_does_not_relabel_committed_deletion_as_cancelled()
+    {
+        using var fixture = new InteractionStorageFixture();
+        await fixture.InitializeAsync();
+        await WindowsSqliteSessionWorkspaceTests.FinishAsync(fixture, HostTaskState.Succeeded);
+        var target = fixture.Request.SessionId;
+        fixture.Time.Now = (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).DeleteDue;
+        var checkpoint = new InteractionTransactionCheckpoint();
+        fixture.Reopen(checkpoint);
+        await fixture.Store.InitializeAsync(fixture.Token);
+        using var cancellation = new CancellationTokenSource();
+        var commits = 0;
+        checkpoint.Commit = (_, _) =>
+        {
+            if (++commits == 2) { cancellation.Cancel(); }
+        };
+
+        (await RetainAsync(fixture, cancellation.Token)).Should().Be(new SessionRetentionBatch(0, 1, 0, false));
+
+        commits.Should().Be(2);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        (await fixture.Store.ReadRetentionAsync(target, fixture.Token)).Purged.Should().BeTrue();
+        new FileInfo(fixture.DatabasePath + "-journal").Length.Should().Be(0);
+    }
+
+    [WindowsFact]
     public async Task V5_migration_preserves_history_queue_and_audit_and_restart_never_replays_held_unknown_work()
     {
         using var fixture = new InteractionStorageFixture();

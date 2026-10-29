@@ -30,6 +30,30 @@ namespace Kora.Windows.IntegrationTests;
 public sealed class SessionInstructionScopeWorkflowTests
 {
     [Fact]
+    public async Task RequestOnlyProfilePreservesSessionInstructionReviewAndNeverWritesPolicy()
+    {
+        await using var f = await Fixture.CreateAsync(requestProfile: true);
+        var target = f.Model.SelectedSessionRecord!;
+        await f.Scopes.ConfirmAsync(await f.Scopes.ReviewAsync(target, f.Commands.Choices.Single(),
+            static () => true, static () => true, f.Storage.Token), static () => true, f.Storage.Token);
+        var commands = new SessionRequestCommandService(f.Workspace, f.Conversation, f.Access, f.Storage.Time);
+        var reviewed = (await commands.ExecuteAsync(new(Kora.Core.Commands.SessionCommandOperation.RequestReview,
+            target.Authority.SessionId.Value, target.Authority.Generation.Value, target.Metadata?.Revision.Value ?? 0)
+        {
+            RequestBody = "Exact guided input",
+            RequestLocalProfile = new(ProviderService.Local, new("account"), new(1), new("model"), new("effort-next"), new("window-next")),
+        }, RequestOrigin.LocalUi, static () => true, f.Storage.Token)).RequestReview!;
+        f.Adapter.Guidance.Should().BeEmpty();
+        var receipt = (await commands.ExecuteAsync(new(Kora.Core.Commands.SessionCommandOperation.RequestConfirm,
+            target.Authority.SessionId.Value) { RequestReviewId = reviewed.Id },
+            RequestOrigin.LocalUi, static () => true, f.Storage.Token)).RequestSubmission!;
+        receipt.Message.AssistantResponse!.Body.Should().Be("Genuine guided local answer");
+        f.Adapter.Guidance.Should().Equal(true);
+        (await f.Storage.Store.ReadProviderProfile(target.Authority.SessionId, f.Storage.Token)).Revision.Should().Be(0);
+        new LocalProviderProfilePreferences(f.Storage.Paths).Load().Should().BeNull();
+    }
+
+    [Fact]
     public async Task RealStoreRetainsScopedOrdinarySubmission()
     {
         await using var f = await Fixture.CreateAsync();
@@ -109,7 +133,7 @@ public sealed class SessionInstructionScopeWorkflowTests
         private ModelTurnHost host = null!;
         private AudioControlAdmission admission = null!;
 
-        internal static async Task<Fixture> CreateAsync()
+        internal static async Task<Fixture> CreateAsync(bool requestProfile = false)
         {
             var f = new Fixture();
             await f.Storage.InitializeAsync();
@@ -133,10 +157,13 @@ public sealed class SessionInstructionScopeWorkflowTests
             var runtimes = new Kora.Tools.Runtime.RecordedRuntimeObservation(dependencies);
             var registry = new ReadOnlyCapabilityRegistry(boundary, new(), new(), new(boundary), new(dependencies),
                 new(runtimes), new(runtimes), NullLogger<ReadOnlyCapabilityRegistry>.Instance);
+            var profiles = new ProviderProfileConfigurationService(new LocalProviderProfilePreferences(f.Storage.Paths),
+                new SessionsProviderProfileTests.Catalogue(f.Storage.Time), f.admission, audit, f.Storage.Time);
             f.host = new(f.Storage.Store, f.Access, boundary, registry, audit, NullLogger<ModelTurnHost>.Instance, f.Storage.Time,
                 [new(ModelProviderSelection.OllamaCandidate,
                     ModelQualificationGate.LocalCandidateSelection | ModelQualificationGate.IntegratedHost,
-                    f.Storage.Time.Now.AddMinutes(5), f.Adapter)], mode);
+                    f.Storage.Time.Now.AddMinutes(5), f.Adapter)], mode, requestProfile ? profiles : null,
+                    requestProfile ? f.Storage.Store : null);
             var conversation = new SessionConversationService(f.Storage.Store, f.Storage.Store, f.Workspace, f.Access,
                 f.host, f.Storage.Time, NullLogger<SessionConversationService>.Instance, execution: f.host,
                 sessionInstructionScopes: f.Scopes);

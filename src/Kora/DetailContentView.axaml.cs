@@ -311,11 +311,12 @@ public sealed partial class DetailContentView : UserControl
         }
         var action = DetailKeyboardNavigation.Resolve(eventArgs.Key, eventArgs.KeyModifiers);
         if (action == DetailKeyboardNavigation.Action.None) { return; }
+        if (cleared || state.Content is null) { eventArgs.Handled = true; RequestClose(); return; }
         if (action == DetailKeyboardNavigation.Action.SelectContent
-            && eventArgs.Source is TextBox codeReader
-            && codeReader.GetVisualAncestors().OfType<NativeCodeBlock>().Any()) { return; }
+            && eventArgs.Source is TextBox textBox
+            && (ReferenceEquals(textBox, search)
+                || textBox.GetVisualAncestors().OfType<NativeCodeBlock>().Any())) { return; }
         eventArgs.Handled = true;
-        if (cleared || state.Content is null) { RequestClose(); return; }
         switch (action)
         {
             case DetailKeyboardNavigation.Action.CopySelection:

@@ -371,6 +371,15 @@ late append/publication is denied. Removing authority alone is not acceptance:
 a separate final inventory receipt is required and interrupted acceptance
 retries storage cleanup without execution.
 
+Inactivity deletion uses the same in-memory SQLite rebuild as explicit
+disposition, including space freed by earlier revisions or schemas, before
+committing final `Purged` acceptance. Copy inventory is rechecked at that
+commit fence. A rebuild, inventory or final acceptance failure after revocation
+is explicitly incomplete, not rollback or a successful deletion count;
+maintenance can retry storage cleanup without executing retained work.
+Post-revocation caller cancellation does not interrupt this finite acceptance.
+Unrelated live content and the independent audit chain are preserved.
+
 Unrecognised ownership, malformed envelopes, uncertain key publication,
 uninventoried storage/backup entries or hot/nonempty journals fail closed.
 No managed-backup publisher/ownership format is delivered; arbitrary copies
@@ -1020,6 +1029,11 @@ There is no command, tool, composer or session-routing fallback; the existing
 privacy-reducing Stop-listening route remains before schema parsing, even for
 an assistant named Stop or a matching option label. Proposal/approval questions
 are refused; approval readback specificity and grants are unchanged.
+Host-refused replies show an explicit **Reply was not accepted** recovery status,
+not ordinary turn completion; the acceptance callback is reserved for an Answered
+receipt and the reply trace ends Failed. Recovery directs the user to review native
+question status before retry, without retargeting or automatic replay ([reply delivery](../src/Kora.Application/Interaction/HostQuestionVoiceReplyService.cs),
+[native recovery regression](../tests/Kora.Windows.IntegrationTests/NativeQuestionWindowContractTests.Voice.cs)).
 No audio or raw-transcript archive, transcript/content logging, model/network
 effects, wake integration or during-TTS capture is added. Accepted structured
 answers retain the existing question persistence/audit policy. Maintained

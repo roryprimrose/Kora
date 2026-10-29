@@ -4,6 +4,7 @@ using System.Collections.Immutable;
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
+using Kora.Core.Providers;
 
 namespace Kora.Core.Commands;
 
@@ -18,7 +19,12 @@ public sealed partial record SessionCommand
         + "claude-tools selects one to six distinct original read-only observation IDs, not provider-native effects. "
         + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
         + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered. "
+        + LocalRequestProfileSyntax + " "
         + ForegroundRequestSyntax;
+    public const string LocalRequestProfileSyntax =
+        "session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>. "
+        + "This request only: explicitly choose the complete advertised local tuple, review destination/profile/input, then confirm separately. "
+        + "No preference write, hosted fallback, model download or qualification. Cancel submits nothing; subsequent requests inherit normally.";
     public const string ReadableRequestSyntax =
         "session request review active [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
         + "session request review \"<exact readable name>\" [copilot|claude|claude-tools=<exact,ids>] -- <original body> | "
@@ -36,6 +42,7 @@ public sealed partial record SessionCommand
     public bool RequestUsesPendingReview { get; init; }
     public bool RequestForegroundTarget { get; init; }
     public bool RequestActivationPrefixed { get; init; }
+    public ProviderProfileTuple? RequestLocalProfile { get; init; }
     public const string ForegroundRequestSyntax =
         "ask this conversation <original body>. Review the complete message and current foreground conversation, "
         + "then separately use session request confirm or session request cancel. "
@@ -85,6 +92,20 @@ public sealed partial record SessionCommand
         if (Encoding.UTF8.GetByteCount(header) > MaximumInputBytes || header.Any(char.IsControl))
         { return Invalid(); }
         var parts = header.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3 && parts[2].Equals("once", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length != 11 || separator < 0 || !Revision(parts[7], true, out var catalogue)) { return Invalid(); }
+            try
+            {
+                var profile = new ProviderProfileTuple(ProviderService.Local, new(parts[6]), new(catalogue),
+                    new(parts[8]), new(parts[9]), new(parts[10]));
+                var ordinary = ParseRequest(string.Join(' ', parts.Take(2).Append("review").Concat(parts.Skip(3).Take(3)))
+                    + text[separator..]);
+                return ordinary is { Operation: SessionCommandOperation.RequestReview }
+                    ? ordinary with { RequestLocalProfile = profile } : Invalid();
+            }
+            catch (InvalidDataException) { return Invalid(); }
+        }
         if (parts.Length == 3 && parts[2].Equals("help", StringComparison.OrdinalIgnoreCase) && separator < 0)
         { return new(SessionCommandOperation.Help); }
         if (parts.Length == 3 && separator < 0

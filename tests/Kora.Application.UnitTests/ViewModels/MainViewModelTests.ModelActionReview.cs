@@ -40,7 +40,8 @@ public sealed partial class MainViewModelTests
             return sourceState is not "stale" && (sourceState is not "stale-after-confirmation" || decisionReads == 1);
         });
         await f.ViewModel.ConfirmModelActionReviewAsync(original, ModelApprovalScope.Once);
-        f.Session.LockCalls.Should().Be(sourceState is "current" ? 1 : 0);
+        f.ViewModel.HostedModelsEnabled.Should().Be(sourceState is "current");
+        f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeNull();
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
@@ -63,7 +64,7 @@ public sealed partial class MainViewModelTests
     {
         var f = voice ? CreateVoicePrivacyFixture() : new Fixture();
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Synthetic ready seam.");
-        f.Reasoner.Action = BuiltInAction.LockMachine;
+        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await f.ViewModel.InitializeAsync();
         f.ViewModel.BindModelActionReviewPresentation(f.ViewModel.IsModelActionReviewCurrent);
         return f;
@@ -106,11 +107,12 @@ public sealed partial class MainViewModelTests
             f.ViewModel.ActivateModelActionReview(target).Should().BeTrue();
         }
 
-        f.ViewModel.ResponseBody.Should().Contain("Lock the current Windows session.");
+        f.ViewModel.ResponseBody.Should().Contain("Allow Kora to use configured hosted model providers.");
         f.ViewModel.ModelActionReviewStatus.Should().Contain("Confirm or reject separately");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
         f.Audit.Events.Should().HaveCount(audits);
         f.Reasoner.Requests.Should().HaveCount(requests);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
@@ -119,7 +121,8 @@ public sealed partial class MainViewModelTests
         if (reject) { await f.ViewModel.RejectModelActionReviewAsync(target); }
         else { await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once); }
 
-        f.Session.LockCalls.Should().Be(reject ? 0 : 1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(!reject);
+        f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeNull();
         f.ViewModel.ModelActionReviews.Should().BeEmpty();
         f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
@@ -129,7 +132,8 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
         await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Always);
         await f.ViewModel.RejectModelActionReviewAsync(target);
-        f.Session.LockCalls.Should().Be(reject ? 0 : 1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(!reject);
+        f.Session.LockCalls.Should().Be(0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
 
@@ -153,6 +157,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Contain("Conversation opening unavailable");
         navigations.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
             && audit.Outcome == SecurityAuditOutcome.Succeeded);
@@ -160,9 +165,11 @@ public sealed partial class MainViewModelTests
         await Run("review pending action");
         f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         await Run("approve once");
-        f.Session.LockCalls.Should().Be(1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(true);
+        f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeNull();
         f.ViewModel.ModelActionReviews.Should().BeEmpty();
         f.Reasoner.Requests.Should().HaveCount(requests);
@@ -190,7 +197,9 @@ public sealed partial class MainViewModelTests
         f.ViewModel.ResponseBody.Should().Be(originalBody);
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(second);
         other.ViewModel.PendingModelActionReview.Should().BeSameAs(foreign);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
+        other.ViewModel.HostedModelsEnabled.Should().Be(false);
         other.Session.LockCalls.Should().Be(0);
         other.ViewModel.ModelActionReviewStatus.Should().NotContain("unavailable");
         f.ViewModel.ActivateModelActionReview(second).Should().BeTrue();
@@ -227,6 +236,7 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.RejectModelActionReviewAsync(target);
         f.ViewModel.ResponseBody.Should().Be(body);
         f.WindowActions.Should().BeEmpty();
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
@@ -252,6 +262,7 @@ public sealed partial class MainViewModelTests
             await f.ViewModel.ConfirmModelActionReviewAsync(target, ModelApprovalScope.Once);
             await f.ViewModel.RejectModelActionReviewAsync(target);
         }
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
         await f.RunAsync("Kora, review pending action");
@@ -270,9 +281,11 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("Kora, review pending action", 1);
         f.ViewModel.ModelActionReviewStatus.Should().Contain("opened");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         await f.RaiseActivatedTranscriptAsync("Kora, approve once", 1);
-        f.Session.LockCalls.Should().Be(1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(true);
+        f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeNull();
     }
 
@@ -308,6 +321,7 @@ public sealed partial class MainViewModelTests
         await Run("skill choice 1");
         calls.Should().Be(0, "a current skill choice cannot replace or decide a pending action");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
             && audit.Outcome == SecurityAuditOutcome.Succeeded);
@@ -318,6 +332,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.PendingModelActionReview.Should().BeNull();
         f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
         f.Reasoner.Requests.Should().HaveCount(requests);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         f.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
@@ -351,6 +366,7 @@ public sealed partial class MainViewModelTests
         calls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
         f.ViewModel.ModelActionReviewStatus.Should().NotContain("opened");
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.Reasoner.Requests.Should().ContainSingle();
         f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target!.Audit.CorrelationId
@@ -381,6 +397,7 @@ public sealed partial class MainViewModelTests
         var second = f.ViewModel.CaptureModelActionReview();
         second.Should().NotBeNull().And.NotBeSameAs(first);
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
     }
@@ -393,6 +410,7 @@ public sealed partial class MainViewModelTests
         await f.RaiseActivatedTranscriptAsync("review pending action", 1);
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -419,6 +437,7 @@ public sealed partial class MainViewModelTests
         f.TextToSpeech.StopGate.SetResult();
         await decision;
         await f.ViewModel.ActiveReasoningTask!;
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
         f.Audit.Events.Should().NotContain(audit => audit.CorrelationId == target.Audit.CorrelationId
@@ -439,16 +458,17 @@ public sealed partial class MainViewModelTests
         f.ViewModel.PropertyChanged += (_, e) =>
         {
             if (e.PropertyName is nameof(MainViewModel.SessionAllowedModelActions)
-                && f.ViewModel.SessionAllowedModelActions.Any(command => command.Action == BuiltInAction.LockMachine))
+                && f.ViewModel.SessionAllowedModelActions.Any(command => command.Action == BuiltInAction.EnableHostedModels))
             { sessionGrantObserved = true; }
         };
         await FluentActions.Awaiting(() => f.ViewModel.ConfirmModelActionReviewAsync(target, (ModelApprovalScope)99))
             .Should().ThrowAsync<ArgumentOutOfRangeException>();
         await f.ViewModel.ConfirmModelActionReviewAsync(target, scope);
-        f.Session.LockCalls.Should().Be(1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(true);
+        f.Session.LockCalls.Should().Be(0);
         f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         sessionGrantObserved.Should().Be(scope == ModelApprovalScope.Session);
-        f.ViewModel.SessionAllowedModelActions.Should().BeEmpty("locking Windows retires session grants through the original lifecycle");
+        f.ViewModel.SessionAllowedModelActions.Should().HaveCount(scope == ModelApprovalScope.Session ? 1 : 0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Count.Should().Be(scope == ModelApprovalScope.Always ? 1 : 0);
     }
 
@@ -474,6 +494,7 @@ public sealed partial class MainViewModelTests
             f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
             f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
         }
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
     }
@@ -508,6 +529,7 @@ public sealed partial class MainViewModelTests
         await (Task)route.Invoke(f.ViewModel, arguments)!;
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -523,6 +545,7 @@ public sealed partial class MainViewModelTests
         typeof(MainViewModel).GetField(field, BindingFlags.NonPublic | BindingFlags.Instance)!.SetValue(f.ViewModel, replacement);
         f.ViewModel.IsModelActionReviewCurrent(target).Should().BeFalse();
         f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -542,6 +565,7 @@ public sealed partial class MainViewModelTests
             return true;
         });
         f.ViewModel.ActivateModelActionReview(target).Should().BeFalse();
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 
@@ -575,6 +599,7 @@ public sealed partial class MainViewModelTests
         await f.Voice.RaiseTranscriptAsync(text, 1);
         f.ViewModel.ModelActionReviewStatus.Should().Contain("unavailable");
         f.ViewModel.PendingModelActionReview.Should().BeSameAs(target);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
     }
 }

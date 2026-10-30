@@ -25,6 +25,7 @@ public sealed partial class MainViewModel
         if (ReferenceEquals(previous, target)) { return; }
         previous?.Retire();
         reviewedVoiceCommand?.Revalidate();
+        completionNotices?.Revalidate();
         if (foregroundRequestReview is not null)
         {
             RetireSessionCommandReviews();

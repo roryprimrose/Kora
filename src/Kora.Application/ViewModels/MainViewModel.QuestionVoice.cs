@@ -50,6 +50,12 @@ public sealed partial class MainViewModel
             ? admission with { ActivationName = AssistantName }
             : null;
 
+    public Func<bool>? CaptureInstructionSaveVoiceEligibility()
+    {
+        var admission = ObserveQuestionVoiceAdmission();
+        return admission is null ? null : () => ObserveQuestionVoiceAdmission() == admission;
+    }
+
     private QuestionVoiceAdmission? ObserveActivatedInputVoiceAdmission() =>
         !IsBusy ? ObserveAdmittedVoiceCaptureReadiness() : null;
 
@@ -78,6 +84,8 @@ public sealed partial class MainViewModel
     private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key)
     {
         RetireReviewedVoiceCommand();
+        Interlocked.Increment(ref completionPromptRevision);
+        completionNotices?.Revalidate();
         RetirePromptInputVoice();
         RetireComposerDictation();
     }

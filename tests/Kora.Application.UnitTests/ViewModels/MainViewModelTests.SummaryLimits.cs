@@ -137,7 +137,7 @@ public sealed partial class MainViewModelTests
         var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
         fixture.Preferences.SummaryLimits = new(1, 1);
         if (question) { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
-        else { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        else { fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("choose");
         await fixture.ViewModel.ActiveReasoningTask!.WaitAsync(TimeSpan.FromSeconds(5), TestContext.Current.CancellationToken);
@@ -145,6 +145,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpokenText.Should().Contain("Begin your answer by addressing me by name");
         fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
         fixture.ViewModel.IsVisualResponseVisible.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.ResponseOutputStatus.Should().NotContain("Speech withheld");
     }

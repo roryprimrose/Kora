@@ -1,6 +1,8 @@
 using AwesomeAssertions;
 using System.Text.Json;
 using Kora.Application.Voice;
+using Kora.Application.Interaction;
+using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Commands;
 using Kora.Core.Communication;
 using Kora.Core.Dependencies;
@@ -20,6 +22,7 @@ public sealed partial class MainViewModelTests
         fixture.Voice.DefaultMicrophoneId = "mic";
         fixture.ViewModel.BindVoiceOwnershipGate(static () => true);
         fixture.ViewModel.BindCallOwnershipGate(static () => true);
+        BindAdmittedLockResourceOwner(fixture);
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
         return fixture;
@@ -77,6 +80,44 @@ public sealed partial class MainViewModelTests
         f.Voice.StartCalls.Should().Be(0);
         f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
         f.ViewModel.Dispose();
+    }
+
+    [Fact]
+    public async Task ReviewedCommandQuestionArrivalRetiresCandidateAndPreservesDedicatedReplyOwner()
+    {
+        var f = await ReviewedCommandFixture(speechProfile: true);
+        using var host = new InteractionFixture();
+        await using var replies = f.ViewModel.BindQuestionVoiceReplies(host.Questions, host.Time,
+            NullLogger<HostQuestionVoiceReplyService>.Instance)!;
+        await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+        var generation = f.Voice.Generation;
+        await f.Voice.RaiseTranscriptAsync("Kora, lock the machine", 1);
+        await f.ViewModel.FinishReviewedVoiceCommandAsync();
+        f.ViewModel.HasReviewedVoiceCommand.Should().BeTrue();
+        var confirm = f.ViewModel.CaptureReviewedVoiceCommandConfirmation();
+
+        var question = await host.QuestionAsync();
+        f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
+        f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
+        await f.ViewModel.CancelReviewedVoiceCommandAsync();
+        await confirm();
+        f.Voice.RaiseTranscriptForGeneration(generation);
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.ClipboardReader.Calls.Should().Be(0);
+
+        await replies.OpenAsync(question, static () => true, _ => { }, false, TestContext.Current.CancellationToken);
+        var starts = f.Voice.StartCalls;
+        await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+        f.Voice.StartCalls.Should().Be(starts);
+        f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
+        f.ReplyVoice!.Speech();
+        f.Voice.RaiseTranscript("First", 1);
+        await replies.Quiescence;
+        host.Store.Snapshot.Questions.Single().Draft!.Choices.Should().Equal("a");
+        f.Session.LockCalls.Should().Be(0);
+        f.Reasoner.Requests.Should().BeEmpty();
+        await f.ViewModel.DisposeAsync();
     }
 
     [Fact]
@@ -232,6 +273,8 @@ public sealed partial class MainViewModelTests
             case "foreground":
                 var store = BindRequestCommands(f);
                 f.ViewModel.PublishForegroundConversationTarget(new(store.Session, static () => true));
+                f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
+                f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
                 break;
             case "editor": f.ViewModel.PublishCustomizationVoiceTarget(EditorVoiceTarget()); break;
             case "dispose": f.ViewModel.Dispose(); break;

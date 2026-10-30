@@ -140,7 +140,7 @@ public sealed partial class MainViewModelTests
     public async Task NaturalBudgetCommandsLeavePendingQuestionsAndApprovalsUntouched(bool question)
     {
         var fixture = CreateSummaryFixture(SpeechProviderIds.Windows);
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         if (question) { fixture.Reasoner.Question = new("Which color?", ["Blue", "Green"]); }
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("please do this work");
@@ -159,6 +159,7 @@ public sealed partial class MainViewModelTests
         }
         fixture.Preferences.SummaryLimits.Should().BeNull();
         fixture.Reasoner.Requests.Should().ContainSingle();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.TextToSpeech.SpokenText.Should().Be(spoken);
     }

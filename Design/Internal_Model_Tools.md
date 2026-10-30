@@ -72,8 +72,7 @@ Callbacks expose only frozen reviewed metadata through opaque snapshot refs, wit
 An optional [one-agent recommendation](../docs/customizations.md#review-and-run-one-model-recommended-local-agent)
 uses the same metadata-only callbacks and a strict final `{"agentRef":"<returned opaque ref>"}`
 proposal, never an executable model tool. The host labels it as a recommendation
-and binds it to the exact original question/conversation/source. Separate native
-complete review and confirmation may invoke the existing local tools-none agent
+and binds it to the exact discovery question/conversation/source as provenance, never task or source-use authority. The original user deliberately opens native review, chooses a current source-qualified candidate (same names remain explicit choices), and supplies a NEW original task under its actual channel. Separate source-read consent, complete review and confirmation may invoke the existing local tools-none agent
 workflow; discovery itself still invokes nothing. No new descriptor, parent
 continuation, hosted disclosure or runtime qualification is implied.
 

@@ -185,7 +185,7 @@ public sealed class CustomizationDiscoverySnapshot : IDisposable
                 Response = result.Response! with
                 {
                     Answer = $"Proposed agent: {definition.Name}. No agent has run. "
-                        + "Review the complete exact source, original request and original conversation in the private native agent review, "
+                        + "Choose the current exact source and supply a NEW original task in the private native agent review, "
                         + "then separately confirm once. This recommendation is not an answer from the agent or invocation authority.",
                 },
             };

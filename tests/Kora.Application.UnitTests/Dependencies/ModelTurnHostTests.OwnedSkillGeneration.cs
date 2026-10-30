@@ -65,6 +65,7 @@ public sealed partial class ModelTurnHostTests
         saved.Document.Guidance.Should().Be(body);
         saved.Document.Tool.Should().Be(OwnedSkillToolSelection.None);
         saved.Document.InputTemplate.Should().BeNull();
+        saved.Document.ObservationWorkflow.Should().BeNull();
         saved.Document.IsAvailableForInvocation.Should().BeFalse();
         review.Calls.Should().Equal("review", "confirm", "review", "confirm");
         f.Store.Writes.Should().Be(1);
@@ -81,6 +82,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("complete-input")]
     [InlineData("tools")]
     [InlineData("v3")]
+    [InlineData("v4")]
     [InlineData("occupied-name")]
     [InlineData("occupied-target")]
     public async Task InitialSkillGenerationRejectsMissingOrUnsupportedInputBeforeModel(string invalid)
@@ -88,6 +90,8 @@ public sealed partial class ModelTurnHostTests
         await using var f = new SkillRefinementFixture(inputs: invalid is "v3");
         var draft = invalid is "tools"
             ? OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", "OLD", OwnedSkillToolSelection.WebPageGet)
+            : invalid is "v4" ? OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "2.0.0", "Example", "Description",
+                "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")
             : f.Draft;
         if (invalid is "occupied-name") { f.Store.Catalogue = [new(f.Draft, "directory", "manifest", "guidance")]; }
         if (invalid is "occupied-target") { f.Store.Target = new(f.Draft, "directory", "manifest", "guidance"); }
@@ -105,6 +109,7 @@ public sealed partial class ModelTurnHostTests
     [InlineData("{\"body\":\"NEW\",\"tools\":[\"invented\"]}")]
     [InlineData("{\"body\":\"NEW\",\"id\":\"other\",\"path\":\"C:\\\\other\"}")]
     [InlineData("{\"body\":\"NEW\",\"effects\":[],\"dependencies\":[]}")]
+    [InlineData("{\"body\":\"NEW\",\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")]
     [InlineData("---\nkora-skill-format: 2\nbody: NEW")]
     [InlineData("{\"body\":\"NEW\",\"body\":\"REPLACEMENT\"}")]
     [InlineData("{\"body\":42}")]

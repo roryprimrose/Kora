@@ -17,6 +17,7 @@ public interface ICustomizationStore
     Task<CustomizationSnapshot> Read(CustomizationSource source, CancellationToken token);
     Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
         IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token);
+        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+        CustomizationSnapshot? copiedFrom = null);
     Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token);
 }

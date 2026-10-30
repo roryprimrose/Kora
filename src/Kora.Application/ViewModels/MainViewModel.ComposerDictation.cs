@@ -26,7 +26,7 @@ public sealed partial class MainViewModel
         return Volatile.Read(ref listeningStopRequests) == 0 && !listeningStop.IsStopping
             && IsHostInputEligible && voiceOwnershipEligible() && IsVoiceReadinessEligible(privacy)
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
-            && Volatile.Read(ref pushToTalkHeld) == 0 && !IsBusy && !IsResponseInteractionPending
+            && IsReviewedVoiceCaptureReleased && Volatile.Read(ref pushToTalkHeld) == 0 && !IsBusy && !IsResponseInteractionPending
             && questionVoiceReplies?.IsActive != true && promptInputVoice?.IsActive != true && !textToSpeech.IsSpeaking && !IsSpeaking
                 ? new(EffectiveMicrophone!, Interlocked.Read(ref voiceRecoveryRevision), privacy.TopologyRevision,
                     CallPolicyRevision, auditImpactOwnerRevision(), Interlocked.Read(ref workspaceSurfaceInputRevision))

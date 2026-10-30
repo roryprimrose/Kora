@@ -3,6 +3,7 @@ using System.Text.Json;
 using AwesomeAssertions;
 
 using Kora.Application.Definitions;
+using Kora.Application.Dependencies;
 using Kora.Application.Hosting;
 using Kora.Application.Agents;
 using Kora.Application.Configuration;
@@ -11,18 +12,66 @@ using Kora.Core.Customizations;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Storage;
+using Microsoft.Extensions.Logging.Abstractions;
 
 namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OriginalAgentDescriptionGeneratesOnlyInertToolFreeFieldsWithoutRetention(bool voice)
+    {
+        using var f = new Fixture();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
+        f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
+            new("{\"description\":\"Explain supplied text\",\"body\":\"Genuine fake model guidance.\"}", null));
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
+        var origin = voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
+        using var root = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(origin),
+            Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
+        const string request = "  Explain only the supplied text e\u0301\U0001f642.  ";
+        var result = await service.ProposeAgent("example", "", request, () => true, Token);
+        result.Document.Body.Should().Be("Genuine fake model guidance.");
+        result.Profile.Tools.Should().BeEmpty();
+        using var wire = JsonDocument.Parse(f.Adapter.Wire!);
+        wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(request);
+        wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().BeEmpty();
+        wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+        Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin.Should().Be(origin);
+        f.Adapter.Calls.Should().Be(1);
+        f.RetainCalls.Should().Be(0);
+        f.Messages.Should().NotContain(message => message.Contains(request, StringComparison.Ordinal)
+            || message.Contains("Genuine fake model guidance", StringComparison.Ordinal));
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task OriginalAgentGenerationCancellationJoinsActualLocalModelAndNeverRetainsOutput()
+    {
+        using var f = new Fixture();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        f.Adapter.OnRun = cancellation.Cancel;
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
+        await service.Invoking(authoring => authoring.ProposeAgent("example", "", "Explain supplied text", () => true, cancellation.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        f.Adapter.Calls.Should().Be(1);
+        f.RetainCalls.Should().Be(0);
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
     [Fact]
     public async Task Voice_routing_supplies_only_reviewed_metadata_and_original_voice_origin_to_one_local_tool_free_turn()
     {
         using var f = new Fixture();
         await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
         f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("{\"intent\":\"edit\"}", null));
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time);
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
         using var root = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
         var result = await service.Interpret(new(CustomizationKind.Skill, CustomizationScope.User, "example", "SKILL.md", false, false),
@@ -47,6 +96,7 @@ public sealed partial class ModelTurnHostTests
     {
         using var f = new Fixture();
         await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
         var source = new CustomizationSource("file.example", CustomizationKind.Skill, CustomizationScope.Kora, "example", "source", "SKILL.md");
         CustomizationFile[] files = [
             new(source.PrimaryFile, ArtifactFileDocument.Encode(CustomizationLayout.Template(source.Kind, source.Name), false)),
@@ -54,7 +104,7 @@ public sealed partial class ModelTurnHostTests
         ];
         f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
             new(JsonSerializer.Serialize(new { explanation = "Discuss the edit.", files = files.Select(file => new { name = file.Name, text = file.Text }) }), null));
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time);
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
         using var root = Kora.Core.Diagnostics.HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.ActivatedVoice),
             Kora.Core.Diagnostics.HostActivityLayer.Application, Kora.Core.Diagnostics.HostOperation.Request);
         var result = await service.Refine(source, files, new(component, mode), "remove the old example from this file", () => true, Token);
@@ -81,9 +131,10 @@ public sealed partial class ModelTurnHostTests
     {
         using var f = new Fixture();
         await using var admission = new InstructionControlAdmission(f, f, new(f));
+        await using var runner = AuthoringRunner(f, f.PolicyHost);
         var source = new CustomizationSource("file.example", CustomizationKind.Skill, CustomizationScope.Kora, "example", "source", "SKILL.md");
         CustomizationFile[] files = [new(source.PrimaryFile, ArtifactFileDocument.Encode(CustomizationLayout.Template(source.Kind, source.Name), false))];
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time);
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
         Action action = () => _ = service.Refine(source, files, new(component, mode), "change this file", () => true, Token);
         action.Should().Throw<InvalidDataException>();
         f.Adapter.Calls.Should().Be(0);
@@ -168,7 +219,8 @@ public sealed partial class ModelTurnHostTests
             if (outcome is "throw") { throw new IOException("Provider failed"); }
         };
         var host = outcome is "unavailable" ? f.Production() : f.PolicyHost;
-        var service = new CustomizationAuthoringService(admission, host, host, f.Time);
+        await using var runner = AuthoringRunner(f, host);
+        var service = new CustomizationAuthoringService(admission, runner, f.Time);
         var action = () => service.Refine(source, files, new(source.PrimaryFile), "Explain and refine this draft", () => eligible, Token);
         if (outcome is "success")
         {
@@ -185,8 +237,17 @@ public sealed partial class ModelTurnHostTests
         files[0].Text.Should().NotContain("Refined.");
         f.RetainCalls.Should().Be(0);
         f.Messages.Should().NotContain(message => message.Contains("Explain and refine", StringComparison.Ordinal));
-        Action emptyRequest = () => _ = service.Refine(source, files, new(null), " ", () => true, Token);
-        emptyRequest.Should().Throw<InvalidDataException>();
+        await service.Invoking(authoring => authoring.Refine(source, files, new(null), " ", () => true, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+    }
+
+    private static LocalContextTurnWorkflow AuthoringRunner(Fixture f, ModelTurnHost host) =>
+        new(f, f, new SessionWorkspaceService(f, new(f), f, NullLogger<SessionWorkspaceService>.Instance),
+            new(f), f, host, host, new AuthoringAudit(f), NullLogger<LocalContextTurnWorkflow>.Instance);
+
+    private sealed class AuthoringAudit(Fixture f) : Kora.Core.Auditing.ISecurityAuditLog
+    {
+        public void Write(Kora.Core.Auditing.SecurityAuditEvent auditEvent) => f.Audits.Add(auditEvent);
     }
 
     private sealed partial class Fixture : IInstructionControlSessionStore

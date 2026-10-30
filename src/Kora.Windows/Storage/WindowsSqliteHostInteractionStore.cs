@@ -235,10 +235,13 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
     }
 
     private ValueTask<WorkSessionAuthorization> SetLifecycleAsync(HostRequest request,
-        HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken) =>
+        HostRevision expectedGeneration, bool active, bool remove, Func<bool>? canControl, CancellationToken cancellationToken,
+        SessionRetentionApplyReview? retentionReview = null) =>
         RunHostMutationAsync(request, remove ? "session.remove" : active ? "session.resume" : "session.done",
             (connection, transaction, intent, audit) =>
             {
+                if (retentionReview is not null)
+                { ApplyReviewedRetentionPolicy(connection, transaction, intent, audit, retentionReview); }
                 var previous = RequireSession(connection, request.SessionId);
                 if (remove && ReadProviderProfileRow(connection, request.SessionId).Revision != 0)
                 { throw new InvalidOperationException("Use reviewed exact session disposition to inventory and remove durable provider policy copies."); }
@@ -279,6 +282,11 @@ public sealed partial class WindowsSqliteHostInteractionStore : IHostInteraction
                 foreach (var grant in grants)
                 {
                     WriteGrant(connection, transaction, grant, sequence);
+                }
+                if (retentionReview is not null)
+                {
+                    WindowsSqliteHostTaskStore.WriteTask(connection, transaction, intent.Next(HostTaskState.Succeeded));
+                    CompleteRetentionApplication(connection, transaction, intent, session, audit);
                 }
                 Execute(connection, transaction, "DELETE FROM host_observations WHERE session_id=$id;", ("$id", Id(request.SessionId)));
                 if (remove)

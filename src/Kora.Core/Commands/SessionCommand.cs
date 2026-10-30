@@ -35,7 +35,8 @@ public sealed partial record SessionCommand(
         + "No name, selected-window, delete, general executor or approval targeting. " + AttachmentSyntax + " " + RequestSyntax + " " + RetentionSyntax
         + " " + SessionDispositionReviewCommand.Syntax + ". " + SessionDispositionReviewCommand.Boundary
         + " " + SessionDispositionReviewCommand.StopAndDeleteSyntax + ". Separate native confirmation required; voice-origin compound deletion is unavailable."
-        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary;
+        + " " + SessionQueueCancellationReviewCommand.Syntax + ". " + SessionQueueCancellationReviewCommand.Boundary
+        + " " + ConversationDispatchSyntax;
 
     public string PageKind { get; init; } = "tasks";
     public Guid? TaskId { get; init; }
@@ -68,6 +69,7 @@ public sealed partial record SessionCommand(
             text = text[prefix.Length..].TrimStart(' ', ',', '\t');
             activationPrefixed = true;
         }
+        if (ParseConversationDispatch(text, input) is { } dispatch) { return dispatch; }
         if (ParseRetention(text, input) is { } retention) { return retention; }
         if (ParseConversationSearch(text) is { } search) { return search; }
         if (ParseRequest(text) is { } request) { return request with { RequestActivationPrefixed = activationPrefixed }; }

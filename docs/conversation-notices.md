@@ -2,7 +2,17 @@
 
 In an already-open **Sessions** window, refresh the selected session's work to see bounded, content-free notices for admitted conversation tasks: completed, failed/unavailable, Unknown, or an exact pending clarification ([source admission](../src/Kora.Application/Interaction/ConversationNotices/AuthorityLocalEventSource.ConversationNotices.cs)).
 
-Select an exact notice and use **Review**, **Dismiss**, or **Defer**. Review inspects that exact task's content-free status without changing the conversation or work selection. Answer a clarification separately in **Questions**; a notice cannot answer, approve, retry, dispatch, speak, open a window or take focus ([native inspection](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+Select an exact notice and use **Review**, **Dismiss**, or **Defer**. Review inspects that exact task's content-free status without changing the conversation or work selection. Answer a clarification separately in **Questions**; a notice cannot answer, approve, retry, dispatch, speak, open a window or take focus automatically ([native inspection](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+## Read one exact terminal result
+
+Select one current terminal conversation notice in the already-open **Sessions** management window, then deliberately choose **Read exact result**. This native-only gesture opens that task's complete retained **ASSISTANT** answer in the existing integrated **Details** reader, with **Historical** provenance and its original request/task/session identity ([exact route](../src/Kora/ConversationNotices/SessionsViewModel.ConversationNotices.cs)).
+
+**Back to notice** returns focus to that exact still-selected notice in its existing window, not a similarly named conversation or newer message. No conversation-page read, composer replacement, speech, model invocation, continuation or Resume occurs. The existing Find, reader scale, inert rendering and blocked copy/export policy still apply ([origin navigation](../src/Kora/SessionInteractionView.axaml.cs), [retained reader](../src/Kora/DetailContentView.axaml.cs)).
+
+No retained answer means explicit **Unavailable**, never an empty success or a body invented from a status or model claim. Inspect the separate typed **HOST** outcome in Work or ordinary history. Done, deleted, expired, revoked or changed notice sources also require fresh ordinary history inspection; reading history does not Resume a Done conversation ([canonical resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.ConversationNoticeResult.cs)).
+
+Each body access is freshly resolved under the existing private read policy and rechecks the exact broker receipt/source. Losing the source cannot recover an old body from a cache, logs or the newest task. Notice metadata and completion-voice consent grant no body-disclosure authority by themselves ([broker admission](../src/Kora.Application/Interaction/LocalEventBroker.cs), [reader revalidation](../src/Kora/DetailWindowController.cs)).
 
 Notices come from Kora's actual work records for this run, not from claims in
 user or model text. A missing notice, an older record or an omitted page is

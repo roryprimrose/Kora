@@ -25,7 +25,7 @@ using Microsoft.Extensions.Logging.Abstractions;
 namespace Kora.Windows.IntegrationTests;
 
 [Collection(nameof(HeadlessUiTestGroup))]
-public sealed class ConversationNoticeTests
+public sealed partial class ConversationNoticeTests
 {
     [Theory]
     [InlineData(ModelTurnOutcome.Succeeded, LocalEventType.Completed)]
@@ -256,18 +256,21 @@ public sealed class ConversationNoticeTests
             await Storage.InitializeAsync();
             await WindowsSqliteSessionWorkspaceTests.FinishAsync(Storage, HostTaskState.Succeeded);
         }
-        internal async Task<HostRequest> Submit(ModelTurnOutcome? outcome)
+        internal async Task<HostRequest> Submit(ModelTurnOutcome? outcome, HostId<SessionIdentity>? session = null,
+            string answer = "private answer marker")
         {
-            var request = new HostRequest(new(Guid.NewGuid()), Storage.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+            var request = new HostRequest(new(Guid.NewGuid()), session ?? Storage.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
             var provenance = new ModelTurnProvenance(new(Guid.NewGuid()), request, ModelProviderSelection.OllamaCandidate);
             using var root = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request);
-            await Storage.Store.RetainConversationMessageAsync(request, new(1), 0, "private original marker says completed", () => true, Token);
-            await Storage.Store.BeginConversationExecutionAsync(request, provenance, 0, () => true, Token);
+            var metadata = await Storage.Store.ReadMetadataAsync(request.SessionId, Token);
+            var revision = metadata.Metadata?.Revision.Value ?? 0;
+            await Storage.Store.RetainConversationMessageAsync(request, metadata.Authority.Generation, revision, "private original marker says completed", () => true, Token);
+            await Storage.Store.BeginConversationExecutionAsync(request, provenance, revision, () => true, Token);
             if (outcome is { } terminal)
             {
                 await Storage.Store.CompleteConversationExecutionAsync(request,
                     new(terminal, ModelTurnReason.ProviderOutcome, provenance,
-                        terminal == ModelTurnOutcome.Succeeded ? new("private answer marker", null) : null), () => true, Token);
+                        terminal == ModelTurnOutcome.Succeeded ? new(answer, null) : null), () => true, Token);
             }
             return request;
         }
@@ -287,13 +290,15 @@ public sealed class ConversationNoticeTests
         }
         internal LocalEventBroker Broker() => new(new AuthorityLocalEventSource(Storage.Store, Access, maintenance, new(), Storage.Time),
             state, Access, Storage.Time, this, NullLogger<LocalEventBroker>.Instance);
-        internal SessionsViewModel Viewer(LocalEventBroker broker)
+        internal SessionsViewModel Viewer(LocalEventBroker broker,
+            Func<Kora.Core.Presentation.AdmittedDetailContent, Func<bool>,
+                Func<CancellationToken, Task<Kora.Core.Presentation.AdmittedDetailContent>>, CancellationToken, Task<string>>? open = null)
         {
             var sink = new WindowsSqliteEvidenceSink(Storage.Paths);
             sink.Initialize();
             return new(WindowsSqliteSessionWorkspaceTests.Service(Storage, Access),
                 new(new WindowsSqliteEvidenceReader(sink), Access, Storage.Time, NullLogger<DurableEvidenceQuery>.Instance),
-                Access, NullLogger<SessionsViewModel>.Instance, broker);
+                Access, NullLogger<SessionsViewModel>.Instance, broker, openConversationDetail: open);
         }
         public Task<ReleaseCheck> CheckAsync(ReleaseChannel channel, string currentVersion, ReleaseArchitecture architecture, CancellationToken token) =>
             throw new InvalidOperationException("Notices cannot make network checks.");

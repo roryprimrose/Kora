@@ -81,6 +81,7 @@ internal sealed partial class SessionsViewModel
     {
         if (!ConversationMessages.Concat(ConversationSearchMessages).Any(record => ReferenceEquals(record, message)))
         { throw new InvalidOperationException("Select an actual record from the currently observed exact conversation page."); }
+        noticeResultOrigin = null;
         var searchMatch = ConversationSearchMessages.Any(record => ReferenceEquals(record, message));
         var searchEpoch = conversationSearchEpoch;
         bool DetailLive() => live() && (detailAdmission?.Invoke() ?? true) && (!searchMatch || conversationSearchEpoch == searchEpoch);

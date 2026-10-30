@@ -78,6 +78,16 @@ Every changed proposal invalidates any prior approval of that proposal.
 
 ## Standalone Instruction Editing
 
+The bounded [new owned instruction description operation](../docs/instruction-editor.md#describe-a-new-owned-instruction)
+now consumes the existing local body proposal service, native-v1 editor and writer.
+Explicit Create chooses the owned destination; original description and a fixed
+kind/format descriptor are separately disclosed to one local tool-free turn.
+Complete literal-body proposals retain host metadata and stage only after full-source
+review. Separate confirmed create-only Save/readback produces a disabled revision;
+occupied targets have no overwrite fallback. Reopen retains exact source provenance.
+This is implementation evidence, not provider enablement or general Builder qualification
+([native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+
 The instruction editor reuses the skill authoring workspace, conversational
 refinement, rendered preview, exact source/diff, validation, dirty-state,
 conflict handling, and revision-bound Save confirmation. It omits package-only
@@ -196,6 +206,34 @@ Staging and backup locations are subject to the same boundary.
 Reject traversal, unexpected files, reparse-point/hard-link escapes, and existing targets outside the store.
 
 Built-in skills are embedded immutable application resources. Improving one creates only a declarative user adaptation with a distinct ID and explicit attribution; it cannot overwrite the embedded original or shadow reserved controls.
+The delivered [Create Kora adaptation operation](../docs/customizations.md#create-a-disabled-kora-skill-adaptation)
+supports one deliberately read-consented User-profile `SKILL.md` with only the
+existing strict v1 `name`, `version`, `description` scalar metadata and plain
+inert guidance. It preserves the complete guidance, including author credits,
+and adds fixed attribution identifying the original source, exact revision,
+declared name/version and reader. The new ID must be distinct, canonical,
+nonreserved and unoccupied. Optional draft edits cannot remove that attribution
+or introduce unsupported requirements ([closed subset](../src/Kora.Core/Customizations/DeclarativeSkillAdaptation.cs)).
+Required references, tools, scripts, companion files, executable/active markup,
+unknown metadata and incompatible formats are explicitly refused, not dropped.
+Current bundled manifests require a protected executable entry point and
+dependencies, so none can be faithfully adapted into this subset
+([manifest contract](../src/Kora.Core/Skills/SkillPackageManifest.cs)).
+The existing source writer owns one-file atomic create-no-overwrite and exact
+readback. It pins the source directory ancestry and denies source-file writes
+or replacement through staging/publication, then rechecks the complete source
+inventory immediately before atomic creation; no second package writer,
+extraction, import or model call is added
+([native boundary regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.SkillAdaptation.cs)).
+Complete original/proposed source and the host-chosen owned destination are
+reviewed before separate confirmation to save NEW and DISABLED. The operation
+revalidates the inspected identity/revision and destination absence before both
+reviews and final commit, then reopens the exact saved revision. Its two-minute
+review never selects newer source bytes; changed draft/destination/input,
+source/access, reload, privacy, ownership or call admission requires fresh
+review. An uncertain publication requires explicit inspection, not retry
+([publication workflow](../src/Kora.Application/Definitions/CustomizationManagementService.SkillAdaptation.cs),
+[native lifecycle regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
 Supported shared profile skills are directly editable in the target design;
 an improvement can also create a reviewed Kora-specific fork.
 In-place declarative editing uses the dedicated definition writer, with

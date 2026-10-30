@@ -10,6 +10,8 @@ public sealed class AgentProfileAuthoringCommandTests
     [InlineData("agent author", AgentProfileAuthoringAction.Open, "")]
     [InlineData("agent author create example", AgentProfileAuthoringAction.Create, "example")]
     [InlineData("agent author source ---\nExact complete source\n", AgentProfileAuthoringAction.Stage, "---\nExact complete source\n")]
+    [InlineData("agent author describe Original description", AgentProfileAuthoringAction.Describe, "Original description")]
+    [InlineData("agent author ask", AgentProfileAuthoringAction.Ask, "")]
     [InlineData("agent author validate", AgentProfileAuthoringAction.Validate, "")]
     [InlineData("agent author save as new", AgentProfileAuthoringAction.ReviewSave, "")]
     [InlineData("agent author list", AgentProfileAuthoringAction.List, "")]
@@ -41,6 +43,19 @@ public sealed class AgentProfileAuthoringCommandTests
     {
         var parse = () => AgentRunCommand.Parse("agent author create ..\\elsewhere", "Kora");
         parse.Should().Throw<InvalidDataException>();
+    }
+
+    [Fact]
+    public void SingleOriginalDescriptionHasAnExactHostChosenIdAndUnchangedLiteralBody()
+    {
+        foreach (var prefix in new[] { "", "Kora, " })
+        {
+            var command = AgentRunCommand.Parse(prefix + "agent author draft example:  Original : request\nunchanged  ", "Kora");
+            command!.Authoring.Should().Be(new AgentProfileAuthoringCommand(AgentProfileAuthoringAction.DraftFromDescription, "example")
+            { Description = " Original : request\nunchanged  " });
+        }
+        ((Action)(() => AgentRunCommand.Parse("agent author draft example no separator", "Kora"))).Should().Throw<InvalidDataException>();
+        ((Action)(() => AgentRunCommand.Parse("agent author draft ..\\escape: request", "Kora"))).Should().Throw<InvalidDataException>();
     }
 
     [Theory]

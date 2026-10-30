@@ -23,5 +23,8 @@ public sealed class AgentProfileAuthoringGuideTests
         profile.Tools.Should().Equal("application.get_version");
         profile.References.Single().Id.Should().Be("disk.kora-profile.instruction.example");
         guide.Should().Contain("v2/v3 authoring").And.Contain("not resolution consent or enablement");
+        guide.Should().Contain("agent author draft example:").And.Contain("Use proposed draft")
+            .And.Contain("agent author describe").And.Contain("agent author ask")
+            .And.Contain("two-minute").And.Contain("not sent to the model");
     }
 }

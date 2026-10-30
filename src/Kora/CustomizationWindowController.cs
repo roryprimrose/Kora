@@ -19,7 +19,8 @@ namespace Kora;
 internal sealed partial class CustomizationWindowController(
     MainViewModel main, CustomizationManagementService management, ICustomizationAuthoring authoring,
     ArtifactCatalogue catalogue, ArtifactCatalogueReloadService reload,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<CustomizationWindowController> logger) : IDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<CustomizationWindowController> logger,
+    Func<string, string, RequestOrigin, Func<bool>, Task>? addOwnedAgent = null) : IDisposable
 {
     private CustomizationWindow? window;
     private CancellationTokenSource? lifetime;
@@ -104,6 +105,7 @@ internal sealed partial class CustomizationWindowController(
 
     private void Start(string action)
     {
+        if (action is "Mcp input") { if (!changingBuffer) { InputChanged(); } return; }
         RetireVoiceTarget();
         if (action is "Filter") { RenderSources(); PublishVoiceTarget(); return; }
         if (busy || disposed) { window?.Status.Text = "Wait for the current operation or cancel its review."; return; }
@@ -187,7 +189,8 @@ internal sealed partial class CustomizationWindowController(
 
     private void PublishVoiceTarget()
     {
-        if (busy || window is not { IsActive: true, IsVisible: true } opened || source is null || !Eligible()) { return; }
+        if (busy || window is not { IsActive: true, IsVisible: true } opened || source is null || !Eligible()
+            || source.Kind == CustomizationKind.McpServer) { return; }
         if (voiceTarget is { IsCurrent: true }) { return; }
         var input = main.CaptureCustomizationVoiceEligibility();
         var owner = ownerRevision;
@@ -295,6 +298,9 @@ internal sealed partial class CustomizationWindowController(
             window!.Status.Text = "Review original registration to disclose this exact file's bounded reading and supported native v1 editing scope. No original content has been read. Existing read-only registration is not edit consent; the separate owned instruction editor also offers Create Kora copy from profile.";
             return;
         }
+        if (selected.Kind == CustomizationKind.McpServer
+            && !await ConsentMcpRead(selected, current, token))
+        { source = null; ShowDraft(); return; }
         var snapshot = selected.Scope == CustomizationScope.BuiltIn ? bundled[selected.Id]
             : await management.Read(selected, recovery, current, token);
         RequireCurrent(current, token);
@@ -310,6 +316,13 @@ internal sealed partial class CustomizationWindowController(
         var name = opened.NewName.Text?.Trim() ?? string.Empty;
         if (name.Length == 0)
         { throw new InvalidDataException("Choose a new lowercase artifact ID and destination, then select Add. You can discuss its behavior with Kora before saving."); }
+        if (opened.Kind == CustomizationKind.Agent && scope == CustomizationScope.Kora && addOwnedAgent is not null)
+        {
+            var channel = main.CaptureInstructionRefinementEligibility();
+            await addOwnedAgent(name, opened.Request.Text ?? string.Empty, HostActivity.RequireCurrent().Request.Origin,
+                () => current() && channel());
+            return;
+        }
         var created = await management.Create(opened.Kind, scope, name, current, token);
         RequireCurrent(current, token);
         source = created;
@@ -321,6 +334,7 @@ internal sealed partial class CustomizationWindowController(
     private void FlushBuffer()
     {
         if (selectedFile is null || window is null || source?.IsReadOnly != false) { return; }
+        if (source.Kind == CustomizationKind.McpServer) { FlushMcpFields(); return; }
         var index = draft.FindIndex(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal));
         if (index >= 0) { draft[index] = draft[index].WithText(window.Editor.Text ?? string.Empty); }
     }
@@ -336,6 +350,7 @@ internal sealed partial class CustomizationWindowController(
             selectedFile = window.Files.SelectedItem as string;
             changingBuffer = true;
             window.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
+            ShowMcpFields();
             window.FileName.Text = selectedFile;
             window.SetSource(source, baseline?.RecoveryDetails is not null,
                 source is not null && management.IsInstructionRegistered(source));
@@ -360,6 +375,7 @@ internal sealed partial class CustomizationWindowController(
                 ? selectedFile : source?.PrimaryFile;
             selectedFile = opened.Files.SelectedItem as string;
             opened.Editor.Text = draft.SingleOrDefault(file => string.Equals(file.Name, selectedFile, StringComparison.Ordinal))?.Text ?? string.Empty;
+            ShowMcpFields();
             opened.SetSource(source, baseline?.RecoveryDetails is not null,
                 source is not null && management.IsInstructionRegistered(source));
             opened.FileName.Text = selectedFile;
@@ -400,10 +416,12 @@ internal sealed partial class CustomizationWindowController(
         if (source is null || source.IsReadOnly) { throw new InvalidOperationException("Select an editable artifact or create a Kora copy."); }
         FlushBuffer();
         var revision = draftRevision;
+        CustomizationManagementService.ValidatePrimary(source, draft);
         var review = ReviewText();
         bool Exact() => current() && draftRevision == revision;
         var saved = await management.Save(source, baseline, draft.ToArray(), async admitted =>
-            await window!.Review("Review complete definition changes", review, admitted, "Save disabled", "Cancel") is "Save disabled",
+            source.Kind == CustomizationKind.McpServer ? await ConfirmMcpSave(review, Exact, admitted)
+                : await window!.Review("Review complete definition changes", review, admitted, "Save disabled", "Cancel") is "Save disabled",
             Exact, token);
         if (saved is null) { return false; }
         RequireCurrent(current, token);
@@ -413,13 +431,16 @@ internal sealed partial class CustomizationWindowController(
         RequireCurrent(current, token);
         ShowDraft(); RenderSources();
         window!.Status.Text = reloaded
-            ? "Saved and read back. Runtime use remains disabled; review enablement separately. No process, connection or script was started."
+            ? source.Kind == CustomizationKind.McpServer
+                ? "Saved atomically and exact readback verified. Catalogued; disabled and independently excluded. Separate existing inclusion, discovery and use reviews are required. Authentication and connector qualification remain unavailable. No connection, account, tool or model operation occurred."
+                : "Saved and read back. Runtime use remains disabled; review enablement separately. No process, connection or script was started."
             : "Saved and read back, but catalogue reload failed. Runtime use remains disabled. Resolve the source error before enabling.";
         return true;
     }
 
     private string ReviewText()
     {
+        if (source?.Kind == CustomizationKind.McpServer) { return McpReviewText(); }
         var result = new StringBuilder("Destination: " + source!.Scope + " | " + source.Location
             + "\nSaving leaves this artifact disabled in Kora and grants no execution or connection authority.\n"
             + "Multi-file updates are recoverable, not atomic; other applications may observe intermediate files.\n\n");
@@ -484,6 +505,8 @@ internal sealed partial class CustomizationWindowController(
     {
         if (source is null || source.IsReadOnly || baseline?.RecoveryDetails is not null)
         { throw new InvalidOperationException("Open an editable draft without pending recovery. Built-ins require a Kora copy."); }
+        if (source.Kind == CustomizationKind.McpServer)
+        { throw new InvalidOperationException("MCP endpoints are native-only. Edit the exact URL/type fields and use the separate native reviews; no model disclosure is available."); }
         FlushBuffer();
         var revision = draftRevision;
         var request = window!.Request.Text ?? string.Empty;
@@ -521,6 +544,8 @@ internal sealed partial class CustomizationWindowController(
     private async Task Copy(Func<bool> current, CancellationToken token)
     {
         if (source is null) { throw new InvalidOperationException("Inspect one exact source to copy."); }
+        if (source.Kind == CustomizationKind.McpServer)
+        { throw new InvalidOperationException("MCP copy/import is unavailable. Add one explicit Kora HTTPS entry instead."); }
         FlushBuffer();
         var original = source;
         var content = draft.ToArray();
@@ -585,12 +610,14 @@ internal sealed partial class CustomizationWindowController(
         {
             window.NewName.Text = command.Name;
             window.Request.Text = command.Text;
-            if (command.Name is not null && await LeaveDraft(current, token)) { await Create(window.Scope, current, token); }
+            if (command.Name is not null && await LeaveDraft(current, token))
+            { await Create(command.Kind == CustomizationKind.McpServer ? CustomizationScope.Kora : window.Scope, current, token); }
             else { window.Status.Text = "Choose the new artifact ID and Kora/User destination, then Add. Describe its behavior in Ask Kora before saving."; }
             return;
         }
         var matches = sources.Where(item => item.Kind == command.Kind
-            && (item.Name.Equals(command.Name, StringComparison.OrdinalIgnoreCase)
+            && (item.Id.Equals(command.Name, StringComparison.Ordinal)
+                || item.Name.Equals(command.Name, StringComparison.OrdinalIgnoreCase)
                 || management.ObservedArtifact(item)?.Name.Equals(command.Name, StringComparison.OrdinalIgnoreCase) == true)).ToArray();
         if (matches.Length != 1)
         { window.Search.Text = command.Name; window.Status.Text = "Choose the exact source-qualified artifact; no unique target was selected."; return; }

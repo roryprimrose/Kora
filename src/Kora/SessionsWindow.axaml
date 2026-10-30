@@ -535,6 +535,16 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeDisclosure}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Run-only task completion voice notice disclosure" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Task completion voice consent, availability and actual terminal outcome" />
+          <WrapPanel>
+            <Button x:Name="EnableCompletionNotices" Content="Enable completion voice notices for this run"
+                    IsEnabled="{Binding CanEnableCompletionNotices}" />
+            <Button x:Name="DisableCompletionNotices" Content="Turn completion voice notices Off"
+                    IsEnabled="{Binding CanDisableCompletionNotices}" />
+          </WrapPanel>
           <WrapPanel>
             <TextBlock Text="Local event category" VerticalAlignment="Center" />
             <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"

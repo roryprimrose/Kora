@@ -423,6 +423,7 @@ internal sealed partial class SessionsWindowController(
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
             localHandoff: localHandoff, retentionApply: retentionApply);
         model.BindDictation(main.ComposerDictation);
+        model.BindCompletionNotices(main);
         model.PropertyChanged += OnPermissionSourceChanged;
         model.InspectPermissionGrants = (target, admitted) =>
         {

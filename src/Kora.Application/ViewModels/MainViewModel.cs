@@ -42,7 +42,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
     private const string CurrentApplicationTarget = "application.current";
     private const string CurrentMachineTarget = "machine.current";
-    private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
     private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
@@ -55,7 +54,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private const string ModelExecutionPreferenceAction = "configuration.model-execution";
     private const string SpeechProviderRemoveAction = "speech-provider.remove";
     private const string SpeechProviderSelectionConfigurationAction = "configuration.speech-provider";
-    private const string SessionLockAction = "session.lock";
     private const string ShutdownApprovalAction = "power.shutdown";
     private const string RestartApprovalAction = "power.restart";
 
@@ -341,6 +339,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechConfiguration.Changed += OnSpeechConfigurationChanged;
         this.outputConfiguration = outputConfiguration;
         this.responseModeConfiguration = responseModeConfiguration;
+        settingsUndo = new(appearanceConfiguration, speechConfiguration, audioPlaybackSettings.VolumeConfiguration,
+            responseModeConfiguration, communicationPolicy, TimeProvider.System);
+        settingsUndo.Changed += OnSettingsUndoChanged;
         this.providerModeConfiguration = providerModeConfiguration;
         this.providerProfileConfiguration = providerProfileConfiguration;
         this.artifactDirectoryConfiguration = artifactDirectoryConfiguration;
@@ -631,6 +632,12 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         speechReadOnce = new Kora.Tools.Speech.SpeechReadOnce(this);
         ReadCurrentResponseCommand = CreateCommand(
             () => ReadCurrentResponseAsync(CaptureResponseReadInput()), () => CanReadCurrentResponse);
+        ReviewCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Review,
+            () => CanReviewCallSpeech);
+        ConfirmCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Confirm,
+            () => CanConfirmCallSpeech);
+        CancelCallSpeechCommand = CreateCallSpeechCommand(CallSpeechOperation.Cancel);
+        GetCallSpeechStatusCommand = CreateCallSpeechCommand(CallSpeechOperation.Status);
         DownloadSpeechProviderCommand = CreateCommand(
             DownloadSpeechProviderAsync,
             () => CanDownloadSpeechProvider);
@@ -1723,12 +1730,15 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         !IsSpeechOutputAvailable;
 
     public bool IsSpeechResponseEnabled =>
+        IsMandatorySpeechResponseEligible
+        && EffectiveResponseMode != ResponseOutputMode.VisualOnly
+        && !IsCallVisualOverrideActive;
+
+    private bool IsMandatorySpeechResponseEligible =>
         !conversationSearchPresentation
         && IsCallMutationHostEligible && !IsPrivacyPresentationHeld && sessionController.IsCurrentSessionUnlocked()
         && privacyObservation.Current.SessionState == WindowsSessionState.Unlocked
         && !voiceRecognition.IsListening
-        && EffectiveResponseMode != ResponseOutputMode.VisualOnly
-        && !IsCallVisualOverrideActive
         && IsSpeechOutputAvailable;
 
     public CallState CurrentCallState
@@ -3466,6 +3476,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
                 return;
             }
+            if (explicitListeningRecovery && originalOrigin == RequestOrigin.LocalUi)
+            { Interlocked.Exchange(ref explicitVoiceActivationRevision, revision); }
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             SetListeningPauseReason(null);
@@ -3791,14 +3803,20 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 #pragma warning disable VSTHRD003 // Stop retires the owned read before replacing its source with recovery text.
             await responseReadQuiescence;
 #pragma warning restore VSTHRD003
+            if (activeCallSpeechLease is not null && textToSpeech.IsSpeaking)
+            { throw new InvalidOperationException("Owned speech release remains unconfirmed."); }
+            activeCallSpeechLease = null;
             activeSpokenText = null;
             IsSpeaking = false;
             ShowInformation("Speech is stopped.", "No speech playback is active.");
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            ApplicationLog.Error(logger, exception, "Stopping speech output");
-            ShowFailure("Speech output could not be stopped.", exception.Message);
+            var reviewedCall = activeCallSpeechLease is not null;
+            LogSpokenResponseFailure(exception, "Stopping speech output", reviewedCall);
+            ShowFailure("Speech output could not be stopped.", reviewedCall
+                ? "Reviewed call speech release remains unconfirmed. Use Stop speaking after output recovery; no replay is permitted."
+                : exception.Message);
         }
     }
 
@@ -4225,6 +4243,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
         CancelLogonStartupReview();
+        if (CallSpeechCommand.Parse(spokenText, AssistantName) is { } callSpeechCommand)
+        {
+            if (callSpeechCommand.Operation is not { } operation || !isAssistantNameAvailable
+                || initiator is not (SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand)
+                || (OriginalOrigin(initiator) == RequestOrigin.ActivatedVoice) != (initiator == SecurityAuditInitiator.VoiceCommand))
+            {
+                ReportCallSpeech("Call speech command was not accepted. Use exactly " + CallSpeechCommand.Syntax + ".");
+                return;
+            }
+            await ExecuteCallSpeechAsync(operation, initiator);
+            return;
+        }
         var reviewInput = manualInput ?? CaptureManualCallInput(OriginalOrigin(initiator), CallPolicyRevision);
         if (TryActivateModelActionReview(spokenText, initiator, reviewInput)) { return; }
         if (ModelApprovalSpeech.TryMatch(spokenText, AssistantName, false, out _)
@@ -4234,7 +4264,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportModelActionReviewUnavailable();
             return;
         }
-        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target == WorkspaceSurfaceTarget.OpenNamedConversation
+        if (WorkspaceSurfaceCommand.Parse(spokenText, AssistantName)?.Target is
+                (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult)
             && (!CanEnterRetainedAnswerRead || editorTarget is not null))
         {
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
@@ -4567,6 +4598,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ShowFailure("Assistant prefix routing is unavailable.", assistantNameConfiguration.Get().Recovery!);
             return;
         }
+        if (RegisteredSettingUndoCommand.Parse(spokenText, AssistantName) is { } undoCommand)
+        {
+            if (initiator == SecurityAuditInitiator.VoiceCommand
+                && !commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                ShowInformation("Settings undo requires original input.", "Use the current assistant-name prefix. Nothing was applied.");
+                return;
+            }
+            await Kora.Application.Hosting.HostRequestRunner.RunAsync(origin,
+                () => ExecuteSettingsUndoAsync(undoCommand, initiator, CancellationToken.None));
+            return;
+        }
         if (RegisteredSettingSuggestionCommand.Parse(spokenText, AssistantName) is { } responseSuggestionCommand)
         {
             await ExecuteResponseModeSuggestionAsync(responseSuggestionCommand, initiator,
@@ -4892,7 +4935,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
 
-        await ExecuteAsync(match.Command, initiator, sourceCurrent: originalInput?.Eligible);
+        await ExecuteAsync(match.Command, initiator, sourceCurrent: match.Command.Action == BuiltInAction.LockMachine
+            && originalInput is not null ? CaptureLockSource(originalInput) : originalInput?.Eligible);
         if (ShouldSpeakResponse(match.Command.Action))
         {
             await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
@@ -5051,6 +5095,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
+        var lockHostCurrent = CaptureModelActionReviewHost();
+        var lockCallRevision = CallPolicyRevision;
+        var lockPreparationRevision = Interlocked.Read(ref approvalPreparationRevision);
+        var originalToken = cancellation.Token;
+        bool LockSourceCurrent() => lockHostCurrent() && !originalToken.IsCancellationRequested
+            && lockCallRevision == CallPolicyRevision
+            && lockPreparationRevision == Interlocked.Read(ref approvalPreparationRevision)
+            && (artifact is null || artifactCatalogue.IsCurrent(artifact.Id, artifact.Digest));
         activeReasoningArtifact = artifact;
         try
         {
@@ -5130,7 +5182,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             else if (decision.Action is { } action)
             {
-                if (ModelActionRequiresApproval(action)
+                if (action != BuiltInAction.LockMachine && ModelActionRequiresApproval(action)
                     && (artifact is not null || !CanReuseLegacyModelGrant(action)))
                 {
                     var callRevision = CallPolicyRevision;
@@ -5144,7 +5196,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         SecurityAuditInitiator.ModelSuggestion,
                         action switch
                         {
-                            BuiltInAction.LockMachine => CurrentWindowsSessionTarget,
                             BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart
                                 => CurrentMachineTarget,
                             _ => CurrentApplicationTarget,
@@ -5266,7 +5317,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (automaticAction is { } safeAction)
         {
             var admittedCallRevision = CallPolicyRevision;
-            if (ModelActionRequiresApproval(safeAction) && !CanReuseLegacyModelGrant(safeAction))
+            if (safeAction == BuiltInAction.LockMachine && !LockSourceCurrent())
+            {
+                ReportHostInteractionFailure("The original Lock source or host authority changed. No Lock request was dispatched.");
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            if (safeAction != BuiltInAction.LockMachine
+                && ModelActionRequiresApproval(safeAction) && !CanReuseLegacyModelGrant(safeAction))
             {
                 ShowInformation("Saved permission is not eligible.",
                     "Call policy changed before dispatch. Initiate a fresh request; no action was replayed.");
@@ -5277,7 +5335,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             try
             {
                 var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == safeAction);
-                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision);
+                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision,
+                    sourceCurrent: safeAction == BuiltInAction.LockMachine ? LockSourceCurrent : null);
                 if (ShouldSpeakResponse(safeAction))
                 {
                     await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
@@ -5701,7 +5760,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     private async Task<bool> TrySpeakCurrentResponseAsync(string? spokenText = null, long? expectedSpeechRevision = null,
         Func<bool>? additionalEligibility = null, bool boundedExactReadback = false,
-        Func<CancellationToken, Task>? validateReadSource = null, CancellationToken cancellationToken = default)
+        Func<CancellationToken, Task>? validateReadSource = null, CallSpeechLease? callSpeechLease = null,
+        CancellationToken cancellationToken = default)
     {
         if (speechInterruptionActive) { return false; }
         if (additionalEligibility is null && responseReadCancellation is not null)
@@ -5731,7 +5791,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (!observedCurrentOutput
             && !await RefreshOutputEndpointsAsync(preserveResponse: additionalEligibility is not null, token: cancellationToken)) { return false; }
         if (responseRevision != Interlocked.Read(ref webResponseRevision)) { return false; }
-        bool Eligible() => IsSpeechResponseEnabled && !cancellationToken.IsCancellationRequested
+        bool Eligible() => IsResponseSpeechEligible(callSpeechLease) && !cancellationToken.IsCancellationRequested
             && speechRevision == Interlocked.Read(ref manualCallSpeechRevision)
             && responseRevision == Interlocked.Read(ref webResponseRevision)
             && (additionalEligibility is not null || responseReadCancellation is null)
@@ -5761,7 +5821,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 cancellationToken.ThrowIfCancellationRequested();
                 startedSpeech = true;
-                return StartCaptionedSpeechAsync(spokenText, Eligible,
+                return StartCaptionedSpeechAsync(spokenText, Eligible, callSpeechLease?.Output,
                     additionalEligibility is null ? CancellationToken.None : cancellationToken);
             }
             if (exactReadback)
@@ -5771,7 +5831,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             else
             {
                 var recovery = await speechConfiguration.StartSummarySpeechAsync(spokenText, communicationPolicy,
-                    Eligible, Start, cancellationToken);
+                    Eligible, Start, callSpeechLease, cancellationToken);
                 if (recovery is not null)
                 {
                     spokenSummaryRecovery = recovery;
@@ -5833,7 +5893,18 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (additionalEligibility is not null && textToSpeech.IsSpeaking)
         {
             // Unconfirmed release retains active ownership and the native Stop recovery route.
-            await textToSpeech.StopAsync(CancellationToken.None);
+            try { await textToSpeech.StopAsync(CancellationToken.None); }
+            catch
+            {
+                callSpeechLease?.HoldUnconfirmedRelease();
+                throw;
+            }
+            if (callSpeechLease is not null && textToSpeech.IsSpeaking)
+            {
+                IsSpeaking = true;
+                callSpeechLease.HoldUnconfirmedRelease();
+                throw new InvalidOperationException("Owned response playback release is unconfirmed.");
+            }
             IsSpeaking = false;
         }
         return completedSpeech;
@@ -6096,7 +6167,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     await InvokeBundledAction(bundledAction, Kora.Core.Skills.FixedSessionAction.Lock, initiator, observedCallRevision, sourceCurrent);
                     break;
                 }
-                await LockCurrentSessionAsync(initiator, observedCallRevision);
+                ReportHostInteractionFailure("Exact Lock admission is unavailable. No native fallback or named-action preference can authorize Lock.");
                 break;
             case BuiltInAction.ProposeShutdown:
             case BuiltInAction.ProposeRestart:
@@ -6297,45 +6368,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
 
         return Task.CompletedTask;
-    }
-
-    private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
-    {
-        ClearClipboardPreview();
-        ClearFilePreview();
-        var privacyRevision = privacyObservation.Current.TopologyRevision;
-        bool Eligible() => IsCallMutationHostEligible
-            && privacyObservation.Current.TopologyRevision == privacyRevision;
-        var audit = await StartAuditAsync(
-            SecurityAuditCategory.ProtectedOperation,
-            SessionLockAction,
-            initiator,
-            CurrentWindowsSessionTarget);
-        try
-        {
-            await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
-                && isModelActionDispatchActive);
-            if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
-                ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before lock; no lock was dispatched.");
-                return;
-            }
-            if (sessionController.LockCurrentSession())
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Succeeded);
-                return;
-            }
-
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "os-request-rejected");
-            ShowFailure("Windows did not accept the lock request.", "The microphone remains disabled.");
-        }
-        catch (InvalidOperationException exception)
-        {
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "lock-failed");
-            ApplicationLog.Error(logger, exception, "Locking the current Windows session");
-            ShowFailure("Windows could not lock the current session.", exception.Message);
-        }
     }
 
     private async Task<bool> CreatePowerProposalAsync(
@@ -6589,11 +6621,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(CommunicationActivityCommand.FixedPhrases)
             .Concat(SpeechTextCommand.FixedPhrases)
             .Concat(ResponseReadCommand.FixedPhrases)
+            .Concat(CallSpeechCommand.FixedPhrases)
             .Concat(CurrentResponseCommand.FixedPhrases)
             .Concat(SpeechCommand.FixedPhrases)
             .Concat(SpeechSummarySuggestionCommand.FixedPhrases)
             .Concat(PlaybackVolumeSuggestionCommand.FixedPhrases)
             .Concat(RegisteredSettingSuggestionCommand.FixedPhrases)
+            .Concat(RegisteredSettingUndoCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.OwnedSkillAuthoringCommand.FixedPhrases)
             .Concat(Kora.Application.Skills.SkillReviewCommand.FixedPhrases)
             .Concat(SettingsSectionCommand.FixedPhrases)

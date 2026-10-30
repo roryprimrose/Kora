@@ -25,6 +25,9 @@ internal static class HostInteractionCodec
         {
             throw new InvalidDataException("The interaction record exceeds its bounded storage envelope.");
         }
+        if (value is Kora.Core.Conversation.ConversationMessage
+            && System.Text.Encoding.UTF8.GetByteCount(json) > Kora.Core.Conversation.ConversationMessage.MaximumStorageUtf8Bytes)
+        { throw new InvalidDataException("The complete encoded conversation cell exceeds its unchanged storage bound."); }
         return json;
     }
 

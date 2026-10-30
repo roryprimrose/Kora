@@ -166,7 +166,7 @@ public sealed partial class MainViewModelTests
         await using var admission = fixture.OutputAdmission;
         fixture.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "ready");
         if (pending is "question") { fixture.Reasoner.Question = new LocalModelQuestion("Choose?", ["Blue", "Green"]); }
-        else { fixture.Reasoner.Action = BuiltInAction.LockMachine; }
+        else { fixture.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("help me choose");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -180,6 +180,7 @@ public sealed partial class MainViewModelTests
         fixture.RatePreferences.Value.Should().BeNull();
         fixture.ViewModel.ResponseBody.Should().Be(preview);
         fixture.ViewModel.IsResponseInteractionPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 

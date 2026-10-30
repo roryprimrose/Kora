@@ -1,5 +1,3 @@
-using Kora.Core.Context;
-
 namespace Kora.Core.KnowledgeSources;
 
 /// <summary>Owns atomic, profile-private named source publication and inventoried deletion.</summary>
@@ -12,11 +10,11 @@ public interface IKnowledgeSourceStore
     Task<KnowledgeSource> BeginRefreshAsync(KnowledgeSource exact, CancellationToken cancellationToken);
 
     /// <summary>Atomically publishes all exact captured items, or leaves the source unavailable.</summary>
-    Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, LocalFolderRevision snapshot,
+    Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, KnowledgeSourceRevision snapshot,
         IReadOnlyList<ReadOnlyMemory<byte>> originalBytes, CancellationToken cancellationToken);
 
     /// <summary>Resolves only an enabled exact durable revision, never original files.</summary>
-    Task<LocalFolderRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken);
+    Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken);
 
     /// <summary>Revokes use without deleting retained copies.</summary>
     Task DisableAsync(KnowledgeSource exact, CancellationToken cancellationToken);

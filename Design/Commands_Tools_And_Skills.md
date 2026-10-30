@@ -200,6 +200,12 @@ inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
 
+The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
+of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
+and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.
+Saving disables the source and independently removes inclusion before publication; it grants no connection, account, capability, tool, egress or model authority.
+Personal/additional configuration, stdio and credential/authentication fields are not writable.
+
 The bounded protocol parser targets MCP `2025-06-18`, requires exact JSON-RPC
 correlation, and rejects paginated/oversize discovery and unsupported schemas.
 The initial schema subset is a closed flat object with at most eight fields:

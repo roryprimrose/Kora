@@ -1631,10 +1631,18 @@ Where action approval and disclosure consent cover the same exact operation, off
 Permissions and approvals are host-owned security records, not ordinary preference values.
 The current bootstrap provides once/session/always preferences for named
 model-suggested built-in actions and host-validated grant-change proposals.
-This is not an executable/script grant, and exact direct lock does not yet
-use the same gate. The broader controls and finer-grained applicability observations below remain proposed;
-future side-effecting built-ins and skills share the content/version-bound
-execution gate in [skill and task execution design](../docs/skill-and-task-execution-design.md).
+These preferences are not executable/script grants and cannot authorize Lock.
+Direct typed/activated-voice/native Lock and model-proposed Lock now share the
+[exact package admission owner](../src/Kora/BundledFixedActionController.cs).
+Intent or source inspection is not approval: expect fresh exact review unless
+an applicable exact grant covers the operation. Retained named Lock preferences
+are neither imported nor upgraded; changed resources, implementation or identity
+cannot reuse old authority. Once/Session/Always retain the same exact-domain rules.
+The mandatory script/native-review boundary applies at every session level;
+the original voice channel remains bound even when native controls answer it.
+Execution stays unavailable without a qualified contained runtime, with no
+native-only fallback. See [execution availability](../docs/skill-and-task-execution-design.md#script-preserving-fixed-action-bridge).
+Broader controls and finer-grained observations below remain proposed.
 The native Permissions & Approvals page distinguishes single-use, session, and perpetual grants, including applicable, inapplicable, content-revoked, consumed, session-ended, and explicitly removed states.
 Show stable ID, capability/action, canonical resource, identity, destination, scope/bound session, creator channel, creation/edit history, last use/use count, policy revision, and reason for inapplicability/revocation/removal.
 Perpetual grants have no expiry/retention/eviction; see [Grant Types and Inheritance](Security_Data_Flows.md#grant-types-and-inheritance).
@@ -1646,6 +1654,22 @@ Broadening scope, changing identity/destination, choosing session/perpetual scop
 No approvable action category is categorically denied session/always duration; future execution grants bind exact implementation/dependency digests, invocation, and resources, unlike today's named model-action preferences.
 Extending beyond a host maximum, granting unspecified effects, or approving a prohibited action is rejected, not overridable by approval.
 Revocation blocks subsequent exact-grant consumption. In-flight work is reported as cancelled, completed, or uncertain only when actual evidence supports it; revocation itself never proves physical cancellation or rollback.
+
+### Explain one current pending clipboard read
+
+On the live native **clipboard read** permission card, choose **Why is this allowed / why does it need approval?**.
+The [host authorization owner](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs) checks the original pending question, exact built-in descriptor, session generation/level and mandatory gates, using the same exact-grant matcher as normal admission.
+The [native presentation](../src/Kora/NativeQuestionViewModel.cs) shows only the safe `clipboard.read` / current plain-text clipboard to volatile native preview label, observed session level, and applicable exact grant scope or independent native permission requirement.
+Review all, Model review and Approve all do not replace this path's exact clipboard-read permission; no reviewer/model is consulted.
+
+This is a **read snapshot**, not current effect authority or permission for later execution.
+It never reads clipboard contents, creates/reserves/consumes a grant, dispatches, revokes content, completes the separate exact-record review, changes the question or renews session activity ([observation transition](../src/Kora.Application/Interaction/HostAuthorizationService.Explanation.cs), [storage transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.cs)).
+Choose **Return to same approval** to recheck the same proposal, question, session policy, gates and exact grant revision; changed evidence invalidates the explanation rather than following another operation.
+Then deliberately review/approve or cancel through the unchanged native path. Unknown/stale identity, implementation/dependency binding, storage/audit, private ownership or source state cannot establish an explanation ([native owner](../src/Kora/NativeQuestionHost.Clipboard.cs), [policy regressions](../tests/Kora.Application.UnitTests/Interaction/PendingOperationExplanationTests.cs)).
+
+Original typed/activated-voice clipboard requests still reach the same native permission card.
+Explanation adds no spoken disclosure/approval, provider/tool exposure, grant-history/global search, automatic revocation or new clipboard/model consent.
+Deterministic [complete-route tests](../tests/Kora.Windows.IntegrationTests/ClipboardExplanationPermissionTests.cs) and [withdrawal/race tests](../tests/Kora.Windows.IntegrationTests/PendingOperationExplanationTests.cs) use fake clipboard/model seams, not real clipboard/network/native effects; they are implementation evidence, not E/Q qualification.
 
 ### Delivered native exact operation grants — 2026-10-10
 
@@ -1742,6 +1766,16 @@ Undo restores the previous compatible preference value, not a side effect such a
 Reset/undo use normal validation, confirmation, and policy checks; restoring a weaker privacy preference is not exempt from confirmation.
 If an external registration/action changed, report that a separate compensating action requires approval.
 Never treat undo as reinstating expired grants or microphone consent.
+
+### Delivered single registered-preference undo
+
+The host retains **one run-only last confirmed change** from the [closed registered subset](../src/Kora.Core/Configuration/RegisteredSettings/RegisteredSettingRegistry.cs): registered appearance/presence, spoken-summary caps, Kora playback volume and ordinary response mode. It is not a general settings history, durable journal, undo queue or rollback product ([receipt owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
+**Undo the last settings change** in Settings opens an inert exact current/prior saved-or-default review, including both summary caps and shared device-local scope. **Confirm settings undo** is a separate fresh request; **Cancel settings undo** writes nothing. Reviews expire after 60 seconds. Appearance retains native-only review; ordinary response settings also support exact typed/current-name activated-voice review/confirm/cancel ([native controls](../src/Kora/SettingsWindow.axaml), [shared routes](../src/Kora.Application/ViewModels/MainViewModel.RegisteredSettingUndo.cs)).
+
+Only exact successful setter readback and required audit completion create a receipt. Confirmation revalidates the committed configuration revision, saved/default provenance, current preference and companion fields, compatible prior value, original channel, private host/lifetime and call policy. External drift, unknown writes and stale reviews cannot infer an inverse or overwrite newer state. A successful undo is a **new audited write through the same authoritative setter**, consumes the receipt and creates no redo. Privacy closure, lifecycle disposal and restart discard the receipt; no audit/history is deleted ([owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [writer integration](../src/Kora.Application/Configuration/RegisteredSettings/AppearanceConfigurationService.Undo.cs), [summary pair](../src/Kora.Application/Configuration/RegisteredSettings/SpeechConfigurationService.Undo.cs)).
+
+Undo changes future eligible presentation/ordinary response preferences only. It never restores consent, listening, grants, providers, devices, security/retention policy or external effects, and never invokes a model or synthesizes/replays a response. An uncertain setter/readback/audit outcome holds undo explicitly; no automatic retry or rollback is claimed. A weaker prior preference still requires the exact fresh review and confirmation ([operation](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs), [deterministic regressions](../tests/Kora.Application.UnitTests/Configuration/RegisteredSettingUndoTests.cs)).
 
 ## Unavoidable Boundaries
 

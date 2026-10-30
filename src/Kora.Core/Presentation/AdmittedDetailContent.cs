@@ -66,7 +66,8 @@ public sealed class AdmittedDetailContent
         {
             throw new InvalidDataException("Web-result source, reference and inert disclosure classification cannot change.");
         }
-        if ((origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant) != (conversationMessage is not null))
+        if ((origin is DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant
+            or DetailContentOrigin.RetainedLocalObservation) != (conversationMessage is not null))
         {
             throw new InvalidDataException("Conversation details require their exact retained original USER record and typed HOST observation.");
         }
@@ -74,11 +75,15 @@ public sealed class AdmittedDetailContent
         {
             conversationMessage.Validate();
             var assistant = origin == DetailContentOrigin.RetainedAssistant;
-            var expectedSource = assistant ? conversationMessage.AssistantResponse?.Body : conversationMessage.Body;
+            var observation = origin == DetailContentOrigin.RetainedLocalObservation
+                ? conversationMessage.Observations?.Items.SingleOrDefault(item => item.Id == reference.ItemId.Value)
+                    ?? throw new InvalidDataException("The exact observation is absent from its original successful message.")
+                : null;
+            var expectedSource = observation?.ResultJson ?? (assistant ? conversationMessage.AssistantResponse?.Body : conversationMessage.Body);
             if (kind != (assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText)
                 || sensitivity != DetailSensitivity.DisclosureConfirmationRequired
-                || reference.ItemId.Value != (assistant ? conversationMessage.AssistantResponse?.Provenance.Turn.Value
-                    : conversationMessage.Request.RequestId.Value)
+                || reference.ItemId.Value != (observation?.Id ?? (assistant ? conversationMessage.AssistantResponse?.Provenance.Turn.Value
+                    : conversationMessage.Request.RequestId.Value))
                 || reference.Revision != conversationMessage.Revision
                 || !string.Equals(source, expectedSource, StringComparison.Ordinal))
             {

@@ -9,6 +9,7 @@ namespace Kora.Windows.Artifacts;
 public sealed partial class WindowsCustomizationStore
 {
     private const int MaximumJournalBytes = 4 * 1024 * 1024;
+    internal Action? BeforeCopyPublication { get; set; }
     private sealed record Journal(CustomizationSource Source, string DirectoryIdentity, DiskFile[] Before, DiskFile[] After);
     private string JournalDirectory => Path.Combine(paths.LocalRoot, "DefinitionTransactions");
     private static string JournalName(Target target) =>
@@ -17,30 +18,46 @@ public sealed partial class WindowsCustomizationStore
 
     public Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
         IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token)
+        Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+        CustomizationSnapshot? copiedFrom = null)
     {
         var frozen = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         return Task.Run(async () => await commit(() =>
         {
-            lock (gate) { return Publish(Resolve(source), expected, frozen, eligible, token); }
+            lock (gate) { return Publish(Resolve(source), expected, frozen, eligible, copiedFrom, token); }
         }).ConfigureAwait(false), token);
     }
 
     private CustomizationSnapshot Publish(Target target, CustomizationSnapshot? expected,
-        CustomizationFile[] files, Func<bool> eligible, CancellationToken token)
+        CustomizationFile[] files, Func<bool> eligible, CustomizationSnapshot? copiedFrom, CancellationToken token)
     {
         RequireEligible(eligible, token);
+        if (copiedFrom is not null && (expected is not null || target.Source.Scope != CustomizationScope.Kora
+            || target.Source.Kind != CustomizationKind.Skill || files.Length != 1
+            || copiedFrom.Source.Scope != CustomizationScope.User || copiedFrom.Source.Kind != CustomizationKind.Skill
+            || copiedFrom.Files.Count != 1 || copiedFrom.Source.PrimaryFile is not "SKILL.md"
+            || copiedFrom.RecoveryDetails is not null || copiedFrom.Source.Name.Equals(target.Source.Name, StringComparison.OrdinalIgnoreCase)))
+        { throw new InvalidDataException("A source-bound copy requires one exact shared primary and a distinct new owned skill."); }
+        var copyTarget = copiedFrom is null ? null : Resolve(copiedFrom.Source);
+        using var copyDirectory = copyTarget is null ? null
+            : WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(copyTarget.Directory, false, token);
+        using var copyFile = copyTarget is null ? null
+            : WindowsOwnedDefinitionFileAccess.PinDefinitionFile(Path.Combine(copyTarget.Directory, copyTarget.FileName));
+        if (copyTarget is not null) { RequireCopySource(copyTarget, copiedFrom!, token); }
         if (target.Source.Kind == CustomizationKind.McpServer)
         { return PublishMcp(target, expected, files, eligible, token); }
         if (IsInstructionOriginal(target.Source))
         { return PublishInstructionOriginal(target, expected, files, eligible, token); }
+        if (expected is null && target.Source.Kind == CustomizationKind.Skill && Directory.Exists(target.Directory))
+        { throw new InvalidOperationException("The new skill destination appeared before publication. Inspect it; no overwrite is authorized."); }
         using var root = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(target.Directory, true, token);
         using var journalRoot = WindowsOwnedDefinitionFileAccess.PinDefinitionDirectory(JournalDirectory, true, token);
         var current = Capture(target, token);
         var existing = ReadJournal(target, token);
         if (expected is not null && (expected.Source != target.Source
             || !string.Equals(expected.Revision, current.Revision, StringComparison.Ordinal))
-            || expected is null && Exists(target, current))
+            || expected is null && (Exists(target, current)
+                || target.Source.Kind == CustomizationKind.Skill && current.Files.Count != 0))
         { throw new InvalidOperationException("The complete source changed or the destination appeared. Reload, compare and review again; the draft is retained."); }
         var after = ProposedFiles(target, current, files);
         Journal journal;
@@ -84,7 +101,12 @@ public sealed partial class WindowsCustomizationStore
             else
             {
                 identity = WindowsOwnedDefinitionFileAccess.WriteDefinitionFile(Path.GetDirectoryName(fullPath)!, parent,
-                    Path.GetFileName(fullPath), next.Bytes, prior is not null, eligible, token);
+                    Path.GetFileName(fullPath), next.Bytes, prior is not null, eligible, token,
+                    finalComparison: copyTarget is null ? null : () =>
+                    {
+                        BeforeCopyPublication?.Invoke();
+                        RequireCopySource(copyTarget, copiedFrom!, token);
+                    });
             }
             var written = Capture(target, token);
             var predicted = current.Files.Where(file => !string.Equals(file.Name, name, StringComparison.Ordinal)).ToList();
@@ -100,6 +122,13 @@ public sealed partial class WindowsCustomizationStore
         { throw new IOException("Complete transaction publication is unconfirmed. Review recovery."); }
         WindowsOwnedDefinitionFileAccess.DeleteDefinitionFile(JournalPath(target), eligible, token);
         return Expose(target, current);
+    }
+
+    private static void RequireCopySource(Target target, CustomizationSnapshot expected, CancellationToken token)
+    {
+        var live = Capture(target, token);
+        if (!string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
+        { throw new InvalidOperationException("The inspected copy source or complete package inventory changed. No newer source is adopted; inspect and review again."); }
     }
 
     public Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token) => Task.Run(() =>

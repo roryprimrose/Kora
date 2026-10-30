@@ -72,6 +72,16 @@ Every changed proposal invalidates any prior approval of that proposal.
 
 ## Standalone Instruction Editing
 
+The bounded [new owned instruction description operation](../docs/instruction-editor.md#describe-a-new-owned-instruction)
+now consumes the existing local body proposal service, native-v1 editor and writer.
+Explicit Create chooses the owned destination; original description and a fixed
+kind/format descriptor are separately disclosed to one local tool-free turn.
+Complete literal-body proposals retain host metadata and stage only after full-source
+review. Separate confirmed create-only Save/readback produces a disabled revision;
+occupied targets have no overwrite fallback. Reopen retains exact source provenance.
+This is implementation evidence, not provider enablement or general Builder qualification
+([native regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+
 The instruction editor reuses the skill authoring workspace, conversational
 refinement, rendered preview, exact source/diff, validation, dirty-state,
 conflict handling, and revision-bound Save confirmation. It omits package-only

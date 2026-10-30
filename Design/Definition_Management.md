@@ -241,6 +241,18 @@ and local validation remain available without a model. Editing a source or reque
 retires an outstanding generation/review; late model output cannot replace a
 newer draft.
 
+The bounded [owned Instruction Add/Ask Kora operation](../docs/instruction-editor.md#describe-a-new-owned-instruction)
+reuses explicit Create plus the existing instruction body proposal owner.
+The host fixes native v1, metadata and owned destination; only the unchanged
+description and fixed kind/format descriptor are disclosed after local review.
+Accepted complete-source proposals stage in the same editor, then separate
+confirmed create-only Save/readback creates a disabled instruction. No overwrite,
+reference read, current-turn/system authority, activation, grants or execution
+comes from generation or Save. Original source/draft/description/channel/private/
+call/ownership/catalogue and expiry fences remain authoritative
+([service](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs),
+[native lifecycle](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
+
 Review covers every added, modified and removed file, its complete proposed
 source, the selected destination and current base. Save, Discard and Cancel are
 distinct, including on selection changes and dirty close. Changed source bytes

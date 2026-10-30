@@ -41,7 +41,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     internal readonly TextBox Critique = new()
     {
         AcceptsReturn = true, MaxHeight = 100, MinHeight = 40, TextWrapping = TextWrapping.Wrap,
-        PlaceholderText = "Describe how to refine the current owned Instruction body",
+        PlaceholderText = "Describe a new Instruction after Create, or how to refine the inspected body",
     };
     internal readonly TextBox Source = new()
     {
@@ -141,7 +141,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
-                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
+                + "Ask Kora generates a new Instruction body after explicit Create, or refines the inspected body, through a qualified local tool-free model. New proposals stage in this editor and require a separate create-only Save, disabled. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
                 + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
@@ -150,10 +150,10 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         DockPanel.SetDock(disclosure, Dock.Top);
         panel.Children.Add(disclosure);
         var refinementControls = new StackPanel { Spacing = 4 };
-        refinementControls.Children.Add(new TextBlock { Text = "Local body refinement critique (volatile; Instruction only)" });
-        AutomationProperties.SetName(Critique, "Unsent local instruction body refinement critique");
+        refinementControls.Children.Add(new TextBlock { Text = "New Instruction description / existing body critique (volatile; Instruction only)" });
+        AutomationProperties.SetName(Critique, "Unsent new instruction description or local body refinement critique");
         refinementControls.Children.Add(Critique);
-        var refine = new Button { Content = "Refine current Instruction body" };
+        var refine = new Button { Content = "Ask Kora: new Instruction / refine body" };
         AutomationProperties.SetName(refine, "Review local disclosure and generate a complete instruction body proposal without saving");
         refine.Click += (_, _) => run("Refine");
         refinementControls.Children.Add(refine);

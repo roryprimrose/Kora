@@ -15,6 +15,8 @@ internal sealed class SessionRoutingController : IDisposable
     private readonly SessionWorkspaceService workspace;
     private readonly SessionRoutingService routing;
     private SessionRoutingWindow? window;
+    private SessionRoutingAdviceWindow? adviceWindow;
+    private bool adviceCancelled;
     private bool busy;
     private bool disposed;
     private Task<SessionRoutingReceipt?>? active;
@@ -27,7 +29,7 @@ internal sealed class SessionRoutingController : IDisposable
     {
         this.main = main;
         this.workspace = workspace;
-        routing = new(workspace, conversation, access, time, matcher, admission);
+        routing = new(workspace, conversation, access, time, matcher, admission, ReviewAdviceAsync);
     }
 
     internal void Bind()
@@ -71,6 +73,7 @@ internal sealed class SessionRoutingController : IDisposable
     {
         using var cancellation = new CancellationTokenSource();
         lock (inferenceGate) { inference = cancellation; }
+        adviceCancelled = false;
         try
         {
             var review = await routing.PrepareAsync(body, origin, () => !disposed && admitted(), cancellation.Token);
@@ -89,15 +92,42 @@ internal sealed class SessionRoutingController : IDisposable
             if (selection is null) { return null; }
             return await routing.SubmitAsync(selection, CancellationToken.None);
         }
+        catch (OperationCanceledException) when (adviceCancelled) { return null; }
         finally
         {
             routing.Retire();
             lock (inferenceGate) { inference = null; }
             window?.Withdraw();
             window = null;
+            adviceWindow?.Withdraw();
+            adviceWindow = null;
             busy = false;
         }
     }
+
+    private async Task<bool> ReviewAdviceAsync(SessionRoutingAdvice advice, Func<bool> admitted, CancellationToken token) =>
+        await Dispatcher.UIThread.InvokeAsync(async () =>
+        {
+            token.ThrowIfCancellationRequested();
+            if (disposed || !admitted()) { throw new OperationCanceledException("Local advice disclosure admission changed."); }
+            var result = new TaskCompletionSource<bool?>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var opened = new SessionRoutingAdviceWindow(advice, () => !disposed && admitted());
+            adviceWindow = opened;
+            opened.Closed += (_, _) => result.TrySetResult(opened.Result);
+            opened.Show();
+            try
+            {
+                var choice = await result.Task.WaitAsync(token);
+                if (choice is { } allow) { return allow; }
+                adviceCancelled = true;
+                throw new OperationCanceledException("Local advice disclosure cancelled. Nothing submitted.");
+            }
+            finally
+            {
+                opened.Withdraw();
+                adviceWindow = null;
+            }
+        });
 
     private void PrivacyClosed(object? sender, EventArgs args) => Revoke();
     private void SourceChanged(HostId<SessionIdentity> session) => Revoke();
@@ -106,8 +136,9 @@ internal sealed class SessionRoutingController : IDisposable
     {
         routing.Retire();
         lock (inferenceGate) { inference?.Cancel(); }
-        if (Dispatcher.UIThread.CheckAccess()) { window?.Withdraw(); }
-        else { Dispatcher.UIThread.Invoke(() => window?.Withdraw()); }
+        void Withdraw() { adviceWindow?.Withdraw(); window?.Withdraw(); }
+        if (Dispatcher.UIThread.CheckAccess()) { Withdraw(); }
+        else { Dispatcher.UIThread.Invoke(Withdraw); }
     }
 
     public void Dispose()

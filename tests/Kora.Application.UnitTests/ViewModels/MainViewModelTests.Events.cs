@@ -101,7 +101,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
         if (pending is "question") { f.Reasoner.Question = new("Which exact option?", ["One", "Two"]); }
-        else { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        else { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         await f.ViewModel.InitializeAsync();
         if (pending is "grant")
         {

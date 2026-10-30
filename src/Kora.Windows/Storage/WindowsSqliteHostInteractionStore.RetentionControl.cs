@@ -38,7 +38,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionRetentio
     }
 
     private SessionRetentionObservation ReadRetentionObservation(SqliteConnection connection,
-        HostId<SessionIdentity> session)
+        HostId<SessionIdentity> session, bool metadataOnly = false)
     {
         var row = RequireSession(connection, session);
         var state = ReadRetention(connection, session);
@@ -47,7 +47,7 @@ public sealed partial class WindowsSqliteHostInteractionStore : ISessionRetentio
         command.Parameters.AddWithValue("$id", Id(session));
         var sequence = command.ExecuteScalar();
         return new(state, row.Authority.Generation, sequence is long value ? value : 0,
-            HasRetentionHold(connection, session)) { ObservedAt = time.GetUtcNow(), Removed = row.State == 2 };
+            !metadataOnly && HasRetentionHold(connection, session)) { ObservedAt = time.GetUtcNow(), Removed = row.State == 2 };
     }
 
     public ValueTask<SessionRetentionObservation> SetRetentionHoldAsync(

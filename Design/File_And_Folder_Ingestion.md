@@ -3,10 +3,10 @@
 Status: immutable local previews/retrieval, retained single-file session
 attachments and the [named device-local folder lifecycle](#named-device-local-folder-lifecycle),
 including opt-in bounded descendants, are implemented. Reviewed file/folder
-answers use the [private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
-not a secret-free guarantee or provider approval. Runtime qualification,
-named-source model use, multiple-version ingestion, persistent/vector indexes,
-multi-source reasoning and hosted grounding remain gated.
+answers use the [shared private-LocalOnly risk policy](Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission),
+not a secret-free guarantee or provider approval. Unqualified runtimes remain
+unavailable. Named-source model use, multiple-version ingestion,
+persistent/vector indexes, multi-source reasoning and hosted grounding remain gated.
 
 Related: [Architecture](Architecture.md), [Security and Data Flows](Security_Data_Flows.md),
 [Interaction and Sessions](Interaction_And_Sessions.md),
@@ -26,6 +26,34 @@ screens each evidence-bearing file under separate one-shot consent. Unqualified
 runtimes remain unavailable; this does not enable them or claim model-quality/RC
 qualification. No evidence means no model call, and no unsupported or invalid
 response becomes a fabricated answer. Managed named sources remain separate.
+
+The existing folder consumer now completes **answer using these shown sections only**:
+explicit lexical search of one admitted immutable folder revision, deliberate nonempty
+whole-citation selection, complete unchanged-question/chosen-evidence review, separate
+one-shot local tool-free confirmation, cited model claims or truthful insufficiency,
+then navigation to those same selected original spans. Nothing is selected by default.
+Text highlighting/Find selection is not context authority. This is native source review,
+not a second named-source consumer or a new capture/search engine.
+
+[FolderAnswerReview](../src/Kora.Core/Context/FolderAnswers/FolderAnswerReview.cs)
+accepts only original citation objects from that exact retrieval and preserves source,
+revision, digest, UTF-16 span, question, target and original deadline. Foreign, cloned,
+modified, duplicate, empty and over-limit choices are rejected, not trimmed.
+Selection changes revoke derived reviews/answers/navigation; question/source/privacy/
+call/owner/channel changes, cancellation and closure retain their existing revocation
+and resource-join fences. Selection never refreshes files or extends retention.
+
+The [native review](../src/Kora/FolderAnswers/LocalFilePreviewWindow.FolderAnswers.cs)
+shows every chosen excerpt and provenance, unchanged question, combined excerpt byte
+budget and unchanged global eight-citation/16 KiB excerpt/32 KiB envelope ceilings.
+User-omitted retrieved excerpts and retrieval omissions are distinct disclosures.
+[FolderAnswerContext](../src/Kora.Core/Context/FolderAnswers/FolderAnswerContext.cs)
+binds only the chosen citations to host evidence IDs; unselected/foreign IDs cannot
+become grounded claims. Its policy forbids claims of reviewing omitted sections or
+the whole folder. Identity validation does not establish semantic truth.
+The existing per-file whole-source/question/excerpt screening and one-shot consent
+remain mandatory before model disclosure. This bounded I increment enables no runtime,
+hosted destination, tools, new persistence, source purpose or named-source comparison.
 
 ## Delivered passive native decoded-text measurement
 

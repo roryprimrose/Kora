@@ -1736,8 +1736,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock this workstation**
 
 Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
-Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+Its installed contained runtime is unqualified, so direct commands and model-proposed Lock open source inspection and report unavailable without calling a legacy native handler. A missing exact host owner also reports unavailable.
 When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
+This intentionally replaces immediate direct Lock and the separate named model-action approval: intent alone is not permission. Direct typed, activated voice, native UI and model proposals reach the same exact review. Existing named Session/Always preferences cannot authorize it or become exact grants. Fresh script grants still require native controls; that answer preserves a voice request's original channel and call restrictions. Applicable exact grants retain their Once/Session/Always rules. No standalone native-only implementation is enabled.
 
 ## Protected power-proposal tasks
 
@@ -2114,6 +2115,10 @@ This is not a harmlessness or complete dependency-inventory certification
 ### Reviewed instruction-only shared skill invocation
 
 Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
+
+The separate `owned skill workflow` family supports the [complete native ordered observation operation](owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow): `create <id> <version>`, literal `name:`, `description:`, `definition:`, `validate`, `save`, `list`, `reopen <id> <version>`, `targets`, `next-targets`, `target <session-id>`, and literal `request:`.
+Then use `review <id> <version>`, separately `enable`, explicitly `invoke`, independent `approve-step`/`deny-step` while an exact native step review is pending, `status`, `cancel`, or `close`.
+Native Save still has two distinct confirmations. Only the six original read-only observations are admitted, without a model, implicit steps, scripts, external effects or partial success ([exact command grammar](../src/Kora.Application/Skills/ObservationWorkflowCommand.cs)).
 
 For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
 Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.

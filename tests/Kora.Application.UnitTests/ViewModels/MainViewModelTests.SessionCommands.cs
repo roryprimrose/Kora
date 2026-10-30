@@ -109,12 +109,12 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.ResponseTitle.Should().Be("Session command blocked.");
         await fixture.ViewModel.CancelModelQuestionAsync();
         await fixture.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-            BuiltInAction.LockMachine, ModelApprovalScope.Always));
+            BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
         await fixture.RunAsync("session help");
         fixture.ViewModel.IsGrantChangePending.Should().BeTrue();
         await fixture.ViewModel.RejectPendingGrantChangeAsync();
         fixture.Reasoner.Question = null;
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.RunAsync("please lock");
         await fixture.ViewModel.ActiveReasoningTask!;
         await fixture.RunAsync("session help");

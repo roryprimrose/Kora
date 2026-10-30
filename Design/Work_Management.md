@@ -152,6 +152,14 @@ host-owned query services while enforcing each caller's data scope.
 Approval replies are correlated to the existing host prompt, not interpreted
 by management inference as permission to create a grant.
 
+The delivered [general-request destination operation](../docs/session-routing.md#untargeted-requests)
+separately discloses the exact original input and bounded Active metadata before
+optional local-only relatedness advice. The user can instead choose an exact
+destination without advice or cancel. Destination acknowledgment and ordinary
+submission remain separate; advice consent cannot authorize an answering provider,
+source transfer, queue editing or task replacement
+([routing admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
+
 ## Contextual Decisions, Not a Fixed Queue Prompt
 
 Use the model to decide what a new utterance means when context makes that decision clear.

@@ -102,20 +102,30 @@ internal sealed partial class RestrictedSqliteDatabase
         VerifyFiles();
         using (var journal = new FileStream(journalPath, FileMode.Open, FileAccess.ReadWrite, FileShare.None))
         {
-            Span<byte> header = stackalloc byte[8];
             if (journal.Length != 0)
             {
-                if (journal.Length < header.Length) { throw new InvalidDataException("A committed journal has an uncertain header."); }
-                journal.ReadExactly(header);
-                if (header.ContainsAnyExcept((byte)0))
-                {
-                    throw new InvalidDataException("A hot or uncertain journal cannot be discarded by retention.");
-                }
+                ValidateCommittedJournal(journal);
                 journal.SetLength(0);
                 journal.Flush(flushToDisk: true);
             }
         }
         RequireEmptyJournal();
+    }
+
+    internal void RequireCommittedJournal()
+    {
+        VerifyFiles();
+        using var journal = new FileStream(journalPath, FileMode.Open, FileAccess.Read, FileShare.ReadWrite);
+        if (journal.Length != 0) { ValidateCommittedJournal(journal); }
+    }
+
+    private static void ValidateCommittedJournal(FileStream journal)
+    {
+        Span<byte> header = stackalloc byte[8];
+        if (journal.Length < header.Length) { throw new InvalidDataException("A committed journal has an uncertain header."); }
+        journal.ReadExactly(header);
+        if (header.ContainsAnyExcept((byte)0))
+        { throw new InvalidDataException("A hot or uncertain journal cannot be discarded by retention."); }
     }
 
     internal void RequireEmptyJournal()

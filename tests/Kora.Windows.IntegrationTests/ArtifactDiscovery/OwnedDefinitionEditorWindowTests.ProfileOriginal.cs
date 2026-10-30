@@ -8,9 +8,11 @@ using Avalonia.VisualTree;
 
 using AwesomeAssertions;
 
+using Kora.Application;
 using Kora.Application.Configuration;
 using Kora.Application.Definitions;
 using Kora.Application.Hosting;
+using Kora.Application.Interaction;
 using Kora.Core.Artifacts;
 using Kora.Core.Auditing;
 using Kora.Core.Commands;
@@ -88,9 +90,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 NullLogger<ArtifactCatalogueReloadService>.Instance, revisions, ownedStore, profile, use: use);
             var ownsHost = true;
             long ownerRevision = 1;
+            using var questionHost = new NativeQuestionHost(f.Interactions, TimeProvider.System,
+                NullLogger<NativeQuestionViewModel>.Instance);
+            using var questions = new QuestionWindowController(f.Main, questionHost, f.VersionQuery, new AssemblyApplicationInfo(),
+                new NativeDetailRenderer(NullLogger<NativeDetailRenderer>.Instance), () => ownsHost,
+                NullLogger<QuestionWindowController>.Instance, () => ownerRevision);
             using var controller = new OwnedInstructionEditorController(f.Main, actions, new(actions), reload, f,
                 () => ownsHost, () => ownerRevision, NullLogger<OwnedInstructionEditorController>.Instance,
-                profileOriginals: profileWorkflow, dictation: dictation);
+                saveQuestions: questions, profileOriginals: profileWorkflow, dictation: dictation);
             OwnedInstructionEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
             using var opened = Window.WindowOpenedEvent.AddClassHandler<Window>((view, _) =>
@@ -158,6 +165,9 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             var save = f.Main.RunTypedCommand.ExecuteAsync();
             var review = await AwaitProfileReview(next.Task, editor, f.Token);
             review.Title.Should().Be("Save exact registered profile instruction original");
+            review.GetVisualDescendants().OfType<Button>().Should().NotContain(button =>
+                Equals(button.Content, "Reviewed complete source: exact save question"));
+            questions.IsOwnerInUse.Should().BeFalse("registered originals cannot acquire owned-instruction spoken Save authority");
             var privatePanes = review.GetVisualDescendants().OfType<TextBox>().ToArray();
             privatePanes.Select(box => box.Text).Should().Equal(text, draft);
             if (state is "privacy" or "call")

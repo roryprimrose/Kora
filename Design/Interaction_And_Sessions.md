@@ -1273,6 +1273,17 @@ comprehensive detection.
 Source/account restrictions can require removal or prevent retention; record an explicit content-unavailable reason rather than promising an unrestricted copy.
 Diagnostics remain content-minimising and separate from intentional session history.
 
+### Retained local host observations
+
+Successful original-session local `ReadOnly` turns capture genuinely invoked results from the six existing host observation tools ([capture owner](../src/Kora.Application/Dependencies/ModelTurnHost.cs)).
+Host-issued item identities and original observation times accompany exact result JSON; provider call IDs and answer prose do not manufacture sources ([value policy](../src/Kora.Core/Conversation/RetainedLocalObservation.cs)).
+
+The optional version-1 collection remains inside the existing conversation message payload and unchanged 32768-byte full-cell and page budgets ([message validation](../src/Kora.Core/Conversation/ConversationMessage.cs)).
+Answer, observations, terminal task and content-free audit share the authoritative transaction. Failure, cancellation, credential rejection or overflow cannot retain a partial successful answer/result set ([terminal owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)).
+
+Explicit exact named links reopen the original source after restart under current private/session/source admission, without tool/model/network replay, Done resume, activity renewal or new context, speech, export, clipboard or execution authority ([exact resolver](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs)).
+Disposition and retention remove the owning embedded payload; independent audit/grant lifetimes remain unchanged ([deletion regression](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteConversationTests.Observations.cs)).
+
 ## New Requests and Routing
 
 ### Delivered native New request fresh-session fallback — 2026-10-13
@@ -1431,6 +1442,14 @@ both window modes. It reads one permitted metadata page through
 Production composition now includes one tools-none, LocalOnly inference in a
 routing-specific canonical original-input control domain established before the
 metadata snapshot. The control identity is excluded from routing destinations.
+Before inference, a separate native disclosure shows the unchanged original input,
+original channel and exact bounded Active names. Local advice requires its own
+one-use decision; skipping it retains deterministic destination selection and New.
+Cancellation discloses nothing to the adviser and submits nothing. The snapshot,
+original authority and 60-second disclosure lifetime are revalidated before advice
+and review. This consent grants no eventual answering-model/provider/source authority
+([admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs),
+[native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
 Strict bounded JSON maps only host-presented indexes/evidence into the existing
 proposal; the shared routing service validates candidate cardinality, evidence and
 revision. Inference resources physically join and canonical control outcomes commit
@@ -1511,7 +1530,7 @@ ordinary admission, preserving original voice origin and current eligibility.
 Delivered clarification selects refinement/discussion of the captured artifact
 or Cancel. Selecting another artifact/session/New request requires cancellation
 and its explicit existing route, not automatic held-utterance handoff or a
-model-selected session. General relatedness routing above remains proposed.
+model-selected session. General relatedness uses the separately reviewed operation above.
 Truly unrelated input without editor context/references retains ordinary
 routing. Background tasks remain isolated and cannot acquire editor input.
 

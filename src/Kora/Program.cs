@@ -295,7 +295,10 @@ internal static class Program
         services.AddSingleton<BuiltInCommandCatalog>();
         services.AddSingleton<BuiltInCommandRouter>();
         services.AddSingleton<IArtifactDirectoryPreferences>(provider =>
-            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>()));
+            new LocalArtifactDirectoryPreferences(provider.GetRequiredService<IPreferenceStore>(),
+                ArtifactDirectorySettings.DefaultDirectories(paths.RoamingRoot,
+                    Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+                    Environment.GetFolderPath(Environment.SpecialFolder.UserProfile))));
         services.AddSingleton<ArtifactDirectoryConfigurationService>();
         services.AddSingleton<ArtifactUsePreferences>();
         services.AddSingleton<IArtifactUsePolicy>(provider => provider.GetRequiredService<ArtifactUsePreferences>());
@@ -304,6 +307,7 @@ internal static class Program
         services.AddSingleton<Kora.Core.Customizations.ICustomizationMetadataStore>(provider => provider.GetRequiredService<WindowsCustomizationStore>());
         services.AddSingleton<Kora.Application.Tools.CustomizationDiscoveryService>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationManagementService>();
+        services.AddSingleton<Kora.Application.Definitions.ProfileInstructionEditorWorkflow>();
         services.AddSingleton<Kora.Application.Definitions.CustomizationAuthoringService>();
         services.AddSingleton<McpServerConfigurationService>();
         services.AddSingleton<Kora.Core.Mcp.IMcpConnectionBroker, Kora.Windows.Mcp.WindowsMcpConnectionBroker>();
@@ -393,6 +397,12 @@ internal static class Program
         services.AddSingleton<IManualCallControlStore>(interactions);
         services.AddSingleton<Kora.Application.Communication.ManualCallControl>();
         services.AddSingleton<IMaintenanceControlSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupSessionStore>(interactions);
+        services.AddSingleton<ILogonStartupRegistration, Kora.Windows.Startup.WindowsLogonStartupRegistration>();
+        services.AddSingleton<ILogonStartupPreferences>(provider =>
+            new LocalLogonStartupPreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<LogonStartupAdmission>();
+        services.AddSingleton<LogonStartupConfigurationService>();
         services.AddSingleton<MaintenanceCommands>();
         services.AddSingleton<Kora.Application.Voice.AudioControlAdmission>();
         services.AddSingleton<Kora.Application.Voice.BoundedAudioOutputCatalog>();
@@ -699,6 +709,8 @@ internal static class Program
         services.AddSingleton<Kora.Tools.Clipboard.ClipboardExplain>();
         services.AddSingleton<Kora.Windows.Context.WindowsLocalFileInspector>();
         services.AddSingleton<Kora.Core.Context.ILocalFileInspector>(provider =>
+            provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
+        services.AddSingleton<Kora.Core.KnowledgeSources.IKnowledgeSourceInspector>(provider =>
             provider.GetRequiredService<Kora.Windows.Context.WindowsLocalFileInspector>());
         services.AddSingleton<Kora.Tools.Files.LocalFilePreview>();
         services.AddSingleton<Kora.Tools.Files.LocalSessionFileAttach>();

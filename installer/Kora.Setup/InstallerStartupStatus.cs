@@ -4,9 +4,9 @@ namespace Kora.Setup;
 
 public sealed record InstallerStartupStatus(InstallerStartupState State, string Detail)
 {
-    public bool DefaultEnabled => State is InstallerStartupState.NotRegistered or InstallerStartupState.Enabled;
+    public bool DefaultEnabled => State is InstallerStartupState.Enabled;
 
-    public bool CanConfigure => DefaultEnabled;
+    public bool CanConfigure => State is InstallerStartupState.NotRegistered or InstallerStartupState.Enabled;
 
     public bool CanProceed => State is InstallerStartupState.NotRegistered or InstallerStartupState.Enabled
         or InstallerStartupState.DisabledByWindows;

@@ -112,8 +112,13 @@ public sealed partial class ResponseModeConfigurationService(
         finally { if (entered) { lock (gate) { applying = false; } } }
     }
 
-    public async Task<bool> SelectAsync(ResponseModeChoice choice, long callRevision, RequestOrigin origin,
+    public Task<bool> SelectAsync(ResponseModeChoice choice, long callRevision, RequestOrigin origin,
         SecurityAuditInitiator initiator, CallCommunicationPolicy policy, Func<bool> eligible, CancellationToken cancellationToken)
+        => SelectCoreAsync(choice, callRevision, origin, initiator, policy, eligible, restoreDefault: false, cancellationToken);
+
+    private async Task<bool> SelectCoreAsync(ResponseModeChoice choice, long callRevision, RequestOrigin origin,
+        SecurityAuditInitiator initiator, CallCommunicationPolicy policy, Func<bool> eligible,
+        bool restoreDefault, CancellationToken cancellationToken)
     {
         if (initiator is not (SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand or SecurityAuditInitiator.VoiceCommand))
         {
@@ -125,6 +130,8 @@ public sealed partial class ResponseModeConfigurationService(
         }
         var entered = false;
         var expectedRevision = 0L;
+        ResponseOutputMode? previous = null;
+        ResponseOutputMode? target = restoreDefault ? null : choice.Mode;
         try
         {
             var accepted = await admission.RunAsync(origin, eligible, (request, authority) =>
@@ -139,11 +146,13 @@ public sealed partial class ResponseModeConfigurationService(
                     }
                     applying = true;
                     entered = true;
+                    previous = saved;
                     var nextRevision = checked(revision + 1);
                     var audit = new SecurityAuditEvent(Guid.NewGuid(), SecurityAuditCategory.ConfigurationWrite,
                         "configuration.response-output", SecurityAuditOutcome.Requested,
                         request.Origin == RequestOrigin.ActivatedVoice ? SecurityAuditInitiator.VoiceCommand : initiator,
                         "preferences.device-local");
+                    UndoChanged?.Invoke(null);
                     auditLog.Write(audit);
                     var denied = policy.CommitVoiceSetting(request.Origin, callRevision,
                         () => ReferenceEquals(HostActivity.RequireCurrent().Request, request) && eligible()
@@ -153,9 +162,12 @@ public sealed partial class ResponseModeConfigurationService(
                             playback.InvalidateOutput();
                             try
                             {
+                                if (Read() != previous)
+                                { throw new InvalidDataException("Response mode changed during requested audit."); }
                                 preferences.BeginDefaultModeWrite();
-                                preferences.SaveDefaultMode(choice.Mode);
-                                if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Saved response mode readback does not match the exact selection."); }
+                                if (restoreDefault) { preferences.ResetDefaultMode(); }
+                                else { preferences.SaveDefaultMode(choice.Mode); }
+                                if (Read(readBack: true) != target) { throw new InvalidDataException("Saved response mode readback does not match the exact selection."); }
                             }
                             catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentOutOfRangeException)
                             {
@@ -164,7 +176,8 @@ public sealed partial class ResponseModeConfigurationService(
                                 throw;
                             }
                             auditLog.Write(audit.WithOutcome(SecurityAuditOutcome.Succeeded));
-                            saved = desired = choice.Mode;
+                            saved = target;
+                            desired = target ?? ResponseOutputMode.Hybrid;
                             revision = nextRevision;
                             expectedRevision = nextRevision;
                             choices = [];
@@ -182,11 +195,11 @@ public sealed partial class ResponseModeConfigurationService(
                 lock (gate)
                 {
                     if (revision != expectedRevision || !eligible()) { throw new InvalidOperationException("Response apply admission changed before its receipt completed."); }
-                    if (Read(readBack: true) != choice.Mode) { throw new InvalidDataException("Saved response mode changed before its completed receipt."); }
+                    if (Read(readBack: true) != target) { throw new InvalidDataException("Saved response mode changed before its completed receipt."); }
                     preferences.ConfirmDefaultModeWrite();
                     try
                     {
-                        if (Read() != choice.Mode) { throw new InvalidDataException("Confirmed response mode readback does not match the exact selection."); }
+                        if (Read() != target) { throw new InvalidDataException("Confirmed response mode readback does not match the exact selection."); }
                     }
                     catch (Exception exception) when (exception is IOException or UnauthorizedAccessException or InvalidDataException or ArgumentOutOfRangeException)
                     {
@@ -196,6 +209,7 @@ public sealed partial class ResponseModeConfigurationService(
                     held = false;
                     recovery = null;
                     Changed?.Invoke(this, EventArgs.Empty);
+                    RecordModeUndo(previous, target);
                 }
             }
             return accepted;

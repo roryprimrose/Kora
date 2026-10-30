@@ -20,4 +20,6 @@ public enum WorkspaceSurfaceTarget
     OpenNamedConversation,
     /// <summary>Open All work and complete a fresh bounded Needs answer observation.</summary>
     WaitingQuestions,
+    /// <summary>Open an exact named observation from the foreground host-presented conversation page.</summary>
+    ObservedResult,
 }

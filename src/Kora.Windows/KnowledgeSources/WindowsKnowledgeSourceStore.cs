@@ -46,7 +46,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
             return next;
         }, cancellationToken);
 
-    public Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, LocalFolderRevision snapshot,
+    public Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, KnowledgeSourceRevision snapshot,
         IReadOnlyList<ReadOnlyMemory<byte>> originalBytes, CancellationToken cancellationToken) =>
         Run(connection =>
         {
@@ -57,7 +57,8 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
                 || (current is null && sources.Count >= MaximumSources)
                 || (current is not null && (current.State != KnowledgeSourceState.Unavailable || current.Id != snapshot.Review.SourceId
                     || !string.Equals(current.Folder.CanonicalPath, snapshot.Review.Metadata.CanonicalPath, StringComparison.OrdinalIgnoreCase)
-                    || !string.Equals(current.Folder.DirectoryIdentity, snapshot.Review.Metadata.DirectoryIdentity, StringComparison.Ordinal))))
+                    || !string.Equals(current.Folder.DirectoryIdentity, snapshot.Review.Metadata.DirectoryIdentity, StringComparison.Ordinal)
+                    || current.Folder.Scope != snapshot.Review.Metadata.Scope)))
             { throw new InvalidDataException("Named source publication requires unique bounded identity, exact root and unavailable previous revision."); }
             var bytes = Encode(snapshot, originalBytes);
             try
@@ -70,7 +71,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
             finally { CryptographicOperations.ZeroMemory(bytes); }
         }, cancellationToken);
 
-    public Task<LocalFolderRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken) =>
+    public Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken) =>
         Run(connection =>
         {
             var current = Require(connection, exact);
@@ -169,7 +170,7 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
         {
             if (items.Count >= MaximumSources) { throw new InvalidDataException("The source inventory exceeds its bound."); }
             var dto = Deserialize<SourceData>(reader.GetString(2));
-            var folder = new LocalFolderMetadata(dto.Path, dto.Identity, dto.Files);
+            var folder = ReadMetadata(dto.FormatVersion, dto.Path, dto.Identity, dto.Files, dto.Scope, dto.Directories);
             if (dto.Id == Guid.Empty || dto.Version <= 0 || !string.Equals(dto.Id.ToString("D"), reader.GetString(0), StringComparison.Ordinal)
                 || dto.Version != reader.GetInt64(1) || !Enum.IsDefined(dto.State)
                 || string.IsNullOrWhiteSpace(dto.Name) || dto.Name.Length > 80 || dto.Name.Any(char.IsControl)
@@ -194,7 +195,9 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
     {
         var info = JsonSerializer.Serialize(new SourceData(source.Id, source.Version, source.Name,
             source.Folder.CanonicalPath, source.Folder.DirectoryIdentity, source.Folder.Files.ToArray(),
-            source.State, source.ChangedAt, source.StoredBytes), Json);
+            source.State, source.ChangedAt, source.StoredBytes, 2, source.Folder.Scope, source.Folder.Directories.ToArray()), Json);
+        if (System.Text.Encoding.UTF8.GetByteCount(info) > 65536)
+        { throw new InvalidDataException("The whole named-source metadata exceeds its existing storage bound."); }
         using var transaction = connection.BeginTransaction();
         using var command = connection.CreateCommand();
         command.Transaction = transaction;
@@ -221,5 +224,16 @@ public sealed partial class WindowsKnowledgeSourceStore(IApplicationDataPaths pa
     }
 
     private sealed record SourceData(Guid Id, long Version, string Name, string Path, string Identity,
-        LocalFileMetadata[] Files, KnowledgeSourceState State, DateTimeOffset ChangedAt, int StoredBytes);
+        LocalFileMetadata[] Files, KnowledgeSourceState State, DateTimeOffset ChangedAt, int StoredBytes,
+        int FormatVersion = 1, KnowledgeSourceScope? Scope = null, KnowledgeSourceDirectory[]? Directories = null);
+
+    private static KnowledgeSourceMetadata ReadMetadata(int version, string path, string identity, LocalFileMetadata[] files,
+        KnowledgeSourceScope? scope, KnowledgeSourceDirectory[]? directories)
+    {
+        if (version == 1 && scope is null && directories is null)
+        { return KnowledgeSourceMetadata.FromImmediate(new LocalFolderMetadata(path, identity, files)); }
+        if (version == 2 && scope is not null && directories is not null)
+        { return new(path, identity, scope.Value, directories, files); }
+        throw new InvalidDataException("Unknown or malformed named-source metadata format; no legacy consent widening is permitted.");
+    }
 }

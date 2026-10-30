@@ -234,7 +234,7 @@ remain separate from the fake launcher tests and non-launching previews.
 
 ### Start at login
 
-The startup checkbox replaces the former explanatory panel. It defaults on
+The startup checkbox replaces the former explanatory panel. It defaults off
 when the selected scope has no registration, and reflects a matching existing
 registration. Read-only inspection uses the 64-bit `Run` and `StartupApproved`
 keys; scope changes reload the corresponding snapshot. A Windows-disabled
@@ -256,6 +256,14 @@ Startup registration does not grant voice consent or bypass host ownership,
 session, storage or permission checks. Native component authoring/condition
 checks are not installed logon/repair/uninstall/upgrade acceptance. The POC
 still needs supported upgrade and stable-launcher qualification.
+
+Installed current-user Kora also exposes the [reviewed shared startup operation](../Design/User_Configuration.md#delivered-reviewed-windows-logon-startup). It reuses this single HKCU value, not a second registration.
+MSI uses the costed `INSTALLFOLDER` directory; `ARPINSTALLLOCATION` is a reserved MSI property, not a directory identifier. One immediate type-51 setter publishes `[INSTALLFOLDER]` as that property after `CostFinalize` in both sequences ([package](Kora.Msi/Package.wxs), [metadata guard](../eng/Assert-InstallerMetadata.ps1)).
+The [raw-table contracts](../eng/Test-InstallerMetadataContracts.ps1) reject reserved-directory reuse, extra/executable/script/deferred actions, altered property/target and missing/conditional/misordered setters. The [costing checks](../eng/Test-Installer.ps1) verify exact installed location and quoted startup command in both scopes, without installation.
+The app requires current-user Windows Installer identity, matching running EXE/DLL fingerprints and unchanged entry ownership before write ([Windows seam](../src/Kora.Windows/Startup/WindowsLogonStartupNative.cs)).
+
+Older installs without that metadata, machine-wide registrations and Windows-disabled/foreign entries remain unavailable to the app. The app never edits Windows StartupApproved metadata, elevates, launches a process or registers a scheduled task.
+Installer repair/uninstall retain their native component ownership ([registration policy](../src/Kora.Windows/Startup/WindowsLogonStartupRegistration.cs)).
 
 ### Required prerequisites
 

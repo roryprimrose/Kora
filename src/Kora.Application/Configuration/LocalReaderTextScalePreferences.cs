@@ -47,4 +47,5 @@ public sealed class LocalReaderTextScalePreferences : IReaderTextScalePreference
         store.WriteText(FileName, percent.ToString(CultureInfo.InvariantCulture));
     }
     public void ConfirmReaderTextScaleWrite() => store.Delete(PendingFileName);
+    internal void Reset() => store.Delete(FileName);
 }

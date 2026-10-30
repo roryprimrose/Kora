@@ -162,7 +162,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture(enableProviderModeConfiguration: true);
         await using var admission = f.OutputAdmission;
         f.Probe.Status = new("local.inference", "Local model inference (Ollama)", DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = BuiltInAction.LockMachine;
+        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
         if (question) { f.Reasoner.Question = new("Exact choice?", ["one", "two"]); f.Reasoner.Action = null; }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("please do this work");

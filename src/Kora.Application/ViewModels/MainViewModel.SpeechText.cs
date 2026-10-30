@@ -33,7 +33,8 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     public SpeechCaptionPlacement? SpeechCaptionPlacement =>
         speechTextConfiguration?.Get().EffectiveCaptionOptions?.Placement;
     public bool IsSpeechCaptionVisible => speechCaptionText is not null && CanRevealPrivatePresentation
-        && IsCallMutationHostEligible && IsSpeechResponseEnabled;
+        && IsCallMutationHostEligible && (activeCallSpeechLease is { } lease
+            ? IsCallSpeechOtherwiseEligible && lease.IsPlaybackCurrent : IsSpeechResponseEnabled);
     public IReadOnlyList<SpeechTextChoice> SpeechTextChoices => speechTextConfiguration?.Choices ?? [];
     public SpeechTextChoice? SelectedSpeechTextChoice
     {
@@ -97,13 +98,13 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
     }
 
     private Task StartCaptionedSpeechAsync(string exactText, Func<bool> playbackEligible,
-        CancellationToken cancellationToken = default)
+        AudioOutputDevice? reviewedOutput = null, CancellationToken cancellationToken = default)
     {
         RetireSpeechCaption();
         var captionState = speechTextConfiguration?.Get();
         if (captionState?.Effective is not (SpeechTextMode.CurrentUtterance or SpeechTextMode.CurrentSentence))
         {
-            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, cancellationToken);
+            return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, reviewedOutput ?? SelectedOutputDevice!, cancellationToken);
         }
         if (captionState.Effective == SpeechTextMode.CurrentSentence)
         {
@@ -131,7 +132,7 @@ public sealed partial class MainViewModel : ISpeechCaptionPresentation
             && current.Revision == captionState.Revision;
         var id = speechCaption.Bind(response, request, exactText, Eligible, captionState.EffectiveCaptionOptions,
             captionState.Effective.Value);
-        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, SelectedOutputDevice!, id, cancellationToken);
+        return textToSpeech.SpeakAsync(exactText, activeSpeechVoice!, reviewedOutput ?? SelectedOutputDevice!, id, cancellationToken);
     }
 
     private void RetireSpeechCaptionSource()

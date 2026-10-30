@@ -215,7 +215,7 @@ public sealed partial class MainViewModelTests
             communicationActivityConfiguration: pendingActivity.Configuration);
         pending.Probe.Status = new("local.inference", "Local model inference (Ollama)",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        pending.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        pending.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         pending.Reasoner.Question = new("Exact choice?", ["one", "two"]);
         await pending.ViewModel.InitializeAsync();
         await pendingActivity.Observations.JoinAsync();

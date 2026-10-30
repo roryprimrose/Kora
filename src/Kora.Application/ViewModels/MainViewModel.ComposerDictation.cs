@@ -35,6 +35,19 @@ public sealed partial class MainViewModel
 
     private void ComposerVoiceReadinessChanged(object? sender, PropertyChangedEventArgs args) => composerDictation!.Revalidate();
 
+    public Func<bool> CaptureInstructionBodyDictationEligibility()
+    {
+        var admission = ObserveComposerDictation();
+        var name = assistantNameConfiguration.Get().Revision;
+        var voiceBinding = Interlocked.Read(ref voiceOwnershipBindingRevision);
+        var controlBinding = Interlocked.Read(ref settingsOwnershipBindingRevision);
+        return () => admission is not null && ObserveComposerDictation() == admission
+            && assistantNameConfiguration.Get().Revision == name
+            && voiceBinding == Interlocked.Read(ref voiceOwnershipBindingRevision)
+            && controlBinding == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && !IsProtectedCall && CanRevealPrivatePresentation;
+    }
+
     private void RetireComposerDictation() =>
         composerDictation?.Retire("Dictation admission revoked. Original buffer preserved; late results discarded.");
 }

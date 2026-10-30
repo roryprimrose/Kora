@@ -38,12 +38,16 @@ internal sealed partial class SessionInteractionView : UserControl
     private readonly EventHandler<RoutedEventArgs> detailCommandClick;
     internal Task EvidenceValidationOperation { get; private set; } = Task.CompletedTask;
     internal bool DetailsVisible => DetailsPane.IsVisible;
+    internal bool IsConversationPresented => IsVisible && ConversationTabs.SelectedItem == ConversationTab;
+    private long conversationPresentationRevision;
+    internal long ConversationPresentationRevision => Interlocked.Read(ref conversationPresentationRevision);
 
     public SessionInteractionView()
     {
         InitializeComponent();
         replyPresentation = new(this);
-        ConversationTabs.SelectionChanged += (_, _) => replyPresentation.Retire();
+        ConversationTabs.SelectionChanged += (_, _) =>
+        { Interlocked.Increment(ref conversationPresentationRevision); replyPresentation.Retire(); };
         RefreshSessions.Click += async (_, _) => await Run(model => model.RefreshAsync());
         NextSessions.Click += async (_, _) => await Run(model => model.NextAsync());
         SearchSessionNames.Click += async (_, _) => await Run(model => model.SearchSessionNamesAsync());
@@ -120,6 +124,7 @@ internal sealed partial class SessionInteractionView : UserControl
         PropertyChanged += (_, args) =>
         {
             if (args.Property == IsVisibleProperty && !IsVisible) { HideDetails(); }
+            if (args.Property == IsVisibleProperty) { Interlocked.Increment(ref conversationPresentationRevision); }
         };
     }
 
@@ -136,6 +141,8 @@ internal sealed partial class SessionInteractionView : UserControl
                 var presenter = replyPresentation.Capture();
                 await Run(current => current.ReplyToAnswerAsync(replySource, presenter));
             }
+            else if (args.Source is Button { Name: "OpenObservedResult", DataContext: ObservationDetailChoice observation })
+            { args.Handled = true; await Run(current => current.OpenObservationAsync(observation)); }
             else if (args.Source is Button { Name: "DeclineSessionDetailsOffer", DataContext: ConversationMessage message }
                 && DataContext is SessionsViewModel model)
             { args.Handled = true; model.DismissDetailsOffer(message); }
@@ -170,7 +177,7 @@ internal sealed partial class SessionInteractionView : UserControl
     private ConversationMessage? ConversationOrigin(AdmittedDetailContent? content)
     {
         if (!IsVisible || observedModel?.CanPresentDetails != true
-            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant)
+            || content?.Origin is not (DetailContentOrigin.RetainedConversation or DetailContentOrigin.RetainedAssistant or DetailContentOrigin.RetainedLocalObservation)
             || content.ConversationMessage is not { } message
             || observedModel.SelectedSessionRecord?.Authority.SessionId != message.Request.SessionId)
         { return null; }
@@ -191,10 +198,14 @@ internal sealed partial class SessionInteractionView : UserControl
         if (content is null || ConversationOrigin(content) is not { } message) { return false; }
         ConversationTabs.SelectedItem = ConversationTab;
         UpdateLayout();
-        var name = content.Origin == DetailContentOrigin.RetainedAssistant
+        var name = content.Origin == DetailContentOrigin.RetainedLocalObservation ? "OpenObservedResult"
+            : content.Origin == DetailContentOrigin.RetainedAssistant
             ? "OpenAssistantConversationDetail" : "OpenConversationDetail";
         var origin = ConversationTabs.GetVisualDescendants().OfType<Button>().FirstOrDefault(button =>
-            string.Equals(button.Name, name, StringComparison.Ordinal) && Equals(button.DataContext, message)
+            string.Equals(button.Name, name, StringComparison.Ordinal)
+            && (content.Origin == DetailContentOrigin.RetainedLocalObservation
+                ? button.DataContext is ObservationDetailChoice choice && choice.Message == message && choice.Observation.Id == content.Reference.ItemId.Value
+                : Equals(button.DataContext, message))
             && button.IsEffectivelyVisible && button.IsEnabled);
         if (origin is null || ConversationOrigin(content) != message) { return false; }
         origin.BringIntoView();
@@ -333,16 +344,16 @@ internal sealed partial class SessionInteractionView : UserControl
         }
     }
 
-    internal async Task ShowAvailableDetailsAsync(SessionsViewModel model, bool acceptOffer = false)
+    internal async Task ShowAvailableDetailsAsync(SessionsViewModel model, bool acceptOffer = false, bool choose = false)
     {
         if (!ReferenceEquals(model, observedModel) || !model.CanShowDetails) { return; }
-        if (acceptOffer && model.DetailsOfferMessage is { } offered)
+        if (!choose && acceptOffer && model.DetailsOfferMessage is { } offered)
         { await model.OpenConversationDetailAsync(offered, assistant: true); return; }
-        if (model.LastDetailMessage is { } previous)
-        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant); return; }
-        if (model.LastEvidenceDetail is { } evidence)
+        if (!choose && model.LastDetailMessage is { } previous)
+        { await model.OpenConversationDetailAsync(previous, model.LastDetailAssistant, model.LastDetailObservation); return; }
+        if (!choose && model.LastEvidenceDetail is { } evidence)
         { await model.OpenEvidenceDetailsAsync(evidence); return; }
-        if (model.CanRestoreHistoryDetail)
+        if (!choose && model.CanRestoreHistoryDetail)
         { await model.OpenHistoryDetailAsync(); return; }
         if (TopLevel.GetTopLevel(this) is not ResponseWindow window || !window.PrepareDetailsLayout()) { return; }
         var choices = new StackPanel { Spacing = 8 };
@@ -353,6 +364,10 @@ internal sealed partial class SessionInteractionView : UserControl
                 Name = message.HasAssistantResponse ? "OpenAssistantConversationDetail" : "OpenConversationDetail", DataContext = message,
                 Content = $"Message {message.Sequence}: {(message.HasAssistantResponse ? "answer and original message" : "original message")}",
             });
+        }
+        foreach (var choice in model.ObservationChoices)
+        {
+            choices.Children.Add(new Button { Name = "OpenObservedResult", DataContext = choice, Content = choice.Label });
         }
         if (model.CanOpenHistoryDetail)
         {

@@ -312,18 +312,29 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             SpeakCoreAsync(text, voice, outputDevice, generation, playbackId, token), cancellationToken);
     }
 
+    public Task SpeakAdmittedAsync(string text, SpeechVoice voice, AudioOutputDevice outputDevice,
+        SpeechStartAdmission admission, CancellationToken cancellationToken = default)
+    {
+        ArgumentNullException.ThrowIfNull(admission);
+        return RunCurrentOutputAsync((generation, token) =>
+            SpeakCoreAsync(text, voice, outputDevice, generation, null, token, admission), cancellationToken);
+    }
+
     private async Task SpeakCoreAsync(
         string text,
         SpeechVoice voice,
         AudioOutputDevice outputDevice,
         long generation,
         Guid? playbackId,
-        CancellationToken cancellationToken)
+        CancellationToken cancellationToken,
+        SpeechStartAdmission? admission = null)
     {
         ObjectDisposedException.ThrowIf(disposed, this);
         ArgumentException.ThrowIfNullOrWhiteSpace(text);
         ArgumentNullException.ThrowIfNull(voice);
         ArgumentNullException.ThrowIfNull(outputDevice);
+        using var admittedSynthesis = admission is null ? null
+            : CancellationTokenSource.CreateLinkedTokenSource(cancellationToken);
 
         PlaybackVolume volume;
         lock (stateLock)
@@ -337,7 +348,7 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
             }
         }
         await lifecycleLock.WaitAsync(cancellationToken).ConfigureAwait(false);
-        Task synthesisTask;
+        Task? synthesisTask = null;
         try
         {
             if (IsSpeaking)
@@ -386,53 +397,70 @@ public sealed partial class WindowsTextToSpeechService : ITextToSpeechService, I
                     "The selected speech voice is no longer installed.");
             }
 
-            var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
-            if (string.Equals(
+            void StartSynthesis()
+            {
+                cancellationToken.ThrowIfCancellationRequested();
+                RequireCurrentOutput(generation);
+                var completion = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                if (string.Equals(
                     voice.ProviderId,
                     SpeechProviderIds.Kokoro,
                     StringComparison.Ordinal))
-            {
-                lock (stateLock)
                 {
-                    synthesisCompletion = completion;
-                    isKokoroSynthesis = true;
-                }
+                    lock (stateLock)
+                    {
+                        synthesisCompletion = completion;
+                        isKokoroSynthesis = true;
+                    }
 
-                synthesisTask = SynthesizeKokoroAsync(
-                    text,
-                    voice,
-                    volume,
-                    completion,
-                    cancellationToken);
-            }
-            else
-            {
-                if (!string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal))
-                {
-                    throw new PlaybackVolumeUnavailableException("This provider has no qualified Kora-only volume capability.");
+                    synthesisTask = SynthesizeKokoroAsync(
+                        text,
+                        voice,
+                        volume,
+                        completion,
+                        admittedSynthesis?.Token ?? cancellationToken);
                 }
-                synthesizer.SelectVoice(voice.Id);
-                audioStream = new MemoryStream();
-                synthesizer.SetOutputToWaveStream(audioStream);
-                var prompt = new Prompt(text);
-                lock (stateLock)
+                else
                 {
-                    RequireCurrentOutput(generation);
-                    synthesisCompletion = completion;
-                    activePrompt = prompt;
-                    sentenceAlignment = playbackId is { } id ? new(prompt, new(id, generation), text) : null;
-                    StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
+                    if (!string.Equals(voice.ProviderId, SpeechProviderIds.Windows, StringComparison.Ordinal))
+                    {
+                        throw new PlaybackVolumeUnavailableException("This provider has no qualified Kora-only volume capability.");
+                    }
+                    synthesizer.SelectVoice(voice.Id);
+                    audioStream = new MemoryStream();
+                    synthesizer.SetOutputToWaveStream(audioStream);
+                    var prompt = new Prompt(text);
+                    lock (stateLock)
+                    {
+                        RequireCurrentOutput(generation);
+                        synthesisCompletion = completion;
+                        activePrompt = prompt;
+                        sentenceAlignment = playbackId is { } id ? new(prompt, new(id, generation), text) : null;
+                        StartOwnedWindowsSynthesis(volume, () => synthesizer.SpeakAsync(prompt));
+                    }
+                    synthesisTask = completion.Task;
                 }
-                synthesisTask = completion.Task;
             }
+            if (admission is null) { StartSynthesis(); }
+            else { await admission(StartSynthesis, cancellationToken).ConfigureAwait(false); }
+            if (synthesisTask is null)
+            { throw new OperationCanceledException("Host speech start was not admitted."); }
 
             WindowsLog.SpeechStarted(logger);
         }
         catch
         {
-            ResetSynthesisState();
-            synthesizer.SetOutputToDefaultAudioDevice();
-            DisposePlaybackResources();
+            try
+            {
+                if (admittedSynthesis is not null && synthesisTask is not null)
+                { await JoinRejectedSynthesisAsync(synthesisTask, admittedSynthesis).ConfigureAwait(false); }
+            }
+            finally
+            {
+                ResetSynthesisState();
+                synthesizer.SetOutputToDefaultAudioDevice();
+                DisposePlaybackResources();
+            }
             throw;
         }
         finally

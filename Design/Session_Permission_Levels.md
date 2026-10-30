@@ -20,6 +20,14 @@ The current external-page/MCP consumers use the same decision and pre-effect pol
 
 The live call-policy gate serializes exact answer/admission commit with call/setting changes. Native Calls settings provide explicit reviewed spoken-approval enable/disable; default is Off and known older settings migrate Off. Applicable grants and session levels are not withdrawn on call entry. This is deterministic implementation evidence, not automatic detector, physical voice, provider, containment or installed-runtime qualification.
 
+Direct and model-proposed [Lock](Built_In_Skills.md#initial-skill-lock-the-machine)
+share the exact package-grant path rather than named model-action preferences.
+The existing mandatory native script review remains independent of ordinary
+discretionary review at all three levels. Approve all cannot enable the
+unqualified runtime, waive that boundary or mint a script grant; existing exact
+grants retain their ordinary scope/applicability rules. Original voice lineage
+survives native approval and the owner's intentional capture/resource closure.
+
 ## Agreed Product Decisions
 
 - New sessions start at Review all. Never inherit a level from another session, selected window, provider conversation, skill, or parent task.

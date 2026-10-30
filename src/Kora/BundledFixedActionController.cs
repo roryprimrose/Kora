@@ -97,14 +97,21 @@ internal sealed partial class BundledFixedActionController : IDisposable
         };
         if (!sources.OpenPackage(id, admitted))
         { throw new InvalidOperationException("The complete immutable package review could not be opened."); }
-        if (initiator == SecurityAuditInitiator.ModelSuggestion)
+        if (initiator == SecurityAuditInitiator.ModelSuggestion && action != FixedSessionAction.Lock)
         {
             Status = "Model suggestion opened source inspection only. A fresh original-user Review/grant and run action is required.";
             main.ReportHostInteractionFailure(Status);
             return Task.CompletedTask;
         }
         if (!active.IsCompleted) { throw new InvalidOperationException("A bundled operation already owns the native review."); }
-        var origin = initiator == SecurityAuditInitiator.VoiceCommand ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi;
+        var origin = HostActivity.Current?.Request.Origin ?? initiator switch
+        {
+            SecurityAuditInitiator.VoiceCommand => RequestOrigin.ActivatedVoice,
+            SecurityAuditInitiator.LocalUser or SecurityAuditInitiator.TypedCommand => RequestOrigin.LocalUi,
+            _ => RequestOrigin.HostSystem,
+        };
+        if (origin is not (RequestOrigin.LocalUi or RequestOrigin.ActivatedVoice))
+        { throw new InvalidOperationException("Lock requires the original user's admitted input channel; model output is not approval."); }
         active = ExecuteAsync(id, origin, admitted);
         return active;
     }
@@ -195,7 +202,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
             record = terminal;
             activity.Complete(result.Outcome == FixedSessionEffectOutcome.RequestAccepted
                 ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
-            main.ReportHostInteractionFailure(Status);
+            if (CanPublish()) { main.ReportHostInteractionFailure(Status); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -218,7 +225,7 @@ internal sealed partial class BundledFixedActionController : IDisposable
                 { Failed(logger, storageFailure); Status += " Required terminal evidence is also unconfirmed."; }
             }
             activity.Complete(exception is OperationCanceledException ? HostOperationOutcome.Cancelled : HostOperationOutcome.Failed);
-            main.ReportHostInteractionFailure(Status);
+            if (CanPublish()) { main.ReportHostInteractionFailure(Status); }
         }
         finally
         {
@@ -226,6 +233,9 @@ internal sealed partial class BundledFixedActionController : IDisposable
             questionWindow = null;
             if (ReferenceEquals(lifetime, cancellation)) { lifetime = null; }
         }
+
+        bool CanPublish() => !disposed && main.CanRevealPrivatePresentation && ownsHost()
+            && ownerRevision == ownershipRevision() && main.CallPolicyRevision == call && admitted();
     }
 
     private static BundledFixedScript Resolve(string id) =>

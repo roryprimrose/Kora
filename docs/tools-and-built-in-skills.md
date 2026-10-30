@@ -315,7 +315,7 @@ power effect.
 
 ### Lock the machine
 
-**Current:** voluntary direct lock uses the same package gate as other fixed actions and reports unavailable while its runtime is unqualified. There is no legacy native-lock fallback. Model suggestions open inspection only. See [exact lock behavior](commands.md#lock-windows).
+**Current:** voluntary direct and model-proposed Lock share exact package review and grants, without named-action permission reuse or a legacy native-lock fallback. Execution reports unavailable while its runtime is unqualified. Fresh grants use mandatory native script review, preserving the original request channel. See [exact lock behavior](commands.md#lock-windows).
 
 **Implemented, not enabled:** shared content-bound admission, a durable
 control-session binding and a truthful request-accepted receipt. It targets the current

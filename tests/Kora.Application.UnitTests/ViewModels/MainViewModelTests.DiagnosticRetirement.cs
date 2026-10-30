@@ -15,7 +15,7 @@ public sealed partial class MainViewModelTests
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
         f.Reasoner.Question = approval ? null : new("Which?", ["One", "Two"]);
-        f.Reasoner.Action = approval ? BuiltInAction.LockMachine : null;
+        f.Reasoner.Action = approval ? BuiltInAction.EnableHostedModels : null;
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("choose");
         await f.ViewModel.ActiveReasoningTask!;

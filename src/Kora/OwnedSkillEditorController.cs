@@ -12,7 +12,7 @@ internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
     OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
-    ObservationWorkflowController? observations = null) : IAsyncDisposable
+    ObservationWorkflowController? observations = null, OwnedSkillRenameWorkflow? renames = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -102,6 +102,7 @@ internal sealed partial class OwnedSkillEditorController(
                 invocation?.Retire();
                 window?.RetireReview();
             };
+            window.RenameTargetChanged += () => Interlocked.Increment(ref generation);
             window.CritiqueChanged += () =>
             {
                 CancelRefinement();
@@ -145,6 +146,10 @@ internal sealed partial class OwnedSkillEditorController(
             if (!Eligible() || !authority.IsCurrent()) { throw new InvalidOperationException("Original authoring authority expired."); }
             switch (command.Operation)
             {
+                case "rename":
+                case "recover-rename":
+                    await Rename(command, authority);
+                    break;
                 case "editor": break;
                 case "create":
                     if (!await DiscardOrSave()) { return; }
@@ -211,7 +216,14 @@ internal sealed partial class OwnedSkillEditorController(
                 case "save": await Save(); break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
-                    if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
+                    var pendingRenames = renames is null ? [] : await renames.Pending(authority, lifetime.Token);
+                    if (Eligible())
+                    {
+                        opened.Saved.ItemsSource = rows;
+                        opened.PendingRenames.ItemsSource = pendingRenames;
+                        opened.Report("Saved immutable inactive versions. Select Reopen, Use or Rename; nothing is enabled or invoked. "
+                            + $"Pending renames requiring separate recovery review: {pendingRenames.Count}.");
+                    }
                     break;
                 case "use":
                     var selection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
@@ -254,9 +266,11 @@ internal sealed partial class OwnedSkillEditorController(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (exception is OwnedSkillPublicationUnconfirmedException) { uncertain = true; }
+            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillRenameUnconfirmedException) { uncertain = true; }
             AuthoringFailed(logger, exception.GetType().Name);
-            opened.Report(exception is OwnedSkillPublicationUnconfirmedException
+            opened.Report(exception is OwnedSkillRenameUnconfirmedException
+                ? exception.Message
+                : exception is OwnedSkillPublicationUnconfirmedException
                 ? "Publication may have occurred. Do not retry Save. List/Reopen the exact ID/version to reconcile; no rollback or invocation is claimed."
                 : exception is OperationCanceledException ? "Cancelled. Owned I/O has joined; no saved result is claimed."
                 : "Skill authoring failed: " + exception.Message);

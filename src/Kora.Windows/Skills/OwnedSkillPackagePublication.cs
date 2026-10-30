@@ -41,6 +41,8 @@ internal sealed partial class OwnedSkillPackagePublication : IDisposable
     internal static SafeFileHandle OpenFile(string path)
         => OpenFileCore(path, delete: false);
 
+    internal static SafeFileHandle OpenForDeletion(string path) => OpenFileCore(path, delete: true);
+
     private static SafeFileHandle OpenFileCore(string path, bool delete)
     {
         // Share rename, not writes: the enclosing directory is renamed while both exact file objects stay pinned.

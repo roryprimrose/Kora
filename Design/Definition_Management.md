@@ -716,6 +716,22 @@ automatically. Closing a dirty editor requires Save/Discard/Cancel.
 
 ## Consistent External Change and Reload Contract
 
+### Reviewed owned native skill package rename
+
+The [owned editor](../src/Kora/OwnedSkillEditorController.Rename.cs) completes native List/select/Rename, exact original typed/current-name activated `owned skill rename <old-id> <version> <new-id>`, separate complete old/new review and native confirmation, persisted readback and reopen.
+Only current closed native two-file v1/v2/v3/v4 packages are supported; unsaved drafts are retained and must first be saved separately or explicitly discarded.
+
+The [dedicated native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs) changes only the manifest ID, keeps the version/readable name and all guidance/declarations byte-exact, publishes the complete new package without replacement, then retires the exact old files/directory.
+This is a multi-step recoverable operation, not an atomic transaction or content CAS. Source/root/parent/file identities, complete bytes, aliases, inventory and current admission are checked; unrelated packages/versions are not renamed.
+
+Bounded private local intent retains original bytes and exact source/staged identities before publication. Both affected identities remain unavailable while intent exists, including after restart.
+List exposes pending renames; `owned skill recover-rename <old-id> <version>` separately reviews/confirms only retained intent.
+Changed parents, source components, destination identity/bytes or corrupt intent fail closed; no overwrite, silent rollback, automatic retry or inferred recovery occurs ([workflow and audit](../src/Kora.Application/Skills/OwnedSkillRenameWorkflow.cs)).
+
+Old reviews cannot follow a new identity, and restored old bytes cannot revive old native-identity-bound review. The new package remains disabled and requires fresh independent use review/enablement/action permission.
+External references stay bound to the old identity, never silently rewritten. No shared/profile source, `SKILL.md` reference package, executable import, archive, automatic registration or invocation is added
+([use regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillRename.cs), [user operation](../docs/owned-skill-authoring.md#rename-one-complete-owned-native-package)).
+
 ### Windows-managed roaming and local revision admission
 
 Windows/profile management owns propagation of Kora roaming definitions and

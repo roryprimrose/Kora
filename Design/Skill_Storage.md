@@ -16,6 +16,9 @@ expand source-read consent into generic profile editing or execution authority.
 
 ## Explicit local Markdown references v2
 
+Native owned package ID rename is a separate [reviewed multi-step writer operation](Definition_Management.md#reviewed-owned-native-skill-package-rename). Its current two-file v1/v2/v3/v4 subset retains complete guidance/declarations, verifies new publication and old-name absence, and reopens disabled.
+Private local intent holds affected identities unavailable until separately confirmed recovery; it does not extend the shared Markdown reference profile below or authorize primary-only `SKILL.md` rename ([native owner](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Rename.cs)).
+
 The v1 single-file profile remains unchanged. A primary `SKILL.md` may opt into
 the finite local-only v2 profile with these exact additional flat fields:
 

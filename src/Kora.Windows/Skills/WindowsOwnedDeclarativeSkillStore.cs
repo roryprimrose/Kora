@@ -7,7 +7,7 @@ using Microsoft.Win32.SafeHandles;
 
 namespace Kora.Windows.Skills;
 
-public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths) : IOwnedDeclarativeSkillStore
+public sealed partial class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths paths) : IOwnedDeclarativeSkillStore, IOwnedSkillRenameStore
 {
     private readonly RestrictedStorageDirectory directory = RestrictedStorageDirectory.ForOwnedSkills(paths);
     private readonly Lock gate = new();
@@ -37,6 +37,7 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
         {
             using var pins = PinRoot(token);
             using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
+            RequireNoPendingRename(id, version, token);
             var idPath = ExactChild(directory.Root, id, SharedSkillCatalogue.MaximumPackages + 1);
             if (idPath is null) { return null; }
             pins.PinDirectory(idPath);
@@ -65,7 +66,8 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
         Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
         Task.Run(async () => await commit(() => PublishCore(document, eligible, token)).ConfigureAwait(false), token);
 
-    private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible, CancellationToken token)
+    private OwnedDeclarativeSkillSnapshot PublishCore(OwnedDeclarativeSkillDocument document, Func<bool> eligible, CancellationToken token,
+        Action<OwnedDeclarativeSkillSnapshot>? beforeCommit = null)
     {
         using var activity = HostActivity.Current is null ? null : HostActivity.BeginChild(HostActivityLayer.Windows, HostOperation.Storage);
         try
@@ -73,7 +75,8 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
             lock (gate)
             {
                 using var pins = PinRoot(token);
-                using var lease = directory.AcquireBoundedLease(requireExisting: false, token);
+                using var lease = beforeCommit is null ? directory.AcquireBoundedLease(requireExisting: false, token) : null;
+                if (beforeCommit is null) { RequireNoPendingRename(document.Id, document.Version, token); }
                 var existing = Catalogue(pins, token);
                 if (existing.Length >= SharedSkillCatalogue.MaximumPackages)
                 { throw new InvalidDataException("The saved skill catalogue is full, including all immutable versions."); }
@@ -135,6 +138,8 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
                     // single no-replace directory commit. Any intervening file change is an uncertain publication.
                     manifestPin.Dispose();
                     instructionsPin.Dispose();
+                    beforeCommit?.Invoke(staged);
+                    RequireCurrent(eligible, token);
                     OwnedSkillPackagePublication.Commit(stageHandle, parent, document.Version);
                     observed = true;
                     Checkpoint?.Invoke("after-commit");
@@ -217,6 +222,7 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
 
     private OwnedDeclarativeSkillSnapshot[] Catalogue(OwnedSkillPackagePublication pins, CancellationToken token)
     {
+        var pending = ReadRenameIntents(token);
         var result = new List<OwnedDeclarativeSkillSnapshot>();
         var roots = Directory.EnumerateFileSystemEntries(directory.Root).Take(SharedSkillCatalogue.MaximumPackages + 2).ToArray();
         if (roots.Length > SharedSkillCatalogue.MaximumPackages + 1)
@@ -243,6 +249,7 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
                     continue;
                 }
                 OwnedDeclarativeSkillDocument.RequireIdentity(id, version);
+                if (pending.Any(intent => Affects(intent, id, version))) { continue; }
                 var saved = ReadPackage(versionPath, token);
                 if (!string.Equals(saved.Document.Id, id, StringComparison.Ordinal)
                     || !string.Equals(saved.Document.Version, version, StringComparison.Ordinal))

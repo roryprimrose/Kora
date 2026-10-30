@@ -11,7 +11,8 @@ namespace Kora;
 internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
-    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null) : IAsyncDisposable
+    OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
+    ObservationWorkflowController? observations = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -59,6 +60,12 @@ internal sealed partial class OwnedSkillEditorController(
 
     private async Task Handle(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
+        if (command.Operation is "workflow")
+        {
+            if (observations is null) { throw new InvalidOperationException("Native observation workflows are unavailable in this host."); }
+            await observations.Handle(command.Literal!, authority);
+            return;
+        }
         if (command.Operation is "cancel-refinement")
         {
             CancelRefinement();
@@ -237,6 +244,8 @@ internal sealed partial class OwnedSkillEditorController(
                     if (!await DiscardOrSave()) { return; }
                     var saved = await workflow.Read(id, version, original!, lifetime.Token)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
+                    if (saved.Document.ObservationWorkflow is not null)
+                    { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
                     if (!Eligible()) { return; }
                     ShowSaved(opened, saved);
                     break;
@@ -321,6 +330,7 @@ internal sealed partial class OwnedSkillEditorController(
 
     internal async Task<bool> PrepareClose()
     {
+        if (observations is not null && !await observations.PrepareClose()) { return false; }
         if (invocation is not null) { await invocation.CloseAndWait(); }
         if (window is null) { return true; }
         if (busy)
@@ -361,6 +371,7 @@ internal sealed partial class OwnedSkillEditorController(
         main.PropertyChanged -= OnMainChanged;
         main.BindOwnedSkillAuthoring(null, null);
         if (invocation is not null) { await invocation.DisposeAsync(); }
+        if (observations is not null) { await observations.DisposeAsync(); }
         await admission.DisposeAsync();
         lifetime?.Dispose();
     }

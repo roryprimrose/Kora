@@ -147,6 +147,13 @@ review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
 
+The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
+Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+
+The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
+The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
+No provider/tool-loop qualification, seventh tool, network/file/effect capability, executable directive or generic workflow framework is introduced.
+
 The MVP authoring writer accepts only a validated package:
 
 - A schema-validated manifest with stable ID, version, inputs/outputs, and registered tool references.

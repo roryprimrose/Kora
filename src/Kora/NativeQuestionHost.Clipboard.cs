@@ -36,8 +36,9 @@ internal sealed partial class NativeQuestionHost
             || !Kora.Core.Context.ClipboardCommand.IsDeliberateOrigin(request.Origin)
             || (!read && proposal.Binding != ClipboardPermissionSourceUsePolicy.CreateBinding())
             || proposal.Effect != HostOperationEffect.BoundedRead || callObservation is null
+            || read && (admissionRevision is null || privateRevision is null)
             || Interlocked.CompareExchange(ref waiting, 1, 0) != 0)
-        { throw new InvalidOperationException("The exact native clipboard permission presenter is unavailable."); }
+        { throw new InvalidOperationException("The exact native clipboard permission source, ownership or privacy authority cannot be established."); }
         var ownership = admissionRevision?.Invoke();
         var privacy = privateRevision?.Invoke();
         bool Eligible() => !disposed && canInteract() && admitted() && !token.IsCancellationRequested
@@ -58,7 +59,8 @@ internal sealed partial class NativeQuestionHost
             if (decision.Outcome != HostInteractionOutcome.Presented) { return decision; }
             if (decision.Question is not { } initial || initial.SessionGeneration != generation || !Eligible())
             { throw new InvalidOperationException("The clipboard permission question was not durably presented."); }
-            opened = new(initial, questions, authorization, reviews, Eligible, time, logger);
+            opened = new(initial, questions, authorization, reviews, Eligible, time, logger,
+                explainClipboardRead: read);
             current = opened;
             Interlocked.Exchange(ref currentFocusRevision, Interlocked.Read(ref focusRevision));
             await present(opened);

@@ -16,6 +16,36 @@ namespace Kora.Application.UnitTests.Dependencies;
 
 public sealed partial class ModelTurnHostTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task McpAuthoringRejectsSourceAndVoiceMetadataBeforeAnyModelDisclosure(bool interpret)
+    {
+        using var f = new Fixture();
+        await using var admission = new InstructionControlAdmission(f, f, new(f));
+        var source = new CustomizationSource("mcp.example", CustomizationKind.McpServer, CustomizationScope.Kora,
+            "example", "owned", "example.json");
+        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time);
+        Action action = () =>
+        {
+            if (interpret)
+            {
+                _ = service.Interpret(new(source.Kind, source.Scope, source.Name, source.PrimaryFile, false, false),
+                    "Change this endpoint", () => true, Token);
+            }
+            else
+            {
+                _ = service.Refine(source, [new(source.PrimaryFile, ArtifactFileDocument.Encode(
+                    "{\"url\":\"https://private.invalid/mcp\"}", false))], new(source.PrimaryFile),
+                    "Change this endpoint", () => true, Token);
+            }
+        };
+        action.Should().Throw<InvalidOperationException>().WithMessage("*native URL fields*");
+        f.Adapter.Calls.Should().Be(0);
+        f.RetainCalls.Should().Be(0);
+        f.PolicyHost.IsQuiescent.Should().BeTrue();
+    }
+
     [Fact]
     public async Task Voice_routing_supplies_only_reviewed_metadata_and_original_voice_origin_to_one_local_tool_free_turn()
     {

@@ -24,6 +24,58 @@ public sealed class ArtifactCatalogueReloadServiceTests : IDisposable
         "Kora.Windows.IntegrationTests",
         Guid.NewGuid().ToString("N"));
 
+    [Theory]
+    [InlineData(ArtifactKind.Instruction)]
+    [InlineData(ArtifactKind.Prompt)]
+    public void Saving_an_owned_copy_does_not_restore_a_removed_discovery_directory(ArtifactKind kind)
+    {
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], [], [], [], [], false));
+        var catalogue = EmbeddedArtifactCatalogue.Load();
+        using var reload = CreateReload(catalogue, paths, preferences, Path.Combine(root, "profile"));
+        var document = ArtifactFileDocument.Parse(
+            ArtifactFileDocument.Encode("---\nkora-format: 1\nname: Example\ndescription: Example definition\n---\nSaved body.", false),
+            kind, "kora-profile", "example");
+        var saved = new OwnedInstructionSnapshot("example", "directory", "file", document);
+        reload.ReconcileSavedCopy(saved).Should().BeTrue();
+        catalogue.Candidates.Should().NotContain(item => string.Equals(item.Id, document.Definition.Id, StringComparison.Ordinal));
+        var directory = Path.Combine(paths.RoamingRoot, OwnedDefinitionKind.DirectoryName(kind));
+        preferences.Save(new([], kind == ArtifactKind.Instruction ? [directory] : [],
+            kind == ArtifactKind.Prompt ? [directory] : [], [], [], [], false));
+        reload.ReconcileSavedCopy(saved).Should().BeTrue();
+        catalogue.Candidates.Should().Contain(item => string.Equals(item.Id, document.Definition.Id, StringComparison.Ordinal));
+        catalogue.Artifacts.Should().NotContain(item => string.Equals(item.Id, document.Definition.Id, StringComparison.Ordinal));
+    }
+
+    [Fact]
+    public void Removing_a_directory_retires_its_catalogue_entries_even_when_remaining_content_is_invalid()
+    {
+        var removed = Path.Combine(root, "removed");
+        var retained = Path.Combine(root, "retained");
+        Directory.CreateDirectory(removed);
+        Directory.CreateDirectory(retained);
+        var removedFile = Path.Combine(removed, "removed.prompt.md");
+        WritePrompt(removedFile, "Removed", "Removed source.");
+        var paths = new Paths(Path.Combine(root, "kora"));
+        var preferences = new Preferences(new([], [], [removed, retained], [], [], [], false));
+        var configuration = new ArtifactDirectoryConfigurationService(preferences, new Audit());
+        var catalogue = EmbeddedArtifactCatalogue.Load();
+        using var reload = new ArtifactCatalogueReloadService(catalogue, paths, preferences, configuration,
+            new McpServerConfigurationService(paths, preferences, Path.Combine(root, "profile")),
+            NullLogger<ArtifactCatalogueReloadService>.Instance, profileRoamingRoot: Path.Combine(root, "profile"));
+        reload.Start();
+        reload.ReloadNow().Should().BeTrue();
+        var original = catalogue.Artifacts.Single(item => string.Equals(item.CommandName, "removed", StringComparison.Ordinal));
+        File.WriteAllText(Path.Combine(retained, "invalid.prompt.md"), "Invalid source.");
+
+        configuration.Remove(ArtifactSourceKind.Prompt, removed);
+
+        catalogue.IsCurrent(original.Id, original.Digest).Should().BeFalse();
+        reload.ReloadNow().Should().BeFalse();
+        catalogue.Artifacts.Should().NotContain(item => item.CommandName == "removed");
+        File.Exists(removedFile).Should().BeTrue();
+    }
+
     [Fact]
     public async Task Missing_supported_tree_is_published_to_native_commands_and_remains_watched()
     {

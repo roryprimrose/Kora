@@ -44,7 +44,9 @@ cannot authorize itself. Complete source identity/byte revalidation and the
 32768-byte serialized input limit fail closed, without truncation or provider
 fallback. See [the complete user operation](../docs/owned-skill-authoring.md#review-and-invoke-one-saved-revision).
 The additive [native v2 one-tool operation](../docs/owned-skill-authoring.md#author-and-use-one-host-webpageget-skill) selects only the existing host WebPageGet binding, saves disabled and separately reviews/enables one exact owned source, Active target, original request/channel and explicit URL. It uses the same [reviewed tool consumer](../src/Kora.Application/Skills/ReviewedToolSkillInvocationWorkflow.cs) as shared one-tool use, with owned-store admission/freshness rather than shared-root consent.
-Neither version delivers generated authoring, general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
+The [bounded initial-generation operation](../docs/owned-skill-authoring.md#create-a-new-skill-from-a-purpose) adds original typed/current-name activated `create a skill that <purpose>` input to the same editor. Explicit expected-input/output clarification precedes a separately admitted local tools-none proposal; the host fixes native v1, identity, version and owned destination. Only a complete literal guidance body may come from the model ([proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs)).
+Complete generated source/destination review, optional existing local refinement, Validate and both ordinary Save reviews produce one atomic immutable **disabled** package. Original request/channel, draft, critique, catalogue/name, source, privacy, ownership and destination checks remain bound through refinement and publication ([native lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [save](../src/Kora.Application/Skills/OwnedSkillSaveWorkflow.cs)).
+This is implementation only: unqualified local runtime remains unavailable. It adds no general YAML, profile editing, arbitrary tools/effects, references, scripts, hooks, fixtures or agent execution. Tool-capable invocation retains independent per-action permission and actual tool/model joining ([action admission](../src/Kora.Application/Network/LocalWebPageInvocation.cs)).
 
 The additive [native v3 required literal guidance operation](../docs/owned-skill-authoring.md#required-literal-guidance-inputs)
 explicitly declares instruction-only inputs, reusing the owned prompt template
@@ -96,10 +98,10 @@ The host chooses the existing path, writes through
 the shared atomic preference/file replacement mechanism where applicable, and
 never accepts a model-supplied destination.
 
-The current native editor supports only Kora-owned files, strict UTF-8 ≤64 KiB,
+The current native editor supports Kora-owned files and one already registered/read-consented compatible profile instruction original, strict UTF-8 ≤64 KiB,
 original BOM/line endings/source preservation and the bounded v1 scalar metadata
 subset documented in [Definition Management](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
-Registered profile originals remain read-only in this increment. The native text
+The [selected-original operation](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original) consumes the existing dedicated Customizations source owner/writer; it cannot register a source or broaden consent. Native `kora-format: 1` only: unknown metadata and unsupported profiles are refused, not rewritten. Complete old/new comparison and separate Save confirmation precede optimistic same-file publication/readback; changed revisions remain disabled ([workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs)). The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
@@ -113,14 +115,15 @@ packages stay disabled, with separate existing review/enable/invoke. Original
 channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
-Broader conversational/package authoring, body dictation, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
+Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
 Production generation remains unavailable and rejected local candidates are not fallback providers. See [required native inputs](../docs/instruction-editor.md#prepare-required-native-prompt-inputs).
 The same per-kind owned editor now has bounded literal metadata search, observed-use filters and exact stale-safe row inspection; see [the native inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
 The native **Validate** button and exact `instructions validate` / `prompts validate` observe the open supported owned draft through the same Save preparation, counting BOM/native-marker overhead and checking existing structural/literal/namespace rules.
-Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); profile-original editing stays deferred.
+Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [owned draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); selected profile originals use their separate [bounded source-preserving operation](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original).
 Only explicit List/Refresh reads/reconciles existing sources. Search/filter/page changes are in-memory, preserve the original/draft and never activate or select another file automatically. Unknown metadata stays unavailable; observed catalogue state is not disk freshness. No profile/bundled inventory or authoring scope is added.
 The native **Save as new copy** increment copies only an inspected supported native owned source/current draft (instruction v1; prompt v1/v2) to a different same-kind owned ID.
 Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.

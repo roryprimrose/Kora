@@ -9,7 +9,7 @@ namespace Kora.Windows.Artifacts;
 
 public sealed partial class WindowsCustomizationStore
 {
-    private sealed class RegisteredInstruction(InstructionOriginalRegistration proposal, string directoryIdentity,
+    private sealed class RegisteredInstructionSource(InstructionOriginalRegistration proposal, string directoryIdentity,
         string directoryBinding, string fileIdentity)
     {
         internal InstructionOriginalRegistration Proposal { get; } = proposal;
@@ -18,7 +18,9 @@ public sealed partial class WindowsCustomizationStore
         internal string FileIdentity { get; set; } = fileIdentity;
     }
     private InstructionOriginalRegistration? pendingInstructionRegistration;
-    private RegisteredInstruction? registeredInstruction;
+    private RegisteredInstructionSource? registeredInstruction;
+
+    public InstructionOriginalRegistration? RegisteredInstruction => Volatile.Read(ref registeredInstruction)?.Proposal;
 
     private static bool IsInstructionOriginal(CustomizationSource source) =>
         source is { Kind: CustomizationKind.Instruction, Scope: CustomizationScope.User };
@@ -81,7 +83,7 @@ public sealed partial class WindowsCustomizationStore
         return target;
     }
 
-    private RegisteredInstruction RequireInstructionRegistration(Target target, CancellationToken token)
+    private RegisteredInstructionSource RequireInstructionRegistration(Target target, CancellationToken token)
     {
         var registration = Volatile.Read(ref registeredInstruction);
         if (registration?.Proposal.Source != target.Source)

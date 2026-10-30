@@ -86,6 +86,8 @@ A generic "yes", the model's answer or the original request cannot confirm.
 
 ## Recovery and availability
 
+After a confirmed registered change, [Undo the last settings change](settings.md#undo-the-last-registered-settings-change) offers one exact run-only preference restoration through separate review and confirmation. A model suggestion cannot invent the prior value or create undo authority; the host receipt and current authoritative writer decide eligibility ([undo owner](../src/Kora.Application/Configuration/RegisteredSettings/RegisteredSettingUndo.cs)).
+
 Review and cancellation never invoke a model, synthesize audio or replay an
 answer. Confirmed speech changes apply to the **next** eligible ordinary speech,
 not truncation or regeneration of the current answer. No system/device/call

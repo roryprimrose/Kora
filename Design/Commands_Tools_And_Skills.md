@@ -67,12 +67,12 @@ At composition, the embedded catalogue is combined with bounded compatible
 disk definitions. Kora-owned roaming `Skills`, `Instructions`, `Prompts`, and
 `Agents` folders and recognized VS Code and VS Code Insiders customization
 locations are read without whole-profile scanning or reparse traversal.
-Settings can register up to sixteen additional absolute directories for each
-artifact kind. Additional directories use the same patterns and processing
+Settings exposes the complete editable discovery list, initially populated with Kora, personal `.copilot/skills` and `.agents/skills`, and recognized editor locations. Removing a location disables its discovery without deleting files; an empty list stays empty after restart. Version-two additions migrate in memory to defaults plus additions, with version-three persistence only on an explicit write ([preferences](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).
+Each complete list is bounded to 32 absolute directories, preserving room for all 16 legacy additions alongside defaults; MCP remains bounded to 16 files. Additional directories use the same patterns and processing
 pipeline as default roots. Strict UTF-8, byte/file/depth bounds,
 frontmatter, skill folder/name agreement, `user-invocable`, and catalogue
 uniqueness are validated. Invalid or conflicting discovery fails closed.
-Kora watches default and configured roots, debounces disk notifications, builds
+Kora watches configured roots, debounces disk notifications, builds
 a complete candidate catalogue, and atomically publishes it only after every
 definition and cross-artifact uniqueness rule passes. Invalid intermediate or
 saved content leaves the last known-valid catalogue active and surfaces a
@@ -196,6 +196,12 @@ launch configuration, user-info, query strings and fragments. Ordinary metadata
 inspection still supports its existing stdio/HTTP shapes, but duplicate JSON
 fields now fail closed rather than selecting an ambiguous definition. A source
 revision or inclusion change requires fresh review and discovery.
+
+The [bounded source editor](Definition_Management.md#bounded-kora-owned-https-mcp-entry-editing) completes creation/editing
+of one Kora-owned canonical `Mcp\mcp.json` HTTPS entry through native URL/type fields, complete exact-entry review
+and a separate atomic Save confirmation/readback. It accepts a sole `servers` or `mcpServers` root collection and preserves all unrelated bytes.
+Saving disables the source and independently removes inclusion before publication; it grants no connection, account, capability, tool, egress or model authority.
+Personal/additional configuration, stdio and credential/authentication fields are not writable.
 
 The bounded protocol parser targets MCP `2025-06-18`, requires exact JSON-RPC
 correlation, and rejects paginated/oversize discovery and unsupported schemas.

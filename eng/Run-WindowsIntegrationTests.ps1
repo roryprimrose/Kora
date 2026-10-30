@@ -39,6 +39,9 @@ $definitionUiPrefixes = @(
     'Kora.Windows.IntegrationTests.SettingsSectionNavigationTests.'
     'Kora.Windows.IntegrationTests.SettingsResetMenuTests.'
     'Kora.Windows.IntegrationTests.SettingsSpecialistNavigationTests.'
+    'Kora.Windows.IntegrationTests.SessionRoutingTests.'
+    'Kora.Windows.IntegrationTests.PendingQuestionNavigationTests.'
+    'Kora.Windows.IntegrationTests.AllWorkWaitingQuestionNavigationTests.'
 )
 $nativeUiPrefixes = @(
     'Kora.Windows.IntegrationTests.NativeUx.'

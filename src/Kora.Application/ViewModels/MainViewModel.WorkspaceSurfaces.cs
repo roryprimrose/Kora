@@ -38,7 +38,7 @@ public sealed partial class MainViewModel
             && captured.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
             && captured.InputRevision == (originalInput is null ? revision : revision - 1);
         bool Admitted() => initiallyAdmitted && captured.Eligible() && !IsProtectedCall
-            && (command.Target != WorkspaceSurfaceTarget.OpenNamedConversation || CanEnterRetainedAnswerRead)
+            && (command.Target is not (WorkspaceSurfaceTarget.OpenNamedConversation or WorkspaceSurfaceTarget.ObservedResult) || CanEnterRetainedAnswerRead)
             && (command.Target != WorkspaceSurfaceTarget.WaitingQuestions || WaitingInputCurrent())
             && captured.Revision == CallPolicyRevision && owner == auditImpactOwnerRevision()
             && revision == Interlocked.Read(ref workspaceSurfaceInputRevision)
@@ -55,7 +55,7 @@ public sealed partial class MainViewModel
             return;
         }
         await HostRequestRunner.RunAsync(origin, () => handler(new(command.Target, Admitted, command.SessionPosition,
-            command.ConversationName, origin)));
+            command.ConversationName, origin, command.ObservationName)));
     }
 
     private async Task ReadWaitingQuestionsAsync(Func<WorkspaceSurfaceNavigation, Task> handler,

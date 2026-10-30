@@ -77,6 +77,8 @@ public sealed partial class MainViewModel
 
     private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key)
     {
+        Interlocked.Increment(ref completionPromptRevision);
+        completionNotices?.Revalidate();
         RetirePromptInputVoice();
         RetireComposerDictation();
     }

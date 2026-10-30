@@ -592,9 +592,17 @@ exact complete snapshot/save confirmations, explicit native inspection and
 `lexical-lines-v1` retrieval, reviewed refresh, disable and inventoried removal.
 The [user guide](../docs/knowledge-sources.md) describes current limits and recovery.
 
-This increment reuses the existing nonrecursive immediate-file folder policy:
-32 UTF-8 text/Markdown files, 256 KiB each and 1 MiB combined, with whole-source
-rejection rather than silent exclusions. Up to 16 names are retained in a new
+Immediate-file capture remains the default and preserves the existing volatile
+folder policy. Named sources separately support explicit bounded descendant
+consent before discovery: 32 UTF-8 text/Markdown files across the whole tree,
+256 KiB each, 1 MiB combined, 32 directories including root/empty nodes and
+depth 4 (root depth 0). Discovery, capture, save and inspection each have a
+30-second work deadline. Every directory/file native identity and complete
+membership is retained/revalidated; any forbidden, inaccessible, unstable or
+over-bound member rejects the whole source, without silent exclusions
+([typed policy](../src/Kora.Core/KnowledgeSources/KnowledgeSourcePolicy.cs),
+[native traversal](../src/Kora.Windows/Context/WindowsLocalFileInspector.KnowledgeSources.cs)).
+Up to 16 names are retained in the existing
 private `KnowledgeSourcesV1` partition supplied by `IApplicationDataPaths`.
 It does not change the shared interaction schema or store raw content in
 preferences. Publication binds complete metadata and encrypted original-byte
@@ -606,7 +614,27 @@ Old revisions become unavailable when refresh starts, including failed refresh.
 Adding, refreshing and enabling are not model consent. Model/source-use
 qualification and hosted disclosure remain unavailable; the sibling volatile
 folder-answer route is independent. This native lifecycle does not claim voice
-commands, recursive sources, embeddings, OCR, watchers or original-file deletion.
+commands, embeddings, OCR, watchers or original-file deletion.
+
+The [named manager](../src/Kora.Application/KnowledgeSources/KnowledgeSourceManager.cs)
+pins refresh to the registered physical root and exact traversal policy.
+Revocation is joined before cancellable discovery; cancel/failure never revives
+old use. A scope change requires removal and a complete fresh add/read/save review.
+The [version-2 snapshot format](../src/Kora.Windows/KnowledgeSources/WindowsKnowledgeSourceStore.Snapshot.cs)
+retains directory inventory, traversal consent and immutable revision/item
+identities in the same bounded private partition. Legacy version-1 immediate
+snapshots retain their existing meaning/identities/limits; unknown or malformed
+versions fail closed, never as a fresh empty store.
+
+The [native source surface](../src/Kora/KnowledgeSources/KnowledgeSourcesWindow.cs)
+reviews complete root-relative membership before read, then separately confirms
+the exact captured snapshot before save. Restart inspection/search only uses
+the retained enabled revision with fresh complete access/membership admission.
+One [shared lexical kernel](../src/Kora.Core/Context/LocalFileLexicalRetrieval.cs)
+enforces global ranking and 8-citation/16-KiB excerpt budgets across all branches.
+Citation navigation selects the exact retained root-relative item/digest/UTF-16
+span, never a newer disk read. This is source-lifecycle implementation, not
+named-source model-use or provider/installed/accessibility qualification.
 
 ### Adding a source
 

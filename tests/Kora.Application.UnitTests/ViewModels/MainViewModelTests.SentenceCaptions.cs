@@ -105,7 +105,8 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().BeNull();
         var first = map.Sentences[0];
-        frame = frame with { Sentence = new(first.Index, first.Start, first.Length, TimeSpan.Zero, TimeSpan.Zero, TimeSpan.FromSeconds(9)) };
+        frame = frame with { Sentence = new(new(new(id!.Value, 4), first.Start, first.Length, TimeSpan.Zero),
+            TimeSpan.Zero, TimeSpan.FromSeconds(9)) };
         fixture.TextToSpeech.PlaybackFrame = frame;
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().Be(unavailable ? null : map.GetText(first));
@@ -113,7 +114,8 @@ public sealed partial class MainViewModelTests
         var next = map.Sentences[1];
         fixture.TextToSpeech.PlaybackFrame = frame with
         {
-            Sentence = new(next.Index, next.Start, next.Length, TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(9)),
+            Sentence = new(new(new(id.Value, 4), next.Start, next.Length, TimeSpan.FromSeconds(2)),
+                TimeSpan.FromSeconds(2), TimeSpan.FromSeconds(9)),
         };
         fixture.ViewModel.RefreshSpeechPlaybackFrame();
         fixture.ViewModel.SpeechCaptionText.Should().Be(unavailable ? null : map.GetText(next));

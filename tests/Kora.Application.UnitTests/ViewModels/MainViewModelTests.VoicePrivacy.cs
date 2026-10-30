@@ -1625,11 +1625,11 @@ public sealed partial class MainViewModelTests
         if (string.Equals(proposal, "grant", StringComparison.Ordinal))
         {
             fixture.Reasoner.GrantChange = new GrantChange(
-                GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always);
+                GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
         }
         else
         {
-            fixture.Reasoner.Action = BuiltInAction.LockMachine;
+            fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         }
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.SpeakGate = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -1655,6 +1655,7 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.SpeakGate.TrySetResult();
         await fixture.ViewModel.ActiveReasoningTask!;
 
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
@@ -1670,11 +1671,11 @@ public sealed partial class MainViewModelTests
         switch (proposal)
         {
             case "action":
-                fixture.Reasoner.Action = BuiltInAction.LockMachine;
+                fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
                 break;
             case "grant":
                 fixture.Reasoner.GrantChange = new GrantChange(
-                    GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Always);
+                    GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Always);
                 break;
             case "question":
                 fixture.Reasoner.Question = new LocalModelQuestion("Which option?", ["One", "Two"]);
@@ -1689,6 +1690,7 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.PrivacyClosureTask;
 
         fixture.ViewModel.IsResponseInteractionPending.Should().BeFalse();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 

@@ -11,7 +11,7 @@ using Kora.Core.Customizations;
 
 namespace Kora;
 
-internal sealed class CustomizationWindow : Window
+internal sealed partial class CustomizationWindow : Window
 {
     private static readonly (CustomizationKind Kind, string Label)[] kindOptions =
     [
@@ -65,7 +65,12 @@ internal sealed class CustomizationWindow : Window
         Width = 1240; Height = 840; MinWidth = 900; MinHeight = 600;
         var root = new Grid { ColumnDefinitions = new("150,320,*"), Margin = new(16), ColumnSpacing = 16 };
         root.Children.Add(Kinds);
-        Kinds.SelectionChanged += (_, _) => run("Filter");
+        Kinds.SelectionChanged += (_, _) =>
+        {
+            Destination.IsEnabled = Kind != CustomizationKind.McpServer;
+            if (Kind == CustomizationKind.McpServer) { Destination.SelectedItem = CustomizationScope.Kora; }
+            run("Filter");
+        };
         var browse = new DockPanel();
         var browseTop = new StackPanel { Spacing = 8 };
         browseTop.Children.Add(new TextBlock { Text = "Customizations", FontSize = 22, FontWeight = FontWeight.SemiBold });
@@ -92,7 +97,7 @@ internal sealed class CustomizationWindow : Window
         foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
             "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
         { AddButton(sourceActions, action, action, run); }
-        header.Children.Add(sourceActions); header.Children.Add(Files);
+        header.Children.Add(sourceActions); header.Children.Add(Files); header.Children.Add(McpFields);
         var components = new WrapPanel();
         components.Children.Add(FileName);
         foreach (var action in new[] { "Add file", "Rename file", "Remove file" }) { AddButton(components, action, action, run); }
@@ -119,6 +124,7 @@ internal sealed class CustomizationWindow : Window
         AutomationProperties.SetName(NewName, "New artifact ID");
         AutomationProperties.SetName(Destination, "New artifact destination");
         AutomationProperties.SetName(Status, "Customization operation status and recovery");
+        BindMcpFields(run);
         AutomationProperties.SetLiveSetting(Status, AutomationLiveSetting.Polite);
         SetSource(null, false);
         Deactivated += (_, _) => { if (!openingReview && review?.IsActive != true) { PresentationLost?.Invoke(); } };
@@ -139,7 +145,9 @@ internal sealed class CustomizationWindow : Window
     internal void SetSource(CustomizationSource? source, bool recovery, bool originalRegistered = true)
     {
         var original = source is { Kind: CustomizationKind.Instruction, Scope: CustomizationScope.User };
-        var writable = source is { IsReadOnly: false } && (!original || originalRegistered);
+        var mcp = source?.Kind == CustomizationKind.McpServer;
+        var writable = source is { IsReadOnly: false } && (!original || originalRegistered)
+            && (!mcp || source.Scope == CustomizationScope.Kora);
         actions["Review original registration"].IsEnabled = original;
         actions["Withdraw original registration"].IsEnabled = original && originalRegistered;
         actions["Compare external"].IsEnabled = original && originalRegistered;
@@ -147,21 +155,25 @@ internal sealed class CustomizationWindow : Window
         Editor.IsReadOnly = !writable || recovery;
         actions["Review and save"].IsEnabled = writable;
         actions["Reload"].IsEnabled = writable;
-        actions["Create Kora copy"].IsEnabled = source is not null && !recovery;
+        actions["Create Kora copy"].IsEnabled = source is not null && !recovery && !mcp;
         actions["Disable"].IsEnabled = source is not null;
         actions["Enable"].IsEnabled = source is not null && !recovery;
-        actions["Review recovery"].IsEnabled = writable;
+        actions["Review recovery"].IsEnabled = writable && !mcp;
         actions["Add file"].IsEnabled = components;
         actions["Rename file"].IsEnabled = components && !string.Equals(Files.SelectedItem as string, source?.PrimaryFile, StringComparison.Ordinal);
         actions["Remove file"].IsEnabled = actions["Rename file"].IsEnabled;
-        actions["Refine"].IsEnabled = writable && !recovery;
+        actions["Refine"].IsEnabled = writable && !recovery && !mcp;
         var prompt = source?.Kind == CustomizationKind.Prompt;
         RequiredPromptInputs.IsVisible = prompt;
         RequiredPromptInputs.IsEnabled = prompt && writable && !recovery && source?.Scope == CustomizationScope.Kora;
         actions["Cancel prompt authoring"].IsVisible = prompt;
         if (prompt && source?.Scope != CustomizationScope.Kora) { actions["Refine"].IsEnabled = false; }
         FileName.IsEnabled = components;
-        Request.IsEnabled = writable && !recovery;
+        Request.IsEnabled = writable && !recovery && !mcp;
+        Editor.IsVisible = !mcp;
+        Files.IsVisible = !mcp;
+        McpFields.IsVisible = mcp && writable;
+        McpFields.IsEnabled = writable && !recovery;
     }
 
     internal void ShowSources(IReadOnlyList<CustomizationSource> sources, Func<CustomizationSource, bool> disabled, Action<CustomizationSource> select)
@@ -293,6 +305,7 @@ internal sealed class CustomizationWindow : Window
     {
         CancelReview();
         Editor.Text = string.Empty; Request.Text = string.Empty; NewName.Text = string.Empty; RequiredPromptInputs.Text = string.Empty;
+        McpUrl.Text = string.Empty; McpHttpType.IsChecked = false;
         FileName.Text = string.Empty; Search.Text = string.Empty;
         Details.Text = string.Empty; Status.Text = string.Empty; VoiceContext.Text = string.Empty;
         Files.ItemsSource = null; catalogue.Children.Clear(); SelectedSource = null;

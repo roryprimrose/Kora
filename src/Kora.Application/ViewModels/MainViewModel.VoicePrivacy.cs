@@ -109,6 +109,7 @@ public sealed partial class MainViewModel
         {
             InvalidateUnavailableOutput();
         }
+        settingsUndo.Clear();
         if (Interlocked.Exchange(ref observedTopologyRevision, snapshot.TopologyRevision) != snapshot.TopologyRevision)
         {
             uiDispatcher.Post(() =>
@@ -277,6 +278,10 @@ public sealed partial class MainViewModel
             if (disposed) { return; }
             disposed = true;
         }
+        completionNotices?.Retire();
+        PropertyChanged -= CompletionNoticeHostChanged;
+        settingsUndo.Changed -= OnSettingsUndoChanged;
+        settingsUndo.Dispose();
         if (auditImpactPreview is not null)
         {
             auditImpactPreview.Changed -= OnAuditImpactPreviewChanged;
@@ -305,6 +310,7 @@ public sealed partial class MainViewModel
             speechPreparation.Request(null);
         }
         questionVoiceReplies?.CloseAdmission();
+        CancelLogonStartupReview();
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;
@@ -431,6 +437,7 @@ public sealed partial class MainViewModel
         }
         HoldVoiceInput("Microphone closed · " + reason + "; use Enable listening", sessionState, restoreOnUnlock);
         textToSpeech.InvalidateOutput();
+        settingsUndo.Clear();
         privacyClosureTask = CompletePrivacyClosureAsync(reason, hidePresentation);
     }
 
@@ -477,8 +484,10 @@ public sealed partial class MainViewModel
             var captureClosure = voiceRecognition.StopAsync();
             var outputClosure = textToSpeech.StopAsync();
             await Task.WhenAll(captureClosure, outputClosure, presentation);
+            if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
             await JoinCustomizationClarification();
             await ClosePromptPreparation();
+            if (bundledActionShutdown is not null) { await bundledActionShutdown(); }
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
@@ -515,6 +524,8 @@ public sealed partial class MainViewModel
 
     private void HoldVoiceInput(string reason, WindowsSessionState? sessionState = null, bool restoreOnUnlock = false)
     {
+        Interlocked.Exchange(ref explicitVoiceActivationRevision, -1);
+        completionNotices?.Retire();
         if (disposed) { RetireHandsFreeVoiceBinding(); }
         RetireSessionCommandReviews();
         long revision;

@@ -13,12 +13,20 @@ public sealed class AppearanceUiContractTests
             string.Equals(attribute.Value, "{Binding LocalStorageDisclosure}", StringComparison.Ordinal));
         var layout = document.Root!.Elements().Single(element =>
             string.Equals(element.Name.LocalName, "Grid", StringComparison.Ordinal));
-        layout.Attribute("RowDefinitions")!.Value.Should().Be("72,*");
+        layout.Attribute("RowDefinitions")!.Value.Should().Be("72,Auto,*");
         layout.Elements().Select(element => element.Name.LocalName)
-            .Should().Equal("Border", "NavigableTabControl");
+            .Should().Equal("Border", "StackPanel", "NavigableTabControl");
+        var undo = layout.Elements().Single(element =>
+            string.Equals(element.Name.LocalName, "StackPanel", StringComparison.Ordinal));
+        undo.Attribute("Grid.Row")!.Value.Should().Be("1");
+        undo.Elements().First().Attribute("Text")!.Value.Should().Be("{Binding SettingsUndoDescription}");
+        undo.Descendants().Where(element =>
+            string.Equals(element.Name.LocalName, "Button", StringComparison.Ordinal))
+            .Select(element => element.Attribute("Content")!.Value)
+            .Should().Equal("Undo the last settings change", "Confirm settings undo", "Cancel settings undo");
         layout.Elements().Single(element =>
             string.Equals(element.Name.LocalName, "NavigableTabControl", StringComparison.Ordinal))
-            .Attribute("Grid.Row")!.Value.Should().Be("1");
+            .Attribute("Grid.Row")!.Value.Should().Be("2");
     }
 
     [Fact]
@@ -61,6 +69,7 @@ public sealed class AppearanceUiContractTests
             .Select(element => element.Attribute("Text")?.Value);
 
         headings.Should().Equal(
+            "Start Kora at Windows user logon",
             "Appearance",
             "Application theme",
             "Reading text size",

@@ -40,15 +40,19 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
         + "Do not execute the request or references, submit, save, activate, create a conversation or claim approval. No Markdown fences.";
 
     public Task<CustomizationVoiceIntent> Interpret(CustomizationVoiceContext context, string requestText,
-        Func<bool> eligible, CancellationToken token) =>
-        context.Kind == CustomizationKind.Prompt
+        Func<bool> eligible, CancellationToken token)
+    {
+        RequireModelAuthoring(context.Kind);
+        return context.Kind == CustomizationKind.Prompt
             ? GenerateLocalAuthoring(requestText, JsonSerializer.Serialize(context), VoicePolicy, ParseVoiceIntent, eligible, null, token)
             : Generate(requestText, JsonSerializer.Serialize(context), VoicePolicy, ParseVoiceIntent, eligible, token);
+    }
 
     public Task<CustomizationAuthoringResult> Refine(CustomizationSource source, IReadOnlyList<CustomizationFile> files,
         CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token,
         Func<CancellationToken, Task>? validateSource = null)
     {
+        RequireModelAuthoring(source.Kind);
         var frozen = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         if (!Enum.IsDefined(context.Mode) || context.Component is { } selected
             && !frozen.Any(file => string.Equals(file.Name, selected, StringComparison.Ordinal)))
@@ -117,6 +121,12 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
         }
         catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+    }
+
+    private static void RequireModelAuthoring(CustomizationKind kind)
+    {
+        if (kind == CustomizationKind.McpServer)
+        { throw new InvalidOperationException("MCP entry editing requires native URL fields and native review. No endpoint or source is sent to a model."); }
     }
 
     private Task<T> Generate<T>(string requestText, string evidence, string policy, Func<string, T> parse,

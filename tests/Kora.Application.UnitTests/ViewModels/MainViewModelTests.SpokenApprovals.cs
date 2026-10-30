@@ -41,7 +41,7 @@ public sealed partial class MainViewModelTests
         f.Voice.Microphones = [new MicrophoneDevice("fixture", "Synthetic microphone")];
         f.Voice.DefaultMicrophoneId = "fixture";
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        f.Reasoner.Action = BuiltInAction.LockMachine;
+        f.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await f.ViewModel.InitializeAsync();
         f.CallState.SetState(CallState.Active);
         await f.ViewModel.CallClosureTask;
@@ -49,11 +49,13 @@ public sealed partial class MainViewModelTests
         await f.ViewModel.ActiveReasoningTask!;
         f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         await f.RaiseActivatedTranscriptAsync("Kora, approve once", 0.9f);
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         f.ViewModel.ResponseTitle.Should().Contain("Spoken approvals disabled");
         await f.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        f.Session.LockCalls.Should().Be(1);
+        f.ViewModel.HostedModelsEnabled.Should().Be(true);
+        f.Session.LockCalls.Should().Be(0);
         f.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
     }
     [Fact]

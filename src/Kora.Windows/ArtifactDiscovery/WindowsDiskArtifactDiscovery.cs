@@ -20,7 +20,8 @@ public sealed class WindowsDiskArtifactDiscovery
         : this(CreateRoots(
             paths,
             additionalDirectories ?? ArtifactDirectorySettings.Empty,
-            profileRoamingRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData)))
+            profileRoamingRoot ?? Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
+            Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)))
     {
         this.ownedInstructions = ownedInstructions ?? new WindowsOwnedInstructionStore(paths);
         this.ownedPrompts = ownedPrompts ?? new WindowsOwnedInstructionStore(paths, ArtifactKind.Prompt);
@@ -30,8 +31,9 @@ public sealed class WindowsDiskArtifactDiscovery
         IApplicationDataPaths paths,
         ArtifactDirectorySettings additionalDirectories,
         string profileRoamingRoot,
-        WindowsOwnedInstructionStore? ownedInstructions = null)
-        : this(CreateRoots(paths, additionalDirectories, profileRoamingRoot))
+        WindowsOwnedInstructionStore? ownedInstructions = null,
+        string? userProfileRoot = null)
+        : this(CreateRoots(paths, additionalDirectories, profileRoamingRoot, userProfileRoot ?? profileRoamingRoot))
     {
         this.ownedInstructions = ownedInstructions;
     }
@@ -109,7 +111,8 @@ public sealed class WindowsDiskArtifactDiscovery
     private static ArtifactRoot[] CreateRoots(
         IApplicationDataPaths paths,
         ArtifactDirectorySettings additionalDirectories,
-        string profileRoamingRoot)
+        string profileRoamingRoot,
+        string userProfileRoot)
     {
         ArgumentNullException.ThrowIfNull(paths);
         ArgumentNullException.ThrowIfNull(additionalDirectories);
@@ -120,6 +123,10 @@ public sealed class WindowsDiskArtifactDiscovery
             new(Path.Combine(paths.RoamingRoot, "Instructions"), ArtifactKind.Instruction, "kora-profile", "*.instructions.md", 0),
             new(Path.Combine(paths.RoamingRoot, "Prompts"), ArtifactKind.Prompt, "kora-profile", "*.prompt.md", 0),
             new(Path.Combine(paths.RoamingRoot, "Agents"), ArtifactKind.Agent, "kora-profile", "*.agent.md", 0),
+            new(Path.Combine(userProfileRoot, ".copilot", "skills"),
+                ArtifactKind.Skill, "copilot-profile", "SKILL.md", 3),
+            new(Path.Combine(userProfileRoot, ".agents", "skills"),
+                ArtifactKind.Skill, "agents-profile", "SKILL.md", 3),
             new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Prompt, "vscode-profile", "*.prompt.md", 0),
             new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Instruction, "vscode-profile", "*.instructions.md", 0),
             new(Path.Combine(profileRoamingRoot, "Code", "User", "prompts"), ArtifactKind.Agent, "vscode-profile", "*.agent.md", 0),
@@ -133,6 +140,11 @@ public sealed class WindowsDiskArtifactDiscovery
             new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "profiles"), ArtifactKind.Instruction, "vscode-insiders-profile", "*.instructions.md", 2),
             new(Path.Combine(profileRoamingRoot, "Code - Insiders", "User", "profiles"), ArtifactKind.Agent, "vscode-insiders-profile", "*.agent.md", 2),
         ];
+        if (!additionalDirectories.UseDefaultDirectories)
+        {
+            discoveredRoots.RemoveAll(root => !additionalDirectories.GetDirectories(root.Kind)
+                .Contains(root.Path, StringComparer.OrdinalIgnoreCase));
+        }
         discoveredRoots.AddRange(CreateAdditionalRoots(additionalDirectories));
         return discoveredRoots
             .GroupBy(root => $"{root.Kind}\0{root.Path}", StringComparer.OrdinalIgnoreCase)

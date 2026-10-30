@@ -27,6 +27,58 @@ namespace Kora.Windows.IntegrationTests.ArtifactDiscovery;
 
 public sealed partial class CustomizationWindowTests
 {
+    [Fact]
+    public Task PromptAndMcpControlsRetainSeparateAuthoringAuthorityAndClearAllPrivateFields() =>
+        HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            using var f = new NativeUxFixtureSession(parent);
+            await f.InitializeAsync();
+            var window = new CustomizationWindow(_ => { }, f.Main);
+            try
+            {
+                window.Show();
+                var source = new CustomizationSource("file.example", CustomizationKind.Prompt, CustomizationScope.Kora,
+                    "example", "owned", "example.prompt.md");
+                var refine = window.GetVisualDescendants().OfType<Button>()
+                    .Single(button => Equals(button.Content, "Ask Kora (review local disclosure)"));
+                var cancel = window.GetVisualDescendants().OfType<Button>()
+                    .Single(button => Equals(button.Content, "Cancel prompt authoring"));
+                window.SetSource(source, false);
+                refine.IsEnabled.Should().BeTrue();
+                window.RequiredPromptInputs.IsVisible.Should().BeTrue();
+                window.RequiredPromptInputs.IsEnabled.Should().BeTrue();
+                cancel.IsVisible.Should().BeTrue();
+                window.RequiredPromptInputs.Text = "topic,audience";
+                window.Editor.Text = "Private prompt source";
+                window.Request.Text = "Private original request";
+
+                window.SetSource(source with { Scope = CustomizationScope.User }, false);
+                refine.IsEnabled.Should().BeFalse();
+                window.RequiredPromptInputs.IsEnabled.Should().BeFalse();
+                window.SetSource(source, true);
+                refine.IsEnabled.Should().BeFalse();
+                window.RequiredPromptInputs.IsEnabled.Should().BeFalse();
+
+                window.SetSource(source with { Kind = CustomizationKind.McpServer }, false);
+                refine.IsEnabled.Should().BeFalse();
+                window.Request.IsEnabled.Should().BeFalse();
+                window.RequiredPromptInputs.IsVisible.Should().BeFalse();
+                cancel.IsVisible.Should().BeFalse();
+                window.Editor.IsVisible.Should().BeFalse();
+                window.McpUrl.Text = "https://private.invalid/mcp";
+                window.McpHttpType.IsChecked = true;
+                window.ClearPrivateText();
+                window.Editor.Text.Should().BeEmpty();
+                window.Request.Text.Should().BeEmpty();
+                window.RequiredPromptInputs.Text.Should().BeEmpty();
+                window.McpUrl.Text.Should().BeEmpty();
+                window.McpHttpType.IsChecked.Should().BeFalse();
+            }
+            finally { window.Close(); }
+        });
+
     [Theory]
     [InlineData("save")]
     [InlineData("voice")]

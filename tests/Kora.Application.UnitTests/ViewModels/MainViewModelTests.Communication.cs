@@ -216,22 +216,25 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.LockMachine]));
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
+        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.EnableHostedModels]));
         await fixture.ViewModel.InitializeAsync();
         fixture.CallState.SetState(CallState.Unknown);
         await fixture.RunAsync("please secure this computer");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         fixture.ViewModel.AlwaysAllowedModelActions.Should().ContainSingle();
         fixture.ViewModel.GetGrantDocument().Should().NotContain("Ignored during call");
         fixture.CallState.SetState(CallState.Clear);
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         await fixture.RunAsync("please secure this computer");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(2);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
     }
 
     [Fact]
@@ -347,7 +350,8 @@ public sealed partial class MainViewModelTests
         fixture.TextToSpeech.BeforeStop = () => fixture.CallState.SetState(CallState.Unknown);
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(action == BuiltInAction.LockMachine ? 1 : 0);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(action == BuiltInAction.EnableHostedModels);
+        fixture.Session.LockCalls.Should().Be(0);
         if (action == BuiltInAction.RestartApplication) { fixture.Events.Should().Contain("process.restart"); }
         fixture.Audit.Events.Should().NotContain(e => e.Outcome == SecurityAuditOutcome.Denied && e.ReasonCode == "call-policy-changed");
     }
@@ -367,8 +371,16 @@ public sealed partial class MainViewModelTests
         await fixture.ViewModel.ActiveReasoningTask!;
         fixture.Session.LockCalls.Should().Be(0);
         fixture.Events.Should().NotContain("process.restart");
-        fixture.Audit.Events.Should().Contain(entry => entry.Outcome == SecurityAuditOutcome.Denied
-            && entry.ReasonCode == "host-admission-changed");
+        if (action == BuiltInAction.LockMachine)
+        {
+            fixture.ViewModel.ResponseBody.Should().Contain("Exact Lock admission is unavailable");
+            fixture.Audit.Events.Should().NotContain(item => item.ActionId == "session.lock");
+        }
+        else
+        {
+            fixture.Audit.Events.Should().Contain(entry => entry.Outcome == SecurityAuditOutcome.Denied
+                && entry.ReasonCode == "host-admission-changed");
+        }
     }
 
     [Theory]
@@ -378,8 +390,8 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.LockMachine]));
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
+        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.EnableHostedModels]));
         await fixture.ViewModel.InitializeAsync();
         fixture.ViewModel.PropertyChanged += (_, args) =>
         {
@@ -392,7 +404,8 @@ public sealed partial class MainViewModelTests
         };
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
-        fixture.Session.LockCalls.Should().Be(ownershipLost ? 0 : 1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(!(ownershipLost));
+        fixture.Session.LockCalls.Should().Be(0);
         if (ownershipLost) { fixture.ViewModel.ResponseTitle.Should().Be("Saved permission is not eligible."); }
     }
 
@@ -401,7 +414,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -411,7 +424,8 @@ public sealed partial class MainViewModelTests
                 && !fixture.ViewModel.IsModelActionApprovalPending) { fixture.CallState.SetState(CallState.Active); }
         };
         await fixture.ViewModel.ApproveModelActionCommand.ExecuteAsync();
-        fixture.Session.LockCalls.Should().Be(1);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(true);
+        fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
     }
@@ -504,13 +518,15 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
-        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.LockMachine]));
+        fixture.Reasoner.Action = BuiltInAction.RestartApplication;
+        fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.RestartApplication]));
         await fixture.ViewModel.InitializeAsync();
         fixture.TextToSpeech.BeforeStop = () => fixture.ViewModel.BindCallOwnershipGate(static () => false);
         await fixture.RunAsync("carry out the requested action");
         await fixture.ViewModel.ActiveReasoningTask!;
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
+        fixture.Events.Should().NotContain("process.restart");
         fixture.Audit.Events.Should().Contain(e => e.Outcome == SecurityAuditOutcome.Denied);
     }
 }

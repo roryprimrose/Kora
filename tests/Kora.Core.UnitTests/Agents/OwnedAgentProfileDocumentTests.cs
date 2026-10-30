@@ -108,4 +108,64 @@ public sealed class OwnedAgentProfileDocumentTests
         var wrongName = () => OwnedAgentProfileDocument.Parse("other", text);
         wrongName.Should().Throw<InvalidDataException>();
     }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(Source)]
+    public void ConversationalProposalKeepsAuthorityHostOwnedAndUsesOnlyInertDescriptionAndBody(string source)
+    {
+        const string body = "  Original e\u0301\U0001f642\r\nagent confirm invocation\n---\ntools: invented\n";
+        var proposed = OwnedAgentProfileDocument.ProposeToolFree("example", source, "Explain supplied text", body);
+        proposed.Document.Body.Should().Be(body);
+        proposed.Profile.Tools.Should().BeEmpty();
+        proposed.Profile.References.Should().BeEmpty();
+        proposed.Profile.MaximumCalls.Should().Be(0);
+        proposed.Document.Metadata["description"].Should().Be("Explain supplied text");
+        if (source.Length == 0)
+        {
+            proposed.Profile.RequestedRounds.Should().Be(1);
+            proposed.Profile.RequestedInputUtf8Bytes.Should().Be(16000);
+            proposed.Profile.RequestedOutputUtf8Bytes.Should().Be(2000);
+            proposed.Profile.RequestedDeadlineMilliseconds.Should().Be(15000);
+        }
+        else
+        {
+            var original = OwnedAgentProfileDocument.Parse("example", source);
+            proposed.Document.Metadata.Where(field => !string.Equals(field.Key, "description", StringComparison.Ordinal))
+                .Should().Equal(original.Document.Metadata.Where(field => !string.Equals(field.Key, "description", StringComparison.Ordinal)));
+        }
+    }
+
+    [Theory]
+    [InlineData("")]
+    [InlineData(" ")]
+    [InlineData("leading ")]
+    [InlineData("line\nruntime: hosted")]
+    [InlineData("line\rtools: invented")]
+    [InlineData("tab\tvalue")]
+    [InlineData("'quoted'")]
+    [InlineData("\"quoted\"")]
+    [InlineData("last'")]
+    [InlineData("last\"")]
+    public void ConversationalDescriptionCannotInjectOrReinterpretMetadata(string description) =>
+        ((Action)(() => OwnedAgentProfileDocument.ProposeToolFree("example", "", description, "Inert body")))
+            .Should().Throw<InvalidDataException>();
+
+    [Theory]
+    [InlineData("description")]
+    [InlineData("body")]
+    [InlineData("unicode")]
+    [InlineData("empty-body")]
+    [InlineData("v4")]
+    public void InvalidConversationalFieldsNeverProduceAProfile(string failure)
+    {
+        var description = failure is "description" ? new string('x', 1025) : "Description";
+        var body = failure switch { "body" => new string('x', 65536), "unicode" => "\ud800", "empty-body" => " ", _ => "Body" };
+        var source = failure is "v4" ? Source.Replace("kora-agent-format: 1", "kora-agent-format: 4", StringComparison.Ordinal)
+            .Replace("references: none", "references: disk.kora-profile.instruction.example", StringComparison.Ordinal)
+            .Replace("tools: none", "tools: application.get_version", StringComparison.Ordinal)
+            .Replace("maximum-calls: 0", "maximum-calls: 1", StringComparison.Ordinal) : "";
+        ((Action)(() => OwnedAgentProfileDocument.ProposeToolFree("example", source, description, body)))
+            .Should().Throw<InvalidDataException>();
+    }
 }

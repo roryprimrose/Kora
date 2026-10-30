@@ -114,7 +114,7 @@ public sealed partial class MainViewModelTests
         fixture.AuditPreferences.Pending = false;
         fixture.AuditPreferences.AfterWrite = null;
         fixture.Probe.Status = new("local.inference", "Local model inference (Ollama)", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock this workstation please");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -122,6 +122,7 @@ public sealed partial class MainViewModelTests
         await fixture.RunAsync("reset " + AuditRetentionCommand.OptionId);
         fixture.ViewModel.ResponseBody.Should().Be(preview);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         typeof(Kora.Application.ViewModels.MainViewModel).GetMethod("PresentAuditRetentionFailure",
             System.Reflection.BindingFlags.Instance | System.Reflection.BindingFlags.NonPublic)!

@@ -58,7 +58,7 @@ public sealed partial class HostAuthorizationService
         if (!Eligible(snapshot, request))
         { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
         var observed = ObserveContent(snapshot, request).Item1;
-        var grant = observed.Grants.FirstOrDefault(item => Matches(observed, request, item));
+        var grant = FindApplicableGrant(observed, request);
         var mandatoryConfirmation = independentConsentRequired || observed.Proposal!.Effect == HostOperationEffect.VoiceOrCallSettings;
         if (grant is not null && !mandatoryConfirmation)
         { return Consume(observed, request, grant.Id, grant.Revision); }
@@ -76,6 +76,9 @@ public sealed partial class HostAuthorizationService
         }
         return Present(observed, request);
     }
+
+    private OperationGrant? FindApplicableGrant(HostInteractionSnapshot snapshot, HostRequest request) =>
+        snapshot.Grants.FirstOrDefault(item => Matches(snapshot, request, item));
 
     private bool Matches(HostInteractionSnapshot snapshot, HostRequest request, OperationGrant grant) =>
         grant.Status == OperationGrantStatus.Active && grant.ApprovedProposal.Binding == snapshot.Proposal!.Binding

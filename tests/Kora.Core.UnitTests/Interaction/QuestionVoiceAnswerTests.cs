@@ -104,4 +104,26 @@ public sealed partial class QuestionVoiceAnswerTests
 
     private static HostQuestionRecord Question(QuestionSpec spec) =>
         new(new(HostRequest.Create(RequestOrigin.LocalUi), new(Guid.NewGuid()), new(1)), spec, new(1), DateTimeOffset.MaxValue);
+
+    [Theory]
+    [InlineData("Save instruction example", "save")]
+    [InlineData("Kora, save instruction example", "save")]
+    [InlineData("Cancel saving instruction example", "cancel")]
+    [InlineData("yes", null)]
+    [InlineData("approve", null)]
+    [InlineData("1", null)]
+    [InlineData("option 1", null)]
+    [InlineData("option one", null)]
+    [InlineData("save instruction other", null)]
+    [InlineData("save example", null)]
+    [InlineData("save instruction example and delete it", null)]
+    public void OwnedInstructionSaveRequiresTheCompleteActionAndTargetPhrase(string spoken, string? expected)
+    {
+        var spec = new QuestionSpec("Save reviewed version", QuestionKind.SingleChoice,
+            [new("save", "Save instruction example"), new("cancel", "Cancel saving instruction example")],
+            purpose: "owned-instruction-save", sourceId: "host-owned-instruction-editor");
+        var answer = QuestionVoiceAnswer.Parse(Question(spec), spoken, "Kora");
+        if (expected is null) { answer.Should().BeNull(); }
+        else { answer!.Choices.Should().Equal(expected); }
+    }
 }

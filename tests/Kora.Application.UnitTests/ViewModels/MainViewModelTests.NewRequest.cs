@@ -137,12 +137,12 @@ public sealed partial class MainViewModelTests
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local", DependencyReadiness.Ready, "Ready");
         if (pending is "question") { f.Reasoner.Question = new("Keep this exact choice?", ["One", "Two"]); }
-        if (pending is "action") { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        if (pending is "action") { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         await f.ViewModel.InitializeAsync();
         if (pending is "grant")
         {
             await f.ViewModel.PrepareGrantChangeAsync(new(GrantChangeOperation.Add,
-                BuiltInAction.LockMachine, ModelApprovalScope.Always));
+                BuiltInAction.EnableHostedModels, ModelApprovalScope.Always));
         }
         else
         {

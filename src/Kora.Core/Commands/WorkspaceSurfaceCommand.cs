@@ -4,10 +4,13 @@ using Kora.Core.Hosting;
 namespace Kora.Core.Commands;
 
 public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int? SessionPosition = null,
-    SessionName? ConversationName = null)
+    SessionName? ConversationName = null, string? ObservationName = null)
 {
     /// <summary>Position zero denotes the last row of the presented page; positive positions count from its top.</summary>
     public const int LastSessionPosition = 0;
+
+    public static bool MatchesObservationName(string input, string presented) =>
+        string.Equals(BuiltInCommandRouter.Normalize(input), BuiltInCommandRouter.Normalize(presented), StringComparison.Ordinal);
 
     private static readonly string[] Ordinals =
     [
@@ -58,6 +61,14 @@ public sealed record WorkspaceSurfaceCommand(WorkspaceSurfaceTarget Target, int?
             { return new(WorkspaceSurfaceTarget.Invalid); }
             try { return new(WorkspaceSurfaceTarget.OpenNamedConversation, ConversationName: new(literal)); }
             catch (InvalidDataException) { return new(WorkspaceSurfaceTarget.Invalid); }
+        }
+        if (text.StartsWith("open observed result", StringComparison.OrdinalIgnoreCase))
+        {
+            const string prefix = "open observed result ";
+            return !input.Any(char.IsControl) && text.Length <= 256
+                && text.StartsWith(prefix, StringComparison.OrdinalIgnoreCase)
+                ? new(WorkspaceSurfaceTarget.ObservedResult, ObservationName: text[prefix.Length..])
+                : new(WorkspaceSurfaceTarget.Invalid);
         }
         var normalized = BuiltInCommandRouter.Normalize(text);
         if (!normalized.StartsWith("open all work", StringComparison.Ordinal)

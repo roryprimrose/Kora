@@ -4,6 +4,7 @@ using Kora.Application.Presentation;
 using Kora.Application.Configuration;
 using Kora.Application.Configuration.RegisteredSettings;
 using Kora.Application.Hosting;
+using Kora.Application.UnitTests.Interaction;
 using Kora.Application.UnitTests.Voice;
 using Kora.Application.Voice;
 using Kora.Core.Diagnostics;
@@ -234,8 +235,10 @@ public sealed partial class MainViewModelTests
         runtime.ProfileGeneration.Should().Be(new SpeechInputGeneration(0, SpeechInputSelection.Default));
     }
 
-    [Fact]
-    public async Task SpeechComparisonHostDisposalClearsTextAndJoinsCaptureWhileDisposingUndo()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SpeechComparisonHostDisposalClearsTextAndJoinsCaptureWhileDisposingUndoAndCompletionNotices(bool bindCompletionNotices)
     {
         var runtime = new SpeechSetupComparisonTests.Runtime();
         await using var comparison = new SpeechSetupComparison(runtime, runtime);
@@ -245,6 +248,22 @@ public sealed partial class MainViewModelTests
         f.Voice.Microphones = [new("mic", "Headset")];
         f.Voice.DefaultMicrophoneId = "mic";
         await f.ViewModel.InitializeAsync();
+        using var source = new LocalEventBrokerTests.Fixture();
+        await using var broker = source.Create();
+        if (bindCompletionNotices)
+        {
+            var target = BindSessions(f).Session;
+            source.Session = target.Authority.SessionId;
+            f.ViewModel.BindLocalEvents(broker);
+            if (f.ViewModel.IsVoiceEnabled) { await f.ViewModel.ToggleListeningCommand.ExecuteAsync(); }
+            await f.ViewModel.ToggleListeningCommand.ExecuteAsync();
+            f.ViewModel.PublishForegroundConversationTarget(new(target, static () => true));
+            using var root = HostActivity.BeginRoot(new(new(Guid.NewGuid()), source.Session, new(Guid.NewGuid()), RequestOrigin.LocalUi),
+                HostActivityLayer.Desktop, HostOperation.Policy);
+            await f.ViewModel.ChangeCompletionNoticesNativeAsync(source.Session, target.Authority.Generation, true,
+                static () => true, TestContext.Current.CancellationToken);
+            f.ViewModel.CompletionNoticeStatus.Should().Contain("On");
+        }
         f.ViewModel.BindSpeechInputNativeLifetime(static () => true);
         f.ViewModel.ThemeMode = ApplicationThemeMode.Dark;
         await f.ViewModel.AppearanceUpdate;
@@ -257,14 +276,21 @@ public sealed partial class MainViewModelTests
         var work = f.ViewModel.TestSpeechComparisonCommand.ExecuteAsync();
         await entered.Task.WaitAsync(TestContext.Current.CancellationToken);
         var disposal = f.ViewModel.DisposeAsync().AsTask();
-        captureToken.IsCancellationRequested.Should().BeTrue();
-        disposal.IsCompleted.Should().BeFalse();
-        f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
-        f.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
-        f.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
-        runtime.Disposals.Should().Be(0);
-        release.SetResult(new("Late inert result", TimeSpan.FromMilliseconds(10)));
-        await Task.WhenAll(work, disposal);
+        try
+        {
+            captureToken.IsCancellationRequested.Should().BeTrue();
+            disposal.IsCompleted.Should().BeFalse();
+            f.ViewModel.SpeechComparisonResults.Should().BeEmpty();
+            f.ViewModel.CanReviewSettingsUndo.Should().BeFalse();
+            f.ViewModel.CanConfirmSettingsUndo.Should().BeFalse();
+            f.ViewModel.CompletionNoticeStatus.Should().Contain("Off");
+            runtime.Disposals.Should().Be(0);
+        }
+        finally
+        {
+            release.TrySetResult(new("Late inert result", TimeSpan.FromMilliseconds(10)));
+            await Task.WhenAll(work, disposal);
+        }
         runtime.Captures.Should().Be(1);
         runtime.Disposals.Should().Be(1);
         f.ViewModel.SpeechComparisonResults.Should().BeEmpty();

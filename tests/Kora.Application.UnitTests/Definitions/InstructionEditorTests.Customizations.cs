@@ -1,4 +1,4 @@
-using AwesomeAssertions;
+﻿using AwesomeAssertions;
 
 using Kora.Application.Configuration;
 using Kora.Application.Definitions;
@@ -83,7 +83,8 @@ public sealed partial class InstructionEditorTests
         var files = new CustomizationFiles(kind);
         var state = new LocalSharedSkillPreferencesTests.Store();
         var use = new ArtifactUsePreferences(state);
-        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
+        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit,
+            new ArtifactDirectoryConfigurationService(new CustomizationMcpPreferences(), f.Audit));
         var changes = 0;
         void Changed(object? sender, EventArgs args) => changes++;
         service.UseChanged += Changed;
@@ -230,10 +231,16 @@ public sealed partial class InstructionEditorTests
         internal Action? AfterWrite;
         internal Action? AfterRead;
         internal bool Registered;
+        internal InstructionOriginalRegistration? Registration;
+        public InstructionOriginalRegistration? RegisteredInstruction => Registered ? Registration ??= new(Source, "native-revision") : null;
         internal Action? BeforeRegister;
+        internal Action? BeforeSave;
+        internal bool DetectOriginalConflicts;
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
-            Source = new("file.example", kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
+            Source = new(kind == CustomizationKind.McpServer
+                ? ArtifactUseIdentity.Mcp(ArtifactUseIdentity.McpServerId("source", "example")) : "file.example",
+                kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
             Current = new(Source, "original", [new(Source.PrimaryFile,
                 Kora.Core.Artifacts.ArtifactFileDocument.Encode(CustomizationLayout.Template(kind, "example"), false))]);
         }
@@ -244,6 +251,7 @@ public sealed partial class InstructionEditorTests
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Closed"); }
             Registered = true;
+            Registration = proposal;
             BeforeRegister?.Invoke();
             return Task.CompletedTask;
         }
@@ -263,6 +271,9 @@ public sealed partial class InstructionEditorTests
         {
             token.ThrowIfCancellationRequested();
             if (!eligible()) { throw new InvalidOperationException("Closed"); }
+            BeforeSave?.Invoke();
+            if (DetectOriginalConflicts && !string.Equals(expected?.Revision, Current.Revision, StringComparison.Ordinal))
+            { throw new InstructionOriginalConflictException(); }
             if (WriteFailure is { } failure) { throw failure; }
             if (FailWrite) { throw new IOException("Publication failed"); }
             Writes++;

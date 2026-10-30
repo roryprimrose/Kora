@@ -128,6 +128,7 @@ public sealed partial class MainViewModel
 
     private async Task JoinVoluntaryPreparationAsync()
     {
+        if (completionNotices is not null) { await completionNotices.RetireAndJoinAsync(); }
         speechPreparation?.Request(null);
         if (speechPreparation is not null) { await speechPreparation.WaitForQuiescenceAsync(); }
 #pragma warning disable VSTHRD003 // Joins existing owned persistence and output preparation, never starting replacement work.

@@ -839,7 +839,7 @@
               <Grid ColumnDefinitions="*,300,Auto" ColumnSpacing="24">
                 <StackPanel Spacing="4">
                   <TextBlock Text="Speech captions (off by default)" Classes="settings-title" />
-                  <TextBlock Text="Show the words Kora speaks once playback starts. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately. Choose a corner of the main screen. Captions do not highlight individual sentences."
+                  <TextBlock Text="Show the words Kora speaks once playback starts. Current sentence can be saved as a request but is unavailable in this build; no Windows voice/rate/output profile has qualified alignment. Captions stay for 0-30 seconds afterward (default 5), or until you unpin them. Stopping speech, replacing a response or hiding private content clears them immediately. Captions do not highlight individual words."
                       Classes="settings-description" TextWrapping="Wrap" />
                   <TextBlock Text="{Binding SpeechTextConfigurationStatus}" Classes="settings-description" TextWrapping="Wrap" />
                 </StackPanel>

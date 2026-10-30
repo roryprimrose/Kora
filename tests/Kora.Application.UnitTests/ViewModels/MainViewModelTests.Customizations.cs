@@ -137,6 +137,8 @@ public sealed partial class MainViewModelTests
     [InlineData("show skills", "List")]
     [InlineData("edit example instruction", "Select")]
     [InlineData("add an agent named example", "Create")]
+    [InlineData("add an MCP server named example", "Create")]
+    [InlineData("edit example MCP server", "Select")]
     [InlineData("disable example MCP server", "Disable")]
     [InlineData("refine this artifact Explain this", "Refine")]
     public async Task Customization_commands_use_the_shared_native_route_without_reasoning(string text, string operation)
@@ -146,6 +148,20 @@ public sealed partial class MainViewModelTests
         f.ViewModel.CustomizationRequested += command => { observed = command; return Task.CompletedTask; };
         await f.RunAsync(text);
         observed!.Operation.Should().Be(operation);
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("add an MCP server named example", "Create")]
+    [InlineData("edit example MCP server", "Select")]
+    public async Task ActivatedMcpCommandsUseTheSameNativeRouteWithoutModelDisclosure(string text, string operation)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        CustomizationCommand? observed = null;
+        f.ViewModel.CustomizationRequested += command => { observed = command; return Task.CompletedTask; };
+        await f.RaiseActivatedTranscriptAsync("Kora, " + text, 1);
+        observed!.Operation.Should().Be(operation);
+        observed.Kind.Should().Be(CustomizationKind.McpServer);
         f.Reasoner.Requests.Should().BeEmpty();
     }
 

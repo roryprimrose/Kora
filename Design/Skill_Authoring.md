@@ -79,6 +79,15 @@ controls and writes exactly one bounded `*.instructions.md` file. Voice and
 typed input can propose the same edits; neither input route bypasses native
 review or the exact Save confirmation.
 
+The first [exact spoken Save increment](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+confirms one already completely display-reviewed existing canonical Kora-owned
+Instruction replacement through the canonical host question service and unchanged
+writer. It does not extend package saves, profile-original writes, creation/copy,
+deletion, conflict overwrite, grants or activation; other mutations remain native.
+The separate [literal owned Instruction body route](../docs/instruction-editor.md#dictate-literal-instruction-body-text)
+stages only reviewed volatile text at a frozen body caret/range. It cannot answer
+the dedicated Save question or replace complete source review and separate Save.
+
 Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
 Compatible instructions discovered in an existing VS Code or VS Code Insiders
 profile location may be edited in their original file when the user selects
@@ -96,10 +105,10 @@ The host chooses the existing path, writes through
 the shared atomic preference/file replacement mechanism where applicable, and
 never accepts a model-supplied destination.
 
-The current native editor supports only Kora-owned files, strict UTF-8 ≤64 KiB,
+The current native editor supports Kora-owned files and one already registered/read-consented compatible profile instruction original, strict UTF-8 ≤64 KiB,
 original BOM/line endings/source preservation and the bounded v1 scalar metadata
 subset documented in [Definition Management](Definition_Management.md#bounded-owned-instruction-and-prompt-editor).
-Registered profile originals remain read-only in this increment. The native text
+The [selected-original operation](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original) consumes the existing dedicated Customizations source owner/writer; it cannot register a source or broaden consent. Native `kora-format: 1` only: unknown metadata and unsupported profiles are refused, not rewritten. Complete old/new comparison and separate Save confirmation precede optimistic same-file publication/readback; changed revisions remain disabled ([workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs)). The native text
 editor works without inference/speech; exact typed/activated controls focus its
 same actions and reviews. Dirty closing/shutdown offers Save/Discard/Cancel.
 Saving holds the new revision; separate review offers explicit selection only.
@@ -121,7 +130,7 @@ not instructions, skill workflows or policy. Native v1 stays literal; owned nati
 Production generation remains unavailable and rejected local candidates are not fallback providers. See [required native inputs](../docs/instruction-editor.md#prepare-required-native-prompt-inputs).
 The same per-kind owned editor now has bounded literal metadata search, observed-use filters and exact stale-safe row inspection; see [the native inventory controls](../docs/instruction-editor.md#search-observed-owned-metadata).
 The native **Validate** button and exact `instructions validate` / `prompts validate` observe the open supported owned draft through the same Save preparation, counting BOM/native-marker overhead and checking existing structural/literal/namespace rules.
-Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); profile-original editing stays deferred.
+Bounded body-free findings are historical observations, not approval, semantic harmlessness or enablement. No source I/O/reload, revision preference write/hold or model/reference execution occurs; drafts and existing held/enabled state remain unchanged. Save separately re-prepares and confirms. See [owned draft validation](../docs/instruction-editor.md#validate-the-open-draft-without-saving); selected profile originals use their separate [bounded source-preserving operation](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original).
 Only explicit List/Refresh reads/reconciles existing sources. Search/filter/page changes are in-memory, preserve the original/draft and never activate or select another file automatically. Unknown metadata stays unavailable; observed catalogue state is not disk freshness. No profile/bundled inventory or authoring scope is added.
 The native **Save as new copy** increment copies only an inspected supported native owned source/current draft (instruction v1; prompt v1/v2) to a different same-kind owned ID.
 Full base/draft/proposal review changes only the declared name, preserves all other draft bytes/BOM/metadata, and creates without replacement.

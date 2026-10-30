@@ -18,13 +18,28 @@ public sealed partial class MainViewModel
         bundledActionStatus = status;
     }
 
+    private Func<bool> CaptureLockSource(ManualCallInput input)
+    {
+        var accepted = input.Eligible() && input.Revision == CallPolicyRevision
+            && input.OwnershipBindingRevision == Interlocked.Read(ref settingsOwnershipBindingRevision)
+            && input.AssistantNameRevision == assistantNameConfiguration.Get().Revision;
+        var host = CaptureModelActionReviewHost();
+        var preparation = Interlocked.Read(ref approvalPreparationRevision);
+        var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
+        // Activation is consumed before the owner closes capture; closing its own microphone is not new intent.
+        return () => accepted && host() && preparation == Interlocked.Read(ref approvalPreparationRevision)
+            && inputRevision == Interlocked.Read(ref workspaceSurfaceInputRevision);
+    }
+
     private Task InvokeBundledAction(Func<FixedSessionAction, SecurityAuditInitiator, Func<bool>, Task> invoke,
         FixedSessionAction action, SecurityAuditInitiator initiator,
         long? observedCallRevision, Func<bool>? sourceCurrent)
     {
         var call = CallPolicyRevision;
         var privacy = privacyObservation.Current.TopologyRevision;
+        var host = CaptureModelActionReviewHost();
         bool Current() => !disposed && (sourceCurrent?.Invoke() ?? true) && IsCallMutationHostEligible
+            && host()
             && IsModelCallDispatchEligible(initiator, observedCallRevision)
             && CallPolicyRevision == call && privacyObservation.Current.TopologyRevision == privacy
             && ReferenceEquals(bundledAction, invoke);
@@ -43,7 +58,7 @@ public sealed partial class MainViewModel
             {
                 ClearClipboardPreview();
                 ClearFilePreview();
-                await StopAudioAsync();
+                await StopAudioAsync(isModelActionDispatchActive);
                 await JoinVolatileContextAsync();
                 if (!current()) { throw new InvalidOperationException("Lock authority retired while private resources joined."); }
             }, static () => { });

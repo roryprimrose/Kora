@@ -63,20 +63,43 @@ public sealed class SpeechSentenceMapTests
         map.Invoking(value => value.GetText(new(1, 0, 1))).Should().Throw<ArgumentOutOfRangeException>();
         map.Invoking(value => value.GetText(new(0, 1, 1))).Should().Throw<ArgumentOutOfRangeException>();
         map.Invoking(value => value.GetText(null!)).Should().Throw<ArgumentNullException>();
-        var position = new SpeechSentencePosition(0, 0, 6, TimeSpan.Zero, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
+        var progress = new SpeechSourceProgress(new(Guid.NewGuid(), 4), 0, 2, TimeSpan.Zero);
+        var position = new SpeechSentencePosition(progress, TimeSpan.FromSeconds(1), TimeSpan.FromSeconds(2));
         map.Matches(position).Should().BeTrue();
         foreach (var malformed in new[]
         {
-            position with { Index = -1 }, position with { Index = 1 }, position with { Start = 1 },
-            position with { AudioStart = TimeSpan.FromTicks(-1) },
-            position with { AudioStart = TimeSpan.FromSeconds(2) },
+            position with { Source = null! },
+            position with { Source = progress with { Playback = new(Guid.Empty, 4) } },
+            position with { Source = progress with { Playback = new(Guid.NewGuid(), -1) } },
+            position with { Source = progress with { CharacterPosition = -1 } },
+            position with { Source = progress with { AudioPosition = TimeSpan.FromTicks(-1) } },
+            position with { Source = progress with { AudioPosition = TimeSpan.FromSeconds(2) } },
             position with { PlaybackPosition = TimeSpan.FromSeconds(3) },
-            position with { AudioStart = TimeSpan.FromSeconds(2), PlaybackPosition = TimeSpan.FromSeconds(2) },
+            position with { Source = progress with { AudioPosition = TimeSpan.FromSeconds(2) }, PlaybackPosition = TimeSpan.FromSeconds(2) },
         })
         {
             map.Matches(malformed).Should().BeFalse();
         }
         Action nullSource = () => SpeechSentenceMap.Create(null!);
         nullSource.Should().Throw<ArgumentNullException>();
+    }
+
+    [Theory]
+    [InlineData(-1, 1, null)]
+    [InlineData(0, 0, null)]
+    [InlineData(0, -1, null)]
+    [InlineData(0, int.MaxValue, null)]
+    [InlineData(int.MaxValue, 1, null)]
+    [InlineData(3, 1, null)]
+    [InlineData(4, 1, null)]
+    [InlineData(0, 10, null)]
+    [InlineData(0, 2, "Hi \ud83d\ude00! \r\n")]
+    [InlineData(3, 2, "Hi \ud83d\ude00! \r\n")]
+    [InlineData(9, 4, "Next?!")]
+    public void Authoritative_character_ranges_resolve_only_inside_one_exact_sentence(int start, int count, string? expected)
+    {
+        var map = SpeechSentenceMap.Create("Hi \ud83d\ude00! \r\nNext?!")!;
+        var range = map.Resolve(new(new(Guid.NewGuid(), 1), start, count, TimeSpan.Zero));
+        (range is null ? null : map.GetText(range)).Should().Be(expected);
     }
 }

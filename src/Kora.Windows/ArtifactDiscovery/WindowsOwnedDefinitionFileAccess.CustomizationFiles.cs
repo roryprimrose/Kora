@@ -80,7 +80,8 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
 
     internal static string WriteDefinitionFile(string directory, DefinitionDirectory pinned, string name,
         byte[] bytes, bool replace, Func<bool> eligible, CancellationToken token,
-        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null)
+        Action? finalComparison = null, string? preserveSecurityFrom = null, Action? publicationCommitted = null,
+        Action<string>? stagedMetadata = null)
     {
         CustomizationFile.ValidateName(name);
         if (name.Contains('\\', StringComparison.Ordinal))
@@ -95,6 +96,7 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
             RandomAccess.Write(staged, bytes, 0);
             RandomAccess.FlushToDisk(staged);
             if (original is not null) { PreserveInstructionSecurity(original, staged); }
+            stagedMetadata?.Invoke(DefinitionMetadataRevision(staged));
             finalComparison?.Invoke();
             RequireEligible(eligible, token);
             Rename(staged, pinned.Handle, name, replace, token);

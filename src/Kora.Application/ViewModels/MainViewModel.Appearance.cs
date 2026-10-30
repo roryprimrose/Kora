@@ -14,9 +14,10 @@ public sealed partial class MainViewModel
     {
         Dispose();
         var comparisonDisposal = speechComparison?.DisposeAsync().AsTask() ?? Task.CompletedTask;
+        var completionNoticeDisposal = completionNotices?.DisposeAsync().AsTask() ?? Task.CompletedTask;
         // A forced desktop close need not pump UI continuations to join the owned storage write.
 #pragma warning disable VSTHRD003 // The owned persistence task runs entirely on the thread pool.
-        await Task.WhenAll(comparisonDisposal, appearancePersistence, preferencePersistence, consentPersistence,
+        await Task.WhenAll(comparisonDisposal, completionNoticeDisposal, appearancePersistence, preferencePersistence, consentPersistence,
             appearanceSuggestionPersistence, speechSummaryPersistence, volumeSuggestionPersistence, volumeSuggestionReviewWork,
             responseModeSuggestionWork, settingsUndoWork,
             AuditPersistence, outputDiscoveryPersistence,

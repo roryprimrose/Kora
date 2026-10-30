@@ -1,8 +1,7 @@
 # Folder-grounded local answers
 
-**Answering is unavailable in this build.** You can preview and search a small
-text folder, but the separate permission check for using its contents with AI
-is unavailable, and no local model is approved.
+**An unqualified local model remains unavailable.** Preview, search and chosen-evidence
+review do not approve a model or bypass the [shared LocalOnly source-use policy](../Design/Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission).
 For saved, named folder copies instead, see [Knowledge sources](knowledge-sources.md).
 
 ## Ask across one explicitly selected folder snapshot
@@ -15,19 +14,22 @@ The preview is an immutable, volatile snapshot. It is not a named knowledge sour
 
 1. Enter one question in **Question across the exact immutable folder snapshot**. The shared lexical query limits apply: 256 UTF-16 characters, 512 UTF-8 bytes and 32 unique terms of at most 64 UTF-16 characters.
 1. Select **Review folder excerpts for this question**. This searches only the already admitted snapshot; it does not invoke a model or reread files.
-1. Review every selected excerpt, its filename and exact source location.
-   Kora also records which captured version it came from. At most eight excerpts
-   and 16 KiB of excerpt text are selected. The total matches and any omitted
-   matches are shown; selected excerpts are never silently shortened.
-1. Review the separate local-only source-use and fresh **Local context** session disclosure. Select **Confirm: answer locally using only these reviewed folder excerpts** only when the exact question and evidence are correct. This consumes that review once. Editing the question or cancellation invalidates it; another attempt requires another review.
+1. Choose a nonempty set of whole existing citations from the retrieved list. None is selected for model context by default. Ordinary text highlighting and Find matches do not authorize context. You cannot supply an arbitrary path, edit an excerpt or replace its original span.
+1. Select **Review only chosen folder excerpts**. Review the complete unchanged question and every chosen excerpt, filename, immutable revision, original-byte digest and end-exclusive UTF-16/line/column location. At most eight excerpts and 16 KiB of excerpt UTF-8 bytes may be chosen; their combined byte count and the separate complete-envelope ceiling are shown.
+1. Check **User-selected scope only**: the review separately counts retrieved excerpts you omitted and discloses total matching chunks and bounded-retrieval omissions. The answer uses only your chosen excerpts, never silently restores omitted evidence and cannot claim review of the full folder. Chosen excerpts are never silently shortened.
+1. Review the separate local-only source-use and fresh **Local context** session disclosure. Select **Confirm: answer locally using only these reviewed folder excerpts** only when the question and chosen evidence are correct. This consumes that review once. Selection changes revoke the previous review; question edits or cancellation retire it. Another attempt requires another explicit search/review.
 1. For a successful answer, select a citation and **Show exact folder answer citation**. Kora selects that same immutable file and shows/focuses its exact original span. It never rescans a directory, opens the old path, refreshes content or accepts a model-supplied location.
 
 ## Availability and honest outcomes
 
-Each file needs a separate check that its contents may be used for the answer.
-**The composed source-use policy currently remains unavailable**, so confirmation reports
-Unavailable without sending content or inventing an answer. Installing a model,
-previewing files or choosing excerpts cannot bypass this check.
+Each evidence-bearing file independently passes the [shared LocalOnly source-use policy](../src/Kora.Application/Context/LocalSourceUsePolicy.cs).
+It screens the whole immutable file, unchanged question and chosen excerpts:
+omitting a credential-bearing section cannot hide its risk. Choosing evidence is not
+risk approval and does not replace separate one-shot confirmation.
+
+Unknown screening or a missing/unqualified local runtime remains unavailable,
+without sending content or inventing an answer. Deterministic platform/provider
+fakes prove the implemented flow, not runtime enablement or answer quality.
 
 No lexical evidence means no model invocation and no answer. A model may explicitly report that the reviewed evidence does not support an answer. Kora checks that a successful answer's citations refer to the reviewed excerpts.
 Citation identity is verified, not semantic truth: Kora checks the source
@@ -38,7 +40,8 @@ The complete serialized context has a separate 32,768-byte limit, including JSON
 
 ## Cancellation and privacy
 
-**Cancel folder answer and clear excerpts**, question edits, source retirement and window closure cancel and suppress late output.
+**Cancel folder answer and clear excerpts**, selection/question changes, source retirement and window closure cancel and suppress late output and revoke exact-span navigation.
+Selection does not renew the original 30-second retrieval-context deadline or retention.
 Kora waits for actual provider work and asynchronous lease disposal before
 reporting resources released. A busy operation cannot be replaced by another
 read or answer attempt.

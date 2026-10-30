@@ -56,7 +56,9 @@ internal sealed class NativeInstructionMutationReview(OwnedInstructionEditorWind
             + $"New digest: {proposed?.Definition.Digest ?? "(delete)"}\n"
             + $"Changed fields: {ArtifactSourceComparison.ChangedFields(expected?.Document, proposed)}\n"
             + "Full original and proposed source shown, including all metadata, body and attribution. "
-            + "Final disk comparison is optimistic: an edit after that comparison may be overwritten by complete-byte atomic replacement. "
+            + (expected is null && proposed is not null
+                ? "New target must remain absent. Atomic creation never replaces an occupied target; generated instructions have no overwrite fallback. "
+                : "Final disk comparison is optimistic: an edit after that comparison may be overwritten by complete-byte atomic replacement. ")
             + "Only this host-derived owned file changes. Save does not permit use or execution.",
             expected?.Document.Text, proposed?.Text, [proposed is null ? "Confirm delete" : "Confirm save", "Cancel"], token,
             questions is not null && !conflictObserved && kind == ArtifactKind.Instruction && expected is not null && proposed is not null

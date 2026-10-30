@@ -12,7 +12,7 @@ internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
     OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
-    ObservationWorkflowController? observations = null) : IAsyncDisposable
+    ObservationWorkflowController? observations = null, OwnedSkillDeletionWorkflow? deletion = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -25,6 +25,10 @@ internal sealed partial class OwnedSkillEditorController(
     private bool uncertain;
     private bool busy;
     private OwnedDeclarativeSkillDocument? validated;
+
+#pragma warning disable VSTHRD003 // Retain the actual controller-owned operation through native cancellation and terminal completion.
+    internal Task ActiveOperation => work;
+#pragma warning restore VSTHRD003
 
     internal void Bind()
     {
@@ -209,6 +213,31 @@ internal sealed partial class OwnedSkillEditorController(
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(); break;
+                case "delete":
+                    if (deletion is null) { throw new InvalidOperationException("Owned skill source deletion is unavailable in this host."); }
+                    if (uncertain) { throw new InvalidOperationException("A source mutation is unconfirmed. Inspect/recover the exact inventory; do not retry deletion."); }
+                    var deletionSelection = opened.Saved.SelectedItem as OwnedDeclarativeSkillSnapshot;
+                    var deletionId = command.Id ?? deletionSelection?.Document.Id;
+                    var deletionVersion = command.Version ?? deletionSelection?.Document.Version;
+                    if (deletionId is null || deletionVersion is null)
+                    { throw new InvalidOperationException("Select one exact saved owned ID/version before Delete."); }
+                    if (!await DiscardOrSave()) { return; }
+                    var deletionDraft = Interlocked.Read(ref generation);
+                    bool ExactDeletion() => Eligible() && authority.IsCurrent() && deletionDraft == Interlocked.Read(ref generation)
+                        && ReferenceEquals(opened.Saved.SelectedItem, deletionSelection);
+                    if (await deletion.Delete(deletionId, deletionVersion, authority, ExactDeletion, opened, lifetime.Token))
+                    {
+                        opened.Saved.ItemsSource = null;
+                        if (string.Equals(source?.Document.Id, deletionId, StringComparison.Ordinal)
+                            && string.Equals(source?.Document.Version, deletionVersion, StringComparison.Ordinal))
+                        {
+                            source = null;
+                            validated = null;
+                            CancelRefinement();
+                        }
+                        opened.Report("The exact two-file owned source was deleted and absence read back. List again. Future source-dependent use requires a present exact source; admitted immutable tasks and independent grants/history are unchanged.");
+                    }
+                    break;
                 case "list":
                     var rows = await workflow.List(original!, lifetime.Token);
                     if (Eligible()) { opened.Saved.ItemsSource = rows; opened.Report("Saved immutable inactive versions. Select one and Reopen or Use; nothing is enabled or invoked."); }
@@ -254,9 +283,11 @@ internal sealed partial class OwnedSkillEditorController(
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
         {
-            if (exception is OwnedSkillPublicationUnconfirmedException) { uncertain = true; }
+            if (exception is OwnedSkillPublicationUnconfirmedException or OwnedSkillDeletionUnconfirmedException) { uncertain = true; }
             AuthoringFailed(logger, exception.GetType().Name);
-            opened.Report(exception is OwnedSkillPublicationUnconfirmedException
+            opened.Report(exception is OwnedSkillDeletionUnconfirmedException
+                ? "Deletion may have occurred. Mutation is held. Do not retry or recreate this source. Inspect the exact remaining inventory and audit; no rollback, task cancellation or confirmed deletion is claimed."
+                : exception is OwnedSkillPublicationUnconfirmedException
                 ? "Publication may have occurred. Do not retry Save. List/Reopen the exact ID/version to reconcile; no rollback or invocation is claimed."
                 : exception is OperationCanceledException ? "Cancelled. Owned I/O has joined; no saved result is claimed."
                 : "Skill authoring failed: " + exception.Message);

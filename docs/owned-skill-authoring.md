@@ -51,6 +51,23 @@ These actions read already-recorded host state, without setup probes, network, n
 `owned skill workflow editor` opens this separate owner. **Close** (`owned skill workflow close`) offers explicit discard for an unsaved volatile draft; cancel keeps it open.
 Exit/restart/handoff likewise cannot silently discard it. Save first to retain the package. Cancellation retires the original owner: Close/discard and open a fresh workflow before another operation. No draft is autosaved ([controller](../src/Kora/ObservationWorkflowController.cs)).
 
+## Delete one saved owned source
+
+Use **List**, select one native v1/v2/v3 saved version, then **Delete**; or type `owned skill delete daily-review 1.0.0`.
+Activated voice uses the current assistant-name prefix and the same native reviews. Unsaved edits first require the existing **Save / Discard / Cancel** choice ([controller](../src/Kora/OwnedSkillEditorController.cs)).
+
+Review the exact owned destination, complete manifest and guidance, declared tool dependency, references-none boundary and use impact.
+Then separately confirm **Delete only this exact owned source**, or Cancel. The two-minute, single-operation review cannot be reused after source, draft, selection, catalogue, authority, ownership, privacy or channel changes ([review owner](../src/Kora.Application/Skills/OwnedSkillDeletionWorkflow.cs)).
+
+Deletion removes only `manifest.yaml`, `instructions.md` and the now-empty exact version directory. The ID/root directories and unrelated versions remain.
+Bundled/shared/profile originals, reference packages, native v4 observation workflows, arbitrary paths and recursive tree deletion are unavailable ([owned store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.Deletion.cs)).
+
+Confirmed deletion requires absence readback. The editor clears its saved catalogue; use **List** again. Future source-dependent use revalidates the exact source and fails closed if missing or replaced.
+Deletion does not physically cancel immutable admitted tasks, erase independent grants/history/audit, transfer authority or enable anything. External dependents are not exhaustively inventoried ([use revalidation](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
+Partial deletion, lost authority after an effect, unavailable audit or readback is **unconfirmed**, not rollback or success. Mutation is held: do not retry or recreate that exact source.
+Inspect the remaining exact files and audit before manual recovery; restarting does not establish a successful deletion. The same store instance refuses republication of a retired ID/version; use a new version for new work ([native regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillDeletionTests.cs)).
+
 ## Create a new skill from a purpose
 
 This bounded operation implements initial **native v1 literal, local, tool-free** guidance generation through the [existing proposal owner](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs). Generation is **unavailable in this build** while the local runtime is unqualified; it never falls back to a hosted model, installs a model or claims qualification.

@@ -1,4 +1,4 @@
-using System.Text;
+﻿using System.Text;
 
 using Kora.Application.Hosting;
 using Kora.Application.Diagnostics;
@@ -36,6 +36,7 @@ public sealed partial class MainViewModel
         SetForegroundRequestReview(null);
         sessionCommands = service;
         sessionRequests = requests;
+        requests?.BindTaskResponseOutput(ReviewTaskResponseOutput);
         conversationSearchCommands = searches;
         PrivacyClosureRequested -= OnSessionRequestPrivacyClosure;
         PrivacyClosureRequested += OnSessionRequestPrivacyClosure;
@@ -176,6 +177,19 @@ public sealed partial class MainViewModel
             {
                 if (foregroundConfirmation) { ForegroundRequestSubmitted?.Invoke(submitted); }
                 await PinSpeechSummarySuggestionAsync(submitted, Eligible, sessionCommands);
+            }
+            if (result.RequestSubmission is not null && originalForegroundReview?.TaskResponseMode is not null)
+            {
+                Transcript = result.Message;
+                return;
+            }
+            if (command.RequestTaskResponseMode is not null && result.RequestReview is { } taskReview)
+            {
+                SetForegroundRequestReview(taskReview);
+                ShowInformation("Review this task's response output.", ForegroundRequestReviewText);
+                forceVisualResponse = true;
+                NotifyOutputPolicyChanged();
+                return;
             }
             if (command.RequestForegroundTarget && result.RequestReview is { } foregroundReview)
             {

@@ -7,11 +7,12 @@ namespace Kora.Application.Skills;
 public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = null, string? Version = null, string? Literal = null,
     string? InputName = null)
 {
-    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill validate | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
+    public const string Syntax = "create a skill that <purpose> | owned skill expected-input: <literal> | owned skill expected-output: <literal> | owned skill generate | owned skill create <id> <version> | owned skill name: <literal> | owned skill description: <literal> | owned skill guidance: <literal> | owned skill critique: <literal> | owned skill refine | owned skill cancel-refinement | owned skill tool none|web-page-get | owned skill inputs none|required-literal | owned skill format markdown-package | owned skill reference <relative.md>: <literal> | owned skill remove-reference <relative.md> | owned skill read-references | owned skill validate | owned skill save | owned skill list | owned skill reopen <id> <version> | owned skill use <id> <version> | owned skill enable | owned skill targets | owned skill next-targets | owned skill target <session-id> | owned skill request: <literal> | owned skill input <name>: <literal> | owned skill url: <absolute-url> | owned skill review-tool | owned skill review-use | owned skill invoke | owned skill close-use | owned skill cancel";
     public static IReadOnlyList<string> FixedPhrases { get; } =
         Array.AsReadOnly(new[] { "owned skill editor", "owned skill list", "owned skill validate", "owned skill save", "owned skill cancel",
             "owned skill tool none", "owned skill tool web-page-get", "owned skill review-tool",
             "owned skill inputs none", "owned skill inputs required-literal", "owned skill generate", "owned skill refine", "owned skill cancel-refinement",
+            "owned skill format markdown-package", "owned skill read-references",
             "owned skill enable", "owned skill targets", "owned skill next-targets", "owned skill review-use", "owned skill invoke", "owned skill close-use" });
 
     public static OwnedSkillAuthoringCommand? Parse(string input, string assistantName)
@@ -30,6 +31,17 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         if (Encoding.UTF8.GetByteCount(input) > SharedSkillSnapshot.MaximumBytes + 512)
         { return new("Invalid"); }
         const string inputPrefix = "owned skill input ";
+        const string referencePrefix = "owned skill reference ";
+        if (normalized.StartsWith(referencePrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var split = normalized.IndexOf(": ", referencePrefix.Length, StringComparison.Ordinal);
+            if (split <= referencePrefix.Length) { return new("Invalid"); }
+            var path = normalized[referencePrefix.Length..split];
+            try { _ = SharedSkillReferenceDeclaration.Parse(path); }
+            catch (InvalidDataException) { return new("Invalid"); }
+            var start = input.IndexOf(referencePrefix, StringComparison.OrdinalIgnoreCase);
+            return new("reference", InputName: path, Literal: input[(start + split + 2)..]);
+        }
         if (normalized.StartsWith(inputPrefix, StringComparison.OrdinalIgnoreCase))
         {
             var split = normalized.IndexOf(": ", inputPrefix.Length, StringComparison.Ordinal);
@@ -52,7 +64,17 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         {
             var operation = words[2].ToLowerInvariant();
             return new(operation is "editor" or "list" or "validate" or "save" or "cancel" or "enable" or "targets"
-                or "next-targets" or "review-tool" or "review-use" or "invoke" or "close-use" or "generate" or "refine" or "cancel-refinement" ? operation : "Invalid");
+                or "next-targets" or "review-tool" or "review-use" or "invoke" or "close-use" or "generate" or "refine" or "cancel-refinement"
+                or "read-references" ? operation : "Invalid");
+        }
+        if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("format", StringComparison.OrdinalIgnoreCase)
+            && words[3].Equals("markdown-package", StringComparison.OrdinalIgnoreCase))
+        { return new("package-format"); }
+        if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("remove-reference", StringComparison.OrdinalIgnoreCase))
+        {
+            try { _ = SharedSkillReferenceDeclaration.Parse(words[3]); }
+            catch (InvalidDataException) { return new("Invalid"); }
+            return new("remove-reference", InputName: words[3]);
         }
         if (words.Length == 4 && !input.Any(char.IsControl) && words[2].Equals("tool", StringComparison.OrdinalIgnoreCase)
             && words[3].ToLowerInvariant() is "none" or "web-page-get")

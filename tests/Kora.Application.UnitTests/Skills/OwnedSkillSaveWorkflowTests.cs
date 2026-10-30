@@ -283,9 +283,11 @@ public sealed class OwnedSkillSaveWorkflowTests : IDisposable
         public string Destination(OwnedDeclarativeSkillDocument document) => "fixed-owned-destination";
         public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<OwnedDeclarativeSkillSnapshot>>(saved is null ? [] : [saved]);
-        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token) => Task.FromResult(saved);
+        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null) => Task.FromResult(saved);
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
-            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token) =>
+            Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
+            OwnedDeclarativeSkillSnapshot? expectedSource = null) =>
             commit(() =>
             {
                 eligible().Should().BeTrue();

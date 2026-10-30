@@ -54,6 +54,32 @@ over future requests. A changed review needs fresh confirmation, and an unavaila
 native owner reports unavailable. Model suggestions and reusable model grants
 cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
 
+## Pause one ordinary conversation's dispatch
+
+Use the [ordinary dispatch controls](windows-and-tray.md#ordinary-conversation-dispatch-hold)
+for one exact existing Active conversation:
+
+```text
+session dispatch status <session-id>
+session dispatch pause <session-id>
+session dispatch resume <session-id>
+```
+
+Activated voice requires the current assistant-name prefix, for example
+`Kora, session dispatch pause <session-id>`. No model is needed. Native
+**Refresh submitted work > Pause ordinary dispatch / Release manual dispatch
+hold** performs the same operation. A turn already dispatching or running
+continues unchanged; pending requests are neither cancelled nor discarded.
+Original FIFO and source/context authorization expiry remain in force.
+Resume clears only the deliberate manual hold; failure/cancellation recovery
+has its separate **Resume held dispatch** control. Neither is action approval,
+authority renewal, replay, Resume Done or a new conversation.
+The [command owner](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+revalidates original input/channel and exact host-owned target before changing
+the lane. Current questions, approvals and editor/dictation handling retain
+precedence. The retired public diagnostic queue controls still refuse
+pause/resume/reorder/settings; this adds no global scheduler or configuration.
+
 ## Invoke one registered agent by readable name
 
 Type `agent invoke "Exact readable name" <original task>`, or use the current

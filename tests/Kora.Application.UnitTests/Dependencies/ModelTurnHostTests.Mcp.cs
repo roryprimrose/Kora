@@ -402,10 +402,18 @@ public sealed partial class ModelTurnHostTests
             request.Context.ToolMode.Should().Be(ModelToolMode.McpReadOnly);
             request.Provenance.Selection.Provider.Should().Be(ModelProviderIdentity.Ollama);
             Requests.Add(request);
+            if (Fault is "cancelled" && Requests.Count == 2)
+            { return Task.FromResult(new ModelToolTransportReply(ModelTurnOutcome.Cancelled, request.Provenance, null)); }
             ModelAssistantMessage message = ModelToolProtocol.ParseAssistant(Encoding.UTF8.GetBytes(Requests.Count == 1 && !NoTool
                 ? """{"kind":"toolCalls","calls":[{"callId":"read_1","capabilityId":"mcp.search","input":{"query":"reference"}}]}"""
                 : """{"kind":"answer","answer":"The reviewed MCP reference says value 42."}"""), mcpTool: request.Context.McpTool);
             const string permissive = """{"type":"object","additionalProperties":false,"properties":{"query":{"type":"string","maxLength":32},"undeclared":{"type":"boolean"}},"required":[]}""";
+            if (Fault is "different-arguments")
+            {
+                message = ModelToolProtocol.ParseAssistant(
+                    """{"kind":"toolCalls","calls":[{"callId":"read_1","capabilityId":"mcp.search","input":{"query":"changed"}}]}"""u8,
+                    mcpTool: request.Context.McpTool);
+            }
             if (Fault is "wrong-tool")
             {
                 message = ModelToolProtocol.ParseAssistant(
@@ -428,7 +436,7 @@ public sealed partial class ModelTurnHostTests
     private sealed class McpBroker(McpAccountReference account) : IMcpConnectionBroker, IMcpConnection
     {
         internal string? Fault { get; set; }
-        internal Action<string>? AfterExchange { get; init; }
+        internal Action<string>? AfterExchange { get; set; }
         internal TaskCompletionSource<ImmutableArray<byte>>? PendingCall { get; init; }
         internal TaskCompletionSource? EnteredCall { get; init; }
         internal List<string> Methods { get; } = [];

@@ -24,7 +24,8 @@ internal sealed class McpInvocation(
     IHostInteractionStore interactions, ISessionWorkspaceStore workspace, ISessionWorkspaceAccess access,
     ISecurityAuditLog audit, TimeProvider time, HostRequest original, HostRevision generation,
     string serverId, McpAccountReference account, McpApprovalPresenter presenter, McpToolSelector selectTool,
-    Func<bool> admitted) : IAsyncDisposable
+    Func<bool> admitted, McpSkillBinding? skill = null,
+    Func<CancellationToken, Task>? validateSource = null) : IAsyncDisposable
 {
     private readonly long control = access.ControlRevision;
     private readonly long useRevision = configuration.UseControlRevision;
@@ -73,7 +74,7 @@ internal sealed class McpInvocation(
         try
         {
             var arguments = await input(interactionRequest, generation, expiresAt, ModelTool,
-                () => Live(token), token).ConfigureAwait(false);
+                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             await ValidateAsync(token).ConfigureAwait(false);
             if (arguments is null) { throw new OperationCanceledException("MCP input was not submitted.", token); }
             var reply = await InvokeSelectedAsync(ModelTool.Id, arguments, token).ConfigureAwait(false);
@@ -90,6 +91,9 @@ internal sealed class McpInvocation(
         if (connectionFaulted) { throw new InvalidOperationException("The failed MCP connection requires a new explicitly reviewed request."); }
         await ValidateAsync(token).ConfigureAwait(false);
         descriptor = await configuration.ResolveHttpsAsync(serverId, account, token).ConfigureAwait(false);
+        if (skill is { } binding && (!string.Equals(binding.Reference.ServerId, descriptor.ServerId, StringComparison.Ordinal)
+            || !string.Equals(binding.Reference.SourceRevision, descriptor.SourceRevision, StringComparison.Ordinal)))
+        { throw new InvalidOperationException("The independently selected current MCP source does not match the skill's exact declared dependency."); }
         var accounts = await broker.ReadAccountsAsync(token).ConfigureAwait(false);
         accountChoice = accounts.SingleOrDefault(choice => choice.Reference == account)
             ?? throw new InvalidOperationException("The explicitly selected delegated MCP account is not available.");
@@ -111,6 +115,13 @@ internal sealed class McpInvocation(
         await ValidateAsync(token).ConfigureAwait(false);
         selected = eligible.SingleOrDefault(tool => string.Equals(tool.Name, choice, StringComparison.Ordinal))
             ?? throw new InvalidOperationException("An exact session MCP tool selection is required.");
+        if (skill is { } reviewed)
+        {
+            if (!string.Equals(selected.Name, reviewed.Reference.ToolName, StringComparison.Ordinal)
+                || !string.Equals(selected.Schema.Digest, reviewed.Reference.SchemaDigest, StringComparison.Ordinal))
+            { throw new InvalidOperationException("The independently selected current tool and schema do not match this skill revision's exact dependency."); }
+            selected.Schema.ValidateArguments(reviewed.Arguments);
+        }
         await ApproveAsync(McpReviewStage.ToolSelection, null, token).ConfigureAwait(false);
         await ValidateAsync(token).ConfigureAwait(false);
     }
@@ -128,6 +139,8 @@ internal sealed class McpInvocation(
     {
         if (Interlocked.Exchange(ref used, 1) != 0)
         { return new(CapabilityOutcome.Denied, "exact-mcp-turn-not-admitted"); }
+        if (skill is { } binding && !string.Equals(arguments, binding.Arguments, StringComparison.Ordinal))
+        { return new(CapabilityOutcome.Denied, "exact-original-mcp-skill-arguments-required"); }
         selected!.Schema.ValidateArguments(arguments);
         Kora.Core.Conversation.ConversationText.Validate(arguments, submission: true);
         await ValidateAsync(token).ConfigureAwait(false);
@@ -168,6 +181,7 @@ internal sealed class McpInvocation(
             ImmutableArray<byte> result;
             try
             {
+                await ValidateAsync(token).ConfigureAwait(false);
                 result = await connection!.ExchangeAsync(ImmutableArray.CreateRange(wire), limit, token).ConfigureAwait(false);
             }
             catch (Exception exception) when (!token.IsCancellationRequested
@@ -203,6 +217,7 @@ internal sealed class McpInvocation(
             || task.Task.State is not (HostTaskState.IntentRecorded or HostTaskState.DispatchRecorded))
         { throw new InvalidOperationException("The original MCP task/session authority is no longer current."); }
         if (descriptor is not null) { await configuration.ValidateCurrentAsync(descriptor, token).ConfigureAwait(false); }
+        if (validateSource is not null) { await validateSource(token).ConfigureAwait(false); }
         // A faulted connection can only finish without content; session, source and grants still require current authority.
         if (connection is not null && !connectionFaulted)
         {
@@ -215,9 +230,12 @@ internal sealed class McpInvocation(
         if (!Live(token)) { throw new InvalidOperationException("MCP admission changed during validation."); }
     }
 
-    private bool Live(CancellationToken token) => !disposed && !token.IsCancellationRequested
+    private bool Admitted(CancellationToken token) => !disposed && !token.IsCancellationRequested
         && access.CanControl && access.ControlRevision == control && configuration.UseControlRevision == useRevision
         && admitted() && time.GetUtcNow() < expiresAt
+        && (skill is null || time.GetUtcNow() < skill.ExpiresAt);
+
+    private bool Live(CancellationToken token) => Admitted(token)
         && HostActivity.Current is { } current && current.Request.IsWithinIntent(original)
         && current.Outcome == HostOperationOutcome.Unknown && !current.Activity!.IsStopped;
 
@@ -229,7 +247,8 @@ internal sealed class McpInvocation(
             [new ActivityLink(parent.Activity!.Context)]);
         try
         {
-            var choice = await selectTool(request, generation, expiresAt, tools, () => Live(token), token).ConfigureAwait(false);
+            var choice = await selectTool(request, generation, expiresAt, tools,
+                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             activity.Complete(HostOperationOutcome.Completed);
             return choice;
         }
@@ -246,21 +265,23 @@ internal sealed class McpInvocation(
         try
         {
             var source = descriptor!;
-            var reviewSource = originalUserTask is null ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
+            var reviewSource = originalUserTask is null && skill is null ? null : new McpReviewSource(source.ServerName, source.SourcePath, source.SourceRevision);
             var binding = new ExactOperationBinding("mcp.read-only", "mcp",
                 "https-read-only." + stage.ToString().ToLowerInvariant() + "." + Hash(selected?.Name ?? "connection"),
                 Hash(selected?.Schema.Json ?? "connection"), reviewSource is null ? source.SourceRevision : Hash(JsonSerializer.Serialize(reviewSource)),
                 source.SourceRevision,
                 Hash(typeof(McpInvocation).Module.ModuleVersionId.ToString("D")),
-                Hash(JsonSerializer.Serialize(new { stage, arguments })),
+                Hash(skill is null ? JsonSerializer.Serialize(new { stage, arguments })
+                    : JsonSerializer.Serialize(new { stage, arguments, skill = skill.Review })),
                 Hash(selected?.Name ?? "connection"), Hash(JsonSerializer.Serialize(account)),
                 account.Destination.Digest, Hash("inert-local-only-result-v1"), new(1),
                 new(PermissionGrantArtifactKind.McpServer, source.Scope));
             var proposal = new HostOperationProposal(invocation, new(Guid.NewGuid()), new(1), binding,
                 HostOperationEffect.BoundedRead, expiresAt);
             var review = new McpReview(stage, source.Endpoint.Address, account, accountChoice!.DisplayName,
-                selected?.Name, selected?.Schema.Json, arguments) { Source = reviewSource };
-            var presented = await presenter(proposal, generation, review, () => Live(token), token).ConfigureAwait(false);
+                selected?.Name, selected?.Schema.Json, arguments) { Source = reviewSource, Skill = skill?.Review };
+            var presented = await presenter(proposal, generation, review,
+                () => Admitted(token) && activity.Outcome == HostOperationOutcome.Unknown, token).ConfigureAwait(false);
             token.ThrowIfCancellationRequested();
             if (!Live(token))
             { throw new InvalidOperationException("Exact native MCP endpoint/account/tool/argument approval is required."); }

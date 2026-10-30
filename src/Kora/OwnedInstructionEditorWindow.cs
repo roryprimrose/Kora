@@ -301,11 +301,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,
-        string[] choices, CancellationToken token)
+        string[] choices, CancellationToken token, Func<Window, CancellationToken, Task<bool>>? spokenSave = null)
     {
         token.ThrowIfCancellationRequested();
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, details, original, proposed, choices, token)); }
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, details, original, proposed, choices, token, spokenSave)); }
         if (!IsVisible) { throw new InvalidOperationException("The private instruction review window is no longer visible."); }
         var dialog = new Window { Title = title, Width = 900, Height = 680, CanResize = true };
         var root = new DockPanel { Margin = new(12) };
@@ -313,12 +313,32 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         DockPanel.SetDock(explanation, Dock.Top);
         root.Children.Add(explanation);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new(0, 10) };
+        using var reviewLifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
+        Exception? voiceFailure = null;
+        Task voiceOperation = Task.CompletedTask;
         for (var index = 0; index < choices.Length; index++)
         {
             var answer = index;
             var button = new Button { Content = choices[index] };
             button.Click += (_, _) => dialog.Close(answer);
             buttons.Children.Add(button);
+        }
+        if (spokenSave is not null)
+        {
+            var voice = new Button { Content = "Reviewed complete source: exact save question" };
+            voice.Click += async (_, _) =>
+            {
+                buttons.IsEnabled = false;
+                voiceOperation = Answer();
+                await voiceOperation;
+            };
+            async Task Answer()
+            {
+                try { dialog.Close(await spokenSave(dialog, reviewLifetime.Token) ? 0 : choices.Length - 1); }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                { voiceFailure = exception; dialog.Close(); }
+            }
+            buttons.Children.Add(voice);
         }
         DockPanel.SetDock(buttons, Dock.Bottom);
         root.Children.Add(buttons);
@@ -331,9 +351,19 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         root.Children.Add(sources);
         dialog.Content = root;
         activeReview = dialog;
+        dialog.Closed += (_, _) => reviewLifetime.Cancel();
         var reply = dialog.ShowDialog<int?>(this);
         using var registration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close()));
-        try { return await reply ?? choices.Length - 1; }
+        try
+        {
+            var result = await reply ?? choices.Length - 1;
+#pragma warning disable VSTHRD003 // The review owns this exact question operation through capture retirement.
+            await voiceOperation;
+#pragma warning restore VSTHRD003
+            if (voiceFailure is not null)
+            { throw new InvalidOperationException("Exact save question failed: " + voiceFailure.Message + " Draft retained; recover through native Save.", voiceFailure); }
+            return result;
+        }
         finally
         {
             if (ReferenceEquals(activeReview, dialog)) { activeReview = null; }

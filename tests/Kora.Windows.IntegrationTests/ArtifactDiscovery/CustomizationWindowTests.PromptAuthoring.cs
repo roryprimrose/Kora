@@ -153,7 +153,7 @@ public sealed partial class CustomizationWindowTests
                     DateTimeOffset.UtcNow.AddMinutes(5), adapter)], policy);
             await using var runner = new LocalContextTurnWorkflow(f.Interactions, f.Interactions, f.Sessions, new(f.Tasks),
                 f.Access, models, models, f.Audit, NullLogger<LocalContextTurnWorkflow>.Instance);
-            var authoring = new CustomizationAuthoringService(admission, models, models, TimeProvider.System, runner);
+            var authoring = new CustomizationAuthoringService(admission, runner, TimeProvider.System);
             var ownership = 1L;
             using var controller = new CustomizationWindowController(f.Main, management, authoring, catalogue, reload,
                 () => true, () => ownership, NullLogger<CustomizationWindowController>.Instance);

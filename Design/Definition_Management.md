@@ -72,6 +72,41 @@ cannot promote text into trusted host instructions.
 Missing template parameters require clarification, not expression evaluation,
 file reads, secret substitution, or implicit network access.
 
+### Conversational initial owned agent authoring
+
+The approved Add/Ask Kora operation can create one inert, Kora-owned tool-free v1 agent from an original description,
+not merely open another manual editor. Native description controls and exact original typed/current-name activated
+`agent author draft <new-id>: <description>` share the existing private agent editor and save owner.
+Customizations **Agents / Kora / Add** hands the exact selected ID/description and original channel to that same complete operation,
+rather than preparing a generic agent template ([Add handoff](../src/Kora/CustomizationWindowController.cs)).
+The host owns the canonical ID, destination, v1 local text format and initial fixed budgets; the model supplies only
+description and guidance ([native operation](../src/Kora/AgentProfileEditorController.Proposal.cs),
+[bounded construction](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+
+Complete request/current-draft/locality disclosure precedes the shared admitted one-turn local tool-free authoring service.
+The exact destination is reviewed but not disclosed to the model. Strict JSON accepts exactly two string fields,
+`description` and `body`; malformed, duplicate, extra authority-bearing fields, invalid Unicode and oversized output fail whole,
+without YAML interpretation, stripping or truncation. No source resolution, history, memory, attachments, executable worker,
+tools, dependencies, grants, hosting, invocation or hosted fallback is introduced
+([authoring and parser](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+Complete before/after source and exact create-only destination review precedes explicit adoption into the volatile editor.
+Subsequent original refinements repeat disclosure and adoption against the captured v1 draft while preserving its host-owned metadata;
+manual v4 authoring and registered-source refinement remain unchanged. Adoption is neither Save nor enablement.
+Normal `AgentProfileSaveWorkflow` still prepares exact source/destination review and separately confirms native Save as new,
+with create-no-replace and durable readback. A different root, occupied destination or uncertain publication cannot cause a retry,
+overwrite or fallback ([native save](../src/Kora/AgentProfileEditorController.cs),
+[canonical save workflow](../src/Kora.Application/Agents/AgentProfileSaveWorkflow.cs)).
+
+Original channel/input, private host/call/ownership, draft/request/catalogue/control epochs, two-minute expiry and exact destination
+are fenced across generation, acceptance and save. Request edits after adoption require a fresh proposal; independent manual source
+edits remain subject to normal exact Save review. Cancel and retirement suppress late output while retaining ownership until actual
+provider quiescence. All authoring bodies remain volatile and excluded from conversation/log/audit content.
+Deterministic genuine fake-provider/native tests prove the full operation and forbidden premature writes/tool dispatch,
+not provider enablement or native/acoustic RC qualification
+([full-operation regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileConversationalAuthoringTests.cs),
+[user operation](../docs/agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)).
+
 ### Bounded local agent owned-instruction references (v2)
 
 The existing selected-source v1 agent operation remains unchanged, including its
@@ -781,12 +816,19 @@ or count as user activity/approval.
 
 The complete source, unchanged description, destination and host declaration precede independent local-only tool-free disclosure consent. Only a complete body proposal or explicit unsupported-capability refusal is admitted; the existing parser checks exact declared names/first occurrence, malformed placeholders and source bounds. Model output cannot choose metadata, files, destinations, defaults, tools or instruction authority ([local consumer](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
 
+Prompt and agent proposals share the admitted local-only runner, not their output schemas or authority. Prompt source freshness is revalidated at the actual model consumer and before publication; source-editing authoring retains the same freshness callback ([runner boundary](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), [authoring owner](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
 Complete proposed source/literal review and **Use proposed draft** adopt only volatile text. The existing independently confirmed exact writer saves disabled; reopen, exclusion removal, owned exact-template use review, explicit literal binding, complete expanded USER preview and exact-session submission remain separate. Cancellation, source/draft/critique/declaration/input/catalogue/provider/private/channel/call/ownership changes and expiry retire proposals and suppress late output while joining owned model work. No prompt-profile-original generation, recursive expansion, implicit use or runtime qualification is added ([native owner](../src/Kora/CustomizationWindowController.cs), [user operation](../docs/customizations.md#author-one-reusable-prompt-request), [native evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
 
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
-and writer. Activated controls focus the same native editor; voice-only approval
-remains unavailable. Manual editing needs no model/network ([native editor](../src/Kora/OwnedInstructionEditorController.cs)).
+and writer. Activated controls focus the same native editor. One already completely
+display-reviewed existing canonical owned Instruction normal same-source Save now
+supports a separate explicit [exact spoken answer](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+through the shared host question owner; native confirmation remains default/recovery.
+Create/copy/delete/conflict overwrite, prompts, profile originals and use/grant
+reviews stay native. Save approval and literal body dictation have distinct exclusive capture owners; dictation text cannot answer the Save question ([native editor](../src/Kora/OwnedInstructionEditorController.cs)).
+Manual editing needs no model/network.
 The explicit [literal owned Instruction body operation](../docs/instruction-editor.md#dictate-literal-instruction-body-text) freezes one foreground canonical owned draft/body caret or range before asynchronous source admission and local capture.
 It reuses the single exclusive literal capture service, reviews the complete proposed source after joined release, and accepts only into volatile draft memory. Normal exact Save and separate use review remain mandatory; metadata, prompts, other definition kinds and profile originals are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs), [native lifecycle](../src/Kora/OwnedInstructionBodyDictation.cs)).
 Source/draft/caret/input/control/channel/call/privacy/ownership/name/topology/generation changes retire the original target without command/session/question fallback. Transcript words are inert, with no model or tool dispatch, audio/transcript archive, autosave or enablement. Existing consent/device/local-ASR bounds and unavailable qualification remain unchanged ([shared capture](../src/Kora.Application/Voice/ComposerDictationService.cs), [deterministic native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Dictation.cs)).

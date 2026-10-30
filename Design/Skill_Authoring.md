@@ -81,6 +81,15 @@ controls and writes exactly one bounded `*.instructions.md` file. Voice and
 typed input can propose the same edits; neither input route bypasses native
 review or the exact Save confirmation.
 
+The first [exact spoken Save increment](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+confirms one already completely display-reviewed existing canonical Kora-owned
+Instruction replacement through the canonical host question service and unchanged
+writer. It does not extend package saves, profile-original writes, creation/copy,
+deletion, conflict overwrite, grants or activation; other mutations remain native.
+The separate [literal owned Instruction body route](../docs/instruction-editor.md#dictate-literal-instruction-body-text)
+stages only reviewed volatile text at a frozen body caret/range. It cannot answer
+the dedicated Save question or replace complete source review and separate Save.
+
 Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
 Compatible instructions discovered in an existing VS Code or VS Code Insiders
 profile location may be edited in their original file when the user selects
@@ -139,6 +148,13 @@ candidate after successful rediscovery. Applying it to requests requires
 review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
+
+The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
+Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+
+The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
+The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
+No provider/tool-loop qualification, seventh tool, network/file/effect capability, executable directive or generic workflow framework is introduced.
 
 The MVP authoring writer accepts only a validated package:
 

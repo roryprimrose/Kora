@@ -5,6 +5,7 @@ using Kora.Core.Authorization;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Storage;
 using Kora.Windows.Storage;
 
 using Microsoft.Data.Sqlite;
@@ -61,9 +62,10 @@ internal sealed class InteractionStorageFixture : IDisposable
         await PublishAsync();
     }
 
-    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null)
+    internal void Reopen(IHostInteractionTransactionCheckpoint? checkpoint = null, AuditRetentionPolicy? auditPolicy = null,
+        SessionRetentionPolicy? sessionRetentionPolicy = null)
     {
-        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy);
+        Store = new(Paths, Tasks, Time, checkpoint, auditPolicy: auditPolicy, sessionRetentionPolicy: sessionRetentionPolicy);
         Questions = new(Store, Time);
         Authorization = new(Store, Time);
     }

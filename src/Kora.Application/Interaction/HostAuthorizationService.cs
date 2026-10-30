@@ -95,7 +95,7 @@ public sealed partial class HostAuthorizationService(
             if (!Eligible(snapshot, request))
             { return InteractionTransaction.Reject(snapshot, "operation-not-admitted"); }
             var observed = ObserveContent(snapshot, request).Item1;
-            var grant = observed.Grants.FirstOrDefault(item => Matches(observed, request, item));
+            var grant = FindApplicableGrant(observed, request);
             return grant is null ? Present(observed, request, consentSpec: spec)
                 : Consume(observed, request, grant.Id, grant.Revision);
         }, cancellationToken);
@@ -133,7 +133,7 @@ public sealed partial class HostAuthorizationService(
         HostInteractionSnapshot snapshot, HostRequest request, QuestionSpec spec)
     {
         var observed = ObserveContent(snapshot, request).Item1;
-        var grant = observed.Grants.FirstOrDefault(item => Matches(observed, request, item));
+        var grant = FindApplicableGrant(observed, request);
         return grant is null ? Present(observed, request, consentSpec: spec)
             : Consume(observed, request, grant.Id, grant.Revision);
     }

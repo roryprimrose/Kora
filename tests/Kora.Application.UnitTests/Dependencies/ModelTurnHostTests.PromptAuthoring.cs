@@ -28,7 +28,7 @@ public sealed partial class ModelTurnHostTests
         const string description = "  Reusable request to summarize topic for audience.\r\nDo not run it.  ";
         f.Adapter.Reply = new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
             new("{\"body\":\"Summarize ${input:topic} for ${input:audience}.\"}", null));
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time, local.Runner);
+        var service = new CustomizationAuthoringService(admission, local.Runner, f.Time);
         var sourceChecks = 0;
         var result = await service.Refine(source, [file], new(source.PrimaryFile, RequiredPromptInputs: "topic,audience"),
             description, () => true, Token, _ => { sourceChecks++; return Task.CompletedTask; });
@@ -75,7 +75,7 @@ public sealed partial class ModelTurnHostTests
             if (change is "expired") { f.Time.Now += TimeSpan.FromMinutes(3); }
             if (change is "source-after") { sourceCurrent = false; }
         };
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time, local.Runner);
+        var service = new CustomizationAuthoringService(admission, local.Runner, f.Time);
         var operation = () => service.Refine(source, [file], context, "Describe a repeatable request", () => true, Token,
             _ => sourceCurrent ? Task.CompletedTask : throw new InvalidOperationException("Source changed"));
         await operation.Should().ThrowAsync<Exception>();
@@ -103,8 +103,8 @@ public sealed partial class ModelTurnHostTests
         f.Adapter.Reply = new(change is "unavailable" ? ModelTurnOutcome.Unavailable : ModelTurnOutcome.Succeeded,
             ModelProviderSelection.OllamaCandidate, new(change is "metadata-only" ? "{\"intent\":\"edit\"}" : "{\"body\":\"Request\"}", null));
         if (change is "cancel") { f.Adapter.OnRun = cancellation.Cancel; }
-        var service = new CustomizationAuthoringService(admission, f.PolicyHost, f.PolicyHost, f.Time,
-            change is "missing-runner" ? null : local.Runner);
+        var service = new CustomizationAuthoringService(admission,
+            change is "missing-runner" ? null! : local.Runner, f.Time);
         if (change is "metadata-only")
         {
             (await service.Interpret(new(CustomizationKind.Prompt, CustomizationScope.Kora, "example", source.PrimaryFile, false, false),

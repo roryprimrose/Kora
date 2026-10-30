@@ -31,6 +31,8 @@ public sealed class SessionRequestCommandService(
         Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        if (command.IsConversationDispatch)
+        { return await ExecuteDispatchAsync(command, origin, admitted, token).ConfigureAwait(false); }
         ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];
         Pending? previous;
         long attempt;
@@ -49,6 +51,7 @@ public sealed class SessionRequestCommandService(
             command = command with { SessionId = entry.Authority.SessionId.Value,
                 Generation = entry.Authority.Generation.Value, MetadataRevision = entry.Metadata?.Revision.Value ?? 0 };
         }
+
         if (command.RequestUsesPendingReview)
         {
             if (command.SessionId is not null || command.RequestReviewId is not null
@@ -224,6 +227,49 @@ public sealed class SessionRequestCommandService(
         {
             activity.Complete(HostOperationOutcome.Cancelled);
             throw;
+        }
+        catch
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
+
+    private async Task<SessionCommandResult> ExecuteDispatchAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken token)
+    {
+        var control = access.ControlRevision;
+        var created = time.GetUtcNow();
+        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
+            && time.GetUtcNow() >= created && time.GetUtcNow() < created.AddSeconds(10);
+        if (!Live()) { throw new InvalidOperationException("Original private dispatch-control input is unavailable."); }
+        var session = new HostId<SessionIdentity>(command.SessionId
+            ?? throw new InvalidOperationException("One exact existing conversation is required."));
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
+            HostActivityLayer.Application, HostOperation.Request);
+        try
+        {
+            var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
+            if (target.Authority.SessionId != session || !target.Authority.IsActive || !Live())
+            { throw new InvalidOperationException("Dispatch control requires the exact Active conversation and current original input. Done is not resumed."); }
+            var snapshot = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
+            if (command.Operation != SessionCommandOperation.ConversationDispatchStatus)
+            {
+                await conversation.SetManualDispatchHoldAsync(snapshot.DispatchControl
+                    ?? throw new InvalidOperationException("A preceding generation still owns submitted work. Current-generation dispatch control is unavailable."),
+                    command.Operation == SessionCommandOperation.ConversationDispatchPause
+                        ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None,
+                    Live, token, origin).ConfigureAwait(false);
+                snapshot = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
+            }
+            if (!Live()) { throw new InvalidOperationException("Dispatch-control receipt admission changed. Refresh exact work; no rollback is claimed."); }
+            activity.Complete(HostOperationOutcome.Completed);
+            return new("observed", "Manual dispatch hold: " + snapshot.ManualHoldReason
+                + ". Independent recovery hold: " + snapshot.Paused
+                + ". Current-generation manual control available: " + (snapshot.DispatchControl is not null)
+                + ". Pending ordinary requests: " + snapshot.Turns.Count(item => item.Phase == ConversationPendingPhase.Pending)
+                + ". Already dispatching/running work continues unchanged. Original FIFO, source, permission and expiry remain required. "
+                + "No activity renewal, action approval, replay or diagnostic queue change.");
         }
         catch
         {

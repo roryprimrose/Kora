@@ -1,4 +1,5 @@
 using AwesomeAssertions;
+using Kora.Application.Context;
 using Kora.Application.Dependencies;
 using Kora.Core.Context;
 using Kora.Core.Context.FolderAnswers;
@@ -27,7 +28,7 @@ public sealed partial class MainViewModelTests
         using var preview = new LocalFilePreview(inspector, f.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
         var model = new NativeFileAnswerModel { Kind = kind };
         var action = new LocalFolderAnswer(preview, new LocalFileLexicalRetrieval(),
-            string.Equals(kind, "policy", StringComparison.Ordinal) ? new UnavailableLocalFileModelUsePolicy() : new NativeFileAnswerPolicy(),
+            string.Equals(kind, "policy", StringComparison.Ordinal) ? new UnavailableLocalFileModelUsePolicy() : LocalSourceUsePolicy.Instance,
             model, f.Audit, TimeProvider.System, NullLogger<LocalFolderAnswer>.Instance);
         f.ViewModel.BindFilePreview(preview, new FakeFilePicker(), folders: new NativeFolderPicker());
         f.ViewModel.BindFolderAnswer(action);
@@ -39,9 +40,10 @@ public sealed partial class MainViewModelTests
         var source = f.ViewModel.FolderRevision!;
         var prepared = await f.ViewModel.PrepareFolderAnswerAsync(source.Reference, "private folder?", () => true, TestContext.Current.CancellationToken);
         prepared.Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
-        var review = prepared.Review!;
+        var review = prepared.Review!.SelectEvidence([prepared.Review.Search.Citations[1]]);
         model.AdmissionCalls.Should().Be(0);
-        review.Search.Citations.Should().HaveCount(2);
+        review.Search.Citations.Should().ContainSingle();
+        review.RetrievedSearch.Citations.Should().HaveCount(2);
         var result = await f.ViewModel.AnswerFolderAsync(review, () => true, TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(expected);
         inspector.Reads.Should().Be(2);
@@ -55,7 +57,40 @@ public sealed partial class MainViewModelTests
             context.Request.Should().BeSameAs(review.Target.Request);
             context.Request.SessionId.Should().NotBe(source.Review.Request.SessionId);
             context.Tools.Should().BeEmpty();
+            context.Evidence.Select(item => item.Content).Should().Equal(review.Search.Citations.Select(citation => citation.Excerpt));
         }
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task SubsetCannotHideCredentialRiskElsewhereInWholeEvidenceFileOrOriginalQuestion(bool questionRisk)
+    {
+        var f = new Fixture();
+        var inspector = new FolderInspector
+        {
+            Content = questionRisk ? FolderInspector.Text : "private folder marker\n" + new string('z', 2048) + "\napi_key=example",
+        };
+        using var preview = new LocalFilePreview(inspector, f.Audit, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
+        var model = new NativeFileAnswerModel { Kind = "success" };
+        f.ViewModel.BindFilePreview(preview, new FakeFilePicker(), folders: new NativeFolderPicker());
+        f.ViewModel.BindFolderAnswer(new(preview, new LocalFileLexicalRetrieval(), LocalSourceUsePolicy.Instance,
+            model, f.Audit, TimeProvider.System, NullLogger<LocalFolderAnswer>.Instance));
+        await f.ViewModel.PreviewFolderAsync();
+        await f.ViewModel.ConfirmFilePreviewAsync(f.ViewModel.FolderReview!.ReviewId);
+        var raw = (await f.ViewModel.PrepareFolderAnswerAsync(f.ViewModel.FolderRevision!.Reference,
+            questionRisk ? "private api_key=example" : "private", () => true, TestContext.Current.CancellationToken)).Review!;
+        var selected = raw.SelectEvidence([raw.Search.Citations[0]]);
+        selected.Search.Citations.Single().Excerpt.Should().NotContain("api_key");
+        var result = await f.ViewModel.AnswerFolderAsync(selected, () => true, TestContext.Current.CancellationToken);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        result.SourceUseDecision.Should().Be(LocalFileModelUseDecision.Denied);
+        result.Claims.Should().BeEmpty();
+        model.AdmissionCalls.Should().Be(0);
+        model.Context.Should().BeNull();
+        inspector.Reads.Should().Be(2);
+        f.HostStore.Records.Should().BeEmpty();
+        f.Reasoner.Requests.Should().BeEmpty();
     }
 
     [Fact]
@@ -177,6 +212,7 @@ public sealed partial class MainViewModelTests
         var source = f.ViewModel.FolderRevision!;
         var review = (await f.ViewModel.PrepareFolderAnswerAsync(source.Reference, "private", () => current,
             TestContext.Current.CancellationToken)).Review!;
+        review = review.SelectEvidence([review.Search.Citations[0]]);
         var result = await f.ViewModel.AnswerFolderAsync(review, () => current, TestContext.Current.CancellationToken);
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
         result.Claims.Should().BeEmpty();

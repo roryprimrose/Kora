@@ -11,14 +11,17 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
-    private sealed class ConversationLane(long controlRevision) : IDisposable
+    private sealed class ConversationLane(SessionWorkspaceEntry target, long controlRevision) : IDisposable
     {
+        internal Guid AdmissionId = Guid.NewGuid();
+        internal SessionWorkspaceEntry Target = target;
         internal readonly SemaphoreSlim Admission = new(1, 1);
         internal readonly List<PendingConversation> Entries = [];
         internal TaskCompletionSource Changed = NewSignal();
         internal long Revision;
         internal long ControlRevision = controlRevision;
         internal bool Paused;
+        internal ConversationDispatchHoldReason ManualHoldReason;
         public void Dispose() => Admission.Dispose();
         internal void Pulse()
         {
@@ -81,8 +84,7 @@ public sealed partial class SessionConversationService
         {
             ObjectDisposedException.ThrowIf(pendingClosed, this);
             RequireConversationDispatchOpen(target.Authority.SessionId);
-            if (!conversationLanes.TryGetValue(target.Authority.SessionId, out lane!))
-            { conversationLanes.Add(target.Authority.SessionId, lane = new(access.ControlRevision)); }
+            lane = GetConversationLane(target);
         }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, pendingLifetime.Token);
         linked.Token.ThrowIfCancellationRequested();
@@ -95,7 +97,7 @@ public sealed partial class SessionConversationService
             {
                 ObjectDisposedException.ThrowIf(pendingClosed, this);
                 RequireConversationDispatchOpen(target.Authority.SessionId);
-                if (lane.Entries.Count == 0) { lane.ControlRevision = access.ControlRevision; }
+                if (lane.Entries.Count == 0) { lane.ControlRevision = access.ControlRevision; lane.Target = target; }
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
@@ -171,7 +173,8 @@ public sealed partial class SessionConversationService
             pending.ExpiresAt = context.ExpiresAt;
             pending.Cause = new(HostActivity.RequireCurrent().Activity!.Context);
             pending.OnAccepted?.Invoke();
-            if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+            if (!lifecycleHeld && !lane.Paused && lane.ManualHoldReason == ConversationDispatchHoldReason.None
+                && ReferenceEquals(lane.Entries[0], pending))
             { pending.Phase = ConversationPendingPhase.Dispatching; }
             lane.Pulse();
             var snapshot = Snapshot(pending.Target.Authority.SessionId, lane);
@@ -189,7 +192,9 @@ public sealed partial class SessionConversationService
                 remaining = pending.ExpiresAt - time.GetUtcNow();
                 if (remaining <= TimeSpan.Zero || time.GetUtcNow() < context.CreatedAt) { return ModelTurnReason.ContextExpired; }
                 token.ThrowIfCancellationRequested();
-                if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+                if (!lifecycleHeld && !lane.Paused
+                    && (lane.ManualHoldReason == ConversationDispatchHoldReason.None || pending.Phase == ConversationPendingPhase.Dispatching)
+                    && ReferenceEquals(lane.Entries[0], pending))
                 {
                     pending.Phase = ConversationPendingPhase.Dispatching;
                     lane.Pulse();
@@ -210,7 +215,29 @@ public sealed partial class SessionConversationService
             [.. lane.Entries.Where(item => item.Retained is not null).Select(item => new ConversationPendingTurn(
                 item.Retained!, item.ExpiresAt, item.Phase,
                 item.Phase == ConversationPendingPhase.Dispatching ? 0 : ++position))])
-        { ControlRevision = lane.ControlRevision };
+        {
+            ControlRevision = lane.ControlRevision,
+            DispatchControl = new(lane.Target, lane.AdmissionId, lane.Revision, lane.ControlRevision),
+            ManualHoldReason = lane.ManualHoldReason,
+        };
+    }
+
+    private ConversationLane GetConversationLane(SessionWorkspaceEntry target, bool refreshed = false)
+    {
+        if (conversationLanes.TryGetValue(target.Authority.SessionId, out var lane))
+        {
+            if (lane.Target.Authority.Generation == target.Authority.Generation) { return lane; }
+            if (!refreshed || lane.Entries.Count != 0)
+            { throw new InvalidOperationException("Refresh the exact current conversation generation after its preceding submitted work has joined."); }
+            lane.AdmissionId = Guid.NewGuid();
+            lane.Target = target;
+            lane.ManualHoldReason = ConversationDispatchHoldReason.None;
+            lane.Pulse();
+            return lane;
+        }
+        lane = new(target, access.ControlRevision);
+        conversationLanes[target.Authority.SessionId] = lane;
+        return lane;
     }
 
     public async Task<ConversationPendingSnapshot> ReadPendingConversationAsync(SessionWorkspaceEntry target,
@@ -224,9 +251,50 @@ public sealed partial class SessionConversationService
         lock (cancellationGate)
         {
             ObjectDisposedException.ThrowIf(pendingClosed, this);
-            return (conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
-                ? Snapshot(target.Authority.SessionId, lane) : new(target.Authority.SessionId, 0, false, []))
-                with { ControlRevision = revision };
+            if (conversationLanes.TryGetValue(target.Authority.SessionId, out var preceding)
+                && preceding.Target.Authority.Generation != target.Authority.Generation && preceding.Entries.Count != 0)
+            {
+                return Snapshot(target.Authority.SessionId, preceding) with { ControlRevision = revision, DispatchControl = null };
+            }
+            var lane = GetConversationLane(target, refreshed: true);
+            lane.Target = target;
+            lane.ControlRevision = revision;
+            return Snapshot(target.Authority.SessionId, lane);
+        }
+    }
+
+    public async Task<ConversationPendingSnapshot> SetManualDispatchHoldAsync(ConversationDispatchControl expected,
+        ConversationDispatchHoldReason reason, Func<bool> admitted, CancellationToken token,
+        RequestOrigin origin = RequestOrigin.LocalUi)
+    {
+        RequireOriginalSource(origin);
+        if (!Enum.IsDefined(reason)) { throw new ArgumentOutOfRangeException(nameof(reason)); }
+        var target = expected.Target;
+        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == expected.ControlRevision
+            && admitted() && !token.IsCancellationRequested;
+        if (!Live()) { throw new InvalidOperationException("Original private dispatch-control admission changed. Refresh exact submitted work."); }
+        var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        lock (cancellationGate)
+        {
+            ObjectDisposedException.ThrowIf(pendingClosed, this);
+            RequireConversationDispatchOpen(target.Authority.SessionId);
+            if (!Live() || actual != target || !target.Authority.IsActive
+                || !conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
+                || lane.Target != target || lane.AdmissionId != expected.AdmissionId
+                || lane.Revision != expected.LaneRevision || lane.ManualHoldReason == reason)
+            { throw new InvalidOperationException("The exact Active conversation dispatch observation changed. Refresh before a new deliberate decision."); }
+            bool Current() => Live() && lane.Revision == expected.LaneRevision;
+            using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
+                new(Guid.NewGuid()), origin), HostActivityLayer.Application, HostOperation.Request);
+            AuditPendingControl(reason == ConversationDispatchHoldReason.None
+                ? "conversation.manual-dispatch-release" : "conversation.manual-dispatch-hold", Current, origin);
+            lane.ManualHoldReason = reason;
+            lane.Pulse();
+            var snapshot = Snapshot(target.Authority.SessionId, lane);
+            PendingConversationChanged?.Invoke(snapshot);
+            activity.Complete(HostOperationOutcome.Completed);
+            return snapshot;
         }
     }
 

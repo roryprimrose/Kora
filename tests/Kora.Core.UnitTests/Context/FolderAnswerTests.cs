@@ -21,7 +21,9 @@ public sealed class FolderAnswerTests
         var folder = new LocalFolderRevision(folderReview, metadata.Files.Select(file => new LocalFileRevision(
             new(folderReview.ReviewId, folderReview.SourceId, request, file), Encoding.UTF8.GetBytes(text), DateTimeOffset.UnixEpoch)));
         var search = new LocalFileLexicalRetrieval().Search(folder, folder.Reference, "alpha", DateTimeOffset.UnixEpoch, CancellationToken.None);
-        return new(folder, "alpha?", search, LocalContextSessionTarget.ReviewedFresh(request, HostRequest.Create(RequestOrigin.LocalUi)));
+        var review = new FolderAnswerReview(folder, "alpha?", search,
+            LocalContextSessionTarget.ReviewedFresh(request, HostRequest.Create(RequestOrigin.LocalUi)));
+        return review.SelectEvidence(review.Search.Citations);
     }
 
     private static FolderAnswerContext Context(FolderAnswerReview review) =>
@@ -36,6 +38,96 @@ public sealed class FolderAnswerTests
         unsupported = false,
         claims = new[] { new { text = "Both reviewed files contain the marker.", evidenceIds = context.Envelope.Evidence.Select(item => item.Id.Value) } },
     });
+
+    [Fact]
+    public void DeliberateSubsetKeepsWholeOriginalCitationsQuestionTargetAndDeadline()
+    {
+        var all = Review();
+        var raw = new FolderAnswerReview(all.Source, all.Question, all.Search, all.Target);
+        raw.IsUserSelected.Should().BeFalse();
+        raw.TryConsume().Should().BeFalse();
+        var unselected = () => Context(raw);
+        unselected.Should().Throw<InvalidDataException>();
+        var choice = new List<LocalFileCitation> { raw.Search.Citations[1] };
+        var selected = raw.SelectEvidence(choice);
+        choice.Clear();
+        selected.Question.Should().Be(raw.Question);
+        selected.Source.Should().BeSameAs(raw.Source);
+        selected.Target.Should().BeSameAs(raw.Target);
+        selected.RetrievedSearch.Should().BeSameAs(raw.Search);
+        selected.Search.Citations.Single().Should().BeSameAs(raw.Search.Citations[1]);
+        selected.ExcerptUtf8Bytes.Should().Be(Encoding.UTF8.GetByteCount(raw.Search.Citations[1].Excerpt));
+        selected.ExpiresAt.Should().Be(raw.ExpiresAt);
+        selected.Search.Truncated.Should().BeTrue();
+        var context = new FolderAnswerContext(selected, selected.Target.Request, new(1), DateTimeOffset.UnixEpoch.AddSeconds(5));
+        context.Envelope.ExpiresAt.Should().Be(raw.ExpiresAt);
+        context.Envelope.UserRequest.Should().Be(raw.Question);
+        context.Envelope.SystemPolicy.Should().Contain("user deliberately selected").And.Contain("Never claim");
+        context.Envelope.Evidence.Should().ContainSingle();
+        var result = context.Resolve(Success(context, Answer(context)));
+        result.Claims.Single().Citations.Single().Should().BeSameAs(raw.Search.Citations[1]);
+        result.RetrievalTruncated.Should().BeFalse();
+        var foreign = Context(all);
+        context.Resolve(Success(context, Answer(foreign))).Outcome.Should().Be(LocalFileAnswerOutcome.InvalidResponse);
+    }
+
+    [Theory]
+    [InlineData("empty")]
+    [InlineData("many")]
+    [InlineData("duplicate")]
+    [InlineData("foreign")]
+    [InlineData("clone")]
+    [InlineData("excerpt")]
+    [InlineData("span")]
+    [InlineData("null")]
+    public void SelectionIsExistingWholeCitationAuthorityNotArbitraryPathOrRange(string fault)
+    {
+        var all = Review();
+        var citation = all.Search.Citations[0];
+        IReadOnlyList<LocalFileCitation> selected = fault switch
+        {
+            "empty" => [],
+            "many" => Enumerable.Repeat(citation, 9).ToArray(),
+            "duplicate" => [citation, citation],
+            "foreign" => [Review().Search.Citations[0]],
+            "clone" => [citation with { }],
+            "excerpt" => [citation with { Excerpt = "fabricated" }],
+            "span" => [citation with { Start = citation.Start + 1 }],
+            _ => [null!],
+        };
+        var choose = () => all.SelectEvidence(selected);
+        choose.Should().Throw<InvalidDataException>();
+        all.TryConsume().Should().BeFalse();
+        var missing = () => all.SelectEvidence(null!);
+        missing.Should().Throw<ArgumentNullException>();
+    }
+
+    [Fact]
+    public void SelectionChangesRetirementAndConsumptionRevokeAllDerivedContextsWithoutRenewal()
+    {
+        var first = Review();
+        var context = Context(first);
+        var second = first.SelectEvidence([first.Search.Citations[1]]);
+        first.TryConsume().Should().BeFalse();
+        first.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        context.Resolve(Success(context, Answer(context))).Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        second.InvalidateSelection();
+        second.TryConsume().Should().BeFalse();
+        var third = second.SelectEvidence([second.RetrievedSearch.Citations[0]]);
+        third.IsCurrent(third.ExpiresAt.AddTicks(-1)).Should().BeTrue();
+        third.IsCurrent(third.ExpiresAt).Should().BeFalse();
+        var expired = () => new FolderAnswerContext(third, third.Target.Request, new(1), third.ExpiresAt);
+        expired.Should().Throw<InvalidDataException>();
+        third.TryConsume().Should().BeTrue();
+        var reuse = () => third.SelectEvidence(third.Search.Citations);
+        reuse.Should().Throw<InvalidDataException>();
+        var retired = Review();
+        retired.Invalidate();
+        retired.IsCurrent(DateTimeOffset.UnixEpoch).Should().BeFalse();
+        retired.TryConsume().Should().BeFalse();
+        var revive = () => retired.SelectEvidence(retired.Search.Citations);
+        revive.Should().Throw<InvalidDataException>();
+    }
 
     [Fact]
     public void CrossFileEvidencePreservesExactIdentityLocationsBytesAndOneShotConfirmation()
@@ -225,6 +317,7 @@ public sealed class FolderAnswerTests
         var review = Review();
         var truncated = new FolderAnswerReview(review.Source, review.Question,
             review.Search with { MatchingChunks = 3, Truncated = true }, review.Target);
+        truncated = truncated.SelectEvidence(truncated.Search.Citations);
         var context = Context(truncated);
         var result = context.Resolve(Success(context, "{\"unsupported\":true,\"claims\":[]}"));
         result.Outcome.Should().Be(LocalFileAnswerOutcome.Unsupported);

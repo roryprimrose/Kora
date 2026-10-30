@@ -54,8 +54,11 @@ public sealed partial class MainViewModel
 #pragma warning restore VSTHRD003
     }
 
-    public void PublishCustomizationVoiceTarget(CustomizationVoiceTarget? target) =>
+    public void PublishCustomizationVoiceTarget(CustomizationVoiceTarget? target)
+    {
         Interlocked.Exchange(ref customizationVoiceTarget, target)?.Retire();
+        reviewedVoiceCommand?.Revalidate();
+    }
 
     public Func<bool> CaptureCustomizationVoiceEligibility()
     {
@@ -90,9 +93,12 @@ public sealed partial class MainViewModel
         finally { request.Retire(); activeCustomizationVoice = null; IsBusy = false; }
     }
 
-    private Task ExecuteCustomizationCommand(CustomizationCommand command)
+    private Task ExecuteCustomizationCommand(CustomizationCommand command, Func<bool> admitted)
     {
-        if (CustomizationRequested is { } handler) { return handler(command); }
+        if (CustomizationRequested is { } handler)
+        {
+            return handler(command with { IsCurrent = admitted });
+        }
         ReportHostInteractionFailure("The Customizations window is unavailable. No source was edited.");
         return Task.CompletedTask;
     }

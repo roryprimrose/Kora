@@ -419,7 +419,7 @@ Selection changes, closure, privacy loss, purged/removed/unknown or corrupt stat
 
 Inspection no longer runs maintenance. The replacement passive pre/post admission preserves confirmed retention-policy, ownership/privacy/call and verified copy-inventory checks.
 Due ordinary candidates without existing live/Unknown/question/control holds deny content inspection pending authoritative background maintenance; source authority revision changes suppress late results. Exact retention-status readback is non-content observation, not a cleanup bypass.
-No new apply-now, archive/delete, global default, direct typed/voice hold mutation or model descriptor is available.
+This hold/status increment adds no apply-now, archive/delete, global default, direct typed/voice hold mutation or model descriptor. The later [single-conversation apply-now](User_Configuration.md#explicit-single-conversation-apply-now) is a distinct original-native operation.
 The existing exact-ID field also supports native **Read exact ID retention**, using canonical immutable-ID validation. It keeps retention status/review available when due-content inspection is held, without reading names/history/work or fabricating active/resume authority; removed/purged status remains nonmutable.
 
 Maintained [actual SQLite controls](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteSessionRetentionControlTests.cs), [portable admission](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.Retention.cs) and [headless native review](../tests/Kora.Windows.IntegrationTests/SessionsRetentionViewModelTests.cs) cover this subset.
@@ -1217,6 +1217,22 @@ Use categorical thresholds rather than claiming a numerical probability from scr
 | High | Irreversible or broad deletion, production/shared-resource change, security/credential change, software installation, arbitrary code with unverified effects | Explicit consequences, targets, source/diff and recovery limitations; action-specific confirmation through either channel; mandatory OS/provider checks |
 | Prohibited | Protected Kora mutation, bypassing lock/containment, exposing credential-store secrets, unsupported execution | Reject; approval cannot override policy |
 
+The informational/safety **pause dispatch** operation applies to one explicitly
+addressed Active ordinary conversation through the
+[shared manual-hold action](Work_Management.md#ordinary-submitted-conversation-turns).
+It holds future ordinary start decisions, never suspends/cancels a running or
+already-dispatching turn and never discards pending originals. Native **Pause
+ordinary dispatch** and exact typed/activated-voice `session dispatch pause
+<session-id>` need no model or action-approval question; existing editor,
+dictation, question and approval precedence is unchanged. The separate native
+**Release manual dispatch hold** or `session dispatch resume <session-id>`
+clears only that manual reason, not a recovery/security hold. All original
+deadlines keep running, and expired work requires fresh user input/review.
+Manual/task-stepping start decisions never replace consequential action approval.
+These controls neither Resume Done nor create/renew session activity, grants or
+model context. The retired diagnostic queue controls remain denied; no global
+pause, reorder or settings product is admitted.
+
 Unknown or mixed effects receive the highest applicable permitted review class.
 Administrator elevation is neither necessary nor sufficient for high risk.
 Registered constrained actions may have lower risk only when their effects are actually enforced.
@@ -1604,6 +1620,8 @@ Do not promise forensic secure erasure or remote cancellation.
 Changing either retention setting shows affected due dates; shortening it previews records that would immediately archive/delete and requires a separate explicit apply-now decision.
 Without that decision, retain existing sessions' due dates and apply the new policy to new sessions or subsequent meaningful activity; do not defer an unconfirmed immediate purge to the next timer tick.
 No setting change silently purges sessions. Storage pressure reports failure/options, never undocumented eviction.
+
+The bounded native [single-conversation apply-now operation](User_Configuration.md#explicit-single-conversation-apply-now) implements this separate decision for one eligible ordinary conversation using the confirmed current policy. It preserves original meaningful activity, reviews old/new deadlines and exact content/work impact, then atomically commits the policy and reviewed immediately due archive/disposition action with requested/terminal audit and readback. Live, queued, Unknown, held, unowned or uncertain-copy work is not cancelled or abandoned; it is ineligible ([orchestration](../src/Kora.Application/Hosting/SessionRetentionApplyService.cs), [storage](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionApply.cs)).
 
 ## Persistence and Restart
 

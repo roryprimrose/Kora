@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Kora.Application.Dependencies;
 using Kora.Core.Commands;
@@ -19,6 +19,9 @@ public sealed class SessionRequestCommandService(
     private Pending? pending;
     private long epoch;
 
+    internal void BindTaskResponseOutput(Func<Kora.Core.Voice.TaskResponseMode, RequestOrigin, TaskResponseOutputReview> review) =>
+        conversation.BindTaskResponseOutput(review);
+
     public void Retire()
     {
         lock (gate) { pending = null; epoch++; }
@@ -28,6 +31,8 @@ public sealed class SessionRequestCommandService(
         Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        if (command.IsConversationDispatch)
+        { return await ExecuteDispatchAsync(command, origin, admitted, token).ConfigureAwait(false); }
         ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];
         Pending? previous;
         long attempt;
@@ -46,6 +51,7 @@ public sealed class SessionRequestCommandService(
             command = command with { SessionId = entry.Authority.SessionId.Value,
                 Generation = entry.Authority.Generation.Value, MetadataRevision = entry.Metadata?.Revision.Value ?? 0 };
         }
+
         if (command.RequestUsesPendingReview)
         {
             if (command.SessionId is not null || command.RequestReviewId is not null
@@ -98,6 +104,15 @@ public sealed class SessionRequestCommandService(
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
                     command.RequestProvider) { ClaudeTools = command.RequestClaudeTools, LocalRequestProfile = command.RequestLocalProfile };
+                TaskResponseOutputReview? output = null;
+                if (command.RequestTaskResponseMode is { } outputMode)
+                {
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
+                        || command.RequestLocalProfile is not null || !command.RequestClaudeTools.IsEmpty)
+                    { throw new InvalidOperationException("One-task output review applies only to a new ordinary request."); }
+                    output = conversation.ReviewTaskResponseOutput(outputMode, origin);
+                    review = review with { TaskResponseMode = output.Declared, ConfiguredTaskResponseMode = output.Configured };
+                }
                 LocalRequestProfileReview? localProfile = null;
                 if (command.RequestLocalProfile is { } profile)
                 {
@@ -122,10 +137,12 @@ public sealed class SessionRequestCommandService(
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile);
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile, output);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
-                return new("review", localProfile is not null
+                return new("review", output is not null
+                    ? "This task only. Review unchanged input, exact conversation, original channel and declared/configured output. Confirm separately once; mandatory call/privacy/output policy wins. No saved preference, speech or submission yet."
+                    : localProfile is not null
                     ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
                     : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
@@ -170,7 +187,11 @@ public sealed class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.LocalProfile is { } local
+                receipt = previous.Output is { } output
+                    ? await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
+                        Revalidate, [previous.Cause], previous.Review.Origin,
+                        accepted: () => { lock (gate) { accepted = true; } }, taskOutput: output).ConfigureAwait(false)
+                    : previous.LocalProfile is { } local
                     ? await conversation.SubmitLocalRequestProfileAsync(local, OriginalLive, Revalidate,
                         [previous.Cause], token).ConfigureAwait(false)
                     : previous.RetryProvider is { } provider
@@ -196,15 +217,59 @@ public sealed class SessionRequestCommandService(
                 throw;
             }
             activity.Complete(HostOperationOutcome.Completed);
-            return new("retained", receipt.Message.Outcome is null
+            return new("retained", (receipt.Message.Outcome is null
                 ? "Exact original USER request accepted and pending in its original conversation/channel. Inspect submitted work for position or exact cancellation; no execution success, fallback or authority renewal is implied."
                 : "Exact original USER request retained with its original channel and terminal HOST/task outcome. Inspect these receipts; no fallback or automatic replay.")
+                + (previous.Output is { } completedOutput ? " " + completedOutput.Status : string.Empty))
             { RequestSubmission = receipt };
         }
         catch (OperationCanceledException)
         {
             activity.Complete(HostOperationOutcome.Cancelled);
             throw;
+        }
+        catch
+        {
+            activity.Complete(HostOperationOutcome.Failed);
+            throw;
+        }
+    }
+
+    private async Task<SessionCommandResult> ExecuteDispatchAsync(SessionCommand command, RequestOrigin origin,
+        Func<bool> admitted, CancellationToken token)
+    {
+        var control = access.ControlRevision;
+        var created = time.GetUtcNow();
+        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == control && admitted()
+            && time.GetUtcNow() >= created && time.GetUtcNow() < created.AddSeconds(10);
+        if (!Live()) { throw new InvalidOperationException("Original private dispatch-control input is unavailable."); }
+        var session = new HostId<SessionIdentity>(command.SessionId
+            ?? throw new InvalidOperationException("One exact existing conversation is required."));
+        using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session, new(Guid.NewGuid()), origin),
+            HostActivityLayer.Application, HostOperation.Request);
+        try
+        {
+            var target = await workspace.ReadExactMetadataAsync(session, token).ConfigureAwait(false);
+            if (target.Authority.SessionId != session || !target.Authority.IsActive || !Live())
+            { throw new InvalidOperationException("Dispatch control requires the exact Active conversation and current original input. Done is not resumed."); }
+            var snapshot = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
+            if (command.Operation != SessionCommandOperation.ConversationDispatchStatus)
+            {
+                await conversation.SetManualDispatchHoldAsync(snapshot.DispatchControl
+                    ?? throw new InvalidOperationException("A preceding generation still owns submitted work. Current-generation dispatch control is unavailable."),
+                    command.Operation == SessionCommandOperation.ConversationDispatchPause
+                        ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None,
+                    Live, token, origin).ConfigureAwait(false);
+                snapshot = await conversation.ReadPendingConversationAsync(target, Live, token).ConfigureAwait(false);
+            }
+            if (!Live()) { throw new InvalidOperationException("Dispatch-control receipt admission changed. Refresh exact work; no rollback is claimed."); }
+            activity.Complete(HostOperationOutcome.Completed);
+            return new("observed", "Manual dispatch hold: " + snapshot.ManualHoldReason
+                + ". Independent recovery hold: " + snapshot.Paused
+                + ". Current-generation manual control available: " + (snapshot.DispatchControl is not null)
+                + ". Pending ordinary requests: " + snapshot.Turns.Count(item => item.Phase == ConversationPendingPhase.Pending)
+                + ". Already dispatching/running work continues unchanged. Original FIFO, source, permission and expiry remain required. "
+                + "No activity renewal, action approval, replay or diagnostic queue change.");
         }
         catch
         {
@@ -247,5 +312,6 @@ public sealed class SessionRequestCommandService(
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
-        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile);
+        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile,
+        TaskResponseOutputReview? Output);
 }

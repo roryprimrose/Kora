@@ -49,7 +49,7 @@ public sealed partial class SessionWorkspaceService
 
     public Task<AdmittedDetailContent> ReadConversationDetailAsync(SessionWorkspaceEntry target,
         ConversationMessage expected, Func<bool> admitted, CancellationToken token, bool assistant = false,
-        Guid? observationId = null) =>
+        Guid? observationId = null, bool submittedContext = false) =>
         ReadAsync(async () =>
         {
             var request = HostActivity.RequireCurrent().Request;
@@ -70,25 +70,35 @@ public sealed partial class SessionWorkspaceService
                 ? actual.Observations?.Items.SingleOrDefault(item => item.Id == id)
                     ?? throw new InvalidOperationException("This exact retained observation is unavailable; no replacement was queried.")
                 : null;
-            if (assistant && observation is not null)
+            if (assistant && observation is not null || submittedContext && (assistant || observation is not null))
             { throw new InvalidOperationException("Choose one exact retained source, not a combined source."); }
-            var content = new AdmittedDetailContent(new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
+            var availability = submittedContext && actual.SubmittedContext is not null
+                ? await Conversations.ReadSubmittedHistoryAvailabilityAsync(actual, token).ConfigureAwait(false)
+                : default;
+            var content = new AdmittedDetailContent(submittedContext ? AnswerContextInspection.Reference(actual, availability)
+                    : new(new(observation?.Id ?? answer?.Provenance.Turn.Value ?? actual.Request.RequestId.Value), actual.Revision),
                 assistant ? DetailContentKind.Markdown : DetailContentKind.PlainText,
-                observation is not null ? DetailContentOrigin.RetainedLocalObservation
+                submittedContext ? DetailContentOrigin.RetainedAnswerContext
+                    : observation is not null ? DetailContentOrigin.RetainedLocalObservation
                     : assistant ? DetailContentOrigin.RetainedAssistant : DetailContentOrigin.RetainedConversation,
                 DetailSensitivity.DisclosureConfirmationRequired,
-                observation is not null ? "Observed " + observation.CapabilityId
+                submittedContext ? "Context submitted for this answer"
+                    : observation is not null ? "Observed " + observation.CapabilityId
                     : assistant ? "Retained complete ASSISTANT answer" : "Retained original USER message",
                 observation is not null ? "Original local host observation at " + observation.ObservedAt.ToString("O", System.Globalization.CultureInfo.InvariantCulture)
                     + "; not current truth, execution, context, speech, export or clipboard authority."
                     : "Private immutable conversation source; not execution permission, an approval or clipboard authority.",
-                observation?.ResultJson ?? answer?.Body ?? actual.Body,
-                conversationMessage: actual);
+                submittedContext ? AnswerContextInspection.Describe(actual, availability) : observation?.ResultJson ?? answer?.Body ?? actual.Body,
+                conversationMessage: actual, contextAvailability: availability);
             var finalTarget = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
             var final = await Conversations.ReadConversationMessageAsync(target.Authority.SessionId,
                 expected.Request.RequestId, token).ConfigureAwait(false);
+            var finalAvailability = submittedContext && actual.SubmittedContext is not null
+                ? await Conversations.ReadSubmittedHistoryAvailabilityAsync(actual, token).ConfigureAwait(false)
+                : default;
             token.ThrowIfCancellationRequested();
-            if (!admitted() || finalTarget != target || final != actual)
+            if (!admitted() || finalTarget != target || final != actual
+                || !availability.IsDefault && !availability.SequenceEqual(finalAvailability))
             { throw new InvalidOperationException("Conversation detail source or private admission changed before publication."); }
             return content;
         }, token);

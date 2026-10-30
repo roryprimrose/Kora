@@ -21,6 +21,8 @@ public sealed class ConversationExecutionStoreTests
             static () => true, token).AsTask();
         await begin.Should().ThrowAsync<InvalidOperationException>();
         await finish.Should().ThrowAsync<InvalidOperationException>();
+        var context = () => store.ReadSubmittedHistoryAvailabilityAsync(null!, token).AsTask();
+        await context.Should().ThrowAsync<InvalidOperationException>();
         var predecessor = new HostRequest(new(Guid.NewGuid()), request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
         var pending = () => store.RetainPendingConversationMessageAsync(request, new(1), 0, "original",
             [predecessor], () => true, token).AsTask();

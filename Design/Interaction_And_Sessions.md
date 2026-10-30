@@ -21,6 +21,16 @@ Ordinary tool-capable Send, clarification and hosted requests retain their exist
 
 The separate native-only **Stream explicitly with Claude (text only, separately qualified)** action now uses the same provisional lifecycle for original-user, tool-free requests. It adds exact-profile stream evidence and separate native physical-send consent, without changing the buffered routes above or enabling the shipped unavailable Claude source ([operation](../docs/claude-requests.md#separately-qualified-native-text-streaming), [host route](../src/Kora.Application/Hosting/SessionConversationService.Claude.cs)).
 
+## Retained-answer context handoff inspection
+
+The explicit native **Context submitted for this answer** operation inspects one exact successful retained ASSISTANT answer. Its bounded implementation records only the existing LocalOnly, tool-free, reviewed same-session history consumer; legacy and other consumers report unknown/not recorded ([record](../src/Kora.Core/Conversation/SubmittedAnswerContext.cs), [user operation](../docs/responses-and-calls.md#inspect-context-submitted-for-a-retained-answer)).
+
+The host freezes typed, content-free lineage at the canonical adapter handoff and binds it to the original request/task/session/generation/turn/profile in the genuine terminal transaction. The ordered collection and complete message/page/envelope retain existing bounds; overflow is rejection, not partial successful provenance. No source body, value, excerpt, private label/path, credential or transport token is newly retained ([capture](../src/Kora.Application/Dependencies/ModelTurnHost.Questions.cs), [commit](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.ConversationExecution.cs)).
+
+This evidence establishes bytes handed to the admitted local adapter, not physical transmission, provider processing/use/reasoning, or that all reviewed inputs were sent. Source-row availability is a separate metadata-only observation, never fresh body admission. The inspector neither opens a source nor reconstructs it from model prose, audit, digest or a newer revision; missing/changed/unknown references remain unavailable ([inspection](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [projection](../src/Kora.Core/Conversation/AnswerContextInspection.cs)).
+
+The existing exact native Details source/private/current-target fences, return-to-message navigation and no-copy policy apply. Inspection never renews session activity, source permission or independent retention. Only same-session conversation references are supported; memory, definitions and account-source expansion require their own deletion/privacy contracts ([native route](../src/Kora/SessionsViewModel.Conversation.cs), [metadata reader](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerContext.cs)).
+
 ## Cross-conversation content search and exact message opening
 
 The [native content search owner](../src/Kora/SessionsViewModel.ContentSearch.cs)

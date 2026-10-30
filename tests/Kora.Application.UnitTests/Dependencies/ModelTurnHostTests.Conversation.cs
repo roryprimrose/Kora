@@ -287,7 +287,8 @@ public sealed partial class ModelTurnHostTests
             admitted().Should().BeTrue();
             Request = request;
             Task = new(new(request, new(1), HostTaskState.IntentRecorded), Session.Generation, "host", true, null);
-            Retained = new(request, generation, 1, 1, Time.Now, body, null, null);
+            Retained = new(request, generation, HistoryMessages.Values.Select(message => message.Sequence).DefaultIfEmpty().Max() + 1,
+                1, Time.Now, body, null, null);
             AfterRetain?.Invoke();
             RememberPendingRecord();
             return ValueTask.FromResult(new ConversationSubmissionReceipt(Retained, Task.Task));

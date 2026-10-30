@@ -5,4 +5,5 @@ public sealed record ModelTurnResult(
     ModelTurnProvenance? Provenance = null, LocalModelResponse? Response = null)
 {
     public Conversation.RetainedLocalObservations? Observations { get; init; }
+    public Conversation.SubmittedAnswerContext? SubmittedContext { get; init; }
 }

@@ -32,6 +32,7 @@ public sealed partial class LocalEventBroker
         // Revoke in-flight observations/exact actions before waiting for their source lease or broker gate.
         // A queued original quiet change cannot leave a late routine presentation or consume its budget.
         notices = Interlocked.Increment(ref noticeRevision);
+        NoticeAdmissionChanged?.Invoke();
         await serial.WaitAsync(token).ConfigureAwait(false);
         try
         {

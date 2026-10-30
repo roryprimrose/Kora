@@ -166,11 +166,13 @@ public sealed partial class MainViewModelTests
         await using var startup = new LogonStartupConfigurationServiceTests.Fixture();
         var f = new Fixture(logonStartupConfiguration: startup.Service);
         f.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "fixture");
-        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+        if (approval) { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
         else { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("help me");
         await f.ViewModel.ActiveReasoningTask!;
+        f.ViewModel.IsModelActionApprovalPending.Should().Be(approval);
+        f.ViewModel.IsModelQuestionPending.Should().Be(!approval);
         var title = f.ViewModel.ResponseTitle;
         var body = f.ViewModel.ResponseBody;
         await f.RunAsync("enable start at logon");

@@ -277,7 +277,7 @@ public sealed partial class MainViewModelTests
         f.Probe.Status = new("local.inference", "Local model", DependencyReadiness.Ready, "ready");
         f.Reasoner.DecisionGate = new(TaskCreationOptions.RunContinuationsAsynchronously);
         if (response is "question") { f.Reasoner.Question = new("Which target?", ["One", "Two"]); }
-        else { f.Reasoner.Action = BuiltInAction.LockMachine; }
+        else { f.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         await f.ViewModel.InitializeAsync();
         var artifact = ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(
             "---\nkora-format: 1\nname: example\ndescription: Test\n---\nCaptured content", false),
@@ -292,6 +292,7 @@ public sealed partial class MainViewModelTests
         f.ViewModel.IsModelQuestionPending.Should().BeFalse();
         f.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
         f.ViewModel.ResponseTitle.Should().Be("Artifact use disabled.");
+        f.ViewModel.HostedModelsEnabled.Should().Be(false);
         f.Session.LockCalls.Should().Be(0);
         f.Reasoner.Requests.Should().ContainSingle();
     }

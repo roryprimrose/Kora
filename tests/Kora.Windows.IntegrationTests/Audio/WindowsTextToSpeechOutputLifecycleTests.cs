@@ -1,13 +1,35 @@
 using AwesomeAssertions;
+
 using Kora.Core.Voice;
 using Kora.Windows.Audio;
+
 using Microsoft.Extensions.Logging.Abstractions;
+
 using NAudio.Wave;
 
 namespace Kora.Windows.IntegrationTests.Audio;
 
 public sealed class WindowsTextToSpeechOutputLifecycleTests
 {
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RejectedAdmittedStartJoinsPhysicalSynthesisBeforeReleasingItsOwner(bool cancelled)
+    {
+        var stops = 0;
+        await using var service = new WindowsTextToSpeechService(null, NullLogger<WindowsTextToSpeechService>.Instance,
+            setOwnedWindowsGain: null, cancelOwnedSynthesis: () => stops++);
+        using var cancellation = new CancellationTokenSource();
+        var physical = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var joining = service.JoinRejectedSynthesisAsync(physical.Task, cancellation);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        stops.Should().Be(1);
+        joining.IsCompleted.Should().BeFalse();
+        if (cancelled) { physical.SetCanceled(cancellation.Token); }
+        else { physical.SetResult(); }
+        await joining;
+    }
+
     [Fact]
     public async Task Genuine_native_output_gate_invalidates_queued_and_inflight_operations_without_opening_audio()
     {

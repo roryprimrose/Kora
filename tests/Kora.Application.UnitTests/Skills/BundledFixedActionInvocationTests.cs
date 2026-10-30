@@ -7,6 +7,7 @@ using Kora.Application.Skills;
 using Kora.Application.UnitTests.Interaction;
 using Kora.Core.Auditing;
 using Kora.Core.Authorization;
+using Kora.Core.Authorization.SessionPermission;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
@@ -20,6 +21,25 @@ namespace Kora.Application.UnitTests.Skills;
 [Collection("Host tracing")]
 public sealed class BundledFixedActionInvocationTests
 {
+    [Theory]
+    [InlineData(SessionPermissionLevel.ReviewAll)]
+    [InlineData(SessionPermissionLevel.ModelReview)]
+    [InlineData(SessionPermissionLevel.ApproveAll)]
+    public async Task LockRetainsMandatoryExactScriptGrantAtEverySessionLevel(SessionPermissionLevel level)
+    {
+        using var fixture = new Fixture();
+        fixture.Interaction.Store.Change(snapshot => snapshot with
+        {
+            Permission = SessionPermissionPolicy.Default(snapshot.Session) with { Level = level },
+        });
+        (await fixture.Run(TestContext.Current.CancellationToken)).Outcome.Should().Be(FixedSessionEffectOutcome.RequestAccepted);
+        fixture.Interaction.Store.Snapshot.Grants.Should().ContainSingle()
+            .Which.CreatorChannel.Should().Be(RequestOrigin.LocalUi);
+        fixture.Interaction.Store.Snapshot.Admissions.Should().ContainSingle()
+            .Which.Basis.Should().Be(SessionPermissionBasis.ExistingGrant);
+        fixture.Events.Should().Equal("grant", "scripts", "prepare", "join", "audit-requested", "effect", "audit-terminal");
+    }
+
     [Theory]
     [InlineData(FixedSessionAction.Lock)]
     [InlineData(FixedSessionAction.Shutdown)]

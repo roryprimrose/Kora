@@ -9,7 +9,7 @@ public sealed partial class MainViewModel
     private Func<Task<bool>>? instructionEditorShutdown;
     private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? ownedInstructionFreshness;
     private Func<Kora.Core.Artifacts.ArtifactDefinition, CancellationToken, Task<bool>>? fileArtifactFreshness;
-    private Func<bool>? instructionRefinementInput;
+    private Func<bool>? instructionEditorInput;
 
     public void BindInstructionEditorShutdown(Func<Task<bool>>? shutdown) => instructionEditorShutdown = shutdown;
     public void BindOwnedInstructionFreshness(Func<Kora.Core.Artifacts.ArtifactDefinition, Task<bool>>? validator) =>
@@ -49,11 +49,18 @@ public sealed partial class MainViewModel
 
     public Func<bool> CaptureDefinitionObservationEligibility() => CapturePromptSelection();
 
+    public Func<bool> CaptureInstructionRestoreEligibility()
+    {
+        var channel = CaptureInstructionRefinementEligibility();
+        var input = CaptureDefinitionObservationEligibility();
+        return () => channel() && input();
+    }
+
     public Func<bool> CaptureInstructionRefinementEligibility()
     {
         var input = CaptureManualCallInput(Kora.Core.Diagnostics.HostActivity.Current?.Request.Origin ?? RequestOrigin.LocalUi, CallPolicyRevision);
         var revision = assistantNameConfiguration.Get().Revision;
-        var current = instructionRefinementInput ?? CaptureSkillReviewEligibility(input);
+        var current = instructionEditorInput ?? CaptureSkillReviewEligibility(input);
         return () => current() && CanRevealPrivatePresentation
             && assistantNameConfiguration.Get().Revision == revision;
     }
@@ -77,33 +84,39 @@ public sealed partial class MainViewModel
         var prompt = string.Equals(words[0], "prompts", StringComparison.OrdinalIgnoreCase);
         string? operation = words[1].ToLowerInvariant() switch
         {
-            "editor" or "list" => "List", "create" => "Create", "edit" or "inspect" => "Inspect",
-            "save" => "Save", "reload" or "discard" => "Reload", "delete" => "Delete", "activate" => "Review use",
+            "editor" or "list" => "List",
+            "create" => "Create",
+            "edit" or "inspect" => "Inspect",
+            "save" => "Save",
+            "reload" or "discard" => "Reload",
+            "delete" => "Delete",
+            "activate" => "Review use",
             "cancel" => "Cancel",
             "copy" => "Save as new copy",
             "validate" => "Validate",
             "compare" => "Compare",
             "rebase" => "Rebase",
+            "restore" when !prompt => "Restore previous saved content",
             "refine" when !prompt => "Refine",
             "disable" or "stop-use" => "Disable reviewed use",
             _ => null,
         };
         if (operation is null)
-        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel, or instructions refine for the open body. Body text and paths are not editor commands."); return; }
+        { ReportHostInteractionFailure("Use instructions/prompts editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel, or instructions refine/restore in the open editor. Body text and paths are not editor commands."); return; }
         if (operation is "Create" or "Inspect" or "Save as new copy" ? words.Length != 3 : words.Length != 2)
         { ReportHostInteractionFailure("Use an exact bounded owned ID; editor commands do not accept body text or paths."); return; }
-        if (operation is "Refine" && Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice
+        if (operation is ("Refine" or "Restore previous saved content") && Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin == RequestOrigin.ActivatedVoice
             && !commandRouter.IsActivationPrefixed(input, AssistantName))
-        { ReportHostInteractionFailure("Use the current assistant-name prefix to refine the open instruction. No model disclosure or editor change occurred."); return; }
+        { ReportHostInteractionFailure("Use the current assistant-name prefix for instruction refinement or restore. No model disclosure or editor change occurred."); return; }
         if ((prompt ? OwnedPromptEditorRequested : OwnedInstructionEditorRequested) is { } handler)
         {
-            if (operation is "Refine")
+            if (operation is "Refine" or "Restore previous saved content")
             {
-                instructionRefinementInput = reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
+                instructionEditorInput = reviewEligibility ?? CaptureSkillReviewEligibility(manualInput
                     ?? CaptureManualCallInput(Kora.Core.Diagnostics.HostActivity.RequireCurrent().Request.Origin, CallPolicyRevision));
             }
             try { await handler(operation, words.Length == 3 ? words[2] : null); }
-            finally { instructionRefinementInput = null; }
+            finally { instructionEditorInput = null; }
         }
         else { ReportHostInteractionFailure("The native owned definition editor is unavailable."); }
     }

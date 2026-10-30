@@ -17,12 +17,21 @@ internal sealed partial class OwnedInstructionEditorController
     private long inventoryFilterRevision;
     private bool preservingOpenSourceInventory;
 
-    private void OnInventoryChanged(object? sender, EventArgs args) =>
+    private void OnInventoryChanged(object? sender, EventArgs args)
+    {
+        var point = Volatile.Read(ref lastConfirmedSave);
+        if (point is not null && !actions.IsRefinementSourceObserved(point.Current))
+        { Interlocked.Exchange(ref lastConfirmedSave, null); }
         RetireInventory("Catalogue observation changed. Refresh and reselect; the open original/draft is retained.",
-            preserveRefinement: IsRefinementSourceObserved, preserveProfileReview: true);
+            preserveRefinement: IsRefinementSourceObserved || point is not null && ReferenceEquals(point, lastConfirmedSave),
+            preserveProfileReview: true);
+    }
 
-    private void OnInventoryReloadFailed(object? sender, ArtifactCatalogueReloadFailedEventArgs args) =>
+    private void OnInventoryReloadFailed(object? sender, ArtifactCatalogueReloadFailedEventArgs args)
+    {
+        Interlocked.Exchange(ref lastConfirmedSave, null);
         RetireInventory("Source/catalogue reload failed. Historical observations are unavailable, not current; Refresh required. Draft retained.");
+    }
 
     private void RetireInventory(string reason, bool preserveRefinement = false, bool preserveProfileReview = false)
     {
@@ -34,7 +43,9 @@ internal sealed partial class OwnedInstructionEditorController
 
     private void InvalidateInventory(string reason, bool preserveRefinement = false, bool preserveProfileReview = false)
     {
-        preserveRefinement = preserveRefinement && IsRefinementSourceObserved;
+        if (lastConfirmedSave is null) { CancelRestoreReview(); window?.SetRestoreAvailable(false); }
+        preserveRefinement = preserveRefinement && (IsRefinementSourceObserved
+            || lastConfirmedSave is { } point && actions.IsRefinementSourceObserved(point.Current));
         preserveProfileReview = preserveProfileReview && profileOriginal is not null && !Actions.IsSourceUnavailable
             && ProfileOriginals.IsCurrent(profileOriginal.Registration);
         if (!preserveRefinement && !preserveProfileReview) { CancelRefinement(); }

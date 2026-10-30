@@ -83,6 +83,34 @@ public sealed class ClipboardExplanationPermissionTests
                         {
                             reader.Calls.Should().Be(scope is "once" ? questions / 2 : 0);
                             state.Question.Spec.Text.Should().Contain("without reading the clipboard");
+                            var key = state.Key;
+                            var grants = await fixture.Store.ReadGrantsAsync(fixture.Token);
+                            var retention = await fixture.Store.ReadRetentionAsync(proposal.Request.SessionId, fixture.Token);
+#pragma warning disable VSTHRD003 // Join the exact window activation read before simulating the next enabled user gesture.
+                            await state.OperationQuiescence;
+#pragma warning restore VSTHRD003
+                            await state.ExplainPolicyAsync();
+                            state.SupportsPolicyExplanation.Should().BeTrue();
+                            state.HasPolicyExplanation.Should().BeTrue("native status: {0}", state.Status);
+                            state.PolicyExplanationText.Should().Contain("clipboard.read")
+                                .And.Contain("Review all").And.Contain("independently of the session level")
+                                .And.Contain("NOT supplied").And.NotContain("explicit-native-read");
+                            question.FindControl<TextBox>("PolicyExplanation")!.Text.Should().Be(state.PolicyExplanationText);
+                            state.ReviewText.Should().BeEmpty();
+                            state.CanSubmit.Should().BeFalse();
+                            state.Completion.IsCompleted.Should().BeFalse();
+                            state.Key.Should().Be(key);
+                            reader.Calls.Should().Be(scope is "once" ? questions / 2 : 0);
+                            adapter.Calls.Should().Be(scope is "once" ? questions / 2 : 0);
+                            (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().Equal(grants);
+                            (await fixture.Store.ReadRetentionAsync(proposal.Request.SessionId, fixture.Token)).Should().Be(retention);
+                            await state.ReturnToApprovalAsync();
+                            state.HasPolicyExplanation.Should().BeFalse();
+                            state.Key.Should().Be(key);
+                            state.IsEditable.Should().BeTrue();
+                            state.CanSubmit.Should().BeFalse("reading policy never completes the separate exact record review");
+                            state.Completion.IsCompleted.Should().BeFalse();
+                            (await fixture.Store.ReadGrantsAsync(fixture.Token)).Should().Equal(grants);
                         }
                         state.IsApproval.Should().BeTrue();
                         state.CanAnswerByVoice.Should().BeFalse();

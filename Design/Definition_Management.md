@@ -81,6 +81,41 @@ cannot promote text into trusted host instructions.
 Missing template parameters require clarification, not expression evaluation,
 file reads, secret substitution, or implicit network access.
 
+### Conversational initial owned agent authoring
+
+The approved Add/Ask Kora operation can create one inert, Kora-owned tool-free v1 agent from an original description,
+not merely open another manual editor. Native description controls and exact original typed/current-name activated
+`agent author draft <new-id>: <description>` share the existing private agent editor and save owner.
+Customizations **Agents / Kora / Add** hands the exact selected ID/description and original channel to that same complete operation,
+rather than preparing a generic agent template ([Add handoff](../src/Kora/CustomizationWindowController.cs)).
+The host owns the canonical ID, destination, v1 local text format and initial fixed budgets; the model supplies only
+description and guidance ([native operation](../src/Kora/AgentProfileEditorController.Proposal.cs),
+[bounded construction](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+
+Complete request/current-draft/locality disclosure precedes the shared admitted one-turn local tool-free authoring service.
+The exact destination is reviewed but not disclosed to the model. Strict JSON accepts exactly two string fields,
+`description` and `body`; malformed, duplicate, extra authority-bearing fields, invalid Unicode and oversized output fail whole,
+without YAML interpretation, stripping or truncation. No source resolution, history, memory, attachments, executable worker,
+tools, dependencies, grants, hosting, invocation or hosted fallback is introduced
+([authoring and parser](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+Complete before/after source and exact create-only destination review precedes explicit adoption into the volatile editor.
+Subsequent original refinements repeat disclosure and adoption against the captured v1 draft while preserving its host-owned metadata;
+manual v4 authoring and registered-source refinement remain unchanged. Adoption is neither Save nor enablement.
+Normal `AgentProfileSaveWorkflow` still prepares exact source/destination review and separately confirms native Save as new,
+with create-no-replace and durable readback. A different root, occupied destination or uncertain publication cannot cause a retry,
+overwrite or fallback ([native save](../src/Kora/AgentProfileEditorController.cs),
+[canonical save workflow](../src/Kora.Application/Agents/AgentProfileSaveWorkflow.cs)).
+
+Original channel/input, private host/call/ownership, draft/request/catalogue/control epochs, two-minute expiry and exact destination
+are fenced across generation, acceptance and save. Request edits after adoption require a fresh proposal; independent manual source
+edits remain subject to normal exact Save review. Cancel and retirement suppress late output while retaining ownership until actual
+provider quiescence. All authoring bodies remain volatile and excluded from conversation/log/audit content.
+Deterministic genuine fake-provider/native tests prove the full operation and forbidden premature writes/tool dispatch,
+not provider enablement or native/acoustic RC qualification
+([full-operation regressions](../tests/Kora.Windows.IntegrationTests/AgentProfileConversationalAuthoringTests.cs),
+[user operation](../docs/agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)).
+
 ### Bounded local agent owned-instruction references (v2)
 
 The existing selected-source v1 agent operation remains unchanged, including its
@@ -231,6 +266,24 @@ Built-in content is immutable. Inspection can show its complete packaged file
 set, but editing requires **Create Kora copy** with a distinct destination,
 attribution and initially disabled state. Neither copying nor saving transfers
 bundled action authority.
+
+The delivered skill copy branch is **Create Kora adaptation** (the legacy
+**Create Kora copy** button routes to the same operation for Skills).
+It accepts only the [documented plain single-file shared subset](Skill_Authoring.md#storage-and-versioning).
+Selecting a User skill first requires explicit bounded local read consent;
+inspection/metadata alone does not approve model disclosure, source mutation,
+copying, enablement or use. A distinct owned draft retains fixed source lineage.
+**Review and save** reviews the complete original and complete proposed source,
+then asks separately to save the new disabled file. Successful exact readback
+reopens it disabled through the existing writer/catalogue reconciliation.
+The current bundled packages' required executable implementations cannot be
+represented by this subset, so their adaptation is explicitly refused rather
+than presenting detached guidance as a working copy
+([native owner](../src/Kora/CustomizationWindowController.SkillAdaptation.cs),
+[behavioral evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
+Typed and current-name activated `create kora adaptation <new-id>` and
+`save skill adaptation` route to these same native reviews; neither command is
+itself publication confirmation ([routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
 
 Selecting an editable source opens a private working draft. A skill exposes its
 primary `SKILL.md` and bounded component tree; instructions and agents start

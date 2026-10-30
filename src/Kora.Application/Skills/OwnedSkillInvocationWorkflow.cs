@@ -199,16 +199,9 @@ public sealed class OwnedSkillInvocationWorkflow(
         try
         {
             Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
-            var expected = review.Require(this);
-            expected.Document.RequireComplete();
             await admission.Run(authority, () => eligible() && review.IsCurrent, async (_, _, live, admitted) =>
             {
-                var actual = await store.Read(expected.Document.Id, expected.Document.Version, admitted,
-                    expectedPrimary: expected).ConfigureAwait(false);
-                Require(live, admitted);
-                if (actual is null || !expected.IsSameRevision(actual))
-                { throw new InvalidDataException("The exact private saved package changed, was replaced or is missing. Review again."); }
-                RequireUseAllowed(actual);
+                await ValidateAdmittedAsync(review, authority, live, admitted).ConfigureAwait(false);
                 return true;
             }, token).ConfigureAwait(false);
             Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
@@ -225,6 +218,20 @@ public sealed class OwnedSkillInvocationWorkflow(
         if (snapshot.Document.ReferenceDeclaration.Paths.Prepend("instructions.md").Prepend("manifest.yaml")
             .Any(relative => usePolicy.IsDisabled(ArtifactUseIdentity.File(Path.Combine(root, relative)))))
         { throw new InvalidOperationException("A selected package component is excluded from Kora use. Review again after independent re-enablement."); }
+    }
+
+    internal async Task ValidateAdmittedAsync(OwnedSkillUseReview review, OwnedSkillAuthoringAuthority authority,
+        Func<bool> eligible, CancellationToken token)
+    {
+        Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
+        var expected = review.Require(this);
+        expected.Document.RequireComplete();
+        var actual = await store.Read(expected.Document.Id, expected.Document.Version, token,
+            expectedPrimary: expected).ConfigureAwait(false);
+        Require(() => authority.IsCurrent() && eligible() && review.IsCurrent, token);
+        if (actual is null || !expected.IsSameRevision(actual))
+        { throw new InvalidDataException("The exact private saved package changed, was replaced or is missing. Review again."); }
+        RequireUseAllowed(actual);
     }
 
     private async Task RequireTargetAsync(SessionWorkspaceEntry target, Func<bool> eligible, CancellationToken token)

@@ -13,7 +13,9 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
             "owned skill tool none", "owned skill tool web-page-get", "owned skill review-tool",
             "owned skill inputs none", "owned skill inputs required-literal", "owned skill generate", "owned skill refine", "owned skill cancel-refinement",
             "owned skill format markdown-package", "owned skill read-references",
-            "owned skill enable", "owned skill targets", "owned skill next-targets", "owned skill review-use", "owned skill invoke", "owned skill close-use" });
+            "owned skill enable", "owned skill targets", "owned skill next-targets", "owned skill review-use", "owned skill invoke", "owned skill close-use",
+            "owned skill workflow editor", "owned skill workflow cancel", "owned skill workflow status",
+            "owned skill workflow enable", "owned skill workflow invoke", "owned skill workflow approve-step", "owned skill workflow deny-step" });
 
     public static OwnedSkillAuthoringCommand? Parse(string input, string assistantName)
     {
@@ -30,6 +32,12 @@ public sealed record OwnedSkillAuthoringCommand(string Operation, string? Id = n
         if (!normalized.StartsWith("owned skill ", StringComparison.OrdinalIgnoreCase)) { return null; }
         if (Encoding.UTF8.GetByteCount(input) > SharedSkillSnapshot.MaximumBytes + 512)
         { return new("Invalid"); }
+        const string workflowPrefix = "owned skill workflow ";
+        if (normalized.StartsWith(workflowPrefix, StringComparison.OrdinalIgnoreCase))
+        {
+            var start = input.IndexOf(workflowPrefix, StringComparison.OrdinalIgnoreCase);
+            return new("workflow", Literal: input[(start + workflowPrefix.Length)..]);
+        }
         const string inputPrefix = "owned skill input ";
         const string referencePrefix = "owned skill reference ";
         if (normalized.StartsWith(referencePrefix, StringComparison.OrdinalIgnoreCase))

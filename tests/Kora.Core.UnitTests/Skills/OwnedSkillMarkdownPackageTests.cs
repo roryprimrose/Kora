@@ -15,6 +15,33 @@ public sealed class OwnedSkillMarkdownPackageTests
             new Dictionary<string, byte[]>(StringComparer.Ordinal) { [@"references\notes.md"] = "Exact reference\r\n${input:literal}\n"u8.ToArray() });
 
     [Fact]
+    public void ObservationAndMarkdownFormatsRetainIndependentDeclarationsWithoutAuthorityTransfer()
+    {
+        const string source = """{"steps":[{"tool":"application.get_version","input":{}}]}""";
+        var workflow = OwnedDeclarativeSkillDocument.CreateObservationWorkflow("inspection", "1.0.0",
+            "Inspection", "Description", source);
+        var reopened = OwnedDeclarativeSkillDocument.Parse(workflow.ManifestBytes.Span, workflow.InstructionBytes.Span);
+        reopened.ObservationWorkflow!.Steps.Should().ContainSingle();
+        reopened.Tool.Should().Be(OwnedSkillToolSelection.ReadOnlyObservations);
+        reopened.ReferenceDeclaration.Should().BeNull();
+        reopened.References.Should().BeEmpty();
+        reopened.IsComplete.Should().BeTrue();
+        reopened.RevisionDigest.Should().Be(workflow.RevisionDigest);
+        var document = Package();
+        document.ObservationWorkflow.Should().BeNull();
+        document.Tool.Should().Be(OwnedSkillToolSelection.None);
+        document.InputTemplate.Should().BeNull();
+        var references = document.References.ToDictionary(item => item.RelativePath, item => item.Bytes.ToArray(), StringComparer.Ordinal);
+        var attach = () => OwnedDeclarativeSkillDocument.Parse(workflow.ManifestBytes.Span, workflow.InstructionBytes.Span, references);
+        attach.Should().Throw<InvalidDataException>();
+        var promote = () => OwnedDeclarativeSkillDocument.Parse(Encoding.UTF8.GetBytes(document.ManifestText.Replace(
+            "tools: none", "tools: application.get_version", StringComparison.Ordinal)), document.InstructionBytes.Span, references);
+        promote.Should().Throw<InvalidDataException>();
+        reopened.IsAvailableForInvocation.Should().BeFalse();
+        document.IsAvailableForInvocation.Should().BeFalse();
+    }
+
+    [Fact]
     public void CompleteRoundtripPinsEveryPathAndByteWhileDeclarationAloneCannotBeSavedOrUsed()
     {
         var document = Package();

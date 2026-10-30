@@ -68,7 +68,7 @@ public sealed partial class InstructionEditorTests
     [InlineData(true)]
     public void McpSourceAndVoiceAuthoringNeverReachAModel(bool voice)
     {
-        var service = new CustomizationAuthoringService(null!, null!, null!, TimeProvider.System);
+        var service = new CustomizationAuthoringService(null!, null!, TimeProvider.System);
         Action attempt = () =>
         {
             if (voice)

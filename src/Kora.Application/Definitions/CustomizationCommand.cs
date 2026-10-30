@@ -5,6 +5,8 @@ namespace Kora.Application.Definitions;
 
 public sealed record CustomizationCommand(string Operation, CustomizationKind? Kind = null, string? Name = null, string? Text = null)
 {
+    public Func<bool> IsCurrent { get; init; } = static () => false;
+
     private static readonly string[] EditorReferences =
         ["this editor", "this artifact", "this instruction", "this skill", "this agent", "this MCP server", "this prompt"];
 
@@ -14,6 +16,11 @@ public sealed record CustomizationCommand(string Operation, CustomizationKind? K
     public static CustomizationCommand? Parse(string input, string assistantName)
     {
         var text = ArtifactCommandRouter.RemoveActivationPrefix(input.Trim(), assistantName);
+        const string adaptation = "create kora adaptation ";
+        if (text.StartsWith(adaptation, StringComparison.OrdinalIgnoreCase) && text.Length > adaptation.Length)
+        { return new("Adapt", CustomizationKind.Skill, text[adaptation.Length..].Trim()); }
+        if (text.Equals("save skill adaptation", StringComparison.OrdinalIgnoreCase))
+        { return new("SaveAdaptation", CustomizationKind.Skill); }
         if (text.Equals("customizations", StringComparison.OrdinalIgnoreCase)
             || text.Equals("show customizations", StringComparison.OrdinalIgnoreCase)
             || text.Equals("open customizations", StringComparison.OrdinalIgnoreCase))

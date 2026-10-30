@@ -9,4 +9,5 @@ public sealed record HostInteractionDecision(
     string Reason,
     HostQuestionRecord? Question = null,
     OperationGrant? Grant = null,
-    SessionPermissionAdmission? Admission = null);
+    SessionPermissionAdmission? Admission = null,
+    PendingOperationExplanation? Explanation = null);

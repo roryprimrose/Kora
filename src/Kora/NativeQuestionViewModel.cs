@@ -45,6 +45,50 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private HostQuestionKey? voiceTarget;
     private int voicePresenterCount;
     private bool conversationalReplyAttempted;
+    internal QuestionClipboardAnswer? ClipboardAnswer { get; private set; }
+    internal void BindClipboardAnswer(QuestionClipboardAnswer clipboard) => ClipboardAnswer = clipboard;
+    internal void ClipboardChanged() => Notify();
+    internal bool IsClipboardTargetLive(HostQuestionRecord target)
+    {
+        var eligible = canInteract();
+        lock (stateGate)
+        {
+            return eligible && !closed && !cleared && ReferenceEquals(question, target)
+                && question.Status == QuestionStatus.Pending && question.ExpiresAt > time.GetUtcNow();
+        }
+    }
+
+    internal async Task<bool> ValidateClipboardTargetAsync(HostQuestionRecord target)
+    {
+        if (!IsClipboardTargetLive(target)) { return false; }
+        using var activity = HostActivity.BeginRoot(target.Key.Request, HostActivityLayer.Desktop, HostOperation.Presentation, links);
+        var decision = await reviews.ReviewAsync(target.Key, CancellationToken.None);
+        var valid = IsClipboardTargetLive(target) && decision is { Outcome: HostInteractionOutcome.Presented, Question: { } exact }
+            && exact.Key == target.Key && exact.SessionGeneration == target.SessionGeneration
+            && exact.ExpiresAt == target.ExpiresAt && exact.Proposal is null
+            && exact.Spec.Kind == target.Spec.Kind
+            && string.Equals(exact.Spec.Purpose, target.Spec.Purpose, StringComparison.Ordinal)
+            && string.Equals(exact.Spec.SourceId, target.Spec.SourceId, StringComparison.Ordinal)
+            && string.Equals(exact.Spec.Text, target.Spec.Text, StringComparison.Ordinal)
+            && exact.Spec.MaximumTextLength == target.Spec.MaximumTextLength;
+        activity.Complete(valid ? HostOperationOutcome.Completed : HostOperationOutcome.Failed);
+        return valid;
+    }
+
+    internal void SetClipboardDraft(QuestionAnswer value)
+    {
+        lock (stateGate) { answer = value; }
+        Notify();
+    }
+
+    internal void RestoreClipboardDraft(QuestionAnswer expected, QuestionAnswer previous)
+    {
+        lock (stateGate)
+        {
+            if (!closed && !cleared && ReferenceEquals(answer, expected)) { answer = previous; }
+        }
+        Notify();
+    }
     internal void BindMcpReview(Kora.Application.Mcp.McpReview review)
     {
         if (question.Proposal is null || !review.IsBoundTo(question.Proposal))
@@ -54,6 +98,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal string VoiceReplyStatus => voiceReplies?.Status ?? "Question voice reply unavailable. Use native answer controls.";
     internal bool IsVoiceReplyActive => voiceReplies?.IsActive == true;
     internal bool CanAnswerByVoice => voiceReplies is not null && IsEditable && !IsApproval
+        && ClipboardAnswer?.IsActive != true
         && ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && !IsVoiceReplyActive;
 
     internal void BindVoiceReplies(HostQuestionVoiceReplyService? replies, Func<bool> ownsTarget)
@@ -170,7 +215,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         get
         {
-            if (!IsEditable) { return false; }
+            if (!IsEditable || ClipboardAnswer?.BlocksSubmission == true) { return false; }
             lock (stateGate)
             {
                 return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: true)
@@ -182,7 +227,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     {
         get
         {
-            if (!IsEditable) { return false; }
+            if (!IsEditable || ClipboardAnswer?.IsActive == true) { return false; }
             lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
         }
     }
@@ -191,12 +236,18 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 #pragma warning restore VSTHRD003
     internal Task OperationQuiescence
     {
-        get { lock (stateGate) { return pendingOperation?.Task ?? Task.CompletedTask; } }
+        get
+        {
+            Task operation;
+            lock (stateGate) { operation = pendingOperation?.Task ?? Task.CompletedTask; }
+            return Task.WhenAll(operation, ClipboardAnswer?.Quiescence ?? Task.CompletedTask);
+        }
     }
 
     internal void Edit(QuestionAnswer value)
     {
         StopVoiceReply();
+        ClipboardAnswer?.ManualEdit();
         if (!IsEditable)
         {
             RefreshEligibility();
@@ -215,21 +266,37 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
 
     internal Task SaveDraftAsync()
     {
+        if (ClipboardAnswer?.IsActive == true)
+        {
+            ReportOutcome("Clipboard answer drafts remain volatile. Separately Submit answer, or cancel the clipboard review to keep the manual draft.");
+            return Task.CompletedTask;
+        }
         HostQuestionKey target;
         QuestionAnswer value;
         lock (stateGate) { target = question.Key; value = answer; }
         return DecideAsync(target, () => questions.DraftAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
-    internal Task SubmitAsync()
+    internal async Task SubmitAsync()
     {
+        var clipboard = ClipboardAnswer;
+        var clipboardSubmission = clipboard?.HasAccepted == true;
+        if (clipboardSubmission)
+        {
+            Task pending;
+            lock (stateGate) { pending = pendingOperation?.Task ?? Task.CompletedTask; }
+#pragma warning disable VSTHRD003 // Joins this question owner's existing exact-record review before validating the deliberate Submit.
+            await pending;
+#pragma warning restore VSTHRD003
+        }
+        if (clipboard is not null && !await clipboard.ValidateSubmitAsync()) { return; }
         HostQuestionKey target;
         QuestionAnswer value;
         bool approval;
         bool needsReview;
         lock (stateGate)
         {
-            if (closed || cleared) { return Task.CompletedTask; }
+            if (closed || cleared) { return; }
             target = question.Key;
             value = answer;
             approval = question.Proposal is not null;
@@ -239,11 +306,14 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         if (needsReview)
         {
             Notify();
-            return Task.CompletedTask;
+            return;
         }
-        return DecideAsync(target, () => approval
+        await DecideAsync(target, () => approval
             ? authorization.ApproveAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None)
-            : questions.SubmitAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
+            : clipboardSubmission
+                ? questions.SubmitNativeReplyAsync(target, question.SessionGeneration, value,
+                    () => clipboard!.CanCommit, CancellationToken.None)
+                : questions.SubmitAsync(target, value, RequestOrigin.LocalUi, CancellationToken.None));
     }
 
     internal Task CancelAsync()
@@ -314,6 +384,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         try
         {
             var decision = await decide();
+            if (decision.Outcome == HostInteractionOutcome.Answered) { ClipboardAnswer?.Submitted(); }
             if (decision.Question is { } next && (next.Key.Request != target.Request
                 || next.Key.QuestionId != target.QuestionId))
             {
@@ -416,6 +487,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Close(string reason)
     {
         StopVoiceReply();
+        ClipboardAnswer?.Dispose();
         if (voiceReplies is not null) { voiceReplies.Changed -= OnVoiceReplyChanged; }
         lock (stateGate) { CloseState(reason); }
         Notify();
@@ -436,6 +508,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Dismiss()
     {
         StopVoiceReply();
+        ClipboardAnswer?.Dispose();
         voicePresenterCount = Math.Max(0, voicePresenterCount - 1);
         visibleVoicePresenter = static () => false;
         lock (stateGate)

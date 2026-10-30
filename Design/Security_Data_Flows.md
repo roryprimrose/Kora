@@ -614,6 +614,18 @@ still joins the actual reader and preserves unverified-release failures.
 Read grants do not authorize `clipboard.explain-local`, model use, writing,
 automatic speech or history. Exact snapshot confirmation remains separate.
 
+The [ordinary clarification clipboard-answer owner](../src/Kora/QuestionClipboardAnswer.cs) consumes this same read grant/broker path, not Avalonia clipboard APIs or a paste command.
+Its exact original question, schema/revision, task/session generation, expiry, native presenter and captured private/input/owner/call admission fence capture, review, draft acceptance and Submit. It keeps the read admission live for fresh grant revalidation before acceptance and submission.
+
+Only the existing ordinary conversation Text clarification purpose/source is eligible; operation proposals, choices, authentication, authorization, consent, security and unknown purposes are refused.
+The complete immutable bounded source/provenance is reviewed before a separate local draft acceptance. A nonempty manual draft requires replacement acknowledgement; typing cancels the candidate rather than losing edits ([native regressions](../tests/Kora.Windows.IntegrationTests/QuestionClipboardAnswerTests.cs)).
+
+The shared conversation Unicode/credential validation and question limit reject the whole invalid or overlong source before draft use. The candidate is volatile and cannot use Save draft; only independent normal Submit commits its answer under existing question retention.
+Cancellation/failure/revocation releases source references and suppresses late publication, while actual native resource release is joined ([read workflow](../src/Kora.Application/Context/ClipboardReadWorkflow.cs)).
+
+Clipboard text is not USER authority merely because it was captured. Explicit reviewed draft acceptance plus separate Submit supplies only an ordinary clarification answer, never approval, a credential flow, new source/export authority or inferred hosted consent.
+The existing original-task continuation and each required physical-send review remain independent; native manual OS paste is unchanged ([canonical continuation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ClipboardAnswer.cs)).
+
 The host assigns immutable source/snapshot IDs, original request identity,
 `CF_UNICODETEXT` provenance, native read sequence and capture time. Unicode
 text and its strict UTF-8 representation preserve exact whitespace/line

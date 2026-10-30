@@ -7,4 +7,7 @@ internal sealed partial class NativeQuestionViewModel
     [LoggerMessage(310, LogLevel.Error,
         "Native question failed for {QuestionId} revision {QuestionRevision}; exception type {ExceptionType}.")]
     private static partial void QuestionFailure(ILogger logger, Guid questionId, long questionRevision, string? exceptionType);
+
+    [LoggerMessage(311, LogLevel.Warning, "Clipboard answer refused; exception type {ExceptionType}.")]
+    internal static partial void ClipboardFailure(ILogger logger, string? exceptionType);
 }

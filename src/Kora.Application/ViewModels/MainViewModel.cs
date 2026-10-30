@@ -1694,7 +1694,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     public ResponseOutputMode EffectiveResponseMode =>
-        InCallFeedbackRules.Resolve(ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
+        InCallFeedbackRules.Resolve(activeTaskResponseOutput?.Configured
+            ?? ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
             DesiredInCallFeedback, communicationPolicy.Current.EffectiveState);
 
     public bool IsSpeechOutputAvailable =>
@@ -1722,7 +1723,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsVisualResponseVisible =>
         IsCallVisualOverrideActive
-        || EffectiveResponseMode != ResponseOutputMode.VoiceOnly
+        || (CompletedTaskResponseVisual ?? (EffectiveResponseMode != ResponseOutputMode.VoiceOnly))
         || forceVisualResponse
         || IsSpeechOutputVisualFallbackRequired;
 
@@ -1907,6 +1908,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
                 Interlocked.Increment(ref evidenceTraceInputRevision);
+                Interlocked.Increment(ref conversationDispatchInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -4665,7 +4667,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (sessionCommand is not null)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
+                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
                 && (!commandRouter.IsActivationPrefixed(spokenText, AssistantName)
@@ -6500,6 +6502,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         FinalizedModelAnswer? modelAnswer = null)
     {
         RetireCurrentResponseSpeech();
+        activeTaskResponseOutput = null;
+        completedTaskResponseVisual = null;
         RetireWebResultDetails(retireControl: false);
         RetireSpeechCaptionSource();
         ClearResponseActions();

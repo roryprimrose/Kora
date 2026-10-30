@@ -114,6 +114,10 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             if (change.Property == TextBox.TextProperty)             { Interlocked.Increment(ref sourceRevision); CancelRefinement(); window?.CancelRebaseReview(); window?.RetireMetadataFind(); }
         };
+        window.RenameNameInput.PropertyChanged += (_, change) =>
+        {
+            if (change.Property == TextBox.TextProperty) { Interlocked.Increment(ref sourceRevision); }
+        };
         window.Critique.PropertyChanged += (_, change) =>
         {
             if (change.Property == TextBox.TextProperty)
@@ -167,7 +171,13 @@ internal sealed partial class OwnedInstructionEditorController(
             return;
         }
         if (busy) { return; }
-        if (operation is "Save as new copy")
+        if (operation is "Rename")
+        {
+            if (requestedKind != ArtifactKind.Instruction || kind != requestedKind)
+            { window.Report("Rename requires the inspected canonical owned Instruction, not a prompt or profile original."); return; }
+            window.RenameNameInput.Text = name;
+        }
+        else if (operation is "Save as new copy")
         {
             if (requestedKind != kind) { window.Report("Copy must retain the open original kind. Inspect a supported owned source first."); return; }
             window.CopyNameInput.Text = name;
@@ -177,7 +187,8 @@ internal sealed partial class OwnedInstructionEditorController(
             if (!await SwitchKind(window, requestedKind, lifetime.Token)) { return; }
             if (name is not null) { window.NameInput.Text = name; window.Files.SelectedItem = null; inventoryChoiceWithdrawn = false; }
         }
-        await Run(operation, name);
+        activeOperation = Run(operation, name);
+        await activeOperation;
     }
 
     private async Task Run(string action, string? exactName = null)
@@ -250,6 +261,10 @@ internal sealed partial class OwnedInstructionEditorController(
                 case "Save as new copy":
                     await SaveCopy(opened, Eligible, token);
                     break;
+                case "Rename":
+                case "Recover rename":
+                    await RenameInstruction(opened, action is "Recover rename", Eligible, token);
+                    break;
                 case "Create Kora copy from profile instruction":
                     await ForkProfileInstruction(opened, Eligible, token);
                     break;
@@ -317,10 +332,12 @@ internal sealed partial class OwnedInstructionEditorController(
         {
             EditorFailed(logger, exception.GetType().Name);
             if (action is "List" or "Refresh") { InvalidateInventory("Inventory unavailable; historical observations are not current. Explicit Refresh required."); }
-            if (action is "Save" or "Delete"
+            if (action is "Save" or "Delete" or "Rename" or "Recover rename"
                 || exception is InstructionUseRevocationUnconfirmedException) { uncertain = true; }
             if (ReferenceEquals(window, opened))
-            { opened.Report((exception is InstructionPublicationUnconfirmedException
+            { opened.Report((exception is InstructionRenameUnconfirmedException
+                    ? "Rename is recovery-required. Use Recover rename to inspect exact durable state and separately confirm continuation; no automatic retry or rollback. "
+                    : exception is InstructionPublicationUnconfirmedException
                     ? "Atomic source publication occurred; later completion is unconfirmed. "
                     : exception is InstructionUseRevocationUnconfirmedException revocation
                         ? $"Reviewed use is held or unavailable; completion unconfirmed. Control receipt {revocation.ControlReceipt}. Reload/read back revision preferences before fresh use review. Source and draft retained. "

@@ -38,6 +38,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     };
     internal readonly TextBox NameInput = new() { Width = 240, PlaceholderText = "lowercase-owned-id" };
     internal readonly TextBox CopyNameInput = new() { Width = 240, PlaceholderText = "new-copy-owned-id" };
+    internal readonly TextBox RenameNameInput = new() { Width = 240, PlaceholderText = "new-instruction-id (rename)" };
     internal readonly TextBox Critique = new()
     {
         AcceptsReturn = true, MaxHeight = 100, MinHeight = 40, TextWrapping = TextWrapping.Wrap,
@@ -70,7 +71,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
+        AutomationProperties.SetName(RenameNameInput, "Distinct new canonical owned Instruction ID for reviewed rename; not a path or copy");
+        controls.Children.Add(RenameNameInput);
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Rename", "Recover rename", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -236,7 +239,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         CancelRebaseReview();
         ClearInventory(); ClearSearch();
         SetUseReviewAvailable(false);
-        Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty;
+        Source.Text = string.Empty; NameInput.Text = string.Empty; CopyNameInput.Text = string.Empty; RenameNameInput.Text = string.Empty;
         Critique.Text = string.Empty;
         status.Text = string.Empty; inventoryStatus.Text = string.Empty;
         ClearValidation();

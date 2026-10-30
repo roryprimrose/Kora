@@ -14,6 +14,49 @@ Enter the complete source in the editor, or use **agent author source** followed
 the complete source. Kora keeps the original typed/activated-voice channel. If you started by voice,
 later on-screen input does not bypass voice consent, call protection or expiry.
 
+## Describe and review a new tool-free agent
+
+Instead of supplying source, type **agent author draft example: Explain only the text I supply**.
+The current assistant-name activated-voice prefix addresses the same complete operation.
+For native-only entry, open **Tray > Kora Customizations**, choose **Agents** and **Kora**,
+enter a new ID and description, then select **Add**. It hands that exact request to the same agent editor,
+not the generic source writer ([native Add handoff](../src/Kora/CustomizationWindowController.cs)).
+Alternatively create a new volatile draft, enter **Original agent description or refinement**, and select
+**Ask Kora: review local authoring disclosure** in the same editor ([shared native owner](../src/Kora/AgentProfileEditorController.Proposal.cs)).
+
+1. Review the exact description, complete current draft (empty initially), fixed local text-only limits and create-only destination.
+   The destination is displayed but is not sent to the model. Select **Generate local agent proposal** or **Cancel**.
+2. One admitted local tool-free authoring turn receives only that unchanged request and complete draft.
+   Its only output fields are a single-line description and complete guidance body. Kora supplies the exact ID,
+   v1 format, local text input/output, no references/tools, zero calls, one round, 16000 input bytes,
+   2000 output bytes and a 15000ms deadline. The model cannot select a root, worker, dependency, grant or activation
+   ([generator and strict proposal parser](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs),
+   [host-owned profile construction](../src/Kora.Core/Agents/OwnedAgentProfileDocument.cs)).
+3. Compare the complete **BEFORE** and **AFTER** sources and exact destination.
+   **Use proposed draft** stages the validated full source in this editor only; **Reject proposal** keeps the draft.
+   Text is inert untrusted guidance, not a harmlessness guarantee. Nothing is saved, enabled, hosted or invoked
+   ([proposal adoption](../src/Kora/AgentProfileEditorController.Proposal.cs)).
+4. Edit the staged source directly, or enter another original refinement using the request field or
+   **agent author describe Make the guidance shorter.**, then **agent author ask**.
+   Each turn needs fresh disclosure and complete proposal acceptance. Existing tool-free v1 metadata and limits
+   remain host-owned; manual v4 and the separate registered-source editor remain independent
+   ([commands](../src/Kora.Application/Agents/AgentProfileAuthoringCommand.cs)).
+5. Use **agent author save as new** and the two separate native save controls described below.
+   The reviewed generated destination must still be the same absent destination; ordinary Save never substitutes a root,
+   overwrites an occupied file or falls back to another proposal ([save owner](../src/Kora/AgentProfileEditorController.cs)).
+
+**Cancel proposal or save review** cancels pending disclosure, generation or review without discarding independent manual edits.
+Source/request/name edits, catalogue/control changes, privacy/call/ownership loss, original-channel expiry and the two-minute
+authoring deadline retire pending work. Late output cannot replace a newer draft; cancellation-ignoring model work remains owned
+until it actually joins. Description changes after adoption require a fresh proposal before saving that generated draft
+([lifetime fences](../src/Kora/AgentProfileEditorController.Proposal.cs)).
+
+An unqualified local model reports unavailable and retains eligible input; there is no hosted fallback.
+No authoring text is added to conversation history, diagnostics or audit. Manual source authoring remains available without AI
+([shared local authoring service](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+## Manual source and separate save
+
 For example:
 
 ```markdown

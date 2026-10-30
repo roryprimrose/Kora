@@ -177,7 +177,7 @@ public sealed partial class App : Avalonia.Application
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsReady
                     && !Services.GetRequiredService<DesktopInstanceOwnershipBridge>().IsHandoffRecoveryRequired,
                 () => Services.GetRequiredService<DesktopInstanceOwnershipBridge>().AdmissionRevision,
-                Services.GetRequiredService<ILogger<CustomizationWindowController>>());
+                Services.GetRequiredService<ILogger<CustomizationWindowController>>(), agentAuthoring!.Add);
             customizations.Bind();
             BindInstructionUse(viewModel);
             promptParameters = new(viewModel, Services.GetRequiredService<Kora.Core.Artifacts.ArtifactCatalogue>(),

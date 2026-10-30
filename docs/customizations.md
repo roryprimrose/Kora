@@ -15,6 +15,12 @@ external tool connections. Reading or saving any of these never runs it.
 Manual editing works without AI; **model-generated proposals and recommendations
 are unavailable in this build**.
 
+The dedicated [agent authoring operation](agent-profile-authoring.md#describe-and-review-a-new-tool-free-agent)
+also supports reviewed description-to-v1-source proposals when an admitted local model is available.
+It stages the complete source in the existing agent editor, then requires separate native create-only Save.
+It does not invoke or enable an agent; unavailable local readiness has no fallback
+([operation owner](../src/Kora/AgentProfileEditorController.Proposal.cs)).
+
 ## Browse by type and source
 
 Categories appear in this order: **Instructions**, **Skills**, **Agents**,

@@ -25,7 +25,8 @@ public sealed class NamedSkillCandidates : IDisposable
         foreach (var snapshot in owned)
         {
             if (string.Equals(snapshot.Document.Name, name, StringComparison.Ordinal))
-            { matches.Add(new(matches.Count + 1, snapshot, null, null, "Owned", ownedAllowed(snapshot), original, () => IsCurrent)); }
+            { matches.Add(new(matches.Count + 1, snapshot, null, null, "Owned",
+                snapshot.Document.Tool == OwnedSkillToolSelection.None && ownedAllowed(snapshot), original, () => IsCurrent)); }
         }
         for (var index = 0; index < shared.Count; index++)
         {

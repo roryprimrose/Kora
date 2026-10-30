@@ -106,7 +106,7 @@ choices with explicit Refresh/Save/Reset. Unsaved/default/reset means **1 day
 activity timestamp. Archive must be positive, deletion strictly greater than
 archive and at most 365 days. Domain validation rejects invalid combinations;
 saved malformed/noncanonical/schema/UTF-8 values throw `InvalidDataException`,
-never an implicit default. No typed, voice, model or apply-now route is added.
+never an implicit default. These future-only preferences add no typed, voice or model mutation route.
 
 Schema-1 **`session-retention.txt`** and
 **`session-retention-unconfirmed.txt`** use `IApplicationDataPaths` and the shared
@@ -120,11 +120,11 @@ refresh cannot clear an unconfirmed marker or claim rollback.
 Changes affect only new sessions or subsequent meaningful activity. Existing
 sessions retain their snapshotted archive/deletion intervals and due dates;
 shortening or resetting never silently applies an immediate purge on a later
-tick. Status discloses future-only behavior and unavailable apply-now. Ordinary
+tick. Status discloses future-only behavior; [single-conversation apply-now](#explicit-single-conversation-apply-now) is a separate native decision. Ordinary
 diagnostic/audit retention, independent Perpetual grants and other preference
 files are unchanged. Audited Perpetual session marking is a separate
 exemption, now exposed by the [exact native per-session controls](Interaction_And_Sessions.md#r12-native-exact-session-retention-controls---2026-10-10), not by these future-only preferences.
-Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. No typed/voice/model or apply-now route is available.
+Native status shows recorded UTC inactivity/due dates. Keep/ordinary requires a separate exact preview/confirmation; ordinary warns about unchanged soon/already-due dates. The exemption is session retention only, not an operation grant, consent, memory/recall or execution. It does not apply the current policy to existing clocks.
 
 #### Read-only hypothetical session retention planner
 
@@ -142,7 +142,19 @@ Entries charge envelope size without returning it; task/session metadata charge 
 Ten-second scan timeout retires the request; receipts expire after thirty seconds. Incomplete/Unavailable have no aggregate, never false zero.
 Proposal/control/private/owner/call, preference/policy revisions, source snapshot and expiry fence results. Edits, refresh/save/reset, changes, privacy loss, close or failure retire without replay ([orchestration](../src/Kora.Application/Configuration/SessionRetentionPlannerService.cs)).
 
-There is no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+The planner has no apply-now, policy write, session mutation/removal/hold, revocation, schema/index change or scanner. Future-only preferences and maintenance remain separate. Existing policy/private authority is consumed, not broader runtime or E/Q qualification ([contract](../src/Kora.Core/Storage/ISessionRetentionPlannerReader.cs)).
+
+#### Explicit single-conversation apply-now
+
+The separate native **Sessions > Selected-session retention** operation previews the confirmed current policy for one existing ordinary conversation. Exact-ID retention access also works when passive content browsing is held. The original meaningful-activity clock is unchanged; old/new UTC archive and deletion deadlines, a fixed cutoff, expiry, inventory and immediate action are disclosed before a separate confirmation ([native workflow](../src/Kora/SessionsViewModel.RetentionApply.cs)).
+
+Confirmation durably changes only that conversation's snapshotted intervals. If due at the reviewed cutoff, it archives to Done or performs the existing guarded exact disposition, with deletion taking precedence. A cutoff crossing into a different action requires fresh review; there is no deferred unreviewed purge, retry renewal, bulk action or new scheduler ([domain rules](../src/Kora.Core/Storage/SessionRetentionApplication.cs), [transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.RetentionApply.cs)).
+
+Perpetual/removed/purged conversations, current-run controls, queued/live/Unknown/unavailable work, unresolved questions, unconfirmed physical release, unsent/held native input and uncertain copy inventory are excluded. Policy/preference, original native source, owner/privacy/call/control revision, session generation, inventory, authority head, storage snapshot, cutoff and expiry changes deny confirmation. A later click cannot promote an original voice-origin retention handoff; start a fresh native metadata review ([admission](../src/Kora.Application/Hosting/SessionRetentionApplyService.cs), [resource guard](../src/Kora.Application/Hosting/SessionConversationService.RetentionApply.cs)).
+
+Requested/terminal authority audit, policy/effect and terminal task receipt share the existing transaction. Exact readback precedes completion; deletion also consumes the existing owned SQLite/free-page/journal cleanup contract. Precommit cancellation changes no policy or lifecycle; failed/unknown commit or postcommit copy/readback failure requires durable inspection, never a rollback or replay claim. Independent Perpetual grants, audit, diagnostics, device memories, original files and external/provider copies remain outside this action ([existing disposition](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Disposition.cs)).
+
+This is bounded implementation, not broader runtime enablement or E/Q qualification. Future-only Save/Reset and the hypothetical planner retain their no-apply behavior ([delivery policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 Live/dispatched/Unknown work, unresolved questions, current-run control
 authorities and uncertain copy inventories hold maintenance. See the

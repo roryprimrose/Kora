@@ -44,6 +44,16 @@ Kora supports three response modes:
 
 Safety and recovery information remains visible even in VoiceOnly mode.
 
+### Choose output for one new task
+
+In the selected Active conversation, use **Response output - this new task only** in the expanded, compact or response-window composer. Choose **Inherit**, **VisualOnly**, **Hybrid** or **VoiceOnly**, then **Review this task's input and output**. Inspect the complete original input, conversation, original channel and configured mode. Separately choose **Confirm and submit this task once**, or cancel without submitting ([native workflow](../src/Kora/SessionsViewModel.TaskResponseOutput.cs)).
+
+Inherit captures the ordinary configured mode at review. This choice belongs only to the new submitted task, including its queue wait; it never changes the session or saved default. Editing input or output choice retires the review. The completed status distinguishes configured/effective output and completed speech. Mandatory privacy, call, output-device and speech-limit gates still win; VoiceOnly cannot hide required visuals ([output consumer](../src/Kora.Application/ViewModels/MainViewModel.TaskResponseOutput.cs)).
+
+Typed input can use `session request output <session-id> <generation> <metadata-revision> VoiceOnly -- <original body>`, then separately `session request confirm` or `session request cancel`. Activated voice requires the current assistant-name prefix and retains its original voice authority; native confirmation cannot bypass protected-call or revoked voice consent ([shared review](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
+
+Choosing a mode never submits, speaks, listens, replays a previous answer or enables a model. Expired/changed authority and unconfirmed retention withhold output without retry. Later requests inherit normally ([one-task binding](../src/Kora.Application/Hosting/SessionConversationService.TaskResponseOutput.cs)).
+
 Ordinary speech is additionally admitted only when its complete title/body
 fits the device-local spoken summary caps (default **3 sentences / 80 words**).
 Either cap can be lowered in Speech & audio. Over-cap results retain their full

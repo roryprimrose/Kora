@@ -508,7 +508,7 @@ Native **Sessions > Quiet routine notices for this run** affects Work/Maintenanc
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
 Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, proactive speech and multi-session reminders remain unavailable.
+The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance

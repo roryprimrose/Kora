@@ -19,7 +19,8 @@ namespace Kora;
 internal sealed partial class CustomizationWindowController(
     MainViewModel main, CustomizationManagementService management, ICustomizationAuthoring authoring,
     ArtifactCatalogue catalogue, ArtifactCatalogueReloadService reload,
-    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<CustomizationWindowController> logger) : IDisposable
+    Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<CustomizationWindowController> logger,
+    Func<string, string, RequestOrigin, Func<bool>, Task>? addOwnedAgent = null) : IDisposable
 {
     private CustomizationWindow? window;
     private CancellationTokenSource? lifetime;
@@ -340,6 +341,13 @@ internal sealed partial class CustomizationWindowController(
         var name = opened.NewName.Text?.Trim() ?? string.Empty;
         if (name.Length == 0)
         { throw new InvalidDataException("Choose a new lowercase artifact ID and destination, then select Add. You can discuss its behavior with Kora before saving."); }
+        if (opened.Kind == CustomizationKind.Agent && scope == CustomizationScope.Kora && addOwnedAgent is not null)
+        {
+            var channel = main.CaptureInstructionRefinementEligibility();
+            await addOwnedAgent(name, opened.Request.Text ?? string.Empty, HostActivity.RequireCurrent().Request.Origin,
+                () => current() && channel());
+            return;
+        }
         var created = await management.Create(opened.Kind, scope, name, current, token);
         RequireCurrent(current, token);
         skillAdaptation = null;

@@ -1,10 +1,11 @@
-using System.Text;
+﻿using System.Text;
 using System.Collections.Immutable;
 
 using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Providers;
+using Kora.Core.Voice;
 
 namespace Kora.Core.Commands;
 
@@ -20,7 +21,11 @@ public sealed partial record SessionCommand
         + "Voice requires the current assistant-name prefix. No implicit selected-session, question or approval routing. "
         + "Model/provider submission is unavailable: original-user authority is required; no model submission capability is registered. "
         + LocalRequestProfileSyntax + " "
-        + ForegroundRequestSyntax;
+        + ForegroundRequestSyntax + " " + TaskResponseModeSyntax;
+    public const string TaskResponseModeSyntax =
+        "session request output <session-id> <generation> <metadata-revision> <Inherit|VisualOnly|Hybrid|VoiceOnly> -- <original body>. "
+        + "Review the unchanged input, exact Active conversation and this one task's configured output, then confirm separately. "
+        + "No preference write, replay, listening or provider-context change; mandatory output policy still applies.";
     public const string LocalRequestProfileSyntax =
         "session request once <session-id> <generation> <metadata-revision> <local-account-id> <catalogue-revision> <model-id> <reasoning-id> <context-id> -- <original body>. "
         + "This request only: explicitly choose the complete advertised local tuple, review destination/profile/input, then confirm separately. "
@@ -43,6 +48,7 @@ public sealed partial record SessionCommand
     public bool RequestForegroundTarget { get; init; }
     public bool RequestActivationPrefixed { get; init; }
     public ProviderProfileTuple? RequestLocalProfile { get; init; }
+    public TaskResponseMode? RequestTaskResponseMode { get; init; }
     public const string ForegroundRequestSyntax =
         "ask this conversation <original body>. Review the complete message and current foreground conversation, "
         + "then separately use session request confirm or session request cancel. "
@@ -92,6 +98,17 @@ public sealed partial record SessionCommand
         if (Encoding.UTF8.GetByteCount(header) > MaximumInputBytes || header.Any(char.IsControl))
         { return Invalid(); }
         var parts = header.Split(' ', StringSplitOptions.RemoveEmptyEntries);
+        if (parts.Length >= 3 && parts[2].Equals("output", StringComparison.OrdinalIgnoreCase))
+        {
+            if (parts.Length != 7 || separator < 0
+                || !Enum.TryParse<TaskResponseMode>(parts[6], true, out var mode) || !Enum.IsDefined(mode)
+                || !Enum.GetNames<TaskResponseMode>().Any(name => name.Equals(parts[6], StringComparison.OrdinalIgnoreCase)))
+            { return Invalid(); }
+            var ordinary = ParseRequest(string.Join(' ', parts.Take(2).Append("review").Concat(parts.Skip(3).Take(3)))
+                + text[separator..]);
+            return ordinary!.Operation == SessionCommandOperation.RequestReview
+                ? ordinary with { RequestTaskResponseMode = mode } : Invalid();
+        }
         if (parts.Length >= 3 && parts[2].Equals("once", StringComparison.OrdinalIgnoreCase))
         {
             if (parts.Length != 11 || separator < 0 || !Revision(parts[7], true, out var catalogue)) { return Invalid(); }

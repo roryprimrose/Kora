@@ -13,7 +13,8 @@ namespace Kora.Application.Hosting.SessionRouting;
 public sealed class SessionRoutingService(
     SessionWorkspaceService workspace, SessionConversationService conversation,
     ISessionWorkspaceAccess access, TimeProvider time, ISessionRelatednessMatcher? matcher = null,
-    SessionRoutingControlAdmission? admission = null)
+    SessionRoutingControlAdmission? admission = null,
+    Func<SessionRoutingAdvice, Func<bool>, CancellationToken, Task<bool>>? reviewAdvice = null)
 {
     private readonly Lock gate = new();
     private long revision;
@@ -78,14 +79,30 @@ public sealed class SessionRoutingService(
             var snapshot = new SessionRouteSnapshot(attempt, [.. page.Records
                 .Where(entry => entry.Authority.IsActive && entry.Authority.SessionId != controlSession)
                 .Select(entry => new SessionRouteDescriptor(entry, Guid.NewGuid()))]);
-            var proposal = matcher is null
-                ? new(snapshot.Revision, SessionRouteMatch.Unavailable, [])
-                : await matcher.MatchAsync(body, snapshot, Live, token).ConfigureAwait(false);
+            var expires = time.GetUtcNow().AddSeconds(60);
+            bool AdviceLive()
+            {
+                lock (gate) { return revision == attempt && Live() && time.GetUtcNow() < expires; }
+            }
+            var consented = matcher is not null && reviewAdvice is not null
+                && await reviewAdvice(new(body, origin, snapshot, expires), AdviceLive, token).ConfigureAwait(false);
             Require(attempt, token);
+            if (!AdviceLive())
+            { throw new InvalidOperationException("The local advice disclosure expired or changed. No inference or fallback."); }
+            var disclosed = await ReadInventory(token).ConfigureAwait(false);
+            Require(attempt, token);
+            if (!AdviceLive() || !Same(page, disclosed))
+            { throw new InvalidOperationException("Disclosed routing metadata changed before local advice. Nothing was sent."); }
+            var proposal = !consented
+                ? new(snapshot.Revision, SessionRouteMatch.Unavailable, [])
+                : await matcher!.MatchAsync(body, snapshot, AdviceLive, token).ConfigureAwait(false);
+            Require(attempt, token);
+            if (!AdviceLive())
+            { throw new InvalidOperationException("The local advice lifetime ended. No destination review or submission."); }
             var candidates = ValidateProposal(snapshot, proposal);
             var actual = await ReadInventory(token).ConfigureAwait(false);
             Require(attempt, token);
-            if (!Same(page, actual))
+            if (!AdviceLive() || !Same(page, actual))
             { throw new InvalidOperationException("Routing metadata changed during matching. No New fallback or submission was attempted."); }
             var review = new SessionRoutingReview(body, origin, snapshot, proposal.Match, candidates, time.GetUtcNow().AddSeconds(60),
                 HostActivity.CaptureContinuation(HostActivityLayer.Application, HostOperation.Request, origin));

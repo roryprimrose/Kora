@@ -117,6 +117,9 @@ public sealed partial class App : Avalonia.Application
                 viewModel,
                 Services.GetRequiredService<ILogger<DocumentationWindowController>>(),
                 detailWindow);
+            viewModel.BindReviewedVoiceCommand(
+                Services.GetRequiredService<ILogger<Kora.Application.Voice.ReviewedVoiceCommandCapture>>(),
+                Services.GetRequiredService<TimeProvider>());
             responseWindow = new ResponseWindowController(
                 viewModel,
                 Services.GetRequiredService<ILogger<ResponseWindowController>>(), detailWindow);

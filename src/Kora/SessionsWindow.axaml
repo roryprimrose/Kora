@@ -146,6 +146,7 @@
         <controls:NamedTextBlock x:Name="DraftSizeFeedback" Text="{Binding ComposerDraftSizeFeedback}" TextWrapping="Wrap"
             AutomationProperties.Name="Current editable shared conversation draft size and shape" />
         <local:SessionDictationButton IsEnabled="{Binding CanCompose}" />
+        <local:TaskResponseOutputPanel />
         <TextBlock Text="Optional Claude observation scope: comma-separated exact IDs from capabilities.list, capabilities.get, application.get_version, readiness.get, runtime.list, runtime.get_status. No files, web, MCP, settings or provider tools. Ordinary Claude stays tool-free."
             TextWrapping="Wrap" />
         <TextBox x:Name="ClaudeObservationIds" Text="{Binding ClaudeObservationIds, Mode=TwoWay}"

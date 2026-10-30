@@ -328,6 +328,10 @@ public sealed partial class ModelTurnHostTests
                 .Should().ThrowAsync<InvalidOperationException>().WithMessage("*pending-only clear*");
             await p.Service.Invoking(value => value.ResumePendingConversationAsync(p.Target, review.Snapshot.LaneRevision, () => true, Token))
                 .Should().ThrowAsync<InvalidOperationException>();
+            var held = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+            await p.Service.Invoking(value => value.SetManualDispatchHoldAsync(held.DispatchControl!,
+                ConversationDispatchHoldReason.OriginalUser, () => true, Token))
+                .Should().ThrowAsync<InvalidOperationException>().WithMessage("*pending-only clear*");
             await p.Service.Invoking(value => value.ReviewApplicationLifecycleAsync(ApplicationLifecycleOperation.StopAllWork,
                 RequestOrigin.LocalUi, () => true, Token)).Should().ThrowAsync<InvalidOperationException>();
             (await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token)).Paused.Should().BeFalse();
@@ -368,6 +372,83 @@ public sealed partial class ModelTurnHostTests
         observed.Should().NotBeEmpty();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task PendingClearPreservesManualAndRecoveryHoldsUntilBothAreDeliberatelyReleased(bool manualFirst)
+    {
+        await using var p = await PendingClearFixture.Create();
+        var before = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        await p.Service.SetManualDispatchHoldAsync(before.DispatchControl!, ConversationDispatchHoldReason.OriginalUser,
+            () => true, Token);
+        var resources = p.F.Audits.Count(item => item.ActionId is "runtime.resource.acquire");
+        var review = await p.Review();
+        review.Snapshot.Entries.Select(item => item.ExpiresAt).Should().Equal(
+            before.Turns.Where(item => item.Phase == ConversationPendingPhase.Pending).Select(item => item.ExpiresAt));
+        var result = await p.Service.ConfirmPendingClearAsync(review, () => true, Token);
+        result.Outcome.Should().Be("reviewed-pending-cancelled");
+        result.Outcomes.Should().HaveCount(2).And.OnlyContain(item => item.Confirmed && item.RetainedState == HostTaskState.Cancelled);
+        var cleared = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        cleared.ManualHoldReason.Should().Be(ConversationDispatchHoldReason.OriginalUser);
+        cleared.Paused.Should().BeTrue();
+        p.A.Completion.IsCompleted.Should().BeFalse();
+        p.F.Adapter.RunToken.IsCancellationRequested.Should().BeFalse();
+        p.F.Audits.Count(item => item.ActionId is "runtime.resource.acquire").Should().Be(resources);
+        p.F.Adapter.Pending = null;
+        p.Provider.TrySetResult(LateAnswer());
+        (await p.A.Completion).RequireReceipt().Task.State.Should().Be(HostTaskState.Succeeded);
+        var kept = await p.Service.SubmitQueuedAsync(p.Target, "new unreviewed original", () => true, Token);
+        var held = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        var original = held.Turns.Single();
+        if (manualFirst)
+        { await p.Service.SetManualDispatchHoldAsync(held.DispatchControl!, ConversationDispatchHoldReason.None, () => true, Token); }
+        else
+        { await p.Service.ResumePendingConversationAsync(p.Target, held.Revision, () => true, Token); }
+        var remaining = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        remaining.Paused.Should().Be(manualFirst);
+        remaining.ManualHoldReason.Should().Be(manualFirst ? ConversationDispatchHoldReason.None : ConversationDispatchHoldReason.OriginalUser);
+        remaining.Turns.Should().ContainSingle().Which.Should().Be(original);
+        kept.Completion.IsCompleted.Should().BeFalse();
+        p.F.Adapter.Calls.Should().Be(1);
+        if (manualFirst)
+        { await p.Service.ResumePendingConversationAsync(p.Target, remaining.Revision, () => true, Token); }
+        else
+        { await p.Service.SetManualDispatchHoldAsync(remaining.DispatchControl!, ConversationDispatchHoldReason.None, () => true, Token); }
+        (await kept.Completion).RequireReceipt().Message.Body.Should().Be("new unreviewed original");
+        p.F.Adapter.Calls.Should().Be(2);
+        p.F.CancelAudit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ManualHoldChangesRetirePendingClearWithoutCancellingOrRenewingOriginals(bool initiallyHeld)
+    {
+        await using var p = await PendingClearFixture.Create();
+        var before = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        if (initiallyHeld)
+        {
+            await p.Service.SetManualDispatchHoldAsync(before.DispatchControl!, ConversationDispatchHoldReason.OriginalUser,
+                () => true, Token);
+        }
+        var review = await p.Review();
+        var current = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        var reason = initiallyHeld ? ConversationDispatchHoldReason.None : ConversationDispatchHoldReason.OriginalUser;
+        await p.Service.SetManualDispatchHoldAsync(current.DispatchControl!, reason, () => true, Token);
+        await p.Service.Invoking(value => value.ConfirmPendingClearAsync(review, () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        var after = await p.Service.ReadPendingConversationAsync(p.Target, () => true, Token);
+        after.Turns.Should().Equal(before.Turns);
+        after.ManualHoldReason.Should().Be(reason);
+        after.Paused.Should().BeFalse();
+        p.A.Completion.IsCompleted.Should().BeFalse();
+        p.B.Completion.IsCompleted.Should().BeFalse();
+        p.C.Completion.IsCompleted.Should().BeFalse();
+        p.F.Adapter.Calls.Should().Be(1);
+        p.F.Adapter.RunToken.IsCancellationRequested.Should().BeFalse();
+        p.F.CancelAudit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.pending-clear", StringComparison.Ordinal));
+    }
+
     [Fact]
     public async Task PendingClearCannotConsumeAnOldReviewAfterTheOwningServiceHasClosedAndJoined()
     {
@@ -385,6 +466,8 @@ public sealed partial class ModelTurnHostTests
     [InlineData("session")]
     [InlineData("origin")]
     [InlineData("retire")]
+    [InlineData("dispatch-status")]
+    [InlineData("dispatch-pause")]
     [InlineData("retire-during-review")]
     [InlineData("source-after-review")]
     [InlineData("partial")]
@@ -408,6 +491,13 @@ public sealed partial class ModelTurnHostTests
         if (change is "replace")
         { previous = await commands.ExecuteAsync(reviewCommand, RequestOrigin.LocalUi, () => true, Token); }
         if (change is "retire") { commands.Retire(); }
+        if (change is "dispatch-status" or "dispatch-pause")
+        {
+            var dispatch = new SessionCommand(change is "dispatch-status"
+                ? SessionCommandOperation.ConversationDispatchStatus : SessionCommandOperation.ConversationDispatchPause,
+                p.Target.Authority.SessionId.Value);
+            (await commands.ExecuteAsync(dispatch, RequestOrigin.LocalUi, () => true, Token)).Outcome.Should().Be("observed");
+        }
         if (change is "retire-during-review" or "source-after-review")
         {
             commands.Retire();
@@ -426,7 +516,7 @@ public sealed partial class ModelTurnHostTests
         if (change is "partial") { p.F.CompletionFault = "wrong-state"; }
         var command = new SessionCommand(SessionCommandOperation.PendingClearConfirm, change is "session" ? Guid.NewGuid() : p.Target.Authority.SessionId.Value)
         { PendingClearReviewId = change is "missing-review" ? null : change is "identity" ? Guid.NewGuid() : previous.PendingClearReview!.Id };
-        if (change is "identity" or "session" or "origin" or "retire" or "missing-review")
+        if (change is "identity" or "session" or "origin" or "retire" or "dispatch-status" or "dispatch-pause" or "missing-review")
         {
             await commands.Invoking(value => value.ExecuteAsync(command,
                 change is "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, () => true, Token))

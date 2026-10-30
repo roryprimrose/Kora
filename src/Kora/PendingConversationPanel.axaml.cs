@@ -33,5 +33,13 @@ internal sealed partial class PendingConversationPanel : UserControl
         {
             if (DataContext is SessionsViewModel model) { model.DiscardPendingClear(); }
         };
+        HoldDispatch.Click += async (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { await (Operation = model.HoldConversationDispatchAsync()); }
+        };
+        ReleaseDispatch.Click += async (_, _) =>
+        {
+            if (DataContext is SessionsViewModel model) { await (Operation = model.ReleaseConversationDispatchAsync()); }
+        };
     }
 }

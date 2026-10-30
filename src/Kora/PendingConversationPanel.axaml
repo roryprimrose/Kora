@@ -12,6 +12,7 @@
         <DataTemplate>
           <StackPanel Spacing="3">
             <TextBlock Text="{Binding Position, StringFormat='Queued position {0}'}" />
+            <TextBlock Text="{Binding ExpiresAt, StringFormat='Original authority expires: {0:O}'}" />
             <TextBlock Text="{Binding Submission.Message.Body}" TextWrapping="Wrap" />
           </StackPanel>
         </DataTemplate>
@@ -22,7 +23,11 @@
       <Button x:Name="CancelPending" Content="Cancel selected pending request" IsEnabled="{Binding CanCancelPendingConversation}"
           AutomationProperties.HelpText="Deliberately cancels only this exact pending request before provider dispatch, preserving its submitted history. Running work is not cancelled." />
       <Button x:Name="ResumePending" Content="Resume held dispatch" IsEnabled="{Binding CanResumePendingConversation}"
-          AutomationProperties.HelpText="Revalidates original authority without renewing expiry, changing provider or replaying work." />
+          AutomationProperties.HelpText="Clears only the failure/cancellation recovery hold, not a manual hold. Revalidates original authority without renewing expiry, changing provider or replaying work." />
+      <Button x:Name="HoldDispatch" Content="Pause ordinary dispatch" IsEnabled="{Binding CanHoldConversationDispatch}"
+          AutomationProperties.HelpText="Holds new ordinary turns in this exact Active conversation only. Already dispatching or running work continues. Requests and their original expiry remain unchanged." />
+      <Button x:Name="ReleaseDispatch" Content="Release manual dispatch hold" IsEnabled="{Binding CanReleaseConversationDispatch}"
+          AutomationProperties.HelpText="Clears only this conversation's deliberate manual hold. Recovery, source, permission, privacy and expiry fences remain required; no action approval or renewed authority." />
     </WrapPanel>
     <Button x:Name="ReviewPendingClear" Content="Clear queue - review all pending" IsEnabled="{Binding CanReviewPendingClear}"
         AutomationProperties.HelpText="Reviews only this Active ordinary conversation's complete current never-dispatched set. Running work continues. No cancellation until separate confirmation." />

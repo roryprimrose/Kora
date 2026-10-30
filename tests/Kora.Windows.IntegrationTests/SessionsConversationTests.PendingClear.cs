@@ -4,6 +4,7 @@ using Avalonia.LogicalTree;
 
 using AwesomeAssertions;
 
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
@@ -14,8 +15,10 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
-    [Fact]
-    public async Task NativePendingOnlyClearReviewsCompleteSetThenRetainsCancelledOriginalsWithoutStoppingEitherSession()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task NativePendingOnlyClearReviewsCompleteSetThenRetainsCancelledOriginalsWithoutStoppingEitherSession(bool manualHold)
     {
         await HeadlessSession.RunAsync(async () =>
         {
@@ -62,9 +65,16 @@ public sealed partial class SessionsConversationTests
                     .Should().Be(HostTaskState.DispatchRecorded);
                 var retentionBefore = await f.Store.ReadRetentionAsync(original, f.Token);
                 var runningBefore = await composed.Conversation.ReadRunningConversationAsync(target, () => true, f.Token);
+                var panel = window.GetLogicalDescendants().OfType<PendingConversationPanel>().Single();
+                await model.RefreshPendingConversationAsync();
+                if (manualHold)
+                {
+                    panel.FindControl<Button>("HoldDispatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await panel.Operation;
+                    model.CanReleaseConversationDispatch.Should().BeTrue();
+                }
                 var auditBefore = WindowsSqliteConversationTests.AuditText(f);
                 var resources = composed.Audit.Events.Count(item => item.ActionId is "runtime.resource.acquire");
-                var panel = window.GetLogicalDescendants().OfType<PendingConversationPanel>().Single();
                 panel.FindControl<Button>("ReviewPendingClear")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await panel.Operation;
                 model.CanConfirmPendingClear.Should().BeTrue();
@@ -82,6 +92,20 @@ public sealed partial class SessionsConversationTests
                 await panel.Operation;
                 model.PendingClearText.Should().Contain("reviewed-pending-cancelled");
                 model.CanConfirmPendingClear.Should().BeFalse();
+                await model.RefreshPendingConversationAsync();
+                var cleared = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
+                cleared.ManualHoldReason.Should().Be(manualHold ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None);
+                cleared.Paused.Should().BeTrue();
+                model.CanReleaseConversationDispatch.Should().Be(manualHold);
+                if (manualHold)
+                {
+                    panel.FindControl<Button>("ReleaseDispatch")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await panel.Operation;
+                    var released = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
+                    released.ManualHoldReason.Should().Be(ConversationDispatchHoldReason.None);
+                    released.Paused.Should().BeTrue();
+                    model.CanResumePendingConversation.Should().BeTrue();
+                }
                 foreach (var queued in new[] { b, c })
                 {
                     var message = await f.Store.ReadConversationMessageAsync(original, queued.Receipt.Message.Request.RequestId, f.Token);

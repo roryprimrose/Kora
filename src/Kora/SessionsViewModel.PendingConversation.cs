@@ -39,14 +39,24 @@ internal sealed partial class SessionsViewModel
         }
     }
     public string PendingConversationStatus => pendingConversation is { } snapshot && access.CanInspect && !closed
-        ? snapshot.Paused
+        ? snapshot.DispatchControl is null
+            ? "A preceding generation still owns submitted work. Current-generation dispatch controls are unavailable; inspect terminal recovery."
+            : (snapshot.ManualHoldReason == ConversationDispatchHoldReason.OriginalUser
+            ? "Manual hold: no new ordinary turn will start. A turn already dispatching or running continues unchanged. Original deadlines keep running. Release only this manual hold separately. "
+            : string.Empty) + (snapshot.Paused
             ? "Automatic dispatch held after failure, cancellation or uncertainty. Resume is deliberate and revalidates original authority; it does not renew it."
-            : PendingConversationTurns.Count + " submitted request(s) waiting in arrival order. Original input and provider are fixed; expired authority is not renewed."
+            : PendingConversationTurns.Count + " submitted request(s) waiting in arrival order. Original input and provider are fixed; expired authority is not renewed.")
         : "Refresh submitted work for this exact conversation. Unsent input is not queued.";
     public bool CanRefreshPendingConversation => CanReadConversation && !changingPendingConversation;
     public bool CanCancelPendingConversation => CanRefreshPendingConversation && access.CanControl
         && selectedPendingConversation is not null && PendingConversationTurns.Contains(selectedPendingConversation);
     public bool CanResumePendingConversation => CanRefreshPendingConversation && access.CanControl && pendingConversation?.Paused == true;
+    public bool CanHoldConversationDispatch => CanRefreshPendingConversation && access.CanControl
+        && selected?.Authority.IsActive == true && pendingConversation?.DispatchControl?.Target == selected
+        && pendingConversation.ManualHoldReason == ConversationDispatchHoldReason.None;
+    public bool CanReleaseConversationDispatch => CanRefreshPendingConversation && access.CanControl
+        && selected?.Authority.IsActive == true && pendingConversation?.DispatchControl?.Target == selected
+        && pendingConversation.ManualHoldReason == ConversationDispatchHoldReason.OriginalUser;
 
     private async Task SubmitOrdinaryConversationAsync(bool localAnswer)
     {
@@ -180,6 +190,17 @@ internal sealed partial class SessionsViewModel
         if (pendingConversation is not { } snapshot) { throw new InvalidOperationException("Refresh submitted work before resuming."); }
         await conversation!.ResumePendingConversationAsync(target, snapshot.Revision, live, lifetime.Token);
     });
+    public Task HoldConversationDispatchAsync() => ChangeManualDispatchAsync(ConversationDispatchHoldReason.OriginalUser);
+    public Task ReleaseConversationDispatchAsync() => ChangeManualDispatchAsync(ConversationDispatchHoldReason.None);
+
+    private Task ChangeManualDispatchAsync(ConversationDispatchHoldReason reason) => ChangePendingConversationAsync(async (target, live) =>
+    {
+        var exact = pendingConversation?.DispatchControl;
+        if (exact is null || exact.Target != target)
+        { throw new InvalidOperationException("Refresh this exact conversation before changing its manual hold."); }
+        var snapshot = await conversation!.SetManualDispatchHoldAsync(exact, reason, live, lifetime.Token);
+        if (live()) { PresentPendingConversation(snapshot); }
+    });
 
     public Task ReviewPendingClearAsync() => ChangePendingConversationAsync(async (target, live) =>
     {
@@ -236,7 +257,8 @@ internal sealed partial class SessionsViewModel
     {
         foreach (var name in new[] { nameof(PendingConversationTurns), nameof(SelectedPendingConversation), nameof(PendingConversationStatus),
             nameof(CanRefreshPendingConversation), nameof(CanCancelPendingConversation), nameof(CanResumePendingConversation),
-            nameof(PendingClearText), nameof(CanReviewPendingClear), nameof(CanConfirmPendingClear), nameof(CanDiscardPendingClear) })
+            nameof(PendingClearText), nameof(CanReviewPendingClear), nameof(CanConfirmPendingClear), nameof(CanDiscardPendingClear),
+            nameof(CanHoldConversationDispatch), nameof(CanReleaseConversationDispatch) })
         { OnPropertyChanged(name); }
     }
 }

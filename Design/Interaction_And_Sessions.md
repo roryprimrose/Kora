@@ -287,6 +287,20 @@ The [exact command service](../src/Kora.Application/Hosting/ConversationSearchCo
 
 The [complete interaction](../docs/windows-and-tray.md#search-retained-assistant-answers) is explicit role/query, Search/Next, inspect complete inert answer, Cancel/Clear. This grants no new context/reuse/export, retention renewal, index, persistence, model/provider invocation or profile enablement. Deterministic [portable tests](../tests/Kora.Application.UnitTests/Hosting/SessionWorkspaceServiceTests.AssistantSearch.cs) and [private SQLite/native tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AssistantSearch.cs) cover the bounded implementation, not installed hardware/provider qualification.
 
+### Explicit retained-answer review acknowledgement
+
+The approved independent-conversation/readable-result usability operation is exact conversation -> **Read answers not marked reviewed** -> select one metadata row -> fresh canonical ASSISTANT Details -> deliberate **Mark this answer reviewed**. **Read all answer review flags (including undo)** supports the same exact Details -> **Unmark this answer reviewed** operation ([native owner](../src/Kora/SessionsViewModel.AnswerReviews.cs)).
+
+Opening, rendering, selecting, paging and polling are not evidence of human reading or understanding and never write acknowledgement. Counts mean **not marked reviewed**, not unread. Pages report observed counts, omitted matching rows and explicit Next; fresh reads include background answers. Query continuations bind the exact target, filter, message head and acknowledgement head ([contract](../src/Kora.Core/Conversation/ConversationAnswerReviewPage.cs)).
+
+Schema 14 adds a metadata-only acknowledgement projection under the existing private authoritative SQLite store and typed audit. It binds the immutable original request, answer turn, message revision and source generation. Confirmed legacy absence means not marked; missing audited rows, malformed/unknown data and uncertain readback mean Unavailable, never a successful zero count ([storage](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.AnswerReviews.cs)).
+
+All required canonical messages and acknowledgement records validate before exclusion or page limits. The existing closed 100-message conversation and 64 KiB complete page limits remain. Private/control/original native input, session generation/metadata, source head/revision and presenter lifetime fence reads, writes and late publication; there is no batch-through-sequence action ([host boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.AnswerReviews.cs)).
+
+Acknowledgement neither changes retained bodies nor renews meaningful activity, deadlines, grants, source/model consent, dispatch or Resume. Done inspection remains passive. Source disposition/retention removes owned acknowledgement rows with the existing copy-cleanup policy; independent audit/grants keep their own policy. No favourites, bookmark catalogue, attention analytics, inferred reading, model source consumer or new body retention is added ([deletion owner](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs)).
+
+This is an explicit private-native metadata operation using the existing native-only canonical Details admission, not a new model/typed/voice mutation grammar. Existing conversation controls/routes are unchanged. [SQLite regressions](../tests/Kora.Windows.IntegrationTests/Storage/WindowsSqliteAnswerReviewTests.cs) and [native regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.AnswerReviews.cs) prove implementation, not provider/hardware/installed accessibility qualification.
+
 ## Delivered exact-session conversation/composer foundation — 2026-10-12
 
 ### Session-local unsent input and legacy compatibility - 2026-10-21

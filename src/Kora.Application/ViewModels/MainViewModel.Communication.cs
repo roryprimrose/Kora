@@ -268,6 +268,7 @@ public sealed partial class MainViewModel
     {
         try
         {
+            completionNotices?.Revalidate();
             auditImpactPreview?.Retire("Call revision changed; preview retired.");
             diagnosticImpactPreview?.Retire("Call revision changed; preview retired.");
             sessionRetentionPlanner?.Retire("Call revision changed; preview retired.");

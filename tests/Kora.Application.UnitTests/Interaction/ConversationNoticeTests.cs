@@ -21,6 +21,28 @@ namespace Kora.Application.UnitTests.Interaction;
 [Collection("Host tracing")]
 public sealed class ConversationNoticeTests
 {
+    [Fact]
+    public async Task RealAuthoritySuccessProjectionCompletesTheConsentedSpeechOperationAndKeepsPassiveVisualReceipt()
+    {
+        using var f = new Fixture();
+        await using var broker = f.Broker();
+        using var calls = new Kora.Application.Communication.CallCommunicationPolicy(new ConversationCompletionVoiceNoticesTests.Automatic());
+        var speech = new ConversationCompletionVoiceNoticesTests.Speech();
+        await using var notices = new ConversationCompletionVoiceNotices(broker, calls, speech, f, NullLogger.Instance);
+        using (var root = HostActivity.BeginRoot(f.Request, HostActivityLayer.Desktop, HostOperation.Policy))
+        { await notices.ChangeNativeAsync(f.Request.SessionId, new(1), true, notices.Revision, () => true, () => true, f.Token); }
+        f.Request = new(new(Guid.NewGuid()), f.Request.SessionId, new(Guid.NewGuid()), RequestOrigin.LocalUi);
+        f.Terminal(ModelTurnOutcome.Succeeded, HostTaskState.Succeeded);
+        var snapshot = await f.Observe(broker);
+        await notices.DeliverAsync(snapshot, () => true,
+            new("voice", "Voice", "en-US", Kora.Core.Voice.SpeechVoiceGender.Neutral), new("output", "Output"), f.Token);
+        speech.Played.Should().Equal(ConversationCompletionVoiceNotices.Statement);
+        notices.Outcome.Should().Be(ConversationCompletionVoiceNotices.DeliveryOutcome.Completed);
+        f.Current.Tasks.Single().Task.State.Should().Be(HostTaskState.Succeeded);
+        (await f.Observe(broker)).Events.Single().Reason.Should().Be(LocalEventReason.PresentedNoReplay);
+        f.Saved!.Budgets.Single().Count.Should().Be(1);
+    }
+
     [Theory]
     [InlineData(ModelTurnOutcome.Succeeded, HostTaskState.Succeeded, LocalEventType.Completed)]
     [InlineData(ModelTurnOutcome.Unavailable, HostTaskState.Unavailable, LocalEventType.Failed)]

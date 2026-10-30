@@ -259,9 +259,13 @@ These are **Sessions** controls, not global preferences:
 |---|---|
 | Refresh retention / Read exact ID retention | Recorded activity/due/kept/purged/hold metadata only; never resumes, renews activity or cleans up |
 | Keep this session / Use ordinary retention | Exact ID/generation/date review followed by separate native confirmation; ordinary retention retains original due dates |
+| Preview confirmed policy for this conversation / Confirm apply-now and disclosed action | One ordinary idle conversation; old/new UTC deadlines and immediate action review, then separate native confirmation |
 | Attach / inspect / replace / remove retained attachment | One immutable UTF-8 text/Markdown file per session, 256 KiB including BOM, sixteen retained profile files, no eviction |
 
 Keep stops automatic archive/delete only, not execution or egress checks.
+For apply-now, first refresh confirmed session preferences in Settings, then select one conversation (or read its exact ID retention metadata). Preview is read-only. Confirmation changes only that conversation's policy/deadlines from its original activity; any reviewed due archive or deletion executes now, not on an unreviewed later tick ([single-conversation workflow](../src/Kora/SessionsViewModel.RetentionApply.cs)).
+
+Kept, removed, live/queued/question/Unknown/unavailable work, held unsent input or uncertain resource/copy state cannot be confirmed. Changed policy, source, inventory, selection, private ownership/call state, expiry or due-action cutoff requires a fresh native review. Cancel makes no changes. Unknown commit/copy completion needs durable inspection, not retry or rollback assumptions. Perpetual grants, audit/diagnostics and original/external files have independent lifetimes ([scope and recovery](../Design/User_Configuration.md#explicit-single-conversation-apply-now)).
 When ordinary inactivity deletion becomes due, completion includes rebuilding
 owned SQLite content previously freed by older revisions and clearing its
 committed journal. A storage/copy-verification failure after revocation leaves
@@ -274,8 +278,8 @@ has a new source identity; uncertified committed copies remain held.
 See [Sessions and lifecycle](windows-and-tray.md#minimal-durable-sessions),
 [attachment commands](commands.md#attach-one-text-file-to-an-exact-session-native-only)
 and [retained metadata](windows-and-tray.md#retained-session-attachments-metadata-only).
-No typed/voice/model attachment capture, global keep, apply-now or forced cleanup
-is delivered.
+No typed/voice/model attachment capture, global keep, bulk apply-now or forced cleanup
+is delivered; [single-conversation apply-now](#exact-existing-session-controls) is a separate native review.
 
 ## Local speech text
 

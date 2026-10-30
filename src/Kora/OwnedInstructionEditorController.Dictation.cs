@@ -36,6 +36,7 @@ internal sealed partial class OwnedInstructionEditorController
         if (start < draft.Length - document.Body.Length || end > draft.Length)
         { throw new InvalidOperationException("Place the caret or entire selection inside the instruction body, after the metadata delimiter."); }
         var revision = Interlocked.Read(ref sourceRevision);
+        var cursorRevision = Interlocked.Read(ref caretRevision);
         var ownership = windowOwnershipRevision;
         var inventoryRevision = Interlocked.Read(ref inventoryEpoch);
         var channel = main.CaptureInstructionBodyDictationEligibility();
@@ -46,7 +47,8 @@ internal sealed partial class OwnedInstructionEditorController
             && ownershipRevision() == ownership && channel() && kind == ArtifactKind.Instruction
             && ReferenceEquals(baseline, original) && string.Equals(selectedName, name, StringComparison.Ordinal)
             && inventoryRevision == Interlocked.Read(ref inventoryEpoch);
-        bool Current() => SourceCurrent() && revision == Interlocked.Read(ref sourceRevision);
+        bool Current() => SourceCurrent() && revision == Interlocked.Read(ref sourceRevision)
+            && cursorRevision == Interlocked.Read(ref caretRevision);
         string Proposed(string literal)
         {
             if (literal.Length > VoiceInputLimits.MaximumTranscriptCharacters)

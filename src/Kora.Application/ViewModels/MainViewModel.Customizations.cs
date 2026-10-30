@@ -90,9 +90,12 @@ public sealed partial class MainViewModel
         finally { request.Retire(); activeCustomizationVoice = null; IsBusy = false; }
     }
 
-    private Task ExecuteCustomizationCommand(CustomizationCommand command)
+    private Task ExecuteCustomizationCommand(CustomizationCommand command, Func<bool> admitted)
     {
-        if (CustomizationRequested is { } handler) { return handler(command); }
+        if (CustomizationRequested is { } handler)
+        {
+            return handler(command with { IsCurrent = admitted });
+        }
         ReportHostInteractionFailure("The Customizations window is unavailable. No source was edited.");
         return Task.CompletedTask;
     }

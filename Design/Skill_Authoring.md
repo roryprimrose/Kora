@@ -79,6 +79,15 @@ controls and writes exactly one bounded `*.instructions.md` file. Voice and
 typed input can propose the same edits; neither input route bypasses native
 review or the exact Save confirmation.
 
+The first [exact spoken Save increment](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+confirms one already completely display-reviewed existing canonical Kora-owned
+Instruction replacement through the canonical host question service and unchanged
+writer. It does not extend package saves, profile-original writes, creation/copy,
+deletion, conflict overwrite, grants or activation; other mutations remain native.
+The separate [literal owned Instruction body route](../docs/instruction-editor.md#dictate-literal-instruction-body-text)
+stages only reviewed volatile text at a frozen body caret/range. It cannot answer
+the dedicated Save question or replace complete source review and separate Save.
+
 Kora-owned instructions are saved under `%APPDATA%\Kora\Instructions`.
 Compatible instructions discovered in an existing VS Code or VS Code Insiders
 profile location may be edited in their original file when the user selects
@@ -138,6 +147,13 @@ review of its exact revision and scope under the common lifecycle.
 
 ## Skill Package Boundary
 
+The bounded [native v4 observation workflow](../docs/owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow) now completes author/validate/save-disabled/reopen/review/enable/invoke/status/cancel for an explicit ordered sequence of the existing six host read-only observations.
+Its [separate native owner](../src/Kora/ObservationWorkflowController.cs) does not modify shared-source writers, interpret guidance as steps, or invoke a model.
+
+The [closed declaration](../src/Kora.Core/Skills/ObservationWorkflowDefinition.cs) uses the existing immutable two-file owned store, exact registered input/result validation, host-assigned step numbers and strict count/byte/total-time budgets.
+The [host runner](../src/Kora.Application/Skills/ObservationSkillWorkflow.cs) revalidates exact source, original request/channel, Active target/profile, dependencies and independent action permission. It publishes only a complete native source-labelled result or explicit joined failure/cancellation, never partial success.
+No provider/tool-loop qualification, seventh tool, network/file/effect capability, executable directive or generic workflow framework is introduced.
+
 The MVP authoring writer accepts only a validated package:
 
 - A schema-validated manifest with stable ID, version, inputs/outputs, and registered tool references.
@@ -174,6 +190,34 @@ Staging and backup locations are subject to the same boundary.
 Reject traversal, unexpected files, reparse-point/hard-link escapes, and existing targets outside the store.
 
 Built-in skills are embedded immutable application resources. Improving one creates only a declarative user adaptation with a distinct ID and explicit attribution; it cannot overwrite the embedded original or shadow reserved controls.
+The delivered [Create Kora adaptation operation](../docs/customizations.md#create-a-disabled-kora-skill-adaptation)
+supports one deliberately read-consented User-profile `SKILL.md` with only the
+existing strict v1 `name`, `version`, `description` scalar metadata and plain
+inert guidance. It preserves the complete guidance, including author credits,
+and adds fixed attribution identifying the original source, exact revision,
+declared name/version and reader. The new ID must be distinct, canonical,
+nonreserved and unoccupied. Optional draft edits cannot remove that attribution
+or introduce unsupported requirements ([closed subset](../src/Kora.Core/Customizations/DeclarativeSkillAdaptation.cs)).
+Required references, tools, scripts, companion files, executable/active markup,
+unknown metadata and incompatible formats are explicitly refused, not dropped.
+Current bundled manifests require a protected executable entry point and
+dependencies, so none can be faithfully adapted into this subset
+([manifest contract](../src/Kora.Core/Skills/SkillPackageManifest.cs)).
+The existing source writer owns one-file atomic create-no-overwrite and exact
+readback. It pins the source directory ancestry and denies source-file writes
+or replacement through staging/publication, then rechecks the complete source
+inventory immediately before atomic creation; no second package writer,
+extraction, import or model call is added
+([native boundary regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.SkillAdaptation.cs)).
+Complete original/proposed source and the host-chosen owned destination are
+reviewed before separate confirmation to save NEW and DISABLED. The operation
+revalidates the inspected identity/revision and destination absence before both
+reviews and final commit, then reopens the exact saved revision. Its two-minute
+review never selects newer source bytes; changed draft/destination/input,
+source/access, reload, privacy, ownership or call admission requires fresh
+review. An uncertain publication requires explicit inspection, not retry
+([publication workflow](../src/Kora.Application/Definitions/CustomizationManagementService.SkillAdaptation.cs),
+[native lifecycle regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
 Supported shared profile skills are directly editable in the target design;
 an improvement can also create a reviewed Kora-specific fork.
 In-place declarative editing uses the dedicated definition writer, with

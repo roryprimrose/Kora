@@ -3,6 +3,7 @@ using System.ComponentModel;
 using Avalonia.Controls;
 
 using Kora.Application.Agents;
+using Kora.Application.Definitions;
 using Kora.Application.ViewModels;
 using Kora.Core.Artifacts;
 using Kora.Core.Hosting;
@@ -14,7 +15,8 @@ using Microsoft.Extensions.Logging;
 namespace Kora;
 
 internal sealed partial class AgentProfileEditorController(MainViewModel main, AgentProfileSaveWorkflow workflow,
-    Func<bool> ownsHost, Func<long> ownerRevision, ILogger<AgentProfileEditorController> logger)
+    Func<bool> ownsHost, Func<long> ownerRevision, ILogger<AgentProfileEditorController> logger,
+    CustomizationAuthoringService? authoring = null, ArtifactCatalogue? catalogue = null, TimeProvider? time = null)
 {
     private AgentProfileEditorWindow? window;
     private AgentProfileSaveReview? review;
@@ -41,8 +43,13 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         main.AgentProfileAuthoringRequested += Route;
         main.PrivacyClosureRequested += PrivacyClosed;
         main.PropertyChanged += MainChanged;
+        if (catalogue is not null) { catalogue.Changed += CatalogueChanged; }
         main.BindAgentProfileAuthoringShutdown(ShutdownWithResult);
     }
+
+    internal Task Add(string name, string description, RequestOrigin origin, Func<bool> eligible) =>
+        Route(new(string.IsNullOrWhiteSpace(description) ? AgentProfileAuthoringAction.Create
+            : AgentProfileAuthoringAction.DraftFromDescription, name) { Description = description }, origin, eligible);
 
     private bool Eligible() => !stopped && window is not null && ownsHost()
         && capturedOwner == ownerRevision() && main.CanRevealPrivatePresentation
@@ -62,6 +69,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
 #pragma warning restore MA0147
         window.Source.PropertyChanged += Edited;
         window.NameInput.PropertyChanged += Edited;
+        window.DescriptionRequest.PropertyChanged += DescriptionEdited;
         window.Inventory.SelectionChanged += (_, _) => Retire();
         window.Closing += Closing;
         window.Show();
@@ -73,6 +81,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         {
             if (!eligible()) { throw new InvalidOperationException("Original queued authoring input expired."); }
             Open();
+            if (command.Action == AgentProfileAuthoringAction.CancelReview)
+            { Retire(); window!.Status.Text = "Proposal and save review cancelled. No write requested."; return; }
             if (!Eligible() || !active.IsCompleted || decidingClose)
             { throw new InvalidOperationException("Wait for the current owned authoring operation."); }
             active = Reported(() => RunCommand(command, origin, eligible));
@@ -84,10 +94,18 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     private async Task RunCommand(AgentProfileAuthoringCommand command, RequestOrigin origin, Func<bool> eligible)
     {
         var opened = window!;
-        if (command.Action == AgentProfileAuthoringAction.Create)
+        if (command.Action is AgentProfileAuthoringAction.Create or AgentProfileAuthoringAction.DraftFromDescription)
         {
             opened.NameInput.Text = command.Argument;
             await CreateDraft(origin, eligible);
+            if (command.Action == AgentProfileAuthoringAction.DraftFromDescription
+                && string.Equals(draftName, command.Argument, StringComparison.Ordinal) && !Dirty)
+            {
+                opened.DescriptionRequest.Text = command.Description;
+                descriptionEligible = eligible;
+                descriptionOrigin = origin;
+                await Run("Ask", eligible);
+            }
             return;
         }
         if (command.Action == AgentProfileAuthoringAction.Stage)
@@ -100,6 +118,14 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             opened.Source.Text = command.Argument;
             return;
         }
+        if (command.Action == AgentProfileAuthoringAction.Describe)
+        {
+            RequireDraft();
+            opened.DescriptionRequest.Text = command.Argument;
+            descriptionEligible = eligible;
+            descriptionOrigin = origin;
+            return;
+        }
         await Run(command.Action switch
         {
             AgentProfileAuthoringAction.Validate => "Validate",
@@ -107,6 +133,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             AgentProfileAuthoringAction.List => "List",
             AgentProfileAuthoringAction.Inspect => "Inspect",
             AgentProfileAuthoringAction.CancelReview => "Cancel",
+            AgentProfileAuthoringAction.Ask => "Ask",
             _ => "Open",
         }, eligible, command.Argument);
     }
@@ -118,6 +145,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     private void Retire()
     {
         Interlocked.Increment(ref revision);
+        proposalLifetime?.Cancel();
         Interlocked.Exchange(ref review, null)?.Dispose();
         var opened = window;
         if (Avalonia.Threading.Dispatcher.UIThread.CheckAccess()) { opened?.RetireReview(); }
@@ -128,6 +156,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         if (args.PropertyName is nameof(MainViewModel.CallPolicyRevision) or nameof(MainViewModel.CanRevealPrivatePresentation))
         { Retire(); }
     }
+    private void CatalogueChanged(object? sender, EventArgs args) => Retire();
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD100",
         Justification = "Native event boundary joins owned operations and reports all nonfatal failures.")]
@@ -135,6 +164,8 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     {
         try
         {
+            if (action is "Cancel")
+            { Retire(); window!.Status.Text = "Proposal and save review cancelled. No write requested."; return; }
             if (!active.IsCompleted || decidingClose)
             { window!.Status.Text = "Wait for the current owned operation."; return; }
             var eligible = main.CaptureInstructionEditorEligibility();
@@ -156,6 +187,9 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         draftName = name;
         originalOrigin = origin;
         originalEligible = eligible;
+        proposalDestination = null;
+        proposalEligible = null;
+        opened.DescriptionRequest.Text = string.Empty;
         uncertain = false;
         baseline = string.Empty;
         opened.Source.IsReadOnly = false;
@@ -200,6 +234,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
                 ?? throw new InvalidOperationException("The selected owned original is missing.");
             if (!Current() || revision != captured) { return; }
             draftName = null; originalEligible = null; uncertain = false;
+                proposalDestination = null; proposalEligible = null;
             opened.NameInput.Text = name;
             opened.Source.IsReadOnly = true;
             opened.Source.Text = baseline = saved.Document.Document.Text;
@@ -207,6 +242,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
             return;
         }
         RequireDraft();
+        if (action is "Ask") { await Propose(opened, Current, token); return; }
         if (action is "Validate")
         {
             Retire();
@@ -223,9 +259,12 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
     {
         Retire();
         var captured = Interlocked.Read(ref revision);
-        bool Exact() => current() && originalEligible?.Invoke() == true && captured == Interlocked.Read(ref revision);
+        bool Exact() => current() && originalEligible?.Invoke() == true && (proposalEligible?.Invoke() ?? true)
+            && captured == Interlocked.Read(ref revision);
         var proposed = await workflow.ReviewAsync(draftName!, opened.Source.Text ?? string.Empty,
             captured, originalOrigin, Exact, token);
+        if (proposalDestination is { } destination && proposed.Destination != destination)
+        { proposed.Dispose(); throw new InvalidOperationException("The generated draft's reviewed destination changed. No new root or fallback is approved."); }
         if (!Exact()) { proposed.Dispose(); return; }
         review = proposed;
         opened.ShowReview(proposed);
@@ -321,6 +360,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         main.AgentProfileAuthoringRequested -= Route;
         main.PrivacyClosureRequested -= PrivacyClosed;
         main.PropertyChanged -= MainChanged;
+        if (catalogue is not null) { catalogue.Changed -= CatalogueChanged; }
         main.BindAgentProfileAuthoringShutdown(null);
         return true;
     }
@@ -360,6 +400,7 @@ internal sealed partial class AgentProfileEditorController(MainViewModel main, A
         window = null;
         lifetime?.Dispose(); lifetime = null;
         originalEligible = null; draftName = null; baseline = string.Empty;
+        descriptionEligible = null; proposalDestination = null; proposalEligible = null;
     }
     private void Report(Exception exception)
     {

@@ -44,6 +44,8 @@ public sealed partial class WindowsCustomizationStore
         using var copyFile = copyTarget is null ? null
             : WindowsOwnedDefinitionFileAccess.PinDefinitionFile(Path.Combine(copyTarget.Directory, copyTarget.FileName));
         if (copyTarget is not null) { RequireCopySource(copyTarget, copiedFrom!, token); }
+        if (target.Source.Kind == CustomizationKind.McpServer)
+        { return PublishMcp(target, expected, files, eligible, token); }
         if (IsInstructionOriginal(target.Source))
         { return PublishInstructionOriginal(target, expected, files, eligible, token); }
         if (expected is null && target.Source.Kind == CustomizationKind.Skill && Directory.Exists(target.Directory))
@@ -134,6 +136,8 @@ public sealed partial class WindowsCustomizationStore
         lock (gate)
         {
             var target = Resolve(source);
+            if (source.Kind == CustomizationKind.McpServer)
+            { throw new InvalidOperationException("MCP writes are single-file atomic publications, not resumable package transactions. Keep the server excluded, inspect the exact current entry and start a fresh review; no rollback is claimed."); }
             if (IsInstructionOriginal(source)) { RequireInstructionRegistration(target, token); }
             var journal = ReadJournal(target, token)
                 ?? throw new InvalidOperationException("There is no unfinished transaction for this source.");

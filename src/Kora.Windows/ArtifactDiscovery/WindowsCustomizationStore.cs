@@ -19,7 +19,10 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
     private readonly Dictionary<string, Target> targets = new(StringComparer.Ordinal);
     internal Action<string>? AfterComponentPublished { get; set; }
     private sealed record Root(string Path, CustomizationKind Kind, CustomizationScope Scope);
-    private sealed record Target(CustomizationSource Source, string Directory, string FileName, string? Entry = null);
+    private sealed record Target(CustomizationSource Source, string Directory, string FileName, string? Entry = null)
+    {
+        internal string? McpCreationRevision { get; init; }
+    }
 
     public WindowsCustomizationStore(IApplicationDataPaths paths, IArtifactDirectoryPreferences? directoryPreferences = null)
         : this(paths, Environment.GetFolderPath(Environment.SpecialFolder.ApplicationData),
@@ -103,6 +106,8 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
             lock (gate)
             {
                 OwnedInstructionNames.WriteName(name);
+                if (kind == CustomizationKind.McpServer && scope != CustomizationScope.Kora)
+                { throw new InvalidDataException("MCP editing is limited to Kora's canonical roaming Mcp\\mcp.json. Personal and additional files remain inspection-only."); }
                 if (scope is not (CustomizationScope.Kora or CustomizationScope.User))
                 { throw new InvalidDataException("Built-in definitions cannot be written."); }
                 if (scope == CustomizationScope.User && kind == CustomizationKind.Instruction)
@@ -114,6 +119,15 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
                 var target = MakeTarget(root, file, name);
                 if (kind == CustomizationKind.Skill && Directory.Exists(target.Directory))
                 { throw new InvalidOperationException("That skill destination directory or case alias already exists. Choose a new ID; no existing package is overwritten."); }
+                if (kind == CustomizationKind.McpServer)
+                {
+                    var captured = CaptureMcp(target, token);
+                    var document = captured.State.Files.Count == 0 ? null : new McpDefinitionDocument(captured.State.Files.Single().Bytes);
+                    document?.RequireManagedShape();
+                    if (document?.Names.Contains(name, StringComparer.Ordinal) == true)
+                    { throw new InvalidOperationException("That exact MCP entry already exists. Select and review it instead."); }
+                    target = target with { McpCreationRevision = captured.Revision };
+                }
                 if (File.Exists(file) && (kind != CustomizationKind.McpServer
                     || new McpDefinitionDocument(WindowsOwnedDefinitionFileAccess.ReadDefinitionFile(file, 256 * 1024, token)!.Bytes)
                         .Names.Contains(name, StringComparer.Ordinal)))
@@ -130,6 +144,12 @@ public sealed partial class WindowsCustomizationStore : ICustomizationStore, ICu
         lock (gate)
         {
             var target = Resolve(source);
+            if (source.Kind == CustomizationKind.McpServer)
+            {
+                RequireOwnedMcp(target);
+                var captured = CaptureMcp(target, token);
+                return ExposeMcp(target, captured);
+            }
             if (IsInstructionOriginal(source)) { RequireInstructionRegistration(target, token); }
             if (File.Exists(JournalPath(target)))
             { throw new InvalidOperationException("This source has an interrupted transaction. Review recovery before editing or enabling it."); }

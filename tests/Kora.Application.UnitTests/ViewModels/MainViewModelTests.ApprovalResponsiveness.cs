@@ -48,7 +48,7 @@ public sealed partial class MainViewModelTests
         fixture.Probe.Status = new("local.inference", "Local model",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
         fixture.ApprovalPreferences.Save(new(true, [BuiltInAction.ProposeRestart]));
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         if (modelAction)
         {
@@ -58,7 +58,7 @@ public sealed partial class MainViewModelTests
         else
         {
             await fixture.ViewModel.PrepareGrantChangeAsync(
-                new(GrantChangeOperation.Add, BuiltInAction.LockMachine, ModelApprovalScope.Session));
+                new(GrantChangeOperation.Add, BuiltInAction.EnableHostedModels, ModelApprovalScope.Session));
         }
         using var release = new ManualResetEventSlim();
         var entered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -82,6 +82,7 @@ public sealed partial class MainViewModelTests
         fixture.ApprovalPreferences.Preferences.AlwaysAllowedActions.Should().BeEmpty();
         fixture.ViewModel.AlwaysAllowedModelActions.Should().BeEmpty();
         fixture.ViewModel.SessionAllowedModelActions.Should().BeEmpty();
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
     }
 
@@ -116,7 +117,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local model",
             Kora.Core.Dependencies.DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("please lock this workstation");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -135,11 +136,13 @@ public sealed partial class MainViewModelTests
         {
             await entered.Task.WaitAsync(token);
             approval.IsCompleted.Should().BeFalse();
-            fixture.Session.LockCalls.Should().Be(0);
+            fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
+        fixture.Session.LockCalls.Should().Be(0);
             await fixture.ViewModel.HideApplicationAsync();
         }
         finally { release.Set(); }
         await approval;
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeFalse();
     }

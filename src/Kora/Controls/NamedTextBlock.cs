@@ -14,7 +14,7 @@ public class NamedTextBlock : TextBlock
 {
     protected override AutomationPeer OnCreateAutomationPeer() => new NamedTextBlockAutomationPeer(this);
 
-    private sealed class NamedTextBlockAutomationPeer : ControlAutomationPeer
+    protected class NamedTextBlockAutomationPeer : ControlAutomationPeer
     {
         private readonly NamedTextBlock textBlock;
 
@@ -30,13 +30,16 @@ public class NamedTextBlock : TextBlock
         protected override bool IsControlElementCore() =>
             textBlock.TemplatedParent is null && base.IsControlElementCore();
 
+        protected virtual bool CanRead => true;
+
         protected override string? GetNameCore() =>
-            FormatName(AutomationProperties.GetName(textBlock), DisplayedText);
+            CanRead ? FormatName(AutomationProperties.GetName(textBlock), DisplayedText) : null;
 
         private string? DisplayedText => textBlock.Inlines?.Text ?? textBlock.Text;
 
         private void OnTextPropertyChanged(object? sender, AvaloniaPropertyChangedEventArgs args)
         {
+            if (!CanRead) { return; }
             string? oldName;
             string? newName;
             if (args.Property == TextBlock.TextProperty)

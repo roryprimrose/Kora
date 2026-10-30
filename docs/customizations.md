@@ -36,6 +36,10 @@ plain source; it does not execute scripts, invoke agents or connect MCP servers.
 Binary, oversized, unsafe-path or unsupported packages report an error rather
 than silently omitting components.
 
+MCP entries are the native-only exception: selecting a Kora entry first asks consent to read that exact entry into private HTTPS fields.
+User/profile and additional MCP files remain metadata-only here.
+Unsupported or sensitive selected-entry fields are not shown or silently removed ([source-read workflow](../src/Kora/CustomizationWindowController.Mcp.cs)).
+
 ## Create a disabled Kora skill adaptation
 
 1. Select **Skills > User** and one exact supported personal-profile skill. Confirm **Read exact shared skill** to inspect its complete bounded source locally. Cancel reads no source. This consent lasts only for this inspection/adaptation lifetime; it authorizes neither source writes nor model disclosure.
@@ -225,6 +229,43 @@ enable ambient wake, qualify a provider, add hosted fallback or dictate into the
 source body. If capture or inference is unavailable, use native text. Built-ins
 require an explicitly chosen Kora copy before authoring; pending recovery must
 be reconciled first.
+
+## Set up one Kora HTTPS MCP server
+
+In **Customizations > MCP Servers**, choose **Kora**, enter a new lowercase ID and select **Add**.
+Alternatively type `add an MCP server named example`, or use the current assistant-name activated prefix.
+To edit an existing entry, select its exact Kora source or use `edit example MCP server`; an exact source-qualified ID is also accepted.
+Ambiguous names require native source selection ([shared routing](../src/Kora/CustomizationWindowController.cs)).
+
+1. For an existing entry, separately consent to **Read selected HTTPS entry**. This discloses only the selected supported entry into the private native editor, never to a model.
+2. Enter the exact non-loopback HTTPS endpoint without user-info, whitespace, query or fragment (maximum 2,048 characters).
+   Private IP literals are rejected, but Save does not resolve DNS or qualify connectivity.
+   Optionally select **Include explicit type: http**. There are no command, environment, header, credential, account or authentication controls.
+3. Select **Review and save**. Review the destination, exact entry name/identity, complete original and proposed entry, replacement diff and independent exclusion. **Continue to separate Save confirmation** is not Save consent.
+4. Separately select **Save disabled and excluded**. Only verified atomic publication and exact readback report success.
+   The entry is catalogued but disabled and independently excluded; no connection, discovery, account, tool or model operation occurs
+   ([native operation](../src/Kora/CustomizationWindowController.Mcp.cs), [audited save](../src/Kora.Application/Definitions/CustomizationManagementService.cs)).
+
+The host chooses only its roaming `Mcp\mcp.json`, never a supplied path. A missing managed file is created with a `servers` object.
+Existing `servers` or `mcpServers` JSON/JSONC is writable only with that sole root property;
+compatible BOM/comments/format and unrelated entry bytes remain unchanged.
+The selected entry must contain only `url` and optional `"type":"http"`.
+Other root fields or unsupported/sensitive selected fields report an error without disclosure, truncation or downgrade.
+Personal-profile/additional files and importing/copying servers are not supported
+([bounded parser](../src/Kora.Core/Customizations/McpDefinitionDocument.cs), [scoped writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Mcp.cs)).
+
+**Cancel** before final confirmation writes neither configuration nor use-control preferences.
+Changed source, occupied destination, missing/replaced parent, path alias or unsafe file identity requires fresh inspection/review.
+Comparison is optimistic, not content compare-and-swap; another application's last-instant same-name change can race atomic replacement.
+An unconfirmed write stays excluded: inspect the actual current entry, retain/compare the draft and start a fresh review.
+Kora does not claim rollback or automatically retry ([publication checks](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Mcp.cs)).
+
+Save does not reinclude a removed customization root. Separate existing current-source inclusion, discovery and use reviews are still required;
+disabling/re-enabling cannot revive an earlier review or grant.
+Authentication, delegated-account and connector qualification remain unavailable.
+**Ask Kora**, foreground model-interpreted refinement and endpoint disclosure to a model are unavailable for this native-only editor
+([authoring boundary](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs),
+[MCP qualification](../Design/Commands_Tools_And_Skills.md#first-https-read-only-execution-profile)).
 
 ## Disable or enable Kora use
 

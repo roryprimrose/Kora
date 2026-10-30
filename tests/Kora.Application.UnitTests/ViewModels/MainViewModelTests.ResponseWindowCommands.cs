@@ -279,7 +279,7 @@ public sealed partial class MainViewModelTests
     {
         var fixture = new Fixture();
         fixture.Probe.Status = new("local.inference", "Local inference", DependencyReadiness.Ready, "Ready");
-        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine;
+        fixture.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels;
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("lock this computer please");
         await fixture.ViewModel.ActiveReasoningTask!;
@@ -295,6 +295,7 @@ public sealed partial class MainViewModelTests
         fixture.ViewModel.IsModelActionApprovalPending.Should().BeTrue();
         fixture.ViewModel.IsGrantEditorVisible.Should().BeTrue();
         fixture.ViewModel.ResponseBody.Should().Be(body);
+        fixture.ViewModel.HostedModelsEnabled.Should().Be(false);
         fixture.Session.LockCalls.Should().Be(0);
         fixture.WindowActions.Should().BeEmpty();
     }

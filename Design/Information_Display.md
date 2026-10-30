@@ -772,6 +772,16 @@ The [headless interaction regressions](../tests/Kora.Windows.IntegrationTests/Na
 exercise actual keyboard/pointer activation, ordering, header relationships and
 retirement; they are not installed screen-reader/Enablement/RC qualification.
 
+The [native table automation peers](../src/Kora/NativeTableControl.Accessibility.cs)
+expose a Table role for discovery, with exact header-associated text cells and
+the existing bounded keyboard route, not spreadsheet grid/edit/value patterns.
+Names, child enumeration and accessibility focus revalidate the same immutable
+document admission; retained peers cannot read or refocus retired/private content.
+Header labels are exposed once through their button, and table readers are not
+live regions. [Deterministic regressions](../tests/Kora.Windows.IntegrationTests/NativeTableAccessibilityTests.cs)
+cover native discovery, exact names, admission loss and focus-time retirement.
+This does not enable the separately gated profile or qualify installed AT/DPI.
+
 ### Separately gated display-only Markdown checklists
 
 The host-selected [native-markdown-checklists-v3 profile](../src/Kora.Core/Presentation/NativeMarkdownChecklistProfile.cs) adds only task-list state to the bounded CommonMark text subset. [The renderer](../src/Kora/NativeDetailRenderer.cs) projects `[ ]`, `[x]` and `[X]` list markers as **Unchecked:** / **Checked:** text, not actionable tasks, checkbox controls, execution or writes.

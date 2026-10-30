@@ -6,7 +6,8 @@ using Kora.Core.Customizations;
 namespace Kora.Application.Definitions;
 
 public sealed partial class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
-    ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit)
+    ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit,
+    ArtifactDirectoryConfigurationService? mcpConfiguration = null)
 {
     public InstructionOriginalRegistration? RegisteredInstruction => store.RegisteredInstruction;
     public bool IsInstructionRegistered(CustomizationSource source) => store.IsInstructionRegistered(source);
@@ -165,6 +166,9 @@ public sealed partial class CustomizationManagementService(ICustomizationStore s
     {
         var proposal = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         ValidatePrimary(source, proposal);
+        if (source.Kind == CustomizationKind.McpServer
+            && (source.Scope != CustomizationScope.Kora || mcpConfiguration is null))
+        { throw new InvalidOperationException("Saving requires Kora's canonical MCP source and the host's independent MCP inclusion control."); }
         return admission.Run<CustomizationSnapshot?>(eligible, async (request, session, current, admitted) =>
         {
             if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
@@ -188,7 +192,14 @@ public sealed partial class CustomizationManagementService(ICustomizationStore s
             try
             {
                 await admission.Publish(request, session, current, () =>
-                { use.SetDisabled(source.Id, true); return true; }, admitted).ConfigureAwait(false);
+                {
+                    use.SetDisabled(source.Id, true);
+                    if (source.Kind == CustomizationKind.McpServer)
+                    {
+                        mcpConfiguration!.SetMcpServerIncluded(ArtifactUseIdentity.McpServerId(source.Location, source.Name), false);
+                    }
+                    return true;
+                }, admitted).ConfigureAwait(false);
                 var saved = await store.Save(source, original, proposal, current,
                     async operation =>
                     {
@@ -222,7 +233,7 @@ public sealed partial class CustomizationManagementService(ICustomizationStore s
     public static void ValidatePrimary(CustomizationSource source, IReadOnlyList<CustomizationFile> files)
     {
         var primary = files.Single(file => string.Equals(file.Name, source.PrimaryFile, StringComparison.Ordinal));
-        if (source.Kind == CustomizationKind.McpServer) { McpDefinitionDocument.ValidateServer(primary.CopyBytes()); }
+        if (source.Kind == CustomizationKind.McpServer) { _ = McpDefinitionDocument.ValidateHttpsServer(primary.CopyBytes()); }
         else
         {
             var originalInstruction = source.Scope == CustomizationScope.User && source.Kind == CustomizationKind.Instruction;

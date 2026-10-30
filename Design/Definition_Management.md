@@ -273,6 +273,39 @@ Commands route to the same native workflow; source content is not recursively
 interpreted as a command. A command opening an editor is not completion of an
 edit or an approval.
 
+### Bounded Kora-owned HTTPS MCP entry editing
+
+The [existing management window](../src/Kora/CustomizationWindowController.Mcp.cs) owns the complete setup operation:
+explicitly Add one named Kora entry or select its source-qualified ID/name, consent to the private selected-source read,
+edit native URL/optional HTTP-type fields, validate, review the complete original/proposed entry and replacement diff,
+separately confirm Save, then verify exact atomic-file readback and disabled catalogue status.
+Original typed and current-name activated commands enter that same native workflow; they never approve Save.
+
+The writable destination is exclusively host-selected `IApplicationDataPaths.RoamingRoot\Mcp\mcp.json`.
+New files use `{"servers":{}}`; existing `servers` or `mcpServers` JSON/JSONC is writable only when that collection is the sole root property.
+The selected entry accepts only `url` and optional `"type":"http"` under the [first HTTPS endpoint validation](../src/Kora.Core/Customizations/McpDefinitionDocument.cs).
+No stdio, commands, arguments, environment, headers, credentials, account references or authentication editing is admitted.
+Unknown root fields and unsupported/sensitive selected-entry fields remain undisclosed and cannot be dropped or downgraded.
+
+The [scoped native publication path](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Mcp.cs) reuses the existing source writer.
+It preserves unrelated bytes, root collection spelling, comments, BOM and compatible source/security metadata without reserializing the whole file.
+Missing managed directories/files require explicit creation consent; parent binding, exact case, ownership, reparse/hard-link/stream exclusions,
+source stability, complete identity/base bytes and security are revalidated.
+Final native comparison is optimistic, not compare-and-swap: an external same-name replacement can still race the atomic rename.
+Exact complete-file identity/bytes must pass readback before success.
+
+Before publication, the [audited management service](../src/Kora.Application/Definitions/CustomizationManagementService.cs)
+disables the source identity, retires previous use authority and independently removes MCP inclusion.
+Save does not register/reinclude customization roots or alter other source paths. Cancellation before final consent writes nothing.
+Unconfirmed publication remains excluded, retains the draft and requires explicit inspection and a fresh review;
+it never promises rollback or automatically replays a transaction. User/profile/additional files remain metadata-only here.
+Authentication/account/connector qualification and separate reviewed inclusion/discovery/use remain unavailable or governed by their existing routes, not enabled by setup.
+
+Raw endpoints stay inside explicit native own-source fields/reviews, never model authoring, metadata tools, diagnostics or audit.
+The [complete native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Mcp.cs)
+and [fixture writer regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+use isolated fixture roots, not workstation user configuration.
+
 ### Foreground editor voice targeting
 
 **Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected
@@ -764,8 +797,13 @@ or count as user activity/approval.
 
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
-and writer. Activated controls focus the same native editor; voice-only approval
-remains unavailable. Manual editing needs no model/network ([native editor](../src/Kora/OwnedInstructionEditorController.cs)).
+and writer. Activated controls focus the same native editor. One already completely
+display-reviewed existing canonical owned Instruction normal same-source Save now
+supports a separate explicit [exact spoken answer](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+through the shared host question owner; native confirmation remains default/recovery.
+Create/copy/delete/conflict overwrite, prompts, profile originals and use/grant
+reviews stay native. Save approval and literal body dictation have distinct exclusive capture owners; dictation text cannot answer the Save question ([native editor](../src/Kora/OwnedInstructionEditorController.cs)).
+Manual editing needs no model/network.
 The explicit [literal owned Instruction body operation](../docs/instruction-editor.md#dictate-literal-instruction-body-text) freezes one foreground canonical owned draft/body caret or range before asynchronous source admission and local capture.
 It reuses the single exclusive literal capture service, reviews the complete proposed source after joined release, and accepts only into volatile draft memory. Normal exact Save and separate use review remain mandatory; metadata, prompts, other definition kinds and profile originals are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs), [native lifecycle](../src/Kora/OwnedInstructionBodyDictation.cs)).
 Source/draft/caret/input/control/channel/call/privacy/ownership/name/topology/generation changes retire the original target without command/session/question fallback. Transcript words are inert, with no model or tool dispatch, audio/transcript archive, autosave or enablement. Existing consent/device/local-ASR bounds and unavailable qualification remain unchanged ([shared capture](../src/Kora.Application/Voice/ComposerDictationService.cs), [deterministic native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Dictation.cs)).

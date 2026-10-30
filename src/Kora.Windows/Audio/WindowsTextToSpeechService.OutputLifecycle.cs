@@ -2,6 +2,16 @@ namespace Kora.Windows.Audio;
 
 public sealed partial class WindowsTextToSpeechService
 {
+    internal async Task JoinRejectedSynthesisAsync(Task synthesis, CancellationTokenSource cancellation)
+    {
+        await cancellation.CancelAsync().ConfigureAwait(false);
+        cancelOwnedSynthesis();
+#pragma warning disable VSTHRD003 // Joins the synthesis started by this same serialized output owner before releasing its resources.
+        try { await synthesis.ConfigureAwait(false); }
+#pragma warning restore VSTHRD003
+        catch (OperationCanceledException) when (cancellation.IsCancellationRequested) { }
+    }
+
     internal async Task RunCurrentOutputAsync(Func<long, CancellationToken, Task> operation, CancellationToken cancellationToken)
     {
         ObjectDisposedException.ThrowIf(disposed, this);

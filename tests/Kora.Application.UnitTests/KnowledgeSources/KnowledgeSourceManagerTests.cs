@@ -132,6 +132,149 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
     }
 
     [Theory]
+    [InlineData(true)]
+    [InlineData(false)]
+    public async Task DiscoveryCannotReturnAnotherRootOrSilentlyChangeExplicitTraversalConsent(bool wrongRoot)
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        await FluentActions.Awaiting(() => manager.ReviewAsync("notes", wrongRoot ? @"C:\Other" : @"C:\Team", null,
+            wrongRoot ? KnowledgeSourceScope.ImmediateFiles : KnowledgeSourceScope.BoundedDescendants, () => true, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        fixture.Reads.Should().Be(0);
+        fixture.Published.Should().BeNull();
+        fixture.Disposed.Should().BeTrue();
+    }
+
+    [Fact]
+    public async Task RefreshCannotWidenOrNarrowPinnedTraversalPolicy()
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        await FluentActions.Awaiting(() => manager.ReviewAsync("notes", @"C:\Team", fixture.Source(),
+            KnowledgeSourceScope.BoundedDescendants, () => true, Token)).Should().ThrowAsync<InvalidDataException>();
+        fixture.RefreshStarted.Should().BeFalse();
+        fixture.Inspections.Should().Be(0);
+        fixture.Reads.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    public async Task RefreshRejectsAnyDifferentAuthoritativeRootOrPolicyBeforeDiscovery(int field)
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        var source = fixture.Source();
+        var actual = field switch
+        {
+            0 => new KnowledgeSourceMetadata(@"C:\Team", "physical-root", KnowledgeSourceScope.BoundedDescendants,
+                [new(@"C:\Team", "physical-root")], source.Folder.Files),
+            1 => KnowledgeSourceMetadata.FromImmediate(new(@"C:\Other", "physical-root",
+                [new(@"C:\Other\notes.md", "file-identity", 0, fixture.Time.GetUtcNow())])),
+            _ => KnowledgeSourceMetadata.FromImmediate(new(@"C:\Team", "different-root", source.Folder.Files)),
+        };
+        fixture.RefreshResult = source with { Folder = actual, State = KnowledgeSourceState.Unavailable };
+        await FluentActions.Awaiting(() => manager.ReviewAsync(source.Name, @"C:\Team", source, () => true, Token))
+            .Should().ThrowAsync<InvalidDataException>();
+        fixture.RefreshStarted.Should().BeTrue();
+        fixture.Inspections.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task CancellationAfterAdmittedRefreshStillJoinsRevocationBeforeAnyDiscovery()
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        using var cancelled = new CancellationTokenSource();
+        cancelled.Cancel();
+        await FluentActions.Awaiting(() => manager.ReviewAsync("notes", @"C:\Team", fixture.Source(), () => true, cancelled.Token))
+            .Should().ThrowAsync<OperationCanceledException>();
+        fixture.RefreshStarted.Should().BeTrue();
+        fixture.RefreshWasCancellable.Should().BeFalse();
+        fixture.Inspections.Should().Be(0);
+        fixture.Reads.Should().Be(0);
+        fixture.Published.Should().BeNull();
+    }
+
+    [Fact]
+    public async Task RecursiveSourceKeepsItsWholeTreeAndPinnedPolicyThroughRefreshAndInspection()
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture { Scope = KnowledgeSourceScope.BoundedDescendants };
+        using var manager = fixture.Manager();
+        var review = await manager.ReviewAsync("nested", @"C:\Team", null, fixture.Scope, () => true, Token);
+        review.Metadata.Directories.Count.Should().Be(2);
+        fixture.Reads.Should().Be(0);
+        var candidate = await manager.CaptureAsync(review.ReviewId, () => true, Token);
+        var source = await manager.PublishAsync(candidate, () => true, Token);
+        (await manager.OpenAsync(source, () => true, Token)).Should().BeSameAs(candidate);
+        fixture.DescendantIdentity = "replaced-descendant";
+        await FluentActions.Awaiting(() => manager.OpenAsync(source, () => true, Token)).Should().ThrowAsync<InvalidDataException>();
+        fixture.ThrowInspect = true;
+        await FluentActions.Awaiting(() => manager.ReviewAsync(source.Name, @"C:\Team", source, () => true, Token))
+            .Should().ThrowAsync<IOException>();
+        fixture.RefreshStarted.Should().BeTrue();
+        fixture.LastInspectedScope.Should().Be(KnowledgeSourceScope.BoundedDescendants);
+        fixture.Reads.Should().Be(1);
+        manager.Candidate.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData(0)]
+    [InlineData(1)]
+    [InlineData(2)]
+    [InlineData(3)]
+    public async Task FiniteWorkDeadlineRejectsLateDiscoveryReadSaveAndInspectionWithoutFallback(int stage)
+    {
+        using var host = HostActivity.BeginOperation(HostActivityLayer.Application, HostOperation.Request, RequestOrigin.LocalUi);
+        var fixture = new Fixture();
+        using var manager = fixture.Manager();
+        if (stage == 0)
+        {
+            fixture.AfterInspect = fixture.Time.ExpireWork;
+            await FluentActions.Awaiting(() => manager.ReviewAsync("notes", @"C:\Team", null, () => true, Token))
+                .Should().ThrowAsync<OperationCanceledException>();
+        }
+        else
+        {
+            var review = await manager.ReviewAsync("notes", @"C:\Team", null, () => true, Token);
+            if (stage == 1)
+            {
+                fixture.AfterRead = fixture.Time.ExpireWork;
+                await FluentActions.Awaiting(() => manager.CaptureAsync(review.ReviewId, () => true, Token))
+                    .Should().ThrowAsync<OperationCanceledException>();
+            }
+            else
+            {
+                var candidate = await manager.CaptureAsync(review.ReviewId, () => true, Token);
+                if (stage == 2)
+                {
+                    fixture.AfterPublish = fixture.Time.ExpireWork;
+                    await FluentActions.Awaiting(() => manager.PublishAsync(candidate, () => true, Token))
+                        .Should().ThrowAsync<OperationCanceledException>();
+                    fixture.Disabled.Should().BeTrue();
+                }
+                else
+                {
+                    var source = await manager.PublishAsync(candidate, () => true, Token);
+                    fixture.AfterReadStore = fixture.Time.ExpireWork;
+                    await FluentActions.Awaiting(() => manager.OpenAsync(source, () => true, Token))
+                        .Should().ThrowAsync<OperationCanceledException>();
+                }
+            }
+        }
+        manager.Candidate.Should().BeNull();
+        fixture.Disposed.Should().BeTrue();
+        if (fixture.CapturedBytes is not null) { fixture.CapturedBytes.Should().OnlyContain(value => value == 0); }
+    }
+
+    [Theory]
     [InlineData(Scenario.Expired)]
     [InlineData(Scenario.Wrong)]
     [InlineData(Scenario.Validate)]
@@ -283,17 +426,41 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
     private sealed class Clock : TimeProvider
     {
         private DateTimeOffset now = new(2026, 10, 26, 0, 0, 0, TimeSpan.Zero);
+        private readonly List<ManualTimer> timers = [];
         public override DateTimeOffset GetUtcNow() => now;
         internal void Advance() => now = now.AddMinutes(2);
+        public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
+        {
+            dueTime.Should().Be(KnowledgeSourcePolicy.MaximumOperationTime);
+            var timer = new ManualTimer(callback, state);
+            timers.Add(timer);
+            return timer;
+        }
+        internal void ExpireWork()
+        {
+            foreach (var timer in timers.ToArray()) { timer.Fire(); }
+        }
+
+        private sealed class ManualTimer(TimerCallback callback, object? state) : ITimer
+        {
+            private bool disposed;
+            internal void Fire() { if (!disposed) { callback(state); } }
+            public bool Change(TimeSpan dueTime, TimeSpan period) => !disposed;
+            public void Dispose() => disposed = true;
+            public ValueTask DisposeAsync() { Dispose(); return ValueTask.CompletedTask; }
+        }
     }
 
     public enum Scenario { Origin, Invocation, Gate, Terminal, Root, Identity, Inspection, Revoked, Expired, Wrong, Validate,
         Read, Changed, Cancelled, TerminalAudit, Members, Publish }
 
-    private sealed class Fixture : ILocalFileInspector, ILocalFolderSelection, IKnowledgeSourceStore, ISecurityAuditLog
+    private sealed class Fixture : IKnowledgeSourceInspector, IKnowledgeSourceSelection, IKnowledgeSourceStore, ISecurityAuditLog
     {
         internal readonly Clock Time = new();
         internal string DirectoryIdentity = "physical-root";
+        internal KnowledgeSourceScope Scope;
+        internal KnowledgeSourceScope LastInspectedScope;
+        internal string DescendantIdentity = "descendant";
         internal string Body = "synthetic notes";
         internal int Reads;
         internal int Inspections;
@@ -305,6 +472,8 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         internal bool ThrowPublish;
         internal bool Disposed;
         internal bool RefreshStarted;
+        internal bool RefreshWasCancellable;
+        internal KnowledgeSource? RefreshResult;
         internal bool Disabled;
         internal bool Removed;
         internal Action? AfterInspect;
@@ -315,18 +484,20 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         internal Task? DisableWait;
         internal byte[]? CapturedBytes;
         internal byte[]? BytesAtPublish;
-        internal LocalFolderRevision? Published;
+        internal KnowledgeSourceRevision? Published;
         internal KnowledgeSource? ExpectedAtPublish;
         internal readonly List<SecurityAuditEvent> Events = [];
-        public LocalFolderMetadata Metadata => new(@"C:\Team", DirectoryIdentity,
+        public KnowledgeSourceMetadata Metadata => new(@"C:\Team", DirectoryIdentity, Scope,
+            Scope == KnowledgeSourceScope.ImmediateFiles ? [new(@"C:\Team", DirectoryIdentity)]
+                : [new(@"C:\Team", DirectoryIdentity), new(@"C:\Team\Empty", DescendantIdentity)],
             [new(@"C:\Team\notes.md", "file-identity", Encoding.UTF8.GetByteCount(Body), Time.GetUtcNow())]);
         internal KnowledgeSourceManager Manager() => new(this, this, this, Time);
         internal KnowledgeSource Source() => new(Guid.NewGuid(), 1, "notes", Metadata, KnowledgeSourceState.Enabled, Time.GetUtcNow(), 100);
-        public Task<ILocalFileSelection> InspectAsync(string selectedPath, CancellationToken cancellationToken) =>
-            throw new InvalidOperationException("This workflow must never inspect a free-form file.");
-        public async Task<ILocalFolderSelection> InspectFolderAsync(string selectedPath, CancellationToken cancellationToken)
+        public async Task<IKnowledgeSourceSelection> InspectSourceAsync(string selectedPath, KnowledgeSourceScope scope,
+            CancellationToken cancellationToken)
         {
             Inspections++;
+            LastInspectedScope = scope;
             if (InspectWait is not null) { await InspectWait; }
             if (ThrowInspect) { throw new IOException("Synthetic inaccessible source."); }
             AfterInspect?.Invoke();
@@ -352,9 +523,10 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
         public Task<KnowledgeSource> BeginRefreshAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         {
             RefreshStarted = true;
-            return Task.FromResult(exact with { State = KnowledgeSourceState.Unavailable, Version = exact.Version + 1 });
+            RefreshWasCancellable = cancellationToken.CanBeCanceled;
+            return Task.FromResult(RefreshResult ?? exact with { State = KnowledgeSourceState.Unavailable, Version = exact.Version + 1 });
         }
-        public Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, LocalFolderRevision snapshot,
+        public Task<KnowledgeSource> PublishAsync(KnowledgeSource? expected, string name, KnowledgeSourceRevision snapshot,
             IReadOnlyList<ReadOnlyMemory<byte>> originalBytes, CancellationToken cancellationToken)
         {
             if (ThrowPublish) { throw new IOException("Synthetic failed publication."); }
@@ -365,7 +537,7 @@ public sealed class KnowledgeSourceManagerTests : IDisposable
             return Task.FromResult(new KnowledgeSource(snapshot.Review.SourceId, 1, name, snapshot.Review.Metadata,
                 KnowledgeSourceState.Enabled, Time.GetUtcNow(), 100));
         }
-        public Task<LocalFolderRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken)
+        public Task<KnowledgeSourceRevision> ReadAsync(KnowledgeSource exact, CancellationToken cancellationToken)
         {
             AfterReadStore?.Invoke();
             return Task.FromResult(Published!);

@@ -15,7 +15,7 @@ public sealed class ModelQuestionAnswerMessage : ModelToolMessage
         { throw new InvalidDataException("Only a complete original-user answer for the declared clarification shape is admitted."); }
         LocalModelQuestionPolicy.RequireAnswerContent(answer);
         Question = question;
-        Answer = answer;
+        Answer = LocalModelQuestionPolicy.CreateSpec(question.Question).CanonicalAnswer(answer);
         Channel = channel;
     }
 

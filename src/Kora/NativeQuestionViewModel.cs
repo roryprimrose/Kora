@@ -45,6 +45,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     private HostQuestionKey? voiceTarget;
     private int voicePresenterCount;
     private bool conversationalReplyAttempted;
+    private long draftRevision;
     internal void BindMcpReview(Kora.Application.Mcp.McpReview review)
     {
         if (question.Proposal is null || !review.IsBoundTo(question.Proposal))
@@ -53,8 +54,31 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     }
     internal string VoiceReplyStatus => voiceReplies?.Status ?? "Question voice reply unavailable. Use native answer controls.";
     internal bool IsVoiceReplyActive => voiceReplies?.IsActive == true;
-    internal bool CanAnswerByVoice => voiceReplies is not null && IsEditable && !IsApproval
+    internal bool IsForm => Question.Spec.Kind == QuestionKind.Form;
+    internal bool CanEditFieldByVoice => voiceReplies is not null && IsEditable && !IsApproval
         && ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter() && !IsVoiceReplyActive;
+    internal bool CanAnswerByVoice => !IsForm && CanEditFieldByVoice;
+
+    internal Task AnswerFieldByVoiceAsync(string fieldId)
+    {
+        if (!IsForm || !CanEditFieldByVoice) { StopVoiceReply(); return Task.CompletedTask; }
+        var exact = Question;
+        var revision = draftRevision;
+        voiceTarget = exact.Key;
+        return voiceReplies!.OpenFieldAsync(exact, fieldId,
+            () => ownsVoiceTarget() && voicePresenterCount == 1 && visibleVoicePresenter()
+                && IsEditable && ReferenceEquals(Question, exact) && revision == draftRevision,
+            value =>
+            {
+                if (ReferenceEquals(Question, exact) && revision == draftRevision) { EditField(value); }
+            }, CancellationToken.None);
+    }
+
+    internal void EditField(QuestionFieldAnswer value)
+    {
+        var currentAnswer = Answer;
+        Edit(new([], fields: currentAnswer.Fields.Where(field => !string.Equals(field.FieldId, value.FieldId, StringComparison.Ordinal)).Append(value)));
+    }
 
     internal void BindVoiceReplies(HostQuestionVoiceReplyService? replies, Func<bool> ownsTarget)
     {
@@ -183,7 +207,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         get
         {
             if (!IsEditable) { return false; }
-            lock (stateGate) { return !closed && !cleared && !busy && question.Spec.Accepts(answer, submitting: false); }
+            lock (stateGate) { return !closed && !cleared && !busy && !IsForm && question.Spec.Accepts(answer, submitting: false); }
         }
     }
 #pragma warning disable VSTHRD003 // Exposes the owned interaction receipt; asynchronous observers leave the dispatcher available for completion.
@@ -206,6 +230,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         {
             if (closed || cleared || busy) { return; }
             answer = value;
+            draftRevision++;
+            if (IsForm) { reviewText = string.Empty; reviewedKey = null; displayedReviewKey = null; }
             status = question.Spec.Accepts(value, submitting: false)
                 ? "Unsubmitted local edit. Save draft or Submit explicitly."
                 : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
@@ -321,7 +347,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
             }
             var eligible = canInteract();
             var review = reviewing && decision.Outcome == HostInteractionOutcome.Presented
-                ? JsonSerializer.Serialize(decision.Question, ReviewFormat) : string.Empty;
+                ? IsForm ? JsonSerializer.Serialize(new { Question = decision.Question, UnsubmittedDraft = Answer }, ReviewFormat)
+                    : JsonSerializer.Serialize(decision.Question, ReviewFormat) : string.Empty;
             bool interrupted;
             lock (stateGate)
             {
@@ -346,7 +373,8 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                                 ? review : mcpReviewText + "\n\nHost record:\n" + review;
                             reviewedKey = cleared ? null : target;
                             displayedReviewKey = null;
-                            status = "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
+                            status = IsForm ? "Whole unsubmitted form reviewed. Editing invalidates this review; Submit validates every required field."
+                                : "Exact host record reviewed. Operation source bytes are not supplied by this contract. Review is not approval, use or execution.";
                         }
                     }
                     else if (decision.Outcome == HostInteractionOutcome.Drafted)
@@ -358,6 +386,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
                     else
                     {
                         closed = true;
+                        if (IsForm) { ClearAnswer(); }
                         completion.TrySetResult(decision);
                     }
                 }
@@ -553,6 +582,7 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         OnPropertyChanged(nameof(CanSubmit));
         OnPropertyChanged(nameof(CanSaveDraft));
         OnPropertyChanged(nameof(CanAnswerByVoice));
+        OnPropertyChanged(nameof(CanEditFieldByVoice));
         OnPropertyChanged(nameof(IsVoiceReplyActive));
         OnPropertyChanged(nameof(VoiceReplyStatus));
     }

@@ -90,6 +90,8 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
         {
             return InteractionTransaction.Reject(snapshot, "approval-service-required");
         }
+        if (question.Spec.Kind == QuestionKind.Form && !submitting)
+        { return InteractionTransaction.Reject(snapshot, "form-drafts-are-volatile"); }
         if (string.Equals(question.Spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)
             && string.Equals(question.Spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal))
         {
@@ -100,7 +102,7 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
         return Replace(snapshot, question with
         {
             Key = question.Key.Next(),
-            Draft = answer,
+            Draft = question.Spec.CanonicalAnswer(answer),
             AnswerChannel = channel,
             Status = submitting ? QuestionStatus.Answered : QuestionStatus.Pending,
         }, submitting ? HostInteractionOutcome.Answered : HostInteractionOutcome.Drafted, "answer-recorded");

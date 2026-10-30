@@ -588,9 +588,17 @@ internal sealed partial class SessionsViewModel(
                 .Append(" | expires ").Append(question.ExpiresAt.ToString("O", CultureInfo.InvariantCulture)).AppendLine()
                 .Append(question.Spec.Kind).Append(": ").AppendLine(question.Spec.Text);
             foreach (var option in question.Spec.Options) { text.Append(option.Id).Append(": ").AppendLine(option.Label); }
+            foreach (var field in question.Spec.Fields)
+            {
+                text.Append(field.Label).Append(" | required ").Append(field.Kind)
+                    .Append(" | text maximum ").Append(field.MaximumLength).Append(" / ").Append(field.MaximumUtf8Bytes).AppendLine(" UTF-8 bytes");
+                foreach (var option in field.Options) { text.Append(option.Id).Append(": ").AppendLine(option.Label); }
+            }
             if (question.Draft is { } draft)
             {
                 text.Append("Recorded draft/answer: ").AppendJoin(", ", draft.Choices).Append(' ').AppendLine(draft.Text);
+                foreach (var field in draft.Fields)
+                { text.Append(field.FieldId).Append(": ").Append(field.Text).AppendLine(field.Choice); }
             }
             if (question.Proposal is { } proposal) { text.Append("Exact proposal: ").Append(proposal.ProposalId.Value.ToString("D")).AppendLine(); }
         }

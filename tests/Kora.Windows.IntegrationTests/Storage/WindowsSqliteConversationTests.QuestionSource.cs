@@ -14,6 +14,7 @@ public sealed partial class WindowsSqliteConversationTests
     [InlineData("exact", true)]
     [InlineData("zero", true)]
     [InlineData("text", true)]
+    [InlineData("form", true)]
     [InlineData("draft", true)]
     [InlineData("answered", true)]
     [InlineData("expired", false)]
@@ -45,6 +46,12 @@ public sealed partial class WindowsSqliteConversationTests
             {
                 var spec = LocalModelQuestionPolicy.CreateSpec(new("Choose format",
                     scenario is "text" ? [] : ["Compact", "Detailed"]));
+                if (scenario is "form")
+                {
+                    spec = LocalModelQuestionPolicy.CreateSpec(ModelToolProtocol.ParseAskUser(
+                        """{"prompt":"Describe the answer","fields":[{"label":"Audience","type":"text","maximumLength":100,"maximumUtf8Bytes":200}]}"""u8,
+                        "ask_1", formsAllowed: true).Question);
+                }
                 if (scenario is "purpose" or "source")
                 {
                     spec = new(spec.Text, spec.Kind, spec.Options,

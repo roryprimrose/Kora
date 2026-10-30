@@ -243,16 +243,16 @@ internal sealed partial class SessionsViewModel
 
     private async Task RunConversationAsync(Func<Kora.Core.Storage.SessionWorkspaceEntry, Func<bool>, Task> operation,
         bool submission = false, bool sourceRead = false, long? searchDetailEpoch = null, bool legacyRecovery = false,
-        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false)
+        RequestOrigin origin = RequestOrigin.LocalUi, bool replyOperation = false, bool requireOriginalInput = false)
     {
         if (!CanReadConversation) { return; }
-        if (replyOperation)
+        if (replyOperation || requireOriginalInput)
         {
             try { Kora.Application.Hosting.SessionConversationService.RequireOriginalSource(origin); }
             catch (InvalidOperationException exception)
             {
                 Failure(logger, exception.GetType().Name);
-                conversationStatus = "Reply requires live original native user authority without channel relabelling. Nothing submitted.";
+                conversationStatus = "This operation requires live original native user authority without channel relabelling. Nothing submitted.";
                 NotifyConversation();
                 return;
             }

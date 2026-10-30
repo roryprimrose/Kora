@@ -18,6 +18,7 @@ public sealed partial class MainViewModel
     private SessionAttachmentCommandService? attachmentCommands;
     public void BindSessionAttachmentCommands(SessionAttachmentCommandService service) => attachmentCommands = service;
     private readonly HashSet<Guid> sessionPresentationSources = [];
+    private long conversationDispatchInputRevision;
 
     public void RevokeSessionPresentation(HostId<SessionIdentity> session)
     {
@@ -76,11 +77,14 @@ public sealed partial class MainViewModel
         var recoveryRevision = Volatile.Read(ref voiceRecoveryRevision);
         var originalName = AssistantName;
         var topologyRevision = privacyObservation.Current.TopologyRevision;
+        var dispatchInputRevision = Interlocked.Read(ref conversationDispatchInputRevision);
+        var dispatchRouteRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
+        var dispatchInput = CommandText;
         var requestCommand = command.Operation is SessionCommandOperation.RequestReview
             or SessionCommandOperation.RequestConfirm or SessionCommandOperation.RequestCancel;
         if (requestCommand) { RetireSpeechSummarySuggestions(); }
         var attachmentCommand = command.Operation == SessionCommandOperation.AttachmentInspect;
-        var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand;
+        var sourceBoundCommand = requestCommand || command.IsRetentionCommand || attachmentCommand || command.IsConversationDispatch;
         bool Eligible() => !disposed && IsHostInputEligible && CallPolicyRevision == callRevision
             && (!command.RequestForegroundTarget || originalScopeEligibility?.Invoke() == true
                 && foregroundTarget?.IsCurrent == true
@@ -88,9 +92,14 @@ public sealed partial class MainViewModel
                 && privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
-            && (!command.IsRetentionCommand || privacyObservation.Current.TopologyRevision == topologyRevision
+            && (!command.IsRetentionCommand && !command.IsConversationDispatch || privacyObservation.Current.TopologyRevision == topologyRevision
                 && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
                 && string.Equals(originalName, AssistantName, StringComparison.Ordinal))
+            && (!command.IsConversationDispatch || originalScopeEligibility?.Invoke() == true
+                && originalScopeNameRevision == assistantNameConfiguration.Get().Revision
+                && dispatchInputRevision == Interlocked.Read(ref conversationDispatchInputRevision)
+                && dispatchRouteRevision == Interlocked.Read(ref workspaceSurfaceInputRevision)
+                && string.Equals(dispatchInput, CommandText, StringComparison.Ordinal))
             && pendingModelQuestion is null && !IsGrantChangePending && !IsModelActionApprovalPending
             && (origin != RequestOrigin.ActivatedVoice || (IsVoiceEnabled && HasVoiceConsent
                 && CallObservation.AllowActivation && Volatile.Read(ref voiceRecoveryRevision) == recoveryRevision
@@ -158,7 +167,7 @@ public sealed partial class MainViewModel
             }
             var result = command.IsRetentionCommand
                 ? await ExecuteSessionRetentionCommandAsync(command, origin, Eligible, CancellationToken.None)
-                : requestCommand
+                : requestCommand || command.IsConversationDispatch
                 ? await (sessionRequests ?? throw new InvalidOperationException("The canonical retained-request command service is unavailable."))
                     .ExecuteAsync(command, origin, Eligible, CancellationToken.None, foregroundTarget)
                 : await sessionCommands.ExecuteCommandAsync(command, origin, Eligible, CancellationToken.None);

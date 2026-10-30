@@ -330,6 +330,7 @@ public sealed partial class MainViewModelTests
         }
         public ValueTask<SessionWorkspaceEntry> ReadMetadataAsync(HostId<SessionIdentity> session, CancellationToken cancellationToken)
         {
+            BeforeDispatchMetadataRead?.Invoke();
             if (SpeechTerminalPublished && RequestMessage?.Outcome == ModelTurnOutcome.Succeeded
                 && HostActivity.Current?.Request != RequestMessage.Request)
             {

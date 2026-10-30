@@ -1217,6 +1217,22 @@ Use categorical thresholds rather than claiming a numerical probability from scr
 | High | Irreversible or broad deletion, production/shared-resource change, security/credential change, software installation, arbitrary code with unverified effects | Explicit consequences, targets, source/diff and recovery limitations; action-specific confirmation through either channel; mandatory OS/provider checks |
 | Prohibited | Protected Kora mutation, bypassing lock/containment, exposing credential-store secrets, unsupported execution | Reject; approval cannot override policy |
 
+The informational/safety **pause dispatch** operation applies to one explicitly
+addressed Active ordinary conversation through the
+[shared manual-hold action](Work_Management.md#ordinary-submitted-conversation-turns).
+It holds future ordinary start decisions, never suspends/cancels a running or
+already-dispatching turn and never discards pending originals. Native **Pause
+ordinary dispatch** and exact typed/activated-voice `session dispatch pause
+<session-id>` need no model or action-approval question; existing editor,
+dictation, question and approval precedence is unchanged. The separate native
+**Release manual dispatch hold** or `session dispatch resume <session-id>`
+clears only that manual reason, not a recovery/security hold. All original
+deadlines keep running, and expired work requires fresh user input/review.
+Manual/task-stepping start decisions never replace consequential action approval.
+These controls neither Resume Done nor create/renew session activity, grants or
+model context. The retired diagnostic queue controls remain denied; no global
+pause, reorder or settings product is admitted.
+
 Unknown or mixed effects receive the highest applicable permitted review class.
 Administrator elevation is neither necessary nor sufficient for high risk.
 Registered constrained actions may have lower risk only when their effects are actually enforced.

@@ -131,7 +131,7 @@ public sealed partial class MainViewModelTests
         var fixture = new Fixture();
         fixture.Probe.Status = new DependencyStatus("local.inference", "Local model inference (Ollama)",
             DependencyReadiness.Ready, "Inference verified.");
-        if (approval) { fixture.Reasoner.Action = BuiltInAction.LockMachine; }
+        if (approval) { fixture.Reasoner.Action = BuiltInAction.EnableHostedModels; }
         else { fixture.Reasoner.Question = new LocalModelQuestion("Which target?", ["Current", "Other"]); }
         await fixture.ViewModel.InitializeAsync();
         await fixture.RunAsync("/lock");

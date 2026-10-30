@@ -48,7 +48,7 @@ There is no installation, download, automatic switch, hosted fallback or retry.
 ## Untargeted requests
 
 An ordinary untargeted local request, typed globally or activated with the current
-assistant name, opens **Review request destination**. The same operation applies
+assistant name, first opens **Review local destination advice**. The same operation applies
 with the main conversation collapsed or expanded.
 
 Exact conversation composers and `session request review "<name>" -- <body>`
@@ -59,7 +59,9 @@ A denied or ambiguous editor route is never retried as a general request.
 
 ## Choose, acknowledge, correct, submit
 
-- The host makes one tools-free local matching inference over permitted metadata.
+- Review the complete unchanged request, original channel and bounded Active conversation names before any adviser receives them. **Allow this LOCAL advice once** permits only one tools-free local relatedness inference over that exact metadata snapshot. It does not authorize submission, sources, history or an answering provider ([advice admission](../src/Kora.Application/Hosting/SessionRouting/SessionRoutingService.cs)).
+- **Choose destination without advice** skips inference and opens the existing destination review. Choose New or use **Correct destination** for an exact Active conversation. **Cancel request** or Escape sends nothing to an adviser and submits nothing. Changed input, privacy, metadata, session generation or the 60-second disclosure lifetime invalidates this decision ([native disclosure](../src/Kora/SessionRouting/SessionRoutingAdviceWindow.cs)).
+- After that separate decision, **Review request destination** shows any advice.
   An admitted, qualified local provider may propose one related Active conversation
   or several exact candidates. The choice always includes **New conversation (fresh session)**.
 - No clear match, or unqualified/unavailable inference, offers fresh **New**.
@@ -74,7 +76,7 @@ A denied or ambiguous editor route is never retried as a general request.
   once. New creates a fresh empty conversation first; the original request is then
   submitted through the ordinary conversation host. These are separate audited
   operations, not an atomic rollback. An unavailable answering provider remains
-  truthfully unavailable, not a fabricated answer.
+  truthfully unavailable, not a fabricated answer. Normal model/provider/source admission remains separate; advice consent cannot be reused for it ([canonical submission](../src/Kora.Application/Hosting/SessionConversationService.cs)).
 - **Cancel** or Escape submits nothing. Reviews expire after 60 seconds. Changed
   input authority, privacy, permissions or destination metadata require a fresh
   request; they never silently select another destination.

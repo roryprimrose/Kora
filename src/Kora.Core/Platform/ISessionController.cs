@@ -4,5 +4,4 @@ public interface ISessionController
 {
     bool IsCurrentSessionUnlocked();
 
-    bool LockCurrentSession();
 }

@@ -265,6 +265,17 @@
         </WrapPanel>
         <controls:NamedTextBlock Text="{Binding RetentionPreview}" TextWrapping="Wrap"
                                 AutomationProperties.Name="Exact retention confirmation; ordinary policy may already be due; session hold is not an operation grant" />
+        <WrapPanel>
+          <Button x:Name="ReviewRetentionApply" Content="Preview confirmed policy for this conversation"
+                  IsEnabled="{Binding CanReviewRetentionApply}"
+                  AutomationProperties.Name="Preview old and new deadlines and exact immediate effects for one ordinary idle conversation; no changes" />
+          <Button x:Name="ConfirmRetentionApply" Content="Confirm apply-now and disclosed action"
+                  IsEnabled="{Binding CanConfirmRetentionApply}"
+                  AutomationProperties.Name="Separate native confirmation of the reviewed single conversation policy and any disclosed archive or deletion now" />
+          <Button x:Name="CancelRetentionApply" Content="Cancel apply-now review" />
+        </WrapPanel>
+        <controls:NamedTextBlock Text="{Binding RetentionApplyPreview}" TextWrapping="Wrap"
+                                AutomationProperties.Name="Single conversation retention application deadlines, cutoff, content inventory and immediate action disclosure" />
       </StackPanel>
     </Expander>
     <Expander Header="Selected-session provider overrides: inherit app or exact desired choices">
@@ -524,6 +535,16 @@
           </WrapPanel>
           <controls:NamedTextBlock Text="{Binding LocalEventStatus}" TextWrapping="Wrap"
                                   AutomationProperties.Name="Trusted visual local event status, fatigue, deferral and no replay reasons; no speech or focus change" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeDisclosure}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Run-only task completion voice notice disclosure" />
+          <controls:NamedTextBlock Text="{Binding CompletionNoticeStatus}" TextWrapping="Wrap"
+                                  AutomationProperties.Name="Task completion voice consent, availability and actual terminal outcome" />
+          <WrapPanel>
+            <Button x:Name="EnableCompletionNotices" Content="Enable completion voice notices for this run"
+                    IsEnabled="{Binding CanEnableCompletionNotices}" />
+            <Button x:Name="DisableCompletionNotices" Content="Turn completion voice notices Off"
+                    IsEnabled="{Binding CanDisableCompletionNotices}" />
+          </WrapPanel>
           <WrapPanel>
             <TextBlock Text="Local event category" VerticalAlignment="Center" />
             <ComboBox x:Name="LocalEventCategoryFilter" ItemsSource="{Binding LocalEventCategoryFilters}"

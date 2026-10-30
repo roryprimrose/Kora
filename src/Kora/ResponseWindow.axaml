@@ -99,6 +99,17 @@
           <Button Content="Stop speaking" Command="{Binding StopSpeechCommand}" />
         </StackPanel>
         <TextBlock Text="{Binding ReadCurrentResponseStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        <StackPanel Spacing="6">
+          <WrapPanel>
+            <Button Content="Review speak once during call" Command="{Binding ReviewCallSpeechCommand}"
+                    AutomationProperties.Name="Review one exact current response and output for a call speech exception" />
+            <Button Content="Confirm speak once" Command="{Binding ConfirmCallSpeechCommand}"
+                    AutomationProperties.Name="Separately confirm this exact single-use call speech review" />
+            <Button Content="Cancel call speech" Command="{Binding CancelCallSpeechCommand}" />
+            <Button Content="Call speech status" Command="{Binding GetCallSpeechStatusCommand}" />
+          </WrapPanel>
+          <TextBlock Text="{Binding CallSpeechStatus}" Classes="muted" FontSize="11" TextWrapping="Wrap" />
+        </StackPanel>
         <StackPanel IsVisible="{Binding IsDetailsOfferPending}" Spacing="6">
           <TextBlock Text="Would you like to view the detailed response?" TextWrapping="Wrap" />
           <WrapPanel>

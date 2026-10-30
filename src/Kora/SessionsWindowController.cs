@@ -149,6 +149,42 @@ internal sealed partial class SessionsWindowController(
         else { main.ReportHostInteractionFailure(state.DetailsAvailability); }
     }
 
+    internal async Task OpenObservedResultAsync(string name, Func<bool> admitted)
+    {
+        var state = model;
+        var selected = state?.SelectedSessionRecord;
+        var live = state?.CaptureNavigationEligibility();
+        var foreground = CaptureObservedResultEligibility();
+        bool Current() => !disposed && admitted() && state is not null && ReferenceEquals(model, state)
+            && selected is not null && state.SelectedSessionRecord == selected && live!()
+            && foreground();
+        if (!Current() || interaction?.IsVisible != true)
+        {
+            main.ReportHostInteractionFailure("Observed result unavailable: the exact conversation page must be presented in the foreground.");
+            return;
+        }
+        if (!await state!.OpenNamedObservationAsync(name, Current) && Current())
+        { await interaction.SessionView.ShowAvailableDetailsAsync(state, choose: true); }
+    }
+
+    internal Func<bool> CaptureObservedResultEligibility()
+    {
+        var state = model;
+        var selected = state?.SelectedSessionRecord;
+        var source = state?.CaptureNavigationEligibility();
+        var owner = interaction;
+        var pane = owner?.SessionView;
+        var foreground = presentation?.CaptureForegroundSourceEligibility();
+        var paneRevision = pane?.ConversationPresentationRevision;
+        bool Current() => !disposed && state is not null && selected is not null && owner is not null
+            && ReferenceEquals(model, state) && ReferenceEquals(interaction, owner)
+            && state.SelectedSessionRecord == selected && source!()
+            && foreground?.Invoke() == true && pane!.ConversationPresentationRevision == paneRevision;
+        var initiallyPresented = Current() && owner!.IsVisible && owner.IsActive && owner.IsSessionListPresented
+            && pane!.IsConversationPresented && presentation?.HasUniqueForegroundWindow == true;
+        return () => initiallyPresented && Current();
+    }
+
     internal Func<bool> CaptureCompactNavigationEligibility()
     {
         var originalModel = model;
@@ -386,6 +422,7 @@ internal sealed partial class SessionsWindowController(
             confirmPlaybackVolumeSuggestion: (review, token) => main.ConfirmPlaybackVolumeSuggestionAsync(review, token),
             localHandoff: localHandoff);
         model.BindDictation(main.ComposerDictation);
+        model.BindCompletionNotices(main);
         model.PropertyChanged += OnPermissionSourceChanged;
         model.InspectPermissionGrants = (target, admitted) =>
         {

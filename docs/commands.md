@@ -849,8 +849,21 @@ not atomic persistence of the manual flag. A lost audit/receipt or unconfirmed
 retirement reports **not-confirmed** and retains explicit conservative
 evidence-unavailable protection; it never claims rollback, retries, or uses
 unknown evidence to authorize less protection. Startup remains manual-off
-with honest detector-unavailable status. Automatic detection, speak-once,
+with honest detector-unavailable status. Automatic detection, call-wide
 protection relaxation and full R15/native/acoustic acceptance remain absent.
+
+## Review one call speech exception
+
+Use these exact whole commands, optionally prefixed by the current assistant name ([parser](../src/Kora.Application/Voice/CallSpeechCommand.cs)):
+
+| Command | Operation |
+|---|---|
+| `review call speech` | Open the complete exact current ordinary response and destination/output state in native Details; nothing is played. |
+| `confirm call speech` | Separately confirm that same single-use review and attempt only its response under mandatory speech gates. |
+| `cancel call speech` | Retire the review and join its owned playback; no replay. |
+| `call speech status` | Inspect current review/playback status without starting speech. |
+
+Review/confirmation require fresh original local UI input, even during Active/Suspected/Unknown protection; voice cannot be relabelled through a later click. Voice status/cancel remain available. The review expires after two minutes; changed source, call, input, owner/privacy or output retires it. Ordinary VisualOnly, both summary caps, mute, capture and speech availability still win. No saved preference or general protection changes ([complete interaction](responses-and-calls.md#speak-one-current-response-during-call-protection), [host operation](../src/Kora.Application/ViewModels/MainViewModel.CallSpeech.cs)).
 
 ## Read-only host discovery
 
@@ -1697,8 +1710,9 @@ never replayed. Model suggestions and reusable grants cannot authorize Stop All.
 - **lock this workstation**
 
 Voluntary lock uses the [same exact bundled gate](skill-and-task-execution-design.md#script-preserving-fixed-action-bridge) as fixed shutdown/restart.
-Its installed contained runtime is unqualified, so the current command opens source inspection and reports unavailable without calling the legacy native handler. A model suggestion opens inspection only; it cannot grant or execute the package.
+Its installed contained runtime is unqualified, so direct commands and model-proposed Lock open source inspection and report unavailable without calling a legacy native handler. A missing exact host owner also reports unavailable.
 When independently qualified, the implementation requires the exact package grant and current Windows authority, joins private resources and reports request acceptance rather than claiming physical lock completion.
+This intentionally replaces immediate direct Lock and the separate named model-action approval: intent alone is not permission. Direct typed, activated voice, native UI and model proposals reach the same exact review. Existing named Session/Always preferences cannot authorize it or become exact grants. Fresh script grants still require native controls; that answer preserves a voice request's original channel and call restrictions. Applicable exact grants retain their Once/Session/Always rules. No standalone native-only implementation is enabled.
 
 ## Protected power-proposal tasks
 
@@ -1941,10 +1955,9 @@ requests.
 
 **Where disk artifacts are loaded from**
 
-Kora loads compatible files from its own roaming `Skills`,
-`Instructions`, `Prompts`, and `Agents` folders and the existing VS Code or VS
-Code Insiders customization locations. In **Settings > Artifacts**, you can
-maintain up to sixteen additional absolute directories for each artifact kind.
+In **Settings > Artifacts**, choose the content type to see and edit its complete discovery directory list. Add an absolute folder path, or select a location and use **Remove selected** to stop discovering that location without deleting its files ([Settings controls](../src/Kora/SettingsWindow.axaml#L1327)).
+The initial list includes Kora's roaming `Skills`, `Instructions`, `Prompts` and `Agents` folders, personal `.copilot/skills` and `.agents/skills`, and the supported VS Code and VS Code Insiders prompt/profile locations. Editor profile roots retain their bounded two-level search; other added instruction, prompt and agent folders are not recursive ([default locations](../src/Kora.Core/Configuration/ArtifactDirectorySettings.cs), [discovery](../src/Kora.Windows/ArtifactDiscovery/WindowsDiskArtifactDiscovery.cs)).
+The complete list is bounded to 32 directories per kind, including defaults; MCP retains its separate 16-file limit. Existing saved additions are combined with defaults without writing until you change a setting. Removed defaults remain removed after restart, including an empty list. Embedded definitions are not directory entries and remain available ([preferences](../src/Kora.Application/Configuration/LocalArtifactDirectoryPreferences.cs)).
 These settings are separate from the read-only shared skill source
 registrations below; registering a shared source does not add it to the model
 artifact catalogue.
@@ -1954,7 +1967,7 @@ Disk skills use `SKILL.md`; prompts use `*.prompt.md`; instructions use
 directories use the same bounded UTF-8, YAML frontmatter, traversal, naming,
 digest, and catalogue-conflict rules. Skills marked `user-invocable: false` do
 not appear. Conflicting command names, IDs, or spoken names fail closed instead
-of choosing one source silently. Kora watches default and configured locations
+of choosing one source silently. Kora watches configured locations
 and automatically publishes a complete valid replacement catalogue after
 changes. Invalid or partially written content reports reload failure; retained
 historical catalogue data does not keep managed owned instructions/prompts usable.
@@ -1964,6 +1977,8 @@ Managed prompts are literal saved user-request content, not system guidance.
 No restart is needed. Loading an agent
 artifact applies its declarative instructions; it does not start an autonomous
 agent runtime.
+
+Removing a directory immediately retires disk catalogue entries while the remaining sources reload. If that reload fails, removed content is not kept available through the historical catalogue. Saving a Kora-owned copy does not re-add a removed discovery location. Re-add a removed directory before recovering any interrupted definition transaction there ([reload handling](../src/Kora/ArtifactCatalogueReloadService.cs), [transaction recovery admission](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Transactions.cs)).
 
 If a selected artifact changes while local reasoning, a clarification, or an
 action approval is pending, Kora retires that interaction. Start a new request

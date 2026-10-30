@@ -89,7 +89,7 @@ public sealed partial class MainViewModelTests
             entered.TrySetResult();
             release.Wait(token);
         };
-        var command = fixture.RunAsync("lock the machine");
+        var command = fixture.RunAsync("restart Kora");
         try
         {
             await entered.Task.WaitAsync(token);
@@ -100,7 +100,9 @@ public sealed partial class MainViewModelTests
         }
         finally { release.Set(); }
         await command;
-        fixture.Session.LockCalls.Should().Be(losePrivacy ? 0 : 1);
+        fixture.Session.LockCalls.Should().Be(0);
+        fixture.Events.Count(item => string.Equals(item, "process.restart", StringComparison.Ordinal))
+            .Should().Be(losePrivacy ? 0 : 1);
     }
 
     [Fact]

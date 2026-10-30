@@ -290,6 +290,39 @@ Commands route to the same native workflow; source content is not recursively
 interpreted as a command. A command opening an editor is not completion of an
 edit or an approval.
 
+### Bounded Kora-owned HTTPS MCP entry editing
+
+The [existing management window](../src/Kora/CustomizationWindowController.Mcp.cs) owns the complete setup operation:
+explicitly Add one named Kora entry or select its source-qualified ID/name, consent to the private selected-source read,
+edit native URL/optional HTTP-type fields, validate, review the complete original/proposed entry and replacement diff,
+separately confirm Save, then verify exact atomic-file readback and disabled catalogue status.
+Original typed and current-name activated commands enter that same native workflow; they never approve Save.
+
+The writable destination is exclusively host-selected `IApplicationDataPaths.RoamingRoot\Mcp\mcp.json`.
+New files use `{"servers":{}}`; existing `servers` or `mcpServers` JSON/JSONC is writable only when that collection is the sole root property.
+The selected entry accepts only `url` and optional `"type":"http"` under the [first HTTPS endpoint validation](../src/Kora.Core/Customizations/McpDefinitionDocument.cs).
+No stdio, commands, arguments, environment, headers, credentials, account references or authentication editing is admitted.
+Unknown root fields and unsupported/sensitive selected-entry fields remain undisclosed and cannot be dropped or downgraded.
+
+The [scoped native publication path](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Mcp.cs) reuses the existing source writer.
+It preserves unrelated bytes, root collection spelling, comments, BOM and compatible source/security metadata without reserializing the whole file.
+Missing managed directories/files require explicit creation consent; parent binding, exact case, ownership, reparse/hard-link/stream exclusions,
+source stability, complete identity/base bytes and security are revalidated.
+Final native comparison is optimistic, not compare-and-swap: an external same-name replacement can still race the atomic rename.
+Exact complete-file identity/bytes must pass readback before success.
+
+Before publication, the [audited management service](../src/Kora.Application/Definitions/CustomizationManagementService.cs)
+disables the source identity, retires previous use authority and independently removes MCP inclusion.
+Save does not register/reinclude customization roots or alter other source paths. Cancellation before final consent writes nothing.
+Unconfirmed publication remains excluded, retains the draft and requires explicit inspection and a fresh review;
+it never promises rollback or automatically replays a transaction. User/profile/additional files remain metadata-only here.
+Authentication/account/connector qualification and separate reviewed inclusion/discovery/use remain unavailable or governed by their existing routes, not enabled by setup.
+
+Raw endpoints stay inside explicit native own-source fields/reviews, never model authoring, metadata tools, diagnostics or audit.
+The [complete native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Mcp.cs)
+and [fixture writer regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.Mcp.cs)
+use isolated fixture roots, not workstation user configuration.
+
 ### Foreground editor voice targeting
 
 **Status: bounded implementation with exact native/spoken clarification and native disclosure/proposal review.** The product owner selected
@@ -625,7 +658,7 @@ Reject traversal, reparse/hard-link/alias escapes, replaced directories,
 protected roots, unexpected package members, and conflicting external writes.
 Retain the existing local-only/network-backed storage restrictions.
 
-For the bounded owned single-file instruction and prompt writer, the user has explicitly
+For the bounded owned single-file instruction/prompt writer and selected compatible profile-original instruction writer, the user has explicitly
 chosen **optimistic content conflict detection**, not content compare-and-swap.
 Immediately before atomic replacement, compare the live original identity and
 exact digest with the reviewed base. A detected changed, missing or replaced
@@ -781,8 +814,16 @@ or count as user activity/approval.
 
 Native tray and exact `instructions` or `prompts` followed by
 `editor/list/create/edit/inspect/validate/compare/rebase/save/copy/reload/delete/activate/disable/stop-use/cancel` control routes share the same admitted actions, native review
-and writer. Activated controls focus the same native editor; voice-only approval
-and body dictation remain unavailable. Manual editing needs no model/network.
+and writer. Activated controls focus the same native editor. One already completely
+display-reviewed existing canonical owned Instruction normal same-source Save now
+supports a separate explicit [exact spoken answer](../docs/instruction-editor.md#confirm-one-reviewed-instruction-save-by-voice)
+through the shared host question owner; native confirmation remains default/recovery.
+Create/copy/delete/conflict overwrite, prompts, profile originals and use/grant
+reviews stay native. Save approval and literal body dictation have distinct exclusive capture owners; dictation text cannot answer the Save question ([native editor](../src/Kora/OwnedInstructionEditorController.cs)).
+Manual editing needs no model/network.
+The explicit [literal owned Instruction body operation](../docs/instruction-editor.md#dictate-literal-instruction-body-text) freezes one foreground canonical owned draft/body caret or range before asynchronous source admission and local capture.
+It reuses the single exclusive literal capture service, reviews the complete proposed source after joined release, and accepts only into volatile draft memory. Normal exact Save and separate use review remain mandatory; metadata, prompts, other definition kinds and profile originals are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs), [native lifecycle](../src/Kora/OwnedInstructionBodyDictation.cs)).
+Source/draft/caret/input/control/channel/call/privacy/ownership/name/topology/generation changes retire the original target without command/session/question fallback. Transcript words are inert, with no model or tool dispatch, audio/transcript archive, autosave or enablement. Existing consent/device/local-ASR bounds and unavailable qualification remain unchanged ([shared capture](../src/Kora.Application/Voice/ComposerDictationService.cs), [deterministic native regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Dictation.cs)).
 The bounded [current owned Instruction body refinement](../docs/instruction-editor.md#refine-the-current-owned-instruction-body) now adds native and exact `instructions refine` entry points on this existing editor, not a second profile writer.
 The host freezes the exact draft/body/baseline and unchanged critique; only a qualified local, tool-free volatile context turn may propose a complete replacement body. Metadata/source/encoding remain host-owned, and source preparation/freshness precede review and confirmed normal Save ([workflow](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs)).
 The complete comparison leaves both draft and source untouched. Accepted proposals remain volatile until separately confirmed ordinary Save/readback, which holds changed revisions disabled. Draft/source/critique/private/channel/ownership/expiry changes revoke proposals; no fence stripping, truncation, remote fallback or reference execution is admitted ([native owner](../src/Kora/OwnedInstructionEditorController.Refinement.cs), [actual operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
@@ -799,7 +840,11 @@ the editor preserves original BOM, source text, line endings and supported
 metadata. Compatible legacy files lacking `kora-format` retain unchanged
 behavior; unsupported scope/metadata cannot be implicitly repaired in place.
 Header editing is bounded to 16 fields/4096 UTF-8 bytes. Rename, restore,
-profile mutation, skill/agent writers, executable content and agent runtime are absent.
+other profile mutations, executable content and agent runtime are absent from this editor.
+
+**Open registered profile original** additionally selects only the exact existing personal native v1 instruction already registered/read-consented by the dedicated Customizations source owner. No source registration or new discovery is performed by this editor. The same source-preserving writer remains authoritative for identity, local owner/root/file binding, non-reparse admission, final optimistic comparison, atomic replacement and exact readback ([writer](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.InstructionOriginal.cs)).
+The complete source is opened in this instruction editor, with supported metadata/BOM/line endings retained. Validate/Compare are memory-only; Save requires a separate complete native old/new confirmation. Detected content conflicts offer Reload/Overwrite/Cancel, with a fresh complete confirmation for every overwrite and another decision after a further detected change. Registration replacement/withdrawal and original input/privacy/call/ownership retirement invalidate pending work. Changed revisions remain disabled and uncertain publication requires explicit registration review plus Reload/reconciliation ([workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [native operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.ProfileOriginal.cs)).
+Only strict UTF-8 native `kora-format: 1` canonical Code/Insiders personal User prompts/profile prompts instructions are admitted, under the existing 64 KiB/16-field/4,096-header-byte limits. Unknown metadata, scope/globs, executable kinds, arbitrary paths/roots, repository/workspace discovery, new originals and automatic applicability remain unavailable. This is bounded implementation, not general profile-format or installed-security qualification ([supported subset and recovery](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original)).
 
 **Create Kora copy from profile instruction** is a separate native-only operation for one explicitly selected personal native v1 instruction original, not a general import or profile writer ([delivered workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)).
 Exact-file memory-only read consent precedes content capture; the later complete original/proposed-source review separately confirms a fresh absent disabled owned destination. Existing editor drafts remain untouched ([native reviews](../src/Kora/NativeProfileInstructionCopyReview.cs)).
@@ -880,12 +925,12 @@ Order edits use the same no-read retirement of rows/details/selection/cursor/val
 Mode edits retain raw unsaved drafts and the frozen baseline; an open Compare retires, while separately admitted historical Compare remains available without reading or claiming current source state ([native lifecycle tests](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Inventory.cs)).
 Exact reinspection restores eligible review controls. Predicates are metadata/correlation only, never use authority, revision admission, content identity override or current-disk integrity proof.
 No source addition, reload on edit, persistence/schema/index/cache, logging/tags/audit input, activity renewal or model/tool/speech/clipboard/export route is added.
-Exact typed/current-name activated List/Inspect still targets the same native controls; there is no new search command grammar, model tool, reader/root permission, profile/bundled-as-owned inventory or writer. Profile-original editing remains explicitly deferred behind its existing security qualification.
+Exact typed/current-name activated List/Inspect still targets the same native controls; there is no new search command grammar, model tool, reader/root permission, profile/bundled-as-owned inventory or writer. Selected profile originals use their separate [bounded operation](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original), not this owned inventory.
 
 **Validate open owned draft** / exact `instructions validate` or `prompts validate` observes the captured same-kind canonical original or explicitly created draft without opening sources or switching targets. It reuses ordinary Save preparation, including original BOM and any native v1 marker added for changed/new proposals; unchanged supported legacy bytes stay legacy.
 Existing strict Unicode/UTF-8, complete-byte/header/metadata/versioned-prompt and observed catalogue namespace rules apply to prepared Save bytes, not just raw draft text. Bounded text-only findings expose proposal byte count/digest/actual native version and unapproved kind/source/model-context role, never body/excerpts or executable preview.
 The result is historical structural compatibility only, not harmlessness, safe execution, disk freshness, approval or enablement. Source/name/kind/baseline/catalogue and private/call/input epochs fence publication and retire findings; Save independently re-prepares and confirms current bytes.
-No owned-store enumeration/read/write, source reload/reconciliation, preference hold/write, activation, model/network or reference/dependency access occurs. Normal observational control receipts/traces remain; existing drafts, inventory/selection and enabled or uncertain held source state are unchanged. Unavailable sources retain explicit Reload/reconciliation recovery. Profile-original editing and broader format/writer/runtime qualification remain deferred.
+No owned-store enumeration/read/write, source reload/reconciliation, preference hold/write, activation, model/network or reference/dependency access occurs. Normal observational control receipts/traces remain; existing drafts, inventory/selection and enabled or uncertain held source state are unchanged. Unavailable sources retain explicit Reload/reconciliation recovery. The selected-original operation has its own [bounded comparison](../docs/instruction-editor.md#edit-one-registered-profile-instruction-original); broader format/writer/runtime qualification remains deferred.
 
 **Save as new copy** / exact `instructions copy <new-id>` or `prompts copy <new-id>` is delivered only for an inspected canonical supported native owned original (instruction v1; prompt v1/v2) and its retained current draft.
 It is not an import or profile-original writer. Legacy/unversioned or unsupported originals cannot be implicitly upgraded by copying.

@@ -64,12 +64,16 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
     }
 
     public Task<CustomizationVoiceIntent> Interpret(CustomizationVoiceContext context, string requestText,
-        Func<bool> eligible, CancellationToken token) =>
-        Generate(requestText, JsonSerializer.Serialize(context), VoicePolicy, ParseVoiceIntent, eligible, token);
+        Func<bool> eligible, CancellationToken token)
+    {
+        RequireModelAuthoring(context.Kind);
+        return Generate(requestText, JsonSerializer.Serialize(context), VoicePolicy, ParseVoiceIntent, eligible, token);
+    }
 
     public Task<CustomizationAuthoringResult> Refine(CustomizationSource source, IReadOnlyList<CustomizationFile> files,
         CustomizationAuthoringContext context, string requestText, Func<bool> eligible, CancellationToken token)
     {
+        RequireModelAuthoring(source.Kind);
         var frozen = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         if (!Enum.IsDefined(context.Mode) || context.Component is { } selected
             && !frozen.Any(file => string.Equals(file.Name, selected, StringComparison.Ordinal)))
@@ -80,6 +84,12 @@ public sealed class CustomizationAuthoringService(InstructionControlAdmission ad
             files = frozen.Select(file => new { name = file.Name, text = file.Text }),
         });
         return Generate(requestText, evidence, Policy, answer => Parse(source, frozen, answer), eligible, token);
+    }
+
+    private static void RequireModelAuthoring(CustomizationKind kind)
+    {
+        if (kind == CustomizationKind.McpServer)
+        { throw new InvalidOperationException("MCP entry editing requires native URL fields and native review. No endpoint or source is sent to a model."); }
     }
 
     private async Task<T> Generate<T>(string requestText, string evidence, string policy, Func<string, T> parse,

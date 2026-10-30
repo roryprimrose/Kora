@@ -263,14 +263,14 @@ public sealed partial class MainViewModelTests
         if (pending is "question" or "approval")
         {
             if (pending is "question") { f.Reasoner.Question = new("Choose one", ["A", "B"]); }
-            else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.LockMachine; }
+            else { f.Reasoner.Action = Kora.Core.Commands.BuiltInAction.EnableHostedModels; }
             await f.RunAsync("choose something");
             await f.ViewModel.ActiveReasoningTask!;
         }
         if (pending is "grant")
         {
             await f.ViewModel.PrepareGrantChangeAsync(new(Kora.Core.Commands.GrantChangeOperation.Add,
-                Kora.Core.Commands.BuiltInAction.LockMachine, Kora.Core.Commands.ModelApprovalScope.Always));
+                Kora.Core.Commands.BuiltInAction.EnableHostedModels, Kora.Core.Commands.ModelApprovalScope.Always));
         }
         if (pending is "native") { f.ViewModel.BindResponseReadDecisionGate(() => false); }
         if (pending is "prompt") { f.ViewModel.BindRetainedAnswerReadDecisionGate(() => false); }

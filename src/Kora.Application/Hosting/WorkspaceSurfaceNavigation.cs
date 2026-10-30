@@ -4,7 +4,8 @@ using Kora.Core.Hosting;
 namespace Kora.Application.Hosting;
 
 public sealed record WorkspaceSurfaceNavigation(WorkspaceSurfaceTarget Target, Func<bool> IsAdmitted,
-    int? SessionPosition = null, SessionName? ConversationName = null, RequestOrigin Origin = RequestOrigin.LocalUi)
+    int? SessionPosition = null, SessionName? ConversationName = null, RequestOrigin Origin = RequestOrigin.LocalUi,
+    string? ObservationName = null)
 {
     public HostRequest? Request { get; init; }
     public CancellationToken CancellationToken { get; init; }

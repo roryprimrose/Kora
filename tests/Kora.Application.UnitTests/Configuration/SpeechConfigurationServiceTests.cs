@@ -426,6 +426,7 @@ public sealed partial class SpeechConfigurationServiceTests(ITestOutputHelper ou
     private sealed class Preferences : ITextToSpeechPreferences
     {
         public SpokenSummaryLimits? Limits { get; set; }
+        public void ResetSummaryLimits() { Limits = null; Writes++; }
         public Exception? LimitsLoadFailure { get; set; }
         public SpokenSummaryLimits? LoadSummaryLimits() => LimitsLoadFailure is { } exception ? throw exception : Limits;
         public void SaveSummaryLimits(SpokenSummaryLimits limits)

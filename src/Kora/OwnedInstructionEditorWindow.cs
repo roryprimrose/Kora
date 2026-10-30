@@ -53,10 +53,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     private Window? activeReview;
     private Window? activeComparison;
     private bool selectingKind;
+    private readonly StackPanel bodyDictationHost = new();
 
     internal OwnedInstructionEditorWindow(Action<string> run)
     {
-        Title = "Kora-owned instruction and prompt editor";
+        Title = "Kora instruction and prompt editor";
         Width = 960;
         Height = 720;
         var controls = new WrapPanel { Orientation = Orientation.Horizontal };
@@ -69,7 +70,7 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         controls.Children.Add(Files);
         controls.Children.Add(NameInput);
         controls.Children.Add(CopyNameInput);
-        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
+        foreach (var action in new[] { "List", "Refresh", "Create", "Inspect", "Validate", "Compare", "Rebase", "Save", "Save as new copy", "Open registered profile original", "Create Kora copy from profile instruction", "Cancel profile copy", "Reload", "Delete" })
         {
             var button = new Button { Content = action, Margin = new(3) };
             button.Click += (_, _) => run(action);
@@ -136,11 +137,12 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         panel.Children.Add(metadataFindControls);
         var disclosure = new TextBlock
         {
-            Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Profile files and bundled definitions are read-only. "
+            Text = "Source: Kora-owned roaming Instructions/*.instructions.md or Prompts/*.prompt.md; select kind explicitly. Open registered profile original selects only the exact personal native v1 instruction already registered/read-consented in Customizations; this editor cannot register a source. Bundled definitions are read-only. "
                 + "Observed catalogue use state; inspect revalidates disk and exact revision. Search/filter is metadata-only, not a freshness, compatibility or integrity guarantee. "
                 + "Observed UTC is snapshot time only, not freshness, trust, approval, ownership or use authority. "
                 + "Save as new copy retains the original draft and creates a separate disabled same-kind owned file. Create Kora copy from profile instruction separately selects one personal native v1 instruction, asks for bounded read consent, then reviews the entire disabled copy. Manual editing needs no model. "
-                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model; complete review and normal Save remain separate. No dictation, scripts, profile writes, rename or restore. "
+                + "Explicit Refine proposes only the current owned Instruction body through a qualified local tool-free model. Hold to dictate body instead inserts reviewed literal text at a frozen owned body caret/range, without a model; both require a separate normal Save. "
+                + "Profile originals support exact manual edit, separately confirmed Save and Reload only, not create/delete/rename/refinement/use review or dictation. No prompt/metadata dictation, scripts, rename or restore. "
                 + "Save is not activation. Review permits explicit selection for a new request only. Disable reviewed use holds the exact saved revision without changing its source; a fresh review is required to enable it again. "
                 + "Prompts are user requests, not system guidance. Native v1 stays literal; v2 supports required ${input:name} text only, with private expanded preview and separate use admission.",
             TextWrapping = TextWrapping.Wrap, Margin = new(0, 10),
@@ -160,6 +162,8 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         refinementControls.Children.Add(cancelRefinement);
         DockPanel.SetDock(refinementControls, Dock.Top);
         panel.Children.Add(refinementControls);
+        DockPanel.SetDock(bodyDictationHost, Dock.Top);
+        panel.Children.Add(bodyDictationHost);
         BindSourceSize();
         DockPanel.SetDock(SourceSizeStatus, Dock.Bottom);
         panel.Children.Add(SourceSizeStatus);
@@ -176,6 +180,9 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
 
     internal void Report(string text) => status.Text = text;
+    internal OwnedInstructionBodyDictation? BodyDictation { get; private set; }
+    internal void SetBodyDictation(OwnedInstructionBodyDictation owner)
+    { BodyDictation = owner; bodyDictationHost.Children.Clear(); bodyDictationHost.Children.Add(owner.Controls); }
     internal void ClearSearch()
     {
         OrderInput.SelectedItem = OwnedDefinitionInventoryOrder.FileNameAscending;
@@ -294,11 +301,11 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
     }
 
     internal async Task<int> Choose(string title, string details, string? original, string? proposed,
-        string[] choices, CancellationToken token)
+        string[] choices, CancellationToken token, Func<Window, CancellationToken, Task<bool>>? spokenSave = null)
     {
         token.ThrowIfCancellationRequested();
         if (!Avalonia.Threading.Dispatcher.UIThread.CheckAccess())
-        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, details, original, proposed, choices, token)); }
+        { return await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => Choose(title, details, original, proposed, choices, token, spokenSave)); }
         if (!IsVisible) { throw new InvalidOperationException("The private instruction review window is no longer visible."); }
         var dialog = new Window { Title = title, Width = 900, Height = 680, CanResize = true };
         var root = new DockPanel { Margin = new(12) };
@@ -306,12 +313,32 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         DockPanel.SetDock(explanation, Dock.Top);
         root.Children.Add(explanation);
         var buttons = new StackPanel { Orientation = Orientation.Horizontal, Spacing = 10, Margin = new(0, 10) };
+        using var reviewLifetime = CancellationTokenSource.CreateLinkedTokenSource(token);
+        Exception? voiceFailure = null;
+        Task voiceOperation = Task.CompletedTask;
         for (var index = 0; index < choices.Length; index++)
         {
             var answer = index;
             var button = new Button { Content = choices[index] };
             button.Click += (_, _) => dialog.Close(answer);
             buttons.Children.Add(button);
+        }
+        if (spokenSave is not null)
+        {
+            var voice = new Button { Content = "Reviewed complete source: exact save question" };
+            voice.Click += async (_, _) =>
+            {
+                buttons.IsEnabled = false;
+                voiceOperation = Answer();
+                await voiceOperation;
+            };
+            async Task Answer()
+            {
+                try { dialog.Close(await spokenSave(dialog, reviewLifetime.Token) ? 0 : choices.Length - 1); }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                { voiceFailure = exception; dialog.Close(); }
+            }
+            buttons.Children.Add(voice);
         }
         DockPanel.SetDock(buttons, Dock.Bottom);
         root.Children.Add(buttons);
@@ -324,9 +351,19 @@ internal sealed partial class OwnedInstructionEditorWindow : Window
         root.Children.Add(sources);
         dialog.Content = root;
         activeReview = dialog;
+        dialog.Closed += (_, _) => reviewLifetime.Cancel();
         var reply = dialog.ShowDialog<int?>(this);
         using var registration = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(() => dialog.Close()));
-        try { return await reply ?? choices.Length - 1; }
+        try
+        {
+            var result = await reply ?? choices.Length - 1;
+#pragma warning disable VSTHRD003 // The review owns this exact question operation through capture retirement.
+            await voiceOperation;
+#pragma warning restore VSTHRD003
+            if (voiceFailure is not null)
+            { throw new InvalidOperationException("Exact save question failed: " + voiceFailure.Message + " Draft retained; recover through native Save.", voiceFailure); }
+            return result;
+        }
         finally
         {
             if (ReferenceEquals(activeReview, dialog)) { activeReview = null; }

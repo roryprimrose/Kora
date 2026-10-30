@@ -1,6 +1,7 @@
 using System.Globalization;
 using System.Security.Cryptography;
 using System.Text;
+
 using Kora.Core.Dependencies;
 using Kora.Core.Diagnostics;
 
@@ -42,6 +43,7 @@ public sealed class WindowsSpeechComponentStore(
         ArgumentNullException.ThrowIfNull(component);
         cancellationToken.ThrowIfCancellationRequested();
         if (!files.RootExists()) { return Missing(component); }
+        using var pinned = files.PinDirectory(files.Root);
         var path = ComponentPath(component);
         var removing = path + ".removing";
         var removalRecord = path + ".removal-record";
@@ -59,7 +61,14 @@ public sealed class WindowsSpeechComponentStore(
             {
                 return new(true, false, SpeechComponentOwnership.Foreign, "conflicting-" + pending.Stamp);
             }
-            return pending with { Installed = false, Ownership = SpeechComponentOwnership.RemovalPending };
+            return pending with
+            {
+                Installed = false,
+                Ownership = SpeechComponentOwnership.RemovalPending,
+                ExactBytes = pending.ExactBytes + (hasRecord ? 64 : 0),
+                Inventory = pending.Inventory + (hasRecord ? "\nRemoval recovery record: 64 bytes; exact catalogue manifest." : string.Empty),
+                Stamp = pending.Stamp + (hasRecord ? files.Identity(removalRecord) : string.Empty),
+            };
         }
         return files.Exists(path)
             ? await InspectDirectoryAsync(component, path, cancellationToken).ConfigureAwait(false)
@@ -80,6 +89,7 @@ public sealed class WindowsSpeechComponentStore(
         RequireAdmission(component, admitted, cancellationToken);
         files.EnsureRoot();
         await using var lease = await files.AcquireLeaseAsync(cancellationToken).ConfigureAwait(false);
+        using var pinned = files.PinDirectory(files.Root);
         var observed = await InspectAsync(component, cancellationToken).ConfigureAwait(false);
         RequireExpected(expected, observed);
         if (observed is { Ownership: SpeechComponentOwnership.Managed, Verified: true })
@@ -92,6 +102,7 @@ public sealed class WindowsSpeechComponentStore(
         }
         var staging = ComponentPath(component) + "." + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture) + ".staging";
         files.CreateDirectory(staging);
+        var stagingIdentity = files.Identity(staging);
         var owned = new List<string>();
         try
         {
@@ -124,7 +135,7 @@ public sealed class WindowsSpeechComponentStore(
             RequireAdmission(component, admitted, cancellationToken);
             progress.Report("Publishing verified data atomically; runtime remains unselected.");
             RequireAdmission(component, admitted, cancellationToken);
-            files.MoveDirectory(staging, ComponentPath(component));
+            files.MoveDirectory(staging, ComponentPath(component), verified.DirectoryIdentity);
         }
         finally
         {
@@ -135,7 +146,7 @@ public sealed class WindowsSpeechComponentStore(
                 {
                     if (files.Exists(path)) { files.DeleteFile(path); }
                 }
-                files.DeleteDirectory(staging);
+                files.DeleteDirectory(staging, stagingIdentity);
             }
         }
     }
@@ -157,22 +168,29 @@ public sealed class WindowsSpeechComponentStore(
             return;
         }
         await using var lease = await files.AcquireLeaseAsync(cancellationToken).ConfigureAwait(false);
+        using var pinned = files.PinDirectory(files.Root);
         var observed = await InspectAsync(component, cancellationToken).ConfigureAwait(false);
         RequireExpected(expected, observed);
         if (observed.Ownership == SpeechComponentOwnership.Missing)
         {
             return;
         }
-        if (observed.Ownership == SpeechComponentOwnership.Foreign)
+        if (observed.Ownership == SpeechComponentOwnership.Foreign || observed.ExactBytes is null)
         {
             throw new UnauthorizedAccessException("Foreign, modified-manifest or shared speech assets cannot be removed.");
         }
         var removing = ComponentPath(component) + ".removing";
         var removalRecord = ComponentPath(component) + ".removal-record";
+        var source = observed.Ownership == SpeechComponentOwnership.Managed ? ComponentPath(component) : removing;
+        var inventory = files.Exists(source)
+            ? await ReadRemovalInventoryAsync(component, source, cancellationToken).ConfigureAwait(false) : [];
+        if (!string.Equals(InventoryStamp(inventory), observed.FileInventoryStamp, StringComparison.Ordinal))
+        { throw new InvalidDataException("The exact removal inventory changed during review revalidation."); }
+        RequireExpected(expected, await InspectAsync(component, cancellationToken).ConfigureAwait(false));
         RequireAdmission(component, admitted, cancellationToken);
         if (observed.Ownership == SpeechComponentOwnership.Managed)
         {
-            files.MoveDirectory(ComponentPath(component), removing);
+            files.MoveDirectory(ComponentPath(component), removing, observed.DirectoryIdentity);
         }
         if (!files.Exists(removalRecord))
         {
@@ -195,24 +213,60 @@ public sealed class WindowsSpeechComponentStore(
         // Cancellation after retirement leaves an exact tombstone for a fresh explicit removal review.
         if (files.Exists(removing))
         {
-            foreach (var asset in component.Assets)
+            using (files.PinDirectory(removing))
             {
-                RequireAdmission(component, admitted, cancellationToken);
-                var path = Path.Combine(removing, asset.Name);
-                if (files.Exists(path)) { files.DeleteFile(path); }
+                foreach (var entry in inventory.OrderBy(entry => string.Equals(entry.Name, ManifestName, StringComparison.Ordinal)))
+                {
+                    RequireAdmission(component, admitted, cancellationToken);
+                    await files.DeleteVerifiedFileAsync(Path.Combine(removing, entry.Name), entry.Identity,
+                        entry.Bytes, entry.Digest, admitted, cancellationToken).ConfigureAwait(false);
+                }
             }
             RequireAdmission(component, admitted, cancellationToken);
-            var marker = Path.Combine(removing, ManifestName);
-            if (files.Exists(marker)) { files.DeleteFile(marker); }
-            files.DeleteDirectory(removing);
+            files.DeleteDirectory(removing, observed.DirectoryIdentity);
         }
         RequireAdmission(component, admitted, cancellationToken);
-        files.DeleteFile(removalRecord);
+        var recordIdentity = files.Identity(removalRecord);
+        await files.DeleteVerifiedFileAsync(removalRecord, recordIdentity, 64,
+            Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(component.ManifestDigest))),
+            admitted, cancellationToken).ConfigureAwait(false);
+    }
+
+    private sealed record RemovalFile(string Name, string Identity, long Bytes, string Digest);
+
+    private static string InventoryStamp(IEnumerable<RemovalFile> entries) =>
+        string.Join('|', entries.OrderBy(entry => entry.Name, StringComparer.Ordinal).Select(entry =>
+            $"{entry.Name}:{entry.Identity}:{entry.Bytes.ToString(CultureInfo.InvariantCulture)}:{entry.Digest}"));
+
+    private async Task<List<RemovalFile>> ReadRemovalInventoryAsync(SpeechComponentDefinition component,
+        string path, CancellationToken cancellationToken)
+    {
+        using var pinned = files.PinDirectory(path);
+        var result = new List<RemovalFile>();
+        foreach (var name in files.Names(path))
+        {
+            var asset = component.Assets.SingleOrDefault(candidate => string.Equals(candidate.Name, name, StringComparison.Ordinal));
+            if (asset is null && !string.Equals(name, ManifestName, StringComparison.Ordinal))
+            { throw new InvalidDataException("Uninventoried data appeared during removal. It was not opened or deleted."); }
+            var file = Path.Combine(path, name);
+            var identity = files.Identity(file);
+            await using var input = files.Read(file);
+            var bytes = input.Length;
+            if (bytes > (asset?.SizeBytes ?? 64))
+            { throw new InvalidDataException("Speech data changed beyond its bounded inventory. Inspect before review."); }
+            var digest = Convert.ToHexString(await SHA256.HashDataAsync(input, cancellationToken).ConfigureAwait(false));
+            if (!string.Equals(files.Identity(file), identity, StringComparison.Ordinal))
+            { throw new InvalidDataException("A speech-data object changed during inventory."); }
+            result.Add(new(name, identity, bytes, digest));
+        }
+        return result;
     }
 
     private async Task<SpeechComponentSnapshot> InspectDirectoryAsync(SpeechComponentDefinition component,
         string path, CancellationToken cancellationToken, bool removalRecorded = false)
     {
+        using var pinned = files.PinDirectory(path);
+        var directoryIdentity = files.Identity(path);
         var names = files.Names(path);
         var marker = Path.Combine(path, ManifestName);
         if ((!removalRecorded && !names.Contains(ManifestName, StringComparer.Ordinal))
@@ -227,7 +281,19 @@ public sealed class WindowsSpeechComponentStore(
             return new(true, false, SpeechComponentOwnership.Foreign, "manifest-" + component.ManifestDigest);
         }
         var verified = true;
-        var stamps = new List<string> { component.ManifestDigest };
+        var stamps = new List<string> { component.ManifestDigest, files.Identity(files.Root), directoryIdentity };
+        var inventory = new List<string>();
+        var entries = new List<RemovalFile>();
+        long bytes = 0;
+        var known = true;
+        if (names.Contains(ManifestName, StringComparer.Ordinal))
+        {
+            stamps.Add(files.Identity(marker));
+            bytes = 64;
+            inventory.Add("Ownership receipt: 64 bytes; exact catalogue manifest/source binding.");
+            entries.Add(new(ManifestName, files.Identity(marker), 64,
+                Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(component.ManifestDigest)))));
+        }
         foreach (var asset in component.Assets)
         {
             cancellationToken.ThrowIfCancellationRequested();
@@ -236,18 +302,30 @@ public sealed class WindowsSpeechComponentStore(
             {
                 verified = false;
                 stamps.Add(asset.Name + ":missing");
+                inventory.Add(asset.Name + ": absent");
                 continue;
             }
             await using var input = files.Read(assetPath);
+            var identity = files.Identity(assetPath);
             var length = input.Length;
             var digest = length <= asset.SizeBytes
                 ? Convert.ToHexString(await SHA256.HashDataAsync(input, cancellationToken).ConfigureAwait(false))
                 : "oversize";
             verified &= length == asset.SizeBytes && string.Equals(digest, asset.Sha256, StringComparison.Ordinal);
-            stamps.Add(asset.Name + ":" + length.ToString(CultureInfo.InvariantCulture) + ":" + digest);
+            known &= length <= asset.SizeBytes;
+            bytes = checked(bytes + length);
+            inventory.Add($"{asset.Name}: {length} bytes; SHA-256 {digest}");
+            stamps.Add(asset.Name + ":" + length.ToString(CultureInfo.InvariantCulture) + ":" + digest + ":" + identity);
+            entries.Add(new(asset.Name, identity, length, digest));
         }
         return new(true, verified, SpeechComponentOwnership.Managed,
-            Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(string.Join('|', stamps)))));
+            Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(string.Join('|', stamps)))))
+        {
+            ExactBytes = known ? bytes : null,
+            Inventory = known ? string.Join('\n', inventory) : null,
+            DirectoryIdentity = directoryIdentity,
+            FileInventoryStamp = InventoryStamp(entries),
+        };
     }
 
     private async Task<bool> VerifyAssetAsync(SpeechComponentAsset asset, string path, CancellationToken cancellationToken)
@@ -294,7 +372,8 @@ public sealed class WindowsSpeechComponentStore(
         }
     }
     private static SpeechComponentSnapshot Missing(SpeechComponentDefinition component) =>
-        new(false, false, SpeechComponentOwnership.Missing, "missing-" + component.ManifestDigest);
+        new(false, false, SpeechComponentOwnership.Missing, "missing-" + component.ManifestDigest)
+        { ExactBytes = 0, Inventory = "No model-data files remain.", FileInventoryStamp = string.Empty };
     private static void RequireExpected(SpeechComponentSnapshot expected, SpeechComponentSnapshot observed)
     {
         if (expected != observed) { throw new InvalidDataException("The reviewed component identity/content changed. Inspect before retrying."); }

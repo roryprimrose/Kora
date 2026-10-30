@@ -54,6 +54,10 @@ public sealed partial class ResponseWindow : Window
         PositionChanged += OnPositionChanged;
         PropertyChanged += OnSessionPresentationChanged;
         viewModel.PropertyChanged += OnViewModelPropertyChanged;
+        Deactivated += OnReviewedCommandUnavailable;
+        Closed += OnReviewedCommandUnavailable;
+        PropertyChanged += OnReviewedCommandVisibilityChanged;
+        RefreshReviewedVoiceCommand();
         AddHandler(PointerMovedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerPressedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
         AddHandler(PointerReleasedEvent, OnMouseActivity, RoutingStrategies.Tunnel, handledEventsToo: true);
@@ -317,6 +321,8 @@ public sealed partial class ResponseWindow : Window
 
     private void OnViewModelPropertyChanged(object? sender, PropertyChangedEventArgs eventArgs)
     {
+        if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.ReviewedVoiceCommandText), StringComparison.Ordinal))
+        { RefreshReviewedVoiceCommand(); }
         if (string.Equals(eventArgs.PropertyName, nameof(MainViewModel.IsVisualResponseVisible), StringComparison.Ordinal)
             && !viewModel.IsVisualResponseVisible)
         {

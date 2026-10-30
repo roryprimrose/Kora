@@ -33,6 +33,13 @@ public interface ISessionConversationStore
             : throw new InvalidOperationException("The conversation store does not support pending original requests.");
     ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
         ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token);
+    /// <summary>Retains host-classified bare ordinary text and optional historical attribution in the normal FIFO transaction.</summary>
+    ValueTask<ConversationSubmissionReceipt> RetainOrdinaryPendingConversationAsync(HostRequest request,
+        HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
+        ExpiredOrdinaryRequestSource? original, Func<bool> admitted, CancellationToken token) =>
+        original is null
+            ? RetainPendingConversationMessageAsync(request, generation, expectedMetadataRevision, body, predecessors, admitted, token)
+            : throw new InvalidOperationException("The conversation store cannot attest ordinary original-text provenance.");
     ValueTask<ConversationSubmissionReceipt> BeginConversationExecutionAsync(HostRequest request,
         ModelTurnProvenance provenance, long metadataRevision, Func<bool> admitted, CancellationToken token) =>
         throw new InvalidOperationException("The conversation store does not support admitted execution.");

@@ -44,6 +44,7 @@ internal sealed partial class SessionsViewModel
             }
             RestoreUnsent();
             CancelLocalRequestProfile();
+            ClearExpiredOrdinary();
             RetireReplyReview();
             composerBody = value;
             Interlocked.Increment(ref composerBufferRevision);
@@ -341,6 +342,7 @@ internal sealed partial class SessionsViewModel
     {
         CancelLocalRequestProfile();
         ClearFailedRetry();
+        ClearExpiredOrdinary();
         ClearMixedContext();
         ClearAnswerRead();
         ClearInstructionContext();
@@ -367,6 +369,7 @@ internal sealed partial class SessionsViewModel
     {
         NotifyLocalRequestProfile();
         NotifyFailedRetry();
+        NotifyExpiredOrdinary();
         RestoreUnsent();
         NotifyAssistantReply();
         NotifyMixedContext();

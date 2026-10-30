@@ -322,6 +322,46 @@ provider dispatch. A fresh explicit request/review is required, not automatic
 deadline extension. The active provider budget remains owned by the runtime
 and begins at dispatch.
 
+#### Fresh review of expired ordinary local text
+
+The [fresh-review operation](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+supports one retained USER originally submitted through **Answer locally (no tools)**,
+with host-recorded bare ordinary text provenance and exact **Denied / ContextExpired**
+before any execution record. The [source contract](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
+requires both the immutable message and matching terminal task evidence. Task status
+alone never establishes no dispatch. Legacy/unclassified rows, ordinary tool-capable
+Send, hosted, file, clipboard, MCP, reviewed context, instruction/evidence-bearing,
+interrupted, dispatched and uncertain sources are unavailable through this operation.
+
+In the expanded Sessions conversation, select one actual current original USER row,
+review its complete unchanged body, no-dispatch evidence, historical source channel,
+exact Active target and current local provider/profile, then separately confirm one
+genuinely NEW native ordinary request. The [native review](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)
+does not prepare a composer or retry the old identity. Historical model/account/profile
+values absent from the source remain explicitly unknown, never inferred from current
+defaults. The new record attributes the original request/channel separately from its
+fresh LocalUi initiator; a voice source cannot acquire renewed voice authority by click.
+
+Review/decline performs no retention, activity renewal, task admission, provider call
+or resource acquisition. Confirmation uses the [ordinary FIFO transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Conversation.cs),
+new host request/task IDs, unchanged body and normal limits. The new fifteen-second
+context starts at the NEW confirmation, not review or historical submission. The old
+request/task, expiry, HOST outcome and history remain unchanged. An expired new request
+also cannot renew itself or dispatch automatically.
+
+The bounded subset consumes no old context, memory, instructions, evidence, consent
+or grants. An applying session instruction requires its independent current source-use
+route, not silent omission or implicit reapproval. Source/task/session generation/
+metadata, selected original, unsent input revision, native input/capture, privacy,
+ownership, call, current provider/profile/policy and held-lane revisions remain frozen.
+Changes, cancellation, review expiry or replay require fresh review. Independent
+**Resume held dispatch** remains mandatory and itself invalidates an older fresh review;
+resume first, then review again. [Portable regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ExpiredOrdinary.cs)
+and [native/private-store regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ExpiredOrdinary.cs)
+exercise actual expiry through new admission and a genuine fake-runtime answer without
+enabling production providers, recreating diagnostic queue commands or claiming a
+historical resource join.
+
 Only successful, confirmed terminal retention after the preceding physical
 resource join permits automatic next dispatch. Failure, pending/active
 cancellation or uncertainty holds the addressed lane; **Resume held dispatch**

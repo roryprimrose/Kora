@@ -45,6 +45,15 @@ internal sealed partial class SessionsPresentationOwner
     {
         this.model = model;
         this.requestCommands = requestCommands;
+        if (requestCommands is not null)
+        {
+            model.CaptureFreshOrdinaryInput = () =>
+            {
+                var input = requestCommands.CaptureFreshOrdinaryRequestEligibility();
+                var native = CaptureForegroundSourceEligibility();
+                return () => input() && native();
+            };
+        }
         model.PropertyChanged += OnForegroundModelChanged;
         if (requestCommands is not null) { requestCommands.ForegroundRequestSubmitted += OnForegroundRequestSubmitted; }
 #pragma warning disable MA0147 // Avalonia routed-event boundary; the model operation handles and reports failures.

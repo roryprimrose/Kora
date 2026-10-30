@@ -22,6 +22,14 @@ public sealed partial class SessionConversationService
         bool localAnswer, PendingConversation? pending, CancellationToken token, LocalRequestProfileReview? localRequestProfile = null)
     {
         RequireOriginalSource(origin);
+        if (pending?.Fresh is { } fresh)
+        {
+            pending.BareOrdinaryText = true;
+            ModelContextEnvelope CreateFresh(HostRequest request, DateTimeOffset _) =>
+                new(request, Policy, body, [], fresh.ConfirmedAt, fresh.ConfirmedAt.AddSeconds(15), ModelToolMode.None);
+            return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,
+                CreateFresh, ModelTurnChoice.Local, token, pending: pending).ConfigureAwait(false);
+        }
         var retry = pending?.Retry;
         if (retry is not null && retry.Source.Provider.Provider != ModelProviderIdentity.Ollama)
         {
@@ -37,6 +45,8 @@ public sealed partial class SessionConversationService
             : await sessionInstructionScopes.PrepareRequestAsync(target, body, origin, token).ConfigureAwait(false);
         if (review is null)
         {
+            if (pending is not null)
+            { pending.BareOrdinaryText = localAnswer && beforeRetain is null; }
             ModelContextEnvelope Create(HostRequest request, DateTimeOffset now) =>
                 new(request, Policy, body, [], now, now.AddSeconds(15), ModelToolMode.None);
             return await SubmitCoreAsync(target, body, admitted, beforeRetain, links, origin,

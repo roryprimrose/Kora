@@ -24,6 +24,7 @@ public sealed partial class MainViewModel
         var previous = Interlocked.Exchange(ref foregroundConversationTarget, target);
         if (ReferenceEquals(previous, target)) { return; }
         previous?.Retire();
+        reviewedVoiceCommand?.Revalidate();
         if (foregroundRequestReview is not null)
         {
             RetireSessionCommandReviews();

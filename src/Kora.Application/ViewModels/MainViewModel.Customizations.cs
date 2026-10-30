@@ -54,8 +54,11 @@ public sealed partial class MainViewModel
 #pragma warning restore VSTHRD003
     }
 
-    public void PublishCustomizationVoiceTarget(CustomizationVoiceTarget? target) =>
+    public void PublishCustomizationVoiceTarget(CustomizationVoiceTarget? target)
+    {
         Interlocked.Exchange(ref customizationVoiceTarget, target)?.Retire();
+        reviewedVoiceCommand?.Revalidate();
+    }
 
     public Func<bool> CaptureCustomizationVoiceEligibility()
     {

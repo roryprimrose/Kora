@@ -19,6 +19,7 @@ public sealed partial class QuestionWindow : Window
     private readonly NativeDetailRenderer renderer;
     private readonly TextBox input;
     private readonly TextBox review;
+    private readonly TextBox explanation;
     private readonly Dictionary<string, ToggleButton> choices = new(StringComparer.Ordinal);
     private readonly DispatcherTimer expiry = new() { Interval = TimeSpan.FromSeconds(1) };
     private bool refreshing;
@@ -40,6 +41,7 @@ public sealed partial class QuestionWindow : Window
         AvaloniaXamlLoader.Load(this);
         input = Required<TextBox>("AnswerInput");
         review = Required<TextBox>("ExactReview");
+        explanation = Required<TextBox>("PolicyExplanation");
         var record = state.Question;
         Required<TextBlock>("PromptLabel").Text = record.Spec.Text;
         Required<TextBlock>("TargetLabel").Text =
@@ -68,6 +70,8 @@ public sealed partial class QuestionWindow : Window
         };
         input.IsVisible = record.Spec.Kind == QuestionKind.Text;
         Required<Button>("ReviewQuestion").Click += async (_, _) => await RunInteractionAsync(state.ReviewAsync);
+        Required<Button>("ExplainPolicy").Click += async (_, _) => await RunInteractionAsync(state.ExplainPolicyAsync);
+        Required<Button>("ReturnToApproval").Click += async (_, _) => await RunInteractionAsync(state.ReturnToApprovalAsync);
         Required<Button>("SaveDraft").Click += async (_, _) => await RunInteractionAsync(state.SaveDraftAsync);
         Required<Button>("SubmitAnswer").Content = state.IsApproval ? "_Approve exact operation" : "_Submit answer";
         Required<Button>("SubmitAnswer").Click += async (_, _) => await RunInteractionAsync(state.SubmitAsync);
@@ -86,6 +90,10 @@ public sealed partial class QuestionWindow : Window
         review.CuttingToClipboard += BlockClipboard;
         review.PastingFromClipboard += BlockClipboard;
         review.AddHandler(ContextRequestedEvent, BlockClipboard, RoutingStrategies.Tunnel);
+        explanation.CopyingToClipboard += BlockClipboard;
+        explanation.CuttingToClipboard += BlockClipboard;
+        explanation.PastingFromClipboard += BlockClipboard;
+        explanation.AddHandler(ContextRequestedEvent, BlockClipboard, RoutingStrategies.Tunnel);
         KeyDown += (_, args) =>
         {
             if (args.Key == Key.Escape) { args.Handled = true; Close(); }
@@ -133,6 +141,7 @@ public sealed partial class QuestionWindow : Window
             refreshing = true;
             input.Text = string.Empty;
             review.Text = string.Empty;
+            explanation.Text = string.Empty;
             panel.Children.Clear();
             choices.Clear();
             Required<TextBlock>("PromptLabel").Text = string.Empty;
@@ -222,6 +231,12 @@ public sealed partial class QuestionWindow : Window
         if (!string.Equals(input.Text, state.Answer.Text, StringComparison.Ordinal)) { input.Text = state.Answer.Text; }
         input.IsEnabled = state.IsEditable;
         Required<Button>("ReviewQuestion").IsEnabled = state.IsEditable;
+        Required<Button>("ExplainPolicy").IsVisible = state.SupportsPolicyExplanation;
+        Required<Button>("ExplainPolicy").IsEnabled = state.IsEditable && !state.HasPolicyExplanation;
+        Required<Button>("ReturnToApproval").IsVisible = state.HasPolicyExplanation;
+        Required<Button>("ReturnToApproval").IsEnabled = state.IsEditable;
+        explanation.IsVisible = state.HasPolicyExplanation;
+        explanation.Text = state.PolicyExplanationText;
         Required<Button>("SaveDraft").IsEnabled = state.CanSaveDraft;
         Required<Button>("SubmitAnswer").IsEnabled = state.CanSubmit;
         Required<Button>("CancelQuestion").IsEnabled = state.IsEditable;

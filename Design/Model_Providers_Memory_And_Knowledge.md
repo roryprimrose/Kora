@@ -467,6 +467,21 @@ admits one local-only tool-free answer or cancellation. Source brokers and reten
 remain independent; device-profile/model-proposed memories and provider qualification
 are not implementation prerequisites or implicitly enabled capabilities.
 
+The [complete-input recovery interaction](../docs/reviewed-context.md#recover-when-the-complete-input-is-over-budget)
+keeps an over-budget original question and exact source selection private and
+inert. The host measures the complete serialized envelope, explains which whole
+optional messages or SESSION memories can be omitted, and requires an explicit
+omission followed by a fresh complete source/input/destination review and separate
+confirmation. The existing consumer still requires one whole history message,
+one enabled instruction and one SESSION memory; missing required input cannot be
+silently omitted. Removing a unit retires prior review/consent without renewing
+the original source-read deadline. Expiry/revocation, source/session/channel,
+privacy/owner/control and canonical model admission remain fail-closed. No
+automatic shortening, reordering, summarization, provider change, larger context
+window, new source purpose or persistence is introduced
+([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs),
+[behavioral evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.ContextBudgetRecovery.cs)).
+
 Its [exact-answer Reply subset](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) consumes one deliberately selected retained ASSISTANT answer without requiring or reading an instruction or memory. It uses the same history resolver, canonical LocalOnly evidence envelope and original-input submission. Complete source/new-input review and separate one-use confirmation never authorize future recall or hosted routing ([workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), [execution evidence](../tests/Kora.Application.UnitTests/Hosting/ModelTurnHostTests.AssistantReply.cs)).
 
 ## User-Governed Durable Memory

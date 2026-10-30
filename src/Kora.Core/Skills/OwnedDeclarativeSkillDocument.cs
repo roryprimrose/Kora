@@ -33,6 +33,7 @@ public sealed class OwnedDeclarativeSkillDocument
     public string Description { get; }
     public OwnedSkillToolSelection Tool { get; }
     public OwnedPromptTemplate? InputTemplate { get; }
+    public ObservationWorkflowDefinition? ObservationWorkflow { get; private init; }
     public string RevisionDigest { get; }
     public string ManifestText => Encoding.GetString(manifest);
     public string Guidance => Encoding.GetString(instructions);
@@ -71,9 +72,7 @@ public sealed class OwnedDeclarativeSkillDocument
         };
         var text = $"kora-skill-format: {format}\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: {declaration}\nreferences: none\n";
         if (guidanceFormat == OwnedSkillGuidanceFormat.RequiredLiteralInputs) { text += "inputs: required-literal\n"; }
-        try { return Parse(Encoding.GetBytes(text), Encoding.GetBytes(guidance)); }
-        catch (EncoderFallbackException exception)
-        { throw new InvalidDataException("Skill text must be well-formed Unicode.", exception); }
+        return ParseText(text, guidance);
     }
 
     public static OwnedDeclarativeSkillDocument Parse(ReadOnlySpan<byte> manifest, ReadOnlySpan<byte> instructions)
@@ -103,12 +102,15 @@ public sealed class OwnedDeclarativeSkillDocument
         string Field(string key) => fields.TryGetValue(key, out var value) ? value
             : throw new InvalidDataException("Unknown or missing native skill metadata.");
         var format = Field("kora-skill-format");
+        var workflow = format is "4" ? ObservationWorkflowDefinition.Parse(guidance) : null;
         var tool = (format, Field("tools")) switch
         {
             ("1", "none") => OwnedSkillToolSelection.None,
             ("2", WebPageCapability.Id) => OwnedSkillToolSelection.WebPageGet,
             ("3", "none") => OwnedSkillToolSelection.None,
-            _ => throw new InvalidDataException("Only native v1 literal, v2 exact host WebPageGet or v3 instruction-only required literal inputs are supported."),
+            ("4", var declaration) when string.Equals(declaration, workflow!.ToolDeclaration, StringComparison.Ordinal)
+                => OwnedSkillToolSelection.ReadOnlyObservations,
+            _ => throw new InvalidDataException("Only native v1 literal, v2 host WebPageGet, v3 literal inputs or v4 original host observation workflows are supported."),
         };
         OwnedPromptTemplate? template = null;
         if (format is "3")
@@ -130,7 +132,26 @@ public sealed class OwnedDeclarativeSkillDocument
         var description = Field("description");
         RequireScalar(name, 128);
         RequireScalar(description, 1024);
-        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray(), tool, template);
+        return new(id, version, name, description, manifest.ToArray(), instructions.ToArray(), tool, template)
+        { ObservationWorkflow = workflow };
+    }
+
+    public static OwnedDeclarativeSkillDocument CreateObservationWorkflow(string id, string version, string name,
+        string description, string source)
+    {
+        var workflow = ObservationWorkflowDefinition.Parse(source);
+        RequireIdentity(id, version);
+        RequireScalar(name, 128);
+        RequireScalar(description, 1024);
+        var metadata = $"kora-skill-format: 4\nid: {id}\nversion: {version}\nname: {name}\ndescription: {description}\nruntime: local\ntools: {workflow.ToolDeclaration}\nreferences: none\n";
+        return ParseText(metadata, source);
+    }
+
+    private static OwnedDeclarativeSkillDocument ParseText(string metadata, string source)
+    {
+        try { return Parse(Encoding.GetBytes(metadata), Encoding.GetBytes(source)); }
+        catch (EncoderFallbackException exception)
+        { throw new InvalidDataException("Skill text must be well-formed Unicode.", exception); }
     }
 
     private static void RequireText(string text)

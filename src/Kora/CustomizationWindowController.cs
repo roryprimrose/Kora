@@ -113,7 +113,11 @@ internal sealed partial class CustomizationWindowController(
         if (action is "Mcp input") { if (!changingBuffer) { InputChanged(); } return; }
         RetireVoiceTarget();
         if (action is "Filter") { RenderSources(); PublishVoiceTarget(); return; }
-        if (busy || disposed) { window?.Status.Text = "Wait for the current operation or cancel its review."; return; }
+        if (busy || disposed)
+        {
+            if (busy && action is "Select") { InputChanged(); }
+            window?.Status.Text = "Wait for the current operation or cancel its review."; return;
+        }
         active = Run(action);
     }
 
@@ -151,6 +155,7 @@ internal sealed partial class CustomizationWindowController(
                 case "Withdraw original registration": await WithdrawOriginal(Current, token); break;
                 case "Compare external": await CompareOriginal(Current, token); break;
                 case "Review and save": await Save(Current, token); break;
+                case "Delete owned definition": await Delete(Current, token); break;
                 case "Reload":
                     if (source is not null && await LeaveDraft(Current, token)) { await Inspect(source, false, Current, token); }
                     break;
@@ -634,6 +639,7 @@ internal sealed partial class CustomizationWindowController(
     private async Task RouteCore(CustomizationCommand command, Func<bool> current, CancellationToken token)
     {
         if (window is null) { return; }
+        if (command.Operation is "Delete") { await Delete(current, token); return; }
         if (command.Operation is "Adapt")
         {
             if (source?.Kind != CustomizationKind.Skill)

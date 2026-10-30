@@ -544,7 +544,7 @@ an unexpired explicit deferral under its original deadline.
 ## Deterministic local-version queue
 
 Diagnostic-only queue productisation is retired.
-Normal Sessions, Settings and command input cannot enqueue or dispatch the fixed metadata reads, reorder records, configure capacity/deadlines, attach prerequisites or create expired replacements.
+Normal Sessions, Settings and command input cannot enqueue or dispatch the fixed metadata reads, clear them through the public diagnostic command, reorder records, configure capacity/deadlines, attach prerequisites or create expired replacements.
 The six direct read-only capability observations remain available; internal scheduler/store/domain contracts are not general task qualification ([admission boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs), [catalogue](../src/Kora.Core/Tools/ReadOnlyCapabilityCatalog.cs)).
 
 Existing records retain exact IDs, state, receipts and original deadlines. They are not dropped, replayed, automatically dispatched or reinterpreted as success. Shared actual task lifecycle/cancellation controls remain separate ([queue service](../src/Kora.Application/Hosting/SessionQueueService.cs), [task controls](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
@@ -556,7 +556,6 @@ Existing records retain exact IDs, state, receipts and original deadlines. They 
 | `queue status <session-id> <task-id>` | Inspect an existing retained queue receipt; never rerun it |
 | `queue pause-status <session-id>` | Inspect current pause/hold metadata; no change |
 | `queue cancel` / `queue remove` | Operate only on an exact eligible pending record with displayed generation, queue and entry revisions |
-| `queue clear <session-id> <generation> <queue-revision> confirm` | Explicitly clear only that exact pending snapshot, retaining history |
 
 Use `queue help` for the complete exact syntax and existing selected-subset review/confirm/discard operations. IDs and conflict tokens are still validated, not inferred from names or the selected window ([grammar](../src/Kora.Core/Commands/SessionCommand.Queue.cs)).
 
@@ -565,6 +564,22 @@ It does not commit cancellation; inspect the complete original records and separ
 Missing, stale, previous-run or otherwise ineligible records refuse the whole request without selecting replacements ([preparation](../src/Kora.Application/Hosting/SessionWorkspaceService.QueueCancellationPreparation.cs), [native cancellation](../src/Kora/SessionsViewModel.QueueCancellation.cs)).
 
 Native cancellation-review opening preserves the original session's unsent input in memory, without saving or a discard decision ([session buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+## Clear one ordinary conversation's pending work
+
+Use the exact original-user commands below, or the native **Clear queue - review all pending** control in the addressed Active conversation. This completes pending-only cancellation, not Stop All or diagnostic scheduling ([host operation](../src/Kora.Application/Hosting/SessionConversationService.PendingClear.cs)).
+
+```text
+session pending clear <session-id>
+session pending confirm <session-id> <review-id>
+session pending cancel <session-id> <review-id>
+```
+
+Review shows ALL current never-dispatched identities, positions, count, original expiry and impact without original bodies. Inspect an original separately through conversation history if needed. Confirm **clear pending only** once, or cancel the review without effects. Running/already-dispatching work, other conversations, unsent input and retained history remain ([native controls](../src/Kora/PendingConversationPanel.axaml)).
+
+Activated voice requires the current assistant-name prefix. The displayed native **Confirm clear pending only** button preserves an activated review's original channel/source. A fresh activation that retires the original generation cannot confirm its old review; review again instead. Changed input, privacy, ownership, call policy, lane or expiry is never renewed by confirmation ([source-bound route](../src/Kora.Application/ViewModels/MainViewModel.PendingClear.cs)).
+
+Read the actual per-entry cancelled/changed/unconfirmed outcomes and remaining host-lane metadata. Unconfirmed does not mean cancelled, no effect, rollback or permission to replay. Existing manual/failure/uncertainty holds are not released. Public diagnostic `queue clear`, pause/resume and requeue remain denied, including hand-built requests ([command guard](../src/Kora.Application/Hosting/SessionWorkspaceService.Commands.cs)).
 
 ## Prepare an exact local diagnostics plan
 

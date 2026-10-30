@@ -171,6 +171,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearConversationCancellation()
     {
+        DiscardPendingClear();
         runningConversation = null;
         runningConversationStatus = "No running conversation observed. Refresh running work to inspect this exact session.";
         if (closed && observingConversationCancellation && conversation is not null)

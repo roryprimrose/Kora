@@ -24,5 +24,15 @@
       <Button x:Name="ResumePending" Content="Resume held dispatch" IsEnabled="{Binding CanResumePendingConversation}"
           AutomationProperties.HelpText="Revalidates original authority without renewing expiry, changing provider or replaying work." />
     </WrapPanel>
+    <Button x:Name="ReviewPendingClear" Content="Clear queue - review all pending" IsEnabled="{Binding CanReviewPendingClear}"
+        AutomationProperties.HelpText="Reviews only this Active ordinary conversation's complete current never-dispatched set. Running work continues. No cancellation until separate confirmation." />
+    <ScrollViewer MaxHeight="420" HorizontalScrollBarVisibility="Disabled" VerticalScrollBarVisibility="Auto">
+      <controls:NamedTextBlock Text="{Binding PendingClearText}" TextWrapping="Wrap"
+          AutomationProperties.Name="Complete pending-only clear review or actual per-entry outcomes; running work and history are preserved" />
+    </ScrollViewer>
+    <WrapPanel>
+      <Button x:Name="ConfirmPendingClear" Content="Confirm clear pending only" IsEnabled="{Binding CanConfirmPendingClear}" />
+      <Button x:Name="DiscardPendingClear" Content="Cancel pending-only review" IsEnabled="{Binding CanDiscardPendingClear}" />
+    </WrapPanel>
   </StackPanel>
 </UserControl>

@@ -19,6 +19,7 @@ public sealed partial class SessionConversationService
         internal long Revision;
         internal long ControlRevision = controlRevision;
         internal bool Paused;
+        internal bool PendingClearHeld;
         public void Dispose() => Admission.Dispose();
         internal void Pulse()
         {
@@ -41,6 +42,8 @@ public sealed partial class SessionConversationService
         internal DateTimeOffset ExpiresAt;
         internal ConversationPendingPhase Phase;
         internal bool CancelRequested;
+        internal Func<bool>? PendingCancellationCurrent;
+        internal SessionWorkspaceEntry? PendingCancellationTarget;
         internal ActivityLink Cause;
         internal Action? OnAccepted { get; } = accepted;
         internal Task Worker = Task.CompletedTask;
@@ -166,7 +169,7 @@ public sealed partial class SessionConversationService
             pending.ExpiresAt = context.ExpiresAt;
             pending.Cause = new(HostActivity.RequireCurrent().Activity!.Context);
             pending.OnAccepted?.Invoke();
-            if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+            if (!lifecycleHeld && !lane.Paused && !lane.PendingClearHeld && ReferenceEquals(lane.Entries[0], pending))
             { pending.Phase = ConversationPendingPhase.Dispatching; }
             lane.Pulse();
             var snapshot = Snapshot(pending.Target.Authority.SessionId, lane);
@@ -184,7 +187,7 @@ public sealed partial class SessionConversationService
                 remaining = pending.ExpiresAt - time.GetUtcNow();
                 if (remaining <= TimeSpan.Zero || time.GetUtcNow() < context.CreatedAt) { return ModelTurnReason.ContextExpired; }
                 token.ThrowIfCancellationRequested();
-                if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+                if (!lifecycleHeld && !lane.Paused && !lane.PendingClearHeld && ReferenceEquals(lane.Entries[0], pending))
                 {
                     pending.Phase = ConversationPendingPhase.Dispatching;
                     lane.Pulse();

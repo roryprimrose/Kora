@@ -44,10 +44,11 @@ public sealed partial class WindowsSqliteHostInteractionStore
             || question.Proposal is not null || question.ExpiresAt <= time.GetUtcNow()
             || !string.Equals(spec.Purpose, LocalModelQuestionPolicy.Purpose, StringComparison.Ordinal)
             || !string.Equals(spec.SourceId, LocalModelQuestionPolicy.SourceId, StringComparison.Ordinal)
-            || spec.Kind is not (QuestionKind.Text or QuestionKind.SingleChoice or QuestionKind.Form)
+            || spec.Kind is not (QuestionKind.Text or QuestionKind.SingleChoice or QuestionKind.MultipleChoice or QuestionKind.Form)
             || spec.Kind == QuestionKind.Form && message.Execution.Selection.Provider != ModelProviderIdentity.Ollama)
         { return false; }
         var expected = LocalModelQuestionPolicy.CreateSpec(new(spec.Text, spec.Options.Select(option => option.Label).ToArray(),
+            Minimum: spec.Minimum, Maximum: spec.Maximum,
             Fields: spec.Kind == QuestionKind.Form ? spec.Fields : null));
         return spec.Matches(expected);
     }

@@ -15,6 +15,8 @@ public sealed partial class WindowsSqliteConversationTests
     [InlineData("zero", true)]
     [InlineData("text", true)]
     [InlineData("form", true)]
+    [InlineData("multi-choice", true)]
+    [InlineData("optional-choice", true)]
     [InlineData("draft", true)]
     [InlineData("answered", true)]
     [InlineData("expired", false)]
@@ -45,7 +47,9 @@ public sealed partial class WindowsSqliteConversationTests
             if (scenario is not ("approval" or "zero"))
             {
                 var spec = LocalModelQuestionPolicy.CreateSpec(new("Choose format",
-                    scenario is "text" ? [] : ["Compact", "Detailed"]));
+                    scenario is "text" ? [] : ["Compact", "Detailed"],
+                    Minimum: scenario is "optional-choice" ? 0 : 1,
+                    Maximum: scenario is "multi-choice" ? 2 : 1));
                 if (scenario is "form")
                 {
                     spec = LocalModelQuestionPolicy.CreateSpec(ModelToolProtocol.ParseAskUser(

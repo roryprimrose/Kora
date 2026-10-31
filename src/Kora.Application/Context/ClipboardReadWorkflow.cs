@@ -6,7 +6,8 @@ namespace Kora.Application.Context;
 
 /// <summary>Admits the built-in read before native access, independently of model consent.</summary>
 public sealed class ClipboardReadWorkflow(ClipboardSnapshotBroker broker, ClipboardExplanationAdmission admission,
-    ClipboardPermissionSourceUsePolicy permissions) : IClipboardReadWorkflow
+    ClipboardPermissionSourceUsePolicy permissions,
+    Func<ClipboardSnapshot, Func<CancellationToken, Task>, CancellationToken, Task<ClipboardOutcome>>? review = null) : IClipboardReadWorkflow
 {
     public Task<ClipboardOutcome> ReadAsync(Func<bool> eligible, CancellationToken token)
     {
@@ -19,8 +20,13 @@ public sealed class ClipboardReadWorkflow(ClipboardSnapshotBroker broker, Clipbo
             {
                 var permission = await permissions.RequestReadAsync(current, admitted).ConfigureAwait(false);
                 if (permission is null) { return ClipboardOutcome.Denied; }
-                return await broker.CaptureAsync(current, admitted,
+                var outcome = await broker.CaptureAsync(current, admitted,
                     check => permissions.ValidatePermissionAsync(permission, check)).ConfigureAwait(false);
+                if (outcome != ClipboardOutcome.Captured || review is null) { return outcome; }
+                var snapshot = broker.Current;
+                if (snapshot is null) { return ClipboardOutcome.Stale; }
+                return await review(snapshot, check => permissions.ValidatePermissionAsync(permission, check), admitted)
+                    .ConfigureAwait(false);
             }
             catch (OperationCanceledException) when (admitted.IsCancellationRequested)
             { return ClipboardOutcome.Cancelled; }

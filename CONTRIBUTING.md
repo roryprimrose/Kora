@@ -175,6 +175,10 @@ consumers, including links embedded in the guide and historical experiments.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Freeze the interaction-storage fixture's timers when holding fake provider
+  turns under its frozen clock. The [queued task-output regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)
+  assert that no system timer is created, successful work joins, and original
+  expiry at and beyond 15 seconds still withholds pending output.
 - Put restricted-storage fixtures under the discovered repository root to avoid
   native path-length limits. Keep unique names, non-reparse checks and owner-only
   ACLs. Explicitly protect every enumerated root, including editor `User`,

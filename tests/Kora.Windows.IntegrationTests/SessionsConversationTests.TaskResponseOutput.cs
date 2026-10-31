@@ -116,12 +116,15 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public async Task TaskOutputSeparateSessionsAndQueuedTurnsOwnImmutableChoicesWithoutProviderPayloadFields()
+    [Theory]
+    [InlineData(0)]
+    [InlineData(14)]
+    public async Task TaskOutputSeparateSessionsAndQueuedTurnsOwnImmutableChoicesWithoutProviderPayloadFields(int elapsedSeconds)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
+        f.Time.UseFrozenTimers = true;
         var original = f.Request.SessionId;
         f.Request = InteractionStorageFixture.NewRequest();
         await f.AdmitAsync(newSession: true);
@@ -150,6 +153,7 @@ public sealed partial class SessionsConversationTests
             var firstReview = await ReviewTaskOutput(commands, firstTarget, "first", TaskResponseMode.VisualOnly, f.Token);
             var firstOperation = ConfirmTaskOutput(commands, firstReview, f.Token);
             var first = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+            f.Time.SystemTimersCreated.Should().Be(0, "held fake turns must not expire on runner wall time while the fixture clock is frozen");
             var queuedReview = await ReviewTaskOutput(commands, firstTarget, "queued", TaskResponseMode.VoiceOnly, f.Token);
             var queued = await ConfirmTaskOutput(commands, queuedReview, f.Token);
             queued.RequestSubmission!.Message.Outcome.Should().BeNull();
@@ -157,6 +161,7 @@ public sealed partial class SessionsConversationTests
             var otherOperation = ConfirmTaskOutput(otherCommands, otherReview, f.Token);
             first.Context.EnumerateObject().Select(property => property.Name).Should().NotContain("ResponseMode")
                 .And.NotContain("TaskResponseMode").And.NotContain("Output");
+            f.Time.Now = f.Time.Now.AddSeconds(elapsedSeconds);
             first.Release();
             for (var index = 0; index < 2; index++)
             {
@@ -169,6 +174,11 @@ public sealed partial class SessionsConversationTests
             await otherOperation;
             await allOutput.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
             observed.Should().HaveCount(3);
+            observed.Should().OnlyContain(item => item.Receipt.Message.Outcome == ModelTurnOutcome.Succeeded
+                && item.Receipt.Message.Reason == ModelTurnReason.ProviderOutcome
+                && item.Receipt.Task.State == HostTaskState.Succeeded
+                && item.Receipt.Message.Request.Origin == RequestOrigin.LocalUi
+                && item.Receipt.Message.AssistantResponse != null);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "first", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.VisualOnly);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "queued", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.VoiceOnly);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "other session", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.Hybrid);
@@ -177,14 +187,19 @@ public sealed partial class SessionsConversationTests
                 .Should().Be(otherTarget.Authority.SessionId);
             f.Count("conversation_drafts").Should().Be(0);
             f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
+            adapter.Calls.Should().Be(3);
+            composed.Turns.IsQuiescent.Should().BeTrue();
+            f.Time.SystemTimersCreated.Should().Be(0);
         }
         finally { adapter.ReleaseAll(); await composed.Conversation.DisposeAsync(); }
     }
 
     [Theory]
-    [InlineData(false)]
-    [InlineData(true)]
-    public async Task TaskOutputQueueNeverRenewsExpiryOrSpeaksCancelledPendingWork(bool cancel)
+    [InlineData(false, 15)]
+    [InlineData(false, 20)]
+    [InlineData(true, 0)]
+    public async Task TaskOutputQueueNeverRenewsExpiryOrSpeaksCancelledPendingWork(bool cancel, int elapsedSeconds)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
@@ -215,16 +230,23 @@ public sealed partial class SessionsConversationTests
             {
                 await composed.Conversation.CancelPendingConversationAsync(target, pending, snapshot.Revision, () => true, f.Token);
             }
-            else { f.Time.Now = f.Time.Now.AddSeconds(20); }
+            else { f.Time.Now = f.Time.Now.AddSeconds(elapsedSeconds); }
             invocation.Release();
             await active.Completion;
             var terminal = (await completed.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token)).RequireReceipt();
             terminal.Message.Outcome.Should().Be(cancel ? ModelTurnOutcome.Cancelled : ModelTurnOutcome.Denied);
             terminal.Message.Reason.Should().Be(cancel ? ModelTurnReason.CallerCancelled : ModelTurnReason.ContextExpired);
             terminal.Message.AssistantResponse.Should().BeNull();
+            terminal.Message.Execution.Should().BeNull();
+            terminal.Task.State.Should().Be(cancel ? HostTaskState.Cancelled : HostTaskState.Denied);
             outputReview!.Status.Should().Contain("withheld");
             adapter.Calls.Should().Be(1);
             outputs.Should().Be(0);
+            composed.Turns.IsQuiescent.Should().BeTrue();
+            f.Count("conversation_drafts").Should().Be(0);
+            f.Count("host_questions").Should().Be(0);
+            f.Count("scoped_grants").Should().Be(0);
+            f.Time.SystemTimersCreated.Should().Be(0);
         }
         finally { adapter.ReleaseAll(); await composed.Conversation.DisposeAsync(); }
     }

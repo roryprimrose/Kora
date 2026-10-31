@@ -283,6 +283,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
         ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null)
     {
@@ -379,6 +380,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         this.diagnosticRetentionConfiguration = diagnosticRetentionConfiguration;
         this.sessionRetentionConfiguration = sessionRetentionConfiguration;
+        this.ordinaryDeadlineConfiguration = ordinaryDeadlineConfiguration;
         this.sessionRetentionPlanner = sessionRetentionPlanner;
         if (sessionRetentionPlanner is not null) { sessionRetentionPlanner.Changed += OnSessionRetentionPlannerChanged; }
         this.auditRetentionConfiguration = auditRetentionConfiguration;
@@ -485,6 +487,11 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         RefreshSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: false, reset: false));
         SaveSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: false));
         ResetSessionRetentionCommand = CreateCommand(() => ConfigureSessionRetentionAsync(save: true, reset: true));
+        RefreshOrdinaryDeadlineCommand = CreateCommand(() => ExecuteOrdinaryDeadlineCommandAsync(
+            new(AppearanceCommandOperation.Get), SecurityAuditInitiator.LocalUser));
+        SaveOrdinaryDeadlineCommand = CreateCommand(SaveOrdinaryDeadlineAsync);
+        ResetOrdinaryDeadlineCommand = CreateCommand(() => ExecuteOrdinaryDeadlineCommandAsync(
+            new(AppearanceCommandOperation.Reset), SecurityAuditInitiator.LocalUser));
         PreviewSessionRetentionCommand = new(PreviewSessionRetentionAsync,
             exception => ApplicationLog.SessionRetentionPreviewFailed(logger, exception.GetType().Name),
             () => CanPreviewSessionRetention);
@@ -4510,6 +4517,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await ExecuteDiagnosticRetentionCommandAsync(diagnosticRetentionCommand, initiator);
             return;
         }
+        if (OrdinaryTurnDeadlineCommand.Parse(spokenText, AssistantName) is { } ordinaryDeadlineCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no task deadline change was dispatched.";
+                return;
+            }
+            await ExecuteOrdinaryDeadlineCommandAsync(ordinaryDeadlineCommand, initiator);
+            return;
+        }
         if (SessionQueueConfigurationCommand.Parse(spokenText, AssistantName) is not null)
         {
             Transcript = "Diagnostic queue settings retired. Existing records and their original deadlines are unchanged.";
@@ -6631,6 +6648,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)

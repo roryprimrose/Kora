@@ -4605,6 +4605,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(WindowsSpeechRateCommand.FixedPhrases)
             .Concat(SpeechInputCommand.FixedPhrases)
             .Concat(DiagnosticRetentionCommand.FixedPhrases)
+            .Concat(OrdinaryTurnDeadlineCommand.FixedPhrases)
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(Kora.Application.Communication.ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
@@ -8644,6 +8645,7 @@ public sealed partial class MainViewModelTests : IDisposable
             bool enableConversationalReplies = false, Exception? conversationalReadFailure = null,
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+            OrdinaryTurnDeadlineConfigurationService? ordinaryDeadlineConfiguration = null,
             bool enableConversationExecution = false,
             LogonStartupConfigurationService? logonStartupConfiguration = null)
         {
@@ -8844,6 +8846,7 @@ public sealed partial class MainViewModelTests : IDisposable
                 speechComponentSetup: speechComponentSetup,
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
+                ordinaryDeadlineConfiguration: ordinaryDeadlineConfiguration,
                 conversationExecution: ConversationExecutionConfiguration,
                 logonStartupConfiguration: logonStartupConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }

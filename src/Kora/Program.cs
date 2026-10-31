@@ -621,6 +621,8 @@ internal static class Program
         services.AddSingleton<ISessionRetentionPreferences>(provider =>
             new LocalSessionRetentionPreferences(provider.GetRequiredService<IPreferenceStore>()));
         services.AddSingleton<SessionRetentionConfigurationService>();
+        services.AddSingleton(provider => new LocalOrdinaryTurnDeadlinePreferences(provider.GetRequiredService<IPreferenceStore>()));
+        services.AddSingleton<OrdinaryTurnDeadlineConfigurationService>();
         services.AddSingleton<ISessionRetentionPlannerReader>(provider =>
             new WindowsSqliteSessionRetentionPlannerReader(interactions, paths));
         services.AddSingleton<SessionRetentionPlannerService>();

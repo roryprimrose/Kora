@@ -730,9 +730,12 @@ public sealed partial class ModelTurnHostTests : IDisposable
     {
         internal TimeSpan ExpectedDeadline { get; set; } = TimeSpan.FromSeconds(15);
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        internal long? Timestamp { get; set; }
         private TimerCallback? callback;
         private object? state;
         public override DateTimeOffset GetUtcNow() => Now;
+        public override long GetTimestamp() => Timestamp ?? Now.UtcTicks;
+        public override long TimestampFrequency => TimeSpan.TicksPerSecond;
         public override ITimer CreateTimer(TimerCallback callback, object? state, TimeSpan dueTime, TimeSpan period)
         {
             this.callback = callback;

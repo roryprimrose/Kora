@@ -957,6 +957,41 @@
             <Border Classes="settings-card">
               <StackPanel Spacing="8">
                 <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
+                  <TextBlock Text="Future ordinary task deadline" Classes="settings-title" TextWrapping="Wrap" />
+                  <controls:SettingActionsButton Grid.Column="1" SettingName="Ordinary task deadline"
+                                                 IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}">
+                    <controls:SettingActionsButton.Flyout>
+                      <MenuFlyout>
+                        <MenuItem Header="Refresh" Command="{Binding RefreshOrdinaryDeadlineCommand}"
+                                  IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" AutomationProperties.Name="Refresh future ordinary task deadline" />
+                        <Separator />
+                        <MenuItem Header="Reset to 5 minutes" Command="{Binding ResetOrdinaryDeadlineCommand}"
+                                  IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" />
+                      </MenuFlyout>
+                    </controls:SettingActionsButton.Flyout>
+                  </controls:SettingActionsButton>
+                </Grid>
+                <TextBlock Text="Choose 1-60 minutes for newly dispatched ordinary model/tool turns without user waits. Running turns and pending-request expiry are unchanged. Earlier context expiry and fixed provider/tool safety limits always win; saving a longer deadline does not extend them. Clarification and approval turns keep their existing fixed limits."
+                           Classes="settings-description" TextWrapping="Wrap" />
+                <TextBlock Text="{Binding OrdinaryDeadlineStatus}" Classes="settings-description" TextWrapping="Wrap" />
+                <controls:SettingsNumberField x:Name="OrdinaryDeadlineField" Label="Future task deadline" Unit="minutes"
+                    Value="{Binding SelectedOrdinaryDeadlineMinutes}" SavedValue="{Binding SavedOrdinaryDeadlineMinutes}"
+                    Minimum="{x:Static configuration:OrdinaryTurnDeadline.MinimumMinutes}" Maximum="{x:Static configuration:OrdinaryTurnDeadline.MaximumMinutes}"
+                    IsEnabled="{Binding CanChangeOrdinaryDeadlineNative}" />
+                <Button Content="Save" Command="{Binding SaveOrdinaryDeadlineCommand}" Classes.pending="{Binding IsOrdinaryDeadlineDraftChanged}"
+                        AutomationProperties.Name="Save future ordinary task deadline">
+                  <Button.IsEnabled>
+                    <MultiBinding Converter="{x:Static converters:BoolConverters.And}">
+                      <Binding Path="CanChangeOrdinaryDeadlineNative" />
+                      <Binding ElementName="OrdinaryDeadlineField" Path="IsInputValid" />
+                    </MultiBinding>
+                  </Button.IsEnabled>
+                </Button>
+              </StackPanel>
+            </Border>
+            <Border Classes="settings-card">
+              <StackPanel Spacing="8">
+                <Grid ColumnDefinitions="*,Auto" ColumnSpacing="24">
                   <TextBlock Text="Archive and delete inactive sessions" Classes="settings-title" TextWrapping="Wrap" />
                   <controls:SettingActionsButton Grid.Column="1" SettingName="Session inactivity retention"
                                                  IsEnabled="{Binding CanChangeSessionRetentionNative}">

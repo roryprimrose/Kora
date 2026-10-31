@@ -66,6 +66,13 @@ This bounded operation implements initial **native v1 literal, local, tool-free*
 
 Only the purpose and the two explicit fields enter one local tool-free model turn. Model output must be exactly one JSON `body` string; invented IDs, paths, tools, effects, dependencies or extra fields are rejected, not stripped. Guidance containing commands or attempted instructions remains untrusted literal data, never approval or executable metadata ([generation validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs), [native v1 document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
 
+Starting a new skill in an editor that previously saved or reopened a Markdown
+package clears only the old volatile draft's component tree, pending component
+edit and saved-source binding. An unsaved edit still requires explicit Save,
+Discard or Cancel before that reset; Cancel preserves it. The previous immutable
+package is unchanged. Initial generation starts with native v1 and references
+none; it does not reuse the old package's content or enablement.
+
 Complete serialized model input must fit **32768 bytes** and the complete two-file source **64 KiB**; there is no truncation. Missing fields, malformed output, provider failure, cancellation or late results do not save or enable anything. Draft/clarification/name/source/catalogue changes retire proposals; occupied or ambiguous names require choosing another name or cancelling, never automatic overwrite. Cancellation retains originals and the volatile draft; the host owns an ignoring model until it joins ([proposal lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [atomic store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)).
 
 ## Complete operation

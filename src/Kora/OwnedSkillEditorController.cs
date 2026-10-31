@@ -150,6 +150,7 @@ internal sealed partial class OwnedSkillEditorController(
                 case "editor": break;
                 case "create":
                     if (!await DiscardOrSave()) { return; }
+                    ResetDraft(opened);
                     opened.IdInput.Text = command.Id ?? "";
                     opened.VersionInput.Text = command.Version ?? "1.0.0";
                     opened.NameInput.Text = "";
@@ -157,15 +158,10 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Guidance.Text = "";
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
-                    opened.LoadComponents(null);
                     opened.Critique.Text = "";
-                    source = null;
-                    initialAuthority = null;
-                    generatedBase = null;
                     opened.Purpose.Text = "";
                     opened.ExpectedInput.Text = "";
                     opened.ExpectedOutput.Text = "";
-                    CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
@@ -302,6 +298,16 @@ internal sealed partial class OwnedSkillEditorController(
         ShowSaved(opened, saved);
         opened.Report("Every exact declared file durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
         return true;
+    }
+
+    private void ResetDraft(OwnedSkillEditorWindow opened)
+    {
+        CancelRefinement();
+        source = null;
+        initialAuthority = null;
+        generatedBase = null;
+        validated = null;
+        opened.LoadComponents(null);
     }
 
     private void ShowSaved(OwnedSkillEditorWindow opened, OwnedDeclarativeSkillSnapshot saved)

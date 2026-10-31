@@ -20,18 +20,32 @@ internal sealed partial class OwnedSkillEditorController
         { throw new InvalidOperationException("List and select the exact saved package or retained rename first."); }
         var newId = command.Literal ?? opened.RenameId.Text;
         var exact = Interlocked.Read(ref generation);
-        bool Current() => Eligible() && authority.IsCurrent() && !dirty && exact == Interlocked.Read(ref generation);
+        bool Current() => ReferenceEquals(window, opened) && Eligible() && authority.IsCurrent()
+            && !dirty && exact == Interlocked.Read(ref generation);
         if (invocation is not null) { await invocation.CloseAndWait(); }
         var saved = await renames.Rename(id, version, newId, recovery, authority, Current, opened, lifetime.Token);
         if (saved is null) { return; }
-        if (!Current())
-        { throw new OwnedSkillRenameUnconfirmedException(OwnedSkillRenameEffect.NativeReadbackVerified,
-            new InvalidOperationException("The editor changed before result adoption; its draft was retained.")); }
-        opened.Saved.ItemsSource = await workflow.List(authority, lifetime.Token);
-        opened.PendingRenames.ItemsSource = await renames.Pending(authority, lifetime.Token);
-        if (saved.Document.ObservationWorkflow is null) { ShowSaved(opened, saved); }
-        else { validated = null; source = null; dirty = false; uncertain = false; }
-        opened.Report("Complete package rename and old-name absence verified. New identity is inactive; old references were not retargeted. "
-            + "List/Reopen the exact new ID/version; use requires fresh independent review. Observation workflows retain their separate editor.");
+        void RequireAdoptionCurrent()
+        {
+            if (!Current())
+            { throw new OwnedSkillRenameUnconfirmedException(OwnedSkillRenameEffect.NativeReadbackVerified,
+                new InvalidOperationException("The editor changed before result adoption; its draft was retained.")); }
+        }
+        try
+        {
+            RequireAdoptionCurrent();
+            var rows = await workflow.List(authority, lifetime.Token);
+            var pendingRenames = await renames.Pending(authority, lifetime.Token);
+            RequireAdoptionCurrent();
+            opened.Saved.ItemsSource = rows;
+            opened.PendingRenames.ItemsSource = pendingRenames;
+            RequireAdoptionCurrent();
+            if (saved.Document.ObservationWorkflow is null) { ShowSaved(opened, saved); }
+            else { validated = null; source = null; dirty = false; uncertain = false; }
+            opened.Report("Complete package rename and old-name absence verified. New identity is inactive; old references were not retargeted. "
+                + "List/Reopen the exact new ID/version; use requires fresh independent review. Observation workflows retain their separate editor.");
+        }
+        catch (Exception exception) when (exception is not (OwnedSkillRenameUnconfirmedException or OutOfMemoryException))
+        { throw new OwnedSkillRenameUnconfirmedException(OwnedSkillRenameEffect.NativeReadbackVerified, exception); }
     }
 }

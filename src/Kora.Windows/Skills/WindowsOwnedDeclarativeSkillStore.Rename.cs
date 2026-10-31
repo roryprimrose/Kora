@@ -106,7 +106,7 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                         intent = WriteRenameIntent(updated, intent, eligible, token);
                         Checkpoint?.Invoke("rename-intent-durable");
                         RequireOriginal(proposal, token);
-                    });
+                    }, proposal);
                 }
                 else
                 {
@@ -115,6 +115,27 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                     { throw new InvalidDataException("The retained destination identity or complete bytes changed. Nothing was overwritten or deleted."); }
                 }
                 effect = OwnedSkillRenameEffect.DestinationPublished;
+                var destinationPath = Destination(next);
+                using var destinationPins = new OwnedSkillPackagePublication();
+                var destinationHandle = destinationPins.PinDirectory(destinationPath);
+                using var destinationManifest = WindowsOwnedDefinitionFileAccess.PinDefinitionFile(Path.Combine(destinationPath, "manifest.yaml"));
+                using var destinationInstructions = WindowsOwnedDefinitionFileAccess.PinDefinitionFile(Path.Combine(destinationPath, "instructions.md"));
+                if (!saved.IsSameRevision(ReadPackage(destinationPath, token, destinationHandle)))
+                { throw new InvalidDataException("The destination changed before it could be held for source retirement."); }
+                void VerifyRetirementScope()
+                {
+                    RequireIntentCurrent(intent!, token);
+                    directory.Verify();
+                    directory.VerifyOwnedSkillDirectory(sourceParentPath);
+                    directory.VerifyOwnedSkillDirectory(destinationParentPath);
+                    directory.VerifyOwnedSkillDirectory(destinationPath);
+                    directory.VerifyFile(Path.Combine(destinationPath, "manifest.yaml"));
+                    directory.VerifyFile(Path.Combine(destinationPath, "instructions.md"));
+                    OwnedSkillPackagePublication.Verify(destinationHandle, destinationPath, directory: true);
+                    OwnedSkillPackagePublication.Verify(destinationManifest, Path.Combine(destinationPath, "manifest.yaml"), directory: false);
+                    OwnedSkillPackagePublication.Verify(destinationInstructions, Path.Combine(destinationPath, "instructions.md"), directory: false);
+                    _ = Catalogue(pins, token);
+                }
                 RequireCurrent(eligible, token);
                 Checkpoint?.Invoke("rename-destination-verified");
                 if (!intent!.Destination().IsSameRevision(saved))
@@ -122,14 +143,14 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
                 RequireIntentCurrent(intent, token);
                 if (!recovery) { RequireOriginal(proposal, token); }
                 effect = OwnedSkillRenameEffect.SourceRetirementStarted;
-                RetireRenameSource(proposal, recovery, eligible, token);
+                RetireRenameSource(proposal, recovery, eligible, VerifyRetirementScope, token);
                 Checkpoint?.Invoke("rename-source-retired");
                 RequireCurrent(eligible, token);
-                var readback = ReadPackage(Destination(next), token);
+                var readback = ReadPackage(destinationPath, token, destinationHandle);
                 if (!saved.IsSameRevision(readback)
                     || ExactChild(sourceParentPath, old.Version, SharedSkillCatalogue.MaximumPackages) is not null)
                 { throw new IOException("Complete destination identity/bytes or original-name absence is unconfirmed."); }
-                RequireIntentCurrent(intent, token);
+                VerifyRetirementScope();
                 RequireCurrent(eligible, token);
                 OwnedSkillPackagePublication.DeleteExactFile(Path.Combine(RenameDirectory, IntentName(intent)), intent.FileIdentity!);
                 observedRenameIntents.Remove(IntentName(intent));
@@ -154,7 +175,8 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
         { throw new InvalidOperationException("The original package identity or complete bytes changed. Start a fresh review."); }
     }
 
-    private void RetireRenameSource(OwnedSkillRename proposal, bool recovery, Func<bool> eligible, CancellationToken token)
+    private void RetireRenameSource(OwnedSkillRename proposal, bool recovery, Func<bool> eligible,
+        Action verifyRetirementScope, CancellationToken token)
     {
         var old = proposal.Original.Document;
         var parent = Path.Combine(directory.Root, old.Id);
@@ -172,34 +194,57 @@ public sealed partial class WindowsOwnedDeclarativeSkillStore
         var names = Directory.EnumerateFileSystemEntries(source).Take(3).Select(Path.GetFileName).ToArray();
         if ((!recovery && names.Length != 2) || names.Any(name => name is not ("manifest.yaml" or "instructions.md")))
         { throw new InvalidDataException("Unexpected source members were retained, not recursively deleted."); }
-        var files = new List<SafeFileHandle>();
+        var files = new List<(string Path, SafeFileHandle Handle, string Identity, ReadOnlyMemory<byte> Bytes)>();
         try
         {
             foreach (var name in names)
             {
                 var path = Path.Combine(source, name!);
                 var file = OwnedSkillPackagePublication.OpenForDeletion(path);
-                files.Add(file);
-                directory.VerifyFile(path);
                 var manifest = name is "manifest.yaml";
-                if (!string.Equals(WindowsFileIdentity.Read(file),
-                    manifest ? proposal.Original.ManifestIdentity : proposal.Original.InstructionsIdentity, StringComparison.Ordinal)
+                var identity = manifest ? proposal.Original.ManifestIdentity : proposal.Original.InstructionsIdentity;
+                var bytes = manifest ? old.ManifestBytes : old.InstructionBytes;
+                files.Add((path, file, identity, bytes));
+                directory.VerifyFile(path);
+                if (!string.Equals(WindowsFileIdentity.Read(file), identity, StringComparison.Ordinal)
                     || !ReadBytes(file, SharedSkillSnapshot.MaximumBytes, token).AsSpan()
-                        .SequenceEqual((manifest ? old.ManifestBytes : old.InstructionBytes).Span))
+                        .SequenceEqual(bytes.Span))
                 { throw new InvalidDataException("An original component changed. No substituted component was deleted."); }
             }
             Checkpoint?.Invoke("rename-before-retirement");
+            void VerifyRemainingSource()
+            {
+                verifyRetirementScope();
+                directory.VerifyOwnedSkillDirectory(source);
+                OwnedSkillPackagePublication.Verify(handle, source, directory: true);
+                if (!string.Equals(WindowsFileIdentity.Read(handle), proposal.Original.DirectoryIdentity, StringComparison.Ordinal))
+                { throw new InvalidDataException("The held source directory identity changed."); }
+                var remaining = files.Where(file => !file.Handle.IsClosed).ToArray();
+                if (!Directory.EnumerateFileSystemEntries(source).Take(3).Select(Path.GetFileName).Order(StringComparer.Ordinal)
+                    .SequenceEqual(remaining.Select(file => Path.GetFileName(file.Path)).Order(StringComparer.Ordinal), StringComparer.Ordinal))
+                { throw new InvalidDataException("Source membership changed. Unreviewed entries were retained, not deleted."); }
+                foreach (var held in remaining)
+                {
+                    directory.VerifyFile(held.Path);
+                    OwnedSkillPackagePublication.Verify(held.Handle, held.Path, directory: false);
+                    if (!string.Equals(WindowsFileIdentity.Read(held.Handle), held.Identity, StringComparison.Ordinal)
+                        || !ReadBytes(held.Handle, SharedSkillSnapshot.MaximumBytes, token).AsSpan().SequenceEqual(held.Bytes.Span))
+                    { throw new InvalidDataException("A held original component changed. Nothing outside the exact source was retired."); }
+                }
+            }
             foreach (var file in files)
             {
+                VerifyRemainingSource();
                 RequireCurrent(eligible, token);
-                OwnedSkillPackagePublication.MarkDeleted(file);
-                file.Dispose();
+                OwnedSkillPackagePublication.MarkDeleted(file.Handle);
+                file.Handle.Dispose();
                 Checkpoint?.Invoke("rename-component-retired");
             }
+            VerifyRemainingSource();
             RequireCurrent(eligible, token);
             OwnedSkillPackagePublication.MarkDeleted(handle);
         }
-        finally { foreach (var file in files) { file.Dispose(); } }
+        finally { foreach (var file in files) { file.Handle.Dispose(); } }
     }
 
     private static string IntentName(RenameIntent intent) => Convert.ToHexStringLower(SHA256.HashData(

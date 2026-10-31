@@ -6,7 +6,7 @@ using Kora.Windows.Storage;
 
 namespace Kora.Windows.IntegrationTests.Skills;
 
-public sealed class OwnedSkillRenameTests
+public sealed partial class OwnedSkillRenameTests
 {
     private static CancellationToken Token => TestContext.Current.CancellationToken;
     private static OwnedDeclarativeSkillDocument Document(string id = "example", string version = "1.0.0") =>

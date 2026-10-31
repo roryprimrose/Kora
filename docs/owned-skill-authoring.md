@@ -24,11 +24,13 @@ Rename changes a saved package's canonical ID, not its readable name, version or
    The new identity remains inactive and needs fresh independent use review, enablement and any action permission ([native operation](../src/Kora/OwnedSkillEditorController.Rename.cs), [review controls](../src/Kora/OwnedSkillEditorWindow.cs)).
 
 Only the exact manifest ID changes; complete guidance bytes, version, readable name and supported declarations remain unchanged. Other packages and other versions are retained.
+If you edit the open draft while the post-rename list refresh is running, your new text and its unsaved-draft prompt remain intact. An unconfirmed presentation does not undo the native rename; inspect the exact names before taking another action.
 External references stay bound to the old identity and are not rewritten; old reviews cannot follow the new ID or revive when old bytes are restored ([use-authority regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillRename.cs)).
 
 Publication and old-source retirement are **recoverable steps, not an atomic transaction**. After an uncertain result, do not repeat Rename or overwrite either name.
 **List** exposes retained pending renames; select one and choose **Recover selected rename**, or type `owned skill recover-rename example 1.0.0` using the original ID/version. Review both complete packages and separately confirm **Resume only retained rename**.
 Both identities remain unavailable while intent is retained, including after restart; unrelated packages remain available ([recovery tests](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillRenameTests.cs)).
+Pending renames still count toward the saved-version and total-byte limits. Resolve retained renames before adding packages when that reserved capacity is full; recovery refuses an already over-limit inventory rather than releasing a broken catalogue.
 
 Changed source components, destination identity/bytes, parents or corrupt retained intent stop recovery without overwrite or deletion of substitutions. Keep both names and the private local intent for explicit inspection; no automatic rollback/retry is claimed.
 If no pending intent remains after an unconfirmed terminal receipt, inspect both exact old/new names with List/Reopen rather than retrying.

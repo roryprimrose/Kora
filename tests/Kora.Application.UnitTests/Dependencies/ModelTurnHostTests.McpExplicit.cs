@@ -4,6 +4,7 @@ using AwesomeAssertions;
 using Kora.Application.Hosting;
 using Kora.Application.Mcp;
 using Kora.Core.Dependencies;
+using Kora.Core.Diagnostics;
 using Kora.Core.Hosting;
 using Kora.Core.Mcp;
 using Kora.Core.Storage;
@@ -310,6 +311,41 @@ public sealed partial class ModelTurnHostTests
         result.Result.Should().BeNull();
         broker.Methods.Should().Equal("initialize", "tools/list");
         broker.Disposed.Should().BeTrue();
+        f.Retained.Should().BeNull();
+        f.Adapter.Calls.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task Explicit_mcp_cancellation_during_post_join_validation_suppresses_the_completed_read(bool cancelledRead)
+    {
+        using var f = new Fixture();
+        using var source = new McpSource();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var originalPostJoinReads = 0;
+        var broker = new McpBroker(source.Account)
+        {
+            AfterDispose = () => f.OnRead = () =>
+            {
+                if (HostActivity.Current?.Request.InvocationId is null && ++originalPostJoinReads == 2)
+                {
+                    cancellation.Cancel();
+                    if (cancelledRead) { cancellation.Token.ThrowIfCancellationRequested(); }
+                }
+            },
+        };
+        var approvals = new McpApprovals(f);
+        var service = McpService(f, f.Host, source, broker, approvals, await source.Policy());
+        var result = await service.InvokeMcpAsync(new(f.Session, null), source.ServerId, source.Account,
+            approvals.Present, McpSelect, ExplicitMcpInput, static () => true, cancellation.Token);
+        cancellation.IsCancellationRequested.Should().BeTrue();
+        result.Outcome.Should().Be(McpExplicitOutcome.Cancelled);
+        result.DurableState.Should().Be(HostTaskState.Unknown);
+        result.Result.Should().BeNull();
+        broker.Disposed.Should().BeTrue();
+        broker.DisposeCalls.Should().Be(1);
+        broker.Methods.Should().Equal("initialize", "tools/list", "tools/call");
         f.Retained.Should().BeNull();
         f.Adapter.Calls.Should().Be(0);
     }

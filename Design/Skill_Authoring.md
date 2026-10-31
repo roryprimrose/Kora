@@ -177,6 +177,7 @@ The MVP authoring writer accepts only a validated package:
 Use safe parsing with size/depth/step limits and reject unknown executable directives.
 No inline evaluation, shell commands, scripts, assemblies, native libraries, arbitrary executable paths, installer hooks, or custom validators are allowed.
 Registered tool references do not allow a skill to install or redefine the tool implementation.
+The separately reviewed [shared-skill MCP reference](Skill_Storage.md#reviewed-exact-read-only-mcp-skill) pins one existing host-admitted read-only dependency; it adds no MCP option to the owned skill writer and grants no account, connection or invocation permission.
 A skill needing a new executable capability can describe the missing dependency, but installing that implementation is an out-of-band developer/operator action.
 This restriction applies to user authoring. [Bundled skills](Built_In_Skills.md) may ship protected first-party scripts installed with the application.
 Neither bundled script execution nor user-authored executable skills ship in

@@ -71,6 +71,9 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
         StopVoiceReply();
         voicePresenterCount++;
         visibleVoicePresenter = visible;
+        if (voicePresenterCount > 1 && string.Equals(question.Spec.Purpose,
+            Kora.Application.Skills.OwnedSkillInputQuestions.Purpose, StringComparison.Ordinal))
+        { Close("Competing skill input presenters retired this collection. Start a fresh exact source review."); }
     }
 
     internal Task AnswerByVoiceAsync(bool afterPlayback = false)

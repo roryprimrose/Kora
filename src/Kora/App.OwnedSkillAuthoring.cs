@@ -40,7 +40,7 @@ public sealed partial class App
                 Services.GetRequiredService<TimeProvider>()),
             useWorkflow, Services.GetRequiredService<SharedSkillInvocationWorkflow>(),
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
-            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>());
+            Services.GetRequiredService<ILogger<NamedSkillInvocationController>>(), questionWindow);
         namedSkillInvocation.Bind();
         var observations = new ObservationWorkflowController(main, workflow, useWorkflow,
             new(useWorkflow, admission, Services.GetRequiredService<Kora.Application.Tools.ReadOnlyCapabilityRegistry>(),

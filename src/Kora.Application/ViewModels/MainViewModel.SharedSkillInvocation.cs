@@ -12,7 +12,7 @@ public sealed partial class MainViewModel
     public void BindSharedSkillUseShutdown(Func<Task>? shutdown) => sharedSkillUseShutdown = shutdown;
     private Task CloseSharedSkillUse() => sharedSkillUseShutdown?.Invoke() ?? Task.CompletedTask;
 
-    public event Func<NamedSkillCommand, RequestOrigin, Func<bool>, Task>? NamedSkillInvocationRequested;
+    public event Func<NamedSkillCommand, RequestOrigin, OwnedSkillAuthoringAuthority, Task>? NamedSkillInvocationRequested;
     private Func<Task>? namedSkillUseShutdown;
     private Func<Func<bool>>? namedSkillChoiceCapture;
     public void BindNamedSkillUseShutdown(Func<Task>? shutdown) => namedSkillUseShutdown = shutdown;
@@ -40,8 +40,14 @@ public sealed partial class MainViewModel
         }
         if (NamedSkillInvocationRequested is not { } route)
         { Transcript = "Reviewed named skill use is unavailable in this host. No fallback was run."; return; }
-        await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin,
-            () => route(command, input.Origin, eligible), operation: HostOperation.Request));
+        await uiDispatcher.InvokeAsync(() => HostRequestRunner.RunAsync(input.Origin, async () =>
+        {
+            if (!eligible()) { ReportHostInteractionFailure("Original named skill input expired."); return; }
+            var questions = command.Action is "Review" && input.Origin == RequestOrigin.ActivatedVoice
+                ? new OwnedSkillQuestionContinuation(input.Eligible, input.SkillQuestionEligible, () => voiceRecognition.Generation) : null;
+            var current = questions is null ? eligible : CaptureSkillReviewEligibility(input, questions);
+            await route(command, input.Origin, new(input.Origin, current) { Questions = questions });
+        }, operation: HostOperation.Request));
     }
 
     private async Task ExecuteSharedSkillInvocation(SharedSkillInvocationCommand command, string text,

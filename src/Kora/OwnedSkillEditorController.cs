@@ -94,6 +94,8 @@ internal sealed partial class OwnedSkillEditorController(
             lifetime = new();
             window = new(action => Start(action is "create"
                 ? new(action, window?.IdInput.Text, window?.VersionInput.Text)
+                : action is "apply-component" ? new("reference", Literal: window?.ComponentBody.Text, InputName: window?.ComponentPath.Text)
+                : action is "remove-component" ? new("remove-reference", InputName: window?.ComponentPath.Text)
                 : new(action), new(RequestOrigin.LocalUi, Eligible)), Eligible);
             window.DraftChanged += () =>
             {
@@ -162,6 +164,7 @@ internal sealed partial class OwnedSkillEditorController(
                 case "editor": break;
                 case "create":
                     if (!await DiscardOrSave()) { return; }
+                    ResetDraft(opened);
                     opened.IdInput.Text = command.Id ?? "";
                     opened.VersionInput.Text = command.Version ?? "1.0.0";
                     opened.NameInput.Text = "";
@@ -170,15 +173,9 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
-                    opened.Fixture.Text = "";
-                    fixtureAuthority = null;
-                    source = null;
-                    initialAuthority = null;
-                    generatedBase = null;
                     opened.Purpose.Text = "";
                     opened.ExpectedInput.Text = "";
                     opened.ExpectedOutput.Text = "";
-                    CancelRefinement();
                     dirty = false;
                     uncertain = false;
                     opened.Report("New volatile declarative draft. Supply metadata, exact host capability selection and literal guidance, then Validate.");
@@ -193,6 +190,9 @@ internal sealed partial class OwnedSkillEditorController(
                 case "name": opened.NameInput.Text = command.Literal; break;
                 case "description": opened.DescriptionInput.Text = command.Literal; break;
                 case "guidance": opened.Guidance.Text = command.Literal; break;
+                case "reference": opened.ApplyComponent(command.InputName!, command.Literal!); break;
+                case "remove-reference": opened.RemoveComponent(command.InputName!); break;
+                case "package-format": opened.InputFormat.SelectedIndex = 2; break;
                 case "critique":
                     CancelRefinement();
                     opened.Critique.Text = command.Literal;
@@ -227,7 +227,7 @@ internal sealed partial class OwnedSkillEditorController(
                     validated = pendingRefinement is { } proposal
                         ? proposal.IsCurrent() ? proposal.Proposed : throw new InvalidOperationException("The refinement expired. Generate and review again.")
                         : opened.Document();
-                    opened.Report("Valid native TWO-file package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
+                    opened.Report("Valid native complete package" + (pendingRefinement is null ? "" : " from the reviewed guidance proposal")
                         + ". No publication, enablement, tool permission or invocation.");
                     break;
                 case "save": await Save(); break;
@@ -245,6 +245,7 @@ internal sealed partial class OwnedSkillEditorController(
                     await invocation.Handle(new("use", useId, useVersion), authority, Eligible);
                     break;
                 case "enable":
+                case "read-references":
                 case "targets":
                 case "next-targets":
                 case "target":
@@ -264,10 +265,18 @@ internal sealed partial class OwnedSkillEditorController(
                     var version = command.Version ?? selected?.Document.Version;
                     if (id is null || version is null) { throw new InvalidOperationException("Select an exact saved version before reopening."); }
                     if (!await DiscardOrSave()) { return; }
-                    var saved = await workflow.Read(id, version, original!, lifetime.Token)
+                    var saved = await workflow.Read(id, version, original!, lifetime.Token, OwnedSkillReadScope.PrimaryDeclaration)
                         ?? throw new InvalidDataException("The exact saved skill version is absent.");
                     if (saved.Document.ObservationWorkflow is not null)
                     { throw new InvalidOperationException("Use the separate owned skill workflow editor for this declarative observation source; its steps cannot become literal guidance."); }
+                    if (!saved.Document.IsComplete)
+                    {
+                        if (!await opened.ConfirmComponentRead(saved, lifetime.Token) || !Eligible()) { return; }
+                        var complete = await workflow.Read(id, version, original!, lifetime.Token, expectedPrimary: saved)
+                            ?? throw new InvalidDataException("The exact declared package is missing.");
+                        if (!saved.IsSamePrimary(complete)) { throw new InvalidDataException("The reviewed component declaration changed; reopen again."); }
+                        saved = complete;
+                    }
                     if (!Eligible()) { return; }
                     ShowSaved(opened, saved);
                     break;
@@ -293,13 +302,35 @@ internal sealed partial class OwnedSkillEditorController(
         var document = validated ?? throw new InvalidOperationException("Validate this exact draft before Save.");
         var exact = Interlocked.Read(ref generation);
         bool Current() => Eligible() && exact == Interlocked.Read(ref generation) && ReferenceEquals(validated, document);
+        var savedSource = source;
+        async Task ValidateSource(CancellationToken token)
+        {
+            if (savedSource is null) { return; }
+            var actual = await workflow.Read(savedSource.Document.Id, savedSource.Document.Version, original, token,
+                expectedPrimary: savedSource);
+            if (actual is null || !savedSource.IsSameRevision(actual))
+            { throw new InvalidDataException("The original owned package changed or was replaced. Reopen and review; no new tree was published."); }
+        }
         var saved = pendingRefinement is { } proposal
             ? await refinement!.Save(proposal, opened, Current, lifetime.Token)
-            : await workflow.Save(document, original, Current, opened, lifetime.Token);
+            : await workflow.Save(document, original, Current, opened, lifetime.Token, ValidateSource, savedSource);
         if (saved is null || !Current()) { return false; }
         ShowSaved(opened, saved);
-        opened.Report("Both exact files durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
+        opened.Report("Every exact declared file durably read back. Saved inactive/unselected; nothing invoked. List and select Use for separate exact-version review.");
         return true;
+    }
+
+    private void ResetDraft(OwnedSkillEditorWindow opened)
+    {
+        CancelRefinement();
+        CancelFixture();
+        opened.Fixture.Text = "";
+        fixtureAuthority = null;
+        source = null;
+        initialAuthority = null;
+        generatedBase = null;
+        validated = null;
+        opened.LoadComponents(null);
     }
 
     private void ShowSaved(OwnedSkillEditorWindow opened, OwnedDeclarativeSkillSnapshot saved)
@@ -314,7 +345,8 @@ internal sealed partial class OwnedSkillEditorController(
         opened.DescriptionInput.Text = saved.Document.Description;
         opened.Guidance.Text = saved.Document.Guidance;
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
-        opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
+        opened.InputFormat.SelectedIndex = saved.Document.ReferenceDeclaration is not null ? 2 : saved.Document.InputTemplate is null ? 0 : 1;
+        opened.LoadComponents(saved);
         opened.Critique.Text = "";
         opened.Fixture.Text = "";
         fixtureAuthority = null;

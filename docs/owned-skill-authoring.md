@@ -9,6 +9,8 @@ The separate [native observation workflow](#author-and-run-an-ordered-host-obser
 
 Start with [a purpose](#create-a-new-skill-from-a-purpose) or [manual create and save](#complete-operation), then
 [review a saved version for use](#review-and-invoke-one-saved-revision).
+For a primary skill plus separate notes, use the [Markdown component package
+operation](#author-a-markdown-component-package), not one combined guidance field.
 The [file format](#native-v1-format) is needed only if you inspect the saved
 files; the native editor prepares them for you.
 
@@ -64,6 +66,13 @@ This bounded operation implements initial **native v1 literal, local, tool-free*
 
 Only the purpose and the two explicit fields enter one local tool-free model turn. Model output must be exactly one JSON `body` string; invented IDs, paths, tools, effects, dependencies or extra fields are rejected, not stripped. Guidance containing commands or attempted instructions remains untrusted literal data, never approval or executable metadata ([generation validation](../src/Kora.Application/Skills/OwnedSkillGuidanceRefinementService.cs), [native v1 document](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
 
+Starting a new skill in an editor that previously saved or reopened a Markdown
+package clears only the old volatile draft's component tree, pending component
+edit, simulated fixture and its authority, and saved-source binding. An unsaved edit still requires explicit Save,
+Discard or Cancel before that reset; Cancel preserves it. The previous immutable
+package is unchanged. Initial generation starts with native v1 and references
+none; it does not reuse the old package's content or enablement.
+
 Complete serialized model input must fit **32768 bytes** and the complete two-file source **64 KiB**; there is no truncation. Missing fields, malformed output, provider failure, cancellation or late results do not save or enable anything. Draft/clarification/name/source/catalogue changes retire proposals; occupied or ambiguous names require choosing another name or cancelling, never automatic overwrite. Cancellation retains originals and the volatile draft; the host owns an ignoring model until it joins ([proposal lifecycle](../src/Kora/OwnedSkillEditorController.Refinement.cs), [atomic store](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)).
 
 ## Complete operation
@@ -100,6 +109,91 @@ old voice or draft authority. A retired draft can only be explicitly discarded
 or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
+
+## Author a Markdown component package
+
+The [native v5 component editor](../src/Kora/OwnedSkillEditorWindow.cs) creates one
+Kora-owned declarative skill with separate finite Markdown reference files.
+It is not a script package, shared-profile editor or executable workflow.
+Initial generation/refinement and v3 input substitution remain separate;
+v5 guidance and reference text, including `${input:name}`, stay literal.
+
+1. Create a new ID/version, name, description and primary guidance as above.
+2. Select **Declared Markdown component package (native v5; literal; no tools)**,
+   or enter `owned skill format markdown-package`. Select **No tools**.
+3. Enter an exact package-relative path and its complete literal Markdown body
+   in the component controls, then **Apply component**. For example:
+   `owned skill reference references\guide.md: Review the original prose for clarity.`
+   Add another with `owned skill reference rubric.md: Separate observations from assumptions.`
+   The native body field supports multiline text; this does not read a source file.
+4. Select a declared path to inspect/edit its own body. Apply it again to replace
+   only that staged component. **Remove component**, or
+   `owned skill remove-reference rubric.md`, explicitly removes that path from
+   the next proposed tree. Unapplied component edits must be applied or removed
+   before Validate; switching format cannot silently drop components.
+5. **Validate**, then **Save**. Review the complete original and proposed trees,
+   added/modified/removed paths, exact text/byte counts, source, destination and
+   whole-package digest. Continue to the **separate native publication
+   confirmation** and choose **Publish exact new version**. Every component
+   is published together, disabled, with no overwrite, enablement or execution.
+6. After restart, **List** shows saved versions without reading reference bodies.
+   **Reopen** first shows the exact primary declaration. Separately authorize
+   only those declared owned Markdown reads to inspect the complete saved tree.
+   To edit it, choose a **new version**; the original remains immutable and is
+   checked/pinned through publication. Changed or replaced source means reopen
+   and review again, not overwrite or silently copy a newer tree.
+7. For use, enter `owned skill use <id> <version>`. Review the primary files and
+   declared relative paths; no reference bodies have been read yet. Choose
+   **Authorize only the exact declared owned Markdown reads**, or
+   `owned skill read-references`. Review the **complete primary and every
+   reference**, then separately **Enable exact reviewed revision once**.
+8. Select one existing Active conversation, supply the unchanged original task,
+   preview the complete local invocation and separately confirm it as in the
+   existing use operation. The original task and genuine answer or truthful
+   unavailable/failure terminal are retained there. **Using one for an answer
+   remains unavailable in this build** while the local runtime is unqualified;
+   there is no hosted fallback, tool send or automatic retry.
+
+Readable-name selection uses the same separate owned-component read consent and
+complete reviewed consumer. Typed and current-name activated commands preserve
+the original channel; final publication remains a distinct native confirmation
+([authoring route](../src/Kora.Application/Skills/OwnedSkillAuthoringCommand.cs),
+[reviewed use](../src/Kora.Application/Skills/OwnedSkillInvocationWorkflow.cs)).
+
+Paths are one to four distinct lowercase ASCII Markdown names, optionally in
+directories such as `references\guide.md`, with at most four segments. Each
+segment is at most 64 characters, each whole path at most 240. Absolute/UNC/URL
+paths, slash aliases, traversal, device names, reparse points, hardlinks,
+streams, undeclared/missing entries and unsupported binary/executable content
+are rejected. References cannot read further references or contain active
+markup/URLs/executable fences. The primary may link only to its declared paths.
+No automatic discovery, imports, scripts, hooks, assemblies, plugins, tool
+implementations or model-selected paths are supported
+([shared declaration](../src/Kora.Core/Skills/SharedSkillReferenceDeclaration.cs),
+[owned format](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
+
+Each reference is nonempty strict UTF-8, at most 16 KiB; the **entire** package,
+including manifest and instructions, is at most 64 KiB. The saved catalogue
+holds at most 32 immutable versions and 1 MiB across all complete stored
+packages. List counts declared reference sizes without reading their bodies;
+an oversized catalogue fails without returning a partial list.
+The **complete serialized
+input** also must fit 32768 bytes, including escaped metadata, primary, every
+reference, policy and original task. These are aggregate limits, not independent
+budgets to multiply. Nothing is truncated or omitted. v5 uses the same closed
+eight-field manifest with `kora-skill-format: 5`, `tools: none` and an ordered
+`references: references\guide.md, rubric.md` declaration. Unknown formats require
+an explicit compatible migration; old v1/v2/v3 bytes are never reinterpreted
+([canonical context](../src/Kora.Core/Skills/OwnedSkillGuidanceContext.cs)).
+
+Saving is not proof of harmlessness or permission to use a component.
+Source edits/replacement, component exclusion/revocation, ownership, privacy,
+call/channel/task/session retirement or cancellation invalidate pending use.
+Read/model resources are joined even when cancellation is ignored; late content
+cannot revive authority. Unconfirmed publication retains the existing explicit
+List/Reopen recovery and is **not a rollback** or an invitation to retry Save
+([publication regressions](../tests/Kora.Windows.IntegrationTests/Skills/OwnedSkillMarkdownPublicationTests.cs),
+[whole-operation regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.OwnedSkillMarkdown.cs)).
 
 ## Refine the current instruction-only guidance
 
@@ -169,7 +263,7 @@ The [workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs) acce
 
 The complete model envelope must fit **32768 bytes**; output uses the existing model output bound. Nothing is truncated or automatically rewritten. Source, draft, fixture or saved-selection edits, original-channel/privacy/ownership loss, provider configuration changes, stale host generations and two-minute expiry invalidate the pending run/result ([editor owner](../src/Kora/OwnedSkillEditorController.Fixtures.cs)).
 
-This is **SIMULATED structure/example behavior only**, not a real observation, proof of harmlessness, qualification, trust or permission. No actual tools, network, shell, files, MCP, grants, history, memory, attachments, hosted fallback or source expansion are authorized. Fixtures stay in memory, separate from the unchanged skill format. **Save**, **Enable**, **Use** and any independently admitted real trial retain their own reviews and normal permissions; passing a fixture does none of them.
+This is **SIMULATED structure/example behavior only**, not a real observation, proof of harmlessness, qualification, trust or permission. No actual tools, network, shell, files, MCP, grants, history, memory, attachments, hosted fallback or source expansion are authorized. Fixtures stay in memory, separate from the unchanged skill format. Both the draft and any reopened source must be native v1; native v5 declaration or complete reference packages are refused before source reads, review or inference, even if their primary text is inert. **Save**, **Enable**, **Use** and any independently admitted real trial retain their own reviews and normal permissions; passing a fixture does none of them.
 
 ## Review and invoke one saved revision
 

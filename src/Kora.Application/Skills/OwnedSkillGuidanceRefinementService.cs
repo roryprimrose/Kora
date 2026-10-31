@@ -32,7 +32,7 @@ public sealed class OwnedSkillGuidanceRefinementService(IOwnedDeclarativeSkillSt
         OwnedSkillGenerationRequest generation, Func<OwnedSkillGuidanceRefinement, CancellationToken, Task<bool>> review,
         Func<bool> eligible, CancellationToken token)
     {
-        if (draft.Tool != OwnedSkillToolSelection.None || draft.InputTemplate is not null)
+        if (draft.Tool != OwnedSkillToolSelection.None || draft.InputTemplate is not null || draft.ReferenceDeclaration is not null)
         { throw new InvalidDataException("Initial generation supports only native v1 local tool-free literal guidance."); }
         foreach (var value in new[] { generation.Purpose, generation.Input, generation.Output })
         {
@@ -75,7 +75,7 @@ public sealed class OwnedSkillGuidanceRefinementService(IOwnedDeclarativeSkillSt
         Func<OwnedSkillGuidanceRefinement, CancellationToken, Task<bool>> review, Func<bool> eligible,
         OwnedSkillGenerationRequest? generation, Func<CancellationToken, Task>? validateCatalogue, CancellationToken token)
     {
-        if (draft.Tool != OwnedSkillToolSelection.None)
+        if (draft.Tool != OwnedSkillToolSelection.None || draft.ReferenceDeclaration is not null)
         { throw new InvalidDataException("Refinement supports only instruction-only owned skill drafts, not tool-declaring packages."); }
         if (string.IsNullOrWhiteSpace(critique))
         { throw new InvalidDataException("Enter an original critique. The draft is unchanged."); }
@@ -149,7 +149,7 @@ public sealed class OwnedSkillGuidanceRefinementService(IOwnedDeclarativeSkillSt
                 if (proposal.ValidateCatalogue is { } validate) { await validate(cancellation).ConfigureAwait(false); }
                 if (!string.Equals(store.Destination(proposal.Proposed), proposal.Destination, StringComparison.Ordinal))
                 { throw new InvalidOperationException("The reviewed owned destination changed. Generate and review again."); }
-            });
+            }, proposal.Source);
     }
 
     private async Task RequireSource(OwnedDeclarativeSkillDocument draft, OwnedDeclarativeSkillSnapshot? source, CancellationToken token)

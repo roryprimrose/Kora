@@ -64,5 +64,13 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("complete generated manifest and guidance")
             .And.Contain("no-overwrite")
             .And.Contain("unqualified");
+        guide.Markdown.Should().Contain("owned skill format markdown-package")
+            .And.Contain("owned skill reference references\\guide.md:")
+            .And.Contain("owned skill remove-reference rubric.md")
+            .And.Contain("owned skill read-references")
+            .And.Contain("added/modified/removed")
+            .And.Contain("native v5")
+            .And.Contain("entire")
+            .And.Contain("no hosted fallback");
     }
 }

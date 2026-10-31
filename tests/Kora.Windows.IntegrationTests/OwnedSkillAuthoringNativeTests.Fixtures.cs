@@ -28,6 +28,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("mocked-tool")]
     [InlineData("v2")]
     [InlineData("v3")]
+    [InlineData("v5")]
     [InlineData("unavailable")]
     [InlineData("review-edit")]
     [InlineData("other-cancel")]
@@ -99,6 +100,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 owned.Guidance.Text += "${input:topic}";
                 await Run("owned skill inputs required-literal");
             }
+            if (scenario is "v5")
+            {
+                await Run("owned skill format markdown-package");
+                await Run("owned skill reference notes.md: PRIVATE reference");
+            }
             var document = owned.Document();
             if (scenario is "saved")
             {
@@ -126,11 +132,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var late = scenario.StartsWith("late-", StringComparison.Ordinal) || scenario is "dispose";
             if (late) { adapter.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously); }
             var testing = Run("owned skill test");
-            if (scenario is "unknown" or "mocked-tool" or "v2" or "v3")
+            if (scenario is "unknown" or "mocked-tool" or "v2" or "v3" or "v5")
             {
                 await testing;
                 next.Task.IsCompleted.Should().BeFalse();
                 adapter.Calls.Should().Be(0);
+                adapter.Wire.Should().BeNull();
+                (await store.List(f.Token)).Should().BeEmpty();
+                models.IsQuiescent.Should().BeTrue();
                 owned.GetLogicalDescendants().OfType<TextBlock>().Should().Contain(block => block.Text != null
                     && block.Text.Contains("Skill authoring failed", StringComparison.Ordinal));
                 return;

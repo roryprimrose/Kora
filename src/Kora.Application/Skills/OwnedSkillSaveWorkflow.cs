@@ -13,14 +13,16 @@ public sealed class OwnedSkillSaveWorkflow(
             (_, _, _, admitted) => store.List(admitted), token);
 
     public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version,
-        OwnedSkillAuthoringAuthority authority, CancellationToken token) =>
+        OwnedSkillAuthoringAuthority authority, CancellationToken token,
+        OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null) =>
         admission.Run(authority, authority.IsCurrent,
-            (_, _, _, admitted) => store.Read(id, version, admitted), token);
+            (_, _, _, admitted) => store.Read(id, version, admitted, scope, expectedPrimary), token);
 
     public async Task<OwnedDeclarativeSkillSnapshot?> Save(OwnedDeclarativeSkillDocument document,
         OwnedSkillAuthoringAuthority authority, Func<bool> exactDraft, IOwnedSkillSaveReview review, CancellationToken token,
-        Func<CancellationToken, Task>? validateSource = null)
+        Func<CancellationToken, Task>? validateSource = null, OwnedDeclarativeSkillSnapshot? expectedSource = null)
     {
+        document.RequireComplete();
         var observed = false;
         try
         {
@@ -50,7 +52,7 @@ public sealed class OwnedSkillSaveWorkflow(
                     {
                         if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
                         return await admission.Commit(request, session, Eligible, operation, admitted).ConfigureAwait(false);
-                    }, admitted).ConfigureAwait(false);
+                    }, admitted, expectedSource).ConfigureAwait(false);
                     published = true;
                     observed = true;
                     await admission.Commit(request, session, Eligible, static () => true, admitted).ConfigureAwait(false);

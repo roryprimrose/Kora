@@ -18,6 +18,42 @@ namespace Kora.Application.UnitTests.Dependencies;
 public sealed partial class ModelTurnHostTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ExpiredSourceGenerationMismatchIsRejectedBeforeReviewAndFreshIntent(bool taskChangesDuringRead)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedExpiredOrdinary(f);
+        var original = f.PendingRecords[source.Request.RequestId];
+        if (taskChangesDuringRead)
+        {
+            f.BeforeTaskRead = () =>
+            {
+                f.PendingRecords[source.Request.RequestId] = original with
+                { Message = source with { Generation = new(2) } };
+                return Task.CompletedTask;
+            };
+        }
+        else { f.Session = f.Session with { Generation = new(3) }; }
+        var host = ConfigureCancellation(f);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var commands = conversation.CreateRequestCommands();
+        var command = ExpiredReview(source) with { Generation = f.Session.Generation.Value };
+        await commands.Invoking(service => service.ExecuteAsync(command, RequestOrigin.LocalUi, () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        await commands.Invoking(service => service.ExecuteAsync(new(SessionCommandOperation.RequestConfirm)
+            { RequestUsesPendingReview = true }, RequestOrigin.LocalUi, () => true, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.RetainCalls.Should().Be(0);
+        f.Adapter.Calls.Should().Be(0);
+        f.Audits.Should().BeEmpty();
+        f.PendingRecords.Should().ContainSingle();
+        f.PendingRecords[source.Request.RequestId].Task.Should().Be(original.Task);
+        if (!taskChangesDuringRead) { f.PendingRecords[source.Request.RequestId].Should().Be(original); }
+        host.IsQuiescent.Should().BeTrue();
+    }
+
+    [Theory]
     [InlineData(RequestOrigin.LocalUi, false)]
     [InlineData(RequestOrigin.ActivatedVoice, true)]
     public async Task ActualOrdinaryExpiryRequiresFreshReviewAndSeparateNewNativeIntentBeforeGenuineAnswer(RequestOrigin oldOrigin, bool named)
@@ -92,6 +128,8 @@ public sealed partial class ModelTurnHostTests
     [InlineData("retire")]
     [InlineData("work")]
     [InlineData("resume")]
+    [InlineData("manual-pause")]
+    [InlineData("manual-resume")]
     public async Task FreshExpiredReviewRefusesChangedSourcesAndCurrentAuthorityWithoutNewIntentOrDispatch(string fault)
     {
         using var f = new Fixture { TrackPendingRecords = true };
@@ -100,6 +138,12 @@ public sealed partial class ModelTurnHostTests
         await using var conversation = f.ConversationService(host, execution: host);
         var commands = conversation.CreateRequestCommands();
         var current = true;
+        if (fault is "manual-resume")
+        {
+            var before = await conversation.ReadPendingConversationAsync(new(f.Session, null), () => true, Token);
+            await conversation.SetManualDispatchHoldAsync(before.DispatchControl!, ConversationDispatchHoldReason.OriginalUser,
+                () => true, Token);
+        }
         var review = (await commands.ExecuteAsync(ExpiredReview(source), RequestOrigin.LocalUi, () => current, Token)).RequestReview!;
         var original = f.PendingRecords[source.Request.RequestId];
         ConversationQueuedSubmission? peer = null;
@@ -117,6 +161,13 @@ public sealed partial class ModelTurnHostTests
         if (fault is "control") { f.ControlRevision++; }
         if (fault is "source") { current = false; }
         if (fault is "retire") { commands.Retire(); }
+        if (fault is "manual-pause" or "manual-resume")
+        {
+            var before = await conversation.ReadPendingConversationAsync(review.Target, () => true, Token);
+            await conversation.SetManualDispatchHoldAsync(before.DispatchControl!,
+                fault is "manual-pause" ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None,
+                () => true, Token);
+        }
         if (fault is "work" or "resume")
         {
             f.Adapter.Pending = peerProvider.Task;
@@ -223,6 +274,115 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task FreshExpiredOrdinaryAcceptancePreservesManualHoldAndOriginalFifoWithoutRenewingExpiry(bool expireFresh)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedExpiredOrdinary(f);
+        var original = f.PendingRecords[source.Request.RequestId];
+        var host = ConfigureCancellation(f);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var target = new SessionWorkspaceEntry(f.Session, null);
+        var before = await conversation.ReadPendingConversationAsync(target, () => true, Token);
+        await conversation.SetManualDispatchHoldAsync(before.DispatchControl!, ConversationDispatchHoldReason.OriginalUser,
+            () => true, Token);
+        var older = await conversation.SubmitQueuedAsync(target, "earlier held original", () => true, Token);
+        var olderRecord = f.PendingRecords[older.Receipt.Message.Request.RequestId];
+        var commands = conversation.CreateRequestCommands();
+        var review = (await commands.ExecuteAsync(ExpiredReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+        var completed = new TaskCompletionSource<ConversationTurnCompletion>(TaskCreationOptions.RunContinuationsAsynchronously);
+        conversation.SubmittedConversationCompleted += (_, completion) =>
+        {
+            if (completion.Receipt?.Message.OriginalTextSource == source.Request) { completed.TrySetResult(completion); }
+        };
+        var confirmedAt = f.Time.Now;
+        var acceptances = 0;
+        var fresh = (await commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token,
+            expiredOrdinaryAccepted: () =>
+            {
+                f.PendingRecords.Values.Should().ContainSingle(item => item.Message.OriginalTextSource == source.Request);
+                f.ExecutionStarts.Should().Be(0);
+                acceptances++;
+            })).RequestSubmission!;
+        acceptances.Should().Be(1);
+        var held = await conversation.ReadPendingConversationAsync(target, () => true, Token);
+        held.ManualHoldReason.Should().Be(ConversationDispatchHoldReason.OriginalUser);
+        held.Paused.Should().BeFalse();
+        held.Turns.Select(item => item.Submission.Message.Request).Should().Equal(older.Receipt.Message.Request, fresh.Message.Request);
+        held.Turns.Select(item => item.Position).Should().Equal(1, 2);
+        held.Turns.Should().OnlyContain(item => item.Phase == ConversationPendingPhase.Pending);
+        held.Turns.Last().ExpiresAt.Should().Be(confirmedAt.AddSeconds(15));
+        fresh.Message.Body.Should().Be(source.Body);
+        fresh.Message.Request.RequestId.Should().NotBe(source.Request.RequestId);
+        fresh.Message.Request.TaskId.Should().NotBe(source.Request.TaskId);
+        f.PendingRecords[older.Receipt.Message.Request.RequestId].Should().Be(olderRecord);
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+        f.Adapter.Calls.Should().Be(0);
+        f.ExecutionStarts.Should().Be(0);
+        f.Audits.Should().NotContain(item => item.ActionId == "runtime.resource.acquire");
+        if (expireFresh) { f.Time.Now = confirmedAt.AddSeconds(15); }
+        await conversation.SetManualDispatchHoldAsync(held.DispatchControl!, ConversationDispatchHoldReason.None,
+            () => true, Token);
+        await older.Completion;
+        var terminal = (await completed.Task.WaitAsync(Token)).RequireReceipt();
+        terminal.Message.Outcome.Should().Be(expireFresh ? ModelTurnOutcome.Denied : ModelTurnOutcome.Succeeded);
+        terminal.Message.Reason.Should().Be(expireFresh ? ModelTurnReason.ContextExpired : ModelTurnReason.ProviderOutcome);
+        terminal.Message.AssistantResponse?.Body.Should().Be(expireFresh ? null : "answer");
+        f.Adapter.Calls.Should().Be(expireFresh ? 0 : 2);
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+    }
+
+    [Theory]
+    [InlineData(5)]
+    [InlineData(15)]
+    public async Task FreshConfirmationRevalidationConsumesItsOwnContextLifetimeWithoutResettingIt(int elapsedSeconds)
+    {
+        using var f = new Fixture { TrackPendingRecords = true };
+        var source = SeedExpiredOrdinary(f);
+        var original = f.PendingRecords[source.Request.RequestId];
+        var host = ConfigureCancellation(f);
+        await using var conversation = f.ConversationService(host, execution: host);
+        var commands = conversation.CreateRequestCommands();
+        var review = (await commands.ExecuteAsync(ExpiredReview(source), RequestOrigin.LocalUi, () => true, Token)).RequestReview!;
+        var confirmedAt = f.Time.Now;
+        var reads = 0;
+        f.BeforeTaskRead = () =>
+        {
+            if (++reads == 1) { f.Time.Now = confirmedAt.AddSeconds(elapsedSeconds); }
+            return Task.CompletedTask;
+        };
+        DateTimeOffset? expiry = null;
+        conversation.PendingConversationChanged += snapshot =>
+        {
+            foreach (var turn in snapshot.Turns.Where(item => item.Submission.Message.OriginalTextSource == source.Request))
+            { expiry = turn.ExpiresAt; }
+        };
+        var receipt = (await commands.ExecuteAsync(FailedConfirm(review), RequestOrigin.LocalUi, () => true, Token)).RequestSubmission!;
+        receipt.Message.Body.Should().Be(source.Body);
+        receipt.Message.OriginalTextSource.Should().Be(source.Request);
+        receipt.Message.Request.RequestId.Should().NotBe(source.Request.RequestId);
+        receipt.Message.Request.TaskId.Should().NotBe(source.Request.TaskId);
+        if (elapsedSeconds < 15)
+        {
+            expiry.Should().Be(confirmedAt.AddSeconds(15));
+            receipt.Task.State.Should().Be(HostTaskState.Succeeded);
+            f.Adapter.Calls.Should().Be(1);
+        }
+        else
+        {
+            receipt.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+            receipt.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+            receipt.Task.State.Should().Be(HostTaskState.Denied);
+            receipt.Message.AssistantResponse.Should().BeNull();
+            f.Adapter.Calls.Should().Be(0);
+            f.ExecutionStarts.Should().Be(0);
+            f.Audits.Should().NotContain(item => item.ActionId == "runtime.resource.acquire");
+        }
+        f.PendingRecords[source.Request.RequestId].Should().Be(original);
+    }
+
+    [Theory]
     [InlineData("origin")]
     [InlineData("failure")]
     [InlineData("body")]
@@ -230,6 +390,8 @@ public sealed partial class ModelTurnHostTests
     [InlineData("provider")]
     [InlineData("foreground")]
     [InlineData("tools")]
+    [InlineData("output")]
+    [InlineData("unknown-output")]
     public async Task ExpiredOrdinaryReviewRejectsMixedIntentBeforeAnyRetentionOrProviderReview(string fault)
     {
         using var f = new Fixture { TrackPendingRecords = true };
@@ -244,11 +406,21 @@ public sealed partial class ModelTurnHostTests
         if (fault is "foreground") { command = command with { SessionId = null, RequestForegroundTarget = true }; }
         if (fault is "tools") { command = command with { RequestClaudeTools = ["not-authority"] }; }
         var commands = conversation.CreateRequestCommands();
+        var outputReviews = 0;
+        commands.BindTaskResponseOutput((mode, _) =>
+        {
+            outputReviews++;
+            return new(mode, Kora.Core.Voice.ResponseOutputMode.Hybrid, () => true,
+                (_, _, _, _) => throw new InvalidOperationException("Expired-text review cannot present one-task output."));
+        });
+        if (fault is "output") { command = command with { RequestTaskResponseMode = Kora.Core.Voice.TaskResponseMode.VisualOnly }; }
+        if (fault is "unknown-output") { command = command with { RequestTaskResponseMode = (Kora.Core.Voice.TaskResponseMode)(-1) }; }
         await commands.Invoking(value => value.ExecuteAsync(command,
             fault is "origin" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi, () => true, Token,
             new(new(f.Session, null), () => true))).Should().ThrowAsync<InvalidOperationException>();
         f.RetainCalls.Should().Be(0);
         f.Adapter.Calls.Should().Be(0);
+        outputReviews.Should().Be(0);
     }
 
     [Theory]

@@ -25,7 +25,7 @@ public sealed partial class SessionConversationService
         Action accepted, CancellationToken token)
     {
         var submitted = await SubmitQueuedCoreAsync(review.Target, review.Body, admitted, validate, links, review.Origin,
-            true, accepted, null, token, new(review.ExpiredSource!, provider, confirmedAt)).ConfigureAwait(false);
+            true, accepted, null, token, fresh: new(review.ExpiredSource!, provider, confirmedAt)).ConfigureAwait(false);
         if (submitted.Position > 0) { return submitted.Receipt; }
         try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
         catch (OperationCanceledException exception) when (token.IsCancellationRequested)

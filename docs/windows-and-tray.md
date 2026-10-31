@@ -171,7 +171,9 @@ This completes a new ordinary request, not composer preparation or an old-task r
 ([operation](../src/Kora/SessionsViewModel.ExpiredOrdinary.cs)).
 
 Only newly recorded bare **Answer locally (no tools)** sources with confirmed
-pre-dispatch **Denied / ContextExpired** are supported. Old records without this
+pre-dispatch **Denied / ContextExpired** in the current Active session generation
+are supported. History from before Done/Resume remains readable but cannot supply
+this fresh review. Old records without this
 provenance, ordinary tool-capable Send, interrupted/uncertain/dispatched work,
 hosted, clipboard, files, MCP and reviewed evidence need their independent existing
 fresh routes. An applying session instruction is refused here rather than silently
@@ -179,7 +181,8 @@ reused or omitted. No model/account/profile is guessed when the original never
 recorded it ([source boundary](../Design/Work_Management.md#fresh-review-of-expired-ordinary-local-text)).
 
 Confirmation retains a distinct USER/task at the normal FIFO tail with new IDs and
-a fifteen-second context from this new confirmation. The original task, denied
+a fifteen-second context from this new confirmation, including time spent validating
+it; validation does not restart the clock. The original task, denied
 outcome, history and unrelated unsent input remain unchanged. The new record keeps
 historical source attribution separate from its fresh native initiator; clicking
 cannot renew a voice operation. A qualified runtime can retain its actual answer;
@@ -189,8 +192,15 @@ unqualified runtime admission remains unavailable, never fallback
 Review/decline writes nothing and invokes no provider. New work, source/input/capture,
 session, provider/default/profile, privacy, ownership or call changes require fresh
 review. Confirm once within sixty seconds; expired/consumed reviews cannot replay.
-If dispatch is held, use the independent **Resume held dispatch** first, then review
-again: neither expiry nor this review resumes the lane or renews old authority.
+If dispatch is held, use **Release manual dispatch hold** and/or the independent
+**Resume held dispatch** as applicable first, then review again. Confirmation may
+join a held FIFO but cannot clear either hold or renew old authority. The accepted
+request remains eligible after its acceptance receipt replaces the selected
+historical row. Actual input/capture, private authority, stored source, session,
+provider or deadline changes still prevent dispatch; receipt presentation does
+not renew any authority. This source
+review cannot be combined with a one-task output choice; use that separate new-request
+review for its own original input.
 Normal capacity, message, byte, budget and resource limits still apply
 ([review fences](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)).
 
@@ -501,6 +511,37 @@ or permission to submit. It measures only the current buffer, not saved or
 reviewed bodies, questions, approvals or assistant answers. Reading it does not
 save, submit, renew activity, log content or start any model/device/network work.
 Private presentation revocation removes the metrics along with private content.
+
+### Ordinary conversation dispatch hold
+
+In Sessions or the expanded conversation, select one Active conversation and
+choose **Refresh submitted work**, then **Pause ordinary dispatch**. You can do
+this while a turn is running or before the next request. A turn already
+dispatching or running continues; this is not Stop, suspension or cancellation.
+Pending requests remain in arrival order with their original expiry displayed.
+You may submit more ordinary requests under the same qualification and limits.
+The [host control](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+suppresses new start decisions until a deliberate release.
+
+Choose **Release manual dispatch hold** to remove only your manual hold.
+If failure, cancellation or uncertainty also held the lane, its separate
+**Resume held dispatch** remains necessary. Neither control grants action
+approval or clears source, privacy, permission, storage or expiry requirements.
+Original authorization deadlines keep running while held. Expired requests
+are denied, not renewed or replayed; submit and review a fresh request.
+Other conversations and unsent text are unaffected, Done is not resumed and
+pause/release does not renew session activity or change history/context.
+The manual holder is current-run only; restarting never restores permission or
+replays pending originals. Existing recovery remains unchanged.
+
+The equivalent command-box controls are `session dispatch status <session-id>`,
+`session dispatch pause <session-id>` and `session dispatch resume <session-id>`.
+For activated voice, prefix the exact command with the current assistant name.
+They target one existing Active conversation and use the same host operation,
+without a model. Current editor/dictation, question and approval handling keeps
+precedence. See the [command guide](commands.md#pause-one-ordinary-conversations-dispatch).
+This is not a global pause, scheduler, queue setting or reorder operation.
+Retired public diagnostic `queue pause`/`queue resume` remain unavailable.
 
 Submit also performs bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit

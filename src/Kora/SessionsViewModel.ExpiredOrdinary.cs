@@ -13,11 +13,13 @@ internal sealed partial class SessionsViewModel
     private SessionRequestCommandService? expiredOrdinaryCommands;
     private SessionRequestReview? expiredOrdinaryReview;
     private Func<bool>? expiredOrdinaryCurrent;
+    private Action? expiredOrdinaryAccepted;
     internal Func<Func<bool>>? CaptureFreshOrdinaryInput { get; set; }
 
-    public bool CanReviewExpiredOrdinary => CanReadConversation && access.CanControl && selected?.Authority.IsActive == true
+    public bool CanReviewExpiredOrdinary => CanReadConversation && access.CanControl && selected is { Authority.IsActive: true } target
         && CaptureFreshOrdinaryInput is not null && selectedAnswerRecord is
-            { OrdinaryText: true, Version: 1, Revision: 2, Outcome: ModelTurnOutcome.Denied, Reason: ModelTurnReason.ContextExpired };
+            { OrdinaryText: true, Version: 1, Revision: 2, Outcome: ModelTurnOutcome.Denied, Reason: ModelTurnReason.ContextExpired } source
+        && source.Generation == target.Authority.Generation;
     public bool CanConfirmExpiredOrdinary => CanCompose && expiredOrdinaryReview is not null
         && expiredOrdinaryCurrent?.Invoke() == true;
     public string ExpiredOrdinaryReviewText => !closed && access.CanInspect && expiredOrdinaryReview is { ExpiredSource: { } source } review
@@ -35,7 +37,8 @@ internal sealed partial class SessionsViewModel
             + " Its 15-second context begins at this NEW confirmation, not the old submission or review."
             + " No old context, instructions, memory, evidence, consent, grants, tools or hosted transfer is reused."
             + " This subset refuses an applying session instruction; use its independent current source-review route."
-            + " Held dispatch still needs independent Resume, which invalidates this review: Resume first, then review again."
+            + " Manual dispatch hold and recovery hold remain independent. Release the manual hold and/or Resume recovery"
+            + " before reviewing again; neither this review nor confirmation clears a hold."
             + " Normal capacity, message, provider, input and resource limits apply. Unqualified runtime stays Unavailable."
             + "\nOriginal history/outcome and unrelated unsent input remain unchanged.\n\nComplete immutable original USER body:\n" + review.Body
         : string.Empty;
@@ -51,8 +54,11 @@ internal sealed partial class SessionsViewModel
         var selection = Interlocked.Read(ref answerSelectionRevision);
         var buffer = Interlocked.Read(ref composerBufferRevision);
         var dictation = dictationSourceRevision;
+        var accepted = 0;
+        // Receipt presentation retires the row, not the accepted request's unchanged input authority.
         bool SourceLive() => live() && input() && access.CanControl
-            && selection == Interlocked.Read(ref answerSelectionRevision) && ReferenceEquals(selectedAnswerRecord, source)
+            && (Volatile.Read(ref accepted) != 0
+                || selection == Interlocked.Read(ref answerSelectionRevision) && ReferenceEquals(selectedAnswerRecord, source))
             && buffer == Interlocked.Read(ref composerBufferRevision) && dictation == dictationSourceRevision
             && Dictation?.IsActive != true;
         expiredOrdinaryCommands ??= conversation!.CreateRequestCommands();
@@ -62,6 +68,7 @@ internal sealed partial class SessionsViewModel
         if (!SourceLive()) { throw new OperationCanceledException("The selected source, input, capture or private admission changed."); }
         expiredOrdinaryReview = result.RequestReview;
         expiredOrdinaryCurrent = SourceLive;
+        expiredOrdinaryAccepted = () => Volatile.Write(ref accepted, 1);
         conversationStatus = "Review the complete expired source and current local request consequences. Nothing accepted, renewed or dispatched.";
     });
 
@@ -78,10 +85,12 @@ internal sealed partial class SessionsViewModel
         var review = expiredOrdinaryReview ?? throw new InvalidOperationException("Review one exact expired ordinary USER source first.");
         if (!ReferenceEquals(review, expected))
         { throw new InvalidOperationException("The fresh review changed. An older click cannot confirm newer content."); }
+        var accepted = expiredOrdinaryAccepted;
         expiredOrdinaryReview = null;
         var result = await expiredOrdinaryCommands!.ExecuteAsync(new(SessionCommandOperation.RequestConfirm,
             review.Target.Authority.SessionId.Value) { RequestReviewId = review.Id },
-            RequestOrigin.LocalUi, () => !closed && access.CanInspect && access.CanControl, lifetime.Token);
+            RequestOrigin.LocalUi, () => !closed && access.CanInspect && access.CanControl, lifetime.Token,
+            expiredOrdinaryAccepted: accepted);
         conversationPage = null;
         completedConversationMessage = result.RequestSubmission!.Message;
         conversationStatus = "NEW ordinary request accepted separately: HOST " + result.RequestSubmission.Message.Outcome
@@ -107,6 +116,7 @@ internal sealed partial class SessionsViewModel
         expiredOrdinaryCommands?.Retire();
         expiredOrdinaryReview = null;
         expiredOrdinaryCurrent = null;
+        expiredOrdinaryAccepted = null;
     }
 
     private void NotifyExpiredOrdinary()

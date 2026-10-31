@@ -14,6 +14,21 @@ namespace Kora.Application.UnitTests.Documentation;
 public sealed class EmbeddedUserDocumentationProviderTests
 {
     [Fact]
+    public void ExpiredOrdinaryGuideKeepsFreshConfirmationDeadlineIndependentHoldsAndSourceReviewSeparate()
+    {
+        var guide = new EmbeddedUserDocumentationProvider().GetPages()
+            .Single(page => string.Equals(page.Id, "windows-and-tray", StringComparison.Ordinal)).Markdown;
+        guide.Should().Contain("### Review expired local text as a new ordinary request")
+            .And.Contain("pre-dispatch **Denied / ContextExpired**")
+            .And.Contain("validation does not restart the clock")
+            .And.Contain("historical source attribution separate from its fresh native initiator")
+            .And.Contain("**Release manual dispatch hold**")
+            .And.Contain("**Resume held dispatch**")
+            .And.Contain("cannot clear either hold or renew old authority")
+            .And.Contain("cannot be combined with a one-task output choice");
+    }
+
+    [Fact]
     public void StorageGuideIsEmbeddedLinkedAndSeparatesRoamingContentFromLocalAuthorityAndHistory()
     {
         var pages = new EmbeddedUserDocumentationProvider().GetPages();

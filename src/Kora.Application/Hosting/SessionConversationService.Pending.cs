@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Kora.Core.Auditing;
 using Kora.Core.Conversation;
@@ -11,14 +11,17 @@ namespace Kora.Application.Hosting;
 
 public sealed partial class SessionConversationService
 {
-    private sealed class ConversationLane(long controlRevision) : IDisposable
+    private sealed class ConversationLane(SessionWorkspaceEntry target, long controlRevision) : IDisposable
     {
+        internal Guid AdmissionId = Guid.NewGuid();
+        internal SessionWorkspaceEntry Target = target;
         internal readonly SemaphoreSlim Admission = new(1, 1);
         internal readonly List<PendingConversation> Entries = [];
         internal TaskCompletionSource Changed = NewSignal();
         internal long Revision;
         internal long ControlRevision = controlRevision;
         internal bool Paused;
+        internal ConversationDispatchHoldReason ManualHoldReason;
         public void Dispose() => Admission.Dispose();
         internal void Pulse()
         {
@@ -46,6 +49,10 @@ public sealed partial class SessionConversationService
         internal ActivityLink Cause;
         internal Action? OnAccepted { get; } = accepted;
         internal Task Worker = Task.CompletedTask;
+        internal TaskResponseOutputReview? Output;
+        internal DateTimeOffset OutputCreatedAt;
+        internal DateTimeOffset OutputExpiresAt;
+        internal long OutputControlRevision;
     }
 
     private readonly Dictionary<HostId<SessionIdentity>, ConversationLane> conversationLanes = [];
@@ -63,15 +70,15 @@ public sealed partial class SessionConversationService
     public Task<ConversationQueuedSubmission> SubmitQueuedAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi, bool localAnswer = false,
-        Action? accepted = null) =>
-        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token);
+        Action? accepted = null, TaskResponseOutputReview? taskOutput = null) =>
+        SubmitQueuedCoreAsync(target, body, admitted, validateSource, links, origin, localAnswer, accepted, null, token, taskOutput);
 
     [System.Diagnostics.CodeAnalysis.SuppressMessage("Usage", "VSTHRD003",
         Justification = "The host-owned worker signals acceptance off the UI context; all continuations are asynchronous.")]
     private async Task<ConversationQueuedSubmission> SubmitQueuedCoreAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, bool localAnswer, Action? accepted, RetryIntent? retry,
-        CancellationToken token, FreshOrdinaryIntent? fresh = null)
+        CancellationToken token, TaskResponseOutputReview? taskOutput = null, FreshOrdinaryIntent? fresh = null)
     {
         RequireOriginalSource(origin);
         ConversationLane lane;
@@ -79,8 +86,7 @@ public sealed partial class SessionConversationService
         {
             ObjectDisposedException.ThrowIf(pendingClosed, this);
             RequireConversationDispatchOpen(target.Authority.SessionId);
-            if (!conversationLanes.TryGetValue(target.Authority.SessionId, out lane!))
-            { conversationLanes.Add(target.Authority.SessionId, lane = new(access.ControlRevision)); }
+            lane = GetConversationLane(target);
         }
         using var linked = CancellationTokenSource.CreateLinkedTokenSource(token, pendingLifetime.Token);
         linked.Token.ThrowIfCancellationRequested();
@@ -93,11 +99,11 @@ public sealed partial class SessionConversationService
             {
                 ObjectDisposedException.ThrowIf(pendingClosed, this);
                 RequireConversationDispatchOpen(target.Authority.SessionId);
-                if (lane.Entries.Count == 0) { lane.ControlRevision = access.ControlRevision; }
+                if (lane.Entries.Count == 0) { lane.ControlRevision = access.ControlRevision; lane.Target = target; }
                 if (lane.Entries.Count(item => item.Phase == ConversationPendingPhase.Pending) >= SessionQueueLimits.MaximumPendingPerSession)
                 { throw new InvalidOperationException("The conversation queue is full. Remove or defer pending work; nothing was evicted."); }
                 pending = new(target, lane.Entries.Where(item => item.Retained is not null)
-                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh);
+                    .Select(item => item.Retained!.Message.Request).ToArray(), accepted, retry, fresh) { Output = taskOutput };
                 lane.Entries.Add(pending);
                 // The worker owns the original source token, issuer and terminal join, not the acceptance caller.
                 pending.Worker = RunPendingConversationAsync(lane, pending, body, admitted,
@@ -113,9 +119,9 @@ public sealed partial class SessionConversationService
     private async Task<ConversationSubmissionReceipt> SubmitOrdinaryQueuedAndJoinAsync(SessionWorkspaceEntry target,
         string body, Func<bool> admitted, Func<CancellationToken, Task>? validateSource,
         IEnumerable<ActivityLink>? links, RequestOrigin origin, CancellationToken token, bool localAnswer = false,
-        Action? accepted = null)
+        Action? accepted = null, TaskResponseOutputReview? taskOutput = null)
     {
-        var submitted = await SubmitQueuedAsync(target, body, admitted, token, validateSource, links, origin, localAnswer, accepted).ConfigureAwait(false);
+        var submitted = await SubmitQueuedAsync(target, body, admitted, token, validateSource, links, origin, localAnswer, accepted, taskOutput).ConfigureAwait(false);
         if (submitted.Position > 0) { return submitted.Receipt; }
         try { return (await submitted.Completion.WaitAsync(token).ConfigureAwait(false)).RequireReceipt(); }
         catch (OperationCanceledException exception) when (token.IsCancellationRequested)
@@ -132,6 +138,7 @@ public sealed partial class SessionConversationService
         {
             var receipt = await SubmitOrdinaryWithScopeAsync(pending.Target, body, admitted,
                 validateSource, links, origin, localAnswer, pending, linked.Token).ConfigureAwait(false);
+            await PresentTaskResponseOutputAsync(pending, receipt, admitted, validateSource, linked.Token).ConfigureAwait(false);
             completion = new(receipt, null);
         }
         catch (Exception exception) when (exception is not OutOfMemoryException)
@@ -168,7 +175,8 @@ public sealed partial class SessionConversationService
             pending.ExpiresAt = context.ExpiresAt;
             pending.Cause = new(HostActivity.RequireCurrent().Activity!.Context);
             pending.OnAccepted?.Invoke();
-            if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+            if (!lifecycleHeld && !lane.Paused && lane.ManualHoldReason == ConversationDispatchHoldReason.None
+                && ReferenceEquals(lane.Entries[0], pending))
             { pending.Phase = ConversationPendingPhase.Dispatching; }
             lane.Pulse();
             var snapshot = Snapshot(pending.Target.Authority.SessionId, lane);
@@ -186,7 +194,9 @@ public sealed partial class SessionConversationService
                 remaining = pending.ExpiresAt - time.GetUtcNow();
                 if (remaining <= TimeSpan.Zero || time.GetUtcNow() < context.CreatedAt) { return ModelTurnReason.ContextExpired; }
                 token.ThrowIfCancellationRequested();
-                if (!lifecycleHeld && !lane.Paused && ReferenceEquals(lane.Entries[0], pending))
+                if (!lifecycleHeld && !lane.Paused
+                    && (lane.ManualHoldReason == ConversationDispatchHoldReason.None || pending.Phase == ConversationPendingPhase.Dispatching)
+                    && ReferenceEquals(lane.Entries[0], pending))
                 {
                     pending.Phase = ConversationPendingPhase.Dispatching;
                     lane.Pulse();
@@ -207,7 +217,29 @@ public sealed partial class SessionConversationService
             [.. lane.Entries.Where(item => item.Retained is not null).Select(item => new ConversationPendingTurn(
                 item.Retained!, item.ExpiresAt, item.Phase,
                 item.Phase == ConversationPendingPhase.Dispatching ? 0 : ++position))])
-        { ControlRevision = lane.ControlRevision };
+        {
+            ControlRevision = lane.ControlRevision,
+            DispatchControl = new(lane.Target, lane.AdmissionId, lane.Revision, lane.ControlRevision),
+            ManualHoldReason = lane.ManualHoldReason,
+        };
+    }
+
+    private ConversationLane GetConversationLane(SessionWorkspaceEntry target, bool refreshed = false)
+    {
+        if (conversationLanes.TryGetValue(target.Authority.SessionId, out var lane))
+        {
+            if (lane.Target.Authority.Generation == target.Authority.Generation) { return lane; }
+            if (!refreshed || lane.Entries.Count != 0)
+            { throw new InvalidOperationException("Refresh the exact current conversation generation after its preceding submitted work has joined."); }
+            lane.AdmissionId = Guid.NewGuid();
+            lane.Target = target;
+            lane.ManualHoldReason = ConversationDispatchHoldReason.None;
+            lane.Pulse();
+            return lane;
+        }
+        lane = new(target, access.ControlRevision);
+        conversationLanes[target.Authority.SessionId] = lane;
+        return lane;
     }
 
     public async Task<ConversationPendingSnapshot> ReadPendingConversationAsync(SessionWorkspaceEntry target,
@@ -221,9 +253,50 @@ public sealed partial class SessionConversationService
         lock (cancellationGate)
         {
             ObjectDisposedException.ThrowIf(pendingClosed, this);
-            return (conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
-                ? Snapshot(target.Authority.SessionId, lane) : new(target.Authority.SessionId, 0, false, []))
-                with { ControlRevision = revision };
+            if (conversationLanes.TryGetValue(target.Authority.SessionId, out var preceding)
+                && preceding.Target.Authority.Generation != target.Authority.Generation && preceding.Entries.Count != 0)
+            {
+                return Snapshot(target.Authority.SessionId, preceding) with { ControlRevision = revision, DispatchControl = null };
+            }
+            var lane = GetConversationLane(target, refreshed: true);
+            lane.Target = target;
+            lane.ControlRevision = revision;
+            return Snapshot(target.Authority.SessionId, lane);
+        }
+    }
+
+    public async Task<ConversationPendingSnapshot> SetManualDispatchHoldAsync(ConversationDispatchControl expected,
+        ConversationDispatchHoldReason reason, Func<bool> admitted, CancellationToken token,
+        RequestOrigin origin = RequestOrigin.LocalUi)
+    {
+        RequireOriginalSource(origin);
+        if (!Enum.IsDefined(reason)) { throw new ArgumentOutOfRangeException(nameof(reason)); }
+        var target = expected.Target;
+        bool Live() => access.CanInspect && access.CanControl && access.ControlRevision == expected.ControlRevision
+            && admitted() && !token.IsCancellationRequested;
+        if (!Live()) { throw new InvalidOperationException("Original private dispatch-control admission changed. Refresh exact submitted work."); }
+        var actual = await store.ReadMetadataAsync(target.Authority.SessionId, token).ConfigureAwait(false);
+        token.ThrowIfCancellationRequested();
+        lock (cancellationGate)
+        {
+            ObjectDisposedException.ThrowIf(pendingClosed, this);
+            RequireConversationDispatchOpen(target.Authority.SessionId);
+            if (!Live() || actual != target || !target.Authority.IsActive
+                || !conversationLanes.TryGetValue(target.Authority.SessionId, out var lane)
+                || lane.Target != target || lane.AdmissionId != expected.AdmissionId
+                || lane.Revision != expected.LaneRevision || lane.ManualHoldReason == reason)
+            { throw new InvalidOperationException("The exact Active conversation dispatch observation changed. Refresh before a new deliberate decision."); }
+            bool Current() => Live() && lane.Revision == expected.LaneRevision;
+            using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), target.Authority.SessionId,
+                new(Guid.NewGuid()), origin), HostActivityLayer.Application, HostOperation.Request);
+            AuditPendingControl(reason == ConversationDispatchHoldReason.None
+                ? "conversation.manual-dispatch-release" : "conversation.manual-dispatch-hold", Current, origin);
+            lane.ManualHoldReason = reason;
+            lane.Pulse();
+            var snapshot = Snapshot(target.Authority.SessionId, lane);
+            PendingConversationChanged?.Invoke(snapshot);
+            activity.Complete(HostOperationOutcome.Completed);
+            return snapshot;
         }
     }
 

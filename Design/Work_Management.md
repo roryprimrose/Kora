@@ -329,7 +329,9 @@ supports one retained USER originally submitted through **Answer locally (no too
 with host-recorded bare ordinary text provenance and exact **Denied / ContextExpired**
 before any execution record. The [source contract](../src/Kora.Core/Conversation/ExpiredOrdinaryRequestSource.cs)
 requires both the immutable message and matching terminal task evidence. Task status
-alone never establishes no dispatch. Legacy/unclassified rows, ordinary tool-capable
+alone never establishes no dispatch. Both sources must belong to the current Active
+session generation; history from before Done/Resume remains readable but cannot
+create this review. Legacy/unclassified rows, ordinary tool-capable
 Send, hosted, file, clipboard, MCP, reviewed context, instruction/evidence-bearing,
 interrupted, dispatched and uncertain sources are unavailable through this operation.
 
@@ -347,16 +349,25 @@ or resource acquisition. Confirmation uses the [ordinary FIFO transaction](../sr
 new host request/task IDs, unchanged body and normal limits. The new fifteen-second
 context starts at the NEW confirmation, not review or historical submission. The old
 request/task, expiry, HOST outcome and history remain unchanged. An expired new request
-also cannot renew itself or dispatch automatically.
+also cannot renew itself or dispatch automatically. Time spent revalidating confirmation
+consumes this same new context lifetime; validation does not reset its deadline.
 
 The bounded subset consumes no old context, memory, instructions, evidence, consent
 or grants. An applying session instruction requires its independent current source-use
 route, not silent omission or implicit reapproval. Source/task/session generation/
 metadata, selected original, unsent input revision, native input/capture, privacy,
-ownership, call, current provider/profile/policy and held-lane revisions remain frozen.
-Changes, cancellation, review expiry or replay require fresh review. Independent
-**Resume held dispatch** remains mandatory and itself invalidates an older fresh review;
-resume first, then review again. [Portable regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ExpiredOrdinary.cs)
+ownership, call, current provider/profile/policy and held-lane revisions remain frozen
+until acceptance. Once physically accepted, receipt presentation may retire the
+selected historical row without revoking the accepted worker. Its exact stored
+source/task/session, input revisions, privacy, ownership, provider and original
+deadlines still revalidate through dispatch and terminal retention. Genuine input
+edits remain revocation, not presentation changes or renewed authority.
+Changes, cancellation, review expiry or replay require fresh review. One-task output
+selection cannot be combined with this source-review route; its independent ordinary
+request review remains unchanged. Manual and recovery dispatch holds remain independent:
+confirmation may join their held FIFO but clears neither. **Release manual dispatch hold**
+and **Resume held dispatch** each invalidate an older fresh review; release applicable
+holds first, then review again. [Portable regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ExpiredOrdinary.cs)
 and [native/private-store regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.ExpiredOrdinary.cs)
 exercise actual expiry through new admission and a genuine fake-runtime answer without
 enabling production providers, recreating diagnostic queue commands or claiming a
@@ -383,6 +394,40 @@ Bodies and reviewed sources are not telemetry.
 
 Sessions and compact conversation share factual pending position, the submitted
 USER input, exact selected pending cancellation and held/resume controls.
+The same [lane owner](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+also supports an independent, deliberate **Pause ordinary dispatch** for one
+exact Active conversation, including a healthy lane with no pending requests.
+It suppresses the next ordinary start decision after the physical terminal join;
+a turn already selected for dispatch or running continues unchanged. New
+submissions retain the same provider qualification, immutable original source,
+FIFO, message/byte bounds and original authorization expiry. Native waiting
+rows show their original expiry, not a renewed deadline.
+
+**Release manual dispatch hold** clears only the typed original-user manual
+reason. **Resume held dispatch** clears only the separate failure/cancellation
+recovery hold; when both exist, both require their own deliberate operation.
+Neither action clears storage, Unknown, permission, source, consent, privacy or
+expiry fences. An expired/invalid head cannot be skipped to dispatch a later
+request. Expiry is denied without acquiring resources; fresh input/review is
+required, never renewal or replay. Manual start decisions are not action approval.
+
+The [exact typed/activated-voice adapter](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+uses `session dispatch status|pause|resume <session-id>` and the same admitted
+manual-control action as native Sessions/compact. Current input, channel,
+private control, exact session/generation/metadata, host-run admission and lane
+revision are host bindings; no model is needed or authorized to create this
+control. Done is not resumed, no session is created and pause/release itself
+does not renew activity, change history/context, grant permission or invoke a
+provider. The holder is volatile to this host run and generation, not durable
+authority; restart recovery of older pending work is unchanged.
+
+This is ordinary conversation control, **not** the retired public fixed-read
+diagnostic queue pause/resume, reorder or settings product. Those command
+operations remain denied. There is no global pause, second scheduler, new
+queue policy setting or task-stepping execution approval. See the
+[user controls](../docs/windows-and-tray.md#ordinary-conversation-dispatch-hold)
+and [behavioral regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ManualDispatch.cs).
+
 Cancellation wins atomically against dispatch, preserves submitted history and
 unrelated requests, and has zero provider/egress/resource effects for that
 pending turn. Active cancellation stays with the existing running-turn owner.

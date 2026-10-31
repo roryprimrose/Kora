@@ -28,4 +28,22 @@ public sealed class OwnedAgentProfileDocument
 
     public static OwnedAgentProfileDocument Parse(string name, string text) =>
         Parse(name, ArtifactFileDocument.Encode(text, false));
+
+    public static OwnedAgentProfileDocument ProposeToolFree(string name, string source, string description, string body)
+    {
+        if (string.IsNullOrWhiteSpace(description) || description.Length > ArtifactDefinition.MaximumDescriptionLength
+            || description.Any(char.IsControl) || !string.Equals(description, description.Trim(), StringComparison.Ordinal)
+            || description[0] is '\'' or '"' || description[^1] is '\'' or '"')
+        { throw new InvalidDataException("A proposed description must be one bounded literal scalar, without quoting or control characters."); }
+        var original = source.Length == 0 ? null : Parse(name, source);
+        if (original is not null && !string.Equals(original.Document.Metadata["kora-agent-format"], "1", StringComparison.Ordinal))
+        { throw new InvalidDataException("Conversational authoring supports only tool-free reference-free v1. Manual v4 authoring is unchanged."); }
+        var header = original is null
+            ? $"---\nname: {name}\ndescription: {description}\nkora-agent-format: 1\nruntime: local\ninput: text\noutput: text\n"
+                + "references: none\ntools: none\nmaximum-calls: 0\nmaximum-rounds: 1\n"
+                + "maximum-input-bytes: 16000\nmaximum-output-bytes: 2000\ndeadline-ms: 15000\n"
+            : "---\n" + string.Concat(original.Document.Metadata.Select(field =>
+                field.Key + ": " + (string.Equals(field.Key, "description", StringComparison.Ordinal) ? description : field.Value) + "\n"));
+        return Parse(name, header + "---\n" + body);
+    }
 }

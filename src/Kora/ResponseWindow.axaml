@@ -262,7 +262,23 @@
         </controls:ScrollableListBox>
       </Border>
 
-      <Grid Grid.Row="9" ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
+      <StackPanel Grid.Row="9" Spacing="8">
+        <TextBlock Text="{Binding ReviewedVoiceCommandStatus}" TextWrapping="Wrap" FontSize="11" />
+        <WrapPanel>
+          <Button x:Name="BeginReviewedVoiceCommand" Content="Review one spoken command" Click="OnBeginReviewedVoiceCommand"
+              IsEnabled="{Binding !IsReviewedVoiceCommandActive}" />
+          <Button x:Name="FinishReviewedVoiceCommand" Content="Finish capture" Click="OnFinishReviewedVoiceCommand"
+              IsVisible="{Binding IsReviewedVoiceCommandActive}" IsEnabled="{Binding !HasReviewedVoiceCommand}" />
+          <Button x:Name="CancelReviewedVoiceCommand" Content="Cancel reviewed command" Click="OnCancelReviewedVoiceCommand"
+              IsVisible="{Binding IsReviewedVoiceCommandActive}" />
+        </WrapPanel>
+        <TextBox x:Name="ReviewedVoiceCommandInput"
+            IsVisible="{Binding HasReviewedVoiceCommand}" TextChanged="OnReviewedVoiceCommandTextChanged"
+            AutomationProperties.Name="Exact command transcript; edit without executing"
+            AcceptsReturn="True" TextWrapping="Wrap" MaxHeight="110" />
+        <Button x:Name="ConfirmReviewedVoiceCommand" Content="Dispatch this exact voice command once" Click="OnConfirmReviewedVoiceCommand"
+            IsVisible="{Binding HasReviewedVoiceCommand}" />
+      <Grid ColumnDefinitions="*,Auto,Auto" ColumnSpacing="9">
         <TextBox
             x:Name="CommandInput"
             Text="{Binding CommandText}"
@@ -285,6 +301,7 @@
             Content="{Binding CommandSubmitLabel}"
             Command="{Binding RunTypedCommand}" />
       </Grid>
+      </StackPanel>
     </Grid>
   </Border>
   </Grid>

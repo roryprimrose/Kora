@@ -102,6 +102,13 @@ completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
+Submitted-conversation store fixtures keep immutable request-local receipts
+through acceptance, dispatch and completion callbacks. A shared observation
+cursor cannot select the record to commit: running and pending originals can
+complete concurrently during lifecycle confirmation. Controlled overlap cases
+require both exact terminal receipts and physical joins; uncertain readback
+still denies lifecycle confirmation and a fresh review.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

@@ -9,17 +9,14 @@ public sealed partial class ModelTurnHostTests
     {
         internal bool TrackPendingRecords { get; set; }
         internal System.Collections.Concurrent.ConcurrentDictionary<HostId<RequestIdentity>, ConversationSubmissionReceipt> PendingRecords { get; } = [];
-        private void RememberPendingRecord()
+        private void RememberPendingRecord(ConversationSubmissionReceipt receipt)
         {
-            if (TrackPendingRecords) { PendingRecords[Retained!.Request.RequestId] = new(Retained, Task!.Task); }
-        }
-        private void SelectPendingRecord(HostRequest request)
-        {
-            if (!TrackPendingRecords) { return; }
-            var receipt = PendingRecords[request.RequestId];
             Retained = receipt.Message;
-            Task = new(receipt.Task, receipt.Message.Generation, "host", true, null);
+            Task = Task! with { Task = receipt.Task };
+            if (TrackPendingRecords) { PendingRecords[receipt.Message.Request.RequestId] = receipt; }
         }
+        private ConversationSubmissionReceipt ReadPendingRecord(HostRequest request) =>
+            TrackPendingRecords ? PendingRecords[request.RequestId] : new(Retained!, Task!.Task);
         public ValueTask<ConversationSubmissionReceipt> RetainPendingConversationMessageAsync(HostRequest request,
             HostRevision generation, long expectedMetadataRevision, string body, IReadOnlyList<HostRequest> predecessors,
             Func<bool> admitted, CancellationToken token) =>

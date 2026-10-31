@@ -36,6 +36,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("late-critique")]
     [InlineData("late-owner")]
     [InlineData("late-privacy")]
+    [InlineData("other-cancel")]
+    [InlineData("save-simulated")]
     [InlineData("initial-save")]
     [InlineData("initial-save-refined")]
     [InlineData("initial-reject")]
@@ -52,6 +54,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("initial-late-critique")]
     [InlineData("initial-late-owner")]
     [InlineData("initial-late-privacy")]
+    [InlineData("initial-other-cancel")]
+    [InlineData("initial-save-simulated")]
     public async Task NativeOwnedGuidanceRefinementCompletesReviewedProposalThroughExistingPublication(string scenario)
     {
         var initialGeneration = scenario.StartsWith("initial-", StringComparison.Ordinal);
@@ -81,7 +85,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var refinement = new OwnedSkillGuidanceRefinementService(store, admission, save, runner, TimeProvider.System);
             var ownership = 1L;
             await using var controller = new OwnedSkillEditorController(f.Main, save, admission, static () => true,
-                () => ownership, NullLogger<OwnedSkillEditorController>.Instance, refinement: refinement);
+                () => ownership, NullLogger<OwnedSkillEditorController>.Instance, refinement: refinement,
+                fixtures: new(store, admission, runner, TimeProvider.System));
             controller.Bind();
             OwnedSkillEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -138,6 +143,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             }
             var disclosure = await Review(generating);
             disclosure.Title.Should().Be(initialGeneration ? "Review initial skill generation disclosure" : "Review local skill refinement disclosure");
+            if (scenario is "other-cancel")
+            {
+                Choose(owned, "Cancel test");
+                disclosure.IsVisible.Should().BeTrue("Cancel test must not close a generation/refinement review");
+                Choose(owned, "Test");
+                disclosure.IsVisible.Should().BeTrue("a busy editor cannot start a second model operation");
+                adapter.Calls.Should().Be(0);
+            }
             Choose(disclosure, scenario is "cancel-disclosure" ? "Cancel" : "Generate local guidance proposal");
             if (late)
             {
@@ -211,7 +224,29 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 Choose(comparison, "Use proposal for next Save");
                 await refining;
             }
-            if (scenario is "save" or "save-v3" or "save-refined" or "cancel-publication")
+            if (scenario is "save-simulated")
+            {
+                adapter.Simulated = true;
+                await Run("owned skill fixture: " + JsonSerializer.Serialize(new
+                {
+                    input = "Example only",
+                    assertions = new[] { new { kind = "equals", value = adapter.Body } },
+                }));
+                var testing = Run("owned skill test");
+                var preview = await Review(testing);
+                preview.Title.Should().Be("Review SIMULATED skill example");
+                preview.GetLogicalDescendants().OfType<TextBox>().First().Text.Should().Contain(adapter.Body)
+                    .And.NotContain(initial);
+                Choose(preview, "Start SIMULATED test");
+                var result = await Review(testing);
+                result.Title.Should().Be("SIMULATED skill example result");
+                Choose(result, "Dismiss simulated result");
+                await testing;
+                (await store.List(f.Token)).Should().BeEmpty("simulation must not save the staged guidance");
+                owned.Guidance.Text.Should().Be(initial);
+                adapter.Calls.Should().Be(2, "simulation uses a separately admitted model turn");
+            }
+            if (scenario is "save" or "save-v3" or "save-refined" or "save-simulated" or "cancel-publication")
             {
                 await Run("owned skill validate");
                 var saving = Run("owned skill save");
@@ -235,7 +270,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     owned.Guidance.Text.Should().Be(adapter.Body);
                     await Run($"owned skill reopen {draft.Id} {draft.Version}");
                     owned.Guidance.Text.Should().Be(adapter.Body);
-                    adapter.Calls.Should().Be(scenario is "save-refined" ? 2 : 1, "Save and Reopen never invoke or enable a skill");
+                    adapter.Calls.Should().Be(scenario is "save-refined" or "save-simulated" ? 2 : 1, "Save and Reopen never invoke or enable a skill");
                 }
             }
             models.IsQuiescent.Should().BeTrue();
@@ -273,7 +308,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 f.Access, models, models, f.Audit, NullLogger<LocalContextTurnWorkflow>.Instance);
             var refinement = new OwnedSkillGuidanceRefinementService(store, admission, save, runner, TimeProvider.System);
             await using var controller = new OwnedSkillEditorController(f.Main, save, admission, static () => true,
-                static () => 1, NullLogger<OwnedSkillEditorController>.Instance, refinement: refinement);
+                static () => 1, NullLogger<OwnedSkillEditorController>.Instance, refinement: refinement,
+                fixtures: new(store, admission, runner, TimeProvider.System));
             controller.Bind();
             OwnedSkillEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -319,6 +355,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             await reopening;
             owned.BasePackage!.IsSameRevision(saved).Should().BeTrue();
             owned.Document().References.Should().ContainSingle();
+            await Run("owned skill fixture: {\"input\":\"PRIVATE old example\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"PRIVATE old output\"}]}");
+            var previousFixture = owned.Fixture.Text;
             adapter.Calls.Should().Be(0);
             const string purpose = "explain a new deployment failure";
             if (scenario is "discard" or "cancel")
@@ -338,6 +376,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     owned.InputFormat.SelectedIndex.Should().Be(2);
                     owned.ComponentPath.Text.Should().Be(@"references\pending.md");
                     owned.ComponentBody.Text.Should().Be("PRIVATE unapplied component edit");
+                    owned.Fixture.Text.Should().Be(previousFixture);
                     readPending.Should().Throw<InvalidOperationException>();
                     adapter.Calls.Should().Be(0);
                     creating = Run("create a skill that " + purpose);
@@ -360,6 +399,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             owned.Purpose.Text.Should().Be(purpose);
             owned.ExpectedInput.Text.Should().BeEmpty();
             owned.ExpectedOutput.Text.Should().BeEmpty();
+            owned.Fixture.Text.Should().BeEmpty();
+            await Run("owned skill test");
+            next.Task.IsCompleted.Should().BeFalse("a fresh draft cannot inherit the previous fixture or its authority");
+            adapter.Calls.Should().Be(0);
             var draft = owned.Document();
             draft.Id.Should().NotBe(previous.Id);
             draft.ManifestText.Should().Contain("kora-skill-format: 1\n");
@@ -440,6 +483,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     {
         internal string Body = "NEW";
         internal bool Unavailable;
+        internal bool Simulated;
         internal int Calls;
         internal byte[]? Wire;
         internal readonly TaskCompletionSource Started = new(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -451,7 +495,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             Wire = context.ToArray();
             Started.TrySetResult();
             return Pending?.Task ?? Task.FromResult(Unavailable ? new ModelProviderReply(ModelTurnOutcome.Unavailable, provenance.Selection)
-                : new(ModelTurnOutcome.Succeeded, provenance.Selection, new(JsonSerializer.Serialize(new { body = Body }), null)));
+                : new(ModelTurnOutcome.Succeeded, provenance.Selection, new(Simulated ? Body : JsonSerializer.Serialize(new { body = Body }), null)));
         }
     }
 }

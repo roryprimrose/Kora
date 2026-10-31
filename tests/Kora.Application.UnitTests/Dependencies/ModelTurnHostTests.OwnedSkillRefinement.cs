@@ -283,14 +283,18 @@ public sealed partial class ModelTurnHostTests
         internal OwnedDeclarativeSkillSnapshot? Source;
         internal OwnedDeclarativeSkillSnapshot? Target;
         internal Action? BeforePublish;
+        internal Func<Task>? BeforeRead;
         internal int Writes;
         internal string Path = "fixed-owned-destination";
         internal IReadOnlyList<OwnedDeclarativeSkillSnapshot> Catalogue = [];
         public string Destination(OwnedDeclarativeSkillDocument document) => Path;
         public Task<IReadOnlyList<OwnedDeclarativeSkillSnapshot>> List(CancellationToken token) => Task.FromResult(Catalogue);
-        public Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
-            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null) =>
-            Task.FromResult(version is "1.0.0" ? Source : Target);
+        public async Task<OwnedDeclarativeSkillSnapshot?> Read(string id, string version, CancellationToken token,
+            OwnedSkillReadScope scope = OwnedSkillReadScope.CompletePackage, OwnedDeclarativeSkillSnapshot? expectedPrimary = null)
+        {
+            if (BeforeRead is not null) { await BeforeRead(); }
+            return version is "1.0.0" ? Source : Target;
+        }
         public Task<OwnedDeclarativeSkillSnapshot> Publish(OwnedDeclarativeSkillDocument document, Func<bool> eligible,
             Func<Func<OwnedDeclarativeSkillSnapshot>, Task<OwnedDeclarativeSkillSnapshot>> commit, CancellationToken token,
             OwnedDeclarativeSkillSnapshot? expectedSource = null)

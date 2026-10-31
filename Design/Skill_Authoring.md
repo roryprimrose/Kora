@@ -307,6 +307,11 @@ Mocked tests never invoke actual tools or cause side effects.
 If an example uses model inference, the example payload still follows normal local/remote egress policy.
 Passing these tests is evidence of structure/example behaviour, not proof that the skill is universally correct or harmless.
 
+The delivered [simulated example subset](../docs/owned-skill-authoring.md#simulate-one-tool-free-example) uses the current inspected owned native v1 literal draft/revision and an ephemeral closed fixture, leaving both saved files unchanged ([host workflow](../src/Kora.Application/Skills/OwnedSkillFixtureWorkflow.cs)).
+The [closed parser](../src/Kora.Core/Skills/OwnedSkillFixture.cs) admits one complete input and one to eight ordinal `equals`/`contains` assertions. No mocked tool responses are accepted in this tool-free subset; native v2/v3/v4, reference-bearing definitions, unknown fields/assertions, hooks and custom validators are explicitly denied. Input-looking text and workflow-looking JSON in native v1 guidance remain literal evidence, not bindings or steps.
+The [existing editor](../src/Kora/OwnedSkillEditorController.Fixtures.cs) separately reviews complete source/fixture/local input before **Start SIMULATED test**, then displays complete exact output and host assertions. The isolated local tools-none route cannot authorize actual tool/network/effect execution; unavailable qualification stays unavailable, with no hosted fallback.
+Fixture/source/selection, original channel, privacy, ownership, provider configuration, generation and two-minute expiry fences suppress stale output; cancellation/disposal joins owned source reads and model work. Every terminal retires its review even if source bytes or eligibility later recover. Results remain volatile simulated examples, not retained facts, grants, trust or enablement. Save, Enable and an independently admitted real trial remain separate.
+
 An optional real trial is a separately admitted task with the exact skill revision and selected context.
 It uses ordinary tool, egress, resource, and action approvals.
 Do not automatically exercise write tools merely because the user asked to test a skill.

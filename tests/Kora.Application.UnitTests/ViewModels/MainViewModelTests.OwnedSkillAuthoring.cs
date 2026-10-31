@@ -134,6 +134,70 @@ public sealed partial class MainViewModelTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task OwnedSkillFixtureCommandsPreserveOriginalChannelAndInertExactPayload(bool voice)
+    {
+        var f = await Fixture.CreateInitializedAsync();
+        await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser);
+        var captured = new List<OwnedSkillAuthoringCommand>();
+        f.ViewModel.BindOwnedSkillAuthoring((command, authority) =>
+        {
+            authority.Origin.Should().Be(voice ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
+            captured.Add(command);
+            return Task.CompletedTask;
+        }, null);
+        foreach (var command in new[] { "owned skill fixture:  {\"input\":\"owned skill save\"}  ", "owned skill test", "owned skill cancel-test" })
+        {
+            if (voice) { await f.RaiseActivatedTranscriptAsync("Nova, " + command, 1); }
+            else { await f.RunAsync(command); }
+        }
+        captured.Select(command => command.Operation).Should().Equal("fixture", "test", "cancel-test");
+        captured[0].Literal.Should().Be(" {\"input\":\"owned skill save\"}  ");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData("mode")]
+    [InlineData("profile")]
+    [InlineData("privacy")]
+    [InlineData("channel")]
+    public async Task OwnedSkillFixtureEligibilityPinsActualProviderAndOriginalInputRevisions(string change)
+    {
+        var f = new Fixture(enableProviderModeConfiguration: true, enableProviderProfiles: true);
+        await using var admission = f.OutputAdmission;
+        await f.ViewModel.InitializeAsync();
+        await f.ViewModel.RefreshProviderModeCommand.ExecuteAsync();
+        await f.ViewModel.RefreshProviderProfileCommand.ExecuteAsync();
+        var current = f.ViewModel.CaptureOwnedSkillFixtureEligibility();
+        current().Should().BeTrue();
+        switch (change)
+        {
+            case "mode": await f.ViewModel.ResetProviderModeCommand.ExecuteAsync(); break;
+            case "profile": await f.ViewModel.ResetProviderServiceCommand.ExecuteAsync(); break;
+            case "privacy": f.ViewModel.CloseForObservedPrivacyEvent("Synthetic fixture privacy", hidePresentation: true); break;
+            case "channel": await f.ViewModel.SetAssistantNameAsync("Nova", SecurityAuditInitiator.LocalUser); break;
+        }
+        current().Should().BeFalse();
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
+    [InlineData(false, false)]
+    [InlineData(false, true)]
+    [InlineData(true, false)]
+    [InlineData(true, true)]
+    public async Task OwnedSkillFixtureEligibilityDoesNotInventMissingProviderConfiguration(bool mode, bool profile)
+    {
+        var f = new Fixture(enableProviderModeConfiguration: mode, enableProviderProfiles: profile);
+        await using var admission = f.OutputAdmission;
+        await f.ViewModel.InitializeAsync();
+        var current = f.ViewModel.CaptureOwnedSkillFixtureEligibility();
+        current().Should().BeTrue("the local model admission still independently denies unavailable runtime qualification");
+        f.Reasoner.Requests.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData("owned skill run example")]
     [InlineData("owned skill create CON 1.0.0")]
     [InlineData("owned skill save now")]

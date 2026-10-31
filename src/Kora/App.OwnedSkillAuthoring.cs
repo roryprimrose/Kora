@@ -54,7 +54,8 @@ public sealed partial class App
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use,
             new(store, admission, workflow, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()), observations,
-            new(store, admission, Services.GetRequiredService<ISecurityAuditLog>(), Services.GetRequiredService<TimeProvider>()));
+            new(store, admission, Services.GetRequiredService<ISecurityAuditLog>(), Services.GetRequiredService<TimeProvider>()),
+            new(store, admission, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()));
         ownedSkillEditor.Bind();
         if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         { desktop.Exit += ownedSkillEditor.OnHostExit; }

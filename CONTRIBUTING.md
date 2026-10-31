@@ -137,6 +137,13 @@ completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
+Submitted-conversation store fixtures keep immutable request-local receipts
+through acceptance, dispatch and completion callbacks. A shared observation
+cursor cannot select the record to commit: running and pending originals can
+complete concurrently during lifecycle confirmation. Controlled overlap cases
+require both exact terminal receipts and physical joins; uncertain readback
+still denies lifecycle confirmation and a fresh review.
+
 Speech-suggestion receipt-pin regressions explicitly join voice-consent
 withdrawal and capture closure in both notification orders. Assert the exact
 command presentation and canonical request/task receipt independently of the

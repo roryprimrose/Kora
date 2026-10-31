@@ -11,20 +11,33 @@ namespace Kora.Application.ViewModels;
 public sealed partial class MainViewModel
 {
     private Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? routeSessionRequest;
+    private Func<IDisposable?>? retainRoutingPresentation;
 
-    public void BindSessionRouting(Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? route) =>
+    public void BindSessionRouting(Func<string, RequestOrigin, Func<bool>, Task<SessionRoutingReceipt?>>? route,
+        Func<IDisposable?>? retainPresentation = null)
+    {
         routeSessionRequest = route;
+        retainRoutingPresentation = retainPresentation;
+    }
 
     private async Task<bool> TryRouteSessionRequestAsync(string text, SecurityAuditInitiator initiator, ManualCallInput? original)
     {
         if (routeSessionRequest is not { } route) { return false; }
         var origin = OriginalOrigin(initiator);
-        if (origin == RequestOrigin.ActivatedVoice && !commandRouter.IsActivationPrefixed(text, AssistantName))
+        var wakeCurrent = original?.WakeActivationCurrent;
+        if (wakeCurrent is not null && (origin != RequestOrigin.ActivatedVoice || !wakeCurrent()))
+        {
+            ShowInformation("Voice request retired.", "The original wake or host admission changed. No destination was selected.");
+            return true;
+        }
+        if (origin == RequestOrigin.ActivatedVoice && wakeCurrent is null
+            && !commandRouter.IsActivationPrefixed(text, AssistantName))
         {
             ShowInformation("Activate me before routing a request.", "Use the current assistant name. No destination was selected.");
             return true;
         }
-        var body = string.Equals(text.Trim().TrimEnd(',', ':', '-', '—').TrimEnd(), AssistantName, StringComparison.OrdinalIgnoreCase)
+        var body = wakeCurrent is not null ? text
+            : string.Equals(text.Trim().TrimEnd(',', ':', '-', '—').TrimEnd(), AssistantName, StringComparison.OrdinalIgnoreCase)
             ? string.Empty : commandRouter.IsActivationPrefixed(text, AssistantName)
                 ? text[AssistantName.Length..].TrimStart(' ', ',', ':', '-', '—') : text;
         if (string.IsNullOrWhiteSpace(body))
@@ -36,9 +49,16 @@ public sealed partial class MainViewModel
         var inputRevision = Interlocked.Read(ref workspaceSurfaceInputRevision);
         var composerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision);
         bool Live() => eligible() && Interlocked.Read(ref workspaceSurfaceInputRevision) == inputRevision
-            && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision);
+            && (origin != RequestOrigin.LocalUi || Interlocked.Read(ref attachmentCatalogueComposerRevision) == composerRevision)
+            && (wakeCurrent?.Invoke() ?? true);
+        if (!Live())
+        {
+            ShowInformation("Session routing stopped.", "The original input or host admission changed. Nothing was submitted.");
+            return true;
+        }
         try
         {
+            using var routingPresentationLease = retainRoutingPresentation?.Invoke();
             var result = await route(body, origin, Live);
             if (!Live()) { return true; }
             if (result is null)
@@ -52,10 +72,10 @@ public sealed partial class MainViewModel
                     + " / " + result.Submission.Message.Reason + ". No other unsent input, grants or provider state was transferred.";
                 if (result.Submission.Message.AssistantResponse is { } answer)
                 {
-                    var presentation = AnswerPresentation.From(answer.Body);
+                    var answerPresentation = AnswerPresentation.From(answer.Body);
                     PresentResponse(AssistantState.Information, "Request destination: " + name + ".",
-                        status + "\n\nAssistant answer (generated locally; verify important details):\n" + presentation.Brief
-                            + (presentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
+                        status + "\n\nAssistant answer (generated locally; verify important details):\n" + answerPresentation.Brief
+                            + (answerPresentation.HasDetails ? "\n\n" + AnswerPresentation.Offer : string.Empty),
                         modelAnswer: new(answer.Body));
                 }
                 else { ShowInformation("Request destination: " + name + ".", status); }

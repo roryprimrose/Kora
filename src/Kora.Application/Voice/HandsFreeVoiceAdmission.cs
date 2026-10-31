@@ -6,4 +6,11 @@ namespace Kora.Application.Voice;
 public sealed record HandsFreeVoiceAdmission(
     MicrophoneDevice Microphone, string AssistantName, SpeechInputGeneration Profile,
     long RecoveryRevision, long TopologyRevision, long CallRevision, long OwnerRevision,
-    long OwnershipBindingRevision = 0);
+    long OwnershipBindingRevision = 0)
+{
+    public long ComposerRevision { get; init; }
+    public long ConversationRevision { get; init; }
+
+    internal bool HasSameListenerAuthority(HandsFreeVoiceAdmission? other) =>
+        other is not null && this == (other with { ComposerRevision = ComposerRevision });
+}

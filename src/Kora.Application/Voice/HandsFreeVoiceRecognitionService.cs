@@ -23,6 +23,9 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     private CancellationTokenSource? cancellation;
     private IHandsFreeAudioSession? session;
     private HandsFreeVoiceAdmission? admission;
+    private WakeWordObservation? admittedWake;
+    private VoiceTranscriptEventArgs? pendingWakeUtterance;
+    private bool wakeUtteranceConsumed;
     private Task run = Task.CompletedTask;
     private TaskCompletionSource captureClosed = CompletedReceipt();
     private long sequence;
@@ -101,21 +104,33 @@ public sealed partial class HandsFreeVoiceRecognitionService(
 
     public void Revalidate()
     {
-        HandsFreeVoiceAdmission? original;
-        lock (gate) { original = admission; }
-        if (original is not null && observe!() != original) { InvalidateCapture(); }
+        var observation = ObserveAdmission();
+        var invalidated = false;
+        lock (gate)
+        {
+            if (admission is not null && !IsObservedAdmissionCurrent(observation))
+            {
+                InvalidateCaptureCore();
+                invalidated = true;
+            }
+        }
+        if (invalidated) { activated.InvalidateCapture(); }
     }
 
     public void InvalidateCapture()
     {
-        lock (gate)
-        {
-            Interlocked.Exchange(ref ambientGeneration, -Interlocked.Increment(ref sequence) - 1);
-            cancellation?.Cancel();
-            session?.Invalidate();
-            admission = null;
-        }
+        lock (gate) { InvalidateCaptureCore(); }
         activated.InvalidateCapture();
+    }
+
+    private void InvalidateCaptureCore()
+    {
+        Interlocked.Exchange(ref ambientGeneration, -Interlocked.Increment(ref sequence) - 1);
+        cancellation?.Cancel();
+        session?.Invalidate();
+        admission = null;
+        admittedWake = null;
+        pendingWakeUtterance = null;
     }
 
     public async Task StopAsync(CancellationToken cancellationToken = default)
@@ -126,8 +141,9 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         {
             worker = run;
             joinWorker = state != HandsFreeVoiceState.CompletingOperation;
-            InvalidateCapture();
+            InvalidateCaptureCore();
         }
+        activated.InvalidateCapture();
         Task closure;
         lock (gate) { closure = captureClosed.Task; }
         // Dispatch can itself execute Disable listening. Join capture, not the operation awaiting dispatch.
@@ -155,6 +171,7 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                     {
                         token.ThrowIfCancellationRequested();
                         admission = current;
+                        admittedWake = null;
                         Interlocked.Exchange(ref ambientGeneration, generation);
                         captureClosed = new(TaskCreationOptions.RunContinuationsAsynchronously);
                     }
@@ -163,9 +180,9 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                         var binding = new HandsFreeAudioBinding(generation, current.Microphone,
                             current.AssistantName, current.Profile)
                         {
-                            CanCapture = () => !token.IsCancellationRequested && Generation == generation
-                                && observe() == current && canOpen(),
+                            CanCapture = () => IsCaptureAdmissionCurrent(generation, token),
                             CommandPhrases = Array.AsReadOnly(recognitionPhrases().ToArray()),
+                            WakeActivated = wake => AdmitWake(wake, generation, token),
                         };
                         var opened = await audio.OpenAsync(binding, token);
                         lock (gate)
@@ -173,25 +190,26 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                             session = opened;
                             if (token.IsCancellationRequested) { opened.Invalidate(); }
                         }
-                        RequireCurrent(current, generation, token);
-                        SetState(HandsFreeVoiceState.WakeListening);
+                        RequireCurrent(generation, token);
+                        HandsFreeVoiceState openedState;
+                        lock (gate)
+                        {
+                            openedState = state = admittedWake is null ? HandsFreeVoiceState.WakeListening : HandsFreeVoiceState.CapturingCommand;
+                        }
+                        PublishStateChanged(openedState);
                         firstOpen.TrySetResult();
                         var wake = await opened.WaitForWakeAsync(token);
-                        RequireCurrent(current, generation, token);
-                        if (wake.Generation != generation || wake.CommandStartSample < 0 || !wake.PlaybackExcluded)
-                        {
-                            throw new InvalidOperationException("Wake observation was stale or playback exclusion was unconfirmed.");
-                        }
-                        commandActivated(generation);
-                        SetState(HandsFreeVoiceState.CapturingCommand);
+                        AdmitWake(wake, generation, token);
+                        lock (gate) { current = admission!; }
                         using var maximumDuration = new CancellationTokenSource(VoiceInputLimits.MaximumCommandDuration,
                             timeProvider ?? TimeProvider.System);
                         using var commandDeadline = CancellationTokenSource.CreateLinkedTokenSource(token, maximumDuration.Token);
                         transcript = await opened.CaptureCommandAsync(wake, commandDeadline.Token);
-                        RequireCurrent(current, generation, token);
+                        RequireCurrent(generation, token);
                         if (transcript is not null && (transcript.Generation != generation
                             || string.IsNullOrWhiteSpace(transcript.Transcript)
                             || transcript.Transcript.Length > VoiceInputLimits.MaximumTranscriptCharacters
+                            || transcript.ActivationEvidence is not null
                             || !float.IsFinite(transcript.Confidence) || transcript.Confidence is < 0 or > 1))
                         {
                             throw new InvalidOperationException("Final command was invalid or belonged to another capture.");
@@ -201,15 +219,27 @@ public sealed partial class HandsFreeVoiceRecognitionService(
                     {
                         await CloseCaptureAsync();
                     }
-                    RequireCurrent(current, generation, token);
+                    RequireCurrent(generation, token);
                     if (transcript is not null)
                     {
+                        var observation = ObserveAdmission(requireCaptureOwner: true);
                         lock (gate)
                         {
                             token.ThrowIfCancellationRequested();
-                            SetState(HandsFreeVoiceState.CompletingOperation);
+                            if (!IsObservedAdmissionCurrent(observation)
+                                || ambientGeneration != generation)
+                            {
+                                throw new InvalidOperationException("Voice admission changed before dispatch.");
+                            }
+                            var evidence = new NativeWakeEvidence(current, generation, request);
+                            transcript = new(transcript.Transcript, transcript.Confidence, generation, evidence);
+                            pendingWakeUtterance = transcript;
+                            wakeUtteranceConsumed = false;
+                            state = HandsFreeVoiceState.CompletingOperation;
                         }
-                        await dispatch!(transcript, request);
+                        PublishStateChanged(HandsFreeVoiceState.CompletingOperation);
+                        try { await dispatch!(transcript, request); }
+                        finally { lock (gate) { pendingWakeUtterance = null; } }
                     }
                     activity.Complete(HostOperationOutcome.Completed);
                     causes = activity.Activity is { } completed ? [new(completed.Context)] : [];
@@ -243,14 +273,130 @@ public sealed partial class HandsFreeVoiceRecognitionService(
         finally
         {
             firstOpen.TrySetCanceled(CancellationToken.None);
-            lock (gate) { admission = null; }
+            lock (gate) { admission = null; admittedWake = null; pendingWakeUtterance = null; }
         }
     }
 
-    private void RequireCurrent(HandsFreeVoiceAdmission expected, long generation, CancellationToken token)
+    internal Func<bool> ConsumeWakeActivation(VoiceTranscriptEventArgs utterance, HostRequest request)
+    {
+        var observation = ObserveAdmission(requireCaptureOwner: true);
+        var activatedQuiescent = activated.IsCaptureQuiescent;
+        lock (gate)
+        {
+            if (wakeUtteranceConsumed || !IsWakeActivationCurrentCore(utterance, request, observation, activatedQuiescent))
+            {
+                throw new InvalidOperationException("The original host-owned wake utterance is unavailable or already consumed.");
+            }
+            wakeUtteranceConsumed = true;
+            return () => IsWakeActivationCurrent(utterance, request);
+        }
+    }
+
+    private bool IsWakeActivationCurrent(VoiceTranscriptEventArgs utterance, HostRequest request)
+    {
+        var observation = ObserveAdmission();
+        var activatedQuiescent = activated.IsCaptureQuiescent;
+        lock (gate) { return IsWakeActivationCurrentCore(utterance, request, observation, activatedQuiescent); }
+    }
+
+    private bool IsWakeActivationCurrentCore(VoiceTranscriptEventArgs utterance, HostRequest request,
+        AdmissionObservation? observation, bool activatedQuiescent)
+    {
+        if (state != HandsFreeVoiceState.CompletingOperation
+            || request.Origin != RequestOrigin.ActivatedVoice
+            || utterance.ActivationEvidence is not NativeWakeEvidence evidence
+            || !ReferenceEquals(pendingWakeUtterance, utterance)
+            || !ReferenceEquals(evidence.Request, request))
+        {
+            return false;
+        }
+        var current = !disposed && !profileSwitchActive && !profileRetirementFailed
+            && cancellation is { IsCancellationRequested: false }
+            && evidence.Generation == ambientGeneration
+            && admission == evidence.Admission && IsObservedAdmissionCurrent(observation)
+            && captureClosed.Task.IsCompletedSuccessfully && session is null && activatedQuiescent;
+        if (!current) { pendingWakeUtterance = null; }
+        return current;
+    }
+
+    private sealed class NativeWakeEvidence(
+        HandsFreeVoiceAdmission admission, long generation, HostRequest request) : IVoiceActivationEvidence
+    {
+        public long Generation { get; } = generation;
+        internal HandsFreeVoiceAdmission Admission { get; } = admission;
+        internal HostRequest Request { get; } = request;
+    }
+
+    private sealed record AdmissionObservation(HandsFreeVoiceAdmission Expected, WakeWordObservation? Wake,
+        long Generation, HandsFreeVoiceAdmission? Current, bool CaptureAllowed);
+
+    private AdmissionObservation? ObserveAdmission(bool requireCaptureOwner = false)
+    {
+        HandsFreeVoiceAdmission expected;
+        WakeWordObservation? wake;
+        long generation;
+        lock (gate)
+        {
+            if (admission is null || disposed || profileSwitchActive || profileRetirementFailed
+                || cancellation is not { IsCancellationRequested: false }) { return null; }
+            expected = admission;
+            wake = admittedWake;
+            generation = ambientGeneration;
+        }
+        // Host observation can acquire configuration locks. Recheck this exact phase after it returns.
+        var captureAllowed = !requireCaptureOwner || canOpen();
+        return new(expected, wake, generation, observe!(), captureAllowed);
+    }
+
+    private bool IsObservedAdmissionCurrent(AdmissionObservation? observation) =>
+        observation is { CaptureAllowed: true } && !disposed && !profileSwitchActive && !profileRetirementFailed
+        && cancellation is { IsCancellationRequested: false }
+        && ambientGeneration == observation.Generation && ReferenceEquals(admission, observation.Expected)
+        && admittedWake == observation.Wake && (observation.Wake is null
+            ? observation.Expected.HasSameListenerAuthority(observation.Current)
+            : observation.Current == observation.Expected);
+
+    private bool IsCaptureAdmissionCurrent(long generation, CancellationToken token)
+    {
+        if (token.IsCancellationRequested) { return false; }
+        var observation = ObserveAdmission(requireCaptureOwner: true);
+        lock (gate)
+        {
+            return !token.IsCancellationRequested && ambientGeneration == generation
+                && IsObservedAdmissionCurrent(observation);
+        }
+    }
+
+    private void AdmitWake(WakeWordObservation wake, long generation, CancellationToken token)
+    {
+        var observation = ObserveAdmission(requireCaptureOwner: true);
+        lock (gate)
+        {
+            token.ThrowIfCancellationRequested();
+            if (observation?.Current is not { } activatedAdmission
+                || ambientGeneration != generation || !IsObservedAdmissionCurrent(observation))
+            {
+                throw new InvalidOperationException("Original hands-free authority changed at activation.");
+            }
+            if (wake.Generation != generation || wake.CommandStartSample < 0 || !wake.PlaybackExcluded
+                || admittedWake is not null && admittedWake != wake)
+            {
+                throw new InvalidOperationException("Wake observation was stale or playback exclusion was unconfirmed.");
+            }
+            if (admittedWake is not null) { return; }
+            admission = activatedAdmission;
+            admittedWake = wake;
+            state = HandsFreeVoiceState.CapturingCommand;
+        }
+        commandActivated(generation);
+        RequireCurrent(generation, token);
+        PublishStateChanged(HandsFreeVoiceState.CapturingCommand);
+    }
+
+    private void RequireCurrent(long generation, CancellationToken token)
     {
         token.ThrowIfCancellationRequested();
-        if (observe!() != expected || Generation != generation)
+        if (!IsCaptureAdmissionCurrent(generation, token))
         {
             throw new InvalidOperationException("Voice admission changed; no command may be replayed.");
         }
@@ -280,6 +426,11 @@ public sealed partial class HandsFreeVoiceRecognitionService(
     private void SetState(HandsFreeVoiceState value)
     {
         lock (gate) { state = value; }
+        PublishStateChanged(value);
+    }
+
+    private void PublishStateChanged(HandsFreeVoiceState value)
+    {
         LifecycleStateChanged(logger, value);
         Changed?.Invoke(this, EventArgs.Empty);
     }
@@ -347,7 +498,11 @@ public sealed partial class HandsFreeVoiceRecognitionService(
             }
             finally
             {
-                cancellation?.Dispose();
+                lock (gate)
+                {
+                    cancellation?.Dispose();
+                    cancellation = null;
+                }
             }
         }
     }

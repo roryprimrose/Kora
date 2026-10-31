@@ -251,12 +251,14 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public int Opens { get; private set; }
         public Exception? OpenFailure { get; init; }
         public bool HoldOpen { get; init; }
+        public Action<AudioSession>? OnOpened { get; init; }
         public TaskCompletionSource ReleaseOpen { get; } = new(TaskCreationOptions.RunContinuationsAsynchronously);
         public async Task<IHandsFreeAudioSession> OpenAsync(HandsFreeAudioBinding binding, CancellationToken cancellationToken)
         {
             Opens++;
             if (OpenFailure is not null) { throw OpenFailure; }
             var session = new AudioSession(binding);
+            OnOpened?.Invoke(session);
             openings.Writer.TryWrite(session).Should().BeTrue();
             if (HoldOpen) { await ReleaseOpen.Task.WaitAsync(TestContext.Current.CancellationToken); }
             return session;
@@ -275,6 +277,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
         public bool HoldClose { get; set; }
         public bool ConfirmQuiescence { get; set; } = true;
         public bool FailClose { get; set; }
+        public Action? OnClosed { get; set; }
         public bool IsQuiescent { get; private set; }
         public bool Invalidated { get; private set; }
         public int CaptureCalls { get; private set; }
@@ -292,6 +295,7 @@ public sealed partial class HandsFreeVoiceRecognitionServiceTests
             if (HoldClose) { await ReleaseClose.Task.WaitAsync(TestContext.Current.CancellationToken); }
             if (FailClose) { throw new InvalidOperationException("Capture release failed."); }
             IsQuiescent = ConfirmQuiescence;
+            OnClosed?.Invoke();
         }
     }
 

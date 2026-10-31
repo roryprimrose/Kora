@@ -143,6 +143,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
     internal WorkSessionAuthorization? LifecycleTarget { get; private set; }
     internal HostQuestionRecord? RevisionQuestion { get; private set; }
     internal MainViewModel Main => main ?? throw new InvalidOperationException("The native fixture has not initialized its presentation state.");
+    internal ILogger<MainViewModel>? MainLogger { get; set; }
     internal ArtifactCatalogue ArtifactCatalogue { get; private set; } = null!;
     internal IUserDocumentationProvider Documents { get; } = new EmbeddedUserDocumentationProvider();
 
@@ -153,7 +154,9 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
         Kora.Core.Communication.ICallStateService? callState = null,
         IUiDispatcher? dispatcher = null, ILocalModelReasoner? modelReasoner = null, ISetupDependencyProbe? modelProbe = null,
         Kora.Application.Dependencies.SpeechComponentSetupService? speechComponentSetup = null,
-        LogonStartupConfigurationService? logonStartupConfiguration = null)
+        LogonStartupConfigurationService? logonStartupConfiguration = null,
+        IQuestionVoiceRecognitionService? voiceRecognition = null,
+        SpeechInputConfigurationService? speechInputConfiguration = null)
     {
         if (initialized) { throw new InvalidOperationException("A fixture session may be initialized only once."); }
         await Tasks.InitializeAsync(Token);
@@ -201,7 +204,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             commands, Audit, NullLogger<AssistantNameConfigurationService>.Instance);
         main = new(commands, new(commands), catalogue, new(catalogue), bootstrapper,
             new(bootstrapper, execution, execution), modelReasoner ?? execution, new LocalModelApprovalPreferences(this), models, Access,
-            Voice, speech, assistantNameConfiguration, appearances,
+            voiceRecognition ?? Voice, speech, assistantNameConfiguration, appearances,
             new LocalOptionalSpeechOfferPreferences(this),
             audioPreferences,
             new LocalResponseOutputPreferences(this, NullLogger<LocalResponseOutputPreferences>.Instance),
@@ -209,7 +212,7 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             callState ?? new FixtureCallState(SilentSpeech is null && !Voice.SyntheticCapture
                 ? Kora.Core.Communication.CallState.Unavailable : Kora.Core.Communication.CallState.Clear),
             Access, execution, dispatcher ?? new AvaloniaUiDispatcher(), Access, new AssemblyApplicationInfo(), Audit,
-            NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
+            MainLogger ?? NullLogger<MainViewModel>.Instance, consent, Access, VersionQuery, capabilities,
             new AppearanceConfigurationService(appearances, Audit, NullLogger<AppearanceConfigurationService>.Instance),
             new SpeechConfigurationService(new LocalTextToSpeechPreferences(this, NullLogger<LocalTextToSpeechPreferences>.Instance),
                 speech, Audit, NullLogger<SpeechConfigurationService>.Instance),
@@ -220,7 +223,8 @@ internal sealed partial class NativeUxFixtureSession : IApplicationDataPaths, ID
             new Kora.Application.Presentation.AudioPlaybackSettings(dispatcher ?? new AvaloniaUiDispatcher(),
                 NullLogger<Kora.Application.Presentation.AudioPlaybackSettings>.Instance),
             speechTextConfiguration: captionConfiguration,
-            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration);
+            webPageGet: webPageGet, speechComponentSetup: speechComponentSetup, logonStartupConfiguration: logonStartupConfiguration,
+            speechInputConfiguration: speechInputConfiguration);
         if (webSummary is not null) { Main.BindWebSummaryWorkflow(webSummary); }
         Main.BindCallOwnershipGate(() => Access.Open);
         Main.BindClipboardOwnershipGate(static () => false);

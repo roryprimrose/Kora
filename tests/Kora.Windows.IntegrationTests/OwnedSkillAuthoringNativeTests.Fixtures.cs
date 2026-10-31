@@ -23,6 +23,9 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("pass")]
     [InlineData("fail")]
     [InlineData("saved")]
+    [InlineData("saved-delete")]
+    [InlineData("saved-delete-refine")]
+    [InlineData("saved-delete-edited")]
     [InlineData("reject")]
     [InlineData("unknown")]
     [InlineData("mocked-tool")]
@@ -37,6 +40,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("late-expected-input")]
     [InlineData("late-critique")]
     [InlineData("late-selection")]
+    [InlineData("late-delete")]
     [InlineData("late-owner")]
     [InlineData("late-privacy")]
     [InlineData("dispose")]
@@ -67,7 +71,9 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var flow = new OwnedSkillFixtureWorkflow(store, admission, runner, TimeProvider.System);
             var ownership = 1L;
             await using var controller = new OwnedSkillEditorController(f.Main, save, admission, static () => true,
-                () => ownership, NullLogger<OwnedSkillEditorController>.Instance, fixtures: flow);
+                () => ownership, NullLogger<OwnedSkillEditorController>.Instance,
+                refinement: new(store, admission, save, runner, TimeProvider.System),
+                deletion: new(store, admission, f.Audit, TimeProvider.System), fixtures: flow);
             controller.Bind();
             OwnedSkillEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -100,7 +106,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await Run("owned skill inputs required-literal");
             }
             var document = owned.Document();
-            if (scenario is "saved")
+            var savedSource = scenario is "saved" or "late-delete" || scenario.StartsWith("saved-delete", StringComparison.Ordinal);
+            if (savedSource)
             {
                 var saving = Run("owned skill save");
                 await saving;
@@ -167,6 +174,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             {
                 (await Task.WhenAny(adapter.Started.Task, testing)).Should().BeSameAs(adapter.Started.Task);
                 Task? disposing = null;
+                try
+                {
                 switch (scenario)
                 {
                     case "late-cancel": Choose(owned, "Cancel test"); break;
@@ -178,6 +187,14 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         owned.Saved.ItemsSource = new[] { new OwnedDeclarativeSkillSnapshot(document, "d", "m", "i") };
                         owned.Saved.SelectedIndex = 0;
                         break;
+                    case "late-delete":
+                        await Run("owned skill delete example 1.0.0");
+                        next.Task.IsCompleted.Should().BeFalse("deletion cannot start a review while simulation owns work");
+                        var heldSource = (await store.Read("example", "1.0.0", f.Token))!.Document;
+                        heldSource.ManifestBytes.ToArray().Should().Equal(document.ManifestBytes.ToArray());
+                        heldSource.InstructionBytes.ToArray().Should().Equal(document.InstructionBytes.ToArray());
+                        Choose(owned, "Cancel test");
+                        break;
                     case "late-owner": ownership++; break;
                     case "late-privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic simulated test closure", hidePresentation: true); break;
                     case "dispose": disposing = controller.DisposeAsync().AsTask(); break;
@@ -185,7 +202,9 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 testing.IsCompleted.Should().BeFalse();
                 models.IsQuiescent.Should().BeFalse();
                 if (disposing is not null) { disposing.IsCompleted.Should().BeFalse(); }
-                adapter.Pending!.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("LATE", null)));
+                }
+                finally
+                { adapter.Pending!.TrySetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate, new("LATE", null))); }
                 await testing;
                 if (disposing is not null) { await disposing; }
                 next.Task.IsCompleted.Should().BeFalse("no late simulated output may become a result window");
@@ -214,9 +233,80 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 adapter.Wire.Should().Equal(System.Text.Encoding.UTF8.GetBytes(reviewed[1].Text!));
             }
             owned.Guidance.Text.Should().Be(scenario is "late-draft" ? guidance + "EDIT" : guidance);
-            (await store.List(f.Token)).Count.Should().Be(scenario is "saved" ? 1 : 0);
+            (await store.List(f.Token)).Count.Should().Be(savedSource ? 1 : 0);
             document.IsAvailableForInvocation.Should().BeFalse();
             models.IsQuiescent.Should().BeTrue();
+            if (savedSource)
+            {
+                var exactSource = (await store.Read("example", "1.0.0", f.Token))!;
+                exactSource.Document.ManifestBytes.ToArray().Should().Equal(document.ManifestBytes.ToArray());
+                exactSource.Document.InstructionBytes.ToArray().Should().Equal(document.InstructionBytes.ToArray());
+                if (scenario.StartsWith("saved-delete", StringComparison.Ordinal))
+                {
+                    var calls = adapter.Calls;
+                    var deleting = Run("owned skill delete example 1.0.0");
+                    var sourceReview = await Review(deleting);
+                    sourceReview.Title.Should().Be("Review exact owned skill source deletion");
+                    sourceReview.GetLogicalDescendants().OfType<TextBox>().Select(box => box.Text)
+                        .Should().Equal(document.ManifestText, document.Guidance);
+                    (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(exactSource).Should().BeTrue();
+                    Choose(sourceReview, "Continue to separate deletion confirmation");
+                    var confirmation = await Review(deleting);
+                    confirmation.Title.Should().Be("Confirm exact owned skill source deletion");
+                    (await store.Read("example", "1.0.0", f.Token))!.IsSameRevision(exactSource).Should().BeTrue();
+                    Choose(confirmation, "Delete only this exact owned source");
+                    await deleting;
+                    (await store.Read("example", "1.0.0", f.Token)).Should().BeNull();
+                    (await store.List(f.Token)).Should().BeEmpty();
+                    owned.Saved.Items.Should().BeEmpty();
+                    adapter.Calls.Should().Be(calls, "source deletion grants no model or tool invocation authority");
+                    models.IsQuiescent.Should().BeTrue();
+                    next.Task.IsCompleted.Should().BeFalse("deletion cannot open a simulated result or another operation");
+                    owned.Guidance.Text.Should().Be(guidance, "deleting the source must not silently discard the retained buffer");
+                    if (scenario is "saved-delete-edited")
+                    {
+                        owned.VersionInput.Text = "1.0.1";
+                        owned.Guidance.Text += " retained unsaved edit";
+                    }
+                    var refining = scenario is "saved-delete-refine";
+                    if (refining)
+                    {
+                        await Run("owned skill critique: Keep the complete guidance");
+                        adapter.Output = """{"body":"replacement guidance"}""";
+                    }
+                    var retry = Run(refining ? "owned skill refine" : "owned skill test");
+                    if (await Task.WhenAny(next.Task, retry) == next.Task)
+                    {
+                        Choose(await Review(retry), refining ? "Generate local guidance proposal" : "Start SIMULATED test");
+                        if (await Task.WhenAny(next.Task, retry) == next.Task)
+                        { Choose(await Review(retry), refining ? "Reject proposal" : "Dismiss simulated result"); }
+                    }
+                    await retry;
+                    adapter.Calls.Should().Be(calls,
+                        "retained deleted-source text cannot become a source-free simulation or refinement");
+                    next.Task.IsCompleted.Should().BeFalse("no deleted-source result or proposal can be disclosed");
+                    models.IsQuiescent.Should().BeTrue();
+                    (await store.Read("example", "1.0.0", f.Token)).Should().BeNull();
+                    (await store.Read("example", "1.0.1", f.Token)).Should().BeNull();
+                    owned.Guidance.Text.Should().Be(scenario is "saved-delete-edited" ? guidance + " retained unsaved edit" : guidance);
+                    if (scenario is "saved-delete")
+                    {
+                        await Run("owned skill create example 1.0.1");
+                        await Run("owned skill name: New example");
+                        await Run("owned skill description: New draft");
+                        owned.Guidance.Text = guidance;
+                        await Run("owned skill fixture: " + fixture);
+                        var fresh = Run("owned skill test");
+                        Choose(await Review(fresh), "Start SIMULATED test");
+                        Choose(await Review(fresh), "Dismiss simulated result");
+                        await fresh;
+                        adapter.Calls.Should().Be(calls + 1, "explicit Create establishes a new source-free draft, not old activation");
+                        models.IsQuiescent.Should().BeTrue();
+                        owned.Document().IsAvailableForInvocation.Should().BeFalse();
+                        (await store.List(f.Token)).Should().BeEmpty("fresh simulation must not recreate or enable either source");
+                    }
+                }
+            }
         });
     }
 

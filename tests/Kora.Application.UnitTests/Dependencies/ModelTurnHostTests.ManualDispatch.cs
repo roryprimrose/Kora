@@ -127,6 +127,14 @@ public sealed partial class ModelTurnHostTests
         var head = await service.SubmitQueuedAsync(target, "original bound head", () => source, Token);
         var next = await service.SubmitQueuedAsync(target, "later original", () => true, Token);
         var held = await service.ReadPendingConversationAsync(target, () => true, Token);
+        var originalNow = f.Time.GetUtcNow();
+        if (fault is "expiry")
+        {
+            held.Turns.Should().HaveCount(2).And.OnlyContain(item =>
+                item.ExpiresAt == item.Submission.Message.SubmittedAt.AddSeconds(15));
+            head.Completion.IsCompleted.Should().BeFalse();
+            next.Completion.IsCompleted.Should().BeFalse();
+        }
         if (fault is "expiry") { f.Time.Now = f.Time.Now.AddSeconds(15); }
         if (fault is "source") { source = false; }
         if (fault is "provider") { f.ProfileCatalogue.Status = Kora.Core.Providers.ProviderCatalogueStatus.Unavailable; }
@@ -150,7 +158,47 @@ public sealed partial class ModelTurnHostTests
         f.PendingRecords[head.Receipt.Message.Request.RequestId].Message.AssistantResponse.Should().BeNull();
         var after = await service.ReadPendingConversationAsync(target, () => true, Token);
         after.Paused.Should().BeTrue();
-        if (fault is not "expiry") { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }
+        if (fault is "expiry")
+        {
+            f.Time.GetUtcNow().Should().Be(originalNow.AddSeconds(15));
+            var later = (await next.Completion).RequireReceipt();
+            later.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+            later.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+            later.Message.Request.Should().BeSameAs(next.Receipt.Message.Request);
+            later.Message.Body.Should().Be(next.Receipt.Message.Body);
+            later.Message.Execution.Should().BeNull();
+            later.Message.AssistantResponse.Should().BeNull();
+            f.PendingRecords.Should().HaveCount(2);
+            foreach (var original in new[] { head, next })
+            {
+                var completed = (await original.Completion).RequireReceipt();
+                var retained = f.PendingRecords[original.Receipt.Message.Request.RequestId];
+                retained.Should().Be(completed);
+                retained.Message.Request.Should().BeSameAs(original.Receipt.Message.Request);
+                retained.Task.Request.Should().BeSameAs(original.Receipt.Task.Request);
+                retained.Message.SubmittedAt.Should().Be(original.Receipt.Message.SubmittedAt);
+                retained.Message.SubmittedAt.Offset.Should().Be(TimeSpan.Zero);
+                retained.Message.Generation.Should().Be(original.Receipt.Message.Generation);
+                retained.Message.Sequence.Should().Be(original.Receipt.Message.Sequence);
+                retained.Message.Version.Should().Be(1);
+                retained.Message.Revision.Should().Be(2);
+                retained.Task.Revision.Value.Should().Be(2);
+                retained.Task.State.Should().Be(HostTaskState.Denied);
+                retained.Message.Outcome.Should().Be(ModelTurnOutcome.Denied);
+                retained.Message.Body.Should().Be(original.Receipt.Message.Body);
+                retained.Message.Reason.Should().Be(ModelTurnReason.ContextExpired);
+                retained.Message.Execution.Should().BeNull();
+                retained.Message.AssistantResponse.Should().BeNull();
+                (await f.ReadTaskAsync(target.Authority.SessionId, original.Receipt.Task.Request.TaskId, Token))!
+                    .Task.Should().Be(retained.Task);
+            }
+            f.Time.GetUtcNow().Should().Be(originalNow.AddSeconds(15));
+            (await service.ReadPendingConversationAsync(target, () => true, Token)).Turns.Should().BeEmpty();
+            f.ExecutionStarts.Should().Be(0);
+            f.ExecutionCompletions.Should().Be(0);
+            f.Adapter.Calls.Should().Be(0);
+        }
+        else { next.Completion.IsCompleted.Should().BeFalse("an invalid head cannot be skipped"); }
     }
 
     [Theory]

@@ -172,6 +172,12 @@ consumers, including links embedded in the guide and historical experiments.
   counts or an incomplete command task. Await cancellation acceptance, owned
   resource completion and the exact UI publication separately. Drain dispatcher
   work only after the operation it presents has joined.
+- Keep pending-turn terminal message/task pairs request-local: several held
+  requests can expire independently. A concurrent dictionary does not make a
+  shared fixture selection/commit sequence atomic.
+- Inject one-shot observer faults atomically: cancellation acceptance and
+  completion can publish the same Cancelling state concurrently. Retain the
+  observer through physical join and verify the exact terminal receipt.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).

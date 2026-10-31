@@ -71,6 +71,7 @@ Clarification/approval turns and specialized source workflows keep their existin
 
 **Shorter safety limits always win:** current local/read-only turns are capped at 15 seconds and ordinary hosted adapters at two minutes, with original context authorization able to expire earlier.
 A longer preference cannot renew that authorization or enable an unavailable provider.
+Provisional answers become noncurrent when the captured active deadline expires, even while the provider is still running.
 Timeout waits for owned runtime resources to finish before final retention; cancelling a request does not prove a remote provider physically stopped ([lifecycle](../Design/Task_Lifecycle.md#defaults-and-bounds)).
 
 ## Start Kora at Windows logon

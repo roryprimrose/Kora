@@ -36,7 +36,8 @@ public sealed partial class SessionConversationService
         turn.PublishExecutionStep = running.PresentExecutionStep;
         turn.PublishAnswer = async (update, publicationToken) =>
         {
-            bool PresentCurrent() => Current() && running.CanContinue && turn.IsRunning
+            bool PresentCurrent() => Current() && turn.OrdinaryActiveBudget?.Expired != true
+                && running.CanContinue && turn.IsRunning
                 && !running.Token.IsCancellationRequested;
             publicationToken.ThrowIfCancellationRequested();
             if (!PresentCurrent())

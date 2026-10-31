@@ -114,6 +114,11 @@ Activity contains the existing task/question/answer/decision records; it is not
 a complete tool trace or exact-grant-change feed. Historical records and their
 Details are read-only, never live answer or approval buttons.
 
+Returning to a conversation does not replay delayed submission notifications.
+Use **Read conversation** for its retained result or **Refresh submitted work**
+for current pending requests. Your unsent text stays in its original conversation;
+refreshing does not submit it or renew the original request's permission.
+
 The composer explicitly sends to the selected conversation. Switching topics
 preserves each topic's separate memory-only unsent text. **Collapse** (or
 `collapse conversation`) returns to the original compact interaction without
@@ -405,6 +410,13 @@ Open **Sessions**, select the exact session and use **Exact-session conversation
 Read/Next show bounded chronological **USER** messages and separate **HOST** statuses; no model answer is invented. Done history stays readable, but new work requires explicit Resume. Exact authority checks and target/effect disclosures for consequential reviews remain unchanged ([submission admission](../src/Kora.Application/Hosting/SessionConversationService.cs), [disposition review](../src/Kora/SessionsViewModel.cs)).
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
+
+If work refresh observes a changed lifecycle or generation, all conversation
+views retain the unsent text but disable stale composer and Send controls.
+An Active observation alone does not restore eligibility. Use **Read conversation**
+for that exact session to recover its current source; other topics' unsent text
+remains independent. Submission uncertainty still requires exact receipt
+inspection and is not cleared by reading.
 
 **Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 

@@ -56,6 +56,21 @@ In the registered shared-skill inspector, select exactly one eligible skill and 
 
 **Stop and close reviewed use** cancels and joins the original operation, including cancellation-ignoring provider/transport work. Changed inputs/selections require new review and enablement. Source/account/schema changes, revocation, expired permission or failed readback suppress success/publication; no automatic retry or rollback is claimed ([canonical owner](../src/Kora.Application/Hosting/SessionConversationService.Mcp.cs)).
 
+Arguments must be one JSON object of at most 2,048 UTF-8 bytes, starting with `{`
+and ending with `}`. Whitespace inside those braces is preserved; leading or
+trailing whitespace is rejected before confirmation because the model protocol
+cannot reproduce it. No approved argument bytes are silently reformatted.
+
+Invocation preparation checks the complete local input against the inclusive
+32,768-byte serialized limit: original request, full guidance, argument/revision
+evidence, policy, context framing and initial model-request framing. Before discovery it reserves worst-case JSON-string
+encoding space for the entire bounded 4,096-byte schema (up to six serialized
+bytes per schema byte). This conservative reserve can reject a skill below the
+64 KiB inspection limit. Nothing is truncated or omitted, and rejection enables
+no confirmation or connection. The host repeats preflight before retaining the
+request and checks the complete context with the exact discovered schema before
+model dispatch; the reserve/scaffold never replaces that schema.
+
 Typed commands start with `review tool skill <exact name>`, `tool skill targets`, `tool skill target <displayed ID>` and `tool skill mcp options`. Choose `tool skill mcp server <exact source ID>` and `tool skill mcp account <unique exact displayed account name>`, then enter `tool skill mcp arguments <unchanged JSON>` and `tool skill request <unchanged request>`.
 
 Continue with `tool skill review tool revision`, `tool skill enable`, `tool skill review invocation`, `tool skill confirm invocation` or `tool skill close`. Activated voice uses those same commands with the current assistant-name prefix and preserves its original channel. Authentication, schema/tool selection and permission/egress approval remain mandatory native reviews; ambiguous account names require native selection ([routing](../src/Kora.Application/Skills/SharedSkillInvocationCommand.cs)).

@@ -32,7 +32,15 @@ public sealed partial class ReviewedToolSkillInvocationWorkflow
             using var parsed = ModelToolProtocol.ReadJson(Encoding.UTF8.GetBytes(arguments), McpToolSchema.MaximumArgumentsUtf8Bytes);
             if (parsed.RootElement.ValueKind != System.Text.Json.JsonValueKind.Object)
             { throw new InvalidDataException("Original MCP arguments must be one bounded JSON object."); }
+            if (!string.Equals(arguments, parsed.RootElement.GetRawText(), StringComparison.Ordinal))
+            { throw new InvalidDataException("Original MCP arguments must start and end with the object braces; outer JSON whitespace cannot be preserved by the model protocol."); }
             ArgumentNullException.ThrowIfNull(account);
+            var source = (SharedToolSkillSource)review.Require(this, origin);
+            var binding = new McpSkillBinding(reference, source.Snapshot.SourceQualifiedIdentity,
+                source.Snapshot.RevisionDigest, originalRequest, arguments, source.Text, review.ExpiresAt);
+            _ = SessionConversationService.CreateMcpSkillPreflightContext(
+                new(new(Guid.NewGuid()), review.Target.Authority.SessionId, new(Guid.NewGuid()), origin),
+                binding, time.GetUtcNow());
             return new(review, originalRequest, serverId, account, arguments);
         }
         catch { review.Dispose(); throw; }

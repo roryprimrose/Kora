@@ -74,6 +74,36 @@ public sealed partial class InstructionEditorTests
     }
 
     [Theory]
+    [InlineData("help", "reserved control")]
+    [InlineData("instructions", "reserved control")]
+    [InlineData("local-models", "built-in command")]
+    public async Task RejectedRenameDestinationPreservesExactSourceAndReviewedUseWithoutReadsOrMutation(string destination, string reason)
+    {
+        await using var f = new Fixture();
+        var source = f.Files.Current!;
+        await f.Actions.Activate(source, _ => Task.FromResult(true), f.Eligible, CancellationToken.None);
+        var candidates = f.Catalogue.Candidates;
+        var reads = f.Files.Reads;
+        var audit = f.Audit.Events.ToArray();
+        var preferences = f.State.ReadText("instruction-revisions.json");
+
+        var operation = () => f.Actions.ReviewRename(source, destination, f.Eligible, CancellationToken.None);
+
+        await operation.Should().ThrowAsync<InvalidDataException>().WithMessage("*" + reason + "*");
+        f.Files.Current.Should().BeSameAs(source);
+        f.Files.Reads.Should().Be(reads);
+        f.Files.Writes.Should().Be(0);
+        f.Files.Renames.Should().Be(0);
+        f.Files.Recoveries.Should().Be(0);
+        f.Files.Copies.Should().BeEmpty();
+        f.Files.PendingRename.Should().BeNull();
+        f.Catalogue.Candidates.Should().BeSameAs(candidates);
+        f.Revisions.IsEnabled(source).Should().BeTrue();
+        f.State.ReadText("instruction-revisions.json").Should().Be(preferences);
+        f.Audit.Events.Should().Equal(audit);
+    }
+
+    [Theory]
     [InlineData("source-missing")]
     [InlineData("source-revision")]
     [InlineData("source-bytes")]

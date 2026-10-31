@@ -23,6 +23,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("pass")]
     [InlineData("fail")]
     [InlineData("saved")]
+    [InlineData("renamed")]
     [InlineData("reject")]
     [InlineData("unknown")]
     [InlineData("mocked-tool")]
@@ -37,6 +38,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("late-expected-input")]
     [InlineData("late-critique")]
     [InlineData("late-selection")]
+    [InlineData("late-rename-target")]
     [InlineData("late-owner")]
     [InlineData("late-privacy")]
     [InlineData("dispose")]
@@ -67,7 +69,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var flow = new OwnedSkillFixtureWorkflow(store, admission, runner, TimeProvider.System);
             var ownership = 1L;
             await using var controller = new OwnedSkillEditorController(f.Main, save, admission, static () => true,
-                () => ownership, NullLogger<OwnedSkillEditorController>.Instance, fixtures: flow);
+                () => ownership, NullLogger<OwnedSkillEditorController>.Instance,
+                renames: new(store, store, admission, f.Audit, TimeProvider.System), fixtures: flow);
             controller.Bind();
             OwnedSkillEditorWindow? editor = null;
             var next = new TaskCompletionSource<Window>(TaskCreationOptions.RunContinuationsAsynchronously);
@@ -100,7 +103,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await Run("owned skill inputs required-literal");
             }
             var document = owned.Document();
-            if (scenario is "saved")
+            if (scenario is "saved" or "renamed")
             {
                 var saving = Run("owned skill save");
                 await saving;
@@ -112,6 +115,21 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 await saving;
                 await Run("owned skill list");
                 await Run("owned skill reopen example 1.0.0");
+                if (scenario is "renamed")
+                {
+                    var renaming = Run("owned skill rename example 1.0.0 renamed");
+                    Choose(await Review(renaming), "Continue to separate rename confirmation");
+                    Choose(await Review(renaming), "Rename only this complete package");
+                    await renaming;
+                    owned.IdInput.Text.Should().Be("renamed");
+                    owned.Fixture.Text.Should().BeEmpty();
+                    (await store.Read("example", "1.0.0", f.Token)).Should().BeNull();
+                    (await store.PendingRenames(f.Token)).Should().BeEmpty();
+                    document = owned.Document();
+                    document.Id.Should().Be("renamed");
+                    document.Guidance.Should().Be(guidance);
+                    adapter.Calls.Should().Be(0, "renaming cannot run a simulated or ordinary invocation");
+                }
             }
             const string input = "  example e\u0301\U0001f642\r\nowned skill invoke  ";
             const string output = "  SIMULATED e\u0301\U0001f642\r\nowned skill save; shell.run  ";
@@ -178,6 +196,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         owned.Saved.ItemsSource = new[] { new OwnedDeclarativeSkillSnapshot(document, "d", "m", "i") };
                         owned.Saved.SelectedIndex = 0;
                         break;
+                    case "late-rename-target": owned.RenameId.Text = "other-target"; break;
                     case "late-owner": ownership++; break;
                     case "late-privacy": f.Main.CloseForObservedPrivacyEvent("Synthetic simulated test closure", hidePresentation: true); break;
                     case "dispose": disposing = controller.DisposeAsync().AsTask(); break;
@@ -214,7 +233,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                 adapter.Wire.Should().Equal(System.Text.Encoding.UTF8.GetBytes(reviewed[1].Text!));
             }
             owned.Guidance.Text.Should().Be(scenario is "late-draft" ? guidance + "EDIT" : guidance);
-            (await store.List(f.Token)).Count.Should().Be(scenario is "saved" ? 1 : 0);
+            (await store.List(f.Token)).Count.Should().Be(scenario is "saved" or "renamed" ? 1 : 0);
             document.IsAvailableForInvocation.Should().BeFalse();
             models.IsQuiescent.Should().BeTrue();
         });

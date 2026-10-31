@@ -64,6 +64,7 @@ public sealed record ArtifactDefinition
     public bool RequiresInstructionReview { get; init; }
     public string? OwnedInstructionRevision { get; init; }
     public OwnedPromptTemplate? PromptTemplate { get; init; }
+    public IReadOnlyList<string> DeclaredInstructionReferences { get; init; } = [];
 
     public static string ValidateId(string id) => ValidateIdentifier(id, nameof(id), 128);
 

@@ -191,6 +191,84 @@ public sealed partial class ModelTurnHostTests
     }
 
     [Theory]
+    [InlineData("pending-terminal")]
+    [InlineData("submitted-terminal")]
+    [InlineData("clear-terminal")]
+    [InlineData("pending-terminal-and-commit")]
+    public async Task PendingClearJoinsObserverFailuresAndRetainsPerOriginalUncertaintyWithoutFaultingDisposal(string fault)
+    {
+        await using var p = await PendingClearFixture.Create();
+        var review = await p.Review();
+        var resources = p.F.Audits.Count(item => item.ActionId is "runtime.resource.acquire");
+        var notifications = 0;
+        var failed = false;
+        if (fault is "pending-terminal-and-commit")
+        {
+            p.F.BeforePendingTerminal = (request, _) =>
+            {
+                if (request == p.B.Receipt.Message.Request) { throw new IOException("Synthetic terminal commit unavailable"); }
+            };
+        }
+        void PendingObserver(ConversationPendingSnapshot snapshot)
+        {
+            var count = Interlocked.Increment(ref notifications);
+            if (!failed && (fault is "clear-terminal" && count == 3
+                || fault is "pending-terminal" or "pending-terminal-and-commit"
+                    && !snapshot.Turns.Any(item => item.Submission == p.B.Receipt)))
+            {
+                failed = true;
+                throw new IOException("Synthetic pending-clear observer failure");
+            }
+        }
+        void SubmittedObserver(SessionWorkspaceEntry _, ConversationTurnCompletion completion)
+        {
+            if (!failed && fault is "submitted-terminal" && completion.Receipt?.Message.Request == p.B.Receipt.Message.Request)
+            {
+                failed = true;
+                throw new IOException("Synthetic submitted-terminal observer failure");
+            }
+        }
+        p.Service.PendingConversationChanged += PendingObserver;
+        p.Service.SubmittedConversationCompleted += SubmittedObserver;
+        try
+        {
+            var result = await p.Service.ConfirmPendingClearAsync(review, () => true, Token);
+            failed.Should().BeTrue();
+            result.Outcome.Should().Be("partial-or-unconfirmed");
+            result.Outcomes.Should().HaveCount(2).And.OnlyContain(item => item.CancellationRequested);
+            result.Outcomes[0].Confirmed.Should().Be(fault is "clear-terminal");
+            result.Outcomes[1].Confirmed.Should().BeTrue();
+            result.RemainingPending.Should().BeEmpty();
+            result.DispatchHeld.Should().BeTrue();
+            p.B.Completion.IsCompleted.Should().BeTrue();
+            p.C.Completion.IsCompleted.Should().BeTrue();
+            foreach (var original in new[] { p.B, p.C })
+            {
+                var retained = p.F.PendingRecords[original.Receipt.Message.Request.RequestId];
+                retained.Message.Body.Should().Be(original.Receipt.Message.Body);
+                retained.Message.Execution.Should().BeNull();
+                retained.Task.State.Should().Be(fault is "pending-terminal-and-commit" && original == p.B
+                    ? HostTaskState.IntentRecorded : HostTaskState.Cancelled);
+            }
+            if (fault is "pending-terminal-and-commit")
+            { (await p.B.Completion).Failure.Should().BeOfType<ConversationSubmissionUnconfirmedException>(); }
+            p.A.Completion.IsCompleted.Should().BeFalse();
+            p.F.Adapter.RunToken.IsCancellationRequested.Should().BeFalse();
+            p.F.Adapter.Calls.Should().Be(1);
+            p.F.Audits.Count(item => item.ActionId is "runtime.resource.acquire").Should().Be(resources);
+            p.F.CancelAudit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
+            Encoding.UTF8.GetString(SessionCommandResult.Serialize(new(result.Outcome, "Observed terminal outcomes")
+                { PendingClearResult = result })).Should().NotContain("private pending");
+        }
+        finally
+        {
+            p.Service.PendingConversationChanged -= PendingObserver;
+            p.Service.SubmittedConversationCompleted -= SubmittedObserver;
+            p.F.BeforePendingTerminal = null;
+        }
+    }
+
+    [Theory]
     [InlineData("private")]
     [InlineData("readonly")]
     [InlineData("source-before-read")]

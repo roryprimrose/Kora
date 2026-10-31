@@ -430,6 +430,8 @@ Native Sessions/expanded conversation and [exact typed/activated commands](../do
 
 Clearing reviewed pending work retains an existing manual hold and the cancellation recovery hold independently; releasing either cannot release the other. Changing a manual hold invalidates the captured lane review ([composition regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
 
+Terminal observer failures are logged and retained as unconfirmed completion, not faulted orphan workers or successful clearing. Confirmation joins the captured workers through terminal notification delivery. Failure of the final clear notification preserves every per-original outcome with a partial/unconfirmed operation result; durable originals remain inspectable and no replay is permitted ([observer regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
 Passive remaining-work inspection does not consume or invalidate a pending-clear review. Confirmed clearing invalidates the earlier remaining-work observation; a fresh answer reports the remaining running owner and independent dispatch holds without cancelled FIFO entries, new writes or an inferred all-clear ([native composition regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
 
 ### Broader proposed management policy

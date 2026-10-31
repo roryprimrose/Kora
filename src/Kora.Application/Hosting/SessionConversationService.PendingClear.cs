@@ -132,6 +132,8 @@ public sealed partial class SessionConversationService
         }
         var requested = false;
         var outcome = "changed-before-cancellation";
+        ConversationPendingClearResult result;
+        var notificationFailed = false;
         bool CancellationCurrent() => !token.IsCancellationRequested && review.SourceCurrent() && admitted()
             && access.CanInspect && access.CanControl && access.ControlRevision == review.ControlRevision
             && time.GetUtcNow() >= snapshot.CreatedAt && time.GetUtcNow() < snapshot.ExpiresAt;
@@ -167,6 +169,7 @@ public sealed partial class SessionConversationService
                 requested = true;
                 lane.Pulse();
             }
+            await Task.WhenAll(pending.Select(item => item.Worker)).ConfigureAwait(false);
             var completions = await Task.WhenAll(pending.Select(item => item.Completed.Task)).ConfigureAwait(false);
             var facts = snapshot.Entries.Zip(completions, (entry, completion) =>
             {
@@ -182,12 +185,12 @@ public sealed partial class SessionConversationService
             }).ToImmutableArray();
             outcome = facts.All(item => item.Confirmed && item.RetainedState == HostTaskState.Cancelled)
                 ? "reviewed-pending-cancelled" : "partial-or-unconfirmed";
-            return PendingClearResult(snapshot, lane, facts, outcome);
+            result = PendingClearResult(snapshot, lane, facts, outcome);
         }
         catch (Exception exception) when (!requested && exception is not OutOfMemoryException)
         {
             Failure(logger, exception.GetType().Name);
-            return PendingClearResult(snapshot, lane,
+            result = PendingClearResult(snapshot, lane,
                 [.. snapshot.Entries.Select(entry => new ConversationPendingClearOutcome(entry, false, null, false, "not-requested"))], outcome);
         }
         finally
@@ -196,9 +199,15 @@ public sealed partial class SessionConversationService
             {
                 lane.PendingClearHeld = false;
                 lane.Pulse();
-                PendingConversationChanged?.Invoke(Snapshot(snapshot.Session, lane));
+                try { PendingConversationChanged?.Invoke(Snapshot(snapshot.Session, lane)); }
+                catch (Exception exception) when (exception is not OutOfMemoryException)
+                {
+                    Failure(logger, exception.GetType().Name);
+                    notificationFailed = true;
+                }
             }
         }
+        return notificationFailed ? result with { Outcome = "partial-or-unconfirmed" } : result;
     }
 
     private ConversationPendingClearResult PendingClearResult(ConversationPendingClearSnapshot snapshot, ConversationLane lane,

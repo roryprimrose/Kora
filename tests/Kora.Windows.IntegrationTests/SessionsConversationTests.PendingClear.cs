@@ -15,6 +15,76 @@ namespace Kora.Windows.IntegrationTests;
 
 public sealed partial class SessionsConversationTests
 {
+    [Fact]
+    public async Task NativePendingOnlyClearPreservesPerOriginalResultsWhenFinalNotificationFails()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var adapter = new PendingTurnAdapter();
+            await using var composed = new Composition(f, adapter: adapter);
+            var window = new SessionsWindow(composed.Model);
+            window.Show();
+            try
+            {
+                var model = composed.Model;
+                await model.RefreshAsync();
+                await model.SelectAsync(model.Sessions.Single());
+                var target = model.SelectedSessionRecord!;
+                var active = await composed.Conversation.SubmitQueuedAsync(target, "running original", () => true, f.Token);
+                await adapter.NextAsync();
+                var b = await composed.Conversation.SubmitQueuedAsync(target, "private pending B", () => true, f.Token);
+                var c = await composed.Conversation.SubmitQueuedAsync(target, "private pending C", () => true, f.Token);
+                var retention = await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token);
+                var resources = composed.Audit.Events.Count(item => item.ActionId is "runtime.resource.acquire");
+                var panel = window.GetLogicalDescendants().OfType<PendingConversationPanel>().Single();
+                await model.RefreshPendingConversationAsync();
+                panel.FindControl<Button>("ReviewPendingClear")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await panel.Operation;
+                var notifications = 0;
+                void Observer(ConversationPendingSnapshot _)
+                {
+                    if (Interlocked.Increment(ref notifications) == 3)
+                    { throw new IOException("Synthetic final clear notification unavailable"); }
+                }
+                composed.Conversation.PendingConversationChanged += Observer;
+                try
+                {
+                    panel.FindControl<Button>("ConfirmPendingClear")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await panel.Operation;
+                }
+                finally { composed.Conversation.PendingConversationChanged -= Observer; }
+                notifications.Should().Be(3);
+                model.CanConfirmPendingClear.Should().BeFalse();
+                model.PendingClearText.Should().Contain("\"outcome\":\"partial-or-unconfirmed\"")
+                    .And.Contain(b.Receipt.Message.Request.RequestId.Value.ToString("D"))
+                    .And.Contain(c.Receipt.Message.Request.RequestId.Value.ToString("D"))
+                    .And.NotContain("\"outcome\":\"reviewed-pending-cancelled\"").And.NotContain("private pending");
+                foreach (var original in new[] { b, c })
+                {
+                    (await original.Completion).RequireReceipt().Task.State.Should().Be(HostTaskState.Cancelled);
+                    var message = await f.Store.ReadConversationMessageAsync(target.Authority.SessionId,
+                        original.Receipt.Message.Request.RequestId, f.Token);
+                    message.Body.Should().Be(original.Receipt.Message.Body);
+                    message.Outcome.Should().Be(ModelTurnOutcome.Cancelled);
+                    message.Execution.Should().BeNull();
+                }
+                await model.RefreshPendingConversationAsync();
+                model.PendingConversationTurns.Should().BeEmpty();
+                model.CanResumePendingConversation.Should().BeTrue();
+                active.Completion.IsCompleted.Should().BeFalse();
+                composed.Audit.Events.Count(item => item.ActionId is "runtime.resource.acquire").Should().Be(resources);
+                composed.Audit.Events.Should().NotContain(item => string.Equals(item.ActionId, "conversation.cancel-request", StringComparison.Ordinal));
+                (await f.Store.ReadRetentionAsync(target.Authority.SessionId, f.Token)).Should().Be(retention);
+                f.Count("scoped_grants").Should().Be(0);
+                f.Count("conversation_drafts").Should().Be(0);
+            }
+            finally { adapter.ReleaseAll(); window.ClosePrivate(); await composed.Conversation.DisposeAsync(); }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

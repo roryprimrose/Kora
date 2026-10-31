@@ -147,21 +147,30 @@ public sealed partial class SessionConversationService
             Failure(logger, exception.GetType().Name);
             completion = new(null, exception);
         }
-        lock (cancellationGate)
+        try
         {
-            lane.Entries.Remove(pending);
-            lane.Paused |= pending.Retained is not null && completion.Receipt?.Message.Outcome != ModelTurnOutcome.Succeeded;
-            lane.Pulse();
-            pending.Completed.TrySetResult(completion);
-            if (!pending.Accepted.Task.IsCompleted)
+            lock (cancellationGate)
             {
-                if (completion.Failure is { } failure) { pending.Accepted.TrySetException(failure); }
-                else { pending.Accepted.TrySetResult(new(completion.Receipt!, 0, pending.Completed.Task)); }
+                lane.Entries.Remove(pending);
+                lane.Paused |= pending.Retained is not null && completion.Receipt?.Message.Outcome != ModelTurnOutcome.Succeeded;
+                lane.Pulse();
+                if (!pending.Accepted.Task.IsCompleted)
+                {
+                    if (completion.Failure is { } failure) { pending.Accepted.TrySetException(failure); }
+                    else { pending.Accepted.TrySetResult(new(completion.Receipt!, 0, pending.Completed.Task)); }
+                }
+                PendingConversationChanged?.Invoke(Snapshot(pending.Target.Authority.SessionId, lane));
             }
-            PendingConversationChanged?.Invoke(Snapshot(pending.Target.Authority.SessionId, lane));
+            if (completion.Receipt is not null || completion.Failure is ConversationSubmissionUnconfirmedException)
+            { SubmittedConversationCompleted?.Invoke(pending.Target, completion); }
         }
-        if (completion.Receipt is not null || completion.Failure is ConversationSubmissionUnconfirmedException)
-        { SubmittedConversationCompleted?.Invoke(pending.Target, completion); }
+        catch (Exception exception) when (exception is not OutOfMemoryException)
+        {
+            Failure(logger, exception.GetType().Name);
+            completion = completion with { Failure = completion.Failure ?? exception };
+            lock (cancellationGate) { lane.Paused = true; lane.Pulse(); }
+        }
+        pending.Completed.TrySetResult(completion);
     }
 
     private async Task<ModelTurnReason> AwaitPendingDispatchAsync(PendingConversation pending,

@@ -611,7 +611,7 @@ internal sealed partial class SessionsViewModel(
         bool dispatchControl = false, RequestOrigin origin = RequestOrigin.LocalUi,
         IEnumerable<ActivityLink>? activityLinks = null)
     {
-        if (busy || closed || passive && refreshingWork
+        if (busy && !(passive && conversationBusy) || closed || passive && refreshingWork
             || routineNoticeControl && changingRoutineQuiet || dispatchControl && changingQueueControl) { return; }
         var subject = selected?.Authority.SessionId;
         var epoch = selectionEpoch;
@@ -722,7 +722,7 @@ internal sealed partial class SessionsViewModel(
                 NotifyHistory();
             }
             else { busy = false; Notify(); }
-            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+            if (closed && !busy && !refreshingWork && !changingRoutineQuiet && !changingQueueControl && !changingConversationNotice) { lifetime.Dispose(); }
         }
     }
 
@@ -776,7 +776,7 @@ internal sealed partial class SessionsViewModel(
         composerBody = string.Empty;
         RevokeListSearchPresentation();
         lifetime.Cancel();
-        if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl) { lifetime.Dispose(); }
+        if (!busy && !protectingComposer && !refreshingWork && !changingRoutineQuiet && !changingQueueControl && !changingConversationNotice) { lifetime.Dispose(); }
         sessions = null;
         ClearSelection();
         Notify();

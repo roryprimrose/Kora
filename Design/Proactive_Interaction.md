@@ -109,10 +109,23 @@ clarifications keep their original earlier expiry. Host-control/privacy/protecte
 epoch changes retire prior sources, without call-end replay or activity renewal.
 Existing fatigue, quiet, exact source revalidation, suppression, retirement and
 deferral bounds apply unchanged. Existing source enum values and stored receipts
-remain compatible. No ambient observation, question answering, approval, dispatch,
-focus/selection change or implicit speech consent is added. See the
+remain compatible. Observation, Review, Dismiss and Defer add no ambient observation,
+question answering, approval, dispatch, focus/selection change or implicit speech consent. See the
 [conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
 
+After reviewing one exact ordinary conversation question notice, the deliberate native
+**Answer exact question** gesture activates only its existing canonical presenter.
+The host revalidates the held event revision, question/session/generation, audited source,
+original expiry, current run, original input and native lifetime before focus.
+It does not create a question, restore a closed presenter or start listening
+([native owner](../src/Kora/QuestionWindowController.Conversation.cs),
+[durable validation](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.QuestionFocus.cs)).
+
+Answer/Cancel remains in the existing Questions service; only its actual canonical accepted
+answer can continue the original task. Independent source/egress approvals remain independent.
+Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
+the waiting conversation does not block bounded work/notice refresh
+([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
 ## Run-consented conversation completion speech
 
 The approved outcome is one content-free success statement during an explicitly active voice conversation, without changing its target, opening capture or answering a prompt ([delivery policy](#delivery-policy)). This is host-owned because only the host can join durable task authority, native consent, source revalidation and the exclusive speech lifecycle.
@@ -136,6 +149,11 @@ This adds no scheduler, detector enablement, microphone acquisition, foreground 
 Normal Sessions event browsing retains category and reason choices only ([native event presentation](../src/Kora/SessionsViewModel.Events.cs)). Technical identity, profile, generation/revision, lifetime and correlation query widgets are removed.
 
 The internal broker's typed query/state contracts, source admission, finite pages, suppression and no-replay boundaries remain. Filtering an observed notice does not answer its question, change queue eligibility, dispatch work, grant consent or renew a deadline. Diagnostic Evidence retains its separate technical inspection role.
+
+Failure, cancellation or stale completion of an exact native notice action withdraws
+its loaded snapshot as well as selection and notice detail. Recovery requires a fresh
+selected-work observation and a new explicit selection; it does not replay delivery,
+answer a question or change suppression, history, audit or work authority.
 
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 

@@ -10,6 +10,7 @@ internal sealed partial class SessionsWindow : Window
     private readonly SessionsPresentationOwner owner;
     internal Task ConversationOperation { get; private set; } = Task.CompletedTask;
     internal Task ConversationCancellationOperation { get; private set; } = Task.CompletedTask;
+    internal Task ConversationNoticeOperation { get; private set; } = Task.CompletedTask;
     internal Task StopAndDeleteOperation { get; private set; } = Task.CompletedTask;
     internal Task MemoryBatchOperation { get; private set; } = Task.CompletedTask;
     internal void ClosePrivate()
@@ -199,6 +200,7 @@ internal sealed partial class SessionsWindow : Window
             model.SelectLocalEvent(EventRecords.SelectedItem as Kora.Core.Interaction.LocalEventView);
         ClearLocalEventFilters.Click += (_, _) => model.ClearLocalEventFilters();
         ReviewLocalEvent.Click += async (_, _) => await model.ReviewLocalEventAsync();
+        AnswerConversationNotice.Click += async (_, _) => await (ConversationNoticeOperation = model.AnswerConversationNoticeAsync());
         DismissLocalEvent.Click += async (_, _) => await model.DismissLocalEventAsync();
         DeferLocalEvent.Click += async (_, _) => await model.DeferLocalEventAsync();
         QuietRoutineNotices.Click += async (_, _) => await model.QuietRoutineNoticesAsync();

@@ -275,21 +275,23 @@ internal sealed partial class NativeQuestionViewModel : ObservableObject
     internal void Edit(QuestionAnswer value)
     {
         StopVoiceReply();
-        ClipboardAnswer?.ManualEdit();
         if (!IsEditable)
         {
+            ClipboardAnswer?.ManualEdit();
             RefreshEligibility();
             return;
         }
+        string editStatus;
         lock (stateGate)
         {
             if (closed || cleared || busy) { return; }
             answer = value;
-            status = question.Spec.Accepts(value, submitting: false)
+            editStatus = question.Spec.Accepts(value, submitting: false)
                 ? "Unsubmitted local edit. Save draft or Submit explicitly."
                 : "Invalid answer: use the displayed choice and text bounds; nothing was shortened or saved.";
         }
-        Notify();
+        ClipboardAnswer?.ManualEdit();
+        ReportOutcome(editStatus);
     }
 
     internal Task SaveDraftAsync()

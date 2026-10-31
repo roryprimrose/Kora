@@ -239,6 +239,18 @@ public sealed partial class InstructionEditorTests
         internal CustomizationSnapshot? CopySource;
         internal Action? BeforeSave;
         internal bool DetectOriginalConflicts;
+        public Task Delete(CustomizationSnapshot reviewed, Func<bool> eligible, Func<Action, Task> commit, CancellationToken token)
+        {
+            BeforeCommit?.Invoke();
+            return commit(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                if (!eligible()) { throw new InvalidOperationException("Closed"); }
+                if (WriteFailure is { } failure) { throw failure; }
+                Writes++;
+                AfterWrite?.Invoke();
+            });
+        }
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
             Source = new(kind == CustomizationKind.McpServer

@@ -90,7 +90,7 @@ internal sealed partial class CustomizationWindow : Window
         ToolTip.SetTip(PushToTalkButton, "Hold to speak to this artifact. Release to review local interpretation; nothing is saved or enabled.");
         var sourceActions = new WrapPanel();
         foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
-            "Review and save", "Reload", "Create Kora copy", "Create Kora adaptation", "Disable", "Enable", "Review recovery" })
+            "Review and save", "Reload", "Create Kora copy", "Create Kora adaptation", "Disable", "Enable", "Review recovery", "Delete owned definition" })
         { AddButton(sourceActions, action, action, run); }
         header.Children.Add(sourceActions); header.Children.Add(Files); header.Children.Add(McpFields);
         var components = new WrapPanel();
@@ -152,6 +152,7 @@ internal sealed partial class CustomizationWindow : Window
         actions["Disable"].IsEnabled = source is not null;
         actions["Enable"].IsEnabled = source is not null && !recovery;
         actions["Review recovery"].IsEnabled = writable && !mcp;
+        actions["Delete owned definition"].IsEnabled = source is not null && CustomizationDeletion.Supports(source) && !recovery;
         actions["Add file"].IsEnabled = components;
         actions["Rename file"].IsEnabled = components && !string.Equals(Files.SelectedItem as string, source?.PrimaryFile, StringComparison.Ordinal);
         actions["Remove file"].IsEnabled = actions["Rename file"].IsEnabled;

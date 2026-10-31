@@ -726,6 +726,20 @@ A fork has distinct identity and attribution, no inherited enablement, grants,
 bundled trust, or privileged routing; later source changes never merge into it
 automatically. Closing a dirty editor requires Save/Discard/Cancel.
 
+### Reviewed shared owned single-file deletion
+
+The shared Customizations writer completes source deletion for supported saved Kora-group Instructions, Prompts and Agents, not a component-removal alias or a per-kind writer. Inspect the exact source, review its complete saved bytes and consequences, then separately confirm **Delete exact owned file** ([admitted operation](../src/Kora.Application/Definitions/CustomizationManagementService.Deletion.cs)).
+
+Native **Delete owned definition** and original typed/current-name activated `delete selected owned definition` use that same owner. Commands only initiate review; both destructive confirmations retain the existing native source-write exception. No model, tool, skill or arbitrary filesystem route acquires deletion authority ([native interaction](../src/Kora/CustomizationWindowController.Deletion.cs)).
+
+The native owner requires the current configured Kora kind root and canonical single-file identity, complete reviewed revision/bytes, verified ownership, no unfinished recovery, current admission and an unchanged available catalogue. It pins the native target against writes and replacement through final comparison and delete disposition; links, aliases, changed/missing/replaced sources and unknown authority fail closed. Only the exact file is removed, never its directory or a replacement ([native commit](../src/Kora.Windows/ArtifactDiscovery/WindowsCustomizationStore.Deletion.cs)).
+
+The same persisted source-use hold precedes deletion; catalogue reconciliation retires affected selections/reviews without retargeting. Already admitted captured work is not physically cancelled. Independent grants, history and audit are not erased, transferred or renewed; references are neither cascaded nor rewritten. Restored bytes remain held until new independent review ([use policy](../src/Kora.Application/Configuration/ArtifactUsePreferences.cs)).
+
+The raw unsaved editor draft and frozen baseline remain available independently of save validation; deletion does not encode or validate unsaved text. Ordinary Save cannot implicitly recreate a missing baseline. Recovery is an explicit distinct Kora copy followed by its separate Save review. The recovery constraint excludes the deleted source identity/path and case aliases before discard/rebase, and survives creating a recovery draft. Raw text remains in the editor, not an unbounded byte store, including through non-discard use-control redraws before and after recovery copying; separate Save retains the existing strict UTF-8, NUL and 64 KiB component bounds. The captured source-candidate catalogue and reload-failure fence are revalidated within admitted commit and native final eligibility, not only before audit/use hold. Review expiry, edits, selection attempts and source/control/catalogue/privacy/ownership changes retire the proposal. Post-effect readback, audit, admission or presentation uncertainty has a typed inspection-required outcome, never a rollback/failure-with-no-effect claim ([complete-operation regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.Deletion.cs)).
+
+Skills/packages have their separate deletion owner. Bundled/profile originals, MCP entries, directories, disk archives, automatic cascade, source-use revival and automatic enablement are excluded. External consumers/references are not exhaustively inventoried. This bounded implementation does not qualify broader native/runtime, provider or installed profiles; [current instructions](../docs/customizations.md#delete-one-owned-single-file-definition) state the operation and recovery.
+
 ## Consistent External Change and Reload Contract
 
 ### Windows-managed roaming and local revision admission

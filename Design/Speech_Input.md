@@ -424,6 +424,10 @@ rehashes and revalidates the exact inventory under the private store lease;
 pin ancestors, reject reparse/hard-link/canonical aliases, and delete finite
 files through the same identity/digest-checked handle. Only empty inventoried
 directories and exact recovery receipts are removed; no recursive cleanup.
+Final recovery-receipt cleanup retains the identity reviewed before mutation
+or created by that operation. An identical-byte replacement during deletion
+is preserved and reports failure; only a fresh exact native review can authorize
+its removal.
 
 Partial failure/cancellation reports the actual remaining inventory while the
 original host still permits disclosure, otherwise withholds it. Recovery is a

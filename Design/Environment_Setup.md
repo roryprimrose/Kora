@@ -362,6 +362,9 @@ The [Windows store](../src/Kora.Windows/Dependencies/WindowsSpeechComponentStore
 pins native objects and revalidates complete inventory/authority before finite
 same-handle deletion. Partial failure retains exact recovery state and reports
 the observed remainder without claiming rollback or physical disk release.
+Recovery-record cleanup stays bound to the reviewed or newly created object;
+an identical-byte replacement is preserved for fresh native inspection and
+confirmation, not adopted as the current operation's deletion target.
 No automatic retry, reacquisition, profile substitution or consent change occurs.
 Native adapters, OS/shared runtimes, other profiles and user originals are preserved
 ([fixture coverage](../tests/Kora.Windows.IntegrationTests/Audio/HandsFreeModelRemovalTests.cs)).

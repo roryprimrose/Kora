@@ -181,6 +181,7 @@ public sealed class WindowsSpeechComponentStore(
         }
         var removing = ComponentPath(component) + ".removing";
         var removalRecord = ComponentPath(component) + ".removal-record";
+        var recordIdentity = files.Exists(removalRecord) ? files.Identity(removalRecord) : null;
         var source = observed.Ownership == SpeechComponentOwnership.Managed ? ComponentPath(component) : removing;
         var inventory = files.Exists(source)
             ? await ReadRemovalInventoryAsync(component, source, cancellationToken).ConfigureAwait(false) : [];
@@ -192,7 +193,7 @@ public sealed class WindowsSpeechComponentStore(
         {
             files.MoveDirectory(ComponentPath(component), removing, observed.DirectoryIdentity);
         }
-        if (!files.Exists(removalRecord))
+        if (recordIdentity is null)
         {
             var temporaryRecord = removalRecord + "." + Guid.NewGuid().ToString("N", CultureInfo.InvariantCulture);
             try
@@ -202,6 +203,7 @@ public sealed class WindowsSpeechComponentStore(
                     await output.WriteAsync(Encoding.ASCII.GetBytes(component.ManifestDigest), cancellationToken).ConfigureAwait(false);
                     await output.FlushAsync(cancellationToken).ConfigureAwait(false);
                 }
+                recordIdentity = files.Identity(temporaryRecord);
                 RequireAdmission(component, admitted, cancellationToken);
                 files.MoveFile(temporaryRecord, removalRecord);
             }
@@ -226,7 +228,6 @@ public sealed class WindowsSpeechComponentStore(
             files.DeleteDirectory(removing, observed.DirectoryIdentity);
         }
         RequireAdmission(component, admitted, cancellationToken);
-        var recordIdentity = files.Identity(removalRecord);
         await files.DeleteVerifiedFileAsync(removalRecord, recordIdentity, 64,
             Convert.ToHexString(SHA256.HashData(Encoding.ASCII.GetBytes(component.ManifestDigest))),
             admitted, cancellationToken).ConfigureAwait(false);

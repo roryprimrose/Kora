@@ -98,8 +98,11 @@ internal sealed class InMemorySpeechComponentFiles : ISpeechComponentFiles
         Validate(source);
         Validate(destination);
         if (Exists(destination)) { throw new IOException("Fixture refuses record overwrite."); }
+        var identity = Identity(source);
         Files.Add(destination, Files[source]);
         Files.Remove(source);
+        identities.Remove(source);
+        identities.Add(destination, identity);
     }
     public void DeleteFile(string path)
     {

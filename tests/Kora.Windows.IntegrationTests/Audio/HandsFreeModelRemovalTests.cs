@@ -239,6 +239,65 @@ public sealed class HandsFreeModelRemovalTests : IDisposable
         Directory.GetFiles(fixture.FinalPath).Should().HaveCount(3);
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task RecoveryRecordReplacedDuringRemovalIsPreservedUntilFreshExactReview(bool recovering)
+    {
+        using var fixture = new HandsFreeSetupTests.Fixture();
+        using var host = Begin();
+        var setup = fixture.Setup();
+        await Prepare(fixture, setup);
+        if (recovering)
+        {
+            var initial = await setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Remove,
+                () => true, TestContext.Current.CancellationToken);
+            fixture.Files.AfterVerifiedDelete = _ => throw new IOException("Fixture interruption after one deletion.");
+            await FluentActions.Awaiting(() => setup.ApplyAsync(initial, true, fixture.Progress, TestContext.Current.CancellationToken))
+                .Should().ThrowAsync<IOException>();
+        }
+        var review = await setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Remove,
+            () => true, TestContext.Current.CancellationToken);
+        var record = fixture.FinalPath + ".removal-record";
+        var original = Path.Combine(fixture.Files.Root, "original-removal-record");
+        string? originalIdentity = null;
+        string? replacementIdentity = null;
+        fixture.Files.AfterVerifiedDelete = path =>
+        {
+            if (!string.Equals(Path.GetFileName(path), "tokens.data", StringComparison.Ordinal)) { return; }
+            originalIdentity = fixture.Files.Identity(record);
+            File.Move(record, original);
+            File.Copy(original, record);
+            replacementIdentity = fixture.Files.Identity(record);
+        };
+        await FluentActions.Awaiting(() => setup.ApplyAsync(review, true, fixture.Progress, TestContext.Current.CancellationToken))
+            .Should().ThrowAsync<InvalidDataException>().WithMessage("*object changed*");
+        originalIdentity.Should().NotBeNullOrEmpty();
+        replacementIdentity.Should().NotBeNullOrEmpty().And.NotBe(originalIdentity);
+        fixture.Files.Identity(original).Should().Be(originalIdentity);
+        fixture.Files.Identity(record).Should().Be(replacementIdentity);
+        (await File.ReadAllTextAsync(original, TestContext.Current.CancellationToken)).Should().Be(fixture.Component.ManifestDigest);
+        (await File.ReadAllTextAsync(record, TestContext.Current.CancellationToken)).Should().Be(fixture.Component.ManifestDigest);
+        Directory.Exists(fixture.FinalPath).Should().BeFalse();
+        Directory.Exists(fixture.FinalPath + ".removing").Should().BeFalse();
+        review.RemovalRecovery!.Storage!.Ownership.Should().Be(SpeechComponentOwnership.RemovalPending);
+        review.RemovalRecovery.Storage.ExactBytes.Should().Be(64);
+        fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Failed);
+        (await fixture.Runtime.TryAcquireOwnershipAsync(TestContext.Current.CancellationToken)).Should().BeNull();
+        fixture.Acquisition.Calls.Should().Be(2);
+        File.Exists(fixture.Native).Should().BeTrue();
+
+        fixture.Files.AfterVerifiedDelete = null;
+        var fresh = await setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Remove,
+            () => true, TestContext.Current.CancellationToken);
+        var removed = await setup.ApplyAsync(fresh, true, fixture.Progress, TestContext.Current.CancellationToken);
+        removed.Storage!.Ownership.Should().Be(SpeechComponentOwnership.Missing);
+        File.Exists(record).Should().BeFalse();
+        fixture.Files.Identity(original).Should().Be(originalIdentity);
+        fixture.Acquisition.Calls.Should().Be(2);
+        fixture.Audit.Events.Last().Outcome.Should().Be(SecurityAuditOutcome.Succeeded);
+    }
+
     private static async Task Prepare(HandsFreeSetupTests.Fixture fixture, SpeechComponentSetupService setup)
     {
         var plan = await setup.ReviewAsync(fixture.Component.Identity, SpeechComponentOperation.Prepare,

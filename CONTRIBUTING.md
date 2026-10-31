@@ -102,6 +102,13 @@ completion. Later Cancelling publications are not additional injected failures;
 every accepted request still requires its physical join and terminal receipt,
 while the operation truthfully retains its partial/unconfirmed outcome.
 
+Speech-suggestion receipt-pin regressions explicitly join voice-consent
+withdrawal and capture closure in both notification orders. Assert the exact
+command presentation and canonical request/task receipt independently of the
+later consent notification; the shared current response title is not a durable
+command outcome. Withdrawal must still prevent review, confirmation, capture
+restart and any future speech-limit write.
+
 To reproduce CI's Windows test scheduling after a locked `win-x64` build, run
 `.\eng\Run-WindowsIntegrationTests.ps1`. Its five concurrent, disjoint local shards
 cover heavy storage, other storage, and three balanced UI/platform groups.

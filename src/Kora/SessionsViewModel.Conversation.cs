@@ -67,14 +67,15 @@ internal sealed partial class SessionsViewModel
         && (CanOpenConversationDetails && ConversationMessages.Count != 0 || CanOpenHistoryDetail || HasEvidenceDetails);
     public string DetailsAvailability => CanShowDetails ? "Open an exact result from this session's observed messages or selected activity."
         : "No available details on the selected session's observed page. Select a session and explicitly read conversation or activity.";
-    private Guid? dismissedSessionDetailsOffer;
     public ConversationMessage? DetailsOfferMessage => CanPresentDetails && completedConversationMessage is { AssistantResponse: { } response } message
-        && message.Request.RequestId.Value != dismissedSessionDetailsOffer
+        && completedDetailPublication is { Dismissed: false } publication
+        && (detailPresentation is null || detailPresentation.IsOfferCurrent(publication.OfferEpoch))
         && Kora.Core.Presentation.AnswerPresentation.From(response.Body).HasDetails ? message : null;
+    public bool HasDetailsOffer => DetailsOfferMessage is not null;
     internal void DismissDetailsOffer(ConversationMessage message)
     {
         if (!ReferenceEquals(message, DetailsOfferMessage)) { return; }
-        dismissedSessionDetailsOffer = message.Request.RequestId.Value;
+        RetireSessionDetailsOffer();
         NotifyConversation();
     }
     public Task OpenConversationDetailAsync(ConversationMessage message, bool assistant = false, Guid? observationId = null,
@@ -225,8 +226,7 @@ internal sealed partial class SessionsViewModel
         if (!live()) { throw new OperationCanceledException("The selected private presentation changed."); }
         if (string.Equals(composerBody, body, StringComparison.Ordinal)) { composerBody = string.Empty; }
         RememberUnsent();
-        conversationPage = null;
-        completedConversationMessage = receipt.Message;
+        PublishCompletedConversationMessage(receipt.Message);
         conversationStatus = "Original user message retained exactly; request " + receipt.Message.Request.RequestId.Value.ToString("D")
             + " | sequence " + receipt.Message.Sequence.ToString(CultureInfo.InvariantCulture)
             + " | HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
@@ -359,6 +359,7 @@ internal sealed partial class SessionsViewModel
         composerBody = string.Empty;
         conversationPage = null;
         completedConversationMessage = null;
+        ClearTerminalDetailPublications();
         conversationHeld = false;
         conversationSourceHeld = false;
         composerSession = null;
@@ -398,7 +399,7 @@ internal sealed partial class SessionsViewModel
             nameof(CanOpenConversationDetails), nameof(CanReviewOriginalMessageReuse), nameof(CanCompose), nameof(CanSubmitConversation), nameof(CanSubmitLocalFirst),
             nameof(CanShowDetails), nameof(DetailsAvailability),
             nameof(HasEvidenceDetails), nameof(EvidenceDetails), nameof(ObservationChoices),
-            nameof(DetailsOfferMessage),
+            nameof(DetailsOfferMessage), nameof(HasDetailsOffer),
             nameof(CanRecoverConversationDraft), nameof(ComposerDraftSizeFeedback), nameof(CanSubmitConversationWithClarification),
             nameof(McpServers), nameof(McpAccounts), nameof(SelectedMcpServer), nameof(SelectedMcpAccount), nameof(IsMcpActive), nameof(McpResultText) })
         { OnPropertyChanged(name); }

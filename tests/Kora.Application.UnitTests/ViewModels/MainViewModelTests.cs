@@ -4631,6 +4631,7 @@ public sealed partial class MainViewModelTests : IDisposable
             .Concat(SettingsSectionCommand.FixedPhrases)
             .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(LogonStartupCommand.FixedPhrases)
+            .Concat(DetailPresentationCommand.FixedPhrases)
             .Concat(Kora.Core.Interaction.LocalEventCommand.FixedPhrases)
             .Concat(Kora.Core.Maintenance.MaintenanceCommandParser.FixedPhrases);
         fixture.Voice.StartedPhrases.Should().BeEquivalentTo(
@@ -8645,7 +8646,8 @@ public sealed partial class MainViewModelTests : IDisposable
             Kora.Application.Communication.CommunicationActivityCallStateService? communicationActivity = null,
             CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
             bool enableConversationExecution = false,
-            LogonStartupConfigurationService? logonStartupConfiguration = null)
+            LogonStartupConfigurationService? logonStartupConfiguration = null,
+            DetailPresentationConfigurationService? detailPresentationConfiguration = null)
         {
             Catalog = new BuiltInCommandCatalog();
             CaptionPreferences.LoadFailure = captionReadFailure;
@@ -8845,7 +8847,8 @@ public sealed partial class MainViewModelTests : IDisposable
                 conversationalReplies: ConversationalConfiguration,
                 communicationActivityConfiguration: communicationActivityConfiguration,
                 conversationExecution: ConversationExecutionConfiguration,
-                logonStartupConfiguration: logonStartupConfiguration);
+                logonStartupConfiguration: logonStartupConfiguration,
+                detailPresentationConfiguration: detailPresentationConfiguration);
             if (webSummary is not null) { ViewModel.BindWebSummaryWorkflow(webSummary); }
             ViewModel.BindCallOwnershipGate(static () => true);
             ViewModel.BindManualCallNativeLifetime(true);

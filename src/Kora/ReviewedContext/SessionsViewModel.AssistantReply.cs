@@ -92,8 +92,7 @@ internal sealed partial class SessionsViewModel
                 .ConfirmReplyAsync(review, () => live() && ReplySourceCurrent, lifetime.Token);
             if (!live() || !ReplySourceCurrent)
             { throw new OperationCanceledException("The original reply presentation was revoked."); }
-            completedConversationMessage = receipt.Message;
-            conversationPage = null;
+            PublishCompletedConversationMessage(receipt.Message);
             if (string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
             ClearAssistantReply();

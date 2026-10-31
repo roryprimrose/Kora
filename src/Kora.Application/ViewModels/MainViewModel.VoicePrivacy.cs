@@ -313,6 +313,12 @@ public sealed partial class MainViewModel
         }
         questionVoiceReplies?.CloseAdmission();
         CancelLogonStartupReview();
+        CancelDetailPresentationReview();
+        NotifyDetailPresentationAvailability();
+        PropertyChanged -= OnDetailPresentationHostChanged;
+        if (composerDictation is not null) { composerDictation.Changed -= OnDetailPresentationDecisionChanged; }
+        if (questionVoiceReplies is not null) { questionVoiceReplies.Changed -= OnDetailPresentationDecisionChanged; }
+        if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         if (conversationalReplies is not null) { conversationalReplies.Changed -= OnConversationalReplyPreferenceChanged; }
         RetireQuestionVoiceReply();
         PropertyChanged -= OnQuestionVoiceReadinessChanged;

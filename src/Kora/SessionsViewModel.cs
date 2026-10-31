@@ -770,6 +770,7 @@ internal sealed partial class SessionsViewModel(
     {
         if (closed) { return; }
         closed = true;
+        if (detailPresentation is not null) { detailPresentation.Changed -= OnDetailPresentationChanged; }
         CloseContentSearch();
         detailSelections.Clear();
         ClearUnsent();

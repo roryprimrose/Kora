@@ -82,8 +82,7 @@ internal sealed partial class SessionsViewModel
             if (!modelAdvisory && string.Equals(composerBody, body, StringComparison.Ordinal))
             { composerBody = string.Empty; Interlocked.Increment(ref composerBufferRevision); }
             RememberUnsent();
-            conversationPage = null;
-            completedConversationMessage = receipt.Message;
+            PublishCompletedConversationMessage(receipt.Message);
             conversationStatus = "Reviewed history request retained. HOST " + receipt.Message.Outcome + " / " + receipt.Message.Reason
                 + (receipt.Message.AssistantResponse is null ? ". No assistant answer retained." : ". Genuine ASSISTANT answer retained separately.")
                 + " No tools, hosted transfer, memory creation, fallback or automatic retry.";

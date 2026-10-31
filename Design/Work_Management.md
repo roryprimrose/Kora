@@ -184,6 +184,17 @@ Acknowledge accepted decisions with the task label and queue position; the user 
 
 Exact stop/cancel controls and basic ledger status have a deterministic local path.
 They do not wait for the management model, task runtime, tool, or network.
+
+The delivered addressed remaining-work operation completes a passive host answer through **What work remains?** on one selected native conversation or the [exact typed/current-name activated grammar](../docs/commands.md#ask-what-remains-in-one-conversation).
+Setup status remains separate; neither Work-panel navigation nor opening All Work substitutes for the answer ([native owner](../src/Kora/SessionsViewModel.RemainingWork.cs)).
+
+The [query owner](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs) captures body-free pending and running facts together under the existing conversation owner gate, then fences durable task/question facts and volatile revisions again.
+The [projection](../src/Kora.Application/Hosting/SessionRemainingWorkAnswer.cs) distinguishes durable/source times, known host steps, ordinary FIFO positions/holds/expiry, pending questions and unresolved Unknown/Interrupted records.
+Manual ordinary dispatch, failure/cancellation recovery and application lifecycle holds are observed independently; the passive answer neither releases a hold nor renews an original deadline.
+
+The sources are not a fictitious globally atomic plan. Omitted records, accepting originals, absent workers and unavailable steps remain explicit; missing volatile ownership never proves durable completion.
+Changed sources refuse publication rather than inferring absence. Execution, queue state, source activity, retention and grants are unchanged; no provider/model/tool/resource dispatch is part of this query ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs)).
+
 The proposed bundled session-lock skill has a narrowly host-admitted priority
 control path; this does not grant management inference executable-tool access
 or waive the future action-specific approval gate. Today direct exact lock
@@ -418,6 +429,8 @@ New arrivals, dispatch, expiry, ownership/private/control/channel/call/input cha
 Native Sessions/expanded conversation and [exact typed/activated commands](../docs/commands.md#clear-one-ordinary-conversations-pending-work) share this owner. An activated review can be separately confirmed natively without replacing its original voice source; a new capture that retires that source requires fresh review. Model/source prose confers no control authority ([routing regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.PendingClear.cs)).
 
 Clearing reviewed pending work retains an existing manual hold and the cancellation recovery hold independently; releasing either cannot release the other. Changing a manual hold invalidates the captured lane review ([composition regressions](../tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.PendingClear.cs)).
+
+Passive remaining-work inspection does not consume or invalidate a pending-clear review. Confirmed clearing invalidates the earlier remaining-work observation; a fresh answer reports the remaining running owner and independent dispatch holds without cancelled FIFO entries, new writes or an inferred all-clear ([native composition regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)).
 
 ### Broader proposed management policy
 

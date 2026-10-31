@@ -1,4 +1,4 @@
-using System.Diagnostics;
+﻿using System.Diagnostics;
 
 using Kora.Application.Dependencies;
 using Kora.Core.Commands;
@@ -18,6 +18,9 @@ public sealed partial class SessionRequestCommandService(
     private readonly Lock gate = new();
     private Pending? pending;
     private long epoch;
+
+    internal void BindTaskResponseOutput(Func<Kora.Core.Voice.TaskResponseMode, RequestOrigin, TaskResponseOutputReview> review) =>
+        conversation.BindTaskResponseOutput(review);
 
     public void Retire()
     {
@@ -105,6 +108,15 @@ public sealed partial class SessionRequestCommandService(
                 { throw new InvalidOperationException("Review requires the exact current Active session, generation and metadata revision."); }
                 var review = new SessionRequestReview(Guid.NewGuid(), target, body, origin, time.GetUtcNow().AddSeconds(60),
                     command.RequestProvider) { ClaudeTools = command.RequestClaudeTools, LocalRequestProfile = command.RequestLocalProfile };
+                TaskResponseOutputReview? output = null;
+                if (command.RequestTaskResponseMode is { } outputMode)
+                {
+                    if (command.RequestProvider != SessionRequestReview.ProviderChoice.Default || command.RequestFailedMessage is not null
+                        || command.RequestLocalProfile is not null || !command.RequestClaudeTools.IsEmpty)
+                    { throw new InvalidOperationException("One-task output review applies only to a new ordinary request."); }
+                    output = conversation.ReviewTaskResponseOutput(outputMode, origin);
+                    review = review with { TaskResponseMode = output.Declared, ConfiguredTaskResponseMode = output.Configured };
+                }
                 LocalRequestProfileReview? localProfile = null;
                 if (command.RequestLocalProfile is { } profile)
                 {
@@ -129,10 +141,12 @@ public sealed partial class SessionRequestCommandService(
                 lock (gate)
                 {
                     if (epoch != attempt || !Live()) { throw new InvalidOperationException("Review admission changed."); }
-                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile);
+                    pending = new(review, Live, control, new(activity.Activity!.Context), command.RequestForegroundTarget, retryProvider, localProfile, output);
                 }
                 activity.Complete(HostOperationOutcome.Completed);
-                return new("review", localProfile is not null
+                return new("review", output is not null
+                    ? "This task only. Review unchanged input, exact conversation, original channel and declared/configured output. Confirm separately once; mandatory call/privacy/output policy wins. No saved preference, speech or submission yet."
+                    : localProfile is not null
                     ? "This request only - LOCAL. Review the exact destination, complete profile and unchanged original input below. Confirm separately once with session request confirm, or cancel with session request cancel. No preference write, submission or dispatch yet. Subsequent requests inherit normally; no fallback."
                     : "Review the exact original body, target, provider, origin and expiry. Confirm separately; no content is retained or dispatched yet. Copilot and Claude additionally require separate native approval of each final physical send.")
                 { RequestReview = review };
@@ -177,7 +191,11 @@ public sealed partial class SessionRequestCommandService(
             ConversationSubmissionReceipt receipt;
             try
             {
-                receipt = previous.LocalProfile is { } local
+                receipt = previous.Output is { } output
+                    ? await conversation.SubmitAsync(previous.Review.Target, previous.Review.Body, OriginalLive, token,
+                        Revalidate, [previous.Cause], previous.Review.Origin,
+                        accepted: () => { lock (gate) { accepted = true; } }, taskOutput: output).ConfigureAwait(false)
+                    : previous.LocalProfile is { } local
                     ? await conversation.SubmitLocalRequestProfileAsync(local, OriginalLive, Revalidate,
                         [previous.Cause], token).ConfigureAwait(false)
                     : previous.RetryProvider is { } provider
@@ -203,9 +221,10 @@ public sealed partial class SessionRequestCommandService(
                 throw;
             }
             activity.Complete(HostOperationOutcome.Completed);
-            return new("retained", receipt.Message.Outcome is null
+            return new("retained", (receipt.Message.Outcome is null
                 ? "Exact original USER request accepted and pending in its original conversation/channel. Inspect submitted work for position or exact cancellation; no execution success, fallback or authority renewal is implied."
                 : "Exact original USER request retained with its original channel and terminal HOST/task outcome. Inspect these receipts; no fallback or automatic replay.")
+                + (previous.Output is { } completedOutput ? " " + completedOutput.Status : string.Empty))
             { RequestSubmission = receipt };
         }
         catch (OperationCanceledException)
@@ -297,5 +316,6 @@ public sealed partial class SessionRequestCommandService(
     }
 
     private sealed record Pending(SessionRequestReview Review, Func<bool> SourceAdmitted, long ControlRevision, ActivityLink Cause,
-        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile);
+        bool Foreground, ModelTurnHost.RetryProviderReview? RetryProvider, LocalRequestProfileReview? LocalProfile,
+        TaskResponseOutputReview? Output);
 }

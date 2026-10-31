@@ -88,10 +88,41 @@ public sealed partial class SessionsConversationTests
                 (await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token)).Paused.Should().BeFalse();
                 panel.FindControl<Button>("ReviewPendingClear")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await panel.Operation;
+                using var observation = HostActivity.BeginRoot(active.Receipt.Message.Request,
+                    HostActivityLayer.Application, HostOperation.Request);
+                var tasksBeforeObservation = f.Count("host_task_events");
+                var messagesBeforeObservation = f.Count("conversation_messages");
+                var remainingBefore = await composed.Conversation.ReadRemainingWorkAsync(target, () => true, f.Token);
+                remainingBefore.Ordinary.Turns.Where(turn => turn.Phase == ConversationPendingPhase.Pending)
+                    .Select(turn => turn.Request).Should().Equal(b.Receipt.Message.Request, c.Receipt.Message.Request);
+                remainingBefore.Format().Should().Contain("Submitted FIFO position 1").And.Contain("Submitted FIFO position 2")
+                    .And.NotContain("private pending");
+                composed.Conversation.IsRemainingWorkCurrent(remainingBefore, () => true).Should().BeTrue();
+                model.CanConfirmPendingClear.Should().BeTrue("passive remaining-work inspection must not consume the clear review");
+                f.Count("host_task_events").Should().Be(tasksBeforeObservation);
+                f.Count("conversation_messages").Should().Be(messagesBeforeObservation);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(auditBefore);
                 panel.FindControl<Button>("ConfirmPendingClear")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await panel.Operation;
                 model.PendingClearText.Should().Contain("reviewed-pending-cancelled");
                 model.CanConfirmPendingClear.Should().BeFalse();
+                composed.Conversation.IsRemainingWorkCurrent(remainingBefore, () => true).Should().BeFalse();
+                await composed.Conversation.Invoking(service => service.ValidateRemainingWorkAsync(remainingBefore, () => true, f.Token))
+                    .Should().ThrowAsync<InvalidOperationException>().WithMessage("*changed*");
+                var auditAfterClear = WindowsSqliteConversationTests.AuditText(f);
+                var tasksAfterClear = f.Count("host_task_events");
+                var remainingAfter = await composed.Conversation.ReadRemainingWorkAsync(target, () => true, f.Token);
+                remainingAfter.Ordinary.Turns.Should().NotContain(turn => turn.Phase == ConversationPendingPhase.Pending);
+                remainingAfter.Ordinary.Running!.Target.Request.Should().Be(active.Receipt.Message.Request);
+                remainingAfter.Ordinary.Paused.Should().BeTrue();
+                remainingAfter.Ordinary.ManualHoldReason.Should()
+                    .Be(manualHold ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None);
+                remainingAfter.Questions.Should().Equal(remainingBefore.Questions);
+                remainingAfter.Format().Should().Contain("Pending ordinary FIFO entries: 0")
+                    .And.Contain("Current ordinary work: running").And.NotContain("Submitted FIFO position");
+                f.Count("host_task_events").Should().Be(tasksAfterClear);
+                f.Count("conversation_messages").Should().Be(messagesBeforeObservation);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(auditAfterClear);
                 await model.RefreshPendingConversationAsync();
                 var cleared = await composed.Conversation.ReadPendingConversationAsync(target, () => true, f.Token);
                 cleared.ManualHoldReason.Should().Be(manualHold ? ConversationDispatchHoldReason.OriginalUser : ConversationDispatchHoldReason.None);

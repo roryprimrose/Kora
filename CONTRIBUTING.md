@@ -175,6 +175,15 @@ consumers, including links embedded in the guide and historical experiments.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Queued task-output fixtures hold the provider reply, assert exact cross-session
+  `ProviderBusy` refusal during overlap, and join the exact queued completion and
+  provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).
+- A lifecycle acceptance-notification fault must not race into terminal
+  retention. The [lifecycle cases](tests/Kora.Application.UnitTests/Dependencies/ModelTurnHostTests.ApplicationLifecycle.cs)
+  hold the existing model terminal-audit seam until acceptance publication,
+  cover both audit/publication orderings, and separately assert terminal
+  notification, retained receipt and physical join. Terminal readback failure
+  still prevents fresh lifecycle review.
 - Put restricted-storage fixtures under the discovered repository root to avoid
   native path-length limits. Keep unique names, non-reparse checks and owner-only
   ACLs. Explicitly protect every enumerated root, including editor `User`,

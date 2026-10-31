@@ -406,6 +406,13 @@ Read/Next show bounded chronological **USER** messages and separate **HOST** sta
 
 Typing writes nothing. Switching topics preserves a separate memory-only unsent message per exact session, shared by Sessions and compact views. No ordinary Save/Reload/Clear or saved-draft management exists ([buffers](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+If work refresh observes a changed lifecycle or generation, all conversation
+views retain the unsent text but disable stale composer and Send controls.
+An Active observation alone does not restore eligibility. Use **Read conversation**
+for that exact session to recover its current source; other topics' unsent text
+remains independent. Submission uncertainty still requires exact receipt
+inspection and is not cleared by reading.
+
 **Recover existing legacy text into empty input** is a separate read-only action for the selected exact session. It verifies stable source/revision before importing, refuses nonempty input and never saves, deletes or submits. Missing/unavailable legacy text leaves history and unsent input unchanged. Retention and private authority checks remain; no migration or purge occurs ([recovery](../src/Kora/SessionsViewModel.Unsent.cs)).
 
 **Discard this unsent message...** requires confirmation and affects only that session's memory input. Last-view/application close protects all nonempty topic buffers with Discard/Cancel. Privacy/ownership/session retirement revokes affected private text without saving ([presentation owner](../src/Kora/SessionsPresentationOwner.cs)).

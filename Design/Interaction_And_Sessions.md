@@ -293,6 +293,12 @@ The [complete interaction](../docs/windows-and-tray.md#search-retained-assistant
 
 Sessions and compact share independent memory-only input for each exact session. Switching topics preserves it; last-view and voluntary shutdown use Discard/Cancel. Privacy/ownership retirement releases volatile state. There is no ordinary conversation Save/Reload/Clear, saved-draft catalogue, comparison, rebase or disk autosave ([input owner](../src/Kora/SessionsViewModel.Unsent.cs)).
 
+Passive work refresh publishes changed lifecycle/generation to every native
+composer and submission control while retaining exact session-local unsent text.
+An observed Active generation does not renew the old composer source: explicitly
+read that exact conversation before continuing. Switching topics preserves the
+hold and leaves other conversations independent ([native regression](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
+
 Legacy tables/audit/schema/retention stay compatible. Exact-session recovery copies observed old text only into EMPTY input; changed source/revision refuses publication. It neither submits nor renews activity ([read boundary](../src/Kora.Application/Hosting/SessionWorkspaceService.Conversation.cs), [tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.Unsent.cs)).
 
 The [conversation service](../src/Kora.Application/Hosting/SessionConversationService.cs) retains exact original submitted USER content and its original host-issued request/task under private ownership, source, generation/revision and audit checks. Credential-like structural screening rejects before body writes; malformed/oversized content never becomes truncated or repaired success.

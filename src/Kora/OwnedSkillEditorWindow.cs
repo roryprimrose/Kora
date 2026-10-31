@@ -214,7 +214,7 @@ internal sealed class OwnedSkillEditorWindow : Window, IOwnedSkillSaveReview
         review = dialog;
         dialog.Closed += (_, _) => { if (ReferenceEquals(review, dialog)) { review = null; } result.TrySetResult(-1); };
         using var cancellation = token.Register(() => Avalonia.Threading.Dispatcher.UIThread.Post(dialog.Close));
-        dialog.Show(this);
-        return await result.Task;
+        await dialog.ShowDialog(this);
+        return current() && !token.IsCancellationRequested ? await result.Task : -1;
     }
 }

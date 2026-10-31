@@ -101,6 +101,13 @@ or retained. After privacy recovers, `owned skill editor` can show that draft
 under fresh private presentation eligibility for Discard/Cancel, never to renew
 Save authority. Drafts are not autosaved.
 
+Source reviews, generation/refinement reviews, simulated examples/results and
+unsaved-draft choices are modal: finish or dismiss the current dialog before
+editing the draft again. Attempts to return to the editor bring its exact
+review forward instead. A clicked choice completes only after the dialog
+closes; cancellation or expired eligibility cannot become confirmation during
+that handoff. Save keeps its separate publication confirmation.
+
 ## Refine the current instruction-only guidance
 
 The bounded refinement operation supports the current Kora-owned **declarative,

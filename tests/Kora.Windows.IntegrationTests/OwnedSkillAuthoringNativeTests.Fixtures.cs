@@ -83,6 +83,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     "native review must be reached: {0}", string.Join("\n", editor!.GetLogicalDescendants().OfType<TextBlock>().Select(block => block.Text)));
                 var result = await next.Task;
                 next = new(TaskCreationOptions.RunContinuationsAsynchronously);
+                AssertModalHandoff(editor!, result);
                 return result;
             }
             static void Choose(Window dialog, string caption) => dialog.GetLogicalDescendants().OfType<Button>()

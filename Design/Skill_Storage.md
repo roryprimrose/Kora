@@ -93,6 +93,10 @@ bodies require separate original-user consent before complete review and
 volatile enablement; the [owned reader and writer](../src/Kora.Windows/Skills/WindowsOwnedDeclarativeSkillStore.cs)
 share the same central declaration, aggregate byte bounds, identities,
 no-replace publication and complete readback. No other roots are consulted.
+The owned catalogue admits at most 32 immutable versions and 1 MiB of complete
+stored package bytes, including declared references. List counts reference
+file sizes without reading their bodies and rejects an oversized catalogue
+without returning partial results.
 
 | Partition | Location | Kora access |
 |---|---|---|

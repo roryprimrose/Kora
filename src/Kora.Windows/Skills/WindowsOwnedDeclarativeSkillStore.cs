@@ -290,7 +290,7 @@ public sealed class WindowsOwnedDeclarativeSkillStore(IApplicationDataPaths path
                 result.Add(saved);
                 if (result.Count > SharedSkillCatalogue.MaximumPackages)
                 { throw new InvalidDataException("The saved skill catalogue exceeds its immutable-version bound."); }
-                if (result.Sum(s => s.Document.ManifestBytes.Length + s.Document.InstructionBytes.Length) > SharedSkillCatalogue.MaximumTotalBytes)
+                if (result.Sum(s => s.TotalBytes) > SharedSkillCatalogue.MaximumTotalBytes)
                 { throw new InvalidDataException("The saved skill catalogue exceeds its total byte bound."); }
             }
         }

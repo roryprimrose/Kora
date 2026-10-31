@@ -173,7 +173,11 @@ implementations or model-selected paths are supported
 [owned format](../src/Kora.Core/Skills/OwnedDeclarativeSkillDocument.cs)).
 
 Each reference is nonempty strict UTF-8, at most 16 KiB; the **entire** package,
-including manifest and instructions, is at most 64 KiB. The **complete serialized
+including manifest and instructions, is at most 64 KiB. The saved catalogue
+holds at most 32 immutable versions and 1 MiB across all complete stored
+packages. List counts declared reference sizes without reading their bodies;
+an oversized catalogue fails without returning a partial list.
+The **complete serialized
 input** also must fit 32768 bytes, including escaped metadata, primary, every
 reference, policy and original task. These are aggregate limits, not independent
 budgets to multiply. Nothing is truncated or omitted. v5 uses the same closed

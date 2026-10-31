@@ -113,6 +113,94 @@ public sealed partial class SessionsConversationTests
     }
 
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TerminalPublicationBeforeDelayedAcceptancePreservesCompletedStatusAndExactManualDetails(bool linkOnly)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var f = new InteractionStorageFixture();
+            await f.InitializeAsync();
+            await WindowsSqliteConversationTests.FinishInitial(f);
+            var provider = new TaskCompletionSource<ModelProviderReply>(TaskCreationOptions.RunContinuationsAsynchronously);
+            var adapter = new MemoryAnswerAdapter { Pending = provider.Task };
+            var opened = new List<AdmittedDetailContent>();
+            await using var composition = new Composition(f, (content, live, _, _) =>
+            {
+                live().Should().BeTrue();
+                opened.Add(content);
+                return Task.FromResult("Exact assistant Details opened");
+            }, adapter: adapter);
+            await using var admission = new AudioControlAdmission(f.Store, f.Store, new(f.Tasks));
+            var preferences = new DetailPresentationSettingsTests.Preferences
+            { Value = linkOnly ? DetailPresentationMode.LinkOnly : null };
+            var settings = new DetailPresentationConfigurationService(preferences, admission, new AuditLog(), f.Time);
+            settings.Observe();
+            var model = composition.Model;
+            model.BindDetailPresentation(settings);
+            await model.RefreshAsync();
+            await model.SelectAsync(model.Sessions.Single());
+            var terminal = new TaskCompletionSource<ConversationSubmissionReceipt>(TaskCreationOptions.RunContinuationsAsynchronously);
+            composition.Conversation.SubmittedConversationCompleted += (_, completion) =>
+            {
+                if (completion.Receipt is { } receipt) { terminal.TrySetResult(receipt); }
+            };
+            var acceptance = new DetailPublicationJoinContext();
+            model.ComposerBody = "Terminal answer before its original acceptance callback";
+            var previous = SynchronizationContext.Current;
+            Task pending;
+            try
+            {
+                SynchronizationContext.SetSynchronizationContext(acceptance);
+                pending = model.SubmitConversationAsync();
+            }
+            finally { SynchronizationContext.SetSynchronizationContext(previous); }
+            try
+            {
+                await adapter.Entered.Task.WaitAsync(f.Token);
+                await acceptance.WaitForPostAsync(f.Token);
+                provider.SetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
+                    new(DetailAnswerAdapter.Body, null)));
+                var receipt = await terminal.Task.WaitAsync(f.Token);
+                Dispatcher.UIThread.RunJobs();
+                model.ConversationMessages.Single().Should().BeSameAs(receipt.Message);
+                var completedStatus = model.ConversationStatus;
+                completedStatus.Should().Contain("HOST Succeeded").And.Contain("Genuine ASSISTANT answer retained");
+                pending.IsCompleted.Should().BeFalse();
+                var auditBeforeAcceptance = WindowsSqliteConversationTests.AuditText(f);
+                acceptance.RunNext();
+                await pending;
+                model.ConversationStatus.Should().Be(completedStatus,
+                    "delayed pending acceptance and the duplicate terminal join cannot replace an already published terminal status");
+                model.ConversationMessages.Single().Should().BeSameAs(receipt.Message);
+                model.DetailsOfferMessage.Should().Be(linkOnly ? null : receipt.Message);
+                WindowsSqliteConversationTests.AuditText(f).Should().Be(auditBeforeAcceptance);
+                opened.Should().BeEmpty();
+                await WaitForDetailReadinessAsync(model, f.Token);
+                await model.OpenConversationDetailAsync(receipt.Message, assistant: true);
+                opened.Should().ContainSingle().Which.Source.Should().Be(DetailAnswerAdapter.Body);
+                adapter.Calls.Should().Be(1);
+                preferences.Writes.Should().Be(0);
+                f.Count("conversation_messages").Should().Be(1);
+                f.Count("conversation_drafts").Should().Be(0);
+                f.Count("host_questions").Should().Be(0);
+                f.Count("scoped_grants").Should().Be(0);
+            }
+            finally
+            {
+                provider.TrySetResult(new(ModelTurnOutcome.Succeeded, ModelProviderSelection.OllamaCandidate,
+                    new(DetailAnswerAdapter.Body, null)));
+                while (!pending.IsCompleted)
+                {
+                    await acceptance.WaitForPostAsync(f.Token);
+                    acceptance.RunNext();
+                }
+                await pending;
+            }
+        });
+    }
+
+    [Theory]
     [InlineData(0, false)]
     [InlineData(0, true)]
     [InlineData(1, false)]

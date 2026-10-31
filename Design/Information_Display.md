@@ -1097,6 +1097,8 @@ the existing 100-message session limit and cleared with private conversation
 selection/lifetime state, not saved as history or authority. A duplicate
 terminal event, foreground callback or late submission join cannot replace a
 newer displayed answer or an explicitly read page, or capture another epoch.
+Delayed pending acceptance also preserves an already published terminal status;
+it cannot make a completed request appear queued or running again.
 Pending acceptance is not terminal publication: its first terminal answer
 still captures current policy. Generic Details accepts only a pending current-response offer;
 otherwise it keeps the selected-session route. The explicit current-response

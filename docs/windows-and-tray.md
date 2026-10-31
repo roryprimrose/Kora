@@ -114,6 +114,11 @@ Activity contains the existing task/question/answer/decision records; it is not
 a complete tool trace or exact-grant-change feed. Historical records and their
 Details are read-only, never live answer or approval buttons.
 
+Returning to a conversation does not replay delayed submission notifications.
+Use **Read conversation** for its retained result or **Refresh submitted work**
+for current pending requests. Your unsent text stays in its original conversation;
+refreshing does not submit it or renew the original request's permission.
+
 The composer explicitly sends to the selected conversation. Switching topics
 preserves each topic's separate memory-only unsent text. **Collapse** (or
 `collapse conversation`) returns to the original compact interaction without

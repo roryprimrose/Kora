@@ -135,6 +135,13 @@ The [approved product decision](MVP_Scope.md#approved-retirement-and-simplificat
 
 Keep unsent input per exact conversation in memory across view/session switching, share it consistently between Sessions and compact views, and never submit or merge it implicitly. Do not add disk autosave. Protect deliberate discard/exit and apply privacy/ownership retirement without cross-session leakage.
 
+Deferred submitted-work acceptance and terminal notifications retain the private
+control revision, exact selected source and selection epoch observed before native
+dispatch. Switching away and returning, arriving from another selection or
+observing a new generation does not reattach an old callback. Read the exact
+conversation or refresh submitted work explicitly to recover its retained result
+or current pending controls; neither operation transfers or submits unsent input.
+
 ### Deliberate exact retained-answer replies
 
 The native [Reply interaction](../docs/reviewed-context.md#reply-deliberately-to-one-exact-assistant-answer) completes one follow-up in the same exact Active conversation: choose a displayed retained ASSISTANT answer, write unchanged new input in its memory-only composer, inspect the complete bounded answer as separate inert LocalOnly evidence, separately confirm once, and retain a genuine admitted answer or truthful HOST failure. The original USER is not implicitly included; this is the exact-answer subset of the existing [mixed-context workflow](../src/Kora.Application/Hosting/ReviewedContext/MixedContextWorkflow.cs), not automatic recall or another context engine.

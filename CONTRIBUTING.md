@@ -373,6 +373,17 @@ runner to verify the exact shape, original identity and real headless output.
 - Preserve production deadlines; use existing fake clocks for non-deadline
   scenarios. Dispose asynchronous fixture owners and release held operations in
   `finally`. See the [microphone ownership regressions](tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.MicrophoneRefreshOwnership.cs).
+- Freeze the interaction-storage fixture's timers when holding fake provider
+  turns under its frozen clock. The [queued task-output regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs)
+  assert that no system timer is created, successful work joins, and original
+  expiry at and beyond 15 seconds still withholds pending output.
+  Legacy single-execution adapters cannot dispatch another session while the
+  original owns its resource. Hold that session's dispatch through exact worker
+  joins; keep explicit overlap coverage for the fail-closed `ProviderBusy` result.
+- The [pending-clear regressions](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.PendingClear.cs)
+  also freeze timers for held fake work and await exact pending-control property
+  publication after refresh. An awaited storage read does not join a posted UI
+  snapshot; preserve manual-hold and per-original terminal assertions.
 - Queued task-output fixtures hold the provider reply, assert exact cross-session
   `ProviderBusy` refusal during overlap, and join the exact queued completion and
   provider quiescence before a fresh review. See the [native output cases](tests/Kora.Windows.IntegrationTests/SessionsConversationTests.TaskResponseOutput.cs).

@@ -95,7 +95,7 @@ internal sealed partial class CustomizationWindow : Window
         ToolTip.SetTip(PushToTalkButton, "Hold to speak to this artifact. Release to review local interpretation; nothing is saved or enabled.");
         var sourceActions = new WrapPanel();
         foreach (var action in new[] { "Review original registration", "Withdraw original registration", "Compare external",
-            "Review and save", "Reload", "Create Kora copy", "Disable", "Enable", "Review recovery" })
+            "Review and save", "Reload", "Create Kora copy", "Create Kora adaptation", "Disable", "Enable", "Review recovery" })
         { AddButton(sourceActions, action, action, run); }
         header.Children.Add(sourceActions); header.Children.Add(Files); header.Children.Add(McpFields);
         var components = new WrapPanel();
@@ -156,6 +156,7 @@ internal sealed partial class CustomizationWindow : Window
         actions["Review and save"].IsEnabled = writable;
         actions["Reload"].IsEnabled = writable;
         actions["Create Kora copy"].IsEnabled = source is not null && !recovery && !mcp;
+        actions["Create Kora adaptation"].IsEnabled = source?.Kind == CustomizationKind.Skill && !recovery;
         actions["Disable"].IsEnabled = source is not null;
         actions["Enable"].IsEnabled = source is not null && !recovery;
         actions["Review recovery"].IsEnabled = writable && !mcp;

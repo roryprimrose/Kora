@@ -86,6 +86,7 @@ public sealed partial class CustomizationWindowTests
     [InlineData("source-save")]
     [InlineData("cancel-disclosure")]
     [InlineData("cancel-proposal")]
+    [InlineData("proposal-kind")]
     [InlineData("cancel-save")]
     [InlineData("invalid-placeholder")]
     [InlineData("oversize")]
@@ -98,6 +99,7 @@ public sealed partial class CustomizationWindowTests
     [InlineData("late-private")]
     [InlineData("late-owner")]
     [InlineData("late-fields")]
+    [InlineData("late-kind")]
     [InlineData("late-request")]
     [InlineData("late-draft")]
     [InlineData("late-input")]
@@ -233,6 +235,10 @@ public sealed partial class CustomizationWindowTests
                     case "late-private": f.Main.CloseForObservedPrivacyEvent("Synthetic prompt closure", hidePresentation: true); break;
                     case "late-owner": ownership++; break;
                     case "late-fields": native.RequiredPromptInputs.Text = "changed"; break;
+                    case "late-kind":
+                        native.Kind = CustomizationKind.Skill;
+                        native.Kind = CustomizationKind.Prompt;
+                        break;
                     case "late-request": native.Request.Text += "Changed"; break;
                     case "late-draft": native.Editor.Text += "Manual"; break;
                     case "late-input": f.Main.CommandText = "unrelated replacement input"; break;
@@ -273,9 +279,18 @@ public sealed partial class CustomizationWindowTests
                     await promptStore.Write("example", null, ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(draft, false),
                         ArtifactKind.Prompt, "kora-profile", "example"), () => true, f.Token);
                 }
-                Choose(proposal, action is "cancel-proposal" ? "Cancel" : "Use proposed draft");
+                if (action is "proposal-kind")
+                {
+                    native.Kind = CustomizationKind.Skill;
+                    native.Kind = CustomizationKind.Prompt;
+                }
+                else { Choose(proposal, action is "cancel-proposal" ? "Cancel" : "Use proposed draft"); }
                 await generation;
-                if (action is "cancel-proposal" or "source-review") { native.Editor.Text.Should().Be(draft); }
+                if (action is "cancel-proposal" or "source-review" or "proposal-kind")
+                {
+                    native.Editor.Text.Should().Be(draft);
+                    if (action is "proposal-kind") { File.Exists(path).Should().BeFalse(); }
+                }
                 else
                 {
                     native.Editor.Text.Should().Contain(PromptAuthoringAdapter.Body);

@@ -5,7 +5,7 @@ using Kora.Core.Customizations;
 
 namespace Kora.Application.Definitions;
 
-public sealed class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
+public sealed partial class CustomizationManagementService(ICustomizationStore store, InstructionControlAdmission admission,
     ArtifactUsePreferences use, ArtifactCatalogue catalogue, ISecurityAuditLog audit,
     ArtifactDirectoryConfigurationService? mcpConfiguration = null)
 {
@@ -99,9 +99,9 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         token => RequireUnchangedSourceCore(source, expected, eligible, token);
 
     private async Task RequireUnchangedSourceCore(CustomizationSource source, CustomizationSnapshot? expected,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> current, CancellationToken token)
     {
-        Require(eligible, token);
+        Require(current, token);
         if (expected is null)
         {
             var destination = await store.Create(source.Kind, source.Scope, source.Name, token).ConfigureAwait(false);
@@ -113,7 +113,7 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
             if (live.Source != source || !string.Equals(live.Revision, expected.Revision, StringComparison.Ordinal))
             { throw new InvalidOperationException("The original editor source changed. Reload and start a fresh request."); }
         }
-        Require(eligible, token);
+        Require(current, token);
     }
 
     public Task<bool> SetDisabled(CustomizationSource source, bool disabled,
@@ -166,7 +166,8 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
 
     public Task<CustomizationSnapshot?> Save(CustomizationSource source, CustomizationSnapshot? original,
         IReadOnlyList<CustomizationFile> files, Func<CancellationToken, Task<bool>> confirm,
-        Func<bool> eligible, CancellationToken token)
+        Func<bool> eligible, CancellationToken token, Func<CancellationToken, Task>? validateSource = null,
+        CustomizationSnapshot? copiedFrom = null)
     {
         var proposal = CustomizationSnapshot.ValidateFiles(source, files).ToArray();
         ValidatePrimary(source, proposal);
@@ -175,7 +176,9 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
         { throw new InvalidOperationException("Saving requires Kora's canonical MCP source and the host's independent MCP inclusion control."); }
         return admission.Run<CustomizationSnapshot?>(eligible, async (request, session, current, admitted) =>
         {
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (!await confirm(admitted).ConfigureAwait(false)) { return null; }
+            if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
             if (source is { Scope: CustomizationScope.User, Kind: CustomizationKind.Instruction }
                 && original is not null && proposal.Single().CopyBytes().AsSpan().SequenceEqual(original.Files.Single().CopyBytes()))
             {
@@ -203,11 +206,15 @@ public sealed class CustomizationManagementService(ICustomizationStore store, In
                     return true;
                 }, admitted).ConfigureAwait(false);
                 var saved = await store.Save(source, original, proposal, current,
-                    operation => admission.Publish(request, session, current, () =>
+                    async operation =>
                     {
-                        attempted = true;
-                        return operation();
-                    }, admitted).AsTask(), admitted).ConfigureAwait(false);
+                        if (validateSource is not null) { await validateSource(admitted).ConfigureAwait(false); }
+                        return await admission.Publish(request, session, current, () =>
+                        {
+                            attempted = true;
+                            return operation();
+                        }, admitted).ConfigureAwait(false);
+                    }, admitted, copiedFrom).ConfigureAwait(false);
                 await admission.Publish(request, session, current, static () => true, admitted).ConfigureAwait(false);
                 audit.Write(entry.WithOutcome(SecurityAuditOutcome.Succeeded));
                 return saved;

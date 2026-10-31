@@ -29,6 +29,10 @@ internal sealed partial class CustomizationWindowController(
     private CustomizationSource? source;
     private CustomizationSource? registeredOriginal;
     private CustomizationSnapshot? baseline;
+    private DeclarativeSkillAdaptation? skillAdaptation;
+    private IReadOnlyList<Kora.Core.Artifacts.ArtifactDefinition>? adaptationCatalogue;
+    private long adaptationReloadFailure;
+    private bool adaptationUnconfirmed;
     private List<CustomizationFile> draft = [];
     private string? selectedFile;
     private bool changingBuffer;
@@ -93,6 +97,7 @@ internal sealed partial class CustomizationWindowController(
         window.NewName.PropertyChanged += (_, change) =>
         { if (change.Property == TextBox.TextProperty) { InputChanged(); } };
         window.Destination.SelectionChanged += (_, _) => InputChanged();
+        window.Kinds.SelectionChanged += (_, _) => InputChanged();
         window.PresentationLost += () => { RetireVoiceTarget(); RetirePromptAuthoring(); };
         window.Activated += (_, _) => PublishVoiceTarget();
         // Activated can precede IsActive; also observe the committed foreground state.
@@ -125,8 +130,12 @@ internal sealed partial class CustomizationWindowController(
         busy = true;
         var token = lifetime.Token;
         var call = main.CallPolicyRevision;
-        Func<bool> originalInput = action is "Voice"
-            ? () => voiceRequest?.IsAdmitted == true : main.CaptureInstructionEditorEligibility();
+        Func<bool> originalInput = action switch
+        {
+            "Voice" => () => voiceRequest?.IsAdmitted == true,
+            "Command" => pendingCommand!.IsCurrent,
+            _ => main.CaptureInstructionEditorEligibility(),
+        };
         bool Current() => ReferenceEquals(window, opened) && Eligible() && originalInput() && main.CallPolicyRevision == call;
         try
         {
@@ -144,7 +153,7 @@ internal sealed partial class CustomizationWindowController(
                 case "Create":
                     if (await LeaveDraft(Current, token)) { await Create(opened.Scope, Current, token); }
                     break;
-                case "Create Kora copy": await Copy(Current, token); break;
+                case "Create Kora copy": case "Create Kora adaptation": await Copy(Current, token); break;
                 case "Review original registration": await RegisterOriginal(Current, token); break;
                 case "Withdraw original registration": await WithdrawOriginal(Current, token); break;
                 case "Compare external": await CompareOriginal(Current, token); break;
@@ -298,9 +307,25 @@ internal sealed partial class CustomizationWindowController(
 
     private async Task Inspect(CustomizationSource selected, bool recovery, Func<bool> current, CancellationToken token)
     {
+        skillAdaptation = null;
+        adaptationCatalogue = null;
+        adaptationUnconfirmed = false;
         source = selected;
         baseline = null; draft = []; selectedFile = null;
         ShowDraft();
+        if (selected is { Kind: CustomizationKind.Skill, Scope: CustomizationScope.User })
+        {
+            var revision = draftRevision;
+            if (await window!.Review("Review shared skill read consent",
+                "Read this exact selected personal skill package for private inspection and, if compatible, a disabled Kora adaptation.\n"
+                + selected.Location
+                + "\nBounded strict UTF-8 inspection: at most 32 files, 128 entries, depth four and 1 MiB total."
+                + "\nAdaptation accepts ONLY one SKILL.md, with v1 name/version/description and plain inert guidance."
+                + "\nRequired references, tools, scripts, unknown metadata and other package files are refused, never dropped."
+                + "\nConsent permits exact-source freshness rechecks until selection, reload or closure. It does not permit model disclosure, source writes, execution, grants or activation.",
+                token, "Read exact shared skill", "Cancel") is not "Read exact shared skill") { return; }
+            RequireCurrent(() => current() && revision == draftRevision && source == selected, token);
+        }
         if (IsInstructionOriginal(selected) && !management.IsInstructionRegistered(selected))
         {
             window!.Status.Text = "Review original registration to disclose this exact file's bounded reading and supported native v1 editing scope. No original content has been read. Existing read-only registration is not edit consent; the separate owned instruction editor also offers Create Kora copy from profile.";
@@ -334,6 +359,9 @@ internal sealed partial class CustomizationWindowController(
         }
         var created = await management.Create(opened.Kind, scope, name, current, token);
         RequireCurrent(current, token);
+        skillAdaptation = null;
+        adaptationCatalogue = null;
+        adaptationUnconfirmed = false;
         source = created;
         baseline = null;
         draft = [new(source.PrimaryFile, ArtifactFileDocument.Encode(CustomizationLayout.Template(source.Kind, name), false))];
@@ -424,6 +452,7 @@ internal sealed partial class CustomizationWindowController(
     private async Task<bool> Save(Func<bool> current, CancellationToken token)
     {
         if (source is null || source.IsReadOnly) { throw new InvalidOperationException("Select an editable artifact or create a Kora copy."); }
+        if (skillAdaptation is not null) { return await SaveAdaptation(current, token); }
         FlushBuffer();
         var revision = draftRevision;
         CustomizationManagementService.ValidatePrimary(source, draft);
@@ -608,6 +637,7 @@ internal sealed partial class CustomizationWindowController(
     private async Task Copy(Func<bool> current, CancellationToken token)
     {
         if (source is null) { throw new InvalidOperationException("Inspect one exact source to copy."); }
+        if (source.Kind == CustomizationKind.Skill) { await AdaptSkill(current, token); return; }
         if (source.Kind == CustomizationKind.McpServer)
         { throw new InvalidOperationException("MCP copy/import is unavailable. Add one explicit Kora HTTPS entry instead."); }
         FlushBuffer();
@@ -656,6 +686,7 @@ internal sealed partial class CustomizationWindowController(
     {
         Open();
         if (window is null) { return; }
+        if (busy && skillAdaptation is not null) { InputChanged(); }
 #pragma warning disable VSTHRD003 // Await this controller's already-owned operation before accepting another original command.
         await active;
 #pragma warning restore VSTHRD003
@@ -669,6 +700,18 @@ internal sealed partial class CustomizationWindowController(
     private async Task RouteCore(CustomizationCommand command, Func<bool> current, CancellationToken token)
     {
         if (window is null) { return; }
+        if (command.Operation is "Adapt")
+        {
+            if (source?.Kind != CustomizationKind.Skill)
+            { throw new InvalidOperationException("Inspect the exact skill to adapt first."); }
+            window.NewName.Text = command.Name; await Copy(current, token); return;
+        }
+        if (command.Operation is "SaveAdaptation")
+        {
+            if (skillAdaptation is null) { throw new InvalidOperationException("Create a Kora skill adaptation draft first."); }
+            await Save(current, token);
+            return;
+        }
         if (command.Kind is { } kind) { window.Kind = kind; }
         if (command.Operation is "List") { RenderSources(); return; }
         if (command.Operation is "Refine") { window.Request.Text = command.Text; await Refine(current, token); return; }
@@ -737,7 +780,8 @@ internal sealed partial class CustomizationWindowController(
         if (registeredOriginal is not null) { management.RetireInstructionRegistration(registeredOriginal); registeredOriginal = null; }
         var retired = lifetime; lifetime = null;
         var retiredWindow = window;
-        window = null; source = null; baseline = null; draft = []; selectedFile = null; sources = []; bundled.Clear();
+        window = null; source = null; baseline = null; skillAdaptation = null; adaptationCatalogue = null;
+        draft = []; selectedFile = null; sources = []; bundled.Clear();
         retiredWindow?.ClearPrivateText();
         retired?.Cancel();
         if (retired is not null) { _ = DisposeLifetime(active, retired); }

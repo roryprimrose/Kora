@@ -29,8 +29,9 @@ opens; an explicit artifact-type command selects its requested category.
 Each type has three source groups:
 
 - **Built-in**: bundled binary resources. Inspect their complete files; originals
-  are read-only. A Kora copy contains declarative guidance, not a copied executable
-  implementation.
+  are read-only. Current bundled skills require protected executable implementations
+  and cannot be faithfully copied into the supported declarative adaptation subset
+  ([manifest contract](../src/Kora.Core/Skills/SkillPackageManifest.cs)).
 - **Kora**: definitions beneath Kora's roaming-profile data directory.
 - **User**: supported Copilot skill folders and VS Code/VS Code Insiders user
   profile sources. The source path distinguishes identical names and profiles.
@@ -44,6 +45,24 @@ than silently omitting components.
 MCP entries are the native-only exception: selecting a Kora entry first asks consent to read that exact entry into private HTTPS fields.
 User/profile and additional MCP files remain metadata-only here.
 Unsupported or sensitive selected-entry fields are not shown or silently removed ([source-read workflow](../src/Kora/CustomizationWindowController.Mcp.cs)).
+
+## Create a disabled Kora skill adaptation
+
+1. Select **Skills > User** and one exact supported personal-profile skill. Confirm **Read exact shared skill** to inspect its complete bounded source locally. Cancel reads no source. This consent lasts only for this inspection/adaptation lifetime; it authorizes neither source writes nor model disclosure.
+2. Enter a different canonical lowercase **New artifact ID**, then choose **Create Kora adaptation**. For Skills, **Create Kora copy** uses this same operation. The host chooses the Kora-owned destination; this is only an in-memory draft.
+3. Optionally edit the draft's plain guidance, description or version. Keep its exact destination name and fixed attribution. Original author credits in the guidance remain intact.
+4. Choose **Review and save**. Review the COMPLETE original source, COMPLETE proposed source, attribution and exact destination. Continue to the separate confirmation, then choose **Save new disabled skill**.
+5. The host creates the new single file without overwriting an existing destination, reads it back and reopens that exact revision **DISABLED**. It inherits no tools, grants, source-read consent, enablement or execution authority. Re-select the Kora entry later to inspect it again; enabling/use is a separate operation.
+
+These are the [native lifecycle](../src/Kora/CustomizationWindowController.SkillAdaptation.cs) and [existing publication owner](../src/Kora.Application/Definitions/CustomizationManagementService.SkillAdaptation.cs), not import or description-based generation. No model is needed or called during inspection, copying or saving.
+
+The existing writer holds the inspected source file against writes/replacement during staging and creation, and rechecks its complete package inventory immediately before the atomic create-no-overwrite rename ([boundary regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/WindowsCustomizationStoreTests.SkillAdaptation.cs)).
+
+The supported source is exactly one strict UTF-8 `SKILL.md` with the existing v1 scalar `name`, three-part `version`, `description` and plain inert guidance. Source folder and declared name must match. Required tools/references, scripts, companions, unknown metadata (including unsupported attribution fields), active markup and unsupported code fences are refused, never omitted to make the copy appear compatible ([validation](../src/Kora.Core/Customizations/DeclarativeSkillAdaptation.cs)).
+
+The complete review expires after two minutes. Source/access, reload, draft, destination, input, privacy, ownership or call changes invalidate it; re-inspect and review instead of silently adopting newer source bytes. Cancellation claims no saved result. If publication/readback is uncertain, do not retry Save: inspect the exact destination and its recovery state first. Original files are never changed by this operation ([regressions](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
+
+After inspecting the source, typed `create kora adaptation <new-id>` and `save skill adaptation`, or their current-name activated-voice equivalents, open the same native reviews. Commands never confirm publication themselves ([command parser](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
 
 ## Discover which selected customizations may help
 

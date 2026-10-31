@@ -258,6 +258,24 @@ set, but editing requires **Create Kora copy** with a distinct destination,
 attribution and initially disabled state. Neither copying nor saving transfers
 bundled action authority.
 
+The delivered skill copy branch is **Create Kora adaptation** (the legacy
+**Create Kora copy** button routes to the same operation for Skills).
+It accepts only the [documented plain single-file shared subset](Skill_Authoring.md#storage-and-versioning).
+Selecting a User skill first requires explicit bounded local read consent;
+inspection/metadata alone does not approve model disclosure, source mutation,
+copying, enablement or use. A distinct owned draft retains fixed source lineage.
+**Review and save** reviews the complete original and complete proposed source,
+then asks separately to save the new disabled file. Successful exact readback
+reopens it disabled through the existing writer/catalogue reconciliation.
+The current bundled packages' required executable implementations cannot be
+represented by this subset, so their adaptation is explicitly refused rather
+than presenting detached guidance as a working copy
+([native owner](../src/Kora/CustomizationWindowController.SkillAdaptation.cs),
+[behavioral evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.SkillAdaptation.cs)).
+Typed and current-name activated `create kora adaptation <new-id>` and
+`save skill adaptation` route to these same native reviews; neither command is
+itself publication confirmation ([routing](../src/Kora.Application/Definitions/CustomizationCommand.cs)).
+
 Selecting an editable source opens a private working draft. A skill exposes its
 primary `SKILL.md` and bounded component tree; instructions and agents start
 with their primary document. MCP editing targets one server definition, not
@@ -275,6 +293,18 @@ and locality; ordinary provider policy remains authoritative. Native text editin
 and local validation remain available without a model. Editing a source or request
 retires an outstanding generation/review; late model output cannot replace a
 newer draft.
+
+The bounded [owned Instruction Add/Ask Kora operation](../docs/instruction-editor.md#describe-a-new-owned-instruction)
+reuses explicit Create plus the existing instruction body proposal owner.
+The host fixes native v1, metadata and owned destination; only the unchanged
+description and fixed kind/format descriptor are disclosed after local review.
+Accepted complete-source proposals stage in the same editor, then separate
+confirmed create-only Save/readback creates a disabled instruction. No overwrite,
+reference read, current-turn/system authority, activation, grants or execution
+comes from generation or Save. Original source/draft/description/channel/private/
+call/ownership/catalogue and expiry fences remain authoritative
+([service](../src/Kora.Application/Definitions/OwnedInstructionRefinementService.cs),
+[native lifecycle](../src/Kora/OwnedInstructionEditorController.Refinement.cs)).
 
 Review covers every added, modified and removed file, its complete proposed
 source, the selected destination and current base. Save, Discard and Cancel are
@@ -817,6 +847,8 @@ or count as user activity/approval.
 The complete source, unchanged description, destination and host declaration precede independent local-only tool-free disclosure consent. Only a complete body proposal or explicit unsupported-capability refusal is admitted; the existing parser checks exact declared names/first occurrence, malformed placeholders and source bounds. Model output cannot choose metadata, files, destinations, defaults, tools or instruction authority ([local consumer](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
 
 Prompt and agent proposals share the admitted local-only runner, not their output schemas or authority. Prompt source freshness is revalidated at the actual model consumer and before publication; source-editing authoring retains the same freshness callback ([runner boundary](../src/Kora.Application/Dependencies/LocalContextTurnWorkflow.cs), [authoring owner](../src/Kora.Application/Definitions/CustomizationAuthoringService.cs)).
+
+The source-freshness helper shared with declarative skill adaptation checks live admission and cancellation both before and after exact source reads or create-only destination checks. A captured authoring callback cannot borrow the adaptation's read consent or bypass its own original source/draft admission. Changing the editor kind and returning to Prompts does not revive a retired disclosure or proposal; presentation loss also retires prompt authoring while owned model work joins.
 
 Complete proposed source/literal review and **Use proposed draft** adopt only volatile text. The existing independently confirmed exact writer saves disabled; reopen, exclusion removal, owned exact-template use review, explicit literal binding, complete expanded USER preview and exact-session submission remain separate. Cancellation, source/draft/critique/declaration/input/catalogue/provider/private/channel/call/ownership changes and expiry retire proposals and suppress late output while joining owned model work. No prompt-profile-original generation, recursive expansion, implicit use or runtime qualification is added ([native owner](../src/Kora/CustomizationWindowController.cs), [user operation](../docs/customizations.md#author-one-reusable-prompt-request), [native evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/CustomizationWindowTests.PromptAuthoring.cs)).
 

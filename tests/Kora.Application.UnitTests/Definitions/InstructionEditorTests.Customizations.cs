@@ -49,6 +49,45 @@ public sealed partial class InstructionEditorTests
     }
 
     [Theory]
+    [InlineData(false, "before")]
+    [InlineData(true, "before")]
+    [InlineData(false, "after")]
+    [InlineData(true, "after")]
+    [InlineData(false, "cancel-before")]
+    [InlineData(true, "cancel-before")]
+    [InlineData(false, "cancel-after")]
+    [InlineData(true, "cancel-after")]
+    public async Task Authoring_source_callback_rechecks_admission_before_and_after_exact_source_io(bool existing, string change)
+    {
+        await using var f = new Fixture();
+        var files = new CustomizationFiles(CustomizationKind.Prompt);
+        var expected = files.Current;
+        var use = new ArtifactUsePreferences(new LocalSharedSkillPreferencesTests.Store());
+        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(TestContext.Current.CancellationToken);
+        var callback = service.CaptureAuthoringSourceValidation(files.Source, existing ? expected : null, f.Eligible);
+        void Retire()
+        {
+            if (change.StartsWith("cancel-", StringComparison.Ordinal)) { cancellation.Cancel(); }
+            else { f.Open = false; }
+        }
+        if (change.EndsWith("before", StringComparison.Ordinal)) { Retire(); }
+        else { files.AfterRead = Retire; files.AfterCreate = Retire; }
+
+        var operation = () => callback(cancellation.Token);
+        if (change.StartsWith("cancel-", StringComparison.Ordinal))
+        { await operation.Should().ThrowAsync<OperationCanceledException>(); }
+        else { await operation.Should().ThrowAsync<InvalidOperationException>(); }
+        var entered = change.EndsWith("after", StringComparison.Ordinal);
+        files.Reads.Should().Be(entered && existing ? 1 : 0);
+        files.Creates.Should().Be(entered && !existing ? 1 : 0);
+        files.Current.Should().BeSameAs(expected);
+        files.Writes.Should().Be(0);
+        service.IsDisabled(files.Source).Should().BeFalse("freshness checks cannot change use control");
+        f.Audit.Events.Should().BeEmpty();
+    }
+
+    [Theory]
     [InlineData(ArtifactKind.Instruction)]
     [InlineData(ArtifactKind.Prompt)]
     public async Task Policy_enabled_owned_inventory_and_validation_remain_current_until_use_changes(ArtifactKind kind)
@@ -234,14 +273,19 @@ public sealed partial class InstructionEditorTests
         internal CustomizationSnapshot Current;
         internal int Writes;
         internal int Reads;
+        internal int Creates;
         internal bool FailWrite;
         internal Exception? WriteFailure;
         internal Action? AfterWrite;
         internal Action? AfterRead;
+        internal Action? AfterCreate;
         internal bool Registered;
         internal InstructionOriginalRegistration? Registration;
         public InstructionOriginalRegistration? RegisteredInstruction => Registered ? Registration ??= new(Source, "native-revision") : null;
         internal Action? BeforeRegister;
+        internal CustomizationSource? CreatedSource;
+        internal Action? BeforeCommit;
+        internal CustomizationSnapshot? CopySource;
         internal Action? BeforeSave;
         internal bool DetectOriginalConflicts;
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
@@ -267,27 +311,33 @@ public sealed partial class InstructionEditorTests
         public bool IsInstructionRegistered(CustomizationSource source) => Registered;
         public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<CustomizationSource>>([Source]);
-        public Task<CustomizationSource> Create(CustomizationKind kind, CustomizationScope scope, string name, CancellationToken token) =>
-            Task.FromResult(Source);
+        public Task<CustomizationSource> Create(CustomizationKind kind, CustomizationScope scope, string name, CancellationToken token)
+        { Creates++; AfterCreate?.Invoke(); return Task.FromResult(CreatedSource ?? Source); }
         public Task<CustomizationSnapshot> Read(CustomizationSource source, CancellationToken token)
         { Reads++; AfterRead?.Invoke(); return Task.FromResult(Current); }
         public Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token) =>
             Task.FromResult(new CustomizationSnapshot(Source, Current.Revision, Current.Files, "Recovery"));
         public Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
             IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token) => commit(() =>
+            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+            CustomizationSnapshot? copiedFrom = null)
         {
-            token.ThrowIfCancellationRequested();
-            if (!eligible()) { throw new InvalidOperationException("Closed"); }
-            BeforeSave?.Invoke();
-            if (DetectOriginalConflicts && !string.Equals(expected?.Revision, Current.Revision, StringComparison.Ordinal))
-            { throw new InstructionOriginalConflictException(); }
-            if (WriteFailure is { } failure) { throw failure; }
-            if (FailWrite) { throw new IOException("Publication failed"); }
-            Writes++;
-            Current = new(source, "saved", files);
-            AfterWrite?.Invoke();
-            return Current;
-        });
+            CopySource = copiedFrom;
+            BeforeCommit?.Invoke();
+            return commit(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                if (!eligible()) { throw new InvalidOperationException("Closed"); }
+                BeforeSave?.Invoke();
+                if (DetectOriginalConflicts && !string.Equals(expected?.Revision, Current.Revision, StringComparison.Ordinal))
+                { throw new InstructionOriginalConflictException(); }
+                if (WriteFailure is { } failure) { throw failure; }
+                if (FailWrite) { throw new IOException("Publication failed"); }
+                Writes++;
+                Current = new(source, "saved", files);
+                AfterWrite?.Invoke();
+                return Current;
+            });
+        }
     }
 }

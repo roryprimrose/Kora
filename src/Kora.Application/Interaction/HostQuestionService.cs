@@ -26,6 +26,13 @@ public sealed class HostQuestionService(IHostInteractionStore store, TimeProvide
                 : InteractionTransaction.Reject(snapshot, "voice-question-unavailable"),
             cancellationToken, retireReply: false);
 
+    public ValueTask<HostInteractionDecision> SubmitNativeReplyAsync(HostQuestionKey key, HostRevision generation,
+        QuestionAnswer answer, Func<bool> isPresented, CancellationToken cancellationToken) =>
+        UpdateAsync(key, "question.submit", (snapshot, question) =>
+            question.SessionGeneration == generation && isPresented()
+                ? Answer(snapshot, question, answer, RequestOrigin.LocalUi, submitting: true)
+                : InteractionTransaction.Reject(snapshot, "native-question-unavailable"), cancellationToken);
+
     public ValueTask<HostInteractionDecision> CreateAsync(HostRequest request, QuestionSpec spec,
         DateTimeOffset expiresAt, CancellationToken cancellationToken)
     {

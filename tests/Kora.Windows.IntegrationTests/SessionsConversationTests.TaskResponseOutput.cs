@@ -116,12 +116,15 @@ public sealed partial class SessionsConversationTests
         });
     }
 
-    [Fact]
-    public async Task TaskOutputSeparateSessionsAndQueuedTurnsOwnImmutableChoicesWithoutProviderPayloadFields()
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task TaskOutputSeparateSessionsAndQueuedTurnsOwnImmutableChoicesWithoutProviderPayloadFields(bool overlap)
     {
         using var f = new InteractionStorageFixture();
         await f.InitializeAsync();
         await WindowsSqliteConversationTests.FinishInitial(f);
+        f.Time.UseFrozenTimers = true;
         var original = f.Request.SessionId;
         f.Request = InteractionStorageFixture.NewRequest();
         await f.AdmitAsync(newSession: true);
@@ -132,16 +135,23 @@ public sealed partial class SessionsConversationTests
         var otherTarget = await f.Store.ReadMetadataAsync(f.Request.SessionId, f.Token);
         var observed = new List<(ConversationSubmissionReceipt Receipt, TaskResponseMode Mode)>();
         var allOutput = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var queuedOutputEntered = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var releaseQueuedOutput = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
         composed.Conversation.BindTaskResponseOutput((mode, _) => new(mode, ResponseOutputMode.Hybrid, () => true,
-            (receipt, output, current, _) =>
+            async (receipt, output, current, _) =>
             {
                 current().Should().BeTrue();
+                if (string.Equals(receipt.Message.Body, "queued", StringComparison.Ordinal))
+                {
+                    queuedOutputEntered.TrySetResult();
+                    await releaseQueuedOutput.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                    current().Should().BeTrue();
+                }
                 lock (observed)
                 {
                     observed.Add((receipt, output.Declared));
                     if (observed.Count == 3) { allOutput.TrySetResult(); }
                 }
-                return Task.CompletedTask;
             }));
         var commands = composed.Conversation.CreateRequestCommands();
         var otherCommands = composed.Conversation.CreateRequestCommands();
@@ -151,24 +161,58 @@ public sealed partial class SessionsConversationTests
             var firstOperation = ConfirmTaskOutput(commands, firstReview, f.Token);
             var first = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
             var queuedReview = await ReviewTaskOutput(commands, firstTarget, "queued", TaskResponseMode.VoiceOnly, f.Token);
-            var queued = await ConfirmTaskOutput(commands, queuedReview, f.Token);
-            queued.RequestSubmission!.Message.Outcome.Should().BeNull();
-            var otherReview = await ReviewTaskOutput(otherCommands, otherTarget, "other session", TaskResponseMode.Hybrid, f.Token);
-            var otherOperation = ConfirmTaskOutput(otherCommands, otherReview, f.Token);
+            var queued = (await ConfirmTaskOutput(commands, queuedReview, f.Token)).RequestSubmission!;
+            queued.Message.Outcome.Should().BeNull();
+            var queuedCompletion = new TaskCompletionSource<ConversationTurnCompletion>(TaskCreationOptions.RunContinuationsAsynchronously);
+            composed.Conversation.SubmittedConversationCompleted += (_, completion) =>
+            {
+                if (completion.Receipt?.Message.Request == queued.Message.Request)
+                { queuedCompletion.TrySetResult(completion); }
+            };
+            Task<SessionCommandResult>? otherOperation = null;
+            if (overlap)
+            {
+                var otherReview = await ReviewTaskOutput(otherCommands, otherTarget, "other session", TaskResponseMode.Hybrid, f.Token);
+                otherOperation = ConfirmTaskOutput(otherCommands, otherReview, f.Token);
+                var busy = (await otherOperation).RequestSubmission!;
+                busy.Message.Outcome.Should().Be(ModelTurnOutcome.Unavailable);
+                busy.Message.Reason.Should().Be(ModelTurnReason.ProviderBusy);
+                busy.Message.AssistantResponse.Should().BeNull();
+                adapter.Calls.Should().Be(1);
+                first.Completion.Task.IsCompleted.Should().BeFalse();
+            }
             first.Context.EnumerateObject().Select(property => property.Name).Should().NotContain("ResponseMode")
                 .And.NotContain("TaskResponseMode").And.NotContain("Output");
             first.Release();
-            for (var index = 0; index < 2; index++)
-            {
-                var next = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
-                next.Context.GetProperty("Evidence").GetArrayLength().Should().Be(0);
-                next.Context.EnumerateObject().Select(property => property.Name).Should().NotContain("TaskResponseMode");
-                next.Release();
-            }
+            var next = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+            next.Provenance.Request.Should().Be(queued.Message.Request);
+            next.Context.GetProperty("Evidence").GetArrayLength().Should().Be(0);
+            next.Context.EnumerateObject().Select(property => property.Name).Should().NotContain("TaskResponseMode");
+            next.Release();
             await firstOperation;
+            await queuedOutputEntered.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+            queuedCompletion.Task.IsCompleted.Should().BeFalse("output entry is not exact queued completion");
+            releaseQueuedOutput.TrySetResult();
+            (await queuedCompletion.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token)).RequireReceipt()
+                .Message.Outcome.Should().Be(ModelTurnOutcome.Succeeded);
+            composed.Turns.IsQuiescent.Should().BeTrue();
+            if (otherOperation is null)
+            {
+                var otherReview = await ReviewTaskOutput(otherCommands, otherTarget, "other session", TaskResponseMode.Hybrid, f.Token);
+                otherOperation = ConfirmTaskOutput(otherCommands, otherReview, f.Token);
+                var other = await adapter.NextAsync().WaitAsync(TimeSpan.FromSeconds(20), f.Token);
+                other.Provenance.Request.SessionId.Should().Be(otherTarget.Authority.SessionId);
+                other.Provenance.Request.Should().NotBe(queued.Message.Request);
+                other.Context.GetProperty("Evidence").GetArrayLength().Should().Be(0);
+                other.Context.EnumerateObject().Select(property => property.Name).Should().NotContain("TaskResponseMode");
+                other.Release();
+            }
             await otherOperation;
             await allOutput.Task.WaitAsync(TimeSpan.FromSeconds(20), f.Token);
             observed.Should().HaveCount(3);
+            adapter.Calls.Should().Be(overlap ? 2 : 3);
+            observed.Single(item => item.Mode == TaskResponseMode.Hybrid).Receipt.Message.Outcome
+                .Should().Be(overlap ? ModelTurnOutcome.Unavailable : ModelTurnOutcome.Succeeded);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "first", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.VisualOnly);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "queued", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.VoiceOnly);
             observed.Single(item => string.Equals(item.Receipt.Message.Body, "other session", StringComparison.Ordinal)).Mode.Should().Be(TaskResponseMode.Hybrid);
@@ -178,7 +222,7 @@ public sealed partial class SessionsConversationTests
             f.Count("conversation_drafts").Should().Be(0);
             f.Count("host_questions").Should().Be(0);
         }
-        finally { adapter.ReleaseAll(); await composed.Conversation.DisposeAsync(); }
+        finally { releaseQueuedOutput.TrySetResult(); adapter.ReleaseAll(); await composed.Conversation.DisposeAsync(); }
     }
 
     [Theory]

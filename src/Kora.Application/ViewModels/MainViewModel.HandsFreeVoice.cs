@@ -27,7 +27,8 @@ public sealed partial class MainViewModel
         if (handsFreeVoice is not null || voiceRecognition is not HandsFreeVoiceRecognitionService handsFree) { return; }
         handsFree.Bind(ObserveHandsFreeVoiceAdmission, async (transcript, request) =>
         {
-            if (transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() is null)
+            if (transcript.ActivationEvidence is null
+                || transcript.Generation != voiceRecognition.Generation || ObserveHandsFreeVoiceAdmission() is null)
             {
                 throw new InvalidOperationException("The original hands-free command was retired before dispatch.");
             }
@@ -63,12 +64,18 @@ public sealed partial class MainViewModel
         var privacy = privacyObservation.Current;
         var profile = speechInputConfiguration?.Get().Effective;
         return handsFreeVoice is not null && profile is not null && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+            && (foregroundConversationTarget is null || foregroundConversationTarget.IsCurrent)
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
                 ? new(EffectiveMicrophone!, AssistantName, profile, Interlocked.Read(ref voiceRecoveryRevision),
                     privacy.TopologyRevision, CallPolicyRevision, auditImpactOwnerRevision(),
                     Interlocked.Read(ref voiceOwnershipBindingRevision))
+                {
+                    ControlBindingRevision = Interlocked.Read(ref settingsOwnershipBindingRevision),
+                    ComposerRevision = Interlocked.Read(ref attachmentCatalogueComposerRevision),
+                    ConversationRevision = Interlocked.Read(ref foregroundConversationRevision),
+                }
                 : null;
     }
 

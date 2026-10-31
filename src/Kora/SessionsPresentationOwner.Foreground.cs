@@ -15,6 +15,19 @@ internal sealed partial class SessionsPresentationOwner
     private ForegroundConversationTarget? foregroundTarget;
     private Window? foregroundSurface;
     private long foregroundSourceRevision;
+    private SessionRoutingPresentationLease? routingPresentation;
+
+    internal SessionRoutingPresentationLease? RetainRoutingPresentation()
+    {
+        if (routingPresentation is not null) { throw new InvalidOperationException("The original routing presentation is already retained."); }
+        if (foregroundTarget is not { IsCurrent: true } target || foregroundSurface is not { } surface
+            || !ReferenceEquals(UniqueForegroundSurface(conversationRequired: true), surface)) { return null; }
+        return routingPresentation = new(surface, target, UpdateForegroundTarget, () =>
+        {
+            routingPresentation = null;
+            UpdateForegroundTarget();
+        });
+    }
 
     internal bool HasUniqueForegroundWindow => UniqueForegroundSurface(conversationRequired: false) is not null;
     internal Func<bool> CaptureForegroundSourceEligibility()
@@ -76,7 +89,11 @@ internal sealed partial class SessionsPresentationOwner
     {
         var surface = UniqueForegroundSurface(conversationRequired: true);
         if (surface is null || !model.CanCompose || model.SelectedSessionRecord is not { } entry)
-        { RetireForegroundTarget(); return; }
+        {
+            if (model.CanCompose && routingPresentation?.Retains(foregroundTarget, surface) == true) { return; }
+            RetireForegroundTarget();
+            return;
+        }
         if (ReferenceEquals(surface, foregroundSurface) && foregroundTarget is { IsCurrent: true }) { return; }
         RetireForegroundTarget();
         var source = model.CaptureDraftPresentationEligibility();

@@ -27,8 +27,11 @@ public sealed class InstructionSaveWorkflow(OwnedInstructionEditorActions action
             var result = await actions.Save(name, expected, proposed,
                 admitted => review.Confirm(name, expected, proposed, admitted), eligible, token).ConfigureAwait(false);
             if (!result.Conflict)
-            { return new(result.Published || result.Unchanged, result.Deleted, false,
-                result.Published || result.Unchanged ? result.Current : original, result.Unchanged); }
+            {
+                return new(result.Published || result.Unchanged, result.Deleted, false,
+                result.Published || result.Unchanged ? result.Current : original, result.Unchanged)
+                { Replaced = result.Published && !result.Deleted ? expected : null };
+            }
             if (requireOriginal)
             { throw new InvalidOperationException("The source changed during refinement Save. Proposal revoked; ordinary Reload/reconcile is required."); }
             var choice = await review.Conflict(result.Current, proposed, token).ConfigureAwait(false);

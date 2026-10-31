@@ -19,7 +19,7 @@ Manual editing needs no model, hosted account or network. Explicit [local body r
 
 | Kind/source/channel | What this editor supports |
 |---|---|
-| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/Save as new copy/reload/Delete, separate explicit-use review and exact native v1 Disable reviewed use ([refinement](../src/Kora/OwnedInstructionEditorController.Refinement.cs)) |
+| Kora-owned instructions | Native single-file create/list/inspect/edit/Validate/Rebase/Refine/Save/copy/reload/Delete, separate use/Disable reviews and [last-confirmed-save restore](#restore-the-last-confirmed-save-in-this-editor) |
 | Kora-owned prompts | The same editor/reviews; v1 literal requests and v2 bounded required `${input:name}` text with private expanded preview and separate request admission; no instruction/system authority |
 | Personal profile instructions | Open one already registered/read-consented native v1 original in this editor; manually edit, compare, separately confirm Save, resolve content conflicts or Reload. Independent disabled Kora copy remains available ([original workflow](../src/Kora.Application/Definitions/ProfileInstructionEditorWorkflow.cs), [copy workflow](../src/Kora.Application/Definitions/ProfileInstructionForkWorkflow.cs)) |
 | Skills and agents | Use the separate [skill editor](owned-skill-authoring.md) or [agent profile editor](agent-profile-authoring.md); this editor does not write them |
@@ -390,8 +390,30 @@ No assistant answer, generation, model/network/authentication/tool execution or 
 **Save** (or `instructions save`) shows full original/proposed source and both exact digests.
 Confirm only after reviewing metadata, body and attribution. **Delete** / `instructions delete`
 has its own destructive exact-original review; source removal is not deletion.
-No rename, restore, script, agent-execution or generic file-editor controls are offered. Profile-original writes use only the separately selected [registered-original operation](#edit-one-registered-profile-instruction-original).
+No rename, persistent revision archive, script, agent-execution or generic file-editor controls are offered. Profile-original writes use only the separately selected [registered-original operation](#edit-one-registered-profile-instruction-original).
 The separately consented [native v1 profile-instruction copy](#create-a-disabled-kora-copy-of-a-personal-instruction) creates only a distinct disabled owned file.
+
+## Restore the last confirmed save in this editor
+
+After changing and successfully saving one already open native `kora-format: 1` owned Instruction, **Restore previous saved content** becomes available.
+Creating a new instruction from an accepted model proposal does not supply a prior saved revision; a later confirmed changed Save in the same editor can ([Save and restore regression](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Refinement.cs)).
+This means **last confirmed save in this editor**, not persistent version history: opening a file, creating its first revision, unchanged Save, legacy upgrade or uncertain Save supplies no restore point ([availability owner](../src/Kora/OwnedInstructionEditorController.Restore.cs)).
+
+1. Choose **Restore previous saved content**, type `instructions restore`, or use current-name activated `Kora, instructions restore`. The existing same-source Instruction editor must already be open; no source is opened implicitly.
+1. If there are unsaved changes, choose **Save current draft**, **Discard current draft**, or **Cancel** first. Save is separate: after it finishes, choose Restore again to review the now-current last confirmed save.
+1. Review the complete CURRENT saved source on the left and exact PREVIOUS source on the right, including supported metadata, attribution and body. Encoding/BOM, byte counts and digests are disclosed separately; source line endings remain intact.
+1. Choose **Review separate Save confirmation**. Review the complete current/replacement source again, then **Confirm save**, or cancel either review. Confirmation remains native; it is not the spoken generic Save question ([native operation](../src/Kora/OwnedInstructionEditorController.Restore.cs)).
+
+Confirmed restore uses the normal host-chosen owned-file writer, reads back the saved bytes and reconciles the catalogue.
+It creates a **NEW disabled revision**, even if the bytes match an older enabled revision. No old review, activation, grants or references return; fresh exact **Review use** is separate ([shared writer and audit](../src/Kora.Application/Definitions/OwnedInstructionEditorActions.Restore.cs)).
+
+External changes, file replacement, rename/deletion, access loss or observed change-and-return invalidate restore rather than overwriting a fresh source.
+The final comparison/publication remains optimistic: an unobserved edit after the last comparison may be overwritten; this is not content CAS or guaranteed history detection.
+Unconfirmed publication/audit/readback is not restore proof or rollback; explicitly Reload/reconcile before another mutation ([accepted publication contract](../Design/Definition_Management.md#editing-ownership-and-confirmation)).
+
+Only one prior complete source is kept in memory within the existing private editor/source lifetime.
+Source/control retirement, privacy/ownership/call closure, closing or disposing the editor withdraws it; it does not survive reopening or restart.
+There is no disk archive, forensic RAM-erasure guarantee, profile-original/prompt/package restore, source identity restoration, automatic enablement or model/tool/network/audio operation ([fixture evidence](../tests/Kora.Windows.IntegrationTests/ArtifactDiscovery/OwnedDefinitionEditorWindowTests.Restore.cs)).
 
 ## Validate the open draft without saving
 

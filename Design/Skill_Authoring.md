@@ -133,7 +133,8 @@ channel, source/target, draft, privacy and resource-joining checks remain
 authoritative; an unqualified provider is unavailable, not a fallback. This is
 not fixture generation or the full conversational Builder.
 The [explicit literal owned Instruction body increment](../docs/instruction-editor.md#dictate-literal-instruction-body-text) now binds one foreground canonical owned draft/body caret or range before shared local capture, reviews the complete insertion/replacement and accepts into volatile memory only. Normal exact Save, dirty-close and separate enablement remain independent; metadata, prompts, profile originals and other definition kinds are excluded ([target owner](../src/Kora/OwnedInstructionEditorController.Dictation.cs)).
-Broader conversational/package authoring, rename/restore and expanded applicability remain unavailable. The same native editor also supports immediate
+The same editor supports [one volatile last-confirmed-save restore](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor) for an existing owned native-v1 Instruction: complete current/previous-source review, separate normal Save and readback as a NEW disabled revision.
+It is not general history or a profile-original restore; broader conversational/package authoring, rename and expanded applicability remain unavailable. The same native editor also supports immediate
 Kora-owned `.prompt.md` versioned saved requests: select Prompt, then use the same
 Save/Delete, conflict and separate exact-use reviews. Prompts are request content,
 not instructions, skill workflows or policy. Native v1 stays literal; owned native v2 supports required `${input:name}` text only, with a private native field form, complete expanded user-request preview and separately admitted Use. No defaults/expressions/reads/recursive substitution; profile prompt writing remains unavailable.
@@ -238,6 +239,9 @@ Only its declarative behaviour can be copied/refined; a bundled script remains a
 User skill updates create validated, digest-pinned revisions.
 Active tasks retain the revision they started with; enable a new revision for future tasks only.
 Disable or restore a prior revision through the same reviewed data-only registry operations.
+The delivered bounded Instruction restore retains only the previous complete bytes from one known changed Save in the same open private editor.
+Fresh current-source authority, full current/previous review and separate normal Save create a new disabled revision; old activation, review and grants are never restored.
+No persistent version archive, restart recovery or general skill-package history is added ([exact contract and evidence](Definition_Management.md#bounded-owned-instruction-and-prompt-editor), [user operation](../docs/instruction-editor.md#restore-the-last-confirmed-save-in-this-editor)).
 The registry cannot select arbitrary executable code, modify trust roots, or change tool/security configuration.
 External changes use the common reconciliation pipeline. A dirty voice/UI draft
 keeps its base and reports a conflict; save cannot overwrite a changed source,

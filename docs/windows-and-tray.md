@@ -1056,6 +1056,7 @@ The source must wholly fit the displayed question bound (currently 500 character
 
 **Cancel clipboard answer** preserves the prior manual draft and leaves the question unanswered. Manual typing retires the capture without overwriting the new typing.
 You can select and replace text in the answer field before or after accepting the snapshot. The exact edit, caret and normal Undo/Redo remain intact; the clipboard review clears, leaving an ordinary unsubmitted manual answer. Over-limit edits remain fully visible with an **Invalid answer** warning and disabled Save/Submit controls. Separately choose **Submit answer** to record a valid edited answer.
+If a new edit arrives while clipboard acceptance or cancellation is updating the window, its own validation status remains visible; an older clipboard status cannot replace its **Invalid answer** warning.
 Permission loss, expiry, stale/replaced question or unavailable private presentation refuses the candidate; start a fresh deliberate review. Clipboard drafts cannot use **Save draft** before submission ([native answer state](../src/Kora/NativeQuestionViewModel.cs)).
 
 This shortcut is unavailable for choices, approvals, authentication, permission, consent and security questions. It is not clipboard explanation, source grounding, polling, automatic paste/answer or a new clipboard archive. Existing manual OS paste and source-copy restrictions are unchanged ([scope](../Design/Interaction_Fallback.md#delivered-ordinary-clarification-clipboard-answer)).

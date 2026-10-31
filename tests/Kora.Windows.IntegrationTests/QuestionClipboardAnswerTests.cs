@@ -1,6 +1,8 @@
 using Avalonia;
 using Avalonia.Controls;
 using Avalonia.Headless;
+using Avalonia.Input;
+using Avalonia.Input.TextInput;
 using Avalonia.Interactivity;
 using Avalonia.Threading;
 
@@ -23,6 +25,113 @@ namespace Kora.Windows.IntegrationTests;
 [Collection(nameof(HeadlessUiTestGroup))]
 public sealed class QuestionClipboardAnswerTests
 {
+    [Theory]
+    [InlineData(false, false, false)]
+    [InlineData(false, true, false)]
+    [InlineData(true, false, false)]
+    [InlineData(true, true, false)]
+    [InlineData(false, false, true)]
+    [InlineData(false, true, true)]
+    public async Task ReentrantNativeEditDuringClipboardPublicationKeepsLatestTextAndValidationStatus(bool accept, bool invalid, bool accepting)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            await using var f = await Fixture.Create();
+            f.Model.Edit(new([], "previous manual answer"));
+            var original = f.Model.Key;
+            await f.Capture(grant: true);
+            await Dispatcher.UIThread.InvokeAsync(static () => { }, DispatcherPriority.Background);
+            await WhenEditable(f.Model);
+            if (accept)
+            {
+                f.Window.FindControl<CheckBox>("ReplaceManualDraft")!.IsChecked = true;
+                await f.Answer.AcceptAsync();
+                await WhenEditable(f.Model);
+            }
+            var input = f.Window.FindControl<TextBox>("AnswerInput")!;
+            input.Focus().Should().BeTrue();
+            var clientRequest = new TextInputMethodClientRequestedEventArgs
+            {
+                RoutedEvent = InputElement.TextInputMethodClientRequestedEvent,
+            };
+            input.RaiseEvent(clientRequest);
+            clientRequest.Client.Should().NotBeNull();
+            var client = clientRequest.Client!;
+            client.SupportsPreedit.Should().BeTrue();
+            TopLevel.GetTopLevel(client.TextViewVisual).Should().BeSameAs(f.Window);
+            var latest = invalid ? new string('x', f.Model.Question.Spec.MaximumTextLength + 1) : "latest manual e\u0301\r\nanswer";
+            string? beforeEdit = null;
+            var reentered = false;
+            void EditDuringRetirement(object? sender, System.ComponentModel.PropertyChangedEventArgs args)
+            {
+                if (reentered || !string.Equals(args.PropertyName, nameof(NativeQuestionViewModel.Status), StringComparison.Ordinal)
+                    || (accepting ? !f.Answer.HasAccepted : f.Answer.ReviewText.Length != 0)) { return; }
+                reentered = true;
+                beforeEdit = input.Text;
+                input.SelectAll();
+                client.SetPreeditText(latest, latest.Length);
+                input.Text.Should().Be(beforeEdit, "IME composition is not a committed answer edit");
+                f.Model.Answer.Text.Should().Be(beforeEdit);
+                client.SetPreeditText(string.Empty);
+                f.Window.KeyTextInput(latest);
+                input.Text.Should().Be(latest);
+                f.Model.Answer.Text.Should().Be(latest);
+            }
+            f.Model.PropertyChanged += EditDuringRetirement;
+            try
+            {
+                if (accepting)
+                {
+                    f.Window.FindControl<CheckBox>("ReplaceManualDraft")!.IsChecked = true;
+                    await f.Answer.AcceptAsync();
+                }
+                else { f.Window.FindControl<Button>("CancelClipboardAnswer")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent)); }
+            }
+            finally { f.Model.PropertyChanged -= EditDuringRetirement; }
+            reentered.Should().BeTrue();
+            await f.Answer.Quiescence;
+            input.Text.Should().Be(latest);
+            f.Model.Answer.Text.Should().Be(latest);
+            f.Answer.ReviewText.Should().BeEmpty();
+            f.Answer.HasAccepted.Should().BeFalse();
+            f.Model.Key.Should().Be(original);
+            f.Model.Completion.IsCompleted.Should().BeFalse();
+            var canonical = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+            canonical.Key.Should().Be(original);
+            canonical.Status.Should().Be(QuestionStatus.Pending);
+            canonical.Draft.Should().BeNull();
+            f.Reader.Calls.Should().Be(1);
+            f.Reader.Released.Should().BeTrue();
+            f.Data.Count("conversation_messages").Should().Be(0);
+            f.Model.Status.Should().StartWith(invalid ? "Invalid answer:" : "Unsubmitted local edit.");
+            f.Window.FindControl<TextBlock>("QuestionStatus")!.Text.Should().Contain(f.Model.Status);
+            f.Model.CanSubmit.Should().Be(!invalid);
+            f.Model.CanSaveDraft.Should().Be(!invalid);
+            input.CaretIndex.Should().Be(latest.Length);
+            input.SelectionStart.Should().Be(input.CaretIndex);
+            input.SelectionEnd.Should().Be(input.CaretIndex);
+            input.CanUndo.Should().BeTrue();
+            input.Undo();
+            input.Text.Should().Be(beforeEdit);
+            f.Model.Answer.Text.Should().Be(beforeEdit);
+            input.CanRedo.Should().BeTrue();
+            input.Redo();
+            input.Text.Should().Be(latest);
+            f.Model.Answer.Text.Should().Be(latest);
+            if (!invalid)
+            {
+                await f.Model.SubmitAsync();
+                var submitted = (await f.Data.Store.ReadQuestionsAsync(original.Request.SessionId, f.Data.Token)).Single();
+                submitted.Key.Should().Be(original.Next());
+                submitted.Status.Should().Be(QuestionStatus.Answered);
+                submitted.AnswerChannel.Should().Be(RequestOrigin.LocalUi);
+                submitted.Draft!.Text.Should().Be(latest);
+                f.Reader.Calls.Should().Be(1);
+                f.Data.Count("conversation_messages").Should().Be(0);
+            }
+        });
+    }
+
     [Theory]
     [InlineData(false)]
     [InlineData(true)]

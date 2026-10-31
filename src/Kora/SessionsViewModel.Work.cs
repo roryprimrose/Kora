@@ -136,6 +136,8 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyWork()
     {
+        OnPropertyChanged(nameof(CanAnswerRemainingWork));
+        OnPropertyChanged(nameof(RemainingWorkStatus));
         NotifyConversationSearch();
         presentingWork = true;
         try

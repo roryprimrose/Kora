@@ -207,9 +207,16 @@ public sealed partial class SessionRoutingTests
         internal ResponseWindow? Window { get; private set; }
         private SessionsWindowController? sessions;
         private ResponseWindowController? responses;
+        private IDisposable? adviceGestures;
+        internal bool AutoAllowAdvice { get; set; } = true;
+        internal int Matches { get; set; }
 
         internal async Task Initialize(bool expanded)
         {
+            adviceGestures = Avalonia.Controls.Window.WindowOpenedEvent.AddClassHandler<SessionRoutingAdviceWindow>((window, _) =>
+            {
+                if (AutoAllowAdvice) { Dispatcher.UIThread.Post(() => ClickAdvice(window, "RoutingAdviceAllow")); }
+            });
             await Native.InitializeAsync();
             First = await Native.Sessions.CreateAsync(new("Alpha"), RequestOrigin.LocalUi, Native.Token);
             Second = await Native.Sessions.CreateAsync(new("Beta"), RequestOrigin.LocalUi, Native.Token);
@@ -231,14 +238,22 @@ public sealed partial class SessionRoutingTests
             Routing?.Dispose();
             sessions?.Dispose();
             responses?.Dispose();
+            adviceGestures?.Dispose();
             Native.Dispose();
         }
+
     }
+
+    private static void ClickAdvice(SessionRoutingAdviceWindow window, string name) =>
+        window.GetVisualDescendants().OfType<Button>().Single(item => string.Equals(item.Name, name, StringComparison.Ordinal))
+            .RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
 
     private sealed class Matcher(Fixture fixture) : ISessionRelatednessMatcher
     {
-        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token) =>
-            Task.FromResult(new SessionRouteProposal(snapshot.Revision, fixture.Match, fixture.Match switch
+        public Task<SessionRouteProposal> MatchAsync(string request, SessionRouteSnapshot snapshot, Func<bool> admitted, CancellationToken token)
+        {
+            fixture.Matches++;
+            return Task.FromResult(new SessionRouteProposal(snapshot.Revision, fixture.Match, fixture.Match switch
             {
                 SessionRouteMatch.Clear => [snapshot.Descriptors.Single(item => item.Entry.Authority.SessionId == fixture.First.Authority.SessionId).Candidate],
                 SessionRouteMatch.Ambiguous => [.. snapshot.Descriptors.Where(item =>
@@ -246,6 +261,7 @@ public sealed partial class SessionRoutingTests
                     || item.Entry.Authority.SessionId == fixture.Second.Authority.SessionId).Select(item => item.Candidate)],
                 _ => [],
             }));
+        }
     }
 
     private sealed class Admission : IModelTurnAdmission

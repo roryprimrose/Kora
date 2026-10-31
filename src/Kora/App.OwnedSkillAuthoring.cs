@@ -42,10 +42,19 @@ public sealed partial class App
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<NamedSkillInvocationController>>());
         namedSkillInvocation.Bind();
+        var observations = new ObservationWorkflowController(main, workflow, useWorkflow,
+            new(useWorkflow, admission, Services.GetRequiredService<Kora.Application.Tools.ReadOnlyCapabilityRegistry>(),
+                Services.GetRequiredService<ISessionWorkspaceStore>(), Services.GetRequiredService<DependencyBootstrapper>(),
+                Services.GetRequiredService<ISecurityAuditLog>(), Services.GetRequiredService<TimeProvider>(), store,
+                Services.GetRequiredService<IArtifactUsePolicy>(), Services.GetRequiredService<WindowsSqliteHostInteractionStore>()),
+            () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
+            Services.GetRequiredService<ILogger<ObservationWorkflowController>>());
+        observations.Bind();
         ownedSkillEditor = new(main, workflow, admission,
             () => ownership.IsReady && !ownership.IsHandoffRecoveryRequired, () => ownership.AdmissionRevision,
             Services.GetRequiredService<ILogger<OwnedSkillEditorController>>(), use,
-            new(store, admission, workflow, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()));
+            new(store, admission, workflow, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()),
+            new(store, admission, Services.GetRequiredService<IModelContextRunner>(), Services.GetRequiredService<TimeProvider>()), observations);
         ownedSkillEditor.Bind();
         if (ApplicationLifetime is Avalonia.Controls.ApplicationLifetimes.IClassicDesktopStyleApplicationLifetime desktop)
         { desktop.Exit += ownedSkillEditor.OnHostExit; }

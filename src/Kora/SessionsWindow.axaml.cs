@@ -147,6 +147,9 @@ internal sealed partial class SessionsWindow : Window
         OrdinaryRetention.Click += (_, _) => model.PreviewRetention(keep: false);
         ConfirmRetention.Click += async (_, _) => await model.ConfirmRetentionAsync();
         CancelRetentionReview.Click += (_, _) => model.CancelRetentionReview();
+        ReviewRetentionApply.Click += async (_, _) => await model.ReviewRetentionApplyAsync();
+        ConfirmRetentionApply.Click += async (_, _) => await model.ConfirmRetentionApplyAsync();
+        CancelRetentionApply.Click += (_, _) => model.CancelRetentionApplication();
         NextQuestions.Click += async (_, _) => await model.NextQuestionsAsync();
         NextTasks.Click += async (_, _) => await model.NextTasksAsync();
         ReadHistory.Click += async (_, _) => await model.ReadHistoryAsync();
@@ -185,6 +188,11 @@ internal sealed partial class SessionsWindow : Window
         ConfirmPendingCancellation.Click += async (_, _) => await model.ConfirmPendingCancellationAsync();
         DiscardPendingCancellation.Click += async (_, _) => await model.DiscardPendingCancellationAsync();
         ReadQueue.Click += async (_, _) => await model.RefreshWorkAsync();
+        AnswerRemainingWork.Click += async (_, _) =>
+        {
+            using var presenter = new ReplyPresentationFence(this);
+            await (ConversationOperation = model.ShowRemainingWorkAsync(presenter.Capture()));
+        };
         CancelQueueEntry.Click += async (_, _) => await model.CancelWorkAsync();
         ClearQueue.Click += async (_, _) => await model.ClearQueueAsync();
         EventRecords.SelectionChanged += (_, _) =>

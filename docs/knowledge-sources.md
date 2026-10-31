@@ -35,8 +35,10 @@ Snapshots are historical admitted revisions, not current filesystem observations
 
 **AI answers are unavailable here.** Saving or refreshing a source cannot
 enable a model or approve model use of your files. The separate
-[folder-preview answer review](folder-answers.md) has its own unavailable
-source-use checks and local-model requirements.
+[folder-preview answer review](folder-answers.md) still requires a
+[qualified local model](../Design/Local_Inference.md#future-candidate-gate), unavailable in this build.
+That separate volatile route uses [reviewed private-LocalOnly risk admission](../Design/Security_Data_Flows.md#reviewed-localonly-source-use-risk-admission);
+it does not grant model use of named saved sources.
 
 ## Refresh, disable and remove
 

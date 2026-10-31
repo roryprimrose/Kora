@@ -12,9 +12,15 @@
     <StackPanel x:Name="ChoicePanel" Grid.Row="2" Spacing="8" />
     <TextBox x:Name="AnswerInput" Grid.Row="3" AcceptsReturn="True" TextWrapping="Wrap"
         TabIndex="40" AutomationProperties.Name="Bounded text answer - unsubmitted draft" />
-    <TextBox x:Name="ExactReview" Grid.Row="4" IsReadOnly="True" IsUndoEnabled="False"
+    <Grid Grid.Row="4" RowDefinitions="*,Auto" RowSpacing="8">
+    <TextBox x:Name="ExactReview" IsReadOnly="True" IsUndoEnabled="False"
         AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
         TabIndex="50" AutomationProperties.Name="Immutable exact host record review - not approval or execution" />
+    <TextBox x:Name="PolicyExplanation" Grid.Row="1" IsReadOnly="True" IsUndoEnabled="False"
+        AcceptsReturn="True" TextWrapping="Wrap" ContextMenu="{x:Null}" ContextFlyout="{x:Null}"
+        MaxHeight="240" TabIndex="54"
+        AutomationProperties.Name="Exact pending action policy snapshot - not execution authority" />
+    </Grid>
     <controls:NamedTextBlock x:Name="QuestionStatus" Grid.Row="5" TextWrapping="Wrap"
         AutomationProperties.Name="Question status and recovery" AutomationProperties.LiveSetting="Polite" />
     <controls:NamedTextBlock x:Name="VoiceReplyStatus" Grid.Row="6" TextWrapping="Wrap"
@@ -29,6 +35,10 @@
           AutomationProperties.Name="Cancel voice reply and close microphone without cancelling the question" />
       <Button x:Name="ReviewQuestion" Content="_Review exact record" TabIndex="41"
           AutomationProperties.Name="Review exact original question or operation - no grant use" />
+      <Button x:Name="ExplainPolicy" Content="_Why is this allowed / why does it need approval?" TabIndex="55"
+          AutomationProperties.Name="Explain policy for this exact pending clipboard read without executing it" />
+      <Button x:Name="ReturnToApproval" Content="Return to _same approval" TabIndex="56"
+          AutomationProperties.Name="Revalidate explanation and return to the same pending approval without approving" />
       <Button x:Name="SaveDraft" Content="Save _draft" TabIndex="42"
           AutomationProperties.Name="Save answer draft without submitting" />
       <Button x:Name="SubmitAnswer" Content="_Submit" TabIndex="43"

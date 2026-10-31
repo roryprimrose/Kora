@@ -43,6 +43,13 @@ public sealed class OwnedSkillAuthoringGuideTests
             .And.Contain("does not complete the entire Builder")
             .And.Contain("input names cannot be added")
             .And.Contain("until it joins");
+        guide.Markdown.Should().Contain("Start SIMULATED test")
+            .And.Contain("owned skill fixture:")
+            .And.Contain("owned skill cancel-test")
+            .And.Contain("8192 UTF-8 bytes")
+            .And.Contain("Unknown/duplicate fields")
+            .And.Contain("not a real observation")
+            .And.Contain("unchanged skill format");
         guide.Markdown.Should().Contain("owned skill workflow create inspection 1.0.0")
             .And.Contain("Save disabled revision")
             .And.Contain("owned skill workflow approve-step")
@@ -60,6 +67,7 @@ public sealed class OwnedSkillAuthoringGuideTests
         guide.Markdown.Should().Contain("owned skill rename example 1.0.0 renamed")
             .And.Contain("owned skill recover-rename example 1.0.0")
             .And.Contain("your new text and its unsaved-draft prompt remain intact")
+            .And.Contain("New simulated-fixture input during that refresh is also retained")
             .And.Contain("Pending renames still count")
             .And.Contain("recovery refuses an already over-limit inventory")
             .And.Contain("does not undo the native rename");

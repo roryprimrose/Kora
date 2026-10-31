@@ -12,7 +12,8 @@ internal sealed partial class OwnedSkillEditorController(
     MainViewModel main, OwnedSkillSaveWorkflow workflow, OwnedSkillControlAdmission admission,
     Func<bool> ownsHost, Func<long> ownershipRevision, ILogger<OwnedSkillEditorController> logger,
     OwnedSkillInvocationController? invocation = null, OwnedSkillGuidanceRefinementService? refinement = null,
-    ObservationWorkflowController? observations = null, OwnedSkillRenameWorkflow? renames = null) : IAsyncDisposable
+    ObservationWorkflowController? observations = null, OwnedSkillRenameWorkflow? renames = null,
+    OwnedSkillFixtureWorkflow? fixtures = null) : IAsyncDisposable
 {
     private OwnedSkillEditorWindow? window;
     private OwnedSkillAuthoringAuthority? original;
@@ -51,6 +52,7 @@ internal sealed partial class OwnedSkillEditorController(
         generatedBase = null;
         lifetime?.Cancel();
         CancelRefinement();
+        CancelFixture();
         invocation?.Retire();
         window?.RetireReview();
     }
@@ -66,9 +68,10 @@ internal sealed partial class OwnedSkillEditorController(
             await observations.Handle(command.Literal!, authority);
             return;
         }
-        if (command.Operation is "cancel-refinement")
+        if (command.Operation is "cancel-refinement" or "cancel-test")
         {
-            CancelRefinement();
+            if (command.Operation is "cancel-test") { CancelFixture(); }
+            else { CancelRefinement(); }
 #pragma warning disable VSTHRD003 // Keep the owned model operation until its actual resources terminate.
             await work;
 #pragma warning restore VSTHRD003
@@ -99,6 +102,7 @@ internal sealed partial class OwnedSkillEditorController(
                 validated = null;
                 generatedBase = null;
                 CancelRefinement();
+                CancelFixture();
                 invocation?.Retire();
                 window?.RetireReview();
             };
@@ -106,9 +110,18 @@ internal sealed partial class OwnedSkillEditorController(
             window.CritiqueChanged += () =>
             {
                 CancelRefinement();
+                CancelFixture();
                 var captured = main.CaptureInstructionRefinementEligibility();
                 critiqueAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
             };
+            window.FixtureChanged += () =>
+            {
+                Interlocked.Increment(ref fixtureInputGeneration);
+                CancelFixture();
+                var captured = main.CaptureOwnedSkillFixtureEligibility();
+                fixtureAuthority = new(RequestOrigin.LocalUi, () => Eligible() && captured());
+            };
+            window.Saved.SelectionChanged += (_, _) => CancelFixture();
             window.Closing += OnClosing;
             window.Show();
         }
@@ -132,6 +145,8 @@ internal sealed partial class OwnedSkillEditorController(
     private void Start(OwnedSkillAuthoringCommand command, OwnedSkillAuthoringAuthority authority)
     {
         if (command.Operation is "cancel-refinement") { CancelRefinement(); return; }
+        if (command.Operation is "cancel-test")
+        { CancelFixture(); window?.Report("SIMULATED cancellation requested. Ownership is retained until actual model work joins."); return; }
         if (command.Operation is "cancel") { Retire(); return; }
         if (busy) { window?.Report("Wait for owned skill I/O to terminate; the draft remains owned."); return; }
         work = Run(command, authority);
@@ -161,6 +176,8 @@ internal sealed partial class OwnedSkillEditorController(
                     opened.Tool.SelectedIndex = 0;
                     opened.InputFormat.SelectedIndex = 0;
                     opened.Critique.Text = "";
+                    opened.Fixture.Text = "";
+                    fixtureAuthority = null;
                     source = null;
                     initialAuthority = null;
                     generatedBase = null;
@@ -188,6 +205,12 @@ internal sealed partial class OwnedSkillEditorController(
                     critiqueAuthority = authority;
                     break;
                 case "refine": await ProposeGuidance(opened, authority, GuidanceOperation.Refine, lifetime.Token); break;
+                case "fixture":
+                    CancelFixture();
+                    opened.Fixture.Text = command.Literal;
+                    fixtureAuthority = authority;
+                    break;
+                case "test": await TestFixture(opened, authority, lifetime.Token); break;
                 case "inputs":
                     opened.InputFormat.SelectedIndex = command.Literal switch
                     {
@@ -308,6 +331,8 @@ internal sealed partial class OwnedSkillEditorController(
         opened.Tool.SelectedIndex = saved.Document.Tool == OwnedSkillToolSelection.WebPageGet ? 1 : 0;
         opened.InputFormat.SelectedIndex = saved.Document.InputTemplate is null ? 0 : 1;
         opened.Critique.Text = "";
+        opened.Fixture.Text = "";
+        fixtureAuthority = null;
         validated = null;
         dirty = false;
         uncertain = false;
@@ -388,5 +413,6 @@ internal sealed partial class OwnedSkillEditorController(
         if (observations is not null) { await observations.DisposeAsync(); }
         await admission.DisposeAsync();
         lifetime?.Dispose();
+        lifetime = null;
     }
 }

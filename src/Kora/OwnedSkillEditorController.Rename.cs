@@ -20,8 +20,9 @@ internal sealed partial class OwnedSkillEditorController
         { throw new InvalidOperationException("List and select the exact saved package or retained rename first."); }
         var newId = command.Literal ?? opened.RenameId.Text;
         var exact = Interlocked.Read(ref generation);
+        var exactFixture = Interlocked.Read(ref fixtureInputGeneration);
         bool Current() => ReferenceEquals(window, opened) && Eligible() && authority.IsCurrent()
-            && !dirty && exact == Interlocked.Read(ref generation);
+            && !dirty && exact == Interlocked.Read(ref generation) && exactFixture == Interlocked.Read(ref fixtureInputGeneration);
         if (invocation is not null) { await invocation.CloseAndWait(); }
         var saved = await renames.Rename(id, version, newId, recovery, authority, Current, opened, lifetime.Token);
         if (saved is null) { return; }

@@ -22,6 +22,10 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("v3", "pending", "draft")]
     [InlineData("v4", "list", "draft")]
     [InlineData("v4", "pending", "draft")]
+    [InlineData("v1", "list", "fixture")]
+    [InlineData("v1", "pending", "fixture")]
+    [InlineData("v4", "list", "fixture")]
+    [InlineData("v4", "pending", "fixture")]
     [InlineData("v1", "list", "owner")]
     [InlineData("v1", "pending", "privacy")]
     [InlineData("v1", "list", "cancel")]
@@ -108,6 +112,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                         operation.IsCompleted.Should().BeFalse("cancellation must not abandon the held catalogue read");
                         break;
                     case "target": window.RenameId.Text = "other-target"; break;
+                    case "fixture": window.Fixture.Text = "{\"input\":\"New private example\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"private\"}]}"; break;
                 }
                 store.Release.TrySetResult();
                 await operation;
@@ -137,6 +142,8 @@ public sealed partial class OwnedSkillAuthoringNativeTests
                     window.Guidance.Text.Should().Be("New unsaved private guidance");
                     dirtyChoice = "Discard";
                 }
+                if (change is "fixture")
+                { window.Fixture.Text.Should().Be("{\"input\":\"New private example\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"private\"}]}"); }
                 if (change is "unchanged" && format is not "v4")
                 { window.IdInput.Text.Should().Be("renamed"); window.Guidance.Text.Should().Be(document.Guidance); }
                 (await controller.PrepareClose()).Should().BeTrue();

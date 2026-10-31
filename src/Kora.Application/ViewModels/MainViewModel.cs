@@ -42,7 +42,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private const string CallAwareConfigurationAction = "configuration.call-aware-policy";
     private const string CurrentApplicationTarget = "application.current";
     private const string CurrentMachineTarget = "machine.current";
-    private const string CurrentWindowsSessionTarget = "windows-session.current";
     private const string DeviceLocalPreferencesTarget = "preferences.device-local";
     private const string MicrophoneConfigurationAction = InputDevicePreferenceService.AuditAction;
     private const string ResponseOutputConfigurationAction = "configuration.response-output";
@@ -55,7 +54,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private const string ModelExecutionPreferenceAction = "configuration.model-execution";
     private const string SpeechProviderRemoveAction = "speech-provider.remove";
     private const string SpeechProviderSelectionConfigurationAction = "configuration.speech-provider";
-    private const string SessionLockAction = "session.lock";
     private const string ShutdownApprovalAction = "power.shutdown";
     private const string RestartApprovalAction = "power.restart";
 
@@ -1696,7 +1694,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     }
 
     public ResponseOutputMode EffectiveResponseMode =>
-        InCallFeedbackRules.Resolve(ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
+        InCallFeedbackRules.Resolve(activeTaskResponseOutput?.Configured
+            ?? ResponseOutputModeResolver.Resolve(DefaultResponseMode, QueueResponseMode, TaskResponseMode),
             DesiredInCallFeedback, communicationPolicy.Current.EffectiveState);
 
     public bool IsSpeechOutputAvailable =>
@@ -1724,7 +1723,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
     public bool IsVisualResponseVisible =>
         IsCallVisualOverrideActive
-        || EffectiveResponseMode != ResponseOutputMode.VoiceOnly
+        || (CompletedTaskResponseVisual ?? (EffectiveResponseMode != ResponseOutputMode.VoiceOnly))
         || forceVisualResponse
         || IsSpeechOutputVisualFallbackRequired;
 
@@ -1909,6 +1908,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             {
                 Interlocked.Increment(ref attachmentCatalogueComposerRevision);
                 Interlocked.Increment(ref evidenceTraceInputRevision);
+                Interlocked.Increment(ref conversationDispatchInputRevision);
                 RefreshArtifactCommandOptions();
                 RunTypedCommand.NotifyCanExecuteChanged();
             }
@@ -2050,7 +2050,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
+        IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
         && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
@@ -3478,6 +3478,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 ShowInformation("Readiness changed.", "Review the current blocker and enable listening again.");
                 return;
             }
+            if (explicitListeningRecovery && originalOrigin == RequestOrigin.LocalUi)
+            { Interlocked.Exchange(ref explicitVoiceActivationRevision, revision); }
             OnPropertyChanged(nameof(IsPrivacyPresentationHeld));
             NotifyVoiceEnablementChanged();
             SetListeningPauseReason(null);
@@ -3852,6 +3854,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
             await JoinCustomizationClarification();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
+            if (reviewedVoiceCommand is not null) { await reviewedVoiceCommand.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
             IsSpeaking = false;
@@ -4051,12 +4054,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs) =>
         await DispatchRecognizedVoiceTranscriptAsync(eventArgs);
 
-    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null)
+    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null,
+        Func<bool>? reviewedEligibility = null)
     {
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4086,7 +4090,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var speechInput = Volatile.Read(ref capturedSpeechInterruption);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput, reviewedEligibility));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4136,9 +4140,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
         PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
-        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput)
+        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput, Func<bool>? reviewedEligibility = null)
     {
-        if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
@@ -4203,7 +4207,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             IsSpeaking = false;
         }
 
-        if (eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
             ReportRetiredSkillReview(eventArgs.Transcript);
@@ -4426,7 +4430,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             await Kora.Application.Hosting.HostRequestRunner.RunAsync(OriginalOrigin(initiator),
                 () => initiator == SecurityAuditInitiator.VoiceCommand && customization.Operation is "Refine"
                     ? ExecuteCustomizationVoice(editorTarget, customization.Text!)
-                    : ExecuteCustomizationCommand(customization));
+                    : ExecuteCustomizationCommand(customization, reviewEligibility ?? CaptureSkillReviewEligibility(reviewInput)));
             return;
         }
         if (IsInstructionEditorCommand(spokenText))
@@ -4665,7 +4669,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (sessionCommand is not null)
         {
             if (initiator == SecurityAuditInitiator.VoiceCommand
-                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch
+                && (sessionCommand.IsRetentionCommand || sessionCommand.IsConversationSearch || sessionCommand.IsConversationDispatch
                     || sessionCommand.Operation is SessionCommandOperation.RequestReview or SessionCommandOperation.RequestConfirm
                         or SessionCommandOperation.RequestCancel or SessionCommandOperation.AttachmentInspect)
                 && (!commandRouter.IsActivationPrefixed(spokenText, AssistantName)
@@ -4935,7 +4939,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             return;
         }
 
-        await ExecuteAsync(match.Command, initiator, sourceCurrent: originalInput?.Eligible);
+        await ExecuteAsync(match.Command, initiator, sourceCurrent: match.Command.Action == BuiltInAction.LockMachine
+            && originalInput is not null ? CaptureLockSource(originalInput) : originalInput?.Eligible);
         if (ShouldSpeakResponse(match.Command.Action))
         {
             await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
@@ -5094,6 +5099,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         var speechRevision = Interlocked.Read(ref manualCallSpeechRevision);
         BuiltInAction? automaticAction = null;
         var announceApproval = false;
+        var lockHostCurrent = CaptureModelActionReviewHost();
+        var lockCallRevision = CallPolicyRevision;
+        var lockPreparationRevision = Interlocked.Read(ref approvalPreparationRevision);
+        var originalToken = cancellation.Token;
+        bool LockSourceCurrent() => lockHostCurrent() && !originalToken.IsCancellationRequested
+            && lockCallRevision == CallPolicyRevision
+            && lockPreparationRevision == Interlocked.Read(ref approvalPreparationRevision)
+            && (artifact is null || artifactCatalogue.IsCurrent(artifact.Id, artifact.Digest));
         activeReasoningArtifact = artifact;
         try
         {
@@ -5173,7 +5186,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             }
             else if (decision.Action is { } action)
             {
-                if (ModelActionRequiresApproval(action)
+                if (action != BuiltInAction.LockMachine && ModelActionRequiresApproval(action)
                     && (artifact is not null || !CanReuseLegacyModelGrant(action)))
                 {
                     var callRevision = CallPolicyRevision;
@@ -5187,7 +5200,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                         SecurityAuditInitiator.ModelSuggestion,
                         action switch
                         {
-                            BuiltInAction.LockMachine => CurrentWindowsSessionTarget,
                             BuiltInAction.ProposeShutdown or BuiltInAction.ProposeRestart
                                 => CurrentMachineTarget,
                             _ => CurrentApplicationTarget,
@@ -5309,7 +5321,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         if (automaticAction is { } safeAction)
         {
             var admittedCallRevision = CallPolicyRevision;
-            if (ModelActionRequiresApproval(safeAction) && !CanReuseLegacyModelGrant(safeAction))
+            if (safeAction == BuiltInAction.LockMachine && !LockSourceCurrent())
+            {
+                ReportHostInteractionFailure("The original Lock source or host authority changed. No Lock request was dispatched.");
+                activity.Complete(HostOperationOutcome.Cancelled);
+                return;
+            }
+            if (safeAction != BuiltInAction.LockMachine
+                && ModelActionRequiresApproval(safeAction) && !CanReuseLegacyModelGrant(safeAction))
             {
                 ShowInformation("Saved permission is not eligible.",
                     "Call policy changed before dispatch. Initiate a fresh request; no action was replayed.");
@@ -5320,7 +5339,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             try
             {
                 var command = commandCatalog.GetCommands(AssistantName).Single(item => item.Action == safeAction);
-                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision);
+                await ExecuteAsync(command, SecurityAuditInitiator.ModelSuggestion, admittedCallRevision,
+                    sourceCurrent: safeAction == BuiltInAction.LockMachine ? LockSourceCurrent : null);
                 if (ShouldSpeakResponse(safeAction))
                 {
                     await SpeakCurrentResponseAsync(expectedSpeechRevision: speechRevision);
@@ -6151,7 +6171,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                     await InvokeBundledAction(bundledAction, Kora.Core.Skills.FixedSessionAction.Lock, initiator, observedCallRevision, sourceCurrent);
                     break;
                 }
-                await LockCurrentSessionAsync(initiator, observedCallRevision);
+                ReportHostInteractionFailure("Exact Lock admission is unavailable. No native fallback or named-action preference can authorize Lock.");
                 break;
             case BuiltInAction.ProposeShutdown:
             case BuiltInAction.ProposeRestart:
@@ -6354,45 +6374,6 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         return Task.CompletedTask;
     }
 
-    private async Task LockCurrentSessionAsync(SecurityAuditInitiator initiator, long? observedCallRevision)
-    {
-        ClearClipboardPreview();
-        ClearFilePreview();
-        var privacyRevision = privacyObservation.Current.TopologyRevision;
-        bool Eligible() => IsCallMutationHostEligible
-            && privacyObservation.Current.TopologyRevision == privacyRevision;
-        var audit = await StartAuditAsync(
-            SecurityAuditCategory.ProtectedOperation,
-            SessionLockAction,
-            initiator,
-            CurrentWindowsSessionTarget);
-        try
-        {
-            await StopAudioAsync(initiator == SecurityAuditInitiator.ModelSuggestion
-                && isModelActionDispatchActive);
-            if (!Eligible() || !IsModelCallDispatchEligible(initiator, observedCallRevision))
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Denied, "host-admission-changed");
-                ShowInformation("Host admission changed.", "Required ownership, privacy or model authority changed before lock; no lock was dispatched.");
-                return;
-            }
-            if (sessionController.LockCurrentSession())
-            {
-                await CompleteAuditAsync(audit, SecurityAuditOutcome.Succeeded);
-                return;
-            }
-
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "os-request-rejected");
-            ShowFailure("Windows did not accept the lock request.", "The microphone remains disabled.");
-        }
-        catch (InvalidOperationException exception)
-        {
-            await CompleteAuditAsync(audit, SecurityAuditOutcome.Failed, "lock-failed");
-            ApplicationLog.Error(logger, exception, "Locking the current Windows session");
-            ShowFailure("Windows could not lock the current session.", exception.Message);
-        }
-    }
-
     private async Task<bool> CreatePowerProposalAsync(
         BuiltInAction action, SecurityAuditInitiator initiator)
     {
@@ -6523,6 +6504,8 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         FinalizedModelAnswer? modelAnswer = null)
     {
         RetireCurrentResponseSpeech();
+        activeTaskResponseOutput = null;
+        completedTaskResponseVisual = null;
         RetireWebResultDetails(retireControl: false);
         RetireSpeechCaptionSource();
         ClearResponseActions();

@@ -80,22 +80,6 @@ public sealed partial class WindowsSessionController(
         }
     }
 
-    public bool LockCurrentSession()
-    {
-        WindowsLog.Information(logger, "Windows session lock was requested");
-        var result = LockWorkStation();
-        if (!result)
-        {
-            WindowsLog.Warning(logger, "Windows did not accept the session lock request");
-        }
-
-        return result;
-    }
-
-    [LibraryImport("user32.dll")]
-    [return: MarshalAs(UnmanagedType.Bool)]
-    private static partial bool LockWorkStation();
-
     [LibraryImport("wtsapi32.dll", EntryPoint = "WTSQuerySessionInformationW", SetLastError = true)]
     [return: MarshalAs(UnmanagedType.Bool)]
     private static partial bool WTSQuerySessionInformation(

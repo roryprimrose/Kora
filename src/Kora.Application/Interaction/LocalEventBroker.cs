@@ -28,6 +28,7 @@ public sealed partial class LocalEventBroker(
     private volatile bool unavailable;
     private volatile RoutineNoticeQuietState routineQuiet = new(false, 0);
     private long noticeRevision;
+    internal event Action? NoticeAdmissionChanged;
 
     public RoutineNoticeQuietState RoutineQuiet => routineQuiet;
     public bool IsAvailable => !disposed && !unavailable;
@@ -277,6 +278,7 @@ public sealed partial class LocalEventBroker(
             return await retirement(async (session, retirementToken) =>
             {
                 Interlocked.Increment(ref retirementEpoch);
+                NoticeAdmissionChanged?.Invoke();
                 if (selected == session) { held = []; selected = null; }
                 using var activity = HostActivity.BeginRoot(new(new(Guid.NewGuid()), session,
                     new(Guid.NewGuid()), RequestOrigin.HostSystem), HostActivityLayer.Application, HostOperation.Retention);
@@ -359,6 +361,7 @@ public sealed partial class LocalEventBroker(
     private async Task CloseAsync()
     {
         disposed = true;
+        NoticeAdmissionChanged?.Invoke();
         await lifetime.CancelAsync().ConfigureAwait(false);
         await serial.WaitAsync(CancellationToken.None).ConfigureAwait(false);
         held = [];

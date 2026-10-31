@@ -83,7 +83,8 @@ public sealed partial class InstructionEditorTests
         var files = new CustomizationFiles(kind);
         var state = new LocalSharedSkillPreferencesTests.Store();
         var use = new ArtifactUsePreferences(state);
-        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit);
+        var service = new CustomizationManagementService(files, f.Admission, use, f.Catalogue, f.Audit,
+            new ArtifactDirectoryConfigurationService(new CustomizationMcpPreferences(), f.Audit));
         var changes = 0;
         void Changed(object? sender, EventArgs args) => changes++;
         service.UseChanged += Changed;
@@ -233,11 +234,16 @@ public sealed partial class InstructionEditorTests
         internal InstructionOriginalRegistration? Registration;
         public InstructionOriginalRegistration? RegisteredInstruction => Registered ? Registration ??= new(Source, "native-revision") : null;
         internal Action? BeforeRegister;
+        internal CustomizationSource? CreatedSource;
+        internal Action? BeforeCommit;
+        internal CustomizationSnapshot? CopySource;
         internal Action? BeforeSave;
         internal bool DetectOriginalConflicts;
         internal CustomizationFiles(CustomizationKind kind = CustomizationKind.Instruction, CustomizationScope scope = CustomizationScope.Kora)
         {
-            Source = new("file.example", kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
+            Source = new(kind == CustomizationKind.McpServer
+                ? ArtifactUseIdentity.Mcp(ArtifactUseIdentity.McpServerId("source", "example")) : "file.example",
+                kind, scope, "example", "source", CustomizationLayout.PrimaryFile(kind, "example"));
             Current = new(Source, "original", [new(Source.PrimaryFile,
                 Kora.Core.Artifacts.ArtifactFileDocument.Encode(CustomizationLayout.Template(kind, "example"), false))]);
         }
@@ -257,26 +263,32 @@ public sealed partial class InstructionEditorTests
         public Task<IReadOnlyList<CustomizationSource>> List(CancellationToken token) =>
             Task.FromResult<IReadOnlyList<CustomizationSource>>([Source]);
         public Task<CustomizationSource> Create(CustomizationKind kind, CustomizationScope scope, string name, CancellationToken token) =>
-            Task.FromResult(Source);
+            Task.FromResult(CreatedSource ?? Source);
         public Task<CustomizationSnapshot> Read(CustomizationSource source, CancellationToken token)
         { Reads++; AfterRead?.Invoke(); return Task.FromResult(Current); }
         public Task<CustomizationSnapshot> ReadRecovery(CustomizationSource source, CancellationToken token) =>
             Task.FromResult(new CustomizationSnapshot(Source, Current.Revision, Current.Files, "Recovery"));
         public Task<CustomizationSnapshot> Save(CustomizationSource source, CustomizationSnapshot? expected,
             IReadOnlyList<CustomizationFile> files, Func<bool> eligible,
-            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token) => commit(() =>
+            Func<Func<CustomizationSnapshot>, Task<CustomizationSnapshot>> commit, CancellationToken token,
+            CustomizationSnapshot? copiedFrom = null)
         {
-            token.ThrowIfCancellationRequested();
-            if (!eligible()) { throw new InvalidOperationException("Closed"); }
-            BeforeSave?.Invoke();
-            if (DetectOriginalConflicts && !string.Equals(expected?.Revision, Current.Revision, StringComparison.Ordinal))
-            { throw new InstructionOriginalConflictException(); }
-            if (WriteFailure is { } failure) { throw failure; }
-            if (FailWrite) { throw new IOException("Publication failed"); }
-            Writes++;
-            Current = new(source, "saved", files);
-            AfterWrite?.Invoke();
-            return Current;
-        });
+            CopySource = copiedFrom;
+            BeforeCommit?.Invoke();
+            return commit(() =>
+            {
+                token.ThrowIfCancellationRequested();
+                if (!eligible()) { throw new InvalidOperationException("Closed"); }
+                BeforeSave?.Invoke();
+                if (DetectOriginalConflicts && !string.Equals(expected?.Revision, Current.Revision, StringComparison.Ordinal))
+                { throw new InstructionOriginalConflictException(); }
+                if (WriteFailure is { } failure) { throw failure; }
+                if (FailWrite) { throw new IOException("Publication failed"); }
+                Writes++;
+                Current = new(source, "saved", files);
+                AfterWrite?.Invoke();
+                return Current;
+            });
+        }
     }
 }

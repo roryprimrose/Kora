@@ -40,14 +40,33 @@ public sealed partial class OwnedDefinitionEditorWindowTests
     [InlineData("late-owner")]
     [InlineData("late-draft")]
     [InlineData("late-critique")]
+    [InlineData("new-save")]
+    [InlineData("new-cancel-disclosure")]
+    [InlineData("new-cancel-proposal")]
+    [InlineData("new-cancel-save")]
+    [InlineData("new-unavailable")]
+    [InlineData("new-late-cancel")]
+    [InlineData("new-late-close")]
+    [InlineData("new-late-privacy")]
+    [InlineData("new-late-owner")]
+    [InlineData("new-late-draft")]
+    [InlineData("new-late-critique")]
+    [InlineData("new-late-destination")]
+    [InlineData("new-late-kind")]
+    [InlineData("new-late-call")]
+    [InlineData("new-late-input")]
+    [InlineData("new-occupied-target")]
     public async Task NativeRefinementUsesRealModelHostCompleteReviewAndConfirmedAuthoritativeSaveReadback(string action)
     {
+        var creating = action.StartsWith("new-", StringComparison.Ordinal);
+        if (creating) { action = action[4..]; }
         await HeadlessSession.RunAsync(async () =>
         {
             var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
             Directory.CreateDirectory(parent);
             using var f = new NativeUxFixtureSession(parent);
-            await f.InitializeAsync();
+            var calls = new DictationCallState();
+            await f.InitializeAsync(null, callState: calls);
             await using var admission = new InstructionControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var store = new WindowsOwnedInstructionStore(f);
             var revisions = new InstructionRevisionCatalogue(f);
@@ -59,7 +78,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 new McpServerConfigurationService(f, directories, Path.Combine(f.LocalRoot, "no-profile")),
                 NullLogger<ArtifactCatalogueReloadService>.Instance, revisions, store,
                 Path.Combine(f.LocalRoot, "no-profile"));
-            const string initial = "---\r\nkora-format: 1\r\nname: example\r\ndescription: Exact host metadata\r\n---\r\n  OLD_BODY e\u0301\U0001f642\r\n";
+            var initial = "---\r\nkora-format: 1\r\nname: example\r\ndescription: Exact host metadata\r\n---\r\n  OLD_BODY e\u0301\U0001f642\r\n";
             var original = (await store.Write("example", null, ArtifactFileDocument.Parse(ArtifactFileDocument.Encode(initial, true),
                 ArtifactKind.Instruction, "kora-profile", "example"), () => true, f.Token)).Current!;
             reload.ReconcileSavedCopy(original).Should().BeTrue();
@@ -104,8 +123,10 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 .Single(button => Equals(button.Content, caption)).RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
             if (action is "save-enabled") { await actions.Activate(original, _ => Task.FromResult(true), () => true, f.Token); }
             await Run("instructions list");
-            await Run("instructions inspect example");
+            var targetName = creating ? "new-example" : "example";
+            await Run(creating ? "instructions create new-example" : "instructions inspect example");
             var owned = editor!;
+            if (creating) { initial = owned.Source.Text!; }
             var draft = initial.Replace("OLD_BODY", "CURRENT_DRAFT", StringComparison.Ordinal);
             owned.Source.Text = draft;
             const string critique = "  Make this clearer e\u0301\U0001f642.\r\nKeep all body lines.  ";
@@ -114,7 +135,14 @@ public sealed partial class OwnedDefinitionEditorWindowTests
             if (late) { adapter.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously); }
             var generation = Run("instructions refine");
             var disclosure = await Review(generation);
-            disclosure.Title.Should().Be("Review local instruction refinement disclosure");
+            disclosure.Title.Should().Be(creating ? "Review new instruction generation disclosure" : "Review local instruction refinement disclosure");
+            if (creating)
+            {
+                adapter.Calls.Should().Be(0);
+                (await store.Read(targetName, f.Token)).Should().BeNull();
+                string.Join("\n", disclosure.GetVisualDescendants().OfType<TextBlock>().Select(block => block.Text))
+                    .Should().Contain(critique).And.Contain("destination kind: Instruction").And.Contain(targetName + ".instructions.md");
+            }
             Choose(disclosure, action is "cancel-disclosure" ? "Cancel" : "Generate local body proposal");
             if (late)
             {
@@ -127,6 +155,10 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                     case "late-owner": ownership++; break;
                     case "late-draft": owned.Source.Text += "MANUAL_WORK"; break;
                     case "late-critique": owned.Critique.Text += "NEW_CRITIQUE"; break;
+                    case "late-destination": owned.NameInput.Text = "another-target"; break;
+                    case "late-kind": owned.KindInput.SelectedItem = ArtifactKind.Prompt; break;
+                    case "late-call": calls.Set(Kora.Core.Communication.CallState.Active); break;
+                    case "late-input": f.Main.CommandText = "unrelated replacement input"; break;
                 }
                 generation.IsCompleted.Should().BeFalse("cancellation must not release an adapter which ignores it");
                 models.IsQuiescent.Should().BeFalse();
@@ -135,6 +167,7 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 await generation;
                 nextReview.Task.IsCompleted.Should().BeFalse("late output must not open proposal review");
                 (await store.Read("example", f.Token))!.Document.CopyBytes().Should().Equal(original.Document.CopyBytes());
+                if (creating) { (await store.Read(targetName, f.Token)).Should().BeNull(); }
                 models.IsQuiescent.Should().BeTrue();
                 if (action is not "late-privacy") { owned.Source.Text.Should().Be(action is "late-draft" ? draft + "MANUAL_WORK" : draft); }
                 f.Main.CloseForObservedPrivacyEvent("Synthetic cleanup", hidePresentation: true);
@@ -154,21 +187,24 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 return;
             }
             var proposal = await Review(generation);
-            proposal.Title.Should().Be("Compare complete instruction body proposal");
+            proposal.Title.Should().Be(creating ? "Review complete new instruction proposal" : "Compare complete instruction body proposal");
             var panes = proposal.GetVisualDescendants().OfType<TextBox>().Where(box => box.IsReadOnly).ToArray();
             panes.Should().HaveCount(2);
             panes[0].Text.Should().Be(draft);
             var proposed = panes[1].Text!;
-            proposed.Should().Be(initial.Replace("  OLD_BODY e\u0301\U0001f642\r\n", RefinementAdapter.Body, StringComparison.Ordinal));
+            proposed.Should().Be(creating
+                ? actions.PrepareSave(targetName, null, draft).WithInstructionBody(RefinementAdapter.Body).Text
+                : initial.Replace("  OLD_BODY e\u0301\U0001f642\r\n", RefinementAdapter.Body, StringComparison.Ordinal));
             owned.Source.Text.Should().Be(draft);
             (await store.Read("example", f.Token))!.Document.CopyBytes().Should().Equal(original.Document.CopyBytes());
             using var wire = JsonDocument.Parse(adapter.Wire!);
             wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(critique);
-            wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be("  CURRENT_DRAFT e\u0301\U0001f642\r\n");
+            if (creating) { wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be(OwnedInstructionRefinementService.InitialContext); }
+            else { wire.RootElement.GetProperty("Evidence")[0].GetProperty("Content").GetString().Should().Be("  CURRENT_DRAFT e\u0301\U0001f642\r\n"); }
             wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
             Choose(proposal, action is "cancel-proposal" ? "Cancel" : "Use proposal for next Save");
             await generation;
-            owned.Source.Text.Should().Be(draft);
+            owned.Source.Text.Should().Be(creating && action is not "cancel-proposal" ? proposed : draft);
             owned.Critique.Text.Should().Be(critique);
             if (action is "cancel-proposal")
             {
@@ -177,6 +213,18 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                 return;
             }
             if (action is "manual-edit") { owned.Source.Text = draft + "MANUAL_WORK"; }
+            if (action is "occupied-target")
+            {
+                var occupied = (await store.Write(targetName, null, actions.PrepareSave(targetName, null, draft),
+                    () => true, f.Token)).Current!;
+                await Run("instructions save");
+                nextReview.Task.IsCompleted.Should().BeFalse("occupied new targets cannot offer overwrite confirmation");
+                (await store.Read(targetName, f.Token))!.Document.CopyBytes().Should().Equal(occupied.Document.CopyBytes());
+                owned.Source.Text.Should().Be(proposed);
+                f.Main.CloseForObservedPrivacyEvent("Synthetic cleanup", hidePresentation: true);
+                await f.Main.PrivacyClosureTask;
+                return;
+            }
             if (action is "stale-source")
             {
                 await store.Write("example", original, original.Document.WithInstructionBody("EXTERNAL_EDIT"), () => true, f.Token);
@@ -193,15 +241,25 @@ public sealed partial class OwnedDefinitionEditorWindowTests
                     .Be(action is "manual-edit" ? draft + "MANUAL_WORK" : proposed);
                 Choose(confirmation, action is "cancel-save" ? "Cancel" : "Confirm save");
                 await save;
-                var readback = (await store.Read("example", f.Token))!;
-                readback.Document.CopyBytes().Should().Equal(action is "cancel-save"
-                    ? original.Document.CopyBytes() : ArtifactFileDocument.Encode(action is "manual-edit" ? draft + "MANUAL_WORK" : proposed, true));
+                var readback = await store.Read(targetName, f.Token);
+                if (creating && action is "cancel-save") { readback.Should().BeNull(); }
+                else { readback!.Document.CopyBytes().Should().Equal(action is "cancel-save"
+                    ? original.Document.CopyBytes() : ArtifactFileDocument.Encode(action is "manual-edit" ? draft + "MANUAL_WORK" : proposed, !creating)); }
                 if (action is not "cancel-save")
                 {
-                    owned.Source.Text.Should().Be(readback.Document.Text);
-                    catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName == "example");
+                    owned.Source.Text.Should().Be(readback!.Document.Text);
+                    catalogue.Artifacts.Should().NotContain(item => item.OwnedInstructionName == targetName);
                     revisions.Reconcile([readback.Document.Definition with { OwnedInstructionRevision = readback.Revision }])
                         .Single().IsUseEnabled.Should().BeFalse();
+                    if (creating)
+                    {
+                        await Run("instructions inspect " + targetName);
+                        owned.Source.Text.Should().Be(proposed);
+                        var observedSource = catalogue.Candidates.Single(item => string.Equals(item.OwnedInstructionName, targetName, StringComparison.Ordinal));
+                        observedSource.Id.Should().Be("disk.kora-profile.instruction." + targetName);
+                        observedSource.OwnedInstructionRevision.Should().Be(readback.Revision);
+                        observedSource.IsUseEnabled.Should().BeFalse();
+                    }
                 }
             }
             models.IsQuiescent.Should().BeTrue();

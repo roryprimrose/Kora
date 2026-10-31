@@ -10,6 +10,14 @@ public sealed class AgentProfileSaveWorkflow(IOwnedAgentProfileStore store,
 {
     public OwnedAgentProfileDocument Validate(string name, string source) => OwnedAgentProfileDocument.Parse(name, source);
 
+    public Task<OwnedAgentProfileDestination> PrepareNewAsync(string name, Func<bool> eligible, CancellationToken token) =>
+        admission.Run(eligible, async (_, _, current, admitted) =>
+        {
+            var destination = await store.PrepareNew(name, admitted).ConfigureAwait(false);
+            Require(current, admitted);
+            return destination;
+        }, token);
+
     public Task<IReadOnlyList<string>> ListAsync(Func<bool> eligible, CancellationToken token) =>
         admission.Run(eligible, async (_, _, current, admitted) =>
         {

@@ -62,6 +62,7 @@ internal sealed partial class SessionsViewModel
         var subject = selected?.Authority.SessionId ?? retentionSubject
             ?? throw new InvalidOperationException("Select a session or enter its exact ID for retention status.");
         retentionSubject = subject;
+        ClearRetentionApplication();
         var epoch = selectionEpoch;
         retentionReview = null;
         retentionObservation = null;
@@ -78,6 +79,7 @@ internal sealed partial class SessionsViewModel
     public void PreviewRetention(bool keep)
     {
         if (keep ? !CanKeepSession : !CanUseOrdinaryRetention) { return; }
+        ClearRetentionApplication();
         retentionReview = new(retentionObservation!, keep, selectionEpoch, access.ControlRevision);
         NotifyRetention();
     }
@@ -147,6 +149,7 @@ internal sealed partial class SessionsViewModel
 
     private void ClearRetention()
     {
+        ClearRetentionApplication();
         retentionObservation = null;
         retentionReview = null;
         retentionSubject = null;
@@ -154,6 +157,9 @@ internal sealed partial class SessionsViewModel
 
     private void NotifyRetention()
     {
+        OnPropertyChanged(nameof(RetentionApplyPreview));
+        OnPropertyChanged(nameof(CanReviewRetentionApply));
+        OnPropertyChanged(nameof(CanConfirmRetentionApply));
         OnPropertyChanged(nameof(RetentionStatus));
         OnPropertyChanged(nameof(RetentionPreview));
         OnPropertyChanged(nameof(CanRefreshRetention));

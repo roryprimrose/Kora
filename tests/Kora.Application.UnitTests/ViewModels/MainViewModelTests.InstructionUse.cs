@@ -101,7 +101,7 @@ public sealed partial class MainViewModelTests
     {
         var f = new Fixture();
         f.Probe.Status = new("local.inference", "Local", Kora.Core.Dependencies.DependencyReadiness.Ready, "ready");
-        f.Reasoner.Action = question ? null : BuiltInAction.LockMachine;
+        f.Reasoner.Action = question ? null : BuiltInAction.EnableHostedModels;
         if (question) { f.Reasoner.Question = new("Keep this exact question?", ["one", "two"]); }
         await f.ViewModel.InitializeAsync();
         await f.RunAsync("please do the work");

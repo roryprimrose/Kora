@@ -156,7 +156,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture { Match = match };
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         var review = await service.PrepareAsync("original", origin, static () => true, Token);
         review.Origin.Should().Be(origin);
         review.Snapshot.Descriptors.Should().HaveCount(2);
@@ -179,7 +179,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture();
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         f.Matcher.Propose = snapshot =>
         {
             if (fault is "cancel") { throw new OperationCanceledException(); }
@@ -205,7 +205,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture();
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         f.Matcher.Propose = _ => throw new SessionRoutingInferenceException(outcome, ModelTurnReason.ProviderOutcome);
         await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
             .Should().ThrowAsync<SessionRoutingInferenceException>();
@@ -219,7 +219,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture { CancelDispatch = true };
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
             .Should().ThrowAsync<OperationCanceledException>();
         f.Tasks.Values.Should().OnlyContain(task => task.IsTerminal);
@@ -233,7 +233,7 @@ public sealed class SessionRoutingTests : IDisposable
     {
         var f = new Fixture { FailCancellationReceipt = true };
         await using var admission = new SessionRoutingControlAdmission(f, f, new(f));
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         f.Matcher.Propose = _ => throw new OperationCanceledException();
         await service.Invoking(subject => subject.PrepareAsync("original", RequestOrigin.LocalUi, static () => true, Token))
             .Should().ThrowAsync<IOException>();
@@ -257,7 +257,7 @@ public sealed class SessionRoutingTests : IDisposable
                 .Which.Context.Should().Be(original.Activity!.Context);
             return new(snapshot.Revision, SessionRouteMatch.Clear, [snapshot.Descriptors[0].Candidate]);
         };
-        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission);
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher, admission, f.ReviewAdvice);
         var review = await service.PrepareAsync("original", RequestOrigin.ActivatedVoice, static () => true, Token);
         review.Origin.Should().Be(RequestOrigin.ActivatedVoice);
         f.Tasks.Values.Should().OnlyContain(task => task.Request.Origin == RequestOrigin.ActivatedVoice && task.IsTerminal);
@@ -477,6 +477,77 @@ public sealed class SessionRoutingTests : IDisposable
         f.Matcher.Snapshot.Should().BeNull();
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task MissingOrDeclinedAdviceConsentStillCompletesExactDestinationSubmissionWithoutMatching(bool hasReviewer)
+    {
+        var f = new Fixture { AllowAdvice = false };
+        var service = new SessionRoutingService(f.Workspace, f.Conversation, f, f.Time, f.Matcher,
+            reviewAdvice: hasReviewer ? f.ReviewAdvice : null);
+        const string body = "  Original request\r\nunchanged  ";
+        var review = await service.PrepareAsync(body, RequestOrigin.ActivatedVoice, () => f.Source, Token);
+        review.Match.Should().Be(SessionRouteMatch.Unavailable);
+        f.Matcher.Snapshot.Should().BeNull();
+        f.Messages.Should().BeEmpty();
+        f.Creates.Should().Be(0);
+        var selected = await service.SelectAsync(review, f.Entries[1].Authority.SessionId, Token);
+        (await service.SubmitAsync(selected, Token)).Submission.Message.Body.Should().Be(body);
+        f.Messages.Should().ContainSingle();
+        f.Admissions.Should().Be(1);
+        f.Matcher.Snapshot.Should().BeNull();
+    }
+
+    [Theory]
+    [InlineData("expiry")]
+    [InlineData("input")]
+    [InlineData("control")]
+    [InlineData("metadata")]
+    [InlineData("deleted")]
+    [InlineData("generation")]
+    [InlineData("cursor")]
+    [InlineData("cancel")]
+    public async Task AdviceConsentCannotDiscloseAfterOriginalSnapshotOrAuthorityChanges(string change)
+    {
+        var f = new Fixture();
+        using var cancellation = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        f.BeforeAdviceDecision = (advice, live) =>
+        {
+            advice.Body.Should().Be("exact original");
+            advice.Origin.Should().Be(RequestOrigin.LocalUi);
+            advice.Snapshot.Descriptors.Select(item => item.Entry).Should().Equal(f.Entries);
+            live().Should().BeTrue();
+            f.Matcher.Snapshot.Should().BeNull();
+            f.Admissions.Should().Be(0);
+            f.Messages.Should().BeEmpty();
+            if (change is "expiry") { f.Time.Now = advice.ExpiresAt; }
+            if (change is "input") { f.Source = false; }
+            if (change is "control") { f.ControlRevision++; }
+            if (change is "metadata") { f.Entries[0] = f.Entries[0] with { Metadata = f.Entries[0].Metadata! with { Revision = new(2) } }; }
+            if (change is "deleted") { f.Entries.RemoveAt(0); }
+            if (change is "generation") { f.Entries[0] = f.Entries[0] with { Authority = f.Entries[0].Authority with { Generation = new(2) } }; }
+            if (change is "cursor") { f.Next = Guid.NewGuid(); }
+            if (change is "cancel") { cancellation.Cancel(); }
+        };
+        await f.Service.Invoking(service => service.PrepareAsync("exact original", RequestOrigin.LocalUi,
+            () => f.Source, cancellation.Token)).Should().ThrowAsync<Exception>();
+        f.Matcher.Snapshot.Should().BeNull();
+        f.Messages.Should().BeEmpty();
+        f.Admissions.Should().Be(0);
+        f.Creates.Should().Be(0);
+    }
+
+    [Fact]
+    public async Task LateAdviceAfterDisclosureExpiryCannotPublishADestinationReview()
+    {
+        var f = new Fixture();
+        f.Matcher.Wait = () => { f.Time.Now = f.Time.Now.AddSeconds(60); return Task.CompletedTask; };
+        await f.Service.Invoking(service => service.PrepareAsync("original", RequestOrigin.LocalUi, () => f.Source, Token))
+            .Should().ThrowAsync<InvalidOperationException>();
+        f.Messages.Should().BeEmpty();
+        f.Admissions.Should().Be(0);
+    }
+
     private sealed class Clock : TimeProvider
     {
         internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
@@ -521,6 +592,8 @@ public sealed class SessionRoutingTests : IDisposable
         internal WorkSessionAuthorization? ControlSession { get; set; }
         internal bool CancelDispatch { get; set; }
         internal bool FailCancellationReceipt { get; set; }
+        internal bool AllowAdvice { get; set; } = true;
+        internal Action<SessionRoutingAdvice, Func<bool>>? BeforeAdviceDecision { get; set; }
         public bool CanInspect { get; set; } = true;
         public bool CanControl { get; set; } = true;
         public long ControlRevision { get; set; } = 1;
@@ -536,7 +609,13 @@ public sealed class SessionRoutingTests : IDisposable
         {
             Workspace = new(this, new(this), this, NullLogger<SessionWorkspaceService>.Instance);
             Conversation = new(this, this, Workspace, this, this, Time, NullLogger<SessionConversationService>.Instance);
-            Service = new(Workspace, Conversation, this, Time, Matcher);
+            Service = new(Workspace, Conversation, this, Time, Matcher, reviewAdvice: ReviewAdvice);
+        }
+        internal Task<bool> ReviewAdvice(SessionRoutingAdvice advice, Func<bool> admitted, CancellationToken token)
+        {
+            token.ThrowIfCancellationRequested();
+            BeforeAdviceDecision?.Invoke(advice, admitted);
+            return Task.FromResult(AllowAdvice);
         }
         internal static SessionWorkspaceEntry Entry(string name)
         {

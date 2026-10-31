@@ -11,9 +11,11 @@ using Kora.Application.Dependencies;
 using Kora.Application.Interaction;
 using Kora.Application.Presentation;
 using Kora.Application.Voice;
+using Kora.Core.Conversation;
 using Kora.Core.Dependencies;
 using Kora.Core.Hosting;
 using Kora.Core.Interaction;
+using Kora.Core.Voice;
 using Kora.NativeUxFixture;
 using Kora.Windows.IntegrationTests.Storage;
 
@@ -28,6 +30,13 @@ public sealed partial class SessionsConversationTests
     [InlineData(true, false, "valid")]
     [InlineData(false, true, "valid")]
     [InlineData(false, false, "voice")]
+    [InlineData(false, false, "multiple")]
+    [InlineData(false, false, "output-choice")]
+    [InlineData(false, false, "foreign-session")]
+    [InlineData(false, false, "foreign-task")]
+    [InlineData(false, false, "foreign-question")]
+    [InlineData(false, false, "generation")]
+    [InlineData(false, false, "channel")]
     [InlineData(false, false, "ledger")]
     [InlineData(false, false, "question")]
     [InlineData(false, false, "expired")]
@@ -48,7 +57,7 @@ public sealed partial class SessionsConversationTests
             await WindowsSqliteConversationTests.FinishInitial(f);
             using var native = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
             await native.InitializeAsync();
-            await using var transport = new QuestionTransport(text);
+            await using var transport = new QuestionTransport(text, multiple: fault is "multiple");
             await using var adapter = new BoundedModelTurnAdapter(transport, f.Time, NullLogger<BoundedModelTurnAdapter>.Instance);
             await using var composed = new Composition(f, adapter: adapter);
             await using var broker = new LocalEventBroker(
@@ -56,6 +65,7 @@ public sealed partial class SessionsConversationTests
                 new LocalEventStateStore(f.Paths), composed.Access, f.Time, native.Audit, NullLogger<LocalEventBroker>.Instance);
             var model = new SessionsViewModel(composed.Workspace, native.Evidence, composed.Access,
                 NullLogger<SessionsViewModel>.Instance, broker, conversation: composed.Conversation);
+            model.BindCompletionNotices(native.Main);
             HostQuestionVoiceReplyService? replies = null;
             using var host = new NativeQuestionHost(f.Store, f.Time, NullLogger<NativeQuestionViewModel>.Instance, questions =>
                 replies = new(questions, native.Voice, f.Time, new AvaloniaUiDispatcher(),
@@ -83,6 +93,7 @@ public sealed partial class SessionsConversationTests
                 await model.SelectAsync(model.Sessions.Single());
                 await model.ReadConversationAsync();
                 model.ComposerBody = "Original task needing an exact clarification";
+                if (fault is "output-choice") { model.TaskOutputMode = TaskResponseMode.VoiceOnly; }
                 owner.FindControl<Button>("SubmitConversationWithClarification")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 operation = owner.ConversationOperation;
                 await (await Task.WhenAny(shown.Task, operation).WaitAsync(f.Token));
@@ -94,6 +105,12 @@ public sealed partial class SessionsConversationTests
                 await NoticeQuestionReady(state, f.Token);
                 var canonical = state.Question;
                 var request = canonical.Key.Request;
+                if (fault is "multiple")
+                {
+                    canonical.Spec.Kind.Should().Be(QuestionKind.MultipleChoice);
+                    canonical.Spec.Minimum.Should().Be(1);
+                    canonical.Spec.Maximum.Should().Be(2);
+                }
                 var selected = model.SelectedSessionRecord;
                 owner.Activate();
                 model.CanRefreshWork.Should().BeTrue("the original task's wait must not block notice observation");
@@ -107,16 +124,28 @@ public sealed partial class SessionsConversationTests
                 model.Detail.Should().Contain(request.SessionId.Value.ToString("D"))
                     .And.Contain(canonical.Key.QuestionId.Value.ToString("D")).And.NotContain("Which format?");
                 model.CanAnswerConversationNotice.Should().BeTrue();
+                model.CanEnableCompletionNotices.Should().BeFalse();
+                native.Main.CompletionNoticeStatus.Should().Contain("Off");
                 var tasks = f.Count("host_tasks");
                 var questions = f.Count("host_questions");
                 var activations = 0;
                 questionWindow.Activated += (_, _) => activations++;
-                if (fault is not ("valid" or "voice"))
+                var acceptedGesture = fault is "valid" or "voice" or "multiple" or "output-choice";
+                if (!acceptedGesture)
                 {
                     model.ConversationNoticeQuestion = target =>
                     {
                         if (fault is "capture") { throw new InvalidOperationException("Synthetic unavailable native capture"); }
-                        var captured = controller.CaptureConversationNoticeQuestion(target);
+                        var nativeTarget = fault switch
+                        {
+                            "foreign-session" => target with { SessionId = HostRequest.Create(RequestOrigin.LocalUi).SessionId },
+                            "foreign-task" => target with { TaskId = HostRequest.Create(RequestOrigin.LocalUi).TaskId },
+                            "foreign-question" => target with { SubjectId = Guid.NewGuid() },
+                            "generation" => target with { Generation = target.Generation + 1 },
+                            "channel" => target with { Origin = RequestOrigin.ActivatedVoice },
+                            _ => target,
+                        };
+                        var captured = controller.CaptureConversationNoticeQuestion(nativeTarget);
                         return captured is null ? null : new NoticeFocusRace(captured, async () =>
                         {
                             switch (fault)
@@ -141,7 +170,7 @@ public sealed partial class SessionsConversationTests
                 }
                 owner.FindControl<Button>("AnswerConversationNotice")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await owner.ConversationNoticeOperation;
-                if (fault is not ("valid" or "voice"))
+                if (!acceptedGesture)
                 {
                     model.Status.Should().Contain("Conversation notice unavailable");
                     activations.Should().Be(0, "a refused gesture must not activate any question presenter");
@@ -150,6 +179,12 @@ public sealed partial class SessionsConversationTests
                     f.Count("host_questions").Should().Be(questions);
                     (await f.Store.ReadQuestionsAsync(request.SessionId, f.Token)).Should()
                         .NotContain(item => item.Status == QuestionStatus.Answered);
+                    (await f.Store.ReadConversationMessageAsync(request.SessionId, request.RequestId, f.Token))!
+                        .AssistantResponse.Should().BeNull();
+                    f.Count("scoped_grants").Should().Be(0);
+                    native.Voice.StartCalls.Should().Be(0);
+                    native.Voice.ReplyCalls.Should().Be(0);
+                    native.Main.IsSpeaking.Should().BeFalse();
                     return;
                 }
                 model.Status.Should().Contain("Exact original conversation question opened");
@@ -163,6 +198,11 @@ public sealed partial class SessionsConversationTests
                 f.Count("host_questions").Should().Be(questions);
                 f.Count("scoped_grants").Should().Be(0);
                 native.Voice.StartCalls.Should().Be(0);
+                native.Voice.ReplyCalls.Should().Be(0);
+                native.Main.IsSpeaking.Should().BeFalse();
+                native.Main.TaskResponseMode.Should().BeNull();
+                native.Main.DefaultResponseMode.Should().Be(ResponseOutputMode.Hybrid);
+                model.TaskOutputMode.Should().Be(fault is "output-choice" ? TaskResponseMode.VoiceOnly : TaskResponseMode.Inherit);
                 model.CanAnswerConversationNotice.Should().BeFalse("the gesture is not a reusable answer capability");
                 if (cancel) { await state.CancelAsync(); }
                 else if (fault is "voice")
@@ -176,7 +216,7 @@ public sealed partial class SessionsConversationTests
                 else
                 {
                     if (text) { questionWindow.FindControl<TextBox>("AnswerInput")!.Text = "Fresh original user answer"; }
-                    else { state.Edit(new(["option-1"])); }
+                    else { state.Edit(new(fault is "multiple" ? ["option-0", "option-1"] : ["option-1"])); }
                     await state.SubmitAsync();
                 }
                 await operation;
@@ -194,14 +234,23 @@ public sealed partial class SessionsConversationTests
                     var answer = transport.Requests[^1].Messages.OfType<ModelQuestionAnswerMessage>().Single();
                     answer.Question.Question.Prompt.Should().Be(canonical.Spec.Text);
                     answer.Answer.Should().BeEquivalentTo(stored.Draft);
+                    answer.Answer.Choices.Should().Equal(text ? [] : fault is "multiple" ? ["option-0", "option-1"] : ["option-1"]);
                     answer.Channel.Should().Be(fault is "voice" ? RequestOrigin.ActivatedVoice : RequestOrigin.LocalUi);
                 }
                 state.Edit(new(["option-0"]));
                 await state.SubmitAsync();
                 transport.Requests.Should().HaveCount(cancel ? 1 : 2);
                 await state.OperationQuiescence;
+                composed.Turns.IsQuiescent.Should().BeTrue();
                 await model.RefreshWorkAsync();
                 model.LocalEvents.Should().NotContain(item => item.Event.Source == LocalEventSource.ConversationQuestion);
+                native.Main.CompletionNoticeStatus.Should().Contain("Off");
+                native.Main.IsSpeaking.Should().BeFalse();
+                native.Main.TaskResponseMode.Should().BeNull();
+                native.Main.DefaultResponseMode.Should().Be(ResponseOutputMode.Hybrid);
+                f.Count("host_tasks").Should().Be(tasks);
+                f.Count("host_questions").Should().Be(questions);
+                f.Count("scoped_grants").Should().Be(0);
             }
             finally
             {

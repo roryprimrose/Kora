@@ -1,6 +1,6 @@
 # Proactive Voice Interaction
 
-Status: bounded trusted local visual broker delivered; broader proactive
+Status: bounded trusted local visual broker and run-consented ordinary success speech delivered; broader proactive
 conversation, reminder and speech capability remains proposed.
 
 R17/R18's delivered release foundation is a **passive native notify-only
@@ -57,7 +57,8 @@ so old high-priority receipts do not starve another category.
 Fixed fatigue budgets are Work 3, Failure 2, Attention 2 and Maintenance 1 per
 UTC hour, with a one-minute per-category spacing. Presented, dismissed,
 deferred, expired and category-limited rows are truthful **status**, not new
-notifications. No speech is requested, including under VoiceOnly output.
+notifications. Ordinary VoiceOnly output alone never requests speech; the separate
+[run-consented completion operation](#run-consented-conversation-completion-speech) is the only bounded extension.
 
 Native review/dismiss/defer and [exact original typed/current-name activated
 commands](../docs/commands.md#trusted-local-events) share this broker. They
@@ -109,7 +110,7 @@ epoch changes retire prior sources, without call-end replay or activity renewal.
 Existing fatigue, quiet, exact source revalidation, suppression, retirement and
 deferral bounds apply unchanged. Existing source enum values and stored receipts
 remain compatible. Observation, Review, Dismiss and Defer add no ambient observation,
-question answering, approval, dispatch, focus/selection change or unsolicited speech. See the
+question answering, approval, dispatch, focus/selection change or implicit speech consent. See the
 [conversation notice guide](../docs/conversation-notices.md) for exact native inspection.
 
 After reviewing one exact ordinary conversation question notice, the deliberate native
@@ -125,6 +126,23 @@ answer can continue the original task. Independent source/egress approvals remai
 Busy editor/dictation/decision precedence and stale/withdrawn-source refusal are preserved;
 the waiting conversation does not block bounded work/notice refresh
 ([complete-flow regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.NoticeResponse.cs)).
+## Run-consented conversation completion speech
+
+The approved outcome is one content-free success statement during an explicitly active voice conversation, without changing its target, opening capture or answering a prompt ([delivery policy](#delivery-policy)). This is host-owned because only the host can join durable task authority, native consent, source revalidation and the exclusive speech lifecycle.
+
+The already-open native Sessions surface discloses a separate **Enable completion voice notices for this run** choice and immediate **Off**. It is not inferred from VoiceOnly, model text, listening consent or saved preferences. Enabling burns already-current completion sources under their owning lease before applying consent; it cannot expose an Off backlog ([native choice](../src/Kora/SessionsViewModel.CompletionNotices.cs)). No opt-in is serialized.
+
+Eligibility projects the existing successful explicit native Enable listening operation for this run, not startup or unlock-restored readiness. A foreground active conversation must match the consented session/generation. If only restored readiness exists, explicitly disable then enable listening before reviewing the separate notice choice; unavailable voice/runtime remains honestly unavailable ([host projection](../src/Kora.Application/ViewModels/MainViewModel.CompletionNotices.cs)).
+
+Only a first visual delivery of `ConversationTask/Completed` from `AuthorityLocalEventSource` is considered. Its existing durable Presented receipt and Work fatigue charge remain visual truth; no speech delivery is inferred from enqueue. All observed success IDs are burned for speech during this run, including Off, unavailable, deferred or overlapping observations. Capacity holds closed; there is no speech backlog or additional fatigue budget ([operation owner](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs)).
+
+The only spoken text is **Your conversation task is complete.** No task title, private body, answer summary, model wording, failure, clarification, maintenance or reminder is spoken. The source/session/task/generation/revisions/original expiry and native/private epochs are re-read under broker-before-source locks after the platform output queue and immediately before the normal central call gate starts synthesis ([start admission](../src/Kora.Application/Interaction/LocalEventBroker.CompletionSpeech.cs)).
+
+Protected Active/Suspected/Unknown call state always suppresses this routine path, even if ordinary requested speech settings permit speech. A pending or confirmed [exact requested call-speech exception](Call_Aware_Speech.md) is never used or consumed by a completion notice. Call revision changes remove the run choice, including calls between passive observations. Quiet revokes queued/active output before its commit wait. Input, prompt, source, selection, privacy, ownership and endpoint drift suppress without replay ([host fences](../src/Kora.Application/ViewModels/MainViewModel.CompletionNotices.cs)).
+
+Requested/terminal configuration and execution audits carry only host correlation and fixed identifiers. Completed speech requires the owned platform task to join and report no active output; cancellation alone is not physical-stop evidence. Unconfirmed release remains unavailable. Disposal/private shutdown joins the exact operation ([terminal owner](../src/Kora.Application/Interaction/ConversationCompletionVoiceNotices.cs), [serialized output](../src/Kora.Windows/Audio/WindowsTextToSpeechService.cs)).
+
+This adds no scheduler, detector enablement, microphone acquisition, foreground switch, automatic question/listening or protected-call one-shot token. Other proactive speech remains unavailable; deterministic regressions do not qualify live providers, devices, acoustics or an enabled production profile ([I/E/Q policy](Implementation_Roadmap.md#delivery-and-qualification-dependency-policy)).
 
 ## Native content-free loaded-event filters
 
@@ -154,7 +172,7 @@ Snapshots carry quiet and control generations; old render callbacks cannot publi
 An admitted quiet request revokes in-flight observations and exact actions before waiting for the broker/source lease, preventing late routine presentation or fatigue consumption by those callbacks.
 Status separately counts all omitted rows, routine rows hidden by quiet and current sources suppressed without presentation. Other sessions are not ambiently observed; this remains the bounded already-open native surface, not a reminder scheduler.
 
-Scheduled quiet hours, multi-session reminders, proactive speech, broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
+Scheduled quiet hours, multi-session reminders, proactive speech beyond [run-consented conversation completion](#run-consented-conversation-completion-speech), broad model/typed quiet settings and installed accessibility/full R18/RC acceptance remain unavailable.
 Existing exact event commands remain unchanged for Failure/Attention; exact routine defer cannot revive a quiet-suppressed source. All R02 runtime/native/containment/speech/evidence procedures remain unique historical evidence and are retained, not rerun or promoted by deterministic quiet tests.
 
 ## Product Behaviour

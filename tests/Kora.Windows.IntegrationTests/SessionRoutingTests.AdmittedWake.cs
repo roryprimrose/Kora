@@ -291,6 +291,7 @@ public sealed partial class SessionRoutingTests
     [InlineData("replacement")]
     [InlineData("hide")]
     [InlineData("unrelated-focus")]
+    [InlineData("reviewed-command-focus")]
     public async Task NativeAdviceFocusLeaseDoesNotRenewChangedSourceOrAcceptLateConsent(string change)
     {
         await HeadlessSession.RunAsync(async () =>
@@ -311,7 +312,7 @@ public sealed partial class SessionRoutingTests
             advice.IsVisible.Should().BeTrue();
             f.Composition.Ui.Window!.IsActive.Should().BeFalse();
             var late = advice.GetVisualDescendants().OfType<Button>().Single(item => item.Name is "RoutingAdviceAllow");
-            var other = new Window();
+            var other = change is "reviewed-command-focus" ? new ResponseWindow(native.Main) : new Window();
             try
             {
                 if (change is "composer") { native.Main.CommandText = "replacement input"; }
@@ -319,7 +320,8 @@ public sealed partial class SessionRoutingTests
                 if (change is "replacement")
                 { native.Main.PublishForegroundConversationTarget(new(f.Composition.Ui.Second, static () => true)); }
                 if (change is "hide") { f.Composition.Ui.Window.Hide(); }
-                if (change is "unrelated-focus") { other.Show(); await ActivateRoutingWindow(other, advice); }
+                if (change is "unrelated-focus" or "reviewed-command-focus")
+                { other.Show(); await ActivateRoutingWindow(other, advice); }
                 Dispatcher.UIThread.RunJobs();
                 late.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
                 await f.Voice.Completion;
@@ -327,6 +329,9 @@ public sealed partial class SessionRoutingTests
                 f.Stage.Opens.Should().Be(1);
                 advice.Content.Should().BeNull();
                 f.Voice.IsCaptureQuiescent.Should().BeTrue();
+                native.Main.HasReviewedVoiceCommand.Should().BeFalse();
+                native.Main.ReviewedVoiceCommandText.Should().BeEmpty();
+                native.Voice.StartCalls.Should().Be(0);
                 f.Composition.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
                 foreach (var entry in new[] { f.Composition.Ui.First, f.Composition.Ui.Second })
                 {
@@ -429,6 +434,7 @@ public sealed partial class SessionRoutingTests
             Composition.Ui.AutoAllowAdvice = false;
             await Composition.Initialize(expanded, voiceRecognition: Voice, speechInputConfiguration: configuration);
             var main = Composition.Ui.Native.Main;
+            main.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
             await main.SetAssistantNameAsync("Nova");
             Composition.Ui.Window!.ShowSessions(expanded);
             await ActivateRoutingWindow(Composition.Ui.Window);

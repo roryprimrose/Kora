@@ -23,6 +23,68 @@ namespace Kora.Application.UnitTests.ViewModels;
 public sealed partial class MainViewModelTests
 {
     [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReviewedCommandCannotStealWakeCaptureOrItsPendingPhysicalJoin(bool duringJoin)
+    {
+        var stage = new HandsFreeStage();
+        HandsFreeVoiceRecognitionService? decorated = null;
+        var f = CreateHandsFreeFixture(stage, value => decorated = value);
+        await using var voice = decorated!;
+        f.NamePreferences.Name = "Nova";
+        f.ViewModel.BindCallOwnershipGate(static () => true);
+        f.ViewModel.BindReviewedVoiceCommand(NullLogger<ReviewedVoiceCommandCapture>.Instance, TimeProvider.System);
+        await using var conversation = new WakeConversation(f, () => voice.IsCaptureQuiescent);
+        await f.ViewModel.InitializeAsync();
+        var first = await stage.NextAsync();
+        try
+        {
+            first.HoldClose = duringJoin;
+            first.Wake.SetResult(new(first.Binding.Generation, 12, true));
+            await first.CaptureStarted.Task.WaitAsync(TestContext.Current.CancellationToken);
+            if (duringJoin)
+            {
+                first.Result.SetResult(new("Nova explains these plans", 1, first.Binding.Generation));
+                await first.Closing.Task.WaitAsync(TestContext.Current.CancellationToken);
+            }
+            first.Invalidated.Should().Be(duringJoin, "normal closure invalidates PCM before its physical join");
+            await f.ViewModel.BeginReviewedVoiceCommandAsync(static () => true);
+            f.ViewModel.IsReviewedVoiceCommandActive.Should().BeFalse();
+            f.ViewModel.HasReviewedVoiceCommand.Should().BeFalse();
+            f.ViewModel.ReviewedVoiceCommandText.Should().BeEmpty();
+            await f.ViewModel.CancelReviewedVoiceCommandAsync();
+            first.Invalidated.Should().Be(duringJoin, "reviewed-command refusal cannot alter the wake owner's cleanup state");
+            voice.IsCaptureQuiescent.Should().BeFalse();
+            f.Voice.StartCalls.Should().Be(0);
+            conversation.RouteCalls.Should().Be(0);
+            conversation.Store.RequestRetentions.Should().Be(0);
+            conversation.Adapter.Calls.Should().Be(0);
+            f.Audit.Events.Should().NotContain(item => item.ActionId == "model.turn");
+
+            first.Result.TrySetResult(new("Nova explains these plans", 1, first.Binding.Generation));
+            first.ReleaseClose.TrySetResult();
+            await conversation.Adapter.Entered.Task.WaitAsync(TestContext.Current.CancellationToken);
+            first.IsQuiescent.Should().BeTrue();
+            conversation.Adapter.Body.Should().Be("Nova explains these plans");
+            conversation.Adapter.Request!.Origin.Should().Be(RequestOrigin.ActivatedVoice);
+            conversation.Adapter.Release.TrySetResult();
+            await stage.NextAsync();
+            conversation.RouteCalls.Should().Be(1);
+            conversation.Store.RequestMessage!.AssistantResponse!.Body.Should().Be(WakeAnswerAdapter.Answer);
+            f.ViewModel.HasReviewedVoiceCommand.Should().BeFalse();
+            f.Reasoner.Requests.Should().BeEmpty();
+        }
+        finally
+        {
+            first.ReleaseClose.TrySetResult();
+            conversation.Adapter.Release.TrySetResult();
+            await voice.StopAsync(TestContext.Current.CancellationToken);
+            await voice.Completion;
+            await f.ViewModel.DisposeAsync();
+        }
+    }
+
+    [Theory]
     [InlineData("compare these plans")]
     [InlineData("Nova explains this design")]
     public async Task AdmittedNondefaultWakeCompletesNormalConversationWithUnmodifiedVoiceBodyAfterPhysicalJoin(string body)

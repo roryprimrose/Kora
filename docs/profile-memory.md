@@ -41,6 +41,14 @@ The [native copy review](../src/Kora/MemoryProfile/SessionsViewModel.SessionMemo
 5. Select **Accept complete copy review**, then separately **Admit NEW profile memory**, or **Cancel scope copy**. Acceptance alone saves no value.
 6. Check **Device profile**, explicitly **List**, select the new row and **Inspect**. The new record can be reopened after restart. Its later one-shot local use still requires the separate review and confirmation below.
 
+Keyboard activation of **Keep**, **Propose** or **Accept** returns focus to the
+beginning of the complete private review, never to an affirmative decision.
+Admission, cancellation and held/error outcomes focus the adjacent read-only
+scope-copy status. A stale source yields the held/error outcome, not its old
+review. Changed selection, lost private control or a hidden or inactive original
+surface prevents a late focus handoff. Focus does not
+accept, save, list or inspect a different memory; readback still requires step 6.
+
 The [source-bound service](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) re-reads the exact original before proposing, reviewing and admitting; the [canonical transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares it again at the actual destination operation.
 Changed, edited, disabled, forgotten, deleted or replaced sources cannot authorize the pending copy. Selection/scope changes, privacy/control loss, cancellation, restart and the sixty-second review expiry retire pending work. Start a fresh review rather than retrying a held result.
 

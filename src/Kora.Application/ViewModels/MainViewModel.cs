@@ -283,6 +283,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         SpeechComponentSetupService? speechComponentSetup = null,
         ConversationalReplyConfigurationService? conversationalReplies = null,
         CommunicationActivityConfigurationService? communicationActivityConfiguration = null,
+        ConversationExecutionConfigurationService? conversationExecution = null,
         LogonStartupConfigurationService? logonStartupConfiguration = null)
     {
         this.commandCatalog = commandCatalog;
@@ -441,6 +442,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
 
         InitializeSpeechInputConfiguration(speechInputConfiguration, execute => CreateCommand(execute));
         InitializeConversationalReplies(conversationalReplies, execute => CreateCommand(execute));
+        InitializeConversationExecution(conversationExecution, execute => CreateCommand(execute));
         InitializeLogonStartup(logonStartupConfiguration, execute => CreateCommand(execute));
         ResetThemeCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.Theme));
         ResetReaderTextScaleCommand = CreateCommand(() => ResetAppearanceOptionAsync(AppearanceOption.ReaderTextScale));
@@ -2050,7 +2052,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     public bool IsPushToTalkVisible => !IsVoiceEnabled;
 
     public bool CanPushToTalk =>
-        Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
+        IsReviewedVoiceCaptureReleased && Volatile.Read(ref listeningStopRequests) == 0 && (listeningStop.CanRecover || CanRetireWakeForManualInput)
         && IsVoiceReadinessEligible(privacyObservation.Current)
         && IsHostInputEligible
         && microphoneCatalogCurrent
@@ -3854,6 +3856,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             if (questionVoiceReplies is not null) { await questionVoiceReplies.Quiescence; }
             await JoinCustomizationClarification();
             if (composerDictation is not null) { await composerDictation.Quiescence; }
+            if (reviewedVoiceCommand is not null) { await reviewedVoiceCommand.Quiescence; }
 #pragma warning restore VSTHRD003
             activeSpokenText = null;
             IsSpeaking = false;
@@ -4053,12 +4056,13 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
     private async void OnTranscriptRecognized(object? sender, VoiceTranscriptEventArgs eventArgs) =>
         await DispatchRecognizedVoiceTranscriptAsync(eventArgs);
 
-    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null)
+    private async Task DispatchRecognizedVoiceTranscriptAsync(VoiceTranscriptEventArgs eventArgs, HostRequest? originalRequest = null,
+        Func<bool>? reviewedEligibility = null)
     {
         ActivityLink[] causes = HostActivity.Current?.Activity is { } cause ? [new(cause.Context)] : [];
         using var activity = HostActivity.BeginRoot(originalRequest ?? HostRequest.Create(RequestOrigin.ActivatedVoice),
             HostActivityLayer.Application, HostOperation.Request, causes);
-        if (eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != Interlocked.Read(ref acceptedTranscriptGeneration)
             || eventArgs.Generation != voiceRecognition.Generation)
         {
             ApplicationLog.Debug(logger, "Discarded an unactivated or retired voice callback before UI dispatch");
@@ -4088,7 +4092,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             var speechInput = Volatile.Read(ref capturedSpeechInterruption);
             await uiDispatcher.InvokeAsync(
                 () => HandleRecognizedVoiceTranscriptAsync(eventArgs, manualInput, responseReadInput, reviewEligibility,
-                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput));
+                    newRequestEligibility, currentResponseInput, questionTarget, editorTarget, foregroundTarget, speechInput, reviewedEligibility));
             if (originalRequest is null && voiceRecognition is HandsFreeVoiceRecognitionService handsFree)
             {
                 await handsFree.ResumeAfterActivatedInputAsync();
@@ -4138,9 +4142,9 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         VoiceTranscriptEventArgs eventArgs, ManualCallInput manualInput, ResponseReadInput responseReadInput,
         Func<bool> reviewEligibility, Func<bool> newRequestEligibility, CurrentResponseInput currentResponseInput,
         PendingQuestionCapture questionTarget, Kora.Application.Definitions.CustomizationVoiceTarget? editorTarget,
-        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput)
+        ForegroundConversationTarget? foregroundTarget, SpeechInterruptionInput? speechInput, Func<bool>? reviewedEligibility = null)
     {
-        if (eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || lifecycleAdmissionClosed
             || !sessionController.IsCurrentSessionUnlocked())
         {
             ApplicationLog.Debug(logger, "Rejected an unactivated or stale voice transcript");
@@ -4205,7 +4209,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             IsSpeaking = false;
         }
 
-        if (eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
+        if (reviewedEligibility?.Invoke() == false || eventArgs.Generation != voiceRecognition.Generation || !IsHostInputEligible)
         {
             ApplicationLog.Debug(logger, "Discarded voice input retired while waiting for output shutdown");
             ReportRetiredSkillReview(eventArgs.Transcript);
@@ -4273,6 +4277,14 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             ReportHostInteractionFailure("Conversation opening unavailable while a question, approval, review, editor or dictation owns input. Nothing was answered or submitted.");
             return;
         }
+        var addressedWorkCommand = SessionCommand.Parse(spokenText, AssistantName);
+        if (addressedWorkCommand?.IsRemainingWork != true) { remainingWorkCommands?.Retire(); }
+        if ((addressedWorkCommand?.IsRemainingWork == true || string.Equals(addressedWorkCommand?.Error, SessionCommand.RemainingWorkSyntax, StringComparison.Ordinal))
+            && (!CanAnswerRemainingWork || editorTarget is not null))
+        {
+            Transcript = "Remaining-work answer unavailable while a question, approval, editor or dictation owns input. Its exact decision remains unchanged.";
+            return;
+        }
         var selectedAnswerCommand = ResponseReadCommand.Parse(spokenText, AssistantName) is { SelectedAnswer: true } selectedRead
             ? selectedRead : null;
         var displacedAnswerDecision = initiator == SecurityAuditInitiator.TypedCommand
@@ -4296,7 +4308,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
         }
         Interlocked.Increment(ref workspaceSurfaceInputRevision);
         Interlocked.Increment(ref evidenceTraceInputRevision);
-        var sessionCommand = SessionCommand.Parse(spokenText, AssistantName);
+        var sessionCommand = addressedWorkCommand;
         var newRequestCommand = NewRequestOpenCommand.Parse(spokenText, AssistantName);
         var cataloguePreparation = manualInput?.CataloguePreparation
             ?? AttachmentCataloguePreparationCommand.Parse(spokenText, AssistantName);
@@ -4531,6 +4543,16 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
                 return;
             }
             await ExecuteSpeechTextCommandAsync(speechTextCommand, initiator);
+            return;
+        }
+        if (ConversationExecutionCommand.Parse(spokenText, AssistantName) is { } executionCommand)
+        {
+            if (!isAssistantNameAvailable && commandRouter.IsActivationPrefixed(spokenText, AssistantName))
+            {
+                Transcript = "Assistant prefix routing is unavailable; no conversation execution setting was changed.";
+                return;
+            }
+            await ExecuteConversationExecutionCommandAsync(executionCommand, initiator);
             return;
         }
         if (ResponseModeCommand.Parse(spokenText, AssistantName) is { } responseModeCommand)
@@ -6612,6 +6634,7 @@ public sealed partial class MainViewModel : ObservableObject, IDisposable, IAsyn
             .Concat(AuditRetentionCommand.FixedPhrases)
             .Concat(ManualCallCommand.FixedPhrases)
             .Concat(ResponseModeCommand.FixedPhrases)
+            .Concat(ConversationExecutionCommand.FixedPhrases)
             .Concat(ResponseWindowCommand.FixedPhrases)
             .Concat(ProviderModeCommand.FixedPhrases)
             .Concat(ProviderProfileCommand.FixedPhrases)

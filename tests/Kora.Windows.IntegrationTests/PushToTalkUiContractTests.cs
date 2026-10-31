@@ -127,6 +127,76 @@ public sealed class PushToTalkUiContractTests
         });
     }
 
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task ReviewedCommandNativeControlsCorrectBeforeNormalDispatchOrClearOnHide(bool cancel)
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            using var fixture = new NativeUxFixtureSession(Path.GetTempPath(), syntheticVoice: true);
+            await fixture.InitializeAsync();
+            fixture.Main.BindVoiceOwnershipGate(static () => true);
+            fixture.Main.BindReviewedVoiceCommand(
+                Microsoft.Extensions.Logging.Abstractions.NullLogger<Kora.Application.Voice.ReviewedVoiceCommandCapture>.Instance,
+                TimeProvider.System);
+            await fixture.Main.SetVoiceConsentAsync(true);
+            var response = new ResponseWindow(fixture.Main);
+            try
+            {
+                response.Show();
+                response.Activate();
+                response.UpdateLayout();
+                response.FindControl<Button>("BeginReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await fixture.Voice.Started.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                fixture.Main.IsReviewedVoiceCommandActive.Should().BeTrue(fixture.Main.ReviewedVoiceCommandStatus);
+                var previous = fixture.Main.ResponseTitle;
+                fixture.Voice.PublishTranscript("Kora, stop listening");
+                fixture.Main.ResponseTitle.Should().Be(previous);
+                response.FindControl<Button>("FinishReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                await Avalonia.Threading.Dispatcher.UIThread.InvokeAsync(() => { });
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                response.UpdateLayout();
+                fixture.Main.HasReviewedVoiceCommand.Should().BeTrue(fixture.Main.ReviewedVoiceCommandStatus);
+                var input = response.FindControl<TextBox>("ReviewedVoiceCommandInput")!;
+                ControlAutomationPeer.CreatePeerForElement(input)!.GetName()
+                    .Should().Be("Exact command transcript; edit without executing");
+                input.Text.Should().Be("Kora, stop listening");
+                input.Text = "Kora, what version are you running";
+                Avalonia.Threading.Dispatcher.UIThread.RunJobs();
+                fixture.Main.ReviewedVoiceCommandText.Should().Be(input.Text);
+                fixture.Main.ResponseTitle.Should().Be(previous);
+                fixture.Main.IsVoiceEnabled.Should().BeTrue();
+                if (cancel)
+                {
+                    response.Hide();
+                    await fixture.Main.CancelReviewedVoiceCommandAsync();
+                    fixture.Main.ResponseTitle.Should().Be(previous);
+                }
+                else
+                {
+                    var completed = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+                    fixture.Main.PropertyChanged += (_, args) =>
+                    {
+                        if (string.Equals(args.PropertyName, nameof(fixture.Main.IsReviewedVoiceCommandActive), StringComparison.Ordinal)
+                            && !fixture.Main.IsReviewedVoiceCommandActive
+                            && string.Equals(fixture.Main.ResponseTitle, "Kora version", StringComparison.Ordinal))
+                        { completed.TrySetResult(); }
+                    };
+                    response.FindControl<Button>("ConfirmReviewedVoiceCommand")!.RaiseEvent(new RoutedEventArgs(Button.ClickEvent));
+                    await completed.Task.WaitAsync(TimeSpan.FromSeconds(20), TestContext.Current.CancellationToken);
+                    fixture.Main.ResponseTitle.Should().Be("Kora version");
+                }
+                await fixture.Main.CancelReviewedVoiceCommandAsync();
+                await fixture.Main.ResponseOutputUpdate;
+                await fixture.Main.PreferenceUpdate;
+                fixture.Main.ReviewedVoiceCommandText.Should().BeEmpty();
+                fixture.Voice.IsCaptureQuiescent.Should().BeTrue();
+            }
+            finally { response.Close(); }
+        });
+    }
+
     private static string SourceRoot()
     {
         var directory = new DirectoryInfo(AppContext.BaseDirectory);

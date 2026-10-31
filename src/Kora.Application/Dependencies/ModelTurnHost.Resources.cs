@@ -46,9 +46,13 @@ public sealed partial class ModelTurnHost
     internal bool IsTurnQuiescent(ModelTurn turn) =>
         turn.Owner == owner && turn.ResourceLease is { Joined: true } lease && resources.IsCurrent(lease);
 
-    internal bool ConversationResourcesCurrent(ModelTurn turn) =>
-        turn.Owner == owner && Eligible(turn.ControlRevision)
+    internal bool ConversationResourcesCurrent(ModelTurn turn)
+    {
+        if (!turn.ResourceDispatched && conversationExecution is not null && conversationExecution.Capture() is null)
+        { return false; }
+        return turn.Owner == owner && Eligible(turn.ControlRevision)
             && turn.ResourceLease is { Joined: false } lease && resources.IsCurrent(lease);
+    }
 
     internal async Task JoinConversationResourcesAsync(ModelTurn turn, CancellationToken token)
     {

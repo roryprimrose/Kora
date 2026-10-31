@@ -114,7 +114,10 @@ public sealed partial class SessionsConversationTests
                 var selected = model.SelectedSessionRecord;
                 owner.Activate();
                 model.CanRefreshWork.Should().BeTrue("the original task's wait must not block notice observation");
+                var navigation = model.CaptureNavigationEligibility();
                 await model.RefreshWorkAsync();
+                model.LocalEvents.Should().ContainSingle(model.LocalEventStatus + " | " + model.WorkStatus
+                    + " | " + model.ConversationStatus + " | navigation current: " + navigation());
                 var notice = model.LocalEvents.Single();
                 notice.Event.Source.Should().Be(LocalEventSource.ConversationQuestion);
                 notice.Event.SubjectId.Should().Be(canonical.Key.QuestionId.Value);

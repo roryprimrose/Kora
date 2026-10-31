@@ -228,6 +228,9 @@ internal sealed partial class SessionsViewModel
     {
         var target = SelectedLocalEvent ?? throw new InvalidOperationException("Select an exact current host event.");
         if (!LocalEvents.Contains(target)) { throw new InvalidOperationException("Select an exact visible host event under the current filters."); }
+        Detail = string.Empty;
+        eventDetailPresented = true;
+        OnPropertyChanged(nameof(Detail));
         var epoch = selectionEpoch;
         var filterEpoch = eventFilterEpoch;
         var filterDigest = LocalEventFilterDigest;

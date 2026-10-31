@@ -150,6 +150,11 @@ Normal Sessions event browsing retains category and reason choices only ([native
 
 The internal broker's typed query/state contracts, source admission, finite pages, suppression and no-replay boundaries remain. Filtering an observed notice does not answer its question, change queue eligibility, dispatch work, grant consent or renew a deadline. Diagnostic Evidence retains its separate technical inspection role.
 
+Failure, cancellation or stale completion of an exact native notice action withdraws
+its loaded snapshot as well as selection and notice detail. Recovery requires a fresh
+selected-work observation and a new explicit selection; it does not replay delivery,
+answer a question or change suppression, history, audit or work authority.
+
 ## Delivered run-only routine notice quiet mode - 2026-10-10
 
 In an already-open **Sessions** selected work surface, **Quiet routine notices for this run**, **Turn routine quiet off**, and **Reset routine quiet to Off** control one combined Work/Maintenance choice. Default is Off on every process start; On lasts until explicitly cleared/reset or Kora restarts. No quiet preference, timer, scheduling, network check or consent is saved.

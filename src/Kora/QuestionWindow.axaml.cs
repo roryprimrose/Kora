@@ -135,6 +135,22 @@ public sealed partial class QuestionWindow : Window
         Required<Button>("AnswerByVoice").Click += async (_, _) => await RunInteractionAsync(() => state.AnswerByVoiceAsync());
         Required<Button>("HearThenAnswer").Click += async (_, _) => await RunInteractionAsync(() => state.AnswerByVoiceAsync(afterPlayback: true));
         Required<Button>("CancelReply").Click += (_, _) => state.StopVoiceReply();
+        if (state.ClipboardAnswer is { } clipboard)
+        {
+            clipboard.BindWindow(this);
+            Required<Button>("UseClipboardAnswer").Click += async (_, _) => await RunInteractionAsync(clipboard.CaptureAsync);
+            Required<Button>("AcceptClipboardDraft").Click += async (_, _) => await RunInteractionAsync(clipboard.AcceptAsync);
+            Required<Button>("CancelClipboardAnswer").Click += (_, _) => clipboard.Clear();
+            Required<CheckBox>("ReplaceManualDraft").IsCheckedChanged += (_, _) =>
+            {
+                if (!refreshing) { clipboard.AcknowledgeReplacement(Required<CheckBox>("ReplaceManualDraft").IsChecked == true); }
+            };
+        }
+        var clipboardReview = Required<TextBox>("ClipboardAnswerReview");
+        clipboardReview.CopyingToClipboard += BlockClipboard;
+        clipboardReview.CuttingToClipboard += BlockClipboard;
+        clipboardReview.PastingFromClipboard += BlockClipboard;
+        clipboardReview.AddHandler(ContextRequestedEvent, BlockClipboard, RoutingStrategies.Tunnel);
         state.BindVisibleVoicePresenter(() => Volatile.Read(ref foregroundAdmission) == 1);
         Deactivated += (_, _) =>
         {
@@ -195,6 +211,7 @@ public sealed partial class QuestionWindow : Window
             refreshing = true;
             input.Text = string.Empty;
             review.Text = string.Empty;
+            clipboardReview.Text = string.Empty;
             explanation.Text = string.Empty;
             panel.Children.Clear();
             choices.Clear();
@@ -275,7 +292,11 @@ public sealed partial class QuestionWindow : Window
             : new(choices.Where(pair => pair.Value.IsChecked == true).Select(pair => pair.Key)));
     }
 
-    private void OnExpiry(object? sender, EventArgs args) => state.RefreshEligibility();
+    private void OnExpiry(object? sender, EventArgs args)
+    {
+        state.ClipboardAnswer?.Refresh();
+        state.RefreshEligibility();
+    }
     private void OnStateChanged(object? sender, PropertyChangedEventArgs args) => Refresh();
 
     private void Refresh()
@@ -329,6 +350,21 @@ public sealed partial class QuestionWindow : Window
         Required<Button>("AnswerByVoice").IsEnabled = state.CanAnswerByVoice;
         Required<Button>("HearThenAnswer").IsEnabled = state.CanAnswerByVoice;
         Required<Button>("CancelReply").IsEnabled = state.IsVoiceReplyActive;
+        var clipboard = state.ClipboardAnswer;
+        var clipboardText = clipboard?.ReviewText ?? string.Empty;
+        var clipboardReview = Required<TextBox>("ClipboardAnswerReview");
+        clipboardReview.Text = clipboardText;
+        clipboardReview.IsVisible = clipboardText.Length != 0;
+        review.IsVisible = clipboardText.Length == 0;
+        if (clipboardText.Length != 0) { clipboard!.CompletePresentation(clipboardReview.Text ?? string.Empty); }
+        Required<Button>("UseClipboardAnswer").IsVisible = clipboard is not null;
+        Required<Button>("UseClipboardAnswer").IsEnabled = clipboard?.CanCapture == true;
+        Required<Button>("AcceptClipboardDraft").IsVisible = clipboardText.Length != 0 && clipboard?.HasAccepted == false;
+        Required<Button>("AcceptClipboardDraft").IsEnabled = clipboard?.CanAccept == true;
+        Required<Button>("CancelClipboardAnswer").IsVisible = clipboard?.IsActive == true;
+        var replacement = Required<CheckBox>("ReplaceManualDraft");
+        replacement.IsVisible = clipboardText.Length != 0 && clipboard?.NeedsReplacement == true && !clipboard.HasAccepted;
+        if (!replacement.IsVisible) { replacement.IsChecked = false; }
         Required<TextBlock>("VoiceReplyStatus").Text = state.VoiceReplyStatus;
         Required<TextBlock>("QuestionStatus").Text = $"Revision {state.Key.Revision.Value}: {state.Status}";
         if (!string.Equals(review.Text, state.ReviewText, StringComparison.Ordinal))

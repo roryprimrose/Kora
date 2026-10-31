@@ -30,6 +30,77 @@ public sealed class FolderAnswerTests : IDisposable
         HostActivity.BeginRoot(HostRequest.Create(RequestOrigin.LocalUi), HostActivityLayer.Application, HostOperation.Request);
 
     [Fact]
+    public async Task RetrievalAloneDoesNotAuthorizeModelAndOnlyChosenWholeEvidenceReachesPolicyAndModel()
+    {
+        using var root = Root();
+        await using var fixture = new Fixture();
+        await fixture.Capture();
+        var raw = (await fixture.Action.PrepareAsync(fixture.Source.Reference, "alpha?", fixture.Target(), () => true, Token)).Review!;
+        (await fixture.Action.AnswerAsync(raw, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        fixture.PolicyCalls.Should().Be(0);
+        fixture.Admissions.Should().Be(0);
+        fixture.ModelCalls.Should().Be(0);
+        var selected = raw.SelectEvidence([raw.Search.Citations[1]]);
+        var result = await fixture.Action.AnswerAsync(selected, () => true, Token);
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Succeeded);
+        fixture.PolicySources.Should().Equal(fixture.Source.Files[1]);
+        fixture.Context!.Evidence.Should().ContainSingle();
+        fixture.Context.UserRequest.Should().Be(raw.Question);
+        fixture.Context.ExpiresAt.Should().Be(raw.ExpiresAt);
+        result.Claims.Single().Citations.Single().Should().BeSameAs(raw.Search.Citations[1]);
+        fixture.Reads.Should().Be(2);
+        fixture.Inspections.Should().Be(1);
+    }
+
+    [Theory]
+    [InlineData(false)]
+    [InlineData(true)]
+    public async Task EmptyMalformedOrExpiredSelectionNeverCallsPolicyOrModel(bool expired)
+    {
+        using var root = Root();
+        await using var fixture = new Fixture();
+        await fixture.Capture();
+        var selected = (await fixture.Prepare()).Review!;
+        if (expired) { fixture.Clock.Now = selected.ExpiresAt; }
+        else
+        {
+            var choose = () => selected.SelectEvidence([]);
+            choose.Should().Throw<InvalidDataException>();
+        }
+        (await fixture.Action.AnswerAsync(selected, () => true, Token)).Outcome.Should().Be(LocalFileAnswerOutcome.Denied);
+        fixture.PolicyCalls.Should().Be(0);
+        fixture.ModelCalls.Should().Be(0);
+        fixture.Admissions.Should().Be(0);
+    }
+
+    [Theory]
+    [InlineData("selection")]
+    [InlineData("retire")]
+    [InlineData("expiry")]
+    public async Task ChangedSelectionOrOriginalDeadlineSuppressesLateOutputAndJoinsTheSameLease(string change)
+    {
+        using var root = Root();
+        await using var fixture = new Fixture { DelayModel = true, DelayDispose = true };
+        await fixture.Capture();
+        var review = (await fixture.Prepare()).Review!;
+        var work = fixture.Action.AnswerAsync(review, () => true, Token);
+        await fixture.ModelEntered.Task.WaitAsync(Token);
+        if (string.Equals(change, "selection", StringComparison.Ordinal)) { review.InvalidateSelection(); }
+        else if (string.Equals(change, "expiry", StringComparison.Ordinal)) { fixture.Clock.Now = review.ExpiresAt; }
+        else { review.Invalidate(); }
+        fixture.ModelRelease.SetResult();
+        await fixture.DisposeEntered.Task.WaitAsync(Token);
+        work.IsCompleted.Should().BeFalse();
+        fixture.Preview.IsQuiescent.Should().BeFalse();
+        fixture.DisposeRelease.SetResult();
+        var result = await work;
+        result.Outcome.Should().Be(LocalFileAnswerOutcome.Stale);
+        result.Claims.Should().BeEmpty();
+        fixture.Disposals.Should().Be(1);
+        fixture.Preview.IsQuiescent.Should().BeTrue();
+    }
+
+    [Fact]
     public async Task ReviewDoesNotAdmitModelAndSeparateConfirmationReturnsGenuineCrossFileCitationsWithoutReread()
     {
         using var root = Root();
@@ -134,7 +205,8 @@ public sealed class FolderAnswerTests : IDisposable
         await using var fixture = new Fixture();
         await fixture.Capture();
         var target = fixture.Target();
-        var review = (await fixture.Action.PrepareAsync(fixture.Source.Reference, "alpha?", target, () => true, Token)).Review!;
+        var raw = (await fixture.Action.PrepareAsync(fixture.Source.Reference, "alpha?", target, () => true, Token)).Review!;
+        var review = raw.SelectEvidence(raw.Search.Citations);
         var input = root.Request;
         var request = change switch
         {
@@ -355,6 +427,7 @@ public sealed class FolderAnswerTests : IDisposable
         ILocalFileRetrieval, ISecurityAuditLog, ILogger<LocalFolderAnswer>, IAsyncDisposable
     {
         internal LocalFilePreview Preview { get; }
+        internal Clock Clock { get; } = new();
         internal LocalFolderAnswer Action { get; }
         internal LocalFolderRevision Source { get; private set; } = null!;
         internal int Reads { get; private set; }
@@ -388,13 +461,16 @@ public sealed class FolderAnswerTests : IDisposable
 
         internal Fixture()
         {
-            Preview = new(this, this, TimeProvider.System, NullLogger<LocalFilePreview>.Instance);
-            Action = new(Preview, this, this, this, this, TimeProvider.System, this);
+            Preview = new(this, this, Clock, NullLogger<LocalFilePreview>.Instance);
+            Action = new(Preview, this, this, this, this, Clock, this);
         }
         internal LocalContextSessionTarget Target() =>
             LocalContextSessionTarget.ReviewedFresh(HostActivity.RequireCurrent().Request, HostRequest.Create(RequestOrigin.LocalUi));
-        internal Task<FolderAnswerPreparation> Prepare(string question = "alpha?") =>
-            Action.PrepareAsync(Source.Reference, question, Target(), () => true, Token);
+        internal async Task<FolderAnswerPreparation> Prepare(string question = "alpha?")
+        {
+            var prepared = await Action.PrepareAsync(Source.Reference, question, Target(), () => true, Token);
+            return prepared.Review is { } review ? prepared with { Review = review.SelectEvidence(review.Search.Citations) } : prepared;
+        }
         internal async Task Capture()
         {
             (await Preview.SelectFolderAsync(this, () => true, Token)).Should().Be(LocalFileOutcome.Reviewed);
@@ -524,5 +600,11 @@ public sealed class FolderAnswerTests : IDisposable
         public bool IsEnabled(LogLevel logLevel) => LoggingEnabled;
         public void Log<TState>(LogLevel logLevel, EventId eventId, TState state, Exception? exception, Func<TState, Exception?, string> formatter) =>
             Messages.Add(formatter(state, exception));
+    }
+
+    private sealed class Clock : TimeProvider
+    {
+        internal DateTimeOffset Now { get; set; } = DateTimeOffset.UnixEpoch;
+        public override DateTimeOffset GetUtcNow() => Now;
     }
 }

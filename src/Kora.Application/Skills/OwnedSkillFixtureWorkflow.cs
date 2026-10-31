@@ -81,6 +81,7 @@ public sealed class OwnedSkillFixtureWorkflow(IOwnedDeclarativeSkillStore store,
         }
         catch (OperationCanceledException) { activity.Complete(HostOperationOutcome.Cancelled); throw; }
         catch { activity.Complete(HostOperationOutcome.Failed); throw; }
+        finally { Interlocked.Exchange(ref retired, 1); }
     }
 
     private async Task RequireSource(OwnedDeclarativeSkillDocument draft, OwnedDeclarativeSkillSnapshot? source, CancellationToken token)

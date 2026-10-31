@@ -55,6 +55,9 @@ public sealed class OwnedSkillFixtureTests
     [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":{\"custom\":{\"deep\":true}}}]}")]
     [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"x\"}],\"mockedToolResponse\":{\"tool\":\"WebPageGet\",\"result\":\"fake\"}}")]
     [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"x\"}],\"hooks\":[]}")]
+    [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"x\"}],\"inputs\":{\"topic\":\"bound\"}}")]
+    [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"x\"}],\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}")]
+    [InlineData("{\"input\":\"x\",\"assertions\":[{\"kind\":\"equals\",\"value\":\"x\"}],\"references\":[\"notes.md\"]}")]
     public void ParseDeniesMalformedUnknownExecutableAndCounterfeitToolFields(string source) =>
         ((Action)(() => OwnedSkillFixture.Parse(source))).Should().Throw<InvalidDataException>();
 

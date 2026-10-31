@@ -55,6 +55,13 @@ internal sealed partial class WindowsOwnedDefinitionFileAccess
 
     internal sealed record DefinitionFile(byte[] Bytes, string Identity, DateTime LastWriteTimeUtc);
 
+    internal static SafeFileHandle PinDefinitionFile(string path)
+    {
+        var handle = OpenFile(path, 0x80000000, 1);
+        try { VerifyFile(handle, path); return handle; }
+        catch { handle.Dispose(); throw; }
+    }
+
     internal static DefinitionFile? ReadDefinitionFile(string path, int maximumBytes, CancellationToken token)
     {
         using var handle = CreateFile(path, 0x80000000, 5, nint.Zero, 3, 0x02200000, nint.Zero);

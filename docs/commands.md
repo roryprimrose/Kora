@@ -18,6 +18,16 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## Review one spoken command before dispatch
+
+In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
+
+This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+
+The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).
+
+This is not session-message or owned-editor body dictation, and cannot take over a pending question, approval or another dictation owner. The unconfirmed candidate stays in volatile memory only; cancellation does not submit it. No speech profile is enabled and no model rewrites the transcript ([speech-input contract](../Design/Speech_Input.md#one-explicitly-reviewed-activated-command)).
+
 ## Manage customizations
 
 `show customizations`, `show skills`, `show instructions`, `show agents`,
@@ -53,6 +63,32 @@ existing conversation holds still need fresh Resume. This grants no authority
 over future requests. A changed review needs fresh confirmation, and an unavailable
 native owner reports unavailable. Model suggestions and reusable model grants
 cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
+
+## Pause one ordinary conversation's dispatch
+
+Use the [ordinary dispatch controls](windows-and-tray.md#ordinary-conversation-dispatch-hold)
+for one exact existing Active conversation:
+
+```text
+session dispatch status <session-id>
+session dispatch pause <session-id>
+session dispatch resume <session-id>
+```
+
+Activated voice requires the current assistant-name prefix, for example
+`Kora, session dispatch pause <session-id>`. No model is needed. Native
+**Refresh submitted work > Pause ordinary dispatch / Release manual dispatch
+hold** performs the same operation. A turn already dispatching or running
+continues unchanged; pending requests are neither cancelled nor discarded.
+Original FIFO and source/context authorization expiry remain in force.
+Resume clears only the deliberate manual hold; failure/cancellation recovery
+has its separate **Resume held dispatch** control. Neither is action approval,
+authority renewal, replay, Resume Done or a new conversation.
+The [command owner](../src/Kora.Application/Hosting/SessionRequestCommandService.cs)
+revalidates original input/channel and exact host-owned target before changing
+the lane. Current questions, approvals and editor/dictation handling retain
+precedence. The retired public diagnostic queue controls still refuse
+pause/resume/reorder/settings; this adds no global scheduler or configuration.
 
 ## Invoke one registered agent by readable name
 
@@ -508,7 +544,7 @@ Native **Sessions > Quiet routine notices for this run** affects Work/Maintenanc
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
 Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, proactive speech and multi-session reminders remain unavailable.
+The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance
@@ -2089,6 +2125,10 @@ This is not a harmlessness or complete dependency-inventory certification
 ### Reviewed instruction-only shared skill invocation
 
 Owned packages use the separate exact `owned skill` command family. Additive native v2 authoring uses `owned skill tool web-page-get` (or `owned skill tool none` for unchanged v1), and invocation adds `owned skill url: <absolute-url>` and `owned skill review-tool` before separate enablement/preview/confirmation. These commands do not publish, approve a web action or bypass native confirmations by themselves; see [the complete owned operation](owned-skill-authoring.md#author-and-use-one-host-webpageget-skill).
+
+The separate `owned skill workflow` family supports the [complete native ordered observation operation](owned-skill-authoring.md#author-and-run-an-ordered-host-observation-workflow): `create <id> <version>`, literal `name:`, `description:`, `definition:`, `validate`, `save`, `list`, `reopen <id> <version>`, `targets`, `next-targets`, `target <session-id>`, and literal `request:`.
+Then use `review <id> <version>`, separately `enable`, explicitly `invoke`, independent `approve-step`/`deny-step` while an exact native step review is pending, `status`, `cancel`, or `close`.
+Native Save still has two distinct confirmations. Only the six original read-only observations are admitted, without a model, implicit steps, scripts, external effects or partial success ([exact command grammar](../src/Kora.Application/Skills/ObservationWorkflowCommand.cs)).
 
 For a compatible single-file skill with no declared tools, select **Review selected instruction-only use**.
 Review its complete inert instructions, source and version, then separately choose **Enable exact reviewed revision**.

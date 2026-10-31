@@ -59,9 +59,11 @@ public sealed partial class SessionConversationService(
     public Task<ConversationSubmissionReceipt> SubmitAsync(SessionWorkspaceEntry target, string body,
         Func<bool> admitted, CancellationToken token, Func<CancellationToken, Task>? beforeRetain = null,
         IEnumerable<ActivityLink>? links = null, RequestOrigin origin = RequestOrigin.LocalUi,
-        ConversationQuestionPresenter? questionPresenter = null, Action? accepted = null) =>
-        questionPresenter is null
-            ? SubmitOrdinaryQueuedAndJoinAsync(target, body, admitted, beforeRetain, links, origin, token, accepted: accepted)
+        ConversationQuestionPresenter? questionPresenter = null, Action? accepted = null, TaskResponseOutputReview? taskOutput = null) =>
+        questionPresenter is not null && taskOutput is not null
+            ? throw new InvalidOperationException("One-task output review cannot replace a mandatory question route.")
+            : questionPresenter is null
+            ? SubmitOrdinaryQueuedAndJoinAsync(target, body, admitted, beforeRetain, links, origin, token, accepted: accepted, taskOutput: taskOutput)
             : SubmitQuestionAsync(target, body, admitted, beforeRetain, links, origin, questionPresenter, token);
 
     internal Task<ConversationSubmissionReceipt> SubmitOriginalLocalAsync(SessionWorkspaceEntry target, string body,
@@ -143,14 +145,22 @@ public sealed partial class SessionConversationService(
         if (beforeRetain is not null) { await beforeRetain(token).ConfigureAwait(false); }
         if (!Live()) { throw new InvalidOperationException("Submission admission changed during source validation."); }
         var request = new HostRequest(new(Guid.NewGuid()), actual.Authority.SessionId, new(Guid.NewGuid()), origin);
+        pending?.Output?.Bind(request);
         localRequestProfile?.Bind(request);
         var now = time.GetUtcNow();
         var context = createContext is null ? new ModelContextEnvelope(request, Policy, body, [], now,
             copilot || claude ? now.Add(HostedTurnAuthorization.MaximumDuration) : now.AddSeconds(15),
             claude ? ModelToolMode.None : ModelToolMode.ReadOnly)
             : createContext(request, now);
+        if (pending?.Output is not null)
+        {
+            pending.OutputCreatedAt = context.CreatedAt;
+            pending.OutputExpiresAt = context.ExpiresAt;
+            pending.OutputControlRevision = revision;
+        }
         context.RequireCompleteInputLimit();
         using var activity = HostActivity.BeginRoot(request, HostActivityLayer.Application, HostOperation.Request, links);
+        if (pending?.Output is not null) { pending.Cause = new(activity.Activity!.Context); }
         try
         {
             // Body + original task intent + requested audit have one physical commit. Saved drafts stay independent data.

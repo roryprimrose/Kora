@@ -358,7 +358,8 @@ public sealed partial class ModelTurnHostTests
                 if (!eligible()) { throw new InvalidOperationException("Host closed"); }
                 if (!string.Equals(Current?.Revision, expected?.Revision, StringComparison.Ordinal)) { return new(false, false, true, Current); }
                 Writes++;
-                Current = expected! with { Document = replacement! };
+                Current = expected is null ? new(name, new string('a', 48), new string('c', 48), replacement!)
+                    : expected with { Document = replacement! };
                 return new(true, false, false, Current);
             });
     }

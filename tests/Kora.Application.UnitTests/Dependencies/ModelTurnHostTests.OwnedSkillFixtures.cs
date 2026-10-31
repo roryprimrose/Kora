@@ -38,6 +38,7 @@ public sealed partial class ModelTurnHostTests
         f.Result.Assertions.Select(assertion => assertion.Passed).Should().Equal(true, false);
         f.Result.Passed.Should().BeFalse();
         f.Result.Preview.Should().BeSameAs(f.Preview);
+        f.Preview!.IsCurrent().Should().BeFalse("a completed example cannot retain review authority");
         f.Model.Model.Adapter.Wire.Should().Equal(Encoding.UTF8.GetBytes(f.Preview!.Context));
         using var wire = JsonDocument.Parse(f.Model.Model.Adapter.Wire!);
         wire.RootElement.GetProperty("UserRequest").GetString().Should().Be(f.Example.Input);
@@ -46,6 +47,11 @@ public sealed partial class ModelTurnHostTests
         wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
         wire.RootElement.GetProperty("ToolMode").GetInt32().Should().Be((int)ModelToolMode.None);
         wire.RootElement.GetProperty("SystemPolicy").GetString().Should().Contain("SIMULATED");
+        foreach (var evidence in wire.RootElement.GetProperty("Evidence").EnumerateArray())
+        {
+            var request = evidence.GetProperty("Request");
+            request.GetProperty("Origin").GetInt32().Should().Be((int)origin);
+        }
         f.AssertNoEffects();
         f.Model.Model.Messages.Should().NotContain(message => message.Contains(output, StringComparison.Ordinal)
             || message.Contains(f.Example.Input, StringComparison.Ordinal));
@@ -96,6 +102,7 @@ public sealed partial class ModelTurnHostTests
     [Theory]
     [InlineData("tool")]
     [InlineData("parameters")]
+    [InlineData("workflow")]
     [InlineData("source-missing")]
     [InlineData("source-replaced")]
     [InlineData("target")]
@@ -110,6 +117,8 @@ public sealed partial class ModelTurnHostTests
             "tool" => OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", "GUIDANCE", OwnedSkillToolSelection.WebPageGet),
             "parameters" => OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", "${input:topic}",
                 guidanceFormat: OwnedSkillGuidanceFormat.RequiredLiteralInputs),
+            "workflow" => OwnedDeclarativeSkillDocument.CreateObservationWorkflow("example", "2.0.0", "Example", "Description",
+                "{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}"),
             "complete-input" => OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", new string('x', 32768)),
             _ => f.Draft,
         };
@@ -123,6 +132,84 @@ public sealed partial class ModelTurnHostTests
             review: (_, _) => throw new InvalidOperationException("Review is forbidden"))).Should().ThrowAsync<Exception>();
         f.Model.Model.Adapter.Calls.Should().Be(0);
         f.Result.Should().BeNull();
+        f.AssertNoEffects();
+    }
+
+    [Theory]
+    [InlineData("reject")]
+    [InlineData("pass")]
+    [InlineData("source")]
+    public async Task SimulatedFixtureTerminalRetiresExactReviewEvenWhenSourceAndEligibilityRecover(string terminal)
+    {
+        await using var f = new SkillSimulationFixture(source: true);
+        var run = () => f.Run(review: (_, _) =>
+        {
+            if (terminal is "source") { f.Store.Source = null; }
+            return Task.FromResult(terminal is not "reject");
+        });
+        if (terminal is "source") { await run.Should().ThrowAsync<InvalidOperationException>(); }
+        else { (await run()).Should().Be(terminal is "pass"); }
+        f.Store.Source = f.Source;
+        f.Eligible().Should().BeTrue();
+        f.Authority.IsCurrent().Should().BeTrue();
+        f.Preview!.IsCurrent().Should().BeFalse("terminal retirement cannot be renewed by restored source bytes");
+        f.Model.Model.Adapter.Calls.Should().Be(terminal is "pass" ? 1 : 0);
+        if (terminal is not "pass") { f.Result.Should().BeNull(); }
+        f.AssertNoEffects();
+    }
+
+    [Theory]
+    [InlineData("cancel")]
+    [InlineData("source")]
+    [InlineData("target")]
+    public async Task SimulatedFixtureJoinsReviewedSourceReadBeforeRejectingCancellationOrReplacement(string change)
+    {
+        await using var f = new SkillSimulationFixture(source: true);
+        using var cancel = CancellationTokenSource.CreateLinkedTokenSource(Token);
+        var started = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        var running = f.Run(token: cancel.Token, review: (_, _) =>
+        {
+            f.Store.BeforeRead = () => { started.TrySetResult(); return release.Task; };
+            return Task.FromResult(true);
+        });
+        try
+        {
+            (await Task.WhenAny(started.Task, running)).Should().BeSameAs(started.Task);
+            await started.Task;
+            switch (change)
+            {
+                case "cancel": await cancel.CancelAsync(); break;
+                case "source": f.Store.Source = f.Source! with { InstructionsIdentity = "replaced" }; break;
+                case "target": f.Store.Target = new(f.Draft, "target", "manifest", "instructions"); break;
+            }
+            running.IsCompleted.Should().BeFalse("cancellation or replacement does not abandon the source reader");
+            f.Model.Model.Adapter.Calls.Should().Be(0);
+            f.Result.Should().BeNull();
+        }
+        finally { release.TrySetResult(); }
+        if (change is "cancel")
+        { await ((Func<Task>)(async () => await running)).Should().ThrowAsync<OperationCanceledException>(); }
+        else { await ((Func<Task>)(async () => await running)).Should().ThrowAsync<InvalidOperationException>(); }
+        f.Preview!.IsCurrent().Should().BeFalse();
+        f.Model.Model.Adapter.Calls.Should().Be(0);
+        f.Result.Should().BeNull();
+        f.AssertNoEffects();
+    }
+
+    [Fact]
+    public async Task SimulatedFixtureTreatsInputAndWorkflowLookingV1GuidanceAsLiteralEvidenceOnly()
+    {
+        await using var f = new SkillSimulationFixture();
+        const string guidance = "${input:topic}\n{\"steps\":[{\"tool\":\"application.get_version\",\"input\":{}}]}";
+        var draft = OwnedDeclarativeSkillDocument.Create("example", "2.0.0", "Example", "Description", guidance);
+        (await f.Run(draft: draft)).Should().BeTrue();
+        draft.InputTemplate.Should().BeNull();
+        draft.ObservationWorkflow.Should().BeNull();
+        using var wire = JsonDocument.Parse(f.Model.Model.Adapter.Wire!);
+        wire.RootElement.GetProperty("Evidence")[1].GetProperty("Content").GetString().Should().Be(guidance);
+        wire.RootElement.GetProperty("Tools").GetArrayLength().Should().Be(0);
+        f.Model.Model.Adapter.Calls.Should().Be(1);
         f.AssertNoEffects();
     }
 
@@ -271,7 +358,8 @@ public sealed partial class ModelTurnHostTests
         }
         internal Task<bool> Run(OwnedDeclarativeSkillDocument? draft = null,
             Func<OwnedSkillFixtureWorkflow.Preview, CancellationToken, Task<bool>>? review = null, CancellationToken? token = null) =>
-            Service.Run(draft ?? Draft, Source, Example, Authority, Eligible, review ?? ((_, _) => Task.FromResult(true)),
+            Service.Run(draft ?? Draft, Source, Example, Authority, Eligible,
+                (preview, admitted) => { Preview = preview; return review?.Invoke(preview, admitted) ?? Task.FromResult(true); },
                 (result, _) => { Result = result; return Task.CompletedTask; }, token ?? Token);
         internal void AssertNoEffects()
         {

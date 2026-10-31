@@ -27,6 +27,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
     [InlineData("unknown")]
     [InlineData("mocked-tool")]
     [InlineData("v2")]
+    [InlineData("v3")]
     [InlineData("unavailable")]
     [InlineData("review-edit")]
     [InlineData("other-cancel")]
@@ -93,6 +94,11 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             const string guidance = "  Complete e\u0301\U0001f642 guidance\r\nowned skill save; shell.run  ";
             owned.Guidance.Text = guidance;
             if (scenario is "v2") { await Run("owned skill tool web-page-get"); }
+            if (scenario is "v3")
+            {
+                owned.Guidance.Text += "${input:topic}";
+                await Run("owned skill inputs required-literal");
+            }
             var document = owned.Document();
             if (scenario is "saved")
             {
@@ -120,7 +126,7 @@ public sealed partial class OwnedSkillAuthoringNativeTests
             var late = scenario.StartsWith("late-", StringComparison.Ordinal) || scenario is "dispose";
             if (late) { adapter.Pending = new(TaskCreationOptions.RunContinuationsAsynchronously); }
             var testing = Run("owned skill test");
-            if (scenario is "unknown" or "mocked-tool" or "v2")
+            if (scenario is "unknown" or "mocked-tool" or "v2" or "v3")
             {
                 await testing;
                 next.Task.IsCompleted.Should().BeFalse();

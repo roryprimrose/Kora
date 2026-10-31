@@ -468,6 +468,37 @@ reviewed bodies, questions, approvals or assistant answers. Reading it does not
 save, submit, renew activity, log content or start any model/device/network work.
 Private presentation revocation removes the metrics along with private content.
 
+### Ordinary conversation dispatch hold
+
+In Sessions or the expanded conversation, select one Active conversation and
+choose **Refresh submitted work**, then **Pause ordinary dispatch**. You can do
+this while a turn is running or before the next request. A turn already
+dispatching or running continues; this is not Stop, suspension or cancellation.
+Pending requests remain in arrival order with their original expiry displayed.
+You may submit more ordinary requests under the same qualification and limits.
+The [host control](../src/Kora.Application/Hosting/SessionConversationService.Pending.cs)
+suppresses new start decisions until a deliberate release.
+
+Choose **Release manual dispatch hold** to remove only your manual hold.
+If failure, cancellation or uncertainty also held the lane, its separate
+**Resume held dispatch** remains necessary. Neither control grants action
+approval or clears source, privacy, permission, storage or expiry requirements.
+Original authorization deadlines keep running while held. Expired requests
+are denied, not renewed or replayed; submit and review a fresh request.
+Other conversations and unsent text are unaffected, Done is not resumed and
+pause/release does not renew session activity or change history/context.
+The manual holder is current-run only; restarting never restores permission or
+replays pending originals. Existing recovery remains unchanged.
+
+The equivalent command-box controls are `session dispatch status <session-id>`,
+`session dispatch pause <session-id>` and `session dispatch resume <session-id>`.
+For activated voice, prefix the exact command with the current assistant name.
+They target one existing Active conversation and use the same host operation,
+without a model. Current editor/dictation, question and approval handling keeps
+precedence. See the [command guide](commands.md#pause-one-ordinary-conversations-dispatch).
+This is not a global pause, scheduler, queue setting or reorder operation.
+Retired public diagnostic `queue pause`/`queue resume` remain unavailable.
+
 Submit also performs bounded **local best-effort credential-like checks**:
 private-key PEM blocks/candidates, Authorization Bearer/Basic values, explicit
 password/client_secret/api_key assignments, declared GitHub token shapes and

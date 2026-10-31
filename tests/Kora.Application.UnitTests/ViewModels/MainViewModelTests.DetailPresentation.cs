@@ -13,6 +13,61 @@ public sealed partial class MainViewModelTests
 {
     private const string DetailOfferAnswer = "Brief response:\nA bounded plan.\n\nDetailed response:\n# Exact plan\n\n```text\nretain every byte\n```";
 
+    [Theory]
+    [InlineData("native")]
+    [InlineData("typed")]
+    [InlineData("voice")]
+    public async Task DetailPresentationAndConversationExecutionKeepIndependentReviewsAndConfirmedWrites(string route)
+    {
+        await using var settings = new DetailPresentationConfigurationServiceTests.Fixture();
+        var f = new Fixture(enableConversationExecution: true, detailPresentationConfiguration: settings.Service);
+        using var main = f.ViewModel;
+        await main.InitializeAsync();
+        main.BindDetailPresentationNativeLifetime(static () => true);
+        var voiceConsent = main.HasVoiceConsent;
+        var epoch = settings.Service.CaptureOfferEpoch();
+        main.CanControlDetailPresentationNative.Should().BeTrue();
+        main.CanChangeConversationExecution.Should().BeTrue();
+        main.SelectedConversationExecutionLimit = main.ConversationExecutionLimits[0];
+        Task Run(string phrase, Func<Task> native) => route switch
+        {
+            "native" => native(),
+            "voice" => f.RaiseActivatedTranscriptAsync("Kora, " + phrase, 1),
+            _ => f.RunAsync(phrase)
+        };
+        await Run("stop asking about details", main.LinkOnlyDetailPresentationCommand.ExecuteAsync);
+        var detailReview = main.DetailPresentationReviewText;
+        await Run("review conversations.execution-maximum to 1", main.ReviewConversationExecutionCommand.ExecuteAsync);
+        main.DetailPresentationReviewText.Should().Be(detailReview);
+        settings.Preferences.Writes.Should().Be(0);
+        f.ConversationExecutionPreferences.Writes.Should().Be(0);
+        await Run("confirm conversations.execution-maximum", main.ConfirmConversationExecutionCommand.ExecuteAsync);
+        f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        settings.Preferences.Writes.Should().Be(0);
+        settings.Service.CaptureOfferEpoch().Should().Be(epoch);
+        main.DetailPresentationReviewText.Should().Be(detailReview);
+        await Run("confirm detail presentation change", main.ConfirmDetailPresentationCommand.ExecuteAsync);
+        settings.Preferences.Value.Should().Be(DetailPresentationMode.LinkOnly);
+        settings.Preferences.Writes.Should().Be(1);
+        settings.Service.IsOfferCurrent(epoch).Should().BeFalse();
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        await Run("review conversations.execution-maximum to 2", main.ReviewConversationExecutionCommand.ExecuteAsync);
+        await Run("reset responses.detail-presentation", main.ResetDetailPresentationCommand.ExecuteAsync);
+        await Run("confirm detail presentation change", main.ConfirmDetailPresentationCommand.ExecuteAsync);
+        settings.Preferences.Value.Should().Be(DetailPresentationMode.Offer);
+        settings.Preferences.Writes.Should().Be(2);
+        settings.Service.IsOfferCurrent(epoch).Should().BeFalse("reset must not revive the earlier epoch");
+        main.CanConfirmConversationExecution.Should().BeTrue();
+        await Run("cancel conversations.execution-maximum", main.CancelConversationExecutionCommand.ExecuteAsync);
+        main.CanConfirmConversationExecution.Should().BeFalse();
+        f.ConversationExecutionPreferences.Value!.Value.Should().Be(1);
+        f.ConversationExecutionPreferences.Writes.Should().Be(1);
+        f.Reasoner.Requests.Should().BeEmpty();
+        f.TextToSpeech.SpeakCalls.Should().Be(0);
+        main.HasVoiceConsent.Should().Be(voiceConsent);
+    }
+
     [Fact]
     public async Task DetailPresentationUncomposedAndCorruptControlsRemainExplicitlyUnavailable()
     {

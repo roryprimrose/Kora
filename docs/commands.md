@@ -18,6 +18,16 @@ model-dependent operation.
 Full identifiers are needed only where the exact command syntax asks for them;
 use native lists or readable-name routes elsewhere.
 
+## Review one spoken command before dispatch
+
+In the response window, choose **Review one spoken command**, speak one general command using the current assistant name, then choose **Finish capture**. The microphone closes before the exact final transcript appears. Correct the text if needed, then separately choose **Dispatch this exact voice command once**, or **Cancel reviewed command**. Editing never runs the command ([capture and review](../src/Kora.Application/Voice/ReviewedVoiceCommandCapture.cs)).
+
+This one-shot action does not change ordinary push-to-talk or any listening preference. It requires existing voice consent, local command readiness and unchanged private ownership. Capture and review expire after 60 seconds; changing the original target, input, device, call or private context discards the candidate instead of sending it elsewhere. Hiding, deactivating or closing the window cancels it ([host admission](../src/Kora.Application/ViewModels/MainViewModel.ReviewedVoiceCommand.cs), [window lifetime](../src/Kora/ResponseWindow.ReviewedVoiceCommand.cs)).
+
+The corrected command still originates from **voice**, even though you edited it and clicked dispatch. Normal call restrictions, authentication, operation approval and hosted-transmission consent still apply. Transcript acceptance is not approval of the command's action, microphone consent or egress. Oversized, malformed or credential-like text is rejected, never truncated ([normal command admission](../src/Kora.Application/ViewModels/MainViewModel.cs), [text bounds](../src/Kora.Core/Conversation/ConversationText.cs)).
+
+This is not session-message or owned-editor body dictation, and cannot take over a pending question, approval or another dictation owner. The unconfirmed candidate stays in volatile memory only; cancellation does not submit it. No speech profile is enabled and no model rewrites the transcript ([speech-input contract](../Design/Speech_Input.md#one-explicitly-reviewed-activated-command)).
+
 ## Manage customizations
 
 `show customizations`, `show skills`, `show instructions`, `show agents`,
@@ -53,6 +63,26 @@ existing conversation holds still need fresh Resume. This grants no authority
 over future requests. A changed review needs fresh confirmation, and an unavailable
 native owner reports unavailable. Model suggestions and reusable model grants
 cannot authorize this action. `stop` and `stop speaking` keep their prior meanings.
+
+## Ask what remains in one conversation
+
+Select one conversation in Sessions or the compact conversation view, then choose **What work remains?** The button completes a factual host answer without opening All Work, submitting a message or stopping execution ([native action](../src/Kora/SessionsViewModel.RemainingWork.cs)).
+
+In the global command box, use `session remaining "<exact readable name>"` or `what work remains in "<exact readable name>"`.
+Activated voice requires the current assistant-name prefix, for example `Kora, what work remains in "Build"`.
+`what do you have left to do in "Build"` is equivalent; quotes delimit the exact case-sensitive name and an embedded quote is doubled ([grammar](../src/Kora.Core/Commands/SessionCommand.RemainingWork.cs)).
+
+Duplicate names produce up to eight numbered, host-bound choices. Use `session remaining choose 2` or `session remaining cancel` on the original channel within 60 seconds.
+If the rows cannot be distinguished, cancel and choose the exact native conversation. Nothing uses focus or recent activity to pick a target.
+The technical exact-ID route is `session remaining <session-id>` ([resolution](../src/Kora.Application/Hosting/SessionRemainingWorkCommandService.cs)).
+
+The answer separates the durable ledger's source time from the ordinary lane's observation time.
+It reports the actual host step when available, submitted FIFO positions, separate manual/recovery/application hold facts, original expiries, pending-question kinds and unresolved Unknown/Interrupted records, with explicit omissions.
+It excludes message/question bodies, unsent input and other conversations. No worker is not proof of completion; this is not an atomic global inventory, future-step plan, percentage, ETA or effect claim ([answer projection](../src/Kora.Application/Hosting/SessionRemainingWorkAnswer.cs)).
+
+Done conversations are inspected without Resume. Changed or unavailable sources require a fresh request, not an empty/all-complete answer or automatic retry.
+A question, approval, editor, dictation or protected-call/private/channel restriction can refuse or retire the answer.
+The complete timed answer remains visual; a bounded factual spoken summary follows normal speech policy. The existing untargeted `status` and `what do you have left to do` commands remain setup status, not this conversation answer ([query](../src/Kora.Application/Hosting/SessionConversationService.RemainingWork.cs), [presentation admission](../src/Kora.Application/ViewModels/MainViewModel.RemainingWork.cs)).
 
 ## Pause one ordinary conversation's dispatch
 
@@ -540,7 +570,7 @@ Native **Sessions > Quiet routine notices for this run** affects Work/Maintenanc
 Status separates hidden/omitted counts from `RoutineSuppressedNoReplay` sources; suppressed sources are not Presented and consume no fatigue budget. Clear authorizes future new notices, not a backlog.
 
 Failures, Attention, mandatory output, required questions/approvals and authoritative work/status/citations/recovery remain unchanged. There is no quiet typed/voice grammar or model tool in this bounded increment.
-The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, proactive speech and multi-session reminders remain unavailable.
+The exact event commands below still share their existing broker; routine defer cannot revive quiet-suppressed sources. Scheduled quiet hours, multi-session reminders and proactive speech beyond [separately consented conversation completion](conversation-notices.md#optional-completion-voice-notices-for-this-run) remain unavailable.
 
 An already-open **Sessions** selected work surface shows bounded trusted
 local-version queue/question observations and already-verified maintenance

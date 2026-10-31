@@ -254,10 +254,11 @@ Source/snapshot/selection lifetime revalidation and bounded working-area/DPI geo
 Explicit reselect/Return to primary retains every current host/privacy/call/request/generation gate and never clears unconfirmed preferences or restores retired text. A successfully retained caption can move without changing its original completion deadline or pin semantics.
 Required response/question/recovery panels remain independent. No new installed/native, multimonitor or acoustic acceptance is inferred.
 
-Sentence alignment is still open because actual playback exposes only utterance
-segment 0, without admitted sentence boundaries. No synthesis/playback change,
-estimated timing, detector, call-feedback change, model egress or rich renderer
-is introduced. Existing bounded ordinary-speech caps remain intact; a brief
+The [SAPI source-range sentence timeline](Information_Display.md#optional-speech-text)
+is implemented, but [production profile admission remains closed](../src/Kora.Windows/Audio/WindowsTextToSpeechService.SentenceAlignment.cs#L28).
+This is not all-engine word alignment or hardware qualification. No estimated
+timing, detector, call-feedback change, model egress or rich renderer is introduced.
+Existing bounded ordinary-speech caps remain intact; a brief
 spoken offer for an over-limit detailed answer is separate work. Maintained
 tests use fake playback/time and private preference fixtures, with source-tested
 native bindings; they do not qualify installed accessibility, live audio/calls

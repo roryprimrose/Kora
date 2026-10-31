@@ -1107,6 +1107,15 @@ preference availability refreshes on busy completion and host/decision
 dependency changes without reopening Settings ([publication owner](../src/Kora/SessionsViewModel.DetailOffers.cs),
 [eligibility](../src/Kora.Application/ViewModels/MainViewModel.DetailPresentation.cs)).
 
+Detail presentation and the future ordinary-conversation execution maximum
+retain independent reviews and separately confirmed writes when composed
+together. Changing concurrency neither changes the detail preference nor
+renews a retired offer epoch; changing or resetting detail presentation does
+not change execution demand or dispatch work. Open native detail controls
+still recover after a busy readiness refresh without reopening Settings
+([coexistence regressions](../tests/Kora.Application.UnitTests/ViewModels/MainViewModelTests.DetailPresentation.cs),
+[native regression](../tests/Kora.Windows.IntegrationTests/DetailPresentationSettingsTests.cs)).
+
 Deterministic regressions cover reviewed persistence/readback, original channel and late admission, current-response routing, compact/expanded conversation controls and duplicate event/join/foreground delivery. Release analyzers and complete four-module 100% portable line/branch coverage remain required delivery gates. This does not qualify a provider/native profile, complete the three-way design or admit automatic detail questions ([workflow regressions](../tests/Kora.Application.UnitTests/Configuration/DetailPresentationConfigurationServiceTests.cs), [native/session regressions](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.DetailOffers.cs)).
 
 ### Clipboard Copy

@@ -28,8 +28,12 @@ public sealed class DetailPresentationSettingsTests
             await using var admission = new AudioControlAdmission(f.Interactions, f.Interactions, new(f.Tasks));
             var preferences = new Preferences();
             var configuration = new DetailPresentationConfigurationService(preferences, admission, f.Audit, TimeProvider.System);
+            var executionPreferences = new LocalConversationExecutionPreferences(f);
+            var execution = new ConversationExecutionConfigurationService(executionPreferences, admission, f.Audit);
+            execution.Observe();
             var probe = new DetailReadinessProbe();
-            await f.InitializeAsync(null, modelProbe: probe, detailPresentationConfiguration: configuration);
+            await f.InitializeAsync(null, modelProbe: probe, detailPresentationConfiguration: configuration,
+                conversationExecution: execution);
             using var controller = new SettingsWindowController(f.Main, NullLogger<SettingsWindowController>.Instance);
             controller.Navigate(SettingsSection.Responses, static () => true);
             var window = (SettingsWindow)typeof(SettingsWindowController).GetField("window", BindingFlags.NonPublic | BindingFlags.Instance)!.GetValue(controller)!;
@@ -55,10 +59,19 @@ public sealed class DetailPresentationSettingsTests
             window.IsVisible.Should().BeTrue();
             controls.Should().OnlyContain(button => button.IsEnabled, "the final busy=false must refresh the already-open native bindings");
             await f.Main.LinkOnlyDetailPresentationCommand.ExecuteAsync();
+            var detailReview = f.Main.DetailPresentationReviewText;
+            f.Main.SelectedConversationExecutionLimit = f.Main.ConversationExecutionLimits[0];
+            await f.Main.ReviewConversationExecutionCommand.ExecuteAsync();
             preferences.Writes.Should().Be(0);
+            executionPreferences.Load().Should().BeNull();
+            await f.Main.ConfirmConversationExecutionCommand.ExecuteAsync();
+            executionPreferences.Load()!.Value.Should().Be(1);
+            preferences.Writes.Should().Be(0);
+            f.Main.DetailPresentationReviewText.Should().Be(detailReview);
             await f.Main.ConfirmDetailPresentationCommand.ExecuteAsync();
             preferences.Load().Should().Be(DetailPresentationMode.LinkOnly);
             preferences.Writes.Should().Be(1);
+            executionPreferences.Load()!.Value.Should().Be(1);
             f.Main.HasVoiceConsent.Should().BeFalse();
             window.Close();
         });

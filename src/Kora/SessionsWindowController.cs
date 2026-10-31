@@ -501,6 +501,8 @@ internal sealed partial class SessionsWindowController(
             };
         }
         BindAdditionalRegisteredSettingSuggestions(model, main);
+        model.RemainingWorkAnswer = main.AnswerRemainingWorkAsync;
+        model.RemainingWorkAdmission = () => main.CanAnswerRemainingWork;
         presentation = new(model, main);
         model.OpenSessionInstructionScopes = () =>
         {

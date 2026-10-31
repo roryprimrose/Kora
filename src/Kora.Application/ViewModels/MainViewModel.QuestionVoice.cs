@@ -63,7 +63,7 @@ public sealed partial class MainViewModel
     private QuestionVoiceAdmission? ObserveAdmittedVoiceCaptureReadiness()
     {
         var privacy = privacyObservation.Current;
-        return composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
+        return IsReviewedVoiceCaptureReleased && composerDictation?.IsActive != true && IsVoiceEnabled && IsHostInputEligible && voiceOwnershipEligible()
             && microphoneCatalogCurrent && catalogPrivacyRevision == privacy.TopologyRevision
             && IsVoiceReadinessEligible(privacy)
             && communicationPolicy.Current.EffectiveState is CallState.Unavailable or CallState.Clear or CallState.Active or CallState.Suspected
@@ -84,6 +84,7 @@ public sealed partial class MainViewModel
 
     private void OnComposerQuestionChanging(Kora.Core.Interaction.HostQuestionKey? key)
     {
+        RetireReviewedVoiceCommand();
         Interlocked.Increment(ref completionPromptRevision);
         completionNotices?.Revalidate();
         RetirePromptInputVoice();

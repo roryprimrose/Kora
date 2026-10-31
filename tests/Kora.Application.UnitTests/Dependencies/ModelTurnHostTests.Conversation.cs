@@ -295,7 +295,14 @@ public sealed partial class ModelTurnHostTests
         public ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionAsync(HostRequest request,
             ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted, CancellationToken token)
         {
+            lock (pendingRecordGate) { return CompleteConversationSubmissionCore(request, outcome, reason, admitted); }
+        }
+
+        private ValueTask<ConversationSubmissionReceipt> CompleteConversationSubmissionCore(HostRequest request,
+            ModelTurnOutcome outcome, ModelTurnReason reason, Func<bool> admitted)
+        {
             SelectPendingRecord(request);
+            BeforePendingTerminal?.Invoke(request, admitted);
             Retained = Retained! with { Revision = 2, Outcome = outcome, Reason = reason };
             Task = Task! with { Task = Task.Task.Next(Retained.ExpectedTaskState) };
             RememberPendingRecord();

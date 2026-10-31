@@ -11,7 +11,7 @@ using Kora.Core.Storage;
 namespace Kora.Application.Hosting;
 
 /// <summary>Bounded original-source review and one-shot confirmation for the canonical retained-submit action.</summary>
-public sealed class SessionRequestCommandService(
+public sealed partial class SessionRequestCommandService(
     SessionWorkspaceService workspace, SessionConversationService conversation,
     ISessionWorkspaceAccess access, TimeProvider time)
 {
@@ -25,12 +25,16 @@ public sealed class SessionRequestCommandService(
     public void Retire()
     {
         lock (gate) { pending = null; epoch++; }
+        RetirePendingClear();
     }
 
     public async Task<SessionCommandResult> ExecuteAsync(SessionCommand command, RequestOrigin origin,
         Func<bool> admitted, CancellationToken token, ForegroundConversationTarget? foregroundTarget = null)
     {
         SessionConversationService.RequireOriginalSource(origin);
+        if (command.IsPendingClear)
+        { return await ExecutePendingClearAsync(command, origin, admitted, token).ConfigureAwait(false); }
+        RetirePendingClear();
         if (command.IsConversationDispatch)
         { return await ExecuteDispatchAsync(command, origin, admitted, token).ConfigureAwait(false); }
         ActivityLink[] sourceLinks = HostActivity.Current?.Activity is { } source ? [new(source.Context)] : [];

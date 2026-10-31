@@ -277,10 +277,13 @@ public sealed partial class SessionConversationService(
             }
             var terminalToken = prepareContext is not null && result.Outcome == ModelTurnOutcome.Cancelled
                 ? CancellationToken.None : token;
-            receipt = await conversations.CompleteConversationSubmissionAsync(request, result.Outcome,
-                result.Reason, Live, terminalToken).ConfigureAwait(false);
+            bool TerminalLive() => Live() && (pending?.PendingCancellationCurrent?.Invoke() ?? true);
+            receipt = pending?.PendingCancellationTarget is { } cancellationTarget
+                ? await conversations.CancelPendingConversationSubmissionAsync(request, cancellationTarget, TerminalLive, terminalToken).ConfigureAwait(false)
+                : await conversations.CompleteConversationSubmissionAsync(request, result.Outcome,
+                    result.Reason, TerminalLive, terminalToken).ConfigureAwait(false);
             terminalCommitted?.Invoke();
-            await RequireSubmissionReadbackAsync(receipt, actual, request, body, Live, beforeRetain, terminalToken).ConfigureAwait(false);
+            await RequireSubmissionReadbackAsync(receipt, actual, request, body, TerminalLive, beforeRetain, terminalToken).ConfigureAwait(false);
             if (receipt.Message.Outcome != result.Outcome || receipt.Message.Reason != result.Reason)
             { throw new IOException("Submission completion is unconfirmed; inspect exact retained content and task without retry."); }
             activity.Complete(result.Outcome == ModelTurnOutcome.Cancelled ? HostOperationOutcome.Cancelled

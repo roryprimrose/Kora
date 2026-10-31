@@ -441,6 +441,10 @@ and their positions (at most ten pending). Select one and deliberately choose
 provider dispatch. Its submitted history remains; running work and your next
 unsent input are unchanged. Both conversation windows use the same controls.
 
+**Clear queue - review all pending** reviews every current never-dispatched request in this one Active conversation. Inspect the complete body-free identities, positions, count, expiry and impact, then independently choose **Confirm clear pending only** or **Cancel pending-only review**. Review/cancel has no execution effects; separate confirmation retains original USER/task/audit history while running work continues ([native operation](../src/Kora/SessionsViewModel.PendingConversation.cs)).
+
+New arrivals, dispatch or changed source/authority require fresh review. Results enumerate actual per-entry known/unconfirmed outcomes and remaining host-lane work; an unknown receipt is not a durable all-clear or rollback. Existing dispatch holds remain independent. [Exact typed/activated review](commands.md#clear-one-ordinary-conversations-pending-work) uses the same cancellation owner; the displayed native confirmation can preserve the original voice source without a new capture.
+
 Next dispatch requires the previous request's successful confirmed completion
 and physical resource closure, then current original session/source/provider/
 privacy/expiry admission. Failure, cancellation or uncertainty holds automatic

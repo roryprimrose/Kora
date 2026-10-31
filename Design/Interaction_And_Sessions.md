@@ -116,6 +116,8 @@ unqualified providers retain their existing unavailable/review fences.
 Acceptance is not execution success, action approval, renewed source consent or
 foreground voice targeting. Unsent input remains memory-only and separate.
 
+The distinct [ordinary pending-only clear](Work_Management.md#clear-ordinary-pending-work-only) reviews the complete current set in one explicit Active conversation and separately confirms cancellation through the same workers and canonical ledger. It preserves running work and other conversations; source/lane changes require fresh review and partial/unconfirmed receipts remain explicit. It does not expose the retired public diagnostic queue commands.
+
 Explicit Claude streaming remains outside the ordinary submitted-turn queue:
 neither route replaces an active turn owned by the other. Refusal retains no
 new input and does not change pending order or renew provider/egress authority.

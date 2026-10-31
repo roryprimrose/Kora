@@ -1557,6 +1557,8 @@ and the [staged roadmap](Implementation_Roadmap.md#r02-windows-containment-follo
 
 ## Retention Defaults
 
+Exact-answer review acknowledgements are metadata owned by the retained conversation, not an independent retention domain or a read-receipt claim. Source deletion removes them; acknowledgement does not renew activity, deadlines, grants, model/source consent or execution authority. Details still needs fresh canonical native admission; unknown or malformed acknowledgement state fails unavailable ([contract and storage](Interaction_And_Sessions.md#explicit-retained-answer-review-acknowledgement)).
+
 | Data | Default |
 |---|---|
 | Ambient wake audio | Memory-only rolling buffer of at most 2 seconds; overwritten continuously and cleared when listening stops |

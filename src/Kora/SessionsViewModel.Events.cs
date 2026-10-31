@@ -138,6 +138,7 @@ internal sealed partial class SessionsViewModel
         eventFilterEpoch++;
         OnPropertyChanged(nameof(SelectedLocalEvent));
         OnPropertyChanged(nameof(CanControlLocalEvent));
+        OnPropertyChanged(nameof(CanReadExactNoticeResult));
     }
 
     private async Task RefreshLocalEventsAsync(HostId<SessionIdentity> session, long epoch)
@@ -277,6 +278,7 @@ internal sealed partial class SessionsViewModel
             OnPropertyChanged(nameof(LocalEventFilterStatus));
             OnPropertyChanged(nameof(CanFilterLocalEvents));
             OnPropertyChanged(nameof(CanControlLocalEvent));
+            OnPropertyChanged(nameof(CanReadExactNoticeResult));
             OnPropertyChanged(nameof(RoutineQuietStatus));
             OnPropertyChanged(nameof(CanChangeRoutineQuiet));
             OnPropertyChanged(nameof(CompletionNoticeDisclosure));

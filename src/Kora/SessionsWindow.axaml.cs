@@ -199,6 +199,18 @@ internal sealed partial class SessionsWindow : Window
             model.SelectLocalEvent(EventRecords.SelectedItem as Kora.Core.Interaction.LocalEventView);
         ClearLocalEventFilters.Click += (_, _) => model.ClearLocalEventFilters();
         ReviewLocalEvent.Click += async (_, _) => await model.ReviewLocalEventAsync();
+        ReadExactNoticeResult.Click += async (_, _) =>
+        {
+            var origin = model.SelectedLocalEvent;
+            await (ConversationOperation = model.ReadExactNoticeResultAsync(() =>
+            {
+                if (!IsVisible || origin is null || model.SelectedLocalEvent != origin
+                    || !Equals(EventRecords.SelectedItem, origin)) { return false; }
+                Activate();
+                ReadExactNoticeResult.BringIntoView();
+                return model.SelectedLocalEvent == origin && ReadExactNoticeResult.Focus();
+            }));
+        };
         DismissLocalEvent.Click += async (_, _) => await model.DismissLocalEventAsync();
         DeferLocalEvent.Click += async (_, _) => await model.DeferLocalEventAsync();
         QuietRoutineNotices.Click += async (_, _) => await model.QuietRoutineNoticesAsync();

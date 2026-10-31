@@ -588,6 +588,8 @@
           <WrapPanel>
             <Button x:Name="ReviewLocalEvent" Content="Review exact event" IsEnabled="{Binding CanControlLocalEvent}"
                     AutomationProperties.Name="Review only the selected exact event ID and revision; does not answer or retarget any question" />
+            <Button x:Name="ReadExactNoticeResult" Content="Read exact result" IsEnabled="{Binding CanReadExactNoticeResult}"
+                    AutomationProperties.Name="Read this terminal conversation notice's exact retained assistant answer in Details; no continuation, speech or newer-answer substitution" />
             <Button x:Name="DismissLocalEvent" Content="Dismiss exact event" IsEnabled="{Binding CanControlLocalEvent}"
                     AutomationProperties.Name="Dismiss only the selected exact event revision; no task cancellation or maintenance action" />
             <Button x:Name="DeferLocalEvent" Content="Defer exact event 15 minutes" IsEnabled="{Binding CanControlLocalEvent}"

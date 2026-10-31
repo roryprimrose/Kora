@@ -88,7 +88,7 @@ This feature does not enable ambient name listening, capture during speech playb
 ## Independent ordinary conversations
 
 In Settings, **Independent ordinary conversations** lets you select a desired future maximum of **1** or **2** (default **2**), choose **Review maximum**, inspect the current/proposed values and shared device-local scope, then **Confirm maximum** or **Cancel review**.
-Refresh is in the card's cog menu. Reviewing or saving starts no work and cancels no work ([shared preference workflow](../src/Kora.Application/Configuration/ConversationExecutionConfigurationService.cs)).
+Refresh is in the card's top-right cog menu, named **Ordinary conversation execution maximum actions** for accessibility. Its **Refresh ordinary conversation execution maximum** action keeps the same private-host admission as Review; an unavailable preference leaves the controls disabled. Opening the menu changes no preference. Reviewing or saving starts no work and cancels no work ([shared preference workflow](../src/Kora.Application/Configuration/ConversationExecutionConfigurationService.cs)).
 
 Equivalent original typed or activated commands are `get conversations.execution-maximum`, `review conversations.execution-maximum to 1` (or `2`), `confirm conversations.execution-maximum`, and `cancel conversations.execution-maximum`.
 Confirmation must use the original review's channel and current private host admission; call restrictions still apply. Assistant answers cannot confirm this preference ([command route](../src/Kora.Application/ViewModels/MainViewModel.ConversationExecution.cs)).

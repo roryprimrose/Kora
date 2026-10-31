@@ -113,6 +113,147 @@ public sealed class NativeFixturePhaseTimingTests
     }
 
     [Fact]
+    public async Task ReportFailureDuringDisposalPreservesOriginalCallbackFailureAndPhysicalCleanup()
+    {
+        await HeadlessSession.RunAsync(async () =>
+        {
+            var parent = Path.GetFullPath(Path.Combine(AppContext.BaseDirectory, "..", "..", "..", "..", "..", ".net-test-artifacts"));
+            Directory.CreateDirectory(parent);
+            var original = new IOException("Synthetic original callback failure");
+            var publication = new IOException("Synthetic disposal report failure");
+            string? root = null;
+            var timing = new NativeFixturePhaseTimings("disposal-execution", new PhaseClock(), json =>
+            {
+                using var report = JsonDocument.Parse(json);
+                if (report.RootElement.GetProperty("PhaseStates").EnumerateArray()
+                    .Any(state => string.Equals(state.GetProperty("Phase").GetString(), "disposal", StringComparison.Ordinal)))
+                {
+                    throw publication;
+                }
+            });
+            var thrown = await Record.ExceptionAsync(() => timing.RunAsync<bool>(() =>
+            {
+                using var fixture = new NativeUxFixtureSession(parent);
+                root = fixture.LocalRoot;
+                throw original;
+            }));
+            Directory.Exists(root).Should().BeFalse();
+            var aggregate = thrown.Should().BeOfType<AggregateException>().Subject;
+            aggregate.InnerExceptions.Should().Equal(original, publication);
+        });
+    }
+
+    [Fact]
+    public async Task ConcurrentOperationAndReportFailuresAreBothSurfacedAfterJoin()
+    {
+        var original = new OperationCanceledException("Synthetic original cancellation");
+        var publication = new IOException("Synthetic report failure");
+        var timing = new NativeFixturePhaseTimings("failed-execution", new PhaseClock(), _ => throw publication);
+        var joined = false;
+        var thrown = await Record.ExceptionAsync(() => timing.RunAsync<bool>(async () =>
+        {
+            try
+            {
+                await Task.Yield();
+                throw original;
+            }
+            finally { joined = true; }
+        }));
+        joined.Should().BeTrue();
+        thrown.Should().BeOfType<AggregateException>().Subject.InnerExceptions.Should().Equal(original, publication);
+        NativeFixturePhaseTimings.Capture(TestContext.Current).Should().NotBeSameAs(timing);
+    }
+
+    [Fact]
+    public async Task LateCallbackDoesNotReuseAnEndedAmbientOperation()
+    {
+        var timing = new NativeFixturePhaseTimings("ended-execution", new PhaseClock(), _ => { });
+        var release = new TaskCompletionSource(TaskCreationOptions.RunContinuationsAsynchronously);
+        Task<NativeFixturePhaseTimings>? callback = null;
+        try
+        {
+            await timing.RunAsync(() =>
+            {
+                callback = Task.Run(async () =>
+                {
+                    await release.Task;
+                    return NativeFixturePhaseTimings.Capture(TestContext.Current);
+                }, TestContext.Current.CancellationToken);
+                return Task.FromResult(true);
+            });
+        }
+        finally { release.SetResult(); }
+        (await callback!).Should().BeSameAs(NativeFixturePhaseTimings.Capture(TestContext.Current));
+    }
+
+    [Fact]
+    public void NegativeTimestampOriginAndUtcOffsetPreserveOverlappingWallIntervals()
+    {
+        var clock = new PhaseClock { UtcNow = new(2026, 11, 1, 0, 0, 0, TimeSpan.FromHours(-7)) };
+        clock.Advance(-20);
+        var origin = clock.UtcNow;
+        var reports = new List<string>();
+        var timing = new NativeFixturePhaseTimings("offset-execution", clock, reports.Add);
+        using var first = new NativeFixturePhaseScope(NativeFixturePhase.Setup, timing.Observe);
+        clock.Advance(3);
+        using var second = new NativeFixturePhaseScope(NativeFixturePhase.Context, timing.Observe);
+        clock.UtcNow = clock.UtcNow.AddDays(2);
+        clock.Advance(5);
+        first.Complete();
+        first.Dispose();
+        using (var partial = JsonDocument.Parse(reports[^1]))
+        {
+            partial.RootElement.GetProperty("Timing").GetProperty("StepTimings").GetArrayLength().Should().Be(1);
+            partial.RootElement.GetProperty("PhaseStates")[1].GetProperty("Outcome").GetString().Should().Be("running");
+        }
+        clock.Advance(2);
+        second.Complete();
+        second.Dispose();
+        using var terminal = JsonDocument.Parse(reports[^1]);
+        var global = terminal.RootElement.GetProperty("Timing").GetProperty("GlobalTiming");
+        global.GetProperty("StartTime").GetDateTimeOffset().Should().Be(origin);
+        global.GetProperty("EndTime").GetDateTimeOffset().Should().Be(origin.AddMilliseconds(10));
+        global.GetProperty("Duration").GetString().Should().Be("00:00:00.0100000");
+        var steps = terminal.RootElement.GetProperty("Timing").GetProperty("StepTimings");
+        steps[0].GetProperty("Timing").GetProperty("Duration").GetString().Should().Be("00:00:00.0080000");
+        steps[1].GetProperty("Timing").GetProperty("StartTime").GetDateTimeOffset().Should().Be(origin.AddMilliseconds(3));
+        steps[1].GetProperty("Timing").GetProperty("Duration").GetString().Should().Be("00:00:00.0070000");
+    }
+
+    [Fact]
+    public async Task NestedOperationFailuresRestoreTheOuterOwnerWithoutDuplicatingPublicationFailure()
+    {
+        var original = new IOException("Synthetic nested callback failure");
+        var publication = new IOException("Synthetic nested report failure");
+        var owner = new NativeFixturePhaseTimings("nested-execution", new PhaseClock(), _ => throw publication);
+        var thrown = await Record.ExceptionAsync(() => owner.RunAsync(() => owner.RunAsync<bool>(async () =>
+        {
+            await Task.Yield();
+            NativeFixturePhaseTimings.Capture(TestContext.Current).Should().BeSameAs(owner);
+            throw original;
+        })));
+        thrown.Should().BeOfType<AggregateException>().Subject.InnerExceptions.Should().Equal(original, publication);
+        NativeFixturePhaseTimings.Capture(TestContext.Current).Should().NotBeSameAs(owner);
+
+        var outer = new NativeFixturePhaseTimings("outer-execution", new PhaseClock(), _ => { });
+        var inner = new NativeFixturePhaseTimings("inner-execution", new PhaseClock(), _ => { });
+        await outer.RunAsync(async () =>
+        {
+            NativeFixturePhaseTimings.Capture(TestContext.Current).Should().BeSameAs(outer);
+            var innerFailure = await Record.ExceptionAsync(() => inner.RunAsync<bool>(async () =>
+            {
+                await Task.Yield();
+                NativeFixturePhaseTimings.Capture(TestContext.Current).Should().BeSameAs(inner);
+                throw original;
+            }));
+            innerFailure.Should().BeSameAs(original);
+            NativeFixturePhaseTimings.Capture(TestContext.Current).Should().BeSameAs(outer);
+            return true;
+        });
+        NativeFixturePhaseTimings.Capture(TestContext.Current).Should().NotBeSameAs(outer).And.NotBeSameAs(inner);
+    }
+
+    [Fact]
     public async Task PublicationFailureIsNotReinterpretedAsSuccessfulOperation()
     {
         var failure = new IOException("Synthetic report delivery failure");

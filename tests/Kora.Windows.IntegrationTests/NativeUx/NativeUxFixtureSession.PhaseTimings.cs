@@ -17,5 +17,5 @@ internal sealed partial class NativeUxFixtureSession
         (phaseTimings ?? throw new InvalidOperationException("Native phase evidence has no test owner.")).Observe(phase, outcome);
 
     partial void VerifyPhaseEvidence() =>
-        (phaseTimings ?? throw new InvalidOperationException("Native phase evidence has no test owner.")).ThrowIfPublicationFailed();
+        (phaseTimings ?? throw new InvalidOperationException("Native phase evidence has no test owner.")).VerifyAfterFixtureCleanup();
 }

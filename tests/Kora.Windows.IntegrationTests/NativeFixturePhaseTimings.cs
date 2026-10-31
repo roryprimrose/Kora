@@ -16,7 +16,7 @@ namespace Kora.Windows.IntegrationTests
     internal sealed class NativeFixturePhaseTimings
     {
         internal const string AttachmentName = "native-fixture-phases.json";
-        private static readonly AsyncLocal<NativeFixturePhaseTimings?> CurrentOwner = new();
+        private static readonly AsyncLocal<OwnerOperation?> CurrentOwner = new();
         private readonly Lock gate = new();
         private readonly TimeProvider clock;
         private readonly DateTimeOffset origin;
@@ -38,7 +38,7 @@ namespace Kora.Windows.IntegrationTests
 
         internal static NativeFixturePhaseTimings Capture(ITestContext context)
         {
-            if (CurrentOwner.Value is { } current) { return current; }
+            if (CurrentOwner.Value is { IsActive: true } current) { return current.Owner; }
             var test = context.Test ?? throw new InvalidOperationException("Native phase evidence requires the original running test.");
             var key = "Kora.NativeFixturePhaseTimings." + test.UniqueID;
             lock (context.KeyValueStorage)
@@ -58,18 +58,37 @@ namespace Kora.Windows.IntegrationTests
         internal async Task<T> RunAsync<T>(Func<Task<T>> action)
         {
             var previous = CurrentOwner.Value;
-            CurrentOwner.Value = this;
+            var operation = new OwnerOperation(this);
+            CurrentOwner.Value = operation;
             try
             {
                 T result;
-                using (var phase = new NativeFixturePhaseScope(NativeFixturePhase.NativeUi, Observe))
+                try
                 {
+                    using var phase = new NativeFixturePhaseScope(NativeFixturePhase.NativeUi, Observe);
                     result = await phase.RunAsync(action);
+                }
+                catch (Exception exception)
+                {
+                    ExceptionDispatchInfo? failure;
+                    lock (gate) { failure = publicationFailure; }
+                    if (failure is not null && !ReferenceEquals(exception, failure.SourceException)
+                        && !(exception is AggregateException aggregate
+                            && aggregate.Flatten().InnerExceptions.Contains(failure.SourceException)))
+                    {
+                        throw new AggregateException("The native operation and phase evidence publication both failed.",
+                            exception, failure.SourceException);
+                    }
+                    throw;
                 }
                 ThrowIfPublicationFailed();
                 return result;
             }
-            finally { CurrentOwner.Value = previous; }
+            finally
+            {
+                operation.End();
+                CurrentOwner.Value = previous;
+            }
         }
 
         internal void Observe(NativeFixturePhaseScope phase, NativeFixturePhaseOutcome outcome)
@@ -114,6 +133,15 @@ namespace Kora.Windows.IntegrationTests
             lock (gate) { publicationFailure?.Throw(); }
         }
 
+        internal void VerifyAfterFixtureCleanup()
+        {
+            // An active callback owns the outer exception/cleanup boundary, including using-statement unwind.
+            if (CurrentOwner.Value is not { IsActive: true } current || !ReferenceEquals(current.Owner, this))
+            {
+                ThrowIfPublicationFailed();
+            }
+        }
+
         private static string Name(NativeFixturePhase phase) => phase switch
         {
             NativeFixturePhase.OwnedStorage => "owned-storage",
@@ -147,5 +175,13 @@ namespace Kora.Windows.IntegrationTests
         internal sealed record PhaseReport(int Schema, string TestUniqueId,
             TimingProperty Timing, PhaseState[] PhaseStates);
         internal sealed record PhaseState(string Id, string Phase, string Outcome);
+
+        private sealed class OwnerOperation(NativeFixturePhaseTimings owner)
+        {
+            private int active = 1;
+            internal NativeFixturePhaseTimings Owner { get; } = owner;
+            internal bool IsActive => Volatile.Read(ref active) != 0;
+            internal void End() => Interlocked.Exchange(ref active, 0);
+        }
     }
 }

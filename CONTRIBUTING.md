@@ -195,7 +195,13 @@ clock anchored once to UTC, independent of product clocks and deadline modes.
 No exception text, display-name arguments, filenames, content, scope or audit
 payload is collected. Report-delivery failure is rethrown after the owning
 operation's cleanup boundary, failing the test rather than skipping physical
-joins or pretending evidence was retained.
+joins or pretending evidence was retained. During a dispatched callback,
+fixture verification defers to that callback's exception boundary so disposal
+cannot replace an original failure. Concurrent operation and report-delivery
+failures surface together as an `AggregateException`, preserving both original
+exceptions without adding their payloads to the attachment. Ambient capture is
+valid only while its owning callback is active; inherited late callbacks cannot
+reuse an ended ambient operation.
 
 The ordinary Windows shard artifacts retain these test attachments alongside
 TRX and console output. A killed host may never publish a terminal test report

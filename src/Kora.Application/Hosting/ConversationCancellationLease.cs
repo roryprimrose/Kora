@@ -17,6 +17,7 @@ internal sealed class ConversationCancellationLease(
     private ModelTurnOutcome? outcome;
     private HostTaskState? taskState;
     private ConversationExecutionProgress progress = new(ConversationExecutionStep.GeneratingAnswer, 0, 0);
+    private ConversationResourceStatus? resources;
     private bool accepted;
     private Task signal = Task.CompletedTask;
     private readonly TaskCompletionSource<ConversationExecutionStatus> physicalCompletion =
@@ -50,9 +51,15 @@ internal sealed class ConversationCancellationLease(
             lock (gate)
             {
                 return new(currentTarget, phase, outcome, taskState,
-                    phase == ConversationExecutionPhase.Running ? progress : null);
+                    phase == ConversationExecutionPhase.Running ? progress : null, resources);
             }
         }
+    }
+
+    internal void PresentResources(ConversationResourceStatus observation)
+    {
+        lock (gate) { resources = observation; }
+        publish(Status);
     }
 
     internal void PresentExecutionStep(ConversationExecutionStep step)

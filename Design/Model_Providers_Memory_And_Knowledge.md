@@ -483,6 +483,20 @@ Session-only. No automatic recall, provider learning, Project/Source scope
 or hosted disclosure is enabled. Historical session-only availability notes
 below describe the earlier increments, not this explicit profile route.
 
+### Explicit selected Session-to-profile copy
+
+An original user can select and inspect ONE current enabled, admitted Session memory, choose **Keep for later sessions in this device profile**, inspect its full current value/class/source and independent lifetimes, choose a fresh classification, then propose a NEW unadmitted DeviceProfile candidate.
+Separate acceptance and admission use the [existing profile admission owner](../src/Kora.Application/Memory/DeviceProfile/MemoryManagementService.SessionCopy.cs) and canonical store; the [complete native journey](../docs/profile-memory.md#keep-one-reviewed-session-memory-for-later-sessions) includes reopening and inspecting the distinct record, not only preparing a copy button.
+
+The [content-free copy lineage](../src/Kora.Core/Memory/MemorySessionCopySource.cs) records exact source identity/revision/session/generation, never copied authority. Live original input, current private owner/control/profile/session and expiry are checked across review; the [destination transaction](../src/Kora.Windows/Storage/WindowsSqliteHostInteractionStore.Memory.cs) compares the exact enabled source inside the same authoritative mutation.
+Source edits, disablement, forgetting, deletion or replacement retire pending copy authority. The new value remains volatile until fresh separate review/admission; ordinary profile CRUD cannot admit an unvalidated copied candidate.
+
+After independent admission, the source reference is provenance only. Original Session content, receipt, grants and lifetime remain unchanged; Session deletion does not delete the new profile memory. Existing global byte/count/identity bounds and no-eviction rules apply. Cancellation and uncertain storage/audit/readback remain held, not inferred rollback.
+No automatic promotion, model recall/read, hosted disclosure, new scope, bulk transfer or generic import journal is added. Native original-user copy controls do not add a spoken/model promotion route. Later explicit one-shot local use remains the existing independent operation.
+
+[Native journey and revocation tests](../tests/Kora.Windows.IntegrationTests/SessionsConversationTests.SessionMemoryCopy.cs), [canonical storage tests](../tests/Kora.Windows.IntegrationTests/MemoryProfile/WindowsSqliteMemoryTests.SessionCopy.cs) and [application boundary tests](../tests/Kora.Application.UnitTests/Memory/DeviceProfile/MemoryAdmissionServiceTests.SessionCopy.cs) cover fresh classification/review, original preservation, restart, source races, independent deletion, capacity and failed outcomes.
+These deterministic checks do not qualify or enable any provider, physical voice route or hosted memory disclosure.
+
 Durable user memory is optional application data, not hidden model learning.
 The model may propose a candidate memory, but only Kora can admit it.
 
